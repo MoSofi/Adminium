@@ -27,7 +27,7 @@ import {
   keptPaymentsRepo,
   payableProfilesRepo,
   type MetaDb,
-  type PayableMapping,
+  type ParsedPayableMapping,
   type PayableRef,
 } from '@adminium/meta';
 import { sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
@@ -80,7 +80,9 @@ export function pkOfRowKey(table: Pick<ResolvedTable, 'primaryKey' | 'columns'>,
 export function exactAmount(value: unknown, scale: number): string | null {
   const ratio = toRatio(value);
   if (ratio === null) return null;
-  const fine = ratioText(ratio, 6);
+  // Compared at 12 places: past any decimal column's scale (10.0000004 is not
+  // 10.00), short of a float's noise (a REAL column's 0.30000000000000004 is 0.30).
+  const fine = ratioText(ratio, 12);
   if (fine.startsWith('-')) return null;
   const at = ratioText(ratio, scale);
   return sameAmount(fine, at) ? at : null;
@@ -91,7 +93,7 @@ export function fromMinorUnits(value: unknown, scale: number): string | null {
   const ratio = toRatio(value);
   if (ratio === null) return null;
   const whole = ratioText(ratio, 0);
-  if (!/^\d+$/.test(whole) || !sameAmount(ratioText(ratio, 6), whole)) return null;
+  if (!/^\d+$/.test(whole) || !sameAmount(ratioText(ratio, 12), whole)) return null;
   const padded = whole.padStart(scale + 1, '0');
   return scale === 0 ? whole : `${padded.slice(0, -scale)}.${padded.slice(-scale)}`;
 }
@@ -124,6 +126,8 @@ export type RecordInto =
       link: string;
       linkValue: unknown;
       amount: string;
+      /** Whether the payments table counts whole units or the smallest unit. */
+      amountUnit: 'units' | 'minor';
       date: string | null;
       method: { column: string; values: Readonly<Record<string, string>> } | null;
       note: string | null;
@@ -160,7 +164,7 @@ export interface PayableSources {
   /** The invoice shape a table is built on, and its payments part, or null. */
   shapeOf(connectionId: string, tableName: string): Promise<{ version: number; paymentsTable: string | null } | null>;
   connectionCurrency(connectionId: string): Promise<string | null>;
-  profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: PayableMapping | null } | null>;
+  profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: ParsedPayableMapping | null } | null>;
   /** What Adminium keeps as paid on a payable, live payments only. */
   keptPaid(ref: PayableRef, currency: string): Promise<string>;
   /** A designer invoice's money, as stored. */
@@ -202,21 +206,25 @@ async function resolveShape(sources: PayableSources, ref: PayableRef, connection
   const scale = currencyScale(currency);
   const total = exactAmount(row['total'] ?? 0, scale);
   const due = exactAmount(row['balance'] ?? row['total'] ?? 0, scale);
-  const recordInto: RecordInto =
-    shape.paymentsTable === null
-      ? { kind: 'kept' }
-      : {
-          kind: 'table',
-          tableName: shape.paymentsTable,
-          link: 'document_id',
-          linkValue: pkValue(row),
-          amount: 'amount',
-          date: 'paid_on',
-          method: { column: 'method', values: SHAPE_METHODS },
-          note: 'method_note',
-          reference: 'payment_ref',
-          shapeColumns: true,
-        };
+  // A shape's payments always land in its own payments part, never in meta:
+  // its balance column is what counts them. A part this server cannot reach
+  // (missing, or a private table) makes the invoice unpayable online.
+  if (shape.paymentsTable === null) {
+    return { ...base, currency, total: '0', due: '0', refusal: refused('NOT_PAYABLE', "This invoice's payments table cannot be reached."), recordInto: { kind: 'kept' } };
+  }
+  const recordInto: RecordInto = {
+    kind: 'table',
+    tableName: shape.paymentsTable,
+    link: 'document_id',
+    linkValue: pkValue(row),
+    amount: 'amount',
+    amountUnit: 'units',
+    date: 'paid_on',
+    method: { column: 'method', values: SHAPE_METHODS },
+    note: 'method_note',
+    reference: 'payment_ref',
+    shapeColumns: true,
+  };
   if (total === null || due === null) {
     return { ...base, currency, total: '0', due: '0', refusal: refused('AMOUNT_UNCLEAR', `This invoice's amount is not exact in ${currency}.`), recordInto };
   }
@@ -289,6 +297,7 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
           link: mapping.payments.link,
           linkValue: found.table.primaryKey.length === 1 ? row[found.table.primaryKey[0]!] : null,
           amount: mapping.payments.amount,
+          amountUnit: mapping.payments.amountUnit,
           date: mapping.payments.date,
           method: mapping.payments.method,
           note: mapping.payments.note,
@@ -326,15 +335,19 @@ async function resolveDocument(sources: PayableSources, ref: PayableRef): Promis
   if (document.currency === null || !ISO.test(document.currency)) {
     return { ...base, currency: '', total: '0', due: '0', refusal: refused('NO_CURRENCY', 'Choose the invoice currency first.') };
   }
-  const scale = currencyScale(document.currency);
-  const total = fromMinorUnits(document.totalMinor, scale);
+  // The designer keeps every total in hundredths, whatever the currency; the
+  // amount must then be exact in the currency's own decimals (no yen cents).
+  const hundredths = fromMinorUnits(document.totalMinor, 2);
+  const total = hundredths === null ? null : exactAmount(hundredths, currencyScale(document.currency));
   if (total === null) {
     return { ...base, currency: document.currency, total: '0', due: '0', refusal: refused('AMOUNT_UNCLEAR', "This invoice's total is not clear.") };
   }
+  const scale = currencyScale(document.currency);
   const due = subtractAmounts(total, await sources.keptPaid(ref, document.currency), scale) ?? '0';
   let refusal: PayableRefusal | null = null;
   if (document.status === 'draft') refusal = refused('NOT_SENT', 'Send the invoice first. A payment can only be recorded against a sent invoice.');
-  else if (!positive(due)) refusal = refused('NOTHING_DUE', 'This invoice is paid.');
+  else if (document.status === 'paid' || !positive(due)) refusal = refused('NOTHING_DUE', 'This invoice is paid.');
+  else if (!['sent', 'overdue', 'live'].includes(document.status)) refusal = refused('NOT_PAYABLE', 'This invoice cannot be paid.');
   return { ...base, currency: document.currency, total, due, refusal };
 }
 
@@ -352,7 +365,9 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
 
   async function table(connectionId: string, tableName: string): Promise<{ table: ResolvedTable; target: WriteTarget } | null> {
     const view = await viewFor(connectionId);
-    if (view === null) return null;
+    // No view yet (the schema is being read again) is a moment, not a missing
+    // table: thrown, so the job tries again rather than calling the row gone.
+    if (view === null) throw new Error(`The schema of connection ${connectionId} is not ready.`);
     let resolved: ResolvedTable;
     try {
       resolved = view.table(tableName);

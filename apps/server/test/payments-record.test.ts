@@ -11,7 +11,10 @@ import { keptPaymentsRepo, payableProfilesRepo, paymentAttemptsRepo, type Payabl
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createPayableSources, resolvePayable, type PayableSources } from '../src/payments/payables.js';
-import { pickUpRecordings, recordAttempt, recordedByOf, type RecordDeps } from '../src/payments/record.js';
+import { localDate, pickUpRecordings, recordAttempt, recordedByOf, type RecordDeps } from '../src/payments/record.js';
+import { createWriteService } from '../src/crud/write-service.js';
+import { writeStores } from '../src/crud/write-stores.js';
+import { AppError } from '../src/errors.js';
 import { installInvoicing, invoicingManifest, invoicingTables, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 
 type Writer = Awaited<ReturnType<typeof writerFor>>;
@@ -119,11 +122,11 @@ describe.each(LEGS)('recording a payment — %s', (dialect, available) => {
   }
 
   /** An attempt the provider says succeeded, taking `taken` (default: what was asked). */
-  async function paidAttempt(payable: PayableRef, amount: string, over: { taken?: string; mode?: 'test' | 'live' } = {}) {
+  async function paidAttempt(payable: PayableRef, amount: string, over: { taken?: string; mode?: 'test' | 'live'; provider?: string } = {}) {
     n += 1;
     const attempts = paymentAttemptsRepo(h.meta);
     const attempt = await attempts.create({
-      provider: 'demo',
+      provider: over.provider ?? 'payments-stripe',
       mode: over.mode ?? 'live',
       accountId: 'demo_account',
       payable,
@@ -235,6 +238,29 @@ describe.each(LEGS)('recording a payment — %s', (dialect, available) => {
     expect(await keptPaymentsRepo(h.meta).byAttempt(attempt.id)).toMatchObject({ mode: 'test', amount: '15.00' });
   });
 
+  it.runIf(available)('keeps the demo service\'s payments in meta, even marked live', async () => {
+    const invoice = await sentInvoice('9.00');
+    const attempt = await paidAttempt(invoiceRef(invoice), '9.00', { provider: 'demo' });
+    expect(await recordAttempt(deps, attempt.id)).toMatchObject({ state: 'recorded' });
+    expect(await paymentsOf(invoice)).toHaveLength(0);
+    expect(await keptPaymentsRepo(h.meta).byAttempt(attempt.id)).toMatchObject({ amount: '9.00' });
+  });
+
+  it.runIf(available)('finishes as recorded when something fails after the row is saved', async () => {
+    const invoice = await sentInvoice('11.00');
+    const attempt = await paidAttempt(invoiceRef(invoice), '11.00');
+    const real = createWriteService(writeStores(h.meta));
+    const failing = {
+      ...real,
+      create: async (input: Parameters<typeof real.create>[0]) => {
+        await real.create(input);
+        throw new AppError(409, 'HOOK_SAID_NO', 'An after hook failed.');
+      },
+    };
+    expect(await recordAttempt({ ...deps, writes: failing as typeof real }, attempt.id)).toMatchObject({ state: 'recorded', already: true });
+    expect(await paymentsOf(invoice)).toHaveLength(1);
+  });
+
   it.runIf(available)('keeps a deposit\'s payment itself, and sets the deposit paid when nothing is due', async () => {
     const deposit = await w.create('deposits', { label: 'D-7', amount: '45.50', currency: 'EUR' });
     const ref: PayableRef = { kind: 'profile', connectionId: h.connectionId, tableName: depositsId, rowKey: String(deposit['id']) };
@@ -245,6 +271,14 @@ describe.each(LEGS)('recording a payment — %s', (dialect, available) => {
     expect(await keptPaymentsRepo(h.meta).forPayable(ref)).toHaveLength(1);
     expect(await resolvePayable(sources, ref)).toMatchObject({ due: '0.00', refusal: { code: 'NOTHING_DUE' } });
     expect((await h.rows(`select status from ${h.real('deposits')} where id = ${String(deposit['id'])}`))[0]!['status']).toBe('paid');
+  });
+
+  it('dates a payment on the shop\'s own calendar', () => {
+    const at = Date.UTC(2026, 9, 20, 12, 30);
+    expect(localDate(at, 'UTC')).toBe('2026-10-20');
+    expect(localDate(at, 'Pacific/Auckland')).toBe('2026-10-21');
+    expect(localDate(Date.UTC(2026, 9, 20, 1, 0), 'America/New_York')).toBe('2026-10-19');
+    expect(localDate(at, 'Not/AZone')).toBe('2026-10-20');
   });
 
   it.runIf(available)('picks up an attempt a dead job left behind', async () => {

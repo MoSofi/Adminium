@@ -5,7 +5,7 @@
  * need an ISO currency before they can be paid), and the money rules every
  * kind shares — exact at the currency's decimals or refused, never rounded.
  */
-import type { PayableMapping, PayableRef } from '@adminium/meta';
+import type { ParsedPayableMapping, PayableRef } from '@adminium/meta';
 import { describe, expect, it } from 'vitest';
 
 import { exactAmount, fromMinorUnits, pkOfRowKey, resolvePayable, rowKeyOf, type PayableSources } from '../src/payments/payables.js';
@@ -52,6 +52,11 @@ describe('a table built on the invoice shape', () => {
     expect(payable).toMatchObject({ manualOnly: true, refusal: { code: 'NEEDS_UPDATE' } });
   });
 
+  it('is not payable online when its payments part cannot be reached, and never falls back to keeping them', async () => {
+    const payable = await resolvePayable(sources({ rows: { '42': invoice() }, shape: { version: 2, paymentsTable: null } }), SHAPE);
+    expect(payable?.refusal?.code).toBe('NOT_PAYABLE');
+  });
+
   it('is nothing when the row or the shape is gone', async () => {
     expect(await resolvePayable(sources({ rows: {} }), SHAPE)).toBeNull();
     expect(await resolvePayable(sources({ rows: { '42': invoice() }, shape: null }), SHAPE)).toBeNull();
@@ -78,16 +83,27 @@ describe('an invoice made on the Invoices page', () => {
     expect(payable).toMatchObject({ label: 'INV-7', total: '120.00', due: '70.00', refusal: null, recordInto: { kind: 'kept' } });
   });
 
-  it('is refused as a draft or when paid', async () => {
+  it('reads its total in hundredths whatever the currency, exact in the currency\'s decimals', async () => {
+    const doc = (currency: string, totalMinor: number, status = 'sent') => sources({ document: async () => ({ status, number: 'INV-9', currency, totalMinor }) });
+    expect(await resolvePayable(doc('JPY', 100000), DOC)).toMatchObject({ total: '1000', due: '1000', refusal: null });
+    expect((await resolvePayable(doc('JPY', 100050), DOC))?.refusal?.code).toBe('AMOUNT_UNCLEAR');
+    expect(await resolvePayable(doc('KWD', 4525), DOC)).toMatchObject({ total: '45.250' });
+    expect((await resolvePayable(doc('EUR', 100, 'live'), DOC))?.refusal).toBeNull();
+    expect((await resolvePayable(doc('EUR', 100, 'overdue'), DOC))?.refusal).toBeNull();
+  });
+
+  it('is refused as a draft, when marked paid, or when paid in full', async () => {
     const draft = await resolvePayable(sources({ document: async () => ({ status: 'draft', number: 'INV-8', currency: 'EUR', totalMinor: 100 }) }), DOC);
     expect(draft?.refusal?.code).toBe('NOT_SENT');
-    const paid = await resolvePayable(sources({ document: async () => ({ status: 'sent', number: 'INV-8', currency: 'JPY', totalMinor: 500 }), keptPaid: async () => '500' }), DOC);
+    const marked = await resolvePayable(sources({ document: async () => ({ status: 'paid', number: 'INV-8', currency: 'EUR', totalMinor: 100 }) }), DOC);
+    expect(marked?.refusal?.code).toBe('NOTHING_DUE');
+    const paid = await resolvePayable(sources({ document: async () => ({ status: 'sent', number: 'INV-8', currency: 'JPY', totalMinor: 50000 }), keptPaid: async () => '500' }), DOC);
     expect(paid).toMatchObject({ total: '500', due: '0', refusal: { code: 'NOTHING_DUE' } });
   });
 });
 
 describe('a marked table', () => {
-  const mapping: PayableMapping = {
+  const mapping: ParsedPayableMapping = {
     label: 'order_no',
     amount: { column: 'total_cents', unit: 'minor' },
     currency: { fixed: 'EUR' },
@@ -128,6 +144,7 @@ describe('money from a stored value', () => {
     // A REAL column's 0.1 + 0.2: the float's noise lies past six places, so the amount is 0.30.
     [0.30000000000000004, 2, '0.30'],
     ['120.005', 2, null],
+    ['10.0000004', 2, null],
     ['-1', 2, null],
     [null, 2, null],
   ] as const)('%s at %i places → %s', (value, scale, expected) => {

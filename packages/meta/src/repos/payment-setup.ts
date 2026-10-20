@@ -168,6 +168,8 @@ export const ownPaymentsMappingSchema = z
     voided: column.nullable(),
     /** Unique for each payment: Adminium writes the attempt id here, so a payment is never written twice. */
     reference: column,
+    /** Whether `amount` holds whole units ("12.50") or the smallest unit (1250). */
+    amountUnit: z.enum(['units', 'minor']).default('units'),
   })
   .strict();
 
@@ -190,17 +192,25 @@ export const payableMappingSchema = z
     /** The only columns the pay page may show. */
     pageFields: z.array(column).max(50),
   })
-  .strict();
+  .strict()
+  // Payments written into the table's own payments table are not Adminium's to
+  // count: the due must come from a balance column the table keeps, or a paid
+  // record would read as still owed and be paid again.
+  .refine((mapping) => mapping.payments.kind === 'kept' || mapping.due !== null, {
+    message: 'a table that keeps its own payments names its balance column',
+    path: ['due'],
+  });
 
-export type PayableMapping = z.infer<typeof payableMappingSchema>;
-export type OwnPaymentsMapping = z.infer<typeof ownPaymentsMappingSchema>;
+export type PayableMapping = z.input<typeof payableMappingSchema>;
+export type ParsedPayableMapping = z.output<typeof payableMappingSchema>;
+export type OwnPaymentsMapping = z.output<typeof ownPaymentsMappingSchema>;
 
 export interface PayableProfile {
   id: string;
   connectionId: string;
   tableName: string;
   /** Null when the stored mapping no longer parses: the table is not payable until saved again. */
-  mapping: PayableMapping | null;
+  mapping: ParsedPayableMapping | null;
   ownerApp: string | null;
   enabled: boolean;
   createdBy: string | null;
@@ -451,33 +461,28 @@ export function paymentCountersRepo(meta: MetaDb) {
      */
     async hit(bucket: string, at: number = Date.now()): Promise<number> {
       const windowStart = Math.floor(at / COUNTER_WINDOW_MS) * COUNTER_WINDOW_MS;
-      for (let tries = 0; tries < 3; tries += 1) {
-        const current = await db
-          .selectFrom('adminium_payment_counters')
-          .select('hits')
-          .where('bucket', '=', bucket)
-          .where('windowStart', '=', windowStart)
-          .executeTakeFirst();
-        if (current === undefined) {
-          try {
-            await db.insertInto('adminium_payment_counters').values({ bucket, windowStart, hits: 1 }).execute();
-            return 1;
-          } catch (error) {
-            if (!isDuplicateKeyError(error)) throw error;
-            continue;
-          }
+      // One statement adds one, so a burst counts every hit; the value always
+      // changes, so MySQL reports the row as touched.
+      const bumped = await db
+        .updateTable('adminium_payment_counters')
+        .set((eb) => ({ hits: eb('hits', '+', 1) }))
+        .where('bucket', '=', bucket)
+        .where('windowStart', '=', windowStart)
+        .executeTakeFirst();
+      if (affected(bumped.numUpdatedRows) === 0) {
+        try {
+          await db.insertInto('adminium_payment_counters').values({ bucket, windowStart, hits: 1 }).execute();
+        } catch (error) {
+          if (!isDuplicateKeyError(error)) throw error;
+          await db
+            .updateTable('adminium_payment_counters')
+            .set((eb) => ({ hits: eb('hits', '+', 1) }))
+            .where('bucket', '=', bucket)
+            .where('windowStart', '=', windowStart)
+            .execute();
         }
-        const next = Number(current.hits) + 1;
-        const res = await db
-          .updateTable('adminium_payment_counters')
-          .set({ hits: next })
-          .where('bucket', '=', bucket)
-          .where('windowStart', '=', windowStart)
-          .where('hits', '=', Number(current.hits))
-          .executeTakeFirst();
-        if (affected(res.numUpdatedRows) === 1) return next;
       }
-      throw new Error(`The counter "${bucket}" kept changing under three tries.`);
+      return this.read(bucket, at);
     },
 
     /** The count in `bucket`'s current hour. */

@@ -108,6 +108,15 @@ for (const dialect of TEST_DIALECTS) {
         expect(await attempts.create(attempt(), T0 + 7)).not.toBeNull();
       });
 
+      it('records a success the provider reports after the attempt was marked expired', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const one = (await attempts.create(attempt(), T0))!;
+        await attempts.move(one.id, 'open', { providerRef: 'cs_late' }, T0 + 1);
+        await attempts.move(one.id, 'expired', {}, T0 + 2);
+        expect(await attempts.move(one.id, 'succeeded', { takenAmount: '120.00', takenCurrency: 'EUR' }, T0 + 3)).toBe(true);
+        expect(await attempts.move(one.id, 'recording', {}, T0 + 4)).toBe(true);
+      });
+
       it('moves only from the states its table allows', async () => {
         const attempts = paymentAttemptsRepo(meta());
         const one = (await attempts.create(attempt(), T0))!;
@@ -348,6 +357,9 @@ for (const dialect of TEST_DIALECTS) {
         const profile = await profiles.create({ connectionId: conn.id, tableName: 'public.catering_orders', mapping, ownerApp: null, createdBy: null }, T0);
         expect(profile?.mapping).toEqual(mapping);
         expect(await profiles.create({ connectionId: conn.id, tableName: 'public.catering_orders', mapping, ownerApp: null, createdBy: null })).toBeNull();
+        // Paid into the table's own payments, the due must come from the table's balance column.
+        const own = { ...mapping, due: null, payments: { kind: 'table' as const, table: 'public.payments', link: 'order_id', amount: 'amount', date: 'paid_on', method: { column: 'method', values: {} }, note: null, voided: null, reference: 'payment_ref' } };
+        await expect(profiles.create({ connectionId: conn.id, tableName: 'public.other', mapping: own as never, ownerApp: null, createdBy: null })).rejects.toThrow(/balance column/);
         expect((await profiles.byTable(conn.id, 'public.catering_orders'))?.id).toBe(profile!.id);
         await meta().db.updateTable('adminium_payable_profiles').set({ mapping: JSON.stringify({ amount: 3 }) }).where('id', '=', profile!.id).execute();
         expect((await profiles.byId(profile!.id))?.mapping).toBeNull();
@@ -378,12 +390,11 @@ for (const dialect of TEST_DIALECTS) {
         expect(await settings.get('page', z.object({ other: z.number() }))).toBeNull();
       });
 
-      it('counts hits per hour, every one of them under concurrency', async () => {
+      it('counts every hit per hour, under concurrency too', async () => {
         const counters = paymentCountersRepo(meta());
-        const hits = await Promise.all(Array.from({ length: 5 }, () => counters.hit('link:1', T0).catch(() => -1)));
-        expect(hits.filter((n) => n > 0).sort()).toEqual([...hits.filter((n) => n > 0)].sort());
-        const counted = await counters.read('link:1', T0);
-        expect(counted).toBe(hits.filter((n) => n > 0).length);
+        await Promise.all(Array.from({ length: 8 }, () => counters.hit('link:1', T0)));
+        expect(await counters.read('link:1', T0)).toBe(8);
+        expect(await counters.hit('link:1', T0 + 1)).toBe(9);
         expect(await counters.read('link:1', T0 + 3_600_000)).toBe(0);
         expect(await counters.gc(T0 + 30 * 3_600_000)).toBeGreaterThan(0);
       });

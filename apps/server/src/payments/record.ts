@@ -34,7 +34,8 @@
  * A test-mode success is kept in the meta store only, marked test: a test
  * card must never settle a real invoice.
  */
-import { compareAmounts, sameAmount } from '@adminium/add-on-contracts';
+import { compareAmounts, decimalToMinor, sameAmount } from '@adminium/add-on-contracts';
+import { currencyScale } from '@adminium/manifest';
 import { isDuplicateKeyError, keptPaymentsRepo, paymentAttemptsRepo, type AttemptProblem, type MetaDb, type PaymentAttempt } from '@adminium/meta';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -121,7 +122,10 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
     await attempts.move(attempt!.id, 'record_refused', { problem }, now());
     return { state: 'record_refused', problem };
   };
-  const finish = async (key: string, already: boolean): Promise<RecordOutcome> => {
+  const finish = async (key: string, already: boolean, payable: ResolvedPayable | null = null): Promise<RecordOutcome> => {
+    // The paid status first, so a crash or a failure here leaves the attempt
+    // `recording` and the next run (which finds the row) sets it again.
+    if (payable !== null) await setPaidStatus(deps, attempt!, payable);
     await attempts.move(attempt!.id, 'recorded', { recordedKey: key, recordedAt: now() }, now());
     return { state: 'recorded', key, already };
   };
@@ -130,8 +134,9 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   const takenCurrency = attempt.takenCurrency;
   if (taken === null || takenCurrency === null) return refuse({ code: 'NOT_TAKEN', message: 'The payment service did not say what it took.' });
 
-  // ── Test mode: kept in meta, marked test, never in a shop table. ──
-  if (attempt.mode === 'test') {
+  // ── Test mode (and the demo service, which is never live): kept in meta,
+  //    marked test, never in a shop table. Anything but a live attempt counts. ──
+  if (attempt.mode !== 'live' || attempt.provider === 'demo') {
     const kept = await keepPayment(deps, attempt, taken, takenCurrency, now());
     await deps.faults?.afterWrite?.();
     return finish(`kept:${kept.id}`, kept.already);
@@ -142,7 +147,7 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   // 2. Already written by a run that died before finishing?
   if (payable !== null) {
     const found = await existingRecord(deps, attempt, payable);
-    if (found !== null) return finish(found, true);
+    if (found !== null) return finish(found, true, payable);
   } else {
     const kept = await keptPaymentsRepo(deps.meta).byAttempt(attempt.id);
     if (kept !== null) return finish(`kept:${kept.id}`, true);
@@ -174,14 +179,14 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   } else {
     try {
       const written = await writePaymentRow(deps, attempt, payable, taken, takenCurrency, now());
-      if (written === 'refused') return refuse({ code: 'NOT_PAYABLE', message: 'The payments table is not there any more.' });
+      if (written === 'refused') return refuse({ code: 'NOT_PAYABLE', message: 'The payment cannot be written into its payments table.' });
       key = written;
     } catch (error) {
-      if (isUniqueViolation(error)) {
-        const found = await existingRecord(deps, attempt, payable);
-        if (found === null) throw error;
-        return finish(found, true);
-      }
+      // Whatever went wrong, a row carrying this attempt means the payment is
+      // written (a hook that failed after the save, a racing run): finish.
+      const found = await existingRecord(deps, attempt, payable).catch(() => null);
+      if (found !== null) return finish(found, true, payable);
+      if (isUniqueViolation(error)) throw error;
       const problem = refusalOf(error);
       if (problem === null) throw error;
       return refuse(problem);
@@ -190,11 +195,7 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   await deps.faults?.afterWrite?.();
 
   // 5. Finish.
-  const outcome = await finish(key, already);
-  await setPaidStatus(deps, attempt, payable).catch((error: unknown) => {
-    deps.log?.warn({ err: error, attempt: attempt!.id }, 'payment recorded; the paid status was not set');
-  });
-  return outcome;
+  return finish(key, already, payable);
 }
 
 /** Inserts the kept payment, or finds the one this attempt already made. */
@@ -259,8 +260,11 @@ async function writePaymentRow(
   if (found === null) return 'refused';
   const paidWith = attempt.paidWith as { method?: string; label?: string } | null;
   const method = paidWith?.method ?? 'online';
-  const values: Row = { [into.link]: into.linkValue, [into.amount]: taken, [into.reference]: attempt.id };
-  if (into.date !== null) values[into.date] = new Date(attempt.settledAt ?? at).toISOString().slice(0, 10);
+  const amount = into.amountUnit === 'minor' ? decimalToMinor(taken, currencyScale(currency)) : taken;
+  if (amount === null) return 'refused';
+  const values: Row = { [into.link]: into.linkValue, [into.amount]: amount, [into.reference]: attempt.id };
+  // The day the money arrived, on the shop's own calendar.
+  if (into.date !== null) values[into.date] = localDate(attempt.settledAt ?? at, found.target.timezone ?? 'UTC');
   if (into.method !== null) values[into.method.column] = into.method.values[method] ?? into.method.values['*'] ?? method;
   if (into.note !== null && paidWith?.label !== undefined) values[into.note] = paidWith.label;
   if (into.shapeColumns) {
@@ -301,8 +305,30 @@ async function writePaymentRow(
   return `row:${into.tableName}:${rowKeyOf(found.table, row)}`;
 }
 
-/** When the due reached zero and the profile names a status, set it — as a payment write. */
+/** `YYYY-MM-DD` of an instant in a time zone. */
+export function localDate(at: number, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(at));
+  } catch {
+    return new Date(at).toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * When the due reached zero and the profile names a status, set it — as a
+ * payment write. The table refusing the move (its rules say no) is logged and
+ * left: the payment stands. Anything else is thrown, so the job tries again.
+ */
 async function setPaidStatus(deps: RecordDeps, attempt: PaymentAttempt, before: ResolvedPayable): Promise<void> {
+  try {
+    await setPaidStatusOnce(deps, attempt, before);
+  } catch (error) {
+    if (refusalOf(error) === null) throw error;
+    deps.log?.warn({ attempt: attempt.id, code: (error as AppError).code }, 'payment recorded; its table refused the paid status');
+  }
+}
+
+async function setPaidStatusOnce(deps: RecordDeps, attempt: PaymentAttempt, before: ResolvedPayable): Promise<void> {
   if (before.status === null || attempt.payable.connectionId === null || attempt.payable.tableName === null) return;
   const after = await resolvePayable(deps.sources, attempt.payable);
   if (after === null || !sameAmount(after.due, '0')) return;

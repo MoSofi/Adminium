@@ -76,7 +76,9 @@ export const OPEN_ATTEMPT_STATES: readonly AttemptState[] = ['creating', 'open',
  *   `→ failed` when the provider refused to make the checkout;
  *   `→ abandoned` when it is old and has no ref (nobody holds its URL).
  * - `open | processing → succeeded | failed | expired | cancelled` as the
- *   provider's own status says (never a webhook body).
+ *   provider's own status says (never a webhook body); a success the
+ *   provider reports after Adminium marked it expired, cancelled or failed
+ *   still moves to `succeeded`, so taken money is never left unrecorded.
  * - `succeeded → recording` when the record job claims it; `recording →
  *   recorded | record_refused`.
  * - `record_refused → recorded` when a person records it elsewhere (Activity).
@@ -85,7 +87,9 @@ export const ATTEMPT_MOVES: Readonly<Record<AttemptState, readonly AttemptState[
   creating: [],
   open: ['creating'],
   processing: ['open'],
-  succeeded: ['open', 'processing'],
+  // The provider's own status is the truth: a checkout marked expired, cancelled or failed here
+  // may still have been paid there (an expiry that raced the customer), and that money is recorded.
+  succeeded: ['open', 'processing', 'expired', 'cancelled', 'failed'],
   failed: ['creating', 'open', 'processing'],
   expired: ['open', 'processing'],
   cancelled: ['open', 'processing'],
