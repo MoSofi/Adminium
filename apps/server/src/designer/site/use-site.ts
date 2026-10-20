@@ -45,6 +45,8 @@ import { fontPackage } from '../../project/apps/theme.js';
 const WRITTEN_FILE = '.written.json';
 /** Which spot each of the template's pictures became, by page, path and place on the page: a second call keeps the same spot, and what the person put in it. */
 const SPOTS_FILE = '.spots.json';
+/** In `.written.json`: the template the copy was made from. */
+const TEMPLATE_MARK = '.template';
 /** The pages a call converts at most: a template has a few dozen. */
 const PAGES_MAX = 60;
 const PICTURE_EXT = /\.(png|jpe?g|gif|webp)$/i;
@@ -323,6 +325,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       const writtenPath = join(src, SITE_DIR, WRITTEN_FILE);
       const written = readRecord(writtenPath);
       const changedByHand = Object.entries(written).filter(([path, hash]) => {
+        if (path === TEMPLATE_MARK) return false;
         const file = join(src, ...path.split('/'));
         return existsSync(file) && sha(readFileSync(file)) !== hash;
       }).map(([path]) => path);
@@ -493,9 +496,13 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
           put('index.css', `${index}\n`);
           hashes[`${SITE_DIR}/index.css`] = sha(`${index}\n`);
         }
-        // Whatever else the folder held (a file the person added, one an earlier call copied) stays as it is.
+        // Whatever else the folder held (a file the person added or changed, one an earlier call of this template copied)
+        // stays as it is. A file another template brought in, unchanged since, goes with that template.
+        const sameTemplate = written[TEMPLATE_MARK] === site.sha256;
         for (const path of filesUnder(join(src, SITE_DIR))) {
           if (copied.has(path) || BOOKKEEPING.has(path)) continue;
+          const ours = written[`${SITE_DIR}/${path}`];
+          if (!sameTemplate && ours !== undefined && !changedByHand.includes(`${SITE_DIR}/${path}`)) continue;
           put(path, readFileSync(join(src, SITE_DIR, ...path.split('/'))));
           const before = written[`${SITE_DIR}/${path}`];
           if (before !== undefined) hashes[`${SITE_DIR}/${path}`] = before;
@@ -512,6 +519,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
           hashes[page.file] = sha(page.out.tsx);
         }
         // What was written, with the copy itself: a crash leaves the old folder and its own record, or the new and its.
+        hashes[TEMPLATE_MARK] = site.sha256;
         put(WRITTEN_FILE, `${JSON.stringify(hashes, null, 2)}\n`);
         put(SPOTS_FILE, `${JSON.stringify(madeNow, null, 2)}\n`);
         // The template's own class names: styled or not, as the template had them (design-check asks nothing of them).

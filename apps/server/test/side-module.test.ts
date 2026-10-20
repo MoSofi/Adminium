@@ -1113,6 +1113,7 @@ describe('a picture in its spot', () => {
     team: { label: 'Team', shape: 'square', src: null, alt: '', decorative: false },
     plain: { label: 'Plain', shape: 'tall', src: '/a.jpg', alt: 'Words nobody hears', decorative: true },
     bad: { label: 'Bad', shape: 'wide', src: 'javascript:alert(1)', alt: '', decorative: false },
+    elsewhere: { label: 'Elsewhere', shape: 'wide', src: '//tracker.example/p.png', alt: '', decorative: false },
   };
 
   /** The module as a build with these spots made it; `preview` puts it in the Designer's frame. */
@@ -1165,6 +1166,8 @@ describe('a picture in its spot', () => {
     // An address that is not this server's or an https one is no picture.
     hooks.set = false;
     expect((side.Picture({ spot: 'bad' }) as unknown as Drawn).type).toBe('div');
+    // Nor is one that starts like this server's own path and names another site.
+    expect((side.Picture({ spot: 'elsewhere' }) as unknown as Drawn).type).toBe('div');
     // A spot the build does not know is a wireframe too, never an error on the page.
     hooks.set = false;
     expect((side.Picture({ spot: 'nowhere' }) as unknown as Drawn).props).toMatchObject({ 'data-picture-spot': 'nowhere', 'aria-hidden': 'true' });

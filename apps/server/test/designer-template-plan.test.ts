@@ -23,7 +23,10 @@ const CARD: TemplatePlanRequest & { id: string } = {
     { table: 'products', label: 'Products', columns: [{ column: 'name', label: 'name' }], shownOn: ['Home'], fromTemplate: 12, filler: 4, madeUp: 0, publicRead: ['id', 'name'] },
     { table: 'categories', label: 'Categories', columns: [{ column: 'name', label: 'name' }], shownOn: [], fromTemplate: 0, filler: 0, madeUp: 3, publicRead: ['name'] },
   ],
-  forms: [{ form: 'form-1', label: 'Contact', table: 'messages', tableLabel: 'Messages', writable: ['name', 'body'], perHour: 5 }],
+  forms: [
+    { form: 'form-1', label: 'Contact', table: 'messages', tableLabel: 'Messages', writable: ['name', 'body'], linesWritable: [], perHour: 5 },
+    { form: 'form-2', label: 'Checkout', table: 'orders', tableLabel: 'Orders', writable: ['email'], lines: 'order_lines', linesWritable: ['product', 'quantity'], perHour: null },
+  ],
   report: [
     { id: 'nav', label: 'Navigation', where: 'On every page', status: 'works', buildServerCode: false },
     { id: 'payments', label: 'Card payments', where: 'On the Order page', status: 'not-available', build: 'a payment link', buildServerCode: true, replace: 'pay on delivery', leave: 'the form comes off' },
@@ -85,8 +88,10 @@ describe('what an approved plan allows', () => {
       access: [
         { table: 'products', methods: ['GET'], select: ['id', 'name'] },
         { table: 'messages', methods: ['POST'], writable: ['name', 'body'], humanCheck: true },
+        { table: 'orders', methods: ['POST'], writable: ['email', 'order_lines.product', 'order_lines.quantity'], humanCheck: true },
+        { table: 'order_lines', methods: ['POST'], writable: ['product', 'quantity'], humanCheck: true },
       ],
-      roles: [{ role: 'staff', tables: ['products', 'messages'] }],
+      roles: [{ role: 'staff', tables: ['products', 'messages', 'orders'] }],
     });
   });
 });
@@ -134,6 +139,19 @@ describe('the check before going live, with an approved plan', () => {
   it('asks nothing for what the plan approved: its reads, its forms with their check, its role’s rights and pages', () => {
     const now = snap([{ table: 'products', methods: ['GET'], select: ['id', 'name'], writable: [] }, { table: 'messages', methods: ['POST'], select: [], writable: ['name', 'body'], humanCheck: true }], { staff: ['table:@products:read', 'table:@messages:read', 'page:@shop-products:view', 'limits:null'] });
     expect(outsideChanges(root, 'shop', withApproved(null, now, approved, new Map([['shop-products', 'products']])), now)).toEqual([]);
+  });
+
+  it('asks nothing for the order and its lines the plan approved, written as children', () => {
+    const now = snap([{ table: 'orders', methods: ['POST'], select: [], writable: ['email', 'order_lines.product', 'order_lines.quantity'], humanCheck: true }]);
+    expect(outsideChanges(root, 'shop', withApproved(null, now, approved), now)).toEqual([]);
+  });
+
+  it('asks when a role that was there before loosens its limits, plan or not; a role the plan makes comes with its own', () => {
+    const before = snap([], { staff: ['limits:{"products":["price"]}', 'table:@products:read'] });
+    const now = snap([], { staff: ['limits:null', 'table:@products:read'] });
+    expect(outsideChanges(root, 'shop', withApproved(before, now, approved), now).map((change) => change.view)).toEqual([{ kind: 'role', role: 'staff', isNew: false }]);
+    const fresh = snap([], { staff: ['limits:null', 'table:@products:read'] });
+    expect(outsideChanges(root, 'shop', withApproved(null, fresh, approved), fresh)).toEqual([]);
   });
 
   it('asks for a page of a table the plan did not name', () => {

@@ -84,8 +84,9 @@ export const planProposalSchema = z
             /** The table it writes to, and the columns a stranger writes. */
             table: ref,
             writable: z.array(ref).min(1).max(40),
-            /** An order: the table of its lines, written as its children. */
+            /** An order: the table of its lines, written as its children, and the lines' columns a stranger writes. */
             lines: ref.optional(),
+            linesWritable: z.array(ref).max(40).default([]),
             /** How many a stranger may send in an hour; null for the server's own limit. */
             perHour: z.number().int().min(1).max(1000).nullable().default(null),
           })
@@ -229,8 +230,10 @@ export function approvedOf(plan: Omit<TemplatePlanRequest, 'type'>, answer: Pick
     if (ticked.has(table.table) && table.publicRead.length > 0) access.push({ table: table.table, methods: ['GET'], select: [...table.publicRead] });
   }
   for (const form of plan.forms) {
-    access.push({ table: form.table, methods: ['POST'], writable: [...form.writable], humanCheck: true });
-    if (form.lines !== undefined) access.push({ table: form.lines, methods: ['POST'], humanCheck: true });
+    // An order's lines go with it as its children (`<lines>.<column>`), or by an entry of their own: both are the plan's.
+    const children = form.lines === undefined ? [] : form.linesWritable.map((column) => `${form.lines as string}.${column}`);
+    access.push({ table: form.table, methods: ['POST'], writable: [...form.writable, ...children], humanCheck: true });
+    if (form.lines !== undefined) access.push({ table: form.lines, methods: ['POST'], writable: [...form.linesWritable], humanCheck: true });
   }
   const own = new Set([...ticked, ...plan.forms.flatMap((form) => [form.table, ...(form.lines === undefined ? [] : [form.lines])])]);
   // A form's table is the plan's even when it is not in section 1 (messages, subscribers): its staff page reads what was sent.

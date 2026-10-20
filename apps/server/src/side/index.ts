@@ -1274,7 +1274,8 @@ function spotsFrom(raw: unknown): Record<string, PictureSpot> {
     const spot = record(value);
     const shape = spot['shape'] === 'wide' || spot['shape'] === 'tall' || spot['shape'] === 'square' ? spot['shape'] : null;
     if (!/^[a-z][a-z0-9-]{0,39}$/.test(id) || shape === null) continue;
-    const src = typeof spot['src'] === 'string' && (spot['src'].startsWith('/') || https(spot['src']) !== '') ? spot['src'] : null;
+    // This app's own path, or an https address: never `//host`, which is another site's.
+    const src = typeof spot['src'] === 'string' && ((spot['src'].startsWith('/') && !spot['src'].startsWith('//')) || https(spot['src']) !== '') ? spot['src'] : null;
     const credit = record(spot['credit']);
     out[id] = {
       label: plainLine(spot['label']) || id,

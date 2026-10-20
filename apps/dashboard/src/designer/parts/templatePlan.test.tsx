@@ -342,6 +342,13 @@ describe('what the plan approves, said before it is approved', () => {
     expect(forms.find((text) => text?.startsWith('Newsletter'))).not.toContain('email_address');
   });
 
+  it('says what each line of an order sends, with the order’s own fields', async () => {
+    draw({ card: { ...SHOWN, forms: [{ form: 'form-9', label: 'Checkout', table: 'shop_orders', tableLabel: 'Orders', writable: ['email'], lines: 'shop_lines', linesWritable: ['product', 'quantity'], perHour: null }] }, start: { sheet: true, sections: ['forms'] } });
+    const sheet = screen.getByRole('dialog');
+    const forms = within(sheet).getAllByRole('listitem').map((item) => item.textContent);
+    expect(forms.find((text) => text?.startsWith('Checkout'))).toContain("Visitors fill in: email, product, quantity");
+  });
+
   it('says who edits which tables in the dashboard, only of the tables the plan builds', async () => {
     draw({ card: SHOWN });
     const { user, sheet } = await openSheet();

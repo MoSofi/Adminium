@@ -655,7 +655,11 @@ function PlanSheet({
                       [
                         MARK,
                         <span dir="auto" className="text-fg">
-                          {commaList(form.writable.map((ref) => columnName(card.tables.find((table) => table.table === form.table), ref)))}
+                          {commaList([
+                            ...form.writable.map((ref) => columnName(card.tables.find((table) => table.table === form.table), ref)),
+                            // Each line of an order sends its own columns too.
+                            ...(form.linesWritable ?? []).map((ref) => columnName(card.tables.find((table) => table.table === form.lines), ref)),
+                          ])}
                         </span>,
                       ],
                     ])}

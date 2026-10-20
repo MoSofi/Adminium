@@ -257,13 +257,15 @@ export function withApproved(before: AppliedSnapshot | null, now: AppliedSnapsho
   const roles = { ...base.roles };
   for (const { role, tables } of approved.roles) {
     const planned = new Set(tables);
+    // A role the plan makes comes with its limits; one that was there keeps the limits it had unless the person is asked.
+    const isNew = base.roles[role] === undefined;
     const covered = (now.roles[role] ?? []).filter((grant) => {
       const table = /^table:@([a-z][a-z0-9_]*)(?::|$)/.exec(grant)?.[1];
       // A page grant is the page's: it is the plan's when the page shows one of the plan's tables.
       const page = /^page:@([a-z0-9-]+)(?::|$)/.exec(grant)?.[1];
       const pageTable = page === undefined ? undefined : pageTables.get(page);
-      // A role the plan names may get its plan tables' rights and pages; its limits are the role's own.
-      return (table !== undefined && planned.has(table)) || (pageTable !== undefined && planned.has(pageTable)) || grant.startsWith('limits:');
+      // A role the plan names may get its plan tables' rights and pages.
+      return (table !== undefined && planned.has(table)) || (pageTable !== undefined && planned.has(pageTable)) || (isNew && grant.startsWith('limits:'));
     });
     roles[role] = [...new Set([...(roles[role] ?? []), ...covered])].sort();
   }

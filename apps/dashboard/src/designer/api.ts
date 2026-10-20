@@ -288,7 +288,7 @@ export interface TemplatePlanView {
     addOn?: string;
     addOnInfo?: { key: string; name: string; installed: boolean };
   }[];
-  forms: { form: string; label: string; table: string; tableLabel: string; writable: string[]; lines?: string; perHour: number | null }[];
+  forms: { form: string; label: string; table: string; tableLabel: string; writable: string[]; lines?: string; linesWritable?: string[]; perHour: number | null }[];
   /** What the template shows: what works as it is, what an add-on does, what is not available and how it is handled. */
   report: { id: string; label: string; where: string; status: 'works' | 'add-on' | 'not-available'; addOn?: string; build?: string; buildServerCode: boolean; replace?: string; leave?: string }[];
   /** Links that lead nowhere. */

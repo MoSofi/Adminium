@@ -460,6 +460,19 @@ describe('what a second call never loses', () => {
     expect(done.content).toContain('site/index.css');
   });
 
+  it('drops what another template brought in, unchanged, when a new one comes; keeps what the person changed or added', async () => {
+    writeFileSync(side('site/notes.css'), '.added-by-me{}\n');
+    writeFileSync(side('site/images/bg.png'), png(10, 10, 'changed by me'));
+    const other = attachments.addSite(session.id, { label: 'corner-cafe', judged: await judgeSite('corner-cafe.zip', [at('index.html', `${HEAD('Cafe')}<body><h1>Cafe</h1></body></html>`), at('css/style.css', '.cafe{}')]) }).attachment.id;
+    make();
+    answers.push(approve());
+    await useSite({ attachment: other, plan: { report: [] } });
+    expect(existsSync(side('site/images/chair.png'))).toBe(false);
+    expect(readFileSync(side('site/css/style.css'), 'utf8')).toContain('.cafe');
+    expect(readFileSync(side('site/notes.css'), 'utf8')).toBe('.added-by-me{}\n');
+    expect(existsSync(side('site/images/bg.png'))).toBe(true);
+  });
+
   it('reads a bookkeeping file that does not hold what it should as none, and goes on', async () => {
     writeFileSync(side('site/.written.json'), 'null');
     writeFileSync(side('site/.spots.json'), '[1,2]');

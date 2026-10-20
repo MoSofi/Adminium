@@ -351,7 +351,7 @@ function writePlan(desk: Desk, site: { id: string; sha256: string }): void {
     plan: {
       site: { attachment: site.id, name: 'harbor', pages: 1, files: 2 },
       tables: [{ table: 'products', label: 'Products', columns: [{ column: 'name', label: 'Name' }], shownOn: ['Home'], fromTemplate: 3, filler: 0, madeUp: 0, publicRead: [] }],
-      forms: [{ form: 'contact', label: 'Contact form', table: 'messages', tableLabel: 'Messages', writable: ['name', 'email', 'body'], perHour: null }],
+      forms: [{ form: 'contact', label: 'Contact form', table: 'messages', tableLabel: 'Messages', writable: ['name', 'email', 'body'], linesWritable: [], perHour: null }],
       report: [],
       links: [],
       roles: [{ role: 'staff', tables: ['products'] }],
@@ -557,6 +557,7 @@ describe.each(META_ENGINES)('Check this before it goes live, on $name', (engine)
       expect(await handSave('Stuff')).toMatch(/^Not applied: the person did not allow this, and it is still in the app's files: strangers could add rows to messages\./);
       expect(await liveAccess(d)).toEqual([]);
       expect(applied(d).access).toEqual([]);
+
     });
 
     it('lists twelve changes and how many more, and “Do not allow” refuses every one of them', async () => {

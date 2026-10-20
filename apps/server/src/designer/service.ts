@@ -434,7 +434,7 @@ export function createDesigner(host: DesignerHost): Designer {
   /** Public access the last apply left as it was: the screens are refused what the manifest grants until it is settled. */
   const accessWarnings = new Map<string, string[]>();
 
-  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string } = {}): Promise<PipelineResult> {
+  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string; saved?: readonly string[] } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
     const key = session.appKey;
 
@@ -455,7 +455,7 @@ export function createDesigner(host: DesignerHost): Designer {
     }
     // In a session that holds words from outside: what strangers could now do, asked before it goes live. Outside a turn
     // (a restore, a hand save, a style or a picture applied) nothing can be asked, so it is refused until it is answered.
-    const outside = await outsideAllowed(session, handle, opts.askRemovals !== false);
+    const outside = await outsideAllowed(session, handle, opts.askRemovals !== false, opts.saved);
     if (outside !== null) {
       events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'access', message: outside });
       return { ok: false, version: null };
@@ -847,7 +847,7 @@ export function createDesigner(host: DesignerHost): Designer {
    * Outside a turn nothing can be asked, so a change not yet allowed keeps the app from being applied.
    * Null when nothing stands in the way; else what is to be taken out.
    */
-  async function outsideAllowed(session: DesignerSession, handle: TurnHandle, canAsk: boolean): Promise<string | null> {
+  async function outsideAllowed(session: DesignerSession, handle: TurnHandle, canAsk: boolean, saved: readonly string[] = []): Promise<string | null> {
     if (!holdsOutsideWords(session)) return null;
     const key = session.appKey;
     // What the person approved on the template's plan is not asked again: only what goes beyond it.
@@ -861,7 +861,11 @@ export function createDesigner(host: DesignerHost): Designer {
       outsideAnswers.set(session.id, held);
     }
     const answers = held?.answers ?? new Map<string, boolean>();
-    const unasked = changes.filter((change) => !answers.has(change.id));
+    // A screen the person saved by hand that calls an outside address is theirs: their own save is their yes. (access.json and
+    // roles.json are never saved by hand here: they need the Designer's card.)
+    const theirs = (id: string): boolean => id.startsWith('call:') && saved.some((path) => path === id.slice(5) || path.endsWith(`/${id.slice(5)}`));
+    const pending = changes.filter((change) => !(canAsk ? false : theirs(change.id)));
+    const unasked = pending.filter((change) => !answers.has(change.id));
     if (unasked.length > 0) {
       if (!canAsk) return `Not applied: the app would let strangers do more than the person allowed (${changeLines(unasked)}). Nothing of it is live: the Designer asks about it in its next turn.`;
       // One answer for all of them: the card lists twelve and says how many more.
@@ -869,7 +873,7 @@ export function createDesigner(host: DesignerHost): Designer {
       const yes = answer.type === 'access-change' && answer.accept;
       for (const change of unasked) answers.set(change.id, yes);
     }
-    const refused = changes.filter((change) => answers.get(change.id) === false);
+    const refused = pending.filter((change) => answers.get(change.id) === false);
     if (refused.length === 0) return null;
     return canAsk
       ? `The person did not allow this: ${changeLines(refused)}. Build without it (take it out of access.json, roles.json or the page's code), then apply_app again. Do not ask for it again in this turn.`
@@ -1184,7 +1188,7 @@ export function createDesigner(host: DesignerHost): Designer {
           const fonts = missingFonts(host.root, look, { ...places, key: session.appKey }).map((font) => font.family);
           handle.events.emit(session.turns, { kind: 'style', skill: look.skill, title: resolved.title, ...(fonts.length === 0 ? {} : { fonts }) });
         }
-        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: saveLabel(paths.map((path) => listed.get(path)?.label ?? path)) });
+        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, saved: paths, label: saveLabel(paths.map((path) => listed.get(path)?.label ?? path)) });
         const after = new Map((await editable(key)).map((file) => [file.path, file.hash]));
         const result: SaveResult = {
           applied: verdict.ok,
