@@ -38,6 +38,7 @@ import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, withSessionLock, type Attach
 import { FigmaError } from '../../designer/figma/client.js';
 import type { FigmaImports } from '../../designer/figma/imports.js';
 import type { FigmaReader } from '../../designer/figma/service.js';
+import { readPictureFile } from '../../designer/spots.js';
 import { plainWords } from '../../designer/untrusted.js';
 import { figmaFailure, importNames } from './figma.js';
 import { addDesignSkill, removeDesignSkill, SKILL_UPLOAD_MAX_BYTES, SkillUploadError } from '../../designer/skill-upload.js';
@@ -77,6 +78,11 @@ import {
   designerLookReply,
   designerPictureThumbParams,
   designerPicturePinBody,
+  designerPictureFileQuery,
+  designerPicturesApplyBody,
+  designerPicturesApplyReply,
+  designerPicturesReply,
+  designerPicturesUndoBody,
   designerPicturePinReply,
   designerPictureSearchQuery,
   designerPictureSearchReply,
@@ -472,6 +478,65 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           .header('content-disposition', 'inline')
           .send(thumb.bytes);
       },
+    );
+
+    // What the picture dialog draws: the app's spots, its tables' sample rows, the pictures already in it.
+    app.get(
+      '/designer/sessions/:id/pictures',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerPicturesReply } } },
+      async (request) => designer.picturesOf(request.params.id),
+    );
+
+    // A picture of the app's, for the dialog's own tiles: a spot's picture or a sample row's, and nothing else of the folder.
+    app.get(
+      '/designer/sessions/:id/pictures/file',
+      { preHandler: guard, config: { rateLimitBucket: 'designer-files' as const }, schema: { params: designerSessionParams, querystring: designerPictureFileQuery } },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        const path = request.query.path;
+        const under = path.startsWith('assets/pictures/') ? 'assets/pictures' : path.startsWith('seeds/pictures/') ? 'seeds/pictures' : null;
+        const picture = under === null ? null : readPictureFile(deps.root, session.appKey, path.slice(under.length + 1), under);
+        if (picture === null) throw new NotFoundError('There is no such picture in this app.');
+        return reply
+          .header('content-type', picture.mime)
+          .header('x-content-type-options', 'nosniff')
+          .header('content-security-policy', "default-src 'none'; sandbox")
+          .header('cache-control', 'private, max-age=60')
+          .header('content-disposition', 'inline')
+          .send(picture.bytes);
+      },
+    );
+
+    // Apply: the spots and sample rows filled, with no turn. Saved as a version, said in the chat.
+    app.post(
+      '/designer/sessions/:id/pictures/apply',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits an Apply itself, with what it changed and the version it saved') },
+        schema: { params: designerSessionParams, body: designerPicturesApplyBody, response: { 200: designerPicturesApplyReply } },
+      },
+      async (request) => {
+        const fills = request.body.fills.map((fill) => ({
+          ...(fill.spot === undefined ? {} : { spot: fill.spot }),
+          ...(fill.row === undefined ? {} : { row: fill.row }),
+          version: fill.version,
+          from: fill.from,
+          ...(fill.alt === undefined ? {} : { alt: fill.alt }),
+          ...(fill.decorative === undefined ? {} : { decorative: fill.decorative }),
+        }));
+        return designer.applyPictures(request.params.id, { id: request.body.id, fills }, actorOf(request));
+      },
+    );
+
+    // An Apply's Undo: back to the version before it.
+    app.post(
+      '/designer/sessions/:id/pictures/undo',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('going back is audited by the Designer as a version restored') },
+        schema: { params: designerSessionParams, body: designerPicturesUndoBody, response: { 200: designerRestoreReply } },
+      },
+      async (request) => designer.undoPictures(request.params.id, request.body, actorOf(request)),
     );
 
     // The picture dialog's search, one source at a time. Each source's allowance is this server's, kept by the search itself.

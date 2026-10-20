@@ -36,6 +36,9 @@ import { findProject } from '../project/locate.js';
 import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
 import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, searchText, withLineEnds, FILES_SAVED_MAX, SEARCH_FILE_HITS_MAX, SEARCH_HITS_MAX, type FileGroup, type SearchHit, type SearchOptions } from './files.js';
 import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
+import { APPLY_IDS_KEPT, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
+import type { PictureDialog } from './picture-dialog.js';
+import { UNSPLASH_HOST } from './pictures.js';
 import { SPOTS_FILE, spotsFileProblem } from './spots.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
@@ -86,6 +89,26 @@ export interface DesignerHost {
   findsPictures?: () => boolean;
   /** Take an app's sample rows out and add them again, as its files now have them (with pictures they did not have). */
   reseedSample?: (appKey: string) => Promise<void>;
+  /** The picture dialog's searches and picks. Absent where the Designer looks for no pictures. */
+  pictureDialog?: PictureDialog;
+}
+
+/** What the picture dialog draws: the app's spots and rows, where pictures may come from, and the mode. */
+export type PicturesView = ReturnType<typeof picturesState> & {
+  /** The sources this server can search, each with the minutes it is busy for. */
+  sources: { name: string; busy: number | null }[];
+  /** Whether a page may be let load pictures from Unsplash here: `closed` where the server cannot allow a site. */
+  unsplash: 'ok' | 'closed';
+  /** The session's version now: an Apply's Undo goes back from it. */
+  version: number | null;
+};
+
+export interface PicturesApplied {
+  results: FillResult[];
+  version: { n: number; name: string } | null;
+  applied: boolean;
+  /** The version before this Apply: Undo goes back to it. */
+  before: number | null;
 }
 
 export interface CreateSessionInput {
@@ -159,6 +182,16 @@ export interface Designer {
    * are stood in for by the system's until the next message, which asks for them.
    */
   setLook(sessionId: string, look: { skill: string; accent?: string | undefined }, by: Actor): Promise<{ look: PublicLook; version: { n: number; name: string } | null; applied: boolean }>;
+  /** What the picture dialog draws for a session's app: its spots, its tables' sample rows, the pictures already in it. */
+  picturesOf(sessionId: string): PicturesView;
+  /**
+   * Fill spots and sample rows from the picture dialog, with no turn. The pictures are fetched first, outside the
+   * hold; then each is checked against the version it was opened at, written whole, built, applied and saved as a
+   * version. A repeat of one Apply (the same `id`) gets the first one's answer.
+   */
+  applyPictures(sessionId: string, input: { id: string; fills: readonly Fill[] }, by: Actor): Promise<PicturesApplied>;
+  /** An Apply's Undo: back to the version before it, while the app is still at the version it saved. */
+  undoPictures(sessionId: string, input: { from: number; to: number }, by: Actor): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
   /**
    * Build the folder's apps and apply them, with no turn behind it: what the
    * check, the build or the apply says is wrong with `key`, or nothing.
@@ -694,6 +727,73 @@ export function createDesigner(host: DesignerHost): Designer {
   };
   const needsName = (session: DesignerSession): boolean => session.createdApp && session.named !== true && session.version === null && stillBare(session.appKey);
 
+  async function restore(sessionId: string, n: number, opts: { record: boolean; by: Actor }): Promise<{ version: { n: number; name: string } | null; applied: boolean }> {
+    const session = store.read(sessionId);
+    // The folder is taken before anything is awaited: a turn, a save or a style change cannot begin under this.
+    const hold = runner.hold('restore', session.id);
+    try {
+      if (host.versions == null || !(await host.versions.available())) {
+        throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
+      }
+      hold.announce();
+      await host.seam?.('held', 'restore');
+      const version = await host.versions.restore(session, n, { record: opts.record });
+      // The files are a version's again: none of them is the person's own edit any more.
+      store.update(session.id, { ...(version === null ? {} : { version: version.n }), ...((session.handEdits ?? []).length === 0 ? {} : { handEdits: [] }) });
+      const handle = outsideATurn(store.read(session.id), opts.by, hold.signal);
+      if (version !== null) handle.events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
+      // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
+      const applied = await pipeline(store.read(session.id), handle, { version: false, askRemovals: false });
+      await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
+      return { version, applied: applied.ok };
+    } finally {
+      hold.release();
+    }
+  }
+
+  /** Apply that is running or done, by session and the page's own id for it. */
+  const appliedPictures = new Map<string, Map<string, Promise<PicturesApplied>>>();
+
+  async function applyPicturesNow(session: DesignerSession, fills: readonly Fill[], by: Actor): Promise<PicturesApplied> {
+    const key = session.appKey;
+    if (hasOwnBuild(host.root, key)) throw new ConflictError('This app builds its own screens: its pictures are in its own files.', 'CONFLICT', { reason: 'OWN_BUILD' });
+    if (host.pictureDialog === undefined) throw new ConflictError('This Designer fills no picture spots.', 'CONFLICT', { reason: 'NO_PICTURES' });
+    // While a turn runs, nothing is fetched for an Apply that would only wait: "Wait for the Designer to finish, then apply."
+    const busy = runner.busy();
+    if (busy !== null) throw new ConflictError('The app is being changed. Try again in a moment.', 'CONFLICT', { reason: busy.kind === 'turn' ? 'TURN_RUNNING' : 'DESIGNER_BUSY', busy: busy.kind });
+    // 1. Every picture in hand first, outside the hold.
+    const { ready, gone } = await prepareFills(fills, { root: host.root, key, sessionId: session.id, dialog: host.pictureDialog, ...(host.attachments === undefined ? {} : { attachments: host.attachments }) });
+    // 2. Then the folder, and the writes in their order.
+    const hold = runner.hold('pictures', session.id);
+    try {
+      hold.announce();
+      await host.seam?.('held', 'pictures');
+      const before = store.read(session.id).version;
+      const written = await writeFills(ready, {
+        root: host.root,
+        key,
+        version: host.version,
+        by,
+        ...(host.pictureSites === undefined ? {} : { pictureSites: host.pictureSites }),
+        seam: (step, detail) => host.seam?.(step, detail),
+      });
+      const byTarget = new Map([...written.results, ...gone].map((result) => [result.target, result]));
+      const results = fills.map((fill) => byTarget.get(targetOf(fill)) ?? { target: targetOf(fill), state: 'gone' as const });
+      if (!results.some((result) => result.state === 'applied')) return { results, version: null, applied: false, before };
+      // A sample row took a new picture: the installed sample rows nobody changed are added again with it.
+      if (written.rows) reseeds.add(key);
+      const handle = outsideATurn(store.read(session.id), by, hold.signal);
+      const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: `Pictures: ${written.names.join(', ')}` });
+      handle.events.emit(session.turns, { kind: 'pictures', names: written.names, version: verdict.version });
+      // Unsplash is told once, after the write, and never again: a count is not worth a second call.
+      for (const picture of written.chosen) void host.pictureDialog.chosen(picture);
+      await host.audit('designer.pictures.applied', by, { sessionId: session.id, appKey: key, changed: written.names, version: verdict.version?.n ?? null, applied: verdict.ok });
+      return { results, version: verdict.version, applied: verdict.ok, before };
+    } finally {
+      hold.release();
+    }
+  }
+
   return {
     store,
     runner,
@@ -775,29 +875,7 @@ export function createDesigner(host: DesignerHost): Designer {
       await host.audit('designer.session.created', by, { sessionId: session.id, appKey, createdApp });
       return session;
     },
-    async restore(sessionId, n, opts) {
-      const session = store.read(sessionId);
-      // The folder is taken before anything is awaited: a turn, a save or a style change cannot begin under this.
-      const hold = runner.hold('restore', session.id);
-      try {
-        if (host.versions == null || !(await host.versions.available())) {
-          throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
-        }
-        hold.announce();
-        await host.seam?.('held', 'restore');
-        const version = await host.versions.restore(session, n, { record: opts.record });
-        // The files are a version's again: none of them is the person's own edit any more.
-        store.update(session.id, { ...(version === null ? {} : { version: version.n }), ...((session.handEdits ?? []).length === 0 ? {} : { handEdits: [] }) });
-        const handle = outsideATurn(store.read(session.id), opts.by, hold.signal);
-        if (version !== null) handle.events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
-        // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
-        const applied = await pipeline(store.read(session.id), handle, { version: false, askRemovals: false });
-        await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
-        return { version, applied: applied.ok };
-      } finally {
-        hold.release();
-      }
-    },
+    restore,
     async listFiles(sessionId) {
       const session = store.read(sessionId);
       return { groups: groupFiles(await editable(session.appKey)), busy: runner.busy()?.kind ?? null, version: session.version };
@@ -1051,6 +1129,44 @@ export function createDesigner(host: DesignerHost): Designer {
       const result = (await apps.reconcile()).find((candidate) => candidate.key === key);
       const applied = result !== undefined && (result.state === 'installed' || result.state === 'applied' || result.state === 'unchanged');
       return applied ? [] : [`It was not applied${result?.stage === undefined ? '' : ` (${result.stage})`}: ${result?.message ?? 'the server did not say why.'}`];
+    },
+    picturesOf(sessionId) {
+      const session = store.read(sessionId);
+      const base = `/api/v1/designer/sessions/${session.id}`;
+      const state = picturesState(host.root, session.appKey, {
+        sessionId: session.id,
+        version: host.version,
+        ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
+        fileUrl: (path) => `${base}/pictures/file?path=${encodeURIComponent(path)}`,
+        attachmentUrl: (id) => `${base}/attachments/${id}`,
+      });
+      return {
+        ...state,
+        sources: host.pictureDialog?.sources() ?? [],
+        unsplash: host.pictureSites !== undefined && (host.pictureSites.covers(UNSPLASH_HOST) || host.pictureSites.closed() === null) ? 'ok' : 'closed',
+        version: session.version,
+      };
+    },
+    applyPictures(sessionId, input, by) {
+      const session = store.read(sessionId);
+      // The same Apply sent again (a page that timed out and asked again) gets the first one's answer.
+      const kept = appliedPictures.get(session.id) ?? new Map<string, Promise<PicturesApplied>>();
+      appliedPictures.set(session.id, kept);
+      const first = kept.get(input.id);
+      if (first !== undefined) return first;
+      const work = applyPicturesNow(session, input.fills, by);
+      kept.set(input.id, work);
+      while (kept.size > APPLY_IDS_KEPT) kept.delete(kept.keys().next().value as string);
+      // A refusal is not an answer to keep: the next try is a try of its own.
+      work.catch(() => kept.delete(input.id));
+      return work;
+    },
+    async undoPictures(sessionId, input, by) {
+      const session = store.read(sessionId);
+      if (session.version !== input.from) throw new ConflictError('The app changed since these pictures were applied. Go back from the versions instead.', 'CONFLICT', { reason: 'PICTURES_CHANGED' });
+      const back = await restore(session.id, input.to, { record: true, by });
+      personLog(runner.events(session.id)).emit(store.read(session.id).turns, { kind: 'pictures-undone', to: input.to });
+      return back;
     },
     shutdown: () => runner.shutdown(),
   };

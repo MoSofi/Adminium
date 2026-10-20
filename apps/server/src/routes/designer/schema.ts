@@ -229,6 +229,63 @@ export const designerPictureSearchReply = z.discriminatedUnion('state', [
   z.object({ state: z.literal('off') }),
   z.object({ state: z.literal('failed') }),
 ]);
+const designerLicenceCode = z.enum(LICENCE_CODES);
+export const designerPicturesReply = z.object({
+  ownBuild: z.boolean(),
+  spots: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      shape: z.enum(PICTURE_SHAPES),
+      shows: z.string(),
+      search: z.string(),
+      version: z.string(),
+      thumb: z.string().nullable(),
+      alt: z.string(),
+      decorative: z.boolean(),
+      licence: z.object({ code: designerLicenceCode, name: z.string(), title: z.string(), creator: z.string() }).nullable(),
+    }),
+  ),
+  tables: z.array(z.object({ table: z.string(), label: z.string(), column: z.string(), rows: z.array(z.object({ row: z.number().int(), label: z.string(), version: z.string(), thumb: z.string().nullable() })) })),
+  inApp: z.array(z.object({ key: z.string(), name: z.string(), thumb: z.string(), licence: designerLicenceCode })),
+  mode: z.enum(['placeholders', 'choose']),
+  legacy: z.number().int(),
+  sources: z.array(z.object({ name: z.string(), busy: z.number().int().nullable() })),
+  unsplash: z.enum(['ok', 'closed']),
+  version: z.number().int().nullable(),
+});
+export const designerPictureFileQuery = z.object({ path: z.string().min(1).max(300) });
+const designerFillFrom = z.union([
+  z.object({ shelf: designerShelfId, picture: designerPictureId }).strict(),
+  z.object({ attachment: z.string().regex(/^att_[0-9a-f]{20}$/) }).strict(),
+  z.object({ file: z.string().min(1).max(200) }).strict(),
+  z.object({ placeholder: z.literal(true) }).strict(),
+]);
+export const designerPicturesApplyBody = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  fills: z
+    .array(
+      z
+        .object({
+          spot: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
+          row: z.object({ table: z.string().min(1).max(200), row: z.number().int().min(1).max(10_000) }).optional(),
+          version: z.string().regex(/^[0-9a-f]{16}$/),
+          from: designerFillFrom,
+          alt: z.string().max(1000).optional(),
+          decorative: z.boolean().optional(),
+        })
+        .refine((fill) => (fill.spot === undefined) !== (fill.row === undefined), { message: 'Each fill names a spot or a row, not both.' }),
+    )
+    .min(1)
+    .max(60),
+});
+export const designerPicturesApplyReply = z.object({
+  results: z.array(z.object({ target: z.string(), state: z.enum(['applied', 'conflict', 'gone']), small: z.literal(true).optional() })),
+  version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
+  applied: z.boolean(),
+  before: z.number().int().nullable(),
+});
+export const designerPicturesUndoBody = z.object({ from: z.number().int().min(1), to: z.number().int().min(0) });
 export const designerPicturePinBody = z.object({ shelf: designerShelfId, picture: designerPictureId });
 export const designerPicturePinReply = z.discriminatedUnion('state', [
   z.object({ state: z.literal('kept'), small: z.boolean(), shown: z.literal(true).optional() }),
@@ -255,7 +312,7 @@ export const designerRestoreReply = z.object({
 });
 
 /** What has the app's folder: a turn, or something a person does from the page. */
-const designerBusy = z.enum(['turn', 'save', 'style', 'restore', 'start']);
+const designerBusy = z.enum(['turn', 'save', 'style', 'restore', 'start', 'pictures']);
 const designerFileHash = z.string().regex(/^[0-9a-f]{64}$/);
 /** A file's path in the project. Held against the server's own list, as a string; its shape is not what lets it in. */
 const designerFilePath = z.string().min(1).max(300);

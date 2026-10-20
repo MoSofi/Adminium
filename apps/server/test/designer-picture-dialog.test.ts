@@ -8,6 +8,7 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -16,6 +17,9 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
+import { builtInStylesDir } from '../src/project/apps/design-skills.js';
+import { cleanLook, missingFonts } from '../src/project/apps/look.js';
+import { addSide, starterParts } from '../src/project/apps/scaffold-app.js';
 import { buildProject } from '../src/project/build.js';
 import { APP_VERSION } from '../src/version.js';
 import { asProject } from './app-project-helpers.js';
@@ -27,7 +31,12 @@ const DESIGN_PORT = 4798;
 const HOST = `127.0.0.1:${String(DESIGN_PORT)}`;
 const PASSWORD = 'a-long-enough-test-password-1!';
 
-// A model that says it is done: these routes need a session, not a turn.
+// A model the Designer can build with: it passes the build check (calls `echo`), writes what a test scripts, and otherwise says it is done.
+type ScriptStep = () => { text: string } | { calls: { name: string; arguments: Record<string, unknown> }[] };
+let script: ScriptStep[] = [];
+/** The next reply is held until the test lets it go. */
+let waits = false;
+const heldReplies: (() => void)[] = [];
 let model: Server;
 let modelUrl = '';
 beforeAll(async () => {
@@ -45,10 +54,27 @@ beforeAll(async () => {
       const line = (value: unknown): void => {
         response.write(`${JSON.stringify(value)}\n`);
       };
-      const echo = sent.tools?.some((tool) => tool.function.name === 'echo') === true && !sent.messages.some((message) => message.role === 'tool');
-      line({ model: 'fake', done: false, message: echo ? { role: 'assistant', content: '', tool_calls: [{ function: { name: 'echo', arguments: { word: 'adminium' } } }] } : { role: 'assistant', content: 'Done.' } });
-      line({ model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 50, eval_count: 5, message: { role: 'assistant', content: '' } });
-      response.end();
+      const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 50, eval_count: 5, message: { role: 'assistant', content: '' } };
+      if (sent.tools?.some((tool) => tool.function.name === 'echo') === true) {
+        if (sent.messages.some((message) => message.role === 'tool')) line({ model: 'fake', done: false, message: { role: 'assistant', content: 'done' } });
+        else line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'echo', arguments: { word: 'adminium' } } }] } });
+        line(done);
+        response.end();
+        return;
+      }
+      const step = script.shift();
+      const finish = (): void => {
+        const made = step?.() ?? { text: 'Done.' };
+        line({ model: 'fake', done: false, message: 'calls' in made ? { role: 'assistant', content: '', tool_calls: made.calls.map((call) => ({ function: call })) } : { role: 'assistant', content: made.text } });
+        line(done);
+        response.end();
+      };
+      if (waits && step === undefined) {
+        line({ model: 'fake', done: false, message: { role: 'assistant', content: 'Thinking…' } });
+        heldReplies.push(finish);
+        return;
+      }
+      finish();
     });
   });
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
@@ -60,7 +86,13 @@ afterAll(async () => {
 
 let composed: ComposedServer | undefined;
 let install: Install | null = null;
+/** A write of an Apply that is made to fail, as a full disk or a crash would leave it. */
+let failWrite: string | null = null;
 afterEach(async () => {
+  for (const release of heldReplies.splice(0)) release();
+  script = [];
+  waits = false;
+  failWrite = null;
   vi.unstubAllEnvs();
   await composed?.app.close();
   composed = undefined;
@@ -70,6 +102,7 @@ afterEach(async () => {
 
 export interface Client {
   root: string;
+  meta: import('@adminium/meta').MetaDb;
   fake: FakePictures;
   call: (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown>; raw: Buffer; headers: Record<string, unknown> }>;
   session: () => Promise<string>;
@@ -101,6 +134,9 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
     designer: { mode: 'local' as const, token: 'a'.repeat(64), port: DESIGN_PORT },
     designerBundler: () => true,
     pictureSeams: fake.seams,
+    designerSeam: async (step, detail) => {
+      if (step === 'write' && detail === failWrite) throw new Error('the disk is full');
+    },
   });
   const { app } = composed;
   await app.ready();
@@ -114,6 +150,7 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
   };
   return {
     root,
+    meta,
     fake,
     call,
     session: async () => {
@@ -222,5 +259,229 @@ describe('a picture put in what changes', { timeout: 120_000 }, () => {
     const before = client.fake.calls['images.unsplash.com'] ?? 0;
     expect((await client.call('POST', `/api/v1/designer/sessions/${id}/pictures/pin`, { shelf: found.body['shelf'], picture: picture?.id })).body).toEqual({ state: 'kept', small: false, shown: true });
     expect(client.fake.calls['images.unsplash.com'] ?? 0).toBe(before);
+  });
+});
+
+// ── an app with picture spots ────────────────────────────────────────────────
+
+const APP = 'apps/crispy-bites';
+const PICTURE_COLUMN = { ref: 'picture', type: 'text', semantic: 'image', nullable: true, label: { 'en-US': 'Picture' }, rules: { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 5_242_880 } } };
+
+/** The first turn: the starter's files, a table whose rows take a picture, and two sample rows. */
+const writesApp: ScriptStep = () => {
+  const parts = starterParts({ key: 'crispy-bites', name: 'Crispy Bites', sides: [], version: APP_VERSION });
+  const items = parts['manifest/tables/items.json'] as { columns: unknown[] };
+  const files: Record<string, unknown> = {
+    ...parts,
+    'manifest/tables/items.json': { ...items, columns: [...items.columns, PICTURE_COLUMN] },
+    'manifest/sample.json': { sampleData: { file: 'seeds/sample.json' } },
+    'seeds/sample.json': { format: 'adminium.sample/1', app: 'crispy-bites', tables: [{ ref: 'items', rows: [{ title: 'Spicy wings', picture: null }, { title: 'Classic burger', picture: null }] }] },
+  };
+  return { calls: Object.entries(files).filter(([file]) => file !== 'manifest/app.json').map(([file, value]) => ({ name: 'write_file', arguments: { path: `${APP}/${file}`, content: JSON.stringify(value, null, 2) } })) };
+};
+
+const SPOTS = {
+  hero: { label: 'Hero', shape: 'wide', shows: 'the shop at night', search: 'fried chicken', file: null, alt: '', decorative: false },
+  team: { label: 'Team', shape: 'wide', shows: 'the people who cook', search: 'chefs', file: null, alt: '', decorative: false },
+  kitchen: { label: 'Kitchen', shape: 'square', shows: 'the kitchen', search: 'kitchen', file: null, alt: '', decorative: false },
+};
+
+type Picked = { shelf: string; picture: string };
+interface WithApp extends Client {
+  id: string;
+  state: () => Promise<{ spots: { id: string; version: string; thumb: string | null; licence: { code: string } | null }[]; tables: { table: string; rows: { row: number; version: string; label: string; thumb: string | null }[] }[]; inApp: { key: string }[]; version: number | null; legacy: number }>;
+  /** A search on a source, and its first pictures, each picked (kept with its bytes). */
+  pick: (q: string, count?: number, source?: string) => Promise<Picked[]>;
+  apply: (fills: unknown[], id?: string) => Promise<{ status: number; body: Record<string, unknown> }>;
+  disk: (path: string) => string;
+}
+
+async function withApp(): Promise<WithApp> {
+  const client = await server();
+  script = [writesApp];
+  const made = await client.call('POST', '/api/v1/designer/sessions', { name: 'Crispy Bites', target: 'auto', connectionId: 'env:ollama', model: 'fake', text: 'Make me a fried chicken shop.' });
+  expect(made.status, JSON.stringify(made.body)).toBe(201);
+  const id = (made.body['session'] as { id: string }).id;
+  await vi.waitFor(async () => expect(((await client.call('GET', `/api/v1/designer/sessions/${id}/events-since?after=0`)).body['events'] as { kind: string }[]).some((event) => event.kind === 'turn-finished')).toBe(true), { timeout: 60_000, interval: 100 });
+  addSide({ root: client.root, key: 'crispy-bites', name: 'Crispy Bites', side: 'customer' });
+  const without = missingFonts(client.root, cleanLook({ skill: 'clean' }), { builtInDir: builtInStylesDir() }).map((font) => font.family);
+  writeFileSync(join(client.root, APP, 'look.json'), JSON.stringify({ skill: 'clean', without }));
+  writeFileSync(join(client.root, APP, 'assets', 'pictures', 'spots.json'), JSON.stringify(SPOTS, null, 2));
+  const styled = await client.call('POST', `/api/v1/designer/sessions/${id}/look`, { skill: 'clean' });
+  expect(styled.body, JSON.stringify(styled.body)).toMatchObject({ applied: true });
+  const state = async () => (await client.call('GET', `/api/v1/designer/sessions/${id}/pictures`)).body as never;
+  return {
+    ...client,
+    id,
+    state,
+    pick: async (q, count = 1, source = 'Openverse') => {
+      const found = await client.call('GET', search(id, { q, source }));
+      const shelf = found.body['shelf'] as string;
+      const out: Picked[] = [];
+      for (const picture of (found.body['pictures'] as { id: string }[]).slice(0, count)) {
+        expect((await client.call('POST', `/api/v1/designer/sessions/${id}/pictures/pin`, { shelf, picture: picture.id })).body).toMatchObject({ state: 'kept' });
+        out.push({ shelf, picture: picture.id });
+      }
+      return out;
+    },
+    apply: async (fills, applyId = `apply-${Math.random().toString(36).slice(2, 12)}`) => client.call('POST', `/api/v1/designer/sessions/${id}/pictures/apply`, { id: applyId, fills }),
+    disk: (path) => readFileSync(join(client.root, APP, path), 'utf8'),
+  };
+}
+
+const versionOf = (state: Awaited<ReturnType<WithApp['state']>>, spot: string): string => state.spots.find((entry) => entry.id === spot)?.version as string;
+
+describe('the picture dialog’s view of an app', { timeout: 180_000 }, () => {
+  it('lists the spots with their versions, the tables whose rows take a picture, and serves the app’s own pictures and nothing else', async () => {
+    const app = await withApp();
+    const state = await app.state();
+    expect(state.spots.map((spot) => [spot.id, spot.thumb])).toEqual([['hero', null], ['team', null], ['kitchen', null]]);
+    expect(state.tables).toEqual([{ table: 'items', label: expect.any(String), column: 'picture', rows: [expect.objectContaining({ row: 1, label: 'Spicy wings', thumb: null }), expect.objectContaining({ row: 2, label: 'Classic burger' })] }]);
+    expect(state.version).toBe(2);
+    expect(state.legacy).toBe(0);
+    for (const path of ['../../../.env', 'assets/pictures/../../look.json', 'assets/pictures/spots.json', 'look.json', 'seeds/sample.json']) {
+      expect((await app.call('GET', `/api/v1/designer/sessions/${app.id}/pictures/file?path=${encodeURIComponent(path)}`)).status, path).toBe(404);
+    }
+  });
+});
+
+describe('Apply', { timeout: 180_000 }, () => {
+  it('puts a pick from a search in its spot with its credit, saves a version named for it, says so in the chat, and tells the page', async () => {
+    const app = await withApp();
+    const [hero] = await app.pick('fried chicken');
+    // Twelve more pages of results: the pick from the first is still there to apply.
+    for (let page = 0; page < 12; page += 1) await app.call('GET', search(app.id, { q: `more ${String(page)}`, source: 'Openverse' }));
+    const before = await app.state();
+    const applied = await app.apply([{ spot: 'hero', version: versionOf(before, 'hero'), from: hero, alt: 'Fried chicken on a board' }]);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    expect(applied.body).toMatchObject({ results: [{ target: 'spot:hero', state: 'applied' }], applied: true, before: 2, version: { n: 3, name: 'v3 · Pictures: Hero' } });
+    const spots = JSON.parse(app.disk('assets/pictures/spots.json')) as Record<string, { file: string | null; alt: string }>;
+    expect(spots['hero']).toMatchObject({ alt: 'Fried chicken on a board', file: expect.stringMatching(/^hero-[0-9a-f]{8}\.jpg$/) });
+    expect(readFileSync(join(app.root, APP, 'assets', 'pictures', spots['hero']?.file as string)).subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+    const credits = JSON.parse(app.disk('assets/pictures/CREDITS.json')) as { file: string; licence: string; licenceCode: string; creator: string }[];
+    expect(credits).toEqual([expect.objectContaining({ file: `assets/pictures/${spots['hero']?.file as string}`, licence: 'CC BY 2.0', licenceCode: 'by', creator: 'Maker 1' })]);
+    const events = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as { kind: string; by?: string; what?: string; names?: string[]; version?: unknown }[];
+    expect(events.filter((event) => event.by === 'person').slice(-7).map((event) => event.kind)).toEqual(['hold', 'check', 'build', 'apply', 'version', 'pictures', 'released']);
+    expect(events.find((event) => event.kind === 'hold' && event.what === 'pictures')).toBeDefined();
+    expect(events.find((event) => event.kind === 'pictures')).toMatchObject({ names: ['Hero'], version: { n: 3 } });
+    // The dialog now shows it, with its licence.
+    expect((await app.state()).spots[0]).toMatchObject({ id: 'hero', licence: { code: 'by' }, thumb: expect.stringContaining('/pictures/file?path=assets%2Fpictures%2Fhero-') });
+  });
+
+  it('writes nothing over a spot someone changed since the dialog opened, and applies the others', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [one, two, three] = await app.pick('kitchen', 3);
+    expect((await app.apply([{ spot: 'kitchen', version: versionOf(opened, 'kitchen'), from: one }])).body).toMatchObject({ results: [{ state: 'applied' }] });
+    const placed = (JSON.parse(app.disk('assets/pictures/spots.json')) as Record<string, { file: string }>)['kitchen']?.file;
+    // The second dialog was opened before that Apply.
+    const second = await app.apply([
+      { spot: 'kitchen', version: versionOf(opened, 'kitchen'), from: two },
+      { spot: 'team', version: versionOf(opened, 'team'), from: three },
+    ]);
+    expect(second.body['results']).toEqual([{ target: 'spot:kitchen', state: 'conflict' }, { target: 'spot:team', state: 'applied' }]);
+    const spots = JSON.parse(app.disk('assets/pictures/spots.json')) as Record<string, { file: string }>;
+    // The first person's picture stays where they put it.
+    expect(spots['kitchen']?.file).toBe(placed);
+    expect(spots['team']?.file).toMatch(/^team-/);
+    expect((second.body['version'] as { name: string }).name).toMatch(/Pictures: Team$/);
+  });
+
+  it('applies a repeated Apply once, and answers the repeat with the first answer', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('team');
+    const fills = [{ spot: 'team', version: versionOf(opened, 'team'), from: pick }];
+    const [first, again] = await Promise.all([app.apply(fills, 'apply-same-0001'), app.apply(fills, 'apply-same-0001')]);
+    expect(again.body).toEqual(first.body);
+    expect((await app.apply(fills, 'apply-same-0001')).body).toEqual(first.body);
+    const versions = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/versions`)).body['versions'] as { name: string }[];
+    expect(versions.filter((version) => version.name.includes('Pictures: Team'))).toHaveLength(1);
+  });
+
+  it('leaves no credited picture without its credit when it stops between the credits and the spots', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('chicken');
+    failWrite = 'assets/pictures/spots.json';
+    expect((await app.apply([{ spot: 'hero', version: versionOf(opened, 'hero'), from: pick }])).status).toBe(500);
+    // The spots are as they were: no screen shows a picture whose credit is missing. The extra credit line is harmless.
+    expect(JSON.parse(app.disk('assets/pictures/spots.json'))).toEqual(SPOTS);
+    const credits = JSON.parse(app.disk('assets/pictures/CREDITS.json')) as { licenceCode: string }[];
+    expect(credits.map((line) => line.licenceCode)).toEqual(['by']);
+    // The folder is let go, and the next Apply goes through.
+    failWrite = null;
+    expect((await app.apply([{ spot: 'hero', version: versionOf(opened, 'hero'), from: pick }])).body).toMatchObject({ results: [{ state: 'applied' }], applied: true });
+  });
+
+  it('says a pick whose page of results is gone as gone, a small copy as applied with a warning, and applies the rest', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    app.fake.big.add('kitchen-1-1.jpg');
+    const [, small] = await app.pick('kitchen', 2);
+    const result = await app.apply([
+      { spot: 'hero', version: versionOf(opened, 'hero'), from: { shelf: 'shelf_00000000000000aa', picture: 'pic_0000000000aa' } },
+      { spot: 'kitchen', version: versionOf(opened, 'kitchen'), from: small },
+    ]);
+    expect(result.body['results']).toEqual([{ target: 'spot:hero', state: 'gone' }, { target: 'spot:kitchen', state: 'applied', small: true }]);
+  });
+
+  it('gives each sample row a file of its own, from a search or from a picture already in the app, and adds the installed rows again with it', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('wings');
+    const rows = opened.tables[0]?.rows ?? [];
+    const first = await app.apply([{ row: { table: 'items', row: 1 }, version: rows[0]?.version, from: pick }]);
+    expect(first.body).toMatchObject({ results: [{ target: 'row:items:1', state: 'applied' }], applied: true });
+    const bundle = JSON.parse(app.disk('seeds/sample.json')) as { assets: Record<string, { file: string; sha256: string }>; tables: { rows: Record<string, unknown>[] }[] };
+    expect(bundle.tables[0]?.rows[0]?.['picture']).toEqual({ '@asset': 'picture-items-1' });
+    const asset = bundle.assets['picture-items-1'] as { file: string; sha256: string };
+    expect(asset.file).toMatch(/^seeds\/pictures\/items-1-[0-9a-f]{8}\.jpg$/);
+    // The installed sample row was added again with the picture: a stored file of the same bytes holds it.
+    await vi.waitFor(async () => expect((await app.meta.db.selectFrom('adminium_files').select('sha256').where('sha256', '=', asset.sha256).execute()).length).toBeGreaterThan(0), { timeout: 30_000 });
+    // The same picture for the second row, from the app: a copy of its own.
+    writeFileSync(join(app.root, APP, 'assets', 'pictures', 'shop.jpg'), readFileSync(join(app.root, APP, asset.file)));
+    const second = await app.apply([{ row: { table: 'items', row: 2 }, version: rows[1]?.version, from: { file: 'shop.jpg' } }]);
+    expect(second.body).toMatchObject({ results: [{ state: 'applied' }] });
+    const after = JSON.parse(app.disk('seeds/sample.json')) as { assets: Record<string, { file: string }> };
+    expect(after.assets['picture-items-2']?.file).toMatch(/^seeds\/pictures\/items-2-/);
+    expect(after.assets['picture-items-2']?.file).not.toBe(after.assets['picture-items-1']?.file);
+  });
+
+  it('is refused while a turn runs: “Wait for the Designer to finish, then apply.”', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('team');
+    waits = true;
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Make the hero bigger.' })).status).toBe(202);
+    const refused = await app.apply([{ spot: 'team', version: versionOf(opened, 'team'), from: pick }]);
+    expect([refused.status, (refused.body['error'] as { details?: { reason?: string } }).details?.reason]).toEqual([409, 'TURN_RUNNING']);
+    expect(JSON.parse(app.disk('assets/pictures/spots.json'))).toEqual(SPOTS);
+  });
+
+  it('tells Unsplash once a picture of its is in a spot, after the write, and lets the page load pictures from its site', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('diner', 1, 'Unsplash');
+    const before = app.fake.seen.filter((url) => url.endsWith('/download')).length;
+    const done = await app.apply([{ spot: 'hero', version: versionOf(opened, 'hero'), from: pick }]);
+    expect(done.body).toMatchObject({ results: [{ state: 'applied' }] });
+    expect((JSON.parse(app.disk('assets/pictures/spots.json')) as Record<string, { file: string }>)['hero']?.file).toBe('https://images.unsplash.com/diner-1-0?w=1080');
+    await vi.waitFor(() => expect(app.fake.seen.filter((url) => url.endsWith('/download')).length).toBe(before + 1));
+    expect(app.disk('assets/pictures/CREDITS.json')).toContain('Unsplash licence');
+  });
+
+  it('is undone back to the version before it, said in the chat; and not once the app changed since', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('team');
+    const done = await app.apply([{ spot: 'team', version: versionOf(opened, 'team'), from: pick }]);
+    const undo = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/undo`, { from: (done.body['version'] as { n: number }).n, to: done.body['before'] });
+    expect(undo.status, JSON.stringify(undo.body)).toBe(200);
+    expect(JSON.parse(app.disk('assets/pictures/spots.json'))).toEqual(SPOTS);
+    const events = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as { kind: string; to?: number }[];
+    expect(events.at(-1)).toMatchObject({ kind: 'pictures-undone', to: 2 });
+    // Undone already: the app is at another version now.
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/undo`, { from: (done.body['version'] as { n: number }).n, to: done.body['before'] })).status).toBe(409);
   });
 });

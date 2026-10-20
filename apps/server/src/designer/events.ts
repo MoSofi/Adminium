@@ -67,10 +67,14 @@ export type DesignerEventBody =
   | { kind: 'sight'; side: 'staff' | 'customer'; path: string }
   /** The app's folder is being written with no turn behind it (a hand save, a style change, going back), and then no longer. */
   | { kind: 'hold'; what: HoldKind }
-  | { kind: 'released'; what: HoldKind };
+  | { kind: 'released'; what: HoldKind }
+  /** Pictures put in their spots from the picture dialog, with no turn: their names, and the version they were saved as. */
+  | { kind: 'pictures'; names: string[]; version: { n: number; name: string } | null }
+  /** The pictures' Undo: the app's files are as they were in this version again. */
+  | { kind: 'pictures-undone'; to: number };
 
-/** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app. */
-export type HoldKind = 'save' | 'style' | 'restore' | 'start';
+/** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
+export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';
 
 /**
  * `turn` is the turn an event belongs to. An event with `by: 'person'` belongs to none: a person did it from the page

@@ -54,6 +54,8 @@ export interface PictureDialog {
   pin(sessionId: string, shelf: string, picture: string, signal?: AbortSignal): Promise<PinAnswer>;
   /** A pinned picture and its bytes (none for one shown from its source's site); null when it is gone. */
   picked(sessionId: string, shelf: string, picture: string, signal?: AbortSignal): Promise<{ picture: FoundPicture; staged: Staged | null } | null>;
+  /** Tell a picture's source it was chosen, where its rules ask for that (Unsplash). Never throws. */
+  chosen(picture: FoundPicture): Promise<void>;
 }
 
 const SESSION = /^ds_[0-9a-z]{24}$/;
@@ -108,6 +110,13 @@ export function createPictureDialog(deps: PictureDialogDeps): PictureDialog {
   return {
     search: (sessionId, input, signal): Promise<SearchAnswer> => deps.search.search(sessionId, input, signal),
     sources: () => deps.search.sources(),
+    async chosen(picture) {
+      try {
+        await deps.search.source(picture.source)?.chosen?.(picture);
+      } catch {
+        // The source's count, not the picture: the page shows it either way.
+      }
+    },
     async pin(sessionId, shelf, picture, signal) {
       if (!SESSION.test(sessionId) || !SHELF.test(shelf) || !PICTURE.test(picture)) return { state: 'gone' };
       const found = deps.shelf.pin(sessionId, shelf, picture);

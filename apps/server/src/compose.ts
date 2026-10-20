@@ -2346,6 +2346,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           needs: designerNeeds,
           findsPictures: () => pictureSource() !== null,
+          pictureDialog,
           ...(opts.designerSeam === undefined ? {} : { seam: opts.designerSeam }),
           ...(opts.designerHoldCapMs === undefined ? {} : { holdCapMs: opts.designerHoldCapMs }),
           reseedSample: async (key) => {
