@@ -918,7 +918,9 @@ function SortableColumnRow({
             <Badge tone="warn">{t('studio:pages.columns.masked', 'Masked')}</Badge>
           ) : null}
           {column.file !== undefined ? (
-            <Badge tone="info">{t('studio:pages.columns.file.badge', 'File')}</Badge>
+            <Badge tone="info">
+              {holds === 'picture' ? t('studio:pages.columns.holds.picture', 'Picture') : t('studio:pages.columns.file.badge', 'File')}
+            </Badge>
           ) : null}
         </div>
 
