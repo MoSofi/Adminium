@@ -9,7 +9,7 @@
  * written and read back.
  */
 import { createServer, type Server } from 'node:http';
-import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
@@ -550,6 +550,51 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(gone.statusCode).toBe(204);
     expect(existsSync(join(root!, '.adminium', 'designer', 'sessions', session.id, 'attachments', other.id))).toBe(false);
     expect((await composed!.app.inject({ method: 'DELETE', url: `/api/v1/designer/sessions/${session.id}/attachments/${other.id}`, headers: { host: HOST, cookie: client.owner } })).statusCode).toBe(404);
+  });
+
+  it('list the project’s site templates by name, take one by its name only, and say once why a folder was not copied in', async () => {
+    const client = await server({ designer: true });
+    script = [writesStarter];
+    const session = (await client.call('POST', '/api/v1/designer/sessions', createBody())).body['session'] as { id: string };
+    await finishedTurn(client, session.id, 1);
+    const tpl = join(root!, 'site-templates');
+    const put = (path: string, text: string): void => {
+      mkdirSync(join(path, '..'), { recursive: true });
+      writeFileSync(path, text);
+    };
+    put(join(tpl, 'harbor-bakery', 'index.html'), '<!doctype html><html><body>Fresh bread</body></html>');
+    put(join(tpl, 'harbor-bakery', 'css', 'site.css'), 'a{}');
+    put(join(tpl, 'harbor-bakery', 'shop.php'), '<?php');
+    put(join(root!, 'secret.txt'), 'the owner’s key');
+    symlinkSync(join(root!, 'secret.txt'), join(tpl, 'harbor-bakery', 'notes.txt'));
+    put(join(tpl, 'harbor bakery!', 'index.html'), '<!doctype html><html></html>');
+    writeFileSync(join(root!, '.adminium', 'designer', 'site-template-note.json'), JSON.stringify({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' }));
+
+    const listed = await client.call('GET', '/api/v1/designer/site-templates');
+    expect(listed.body).toEqual({
+      templates: [
+        { name: 'harbor bakery!', usable: false },
+        { name: 'harbor-bakery', usable: true },
+      ],
+      more: 0,
+      note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' },
+    });
+    expect((await composed!.app.inject({ method: 'DELETE', url: '/api/v1/designer/site-templates/note', headers: { host: HOST, cookie: client.owner } })).statusCode).toBe(204);
+    expect((await client.call('GET', '/api/v1/designer/site-templates')).body['note']).toBeNull();
+
+    // Taken by a listed name, never a path: a link inside is left out, never read.
+    const take = (body: Record<string, unknown>) => client.call('POST', `/api/v1/designer/sessions/${session.id}/attachments/site-from-project`, body);
+    const taken = await take({ name: 'harbor-bakery' });
+    expect(taken.status, JSON.stringify(taken.body)).toBe(201);
+    expect(taken.body['attachment']).toMatchObject({ label: 'harbor-bakery', kind: 'site', pages: 1, files: 2, leftOut: [{ file: 'notes.txt', reason: 'link' }, { file: 'shop.php', reason: 'php' }], leftOutCount: 2 });
+    expect((await take({ name: 'harbor-bakery' })).status).toBe(200);
+    expect((await take({ name: '../harbor-bakery' })).status).toBe(404);
+    expect((await take({ name: 'nothing-here' })).status).toBe(404);
+    expect((await take({ name: 'harbor bakery!' })).body).toMatchObject({ error: { message: 'harbor bakery!: rename this folder to use it (letters, digits, space, . _ -)', details: { reason: 'SITE_NAME' } } });
+    // A second site asks first, as a dropped one does.
+    put(join(tpl, 'corner-cafe', 'index.html'), '<!doctype html><html><body>Cafe</body></html>');
+    expect((await take({ name: 'corner-cafe' })).status).toBe(409);
+    expect((await take({ name: 'corner-cafe', replace: (taken.body['attachment'] as { id: string }).id })).status).toBe(201);
   });
 
   it('tells the person itself when a file they attached ends the turn in no table and the model said nothing', async () => {

@@ -26,6 +26,7 @@ import Database from 'better-sqlite3';
 import { runChild } from '../../designer/child.js';
 import { DESIGNER_REACT_VERSION } from '../../designer/tools.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../../project/apps/scaffold-app.js';
+import { pageAtTop } from '../../designer/site/folder.js';
 import { findProject } from '../../project/locate.js';
 import { refreshInstallStamp } from '../../project/install-stamp.js';
 import { addPackagesArgs, packageManagerProgram } from '../../project/programs.js';
@@ -107,7 +108,9 @@ export const designCommand: Command = {
     if (project === null) {
       const folder = positionals[0] ?? 'my-app';
       io.out(`There is no project here: making one in ${folder}/ for the Designer.`);
-      const made = await newCommand.run({ io, deps, argv: [folder, '--yes', '--database', DESIGN_DATABASE] });
+      // A folder that holds a site template goes into the new project with it, and the Designer offers it.
+      if (await pageAtTop(cwd)) io.out(`This folder holds a site template. The new project is made inside it, and the template is copied in. This folder's own files are not changed.`);
+      const made = await newCommand.run({ io, deps, argv: [folder, '--yes', '--database', DESIGN_DATABASE, '--site-template', cwd] });
       if (made !== EXIT_OK) return made;
       cwd = resolve(cwd, folder);
       if (!existsSync(cwd)) throw new CliUsageError(`${folder}/ was not made.`, designCommand.name);

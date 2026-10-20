@@ -191,6 +191,19 @@ export const designerAttachment = z.object({
   leftOut: z.array(z.object({ file: z.string(), reason: z.enum(Object.keys(LEFT_OUT_REASONS) as [LeftOutReason, ...LeftOutReason[]]) })).optional(),
   leftOutCount: z.number().int().optional(),
 });
+/** A reply with no body. */
+export const designerNothingReply = z.null();
+export const designerSiteFromProjectBody = z.object({
+  /** A name the listing gave: never a path. */
+  name: z.string().min(1).max(120),
+  replace: z.string().regex(/^att_[0-9a-f]{20}$/).optional(),
+});
+export const designerSiteTemplatesReply = z.object({
+  templates: z.array(z.object({ name: z.string(), usable: z.boolean() })),
+  more: z.number().int(),
+  /** Why the folder the project was made in was not copied in as a site template; said once. */
+  note: z.object({ name: z.string(), why: z.string() }).nullable(),
+});
 export const designerSiteQuery = z.object({
   /** The zip's name, or the folder's the page packed: the site is called by it. */
   filename: z.string().min(1).max(300),

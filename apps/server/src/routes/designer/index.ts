@@ -35,7 +35,8 @@ import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
-import { judgeSite, SiteRefusal } from '../../designer/site/judge.js';
+import { clearTemplateNote, listSiteTemplates, readTemplateNote, SITE_TEMPLATES_DIR, walkFolder } from '../../designer/site/folder.js';
+import { judgeSite, SiteRefusal, type SiteEntry } from '../../designer/site/judge.js';
 import { readZipDirectory, readZipEntry, ZIP_MAX_BYTES, ZipRefusal } from '../../designer/site/zip.js';
 import { FigmaError } from '../../designer/figma/client.js';
 import type { FigmaImports } from '../../designer/figma/imports.js';
@@ -62,6 +63,9 @@ import {
   designerAttachmentQuery,
   designerAttachmentReply,
   designerSiteQuery,
+  designerSiteFromProjectBody,
+  designerSiteTemplatesReply,
+  designerNothingReply,
   designerReadsImagesBody,
   designerReadsImagesReply,
   designerPreviewBody,
@@ -482,6 +486,40 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
     );
 
+    /**
+     * Takes a site into a session, whichever way it came: one at a time per session (the lock is held
+     * from the first byte read to the last written), the same site again is the one already here, and
+     * a session that holds another is answered 409 with it until the person says to replace it.
+     */
+    const takeSite = (
+      sessionId: string,
+      label: string,
+      name: string,
+      replace: string | undefined,
+      by: string | undefined,
+      entries: () => Promise<SiteEntry[]>,
+    ): Promise<{ attachment: Attachment; again: boolean }> =>
+      withSessionLock(sessionId, async () => {
+        const before = deps.attachments.list(sessionId).find((entry) => entry.kind === 'site');
+        try {
+          const judged = await judgeSite(label, await entries());
+          if (before !== undefined && before.sha256 === judged.sha256) return { attachment: before, again: true };
+          if (before !== undefined && replace !== before.id) {
+            throw new ConflictError(`This replaces ${before.label}. What was already built from it stays.`, 'CONFLICT', { reason: 'SITE_REPLACES', site: { id: before.id, label: before.label } });
+          }
+          const made = deps.attachments.addSite(sessionId, { label: name, judged, ...(by === undefined ? {} : { by }) });
+          // The site it replaces leaves the session now; its folder goes once no turn is reading it.
+          if (before !== undefined && !made.again) {
+            deps.attachments.remove(sessionId, before.id);
+            if (runner.active()?.sessionId !== sessionId) deps.attachments.sweep(sessionId);
+          }
+          return made;
+        } catch (error) {
+          if (error instanceof ZipRefusal || error instanceof SiteRefusal || error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
+          throw error;
+        }
+      });
+
     /*
      * A site template, as a zip: the person's own dropped one, or a folder the page packed. Sent the
      * moment it is dropped, judged whole (`site/judge.ts`) by its own zip reader (`site/zip.ts`), and
@@ -504,30 +542,50 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the zip itself as the request body.', { reason: 'ATTACHMENT' });
         const zip = request.body;
         const label = labelOf(request.query.filename);
-        const by = request.user?.id;
-        const done = await withSessionLock(session.id, async () => {
-          const before = deps.attachments.list(session.id).find((entry) => entry.kind === 'site');
-          try {
-            const entries = readZipDirectory(zip, label);
-            const judged = await judgeSite(
-              label,
-              entries.map((entry) => ({ path: entry.name, size: entry.size, type: entry.type, read: () => readZipEntry(zip, entry, label) })),
-            );
-            if (before !== undefined && before.sha256 === judged.sha256) return { attachment: before, again: true };
-            if (before !== undefined && request.query.replace !== before.id) {
-              throw new ConflictError(`This replaces ${before.label}. What was already built from it stays.`, 'CONFLICT', { reason: 'SITE_REPLACES', site: { id: before.id, label: before.label } });
-            }
-            const made = deps.attachments.addSite(session.id, { label: siteName(request.query.filename), judged, ...(by === undefined ? {} : { by }) });
-            // The site it replaces leaves the session now; its folder goes once no turn is reading it.
-            if (before !== undefined && !made.again) {
-              deps.attachments.remove(session.id, before.id);
-              if (runner.active()?.sessionId !== session.id) deps.attachments.sweep(session.id);
-            }
-            return made;
-          } catch (error) {
-            if (error instanceof ZipRefusal || error instanceof SiteRefusal || error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
-            throw error;
-          }
+        const done = await takeSite(session.id, label, siteName(request.query.filename), request.query.replace, request.user?.id, async () =>
+          readZipDirectory(zip, label).map((entry) => ({ path: entry.name, size: entry.size, type: entry.type, read: () => readZipEntry(zip, entry, label) })),
+        );
+        return reply.code(done.again ? 200 : 201).send({ attachment: publicAttachment(done.attachment) });
+      },
+    );
+
+    // The project's site templates, by name, and why one was not copied in when the project was made.
+    app.get('/designer/site-templates', { preHandler: guard, config: RATE, schema: { response: { 200: designerSiteTemplatesReply } } }, async () => ({
+      ...(await listSiteTemplates(deps.root)),
+      note: await readTemplateNote(deps.root),
+    }));
+    app.delete(
+      '/designer/site-templates/note',
+      { preHandler: guard, config: { ...RATE, audit: auditExempt('a line the Designer said once is put away; nothing changes') }, schema: { response: { 204: designerNothingReply } } },
+      async (_request, reply) => {
+        await clearTemplateNote(deps.root);
+        return reply.code(204).send(null);
+      },
+    );
+
+    /*
+     * A site template in the project's `site-templates/`: the page names one the listing gave, never a
+     * path. The server finds the folder itself, walks it without following a link, and takes it as a
+     * dropped zip is taken: the same judge, the same lock, the same question before a second site.
+     */
+    app.post(
+      '/designer/sessions/:id/attachments/site-from-project',
+      {
+        preHandler: guard,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('a site template attached to a Designer session changes nothing by itself; the turn that builds from it is audited') },
+        schema: { params: designerSessionParams, body: designerSiteFromProjectBody, response: { 200: designerAttachmentReply, 201: designerAttachmentReply } },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        const { name } = request.body;
+        const listed = (await listSiteTemplates(deps.root)).templates.find((entry) => entry.name === name);
+        if (listed === undefined) throw new NotFoundError(`There is no site template named ${name} in this project.`);
+        if (!listed.usable) throw new ValidationFailedError(`${name}: rename this folder to use it (letters, digits, space, . _ -)`, { reason: 'SITE_NAME' });
+        const folder = join(deps.root, SITE_TEMPLATES_DIR, name);
+        const done = await takeSite(session.id, name, name, request.body.replace, request.user?.id, async () => {
+          const walked = await walkFolder(folder);
+          if (walked.stopped !== null) throw new SiteRefusal('SITE_LIMIT', walked.stopped === 'too-many' ? `${name} has more than 1,000 files and folders.` : `${name} took too long to read.`);
+          return walked.entries;
         });
         return reply.code(done.again ? 200 : 201).send({ attachment: publicAttachment(done.attachment) });
       },
