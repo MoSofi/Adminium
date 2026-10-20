@@ -137,8 +137,9 @@ describe('GET /api/v1/pages/:pageId', () => {
     });
     expect(res.statusCode).toBe(200);
     // The stored envelope is returned verbatim under `data`, alongside the
-    // per-caller `canEditLayout` capability (false without rbac in this harness).
-    expect(res.json()).toEqual({ data: ENVELOPE, canEditLayout: false });
+    // per-caller `canEditLayout` capability (false without rbac in this harness)
+    // and the stored revision a form's save carries.
+    expect(res.json()).toEqual({ data: ENVELOPE, canEditLayout: false, revision: 1 });
   });
 
   it('404s on an unknown page id', async () => {

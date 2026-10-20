@@ -258,6 +258,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'DELETE /api/v1/files/:id': rows('visible', 'The record a file hangs on as its changer; being the uploader does not skip it.'),
   'GET /api/v1/files/:id': rows('visible', 'A file hung on a record of a limited table is read through that record; managing files does not skip it.'),
   'PATCH /api/v1/files/:id': rows('visible', 'The record a file hangs on as its changer; being the uploader does not skip it.'),
+  'POST /api/v1/files/:id/copy': rows('visible', 'The record a file it copies hangs on is read through that record, as reading the file; the copy itself hangs on no record until a save names it.'),
   'POST /api/v1/files/:id/attach': rows('visible', 'The record a file hangs on as its changer; being the uploader does not skip it.'),
   'GET /api/v1/files/:id/content': rows('visible', 'A file hung on a record of a limited table is read through that record; managing files does not skip it.'),
   'POST /api/v1/files/:id/detach': rows('visible', 'The record a file hangs on as its changer; being the uploader does not skip it.'),
