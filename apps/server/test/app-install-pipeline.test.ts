@@ -5129,6 +5129,60 @@ for (const [dialect, available] of legs) {
       for (const id of receipts) expect((await filesRepo(h.meta).findById(id))?.deletedAt).not.toBeNull();
     }, 90_000);
 
+    it('puts the bundle’s own pictures in a picture column the app’s file rule keeps, each row its own', async () => {
+      const h = (open = await harness(dialect));
+      const image = 'a receipt';
+      const bundle = {
+        format: 'adminium.sample/1',
+        app: 'pos',
+        assets: { 'img:receipt': { file: 'seeds/images/receipt.webp', sha256: createHash('sha256').update(image).digest('hex') } },
+        tables: [
+          {
+            ref: 'tenders',
+            rows: [
+              { id: '5a3b1e00-0000-4000-8000-000000000001', amount: '4.50', receipt: { '@asset': 'img:receipt' } },
+              { id: '5a3b1e00-0000-4000-8000-000000000002', amount: '3', receipt: { '@asset': 'img:receipt' } },
+            ],
+          },
+        ],
+      };
+      await stageManifest(
+        h,
+        {
+          ...MANIFEST,
+          compatibility: { minAdminiumVersion: APP_VERSION },
+          requiredSchema: {
+            prefixed: true,
+            tables: [
+              TABLES[0],
+              {
+                ref: 'tenders',
+                columns: [
+                  { ref: 'id', type: 'uuid', role: 'pk' },
+                  { ref: 'amount', type: 'money' },
+                  // A picture column: an image, and a file the app's own rule keeps.
+                  { ref: 'receipt', type: 'text', maxLength: 40, nullable: true, semantic: 'image', rules: { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 64 * 1024 } } },
+                ],
+              },
+            ],
+          },
+          sampleData: { file: 'seeds/pos.sample.json' },
+        },
+        { 'seeds/pos.sample.json': JSON.stringify(bundle), 'seeds/images/receipt.webp': image },
+      );
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test' });
+      const rows = await h.rows('SELECT id, receipt FROM pos_tenders ORDER BY id');
+      expect(new Set(rows.map((row) => String(row.receipt))).size).toBe(2);
+      for (const row of rows) {
+        const file = await h.meta.db.selectFrom('adminium_files').select(['entityId', 'attachedAt']).where('id', '=', String(row.receipt)).executeTakeFirstOrThrow();
+        expect(String(file.entityId).toLowerCase()).toBe(String(row.id).toLowerCase());
+      }
+    }, 90_000);
+
     /*
      * Two tables that point at each other. Every FK used to be created inline,
      * which SQLite accepts and Postgres and MySQL refuse ("relation pos_tickets

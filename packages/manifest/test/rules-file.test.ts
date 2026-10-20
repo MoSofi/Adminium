@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { FILE_COLUMN_KINDS, installFloorWords, sampleBundleIssues, sampleBundleSchema, validateManifest, WORD_FLOORS } from '../src/index.js';
+import { FILE_COLUMN_KINDS, PICTURE_FILE_KINDS, installFloorWords, sampleBundleIssues, sampleBundleSchema, validateManifest, WORD_FLOORS } from '../src/index.js';
 
 const en = (text: string) => ({ 'en-US': text });
 
@@ -119,5 +119,43 @@ describe('a column that holds files', () => {
     expect(issues({ signature: null, photos: [] })).toEqual([]);
     expect(issues({ signature: 'file_01JZZZZZZZZZZZZZZZZZZZZZZZ' })).toContain('"sign_offs.signature" holds files a signed-in person uploads, so a sample row leaves it empty.');
     expect(issues({ photos: ['file_01JZZZZZZZZZZZZZZZZZZZZZZZ'] })).toContain('"sign_offs.photos" holds files a signed-in person uploads, so a sample row leaves it empty.');
+  });
+
+  describe('a picture column: an image column whose file rule takes pictures only', () => {
+    const PHOTO = { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 2 * 1024 * 1024 };
+    /** The sign-offs with a `photo`: text, `semantic: "image"`, and the file rule as given. */
+    const withPhoto = (rule: Record<string, unknown> | undefined, more: Record<string, unknown> = {}): Record<string, unknown> => {
+      const doc = signOffs({}, more);
+      const table = ((doc['requiredSchema'] as { tables: { columns: Record<string, unknown>[] }[] }).tables[0])!;
+      table.columns.push({ ref: 'photo', type: 'text', maxLength: 600, nullable: true, semantic: 'image', ...(rule === undefined ? {} : { rules: { file: rule } }) });
+      return doc;
+    };
+    const SHA = 'a'.repeat(64);
+
+    it('takes pictures only, never another kind, and PNG, JPEG, WebP and GIF are the pictures', () => {
+      expect(PICTURE_FILE_KINDS).toEqual(['png', 'jpeg', 'webp', 'gif']);
+      expect(issuesOf(withPhoto(PHOTO))).toEqual([]);
+      expect(issuesOf(withPhoto({ ...PHOTO, accept: ['png', 'pdf'] })).join('\n')).toContain('"sign_offs.photo" is an image column, so its files are pictures: png, jpeg, webp, gif');
+      // An image column with no file rule holds links, as it always has.
+      expect(issuesOf(withPhoto(undefined))).toEqual([]);
+    });
+
+    it('a sample row gives it one of the bundle’s pictures, or leaves it empty: never a file id', () => {
+      const result = validateManifest(withPhoto(PHOTO));
+      if (!result.ok) throw new Error('expected a manifest');
+      const issues = (row: Record<string, unknown>) =>
+        sampleBundleIssues(sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'crew', assets: { wings: { file: 'seeds/wings.png', sha256: SHA } }, tables: [{ ref: 'sign_offs', rows: [{ id: 1, signer_name: 'Ada', ...row }] }] }), result.manifest).map((issue) => issue.message);
+      expect(issues({ photo: { '@asset': 'wings' } })).toEqual([]);
+      expect(issues({ photo: null })).toEqual([]);
+      expect(issues({ photo: 'file_01JZZZZZZZZZZZZZZZZZZZZZZZ' })).toContain('"sign_offs.photo" holds a picture: a sample row gives it one of the bundle\'s pictures ({"@asset": …}) or leaves it empty.');
+      expect(issues({ photo: { '@asset': 'nope' } })).toContain('"nope" is not one of the bundle’s assets.');
+      // A picture-only rule on a column that is no image column still takes nothing from a sample.
+      expect(issues({ signature: { '@asset': 'wings' } })).toContain('"sign_offs.signature" holds files a signed-in person uploads, so a sample row leaves it empty.');
+    });
+
+    it('is a picture a public entry may show to every visitor', () => {
+      const shown = withPhoto(PHOTO, { publicAccess: [{ table: 'sign_offs', methods: ['GET'], select: ['id', 'signer_name', 'photo'], pictures: ['photo'] }] });
+      expect(issuesOf(shown)).toEqual([]);
+    });
   });
 });

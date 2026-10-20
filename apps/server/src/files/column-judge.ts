@@ -14,7 +14,9 @@
  *
  *  - a file the WRITER uploaded — a signed-in person, through a person's own
  *    door (a save, a bulk edit, a record's button); a rule, an import, a
- *    public write, project code and sample data name none;
+ *    public write and project code name none, and an app's sample data names
+ *    only the pictures it added from its own bundle in the same pass, each
+ *    row its own;
  *  - that no record holds yet, or that was uploaded for this very record
  *    and is in none of its other file columns;
  *  - of this database, alive, of a kind the column takes, no larger than it
@@ -87,6 +89,8 @@ export interface FileColumnWrite {
   values: Row;
   /** The row as it is (an update), or null (a create). */
   stored: Row | null;
+  /** The files the write itself made for its rows (`WriteContext.minted`): an import names these and no other. */
+  minted?: ReadonlySet<string> | undefined;
 }
 
 export interface FileColumnJudge {
@@ -169,6 +173,27 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
         const kept = heldBy.get(column.name) ?? new Set<string>();
         const fresh = named.filter((id) => !kept.has(id));
         if (fresh.length === 0) continue;
+        // An app's sample: the files it made in this pass, of a kind and a size the column takes, and nothing else.
+        // (A row after the first that names one is given a copy of its own as it is written.)
+        if (write.origin === 'import' && write.minted !== undefined && files !== null) {
+          const accept = new Set(mimesForKeys(rule.accept.filter((key): key is SniffTypeKey => (SNIFF_TYPE_KEYS as readonly string[]).includes(key))));
+          for (const id of fresh) {
+            const file = write.minted.has(id) ? await files.findById(id) : null;
+            if (file === null || file.kind !== 'upload' || file.deletedAt !== null || file.entityConnectionId !== write.connectionId) {
+              refuse(column.name, { code: 'file-not-here' });
+              break;
+            }
+            if (!accept.has(file.mime)) {
+              refuse(column.name, { code: 'file-type' });
+              break;
+            }
+            if (file.sizeBytes > rule.maxBytes) {
+              refuse(column.name, { code: 'file-too-large', n: rule.maxBytes });
+              break;
+            }
+          }
+          continue;
+        }
         if (person === null || files === null) {
           refuse(column.name, { code: 'file-not-here' });
           continue;

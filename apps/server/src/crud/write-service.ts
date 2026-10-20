@@ -2296,7 +2296,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    */
   async function fileIssues(action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
     if (action === 'delete' || context.origin === 'undo') return null;
-    const write = { connectionId: target.connectionId, table: target.table, origin: context.origin, actor: context.actor ?? null, values, stored };
+    const write = { connectionId: target.connectionId, table: target.table, origin: context.origin, actor: context.actor ?? null, values, stored, minted: context.minted };
     return (opts.files ?? NO_NEW_FILES).judge(write);
   }
 

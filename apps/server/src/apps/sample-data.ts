@@ -1661,6 +1661,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
         hops: 0,
         actor: { kind: 'user', id: opts.userId, label: opts.userLabel },
         request: null,
+        // A picture column the app's own rule makes a file column takes the pictures added above, and no other file.
+        minted: sampleFileIds,
       };
       const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
       const counts: Record<string, number> = {};
