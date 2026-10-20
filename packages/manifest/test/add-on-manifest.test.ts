@@ -166,6 +166,30 @@ describe('the cross-block rules', () => {
     }
   });
 
+  it('PAYMENT_PROVIDER_RULES — a payment provider: its hosts only, nothing public, filed under payments', () => {
+    const payments = {
+      ...DHL,
+      key: 'payments-demo',
+      name: 'Payments test',
+      categories: ['payments'],
+      addOn: {
+        ...DHL.addOn,
+        provides: [{ contract: 'payment-provider', version: 1, server: 'server/provider.js' }],
+        publicSettings: [],
+      },
+    };
+    const codes = (doc: unknown): string[] => {
+      const result = validateManifest(doc);
+      return result.ok ? [] : result.issues.filter((i) => i.code === 'PAYMENT_PROVIDER_RULES').map((i) => i.message);
+    };
+    expect(codes(payments)).toEqual([]);
+    expect(codes({ ...payments, addOn: { ...payments.addOn, publicSettings: ['demo_transport'] } }).join()).toContain('publicSettings is empty');
+    expect(codes({ ...payments, categories: ['delivery'] }).join()).toContain('"payments" category');
+    expect(codes({ ...payments, capabilities: ['file-storage'] }).join()).toContain('outbound-http');
+    const twice = [...payments.addOn.provides, { contract: 'payment-provider', version: 1, server: 'server/other.js' }];
+    expect(codes({ ...payments, addOn: { ...payments.addOn, provides: twice } }).join()).toContain('at most once');
+  });
+
   it('CAPABILITY_CONFLICT — an oauth2 connect without oauth-connect fails', () => {
     const result = validateManifest({
       ...DHL,

@@ -834,3 +834,10 @@ export {
   type PostingRowsLedger,
 } from './posting-rows.js';
 export { priceAdjustConformance, type PriceAdjustCase, type PriceAdjustConformanceOptions } from './price-adjust.js';
+export {
+  PAYMENT_AMOUNT_CASES,
+  paymentProviderConformance,
+  type PaymentAmountCase,
+  type PaymentConformanceDriver,
+  type PaymentConformanceOptions,
+} from './payment-provider.js';

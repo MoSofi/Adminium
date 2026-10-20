@@ -111,12 +111,12 @@ describe('slot registry', () => {
 });
 
 describe('contract registry', () => {
-  it('holds exactly six contracts, all at version 1', () => {
-    expect(CONTRACT_REGISTRY).toHaveLength(6);
+  it('holds exactly seven contracts, all at version 1', () => {
+    expect(CONTRACT_REGISTRY).toHaveLength(7);
     expect(CONTRACT_REGISTRY.every((c) => c.version === 1)).toBe(true);
   });
 
-  it('carries the three wave-4 contracts, the one wave 6 bought, the two that decide inside a save, and nothing else', () => {
+  it('carries the three wave-4 contracts, the one wave 6 bought, the two that decide inside a save, the payment service, and nothing else', () => {
     // `document-render` is purchase (Appendix A, seven
     // exhibits). The count above and this list move together on purpose: a
     // contract that arrives without its name being written down here arrived
@@ -124,6 +124,7 @@ describe('contract registry', () => {
     expect([...CONTRACT_IDS].sort()).toEqual([
       'artwork-source',
       'document-render',
+      'payment-provider',
       'posting-rows',
       'price-adjust',
       'product-personalizer',

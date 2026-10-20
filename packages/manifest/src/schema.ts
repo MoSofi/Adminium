@@ -4031,6 +4031,25 @@ export function addOnIssues(
     });
   }
 
+  // PAYMENT_PROVIDER_RULES — an add-on that moves money: one provider, its own
+  // hosts only (outbound-http, so the allow-list above applies), nothing shown
+  // to the public, and filed under payments.
+  const payments = (block.provides ?? []).filter((entry) => entry.contract === 'payment-provider');
+  if (payments.length > 1) {
+    out.push({ code: 'PAYMENT_PROVIDER_RULES', path: 'addOn.provides', message: 'an add-on provides the contract "payment-provider" at most once' });
+  }
+  if (payments.length > 0) {
+    if (!wantsHttp) {
+      out.push({ code: 'PAYMENT_PROVIDER_RULES', path: 'capabilities', message: 'a payment provider reaches its service through outbound-http and its allow-list' });
+    }
+    if ((block.publicSettings ?? []).length > 0) {
+      out.push({ code: 'PAYMENT_PROVIDER_RULES', path: 'addOn.publicSettings', message: 'a payment provider shows no setting to the public: publicSettings is empty' });
+    }
+    if (!(m.categories ?? []).includes('payments')) {
+      out.push({ code: 'PAYMENT_PROVIDER_RULES', path: 'categories', message: 'a payment provider is filed under the "payments" category' });
+    }
+  }
+
   // CAPABILITY_CONFLICT — an oauth2 connect needs the capability that runs it.
   if (block.connect.kind === 'oauth2' && !(m.capabilities?.includes('oauth-connect') ?? false)) {
     out.push({
