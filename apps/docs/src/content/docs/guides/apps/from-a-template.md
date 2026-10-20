@@ -96,7 +96,19 @@ The usual ones in a shop template:
 Ask it all in one message, and build only what the person approved: a choice made after the build
 means building something twice (a card form, then a bank transfer in its place), or throwing it
 away. Keep the answers in the app's brief, `apps/<key>/design.md`, under "From a template", so a
-later session does not ask again or undo them. When the site works, say in a short summary what was
+later session does not ask again or undo them.
+
+In Adminium Designer this is one card, asked before anything of the template is written. `use_site`
+first returns what the server found in the template (its repeated blocks with their fields, its forms,
+a cart, the features and the links to nowhere), and then takes the plan. The person reviews it in one
+sheet (**Review the plan…**): what becomes a table, what the forms do, what the template shows with
+**Build**, **Replace** or **Leave out** for each thing not available (Replace is picked where there is
+one, never Build), the links to fill, and what is added to the project. The answer is kept in
+`apps/<key>/template-plan.json` with the template's sha256, and the system prompt says what it
+approved, so a later session neither asks again nor undoes it, and a different template asks again.
+Then, in a session that holds a template, the server asks **Check this before it goes live** only for
+what lets strangers do more, or a page call an outside address, beyond what the plan approved. On a
+model that reads too little at once for a template, `use_site` refuses before the plan. When the site works, say in a short summary what was
 built, what was replaced and what was left out, and which sample rows are filler.
 
 ## The side's folder
@@ -198,7 +210,9 @@ as the template wrote them, with four changes, listed in a comment at the top of
   loaded as a package.
 - **Fonts as packages.** A Google font is installed as its `@fontsource` package
   (`@fontsource/inter`), one import per weight the stylesheet uses, before the template's
-  stylesheet. In Adminium Designer the font is asked for with `request_package`.
+  stylesheet. In Adminium Designer the template's Google fonts are on the plan, under "Added to the
+  project", and `site/index.css` imports each ticked one first. Another font is asked for with
+  `request_package`.
 - **A CSS library from a CDN as a package.** Font Awesome's `<link>` to cdnjs becomes
   `@fortawesome/fontawesome-free`, imported from `main.tsx`.
 

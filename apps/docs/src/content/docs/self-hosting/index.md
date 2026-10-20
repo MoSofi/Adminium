@@ -125,7 +125,7 @@ a substitute for a database backup. See
 With no storage destination configured, every file is on this server's own disk
 under `ADMINIUM_DATA_DIR/files`, and the data-directory row above covers it.
 Once you set `ADMINIUM_STORAGE_URL` — or add a destination in Studio — every
-*new* upload, record attachment, export artifact, branding logo and imported
+*new* upload, file kept with a record, export artifact, branding logo and imported
 schema file goes to that bucket or that server instead (what was already written
 stays where it is until you move it), and **a filesystem backup of the data
 directory will not contain them.** Neither will the desktop app's

@@ -3,7 +3,7 @@ title: Where your files are stored
 description: The default is this server's own disk. When your host has no persistent disk it is not enough — configure a destination on a bucket or your own server, and here is the recipe per host.
 ---
 
-Every byte Adminium stores goes through one seam: uploaded attachments, export
+Every byte Adminium stores goes through one seam: files kept with records, export
 artifacts, uploaded CSVs waiting to be imported, and the branding logo. A
 **destination** is where that seam puts them.
 
@@ -284,12 +284,12 @@ A destination that has never been tested says so. One that failed shows
 ### Set as default
 
 Exactly one destination is the default. Once one exists, **every new file of
-every kind** is written there: attachments, export artifacts, uploaded CSVs, the
+every kind** is written there: files kept with records, export artifacts, uploaded CSVs, the
 branding logo. Files already stored stay exactly where they are.
 
 That "every kind" is the point on a host with no persistent disk — an export
-artifact is no safer on a disk that does not survive a deploy than an attachment
-is.
+artifact is no safer on a disk that does not survive a deploy than a record's
+file is.
 
 ### Move files
 

@@ -51,6 +51,6 @@ through a permission the reader does not have.
 ## Before the record exists
 
 In the **New** dialog there is no record yet, so links are collected and written
-with it in one step. Anything that cannot work that way — file attachments on a
+with it in one step. Anything that cannot work that way — a record's files on a
 source Adminium cannot alter, for instance — appears on the record's page after
 it exists, and says so.

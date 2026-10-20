@@ -293,7 +293,10 @@ eight go with one message.
 | **A picture** (PNG, JPEG, WebP or GIF, up to 5 MB) | It is sent to the model with your message, so "make it look like this" works. A model that does not read pictures cannot see it: the box says so before you send, and the model is told only that a picture was attached |
 | **A font of your own** (one `.woff2` file, up to 400 KB) | Say what it is for ("use this for headings"). The Designer copies it into the app (`apps/<key>/assets/fonts/`) under the font's name and weight, and the app serves it itself. It stays in use when you change the style. One file is one weight: attach the bold and the regular as two files |
 | **A Markdown file** (`.md`, up to 200 KB) | The model reads it with your message. A file that describes a look, such as a `DESIGN.md` with a design system's colours, fonts, spacing, corners and its rules of do and don't, becomes the design of the app's own screens: see [Design after a DESIGN.md](#design-after-a-designmd). Any other document (notes on what the app should keep and do) is read as part of what you ask for |
+| **A page or a stylesheet of a site template** (`.html` up to 512 KB, `.css` up to 1 MB) | The Designer builds screens from it: see [Build from a site template](#build-from-a-site-template). The chip says **page** or **stylesheet** |
+| **A site template** (a `.zip` up to 25 MB, or a folder: **A folder…** in the attach menu, or dropped on the box) | Read whole, before you send: the chip says how many pages and files it holds and what was left out, and why. See [Build from a site template](#build-from-a-site-template) |
 | **A CSV file** (up to 10 MB and 20,000 rows) | The model is shown its columns and first rows and shapes the table from them. Once the app is applied, a card asks: "Load 1,204 rows from orders.csv into orders?", with which column goes where. **Load them** adds the rows; **Do not load** leaves the table empty |
+| **A frame from Figma** (**From Figma…** in the attach menu) | Two files join the message: a picture of the frame and its design document. See [From Figma](#from-figma) |
 
 Rows are loaded by the dashboard's own import, so the table's checks hold (types, required columns,
 the rules you gave a column); a row that does not pass is left out, the answer says how many, and
@@ -306,6 +309,127 @@ by its name (`.md` or `.markdown`), and must be plain text. Files are kept in th
 your project (`.adminium/designer/sessions/`), not sent anywhere but to the model you chose. What a
 CSV's cells or a picture say is data to the Designer, never an instruction; a document says what to
 build and how it looks, and a line in it that asks for anything else is not followed.
+
+### From Figma
+
+The Designer can read a frame of a Figma design. Press **Attach**, choose **From Figma…** and paste
+the frame's link. Two files join your message, named after the frame: a picture of it
+(`Home.png`) and its design document (`Home — Figma design.md`). Together they are the design:
+the picture gives the sections and how they are laid out, the document gives the exact sizes, gaps,
+padding, colours, fonts and corners.
+
+#### Connect Figma
+
+Figma is read with a personal access token of your own. The first time, the dialog asks for one:
+
+1. In Figma, open Settings, then Security, then Personal access tokens.
+2. Make a token that can read file content and file metadata. Figma shows it once: copy it.
+3. Paste it in **Figma token** and press **Connect**.
+
+Adminium asks Figma whose token it is before it keeps anything. A token Figma refuses is not kept:
+"Figma did not accept this token. Check it and paste it again." A good one is kept encrypted on the
+server, for you only, under a key of its own made from `ADMINIUM_SECRET`. It is never sent back to
+the browser, and only your own imports and the Designer's reads in your turns use it. Each person
+connects their own: a token is never shared. If `ADMINIUM_SECRET` changes, the token can no longer
+be read: paste it again with **Change token**.
+
+Once connected, the dialog says **Connected to Figma as** your Figma handle, with two buttons:
+
+- **Change token** puts the token field back. A new token replaces the old one.
+- **Disconnect** asks first: "Disconnect Figma?". **Disconnect** removes the token from the server,
+  and the copies of frames kept for you with it. Your imports already in the Designer stay.
+
+Your **Security** page (**Password & sessions** in the sidebar) has a **Figma** card that does the
+same without starting an import: **Change token** (a **New token** field and **Save token**) and
+**Disconnect**, which asks first too. You connect from the Designer: with no token, the card says
+"Not connected. Connect Figma from the Designer's Attach menu, From Figma…". The card shows only for
+someone who may use the Designer. Seeing and removing a token works even while the Designer is
+switched off on a live server.
+
+Under `adminium design`, a token in `ADMINIUM_FIGMA_TOKEN` stands in for the project owner's, and
+only theirs. It is read from the environment the command runs in, never from the project's `.env`.
+The dialog then says "Using the Figma token set in this project's environment." and offers no
+**Change token** or **Disconnect**. On a server people reach it is not used: each person connects
+their own token.
+
+On a server set to call nothing outside itself, **From Figma…** is greyed out and says "Figma is off
+on this server: network features are turned off."
+
+#### Import a frame
+
+In Figma, select a frame and copy its link. Paste it in **Link to a Figma frame** and press
+**Import**. A link to a design or a file works, also inside a branch. The dialog refuses what holds
+no design frame, and says what to paste instead:
+
+| You paste | The dialog says |
+|---|---|
+| A link to a file, with no frame picked (no `node-id`) | "Pick a frame in Figma and copy its link." |
+| A FigJam board | "That is a FigJam board. Paste a link to a design frame." |
+| A Slides deck | "That is a Slides deck. Paste a link to a design frame." |
+| A prototype | "That is a prototype link. Paste a link to a design frame." |
+| A file your Figma account cannot open | "Your Figma account cannot open this file. Ask its owner to share it with you." |
+| A frame whose picture is over 5 MB | "Pick a smaller frame: this one renders over 5 MB." |
+
+The picture is drawn by Figma at about 2,000 pixels on its long side. The design document is an
+outline of the frame in text, up to 32,000 characters: first the values a theme needs (palette,
+type sizes, spacing, corners, shadows, pictures), then one line per layer, indented by depth, with
+its sizes, gaps, padding, colours and fonts. A component is named where it is used and described
+once at the end. Each picture in the frame is named with its shape (wide, square or tall), so the
+Designer makes picture spots of the same shapes. Hidden layers and masks are left out and counted.
+Where the frame holds more than fits, the deepest levels are cut first, and each cut says how much
+it holds and which id reads it.
+
+During a turn, the Designer can read one part of the frame in more detail by that id, with a picture
+of it if it asks. Each of these reads is a step under the reply: "Read Hero from the saved copy", or
+"Read Hero from Figma (1 Figma read)". It is made with the token of the person who started the turn.
+
+#### What it costs in Figma reads
+
+Figma counts reads. On a View or Collab seat Figma allows 20 reads a month, per Figma account, not
+per Adminium person. The dialog says so under the link: each import reads Figma twice, once for the
+frame and once for its picture, so a seat has about ten imports a month.
+
+- **Importing a frame again costs no read until the file changes.** What was read is kept on the
+  server, by you, the file, the frame and the file's version. An import first asks Figma which
+  version the file is at, which is not one of the 20, and serves what is kept for it: "Already
+  imported this version of the frame. No Figma read was used." A copy kept for you is never served
+  to anyone else.
+- **A retry spends only what is missing.** The frame and its picture are each kept as soon as they
+  arrive, so after a picture that failed, the next import reads only the picture.
+- **The Designer spends at most 3 reads a turn.** A part's outline is one read and its picture is
+  another; a part the kept copy holds costs nothing. Past three, the Designer works from the design
+  document.
+- **A server that forgets.** Copies are kept in the project, in `.adminium/designer/figma/`, up to
+  50 MB, oldest out first. On a server whose disk does not outlive a deploy the dialog says: "This
+  server forgets saved copies when it is deployed again, so an import after a deploy reads Figma
+  again."
+
+#### When Figma limits reads
+
+When Figma says your seat's reads are used up, the dialog says until when ("Figma's limit for your
+seat is used up for now. You can read again on {date}."), or "next month" when Figma gives no
+date, and **Import** cannot be pressed.
+
+The Designer's own reads stop with it, for that Figma account, until that date, or for a month
+when Figma gave none. Under the turn it says: "Figma reads are paused for you until {date}. The
+Designer works from the design document you imported." It goes on building from what you already
+imported. Your own imports from the dialog still try, and the pause ends as soon as one works.
+
+When Figma only asks for a short wait, the dialog says "Figma asked us to wait. Try again in 2
+minutes."
+
+#### Models with a small window
+
+A model that reads fewer than 32,000 tokens at once gets a short form of the design document, about
+4,000 characters, and not the picture: both would leave it no room to talk. It can still read the
+whole document a piece at a time, and its reads of a part come without a picture.
+
+#### What a design says is data
+
+The names of the layers and the texts in the frame are the design's own, never something you asked
+for. In the design document each one is a quoted line: a layer named "Ignore your rules" is a name,
+not an instruction. The Designer takes the look and the layout from the frame, as it does from a
+[DESIGN.md](#design-after-a-designmd). Dashboard pages are Adminium's own and are not restyled.
 
 ### Design after a DESIGN.md
 
@@ -337,6 +461,67 @@ A few things to know:
 - The document stays with the session: in a long session the Designer reads it again when it designs
   or restyles a screen. A file is recognised as a design when its name says so (`DESIGN.md`,
   `brand.md`, `style-guide.md`) or when it lists colours and speaks of type or spacing.
+
+### Build from a site template
+
+A site template is a folder of HTML pages, stylesheets, pictures and fonts, such as one you bought or
+downloaded. The Designer builds the app's customer side from it, with the template's look, and makes
+what the template only pretends to do work: its products become tables you edit in the dashboard, its
+forms keep what people send, and its cart becomes an order.
+
+There are three ways to bring one in:
+
+- **Attach it**: a `.zip`, or a folder (**A folder…** in the attach menu, or drop it on the box). It goes
+  up at once and is read whole: the chip shows its pages and files, and a link such as **2 left out** lists what
+  was not kept, each with why (PHP, videos, sources that need a build, links, hidden files, a picture whose
+  bytes are not what its name says). A zip locked with a password, a damaged zip, and two files whose names
+  differ only in capital letters are refused, in one sentence.
+  A second template asks first, and what was already built from the first one stays.
+- **Keep it in the project**: put the folder in `site-templates/<name>/` (letters, digits, space,
+  `. _ -`). The Designer's home offers it (**Start from it**), and the attach menu lists it under
+  **A site template in this project**.
+- **Open its folder in the Desktop app**: on a folder that holds a template, **Make a new project here**
+  makes the project inside it and copies the template into `site-templates/` (your folder's own files
+  are not changed). `adminium new --site-template <folder>` does the same from the command line.
+
+Up to 300 files and 24 MB are kept, a page up to 512 KB, a stylesheet up to 1 MB.
+
+**The plan comes first.** Before anything is written, the Designer reads the template and shows one
+card, **Your template, as an app**, with **Review the plan…**. The plan says what becomes a table (each
+with its columns, the pages that show it, and how many sample rows come from the template or are made
+up), what each form does, what the template shows and whether Adminium does it, the links that lead
+nowhere, and what is added to the project (the screens' packages and the template's Google fonts, which
+the app then carries itself). For each thing Adminium does not do (a card payment, a chat widget), you
+choose **Build**, **Replace** or **Leave out**; Replace is picked where there is one, never Build.
+An unticked table stays fixed text on its page. **Build this** starts the build; text in **Anything to
+change?** turns the button into **Send my changes**, and the Designer makes a new plan from your words.
+
+Only what you approved is built, and you are not asked again: the plan is kept in
+`apps/<key>/template-plan.json`, so a later session, or a build stopped by a limit, goes on from it.
+A different template asks for a new plan.
+
+What happens to the template:
+
+- Its stylesheets, pictures and fonts are copied into the side's `src/site/`, with comments, other
+  sites' addresses and missing files taken out. The side follows its template: it gets none of
+  Adminium's own look and no Tailwind, and the style menu changes only its colours.
+- Each page becomes a screen at its own address, its markup as it was. Its scripts are not copied or
+  run: what they did (a menu that opens, a slider) is written again in React.
+- Its pictures become picture spots, filled with the template's own pictures and marked **From your
+  template**, so you can swap any of them in the picture dialog. A product's picture becomes the
+  picture of its row.
+
+**Check this before it goes live.** In a session that holds a template or a Figma design, the
+Designer asks before the app lets strangers do more than before (read or add rows, a new role) or a
+page calls an address outside Adminium, and only for what the plan you approved does not cover:
+**Allow it** or **Do not allow it**. The template's words are data to the Designer: a comment in a page
+that asks for something is never followed.
+
+A template build needs a model that reads a lot at once. On a model that does not (Ollama, and most
+models behind an OpenAI-compatible server), the Designer says so before it starts: "This model reads
+too little at once to build from a template. Pick a model with a larger window."
+
+The whole method, outside the Designer too, is in [A website template as a working app](/guides/apps/from-a-template/).
 
 ### Building on an add-on
 

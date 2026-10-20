@@ -157,7 +157,7 @@ Four things deliberately do not:
 - the **audit log**, which records what a table was called when the change
   happened,
 - **import history**, for the same reason,
-- **notification links** and **file attachments**, which are soft references,
+- **notification links** and **files kept with records**, which are soft references,
 - **saved-view filters** that name a renamed *column*.
 
 The confirm dialog names these before you apply.

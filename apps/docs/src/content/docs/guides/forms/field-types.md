@@ -13,7 +13,7 @@ slider over a name has no scale; a toggle over a date has nothing to toggle.
 | Your column | Default control |
 |---|---|
 | Foreign key | **Reference** — a search over the other table |
-| A file column | **Attachments** |
+| A file column | **Attachments** — Upload (Add files on a list), Replace and Remove file |
 | A picture column (its file block takes pictures only) | **Picture** — the picture, Upload, Choose existing… and Remove |
 | A list (a `json` array, a PostgreSQL array) | **Chips** |
 | Allowed values, up to four, required | **Segmented** — the answers as buttons |

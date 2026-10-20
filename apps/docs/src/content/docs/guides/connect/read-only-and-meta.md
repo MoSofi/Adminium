@@ -128,9 +128,9 @@ The app is not degraded — it is a read-only app, honestly labeled, with a bann
 Everything backed by the **meta** store still works, because that connection is
 still read-write. That is the whole reason the two are separate.
 
-**Attachments are on the meta side, so they still work.** Enable attachments for
-a table in Studio and its record pages accept uploads even on a read-only
-connection: the bytes go to Adminium's own storage, and the row tracking them —
+**A record's files are on the meta side, so they still work.** Turn on
+**Files on each record** for a page in Studio and its record pages accept
+uploads even on a read-only connection: the bytes go to Adminium's own storage, and the row tracking them —
 filename, size, checksum, and the connection, table and record it belongs to —
 lives in `adminium_files` in the meta store. No column is written and no write
 reaches your database, so there is nothing for a read-only role to refuse.
@@ -138,7 +138,7 @@ Adminium still checks that *you* may update that table, but that is a role
 permission of its own, not a database privilege. The other way to bind a file —
 storing its URL or id *in one of your own columns* — is an ordinary record
 write, and it is refused here like every other one. See
-[Files & attachments](/guides/files/).
+[Attaching files to records](/guides/files/).
 
 ## Recommended posture
 
