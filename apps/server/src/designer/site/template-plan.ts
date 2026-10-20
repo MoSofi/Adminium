@@ -212,6 +212,8 @@ export interface ApprovedAccess {
 export interface TemplatePlanFile {
   version: 1;
   site: { attachment: string; name: string; sha256: string };
+  /** The side the template is brought into. Absent in a plan kept before sides were named: the customer side. */
+  side?: 'customer' | 'staff';
   /** When the person approved it. */
   at: string;
   plan: Omit<TemplatePlanRequest, 'type'>;
@@ -258,10 +260,13 @@ export function writeTemplatePlan(root: string, appKey: string, file: TemplatePl
   renameSync(`${path}.tmp`, path);
 }
 
-/** The approved plan for this very site (same sha256), or null: a different template asks again. */
-export function planFor(root: string, appKey: string, sha256: string): TemplatePlanFile | null {
+/** The side a plan was approved for. */
+export const planSide = (plan: Pick<TemplatePlanFile, 'side'>): 'customer' | 'staff' => plan.side ?? 'customer';
+
+/** The approved plan for this very site (same sha256) and side, or null: a different template, or side, asks again. */
+export function planFor(root: string, appKey: string, sha256: string, side: 'customer' | 'staff' = 'customer'): TemplatePlanFile | null {
   const plan = readTemplatePlan(root, appKey);
-  return plan !== null && plan.site.sha256 === sha256 ? plan : null;
+  return plan !== null && plan.site.sha256 === sha256 && planSide(plan) === side ? plan : null;
 }
 
 const listed = (items: readonly string[], max: number): string => (items.length <= max ? items.join(', ') : `${items.slice(0, max).join(', ')} and ${String(items.length - max)} more`);
@@ -271,15 +276,17 @@ const listed = (items: readonly string[], max: number): string => (items.length 
  * The whole plan is in the file; the section says where.
  */
 export function planBrief(appKey: string, file: TemplatePlanFile): string {
+  // Refs and ids only (checked by the plan's schema): the plan's own words are the model's, made from the template's,
+  // and never ride in a later session's system prompt. The whole plan is in the file, read as data.
   const ticked = new Set(file.answer.tables);
   const tables = file.plan.tables.filter((table) => ticked.has(table.table)).map((table) => `${table.table} (${String(table.fromTemplate)} sample rows from the template${table.madeUp > 0 ? `, ${String(table.madeUp)} made up` : ''})`);
   const fixed = file.plan.tables.filter((table) => !ticked.has(table.table)).map((table) => table.table);
-  const forms = file.plan.forms.map((form) => `${form.label} → ${form.table}`);
-  const decided = file.plan.report.filter((row) => row.status === 'not-available').map((row) => `${row.label}: ${file.answer.decisions[row.id] ?? presetChoice(row)}`);
+  const forms = file.plan.forms.map((form) => `${form.form} → ${form.table}`);
+  const decided = file.plan.report.filter((row) => row.status === 'not-available').map((row) => `${row.id}: ${file.answer.decisions[row.id] ?? presetChoice(row)}`);
   const filled = file.plan.links.filter((link) => (file.answer.links[link.id] ?? '') !== '').length;
   const empty = file.plan.links.length - filled;
   return [
-    `From a template: the app is built from the site template "${plainWords(file.site.name, 60)}" by the plan the person approved (apps/${appKey}/${TEMPLATE_PLAN_FILE}; read it for the whole plan). Build only what it approved, and never ask for it again.`,
+    `From a template: the app's ${planSide(file)} side is built from a site template by the plan the person approved (apps/${appKey}/${TEMPLATE_PLAN_FILE}; read it for the whole plan). Build only what it approved, and never ask for it again.`,
     `Tables: ${tables.length === 0 ? 'none' : listed(tables, 6)}.${fixed.length === 0 ? '' : ` Kept as fixed text: ${listed(fixed, 6)}.`}`,
     ...(forms.length === 0 ? [] : [`Forms: ${listed(forms, 6)}.`]),
     ...(decided.length === 0 ? [] : [`Decided: ${listed(decided, 8)}.`]),

@@ -17,6 +17,7 @@ import type { CardAnswer, CardRequest } from '../src/designer/cards.js';
 import { createEventLog } from '../src/designer/events.js';
 import { designSection } from '../src/designer/prompt.js';
 import { builtInStylesDir } from '../src/project/apps/design-skills.js';
+import { missingFonts, type Look } from '../src/project/apps/look.js';
 import { designIssues } from '../src/project/apps/design-check.js';
 import { sideBuildDir } from '../src/project/apps/side-build.js';
 import { createSkills } from '../src/designer/skills.js';
@@ -437,6 +438,99 @@ describe.skipIf(!canBuildSides)('the side the template became', () => {
     // A class the model adds later is still checked.
     writeFileSync(side('pages/shop.tsx'), `${readFileSync(side('pages/shop.tsx'), 'utf8').replace('className={"row"}', 'className={"row my-new-grid"}')}`);
     expect((await designIssues(root, 'repairs')).map((issue) => issue.line).join('\n')).toContain('"my-new-grid"');
+  });
+});
+
+describe('what a second call never loses', () => {
+  beforeEach(async () => {
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    asked = [];
+  });
+
+  it('keeps the index the person changed, a file they added under site/, and a file an earlier call copied', async () => {
+    writeFileSync(side('site/index.css'), '@import "./css/style.css";\n.mine{}\n');
+    writeFileSync(side('site/notes.css'), '.added-by-me{}\n');
+    await useSite({ attachment: site, also: ['images/bg.png'] });
+    expect(existsSync(side('site/images/bg.png'))).toBe(true);
+    const done = await useSite({ attachment: site });
+    expect(readFileSync(side('site/index.css'), 'utf8')).toContain('.mine{}');
+    expect(readFileSync(side('site/notes.css'), 'utf8')).toBe('.added-by-me{}\n');
+    expect(existsSync(side('site/images/bg.png'))).toBe(true);
+    expect(done.content).toContain('site/index.css');
+  });
+
+  it('reads a bookkeeping file that does not hold what it should as none, and goes on', async () => {
+    writeFileSync(side('site/.written.json'), 'null');
+    writeFileSync(side('site/.spots.json'), '[1,2]');
+    const done = await useSite({ attachment: site });
+    expect(done.isError, done.content).toBeUndefined();
+  });
+});
+
+describe('a first call into a side that already has screens', () => {
+  it('never writes over a screen file it did not write: the template’s page takes another name', async () => {
+    mkdirSync(side('pages'), { recursive: true });
+    writeFileSync(side('pages/index.tsx'), 'export default function Mine() { return <p>mine</p>; }\n');
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    expect(readFileSync(side('pages/index.tsx'), 'utf8')).toContain('mine');
+    expect(readFileSync(side('pages/index-2.tsx'), 'utf8')).toContain("Made by Adminium Designer's use_site");
+  });
+});
+
+describe('a page’s own stylesheet', () => {
+  it('copies what its <style> imports, and two pages’ styles never share one file', async () => {
+    const styled = (body: string): string => `<!doctype html><html><head><title>S</title><style>@import url("css/extra.css"); .x{color:red}</style></head><body>${body}</body></html>`;
+    const other = attachments.addSite(session.id, { label: 'styled', judged: await judgeSite('styled.zip', [at('a.html', styled('<p>a</p>')), at('a.htm', styled('<p>b</p>')), at('css/extra.css', '.extra{margin:0}')]) }).attachment.id;
+    make();
+    answers.push(approve());
+    await useSite({ attachment: other, plan: { report: [] } });
+    expect(readFileSync(side('site/css/extra.css'), 'utf8')).toContain('.extra');
+    const index = readFileSync(side('site/index.css'), 'utf8');
+    expect(index).toContain('./css/extra.css');
+    expect(existsSync(side('site/a.style-1.css'))).toBe(true);
+    expect(existsSync(side('site/a-2.style-1.css'))).toBe(true);
+  });
+});
+
+describe('a page too deep or too wide to convert in one go', () => {
+  it('is converted, or listed, and never stops the other pages', async () => {
+    const wide = `<!doctype html><html><head><title>W</title></head><body><div>${'<br>'.repeat(130_000)}</div></body></html>`;
+    const big = attachments.addSite(session.id, { label: 'wide', judged: await judgeSite('wide.zip', [at('index.html', `${HEAD('Home')}<body><h1>Home</h1></body></html>`), at('wide.html', wide)]) }).attachment.id;
+    make();
+    answers.push(approve());
+    const done = await useSite({ attachment: big, plan: { report: [] } });
+    expect(done.isError, done.content).toBeUndefined();
+    expect(existsSync(side('pages/index.tsx'))).toBe(true);
+    // Refused for its size, as a page too large is, not lost to a stack that ran out.
+    expect(done.content).toMatch(/Not made into screens: wide\.html[^;]*256/);
+  });
+});
+
+describe('the side a plan is for', () => {
+  it('is kept with it: another side asks for its own plan, and add_side of another side asks as ever', async () => {
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    expect(readTemplatePlan(root, 'repairs')?.side).toBe('customer');
+    const staff = await useSite({ attachment: site, side: 'staff' });
+    expect(staff.content).toContain('call use_site again with the same attachment and "plan"');
+  });
+
+  it('asks no style fonts for an app whose every side follows its template', async () => {
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    // A style's own fonts, none of them in the project.
+    rmSync(join(root, 'node_modules', '@fontsource'), { recursive: true, force: true });
+    const withSkill: Look = { skill: 'clean', templateSides: ['customer'] };
+    expect(missingFonts(root, withSkill, { builtInDir: builtInStylesDir() }).length).toBeGreaterThan(0);
+    expect(missingFonts(root, withSkill, { builtInDir: builtInStylesDir(), key: 'repairs' })).toEqual([]);
+  });
+
+  it('tells the model what the plan’s additions came to', async () => {
+    answers.push(approve());
+    const done = await useSite({ attachment: site, plan: PLAN });
+    expect(done.content).toContain('Added: Inter');
   });
 });
 

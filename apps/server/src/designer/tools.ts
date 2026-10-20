@@ -61,7 +61,7 @@ const SITE_KIND_WORDS = { html: 'a page', css: 'a stylesheet', js: 'a script', p
 import { readFigmaTool, type ReadFigmaDeps } from './figma/tool.js';
 import type { DesignerSession } from './session-store.js';
 import { googleFonts, useSiteTool } from './site/use-site.js';
-import { readTemplatePlan } from './site/template-plan.js';
+import { planSide, readTemplatePlan } from './site/template-plan.js';
 import { dataWindow, quoted } from './untrusted.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
@@ -1235,7 +1235,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         const { look, how } = await chooseStyle(ctx);
         // Everything the screens and their design need from outside, on one card.
         // A side built from an approved template plan: the plan's "Added to the project" was its answer, so no card is shown again.
-        const plan = side === 'customer' ? readTemplatePlan(deps.root, appKey) : null;
+        const kept = readTemplatePlan(deps.root, appKey);
+        const plan = kept !== null && planSide(kept) === side ? kept : null;
         const needs =
           plan === null
             ? await askNeeds(ctx, appKey, screenWants(deps.root, appKey, { side, publicToo: ctx.session.target === 'web', look, stylesDir }))
@@ -1340,7 +1341,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         });
         applyLook(deps.root, appKey, look, places);
         // The fonts the look now names and the project lacks: asked for here, on one card.
-        const wants = missingFonts(deps.root, look, places)
+        const wants = missingFonts(deps.root, look, { ...places, key: appKey })
           .filter((font) => !(look.without ?? []).includes(font.family))
           .map((font): Wanted => ({ kind: 'font', family: font.family, use: font.use }));
         const needs = wants.length === 0 ? null : await askNeeds(ctx, appKey, wants);
@@ -2313,7 +2314,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
                 attachments: deps.attachments,
                 needs: askNeeds,
                 ...((deps.windowOf ?? deps.figma?.windowOf) === undefined ? {} : { windowOf: (deps.windowOf ?? deps.figma?.windowOf) as NonNullable<ToolsDeps['windowOf']> }),
-                previewNeeds: (signal) => askNeeds.preview(templateWants(readLook(deps.root, appKey), { side: 'customer', fonts: googleFonts(templatePages(sessionId)).map((font) => font.family) }), signal),
+                previewNeeds: (side, signal) => askNeeds.preview(templateWants(readLook(deps.root, appKey), { side, fonts: googleFonts(templatePages(sessionId)).map((font) => font.family) }), signal),
                 addOn: async (key) => {
                   const line = (await deps.listAddOns()).find((candidate) => candidate.key === key);
                   return line === undefined ? null : { name: line.name, installed: line.state === 'installed' };

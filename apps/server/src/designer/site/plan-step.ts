@@ -9,6 +9,8 @@
  * changes" approves nothing and goes back to the model. A model that reads too little at once to build from a
  * template is refused before anything is found or asked.
  */
+import { createHash } from 'node:crypto';
+
 import type { DesignerSession } from '../session-store.js';
 import type { NeedItem } from '../needs.js';
 import { quoted } from '../untrusted.js';
@@ -37,7 +39,7 @@ export const PLAN_GUIDE = [
 export interface PlanStepDeps {
   windowOf?: (session: DesignerSession) => Promise<number>;
   /** What the side needs added, as the needs card would offer it, with no card shown. */
-  previewNeeds?: (signal: AbortSignal) => Promise<NeedItem[]>;
+  previewNeeds?: (side: 'customer' | 'staff', signal: AbortSignal) => Promise<NeedItem[]>;
   /** An add-on as this server has it (installed, or in its store or list), or null when it does not know it. */
   addOn?: (key: string) => Promise<{ name: string; installed: boolean } | null>;
 }
@@ -52,17 +54,24 @@ export interface SitePages {
   pages: { path: string; html: string }[];
 }
 
-/** What was found in a site, kept per site for the turn's next call: the same pages give the same facts. */
+/** What was found in a site, kept for the next call: the same pages (bytes and names) give the same facts. */
 const found = new Map<string, Promise<SiteFacts>>();
 
-function factsOf(site: SitePages, signal: AbortSignal): Promise<SiteFacts> {
-  const known = found.get(site.sha256);
-  if (known !== undefined) return known;
-  const made = findInSite(site.pages, { signal });
-  found.set(site.sha256, made);
-  made.catch(() => found.delete(site.sha256));
-  // A handful at most: one per template a running server has seen lately.
-  if (found.size > 8) found.delete(found.keys().next().value as string);
+async function factsOf(site: SitePages, signal: AbortSignal): Promise<SiteFacts> {
+  const key = createHash('sha256').update(site.sha256).update(JSON.stringify(site.pages.map((page) => page.path))).digest('hex');
+  let made = found.get(key);
+  if (made === undefined) {
+    // Found with no turn's stop: a stopped turn never hands its AbortError to another one waiting on the same template.
+    const fresh = findInSite(site.pages);
+    made = fresh;
+    found.set(key, fresh);
+    fresh.catch(() => {
+      if (found.get(key) === fresh) found.delete(key);
+    });
+    // A handful at most: one per template a running server has seen lately.
+    if (found.size > 8) found.delete(found.keys().next().value as string);
+  }
+  if (signal.aborted) throw new Error('The turn was stopped.');
   return made;
 }
 
@@ -129,7 +138,7 @@ export async function askPlan(
     tables.push(info === null || table.addOn === undefined ? table : { ...table, addOnInfo: { key: table.addOn, name: info.name, installed: info.installed } });
   }
   const formsOnCard: PlanForm[] = plan.forms.map((form) => ({ ...form, tableLabel: plan.tables.find((table) => table.table === form.table)?.label ?? form.table.replace(/_/g, ' ').replace(/^./, (first) => first.toUpperCase()) }));
-  const added = (await deps.previewNeeds?.(ctx.signal).catch(() => [])) ?? [];
+  const added = (await deps.previewNeeds?.(ctx.side, ctx.signal).catch(() => [])) ?? [];
   const card: TemplatePlanRequest = {
     type: 'template-plan',
     site: { attachment: site.attachment, name: site.name, pages: site.pages.length, files: site.files },
@@ -154,6 +163,7 @@ export async function askPlan(
   const file: TemplatePlanFile = {
     version: 1,
     site: { attachment: site.attachment, name: site.name, sha256: site.sha256 },
+    side: ctx.side,
     at: new Date().toISOString(),
     plan: kept,
     answer: answered,

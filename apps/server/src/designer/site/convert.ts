@@ -467,7 +467,8 @@ class Converter {
   /** The JSX lines for a parent's children. `holder` is the element the output sits in (an unwrapped element is not one). */
   children(parent: ParentNode, holder: string, depth: number, indent: string): string[] {
     const lines: string[] = [];
-    for (const child of parent.childNodes) lines.push(...this.node(child, holder, depth, indent));
+    // One line at a time: a page of many thousand elements would overflow the stack as one spread.
+    for (const child of parent.childNodes) for (const line of this.node(child, holder, depth, indent)) lines.push(line);
     return lines;
   }
 
@@ -499,7 +500,7 @@ class Converter {
       const lines: string[] = [];
       for (const child of el.childNodes) {
         if (isElement(child) && child.tagName === 'source') this.drop('<source> in a <picture> taken out (its <img> is the picture)');
-        else lines.push(...this.node(child, holder, depth + 1, indent));
+        else for (const line of this.node(child, holder, depth + 1, indent)) lines.push(line);
       }
       return lines;
     }

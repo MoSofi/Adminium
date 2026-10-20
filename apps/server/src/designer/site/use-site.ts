@@ -20,7 +20,7 @@
  * event loop let go between them.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { applyLook, installedWeights, lookInUse, readLook, sidesWithScreens } from '../../project/apps/look.js';
@@ -85,6 +85,33 @@ export function googleFonts(texts: readonly string[]): { family: string; weights
     }
   }
   return [...out].slice(0, 6).map(([family, weights]) => ({ family, weights: [...weights].sort((a, b) => a - b) }));
+}
+
+/** A bookkeeping file of use_site's own: an object of strings, or nothing (a file that does not read is as good as none). */
+function readRecord(path: string): Record<string, string> {
+  try {
+    const read = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    if (read === null || typeof read !== 'object' || Array.isArray(read)) return {};
+    return Object.fromEntries(Object.entries(read as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  } catch {
+    return {};
+  }
+}
+
+/** use_site's own files in `src/site/`: written fresh each time, never carried over as the template's. */
+const BOOKKEEPING = new Set([WRITTEN_FILE, SPOTS_FILE, TEMPLATE_CLASSES_FILE, 'index.css']);
+
+/** Every file under a folder, by its path from it; links and dot folders left out. */
+function filesUnder(dir: string, rel = ''): string[] {
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isSymbolicLink() || (entry.isDirectory() && entry.name.startsWith('.'))) continue;
+    const path = rel === '' ? entry.name : `${rel}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...filesUnder(join(dir, entry.name), path));
+    else if (entry.isFile()) out.push(path);
+  }
+  return out;
 }
 
 const lowerExt = (path: string): string => path.replace(/\.([^./]+)$/, (_all, ext: string) => `.${ext.toLowerCase()}`);
@@ -189,9 +216,9 @@ interface PageRoute {
  * Each page's screen file, address and component name, unique among the template's pages: `about.html` and
  * `about.htm`, or `a b.html` and `a-b.html`, would otherwise write one file and share one address.
  */
-export function pageRoutes(pages: readonly string[]): Map<string, PageRoute> {
+export function pageRoutes(pages: readonly string[], filesTaken: ReadonlySet<string> = new Set()): Map<string, PageRoute> {
   const routes = new Map<string, PageRoute>();
-  const taken = { file: new Set<string>(), screen: new Set<string>(), component: new Set<string>() };
+  const taken = { file: new Set([...filesTaken].map((file) => file.replace(/^pages\//, '').replace(/\.tsx$/, '').toLowerCase())), screen: new Set<string>(), component: new Set<string>() };
   const unique = (base: string, used: Set<string>, joined: (n: number) => string): string => {
     let name = base;
     for (let n = 2; used.has(name.toLowerCase()); n += 1) name = joined(n);
@@ -260,7 +287,8 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       };
 
       // The plan first: approved for this very template, or asked now. A different template asks again.
-      let plan: TemplatePlanFile | null = planFor(root, appKey, site.sha256);
+      let plan: TemplatePlanFile | null = planFor(root, appKey, site.sha256, side);
+      let needsSaid = '';
       if (plan === null) {
         if (input['plan'] === undefined) {
           const { text } = await siteFacts(site, ctx.signal);
@@ -276,12 +304,14 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
         plan = asked.file;
         // What the plan's section 4 ticked is added now, and what it left is kept as done without: never asked again.
         if (deps.needs !== undefined && plan.plan.added.length > 0) {
-          await deps.needs(ctx, appKey, templateWants(readLook(root, appKey), { side, fonts: googleFonts(site.pages.map((page) => page.html)).map((font) => font.family) }), { answer: plan.answer.added });
+          const done = await deps.needs(ctx, appKey, templateWants(readLook(root, appKey), { side, fonts: googleFonts(site.pages.map((page) => page.html)).map((font) => font.family) }), { answer: plan.answer.added });
+          // What was added, left out, or could not be added: the model is told, as for any needs card.
+          needsSaid = done.said;
         }
       }
       if (!sidesWithScreens(root, appKey).includes(side)) {
         return {
-          content: `The plan is approved and kept in apps/${appKey}/template-plan.json. The app has no ${side} side with screens yet: call add_side for the ${side} side (nothing more is asked), then use_site again with the same attachment to bring the template in.`,
+          content: `The plan is approved and kept in apps/${appKey}/template-plan.json.${needsSaid === '' ? '' : `\n${needsSaid}\n`} The app has no ${side} side with screens yet: call add_side for the ${side} side (nothing more is asked), then use_site again with the same attachment to bring the template in.`,
           label: 'The plan is approved',
           facts: { outcome: 'added' },
         };
@@ -291,12 +321,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
 
       // What was written before, and which of it the person changed since.
       const writtenPath = join(src, SITE_DIR, WRITTEN_FILE);
-      let written: Record<string, string> = {};
-      try {
-        written = JSON.parse(readFileSync(writtenPath, 'utf8')) as Record<string, string>;
-      } catch {
-        written = {};
-      }
+      const written = readRecord(writtenPath);
       const changedByHand = Object.entries(written).filter(([path, hash]) => {
         const file = join(src, ...path.split('/'));
         return existsSync(file) && sha(readFileSync(file)) !== hash;
@@ -315,12 +340,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       // The pages, one at a time: the event loop is let go between them.
       const pages = [...files.entries()].filter(([, file]) => file.kind === 'html').map(([path]) => path).sort((a, b) => (a === 'index.html' ? -1 : b === 'index.html' ? 1 : a.localeCompare(b))).slice(0, PAGES_MAX);
       const spots = readSpots(root, appKey);
-      let madeBefore: Record<string, string> = {};
-      try {
-        madeBefore = JSON.parse(readFileSync(join(src, SITE_DIR, SPOTS_FILE), 'utf8')) as Record<string, string>;
-      } catch {
-        madeBefore = {};
-      }
+      const madeBefore = readRecord(join(src, SITE_DIR, SPOTS_FILE));
       const madeNow: Record<string, string> = {};
       const placeOnPage = new Map<string, number>();
       const taken = new Set(spots.map((spot) => spot.id));
@@ -328,7 +348,9 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       const newSpots: (SpotEntry & { from: string })[] = [];
       const converted: { page: string; file: string; screen: string; out: ConvertedPage }[] = [];
       const refusedPages: string[] = [];
-      const routes = pageRoutes(pages);
+      // A screen file use_site did not write (the person's, or the model's own) is never written over: its page takes another name.
+      const notOurs = new Set(filesUnder(join(src, 'pages')).map((name) => `pages/${name}`).filter((file) => written[file] === undefined));
+      const routes = pageRoutes(pages, notOurs);
       for (const page of pages) {
         await yieldNow();
         const html = textOf(files.get(page)?.read() ?? null);
@@ -380,8 +402,8 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
           });
           converted.push({ page, file: route.file, screen: route.screen, out });
         } catch (error) {
-          if (error instanceof ConvertRefusal) refusedPages.push(error.message);
-          else throw error;
+          // One page that cannot be made a screen never stops the others.
+          refusedPages.push(error instanceof ConvertRefusal ? error.message : `${page}: it could not be made a screen`);
         }
       }
 
@@ -395,6 +417,20 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       const copied = new Map<string, Buffer | string>();
       const removed: string[] = [];
       const hosts = new Set<string>(converted.flatMap((page) => page.out.remoteStyles));
+      // Each page's own <style>, named by its screen (so two pages never share one), with what it imports copied too.
+      const inline: string[] = [];
+      for (const page of converted) {
+        page.out.styles.forEach((style, index) => {
+          const path = `${page.file.replace(/^pages\//, '').replace(/\.tsx$/, '')}.style-${String(index + 1)}.css`;
+          const cleaned = cleanCss(style, { path: page.page, has });
+          copied.set(path, cleaned.css);
+          inline.push(path);
+          for (const imported of cleaned.imports) add(lowerExt(imported));
+          for (const file of cleaned.files) copied.set(lowerExt(file), copied.get(lowerExt(file)) ?? '');
+          for (const host of cleaned.hosts) hosts.add(host);
+        });
+        for (const imported of page.out.imports) copied.set(lowerExt(imported), copied.get(lowerExt(imported)) ?? '');
+      }
       for (let at = 0; at < order.length; at += 1) {
         const path = order[at] as string;
         const text = textOf(files.get(path)?.read() ?? null);
@@ -405,17 +441,6 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
         for (const file of cleaned.files) copied.set(lowerExt(file), copied.get(lowerExt(file)) ?? '');
         for (const host of cleaned.hosts) hosts.add(host);
         for (const one of cleaned.removed.slice(0, 20)) removed.push(`${path}: ${one.address} (${one.why})`);
-      }
-      const inline: string[] = [];
-      for (const page of converted) {
-        page.out.styles.forEach((style, index) => {
-          const path = `${page.page.replace(/\.html?$/, '')}.style-${String(index + 1)}.css`;
-          const cleaned = cleanCss(style, { path: page.page, has });
-          copied.set(path, cleaned.css);
-          inline.push(path);
-          for (const file of cleaned.files) copied.set(lowerExt(file), copied.get(lowerExt(file)) ?? '');
-        });
-        for (const imported of page.out.imports) copied.set(lowerExt(imported), copied.get(lowerExt(imported)) ?? '');
       }
       // "also": one more file of a kind use_site writes, touching nothing else.
       const also = (Array.isArray(input['also']) ? input['also'] : []).filter((path): path is string => typeof path === 'string');
@@ -460,26 +485,38 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
           if (!keep.has(ownPath)) hashes[ownPath] = sha(data);
           else hashes[ownPath] = written[ownPath] ?? '';
         }
-        put('index.css', `${index}\n`);
-        hashes[`${SITE_DIR}/index.css`] = sha(`${index}\n`);
-      });
-
-      // The screens, beside the copy: a page the person changed is kept.
-      for (const page of converted) {
-        const target = join(src, ...page.file.split('/'));
-        if (keep.has(page.file) && existsSync(target)) {
-          hashes[page.file] = written[page.file] ?? '';
-          continue;
+        const oldIndex = join(src, SITE_DIR, 'index.css');
+        if (keep.has(`${SITE_DIR}/index.css`) && existsSync(oldIndex)) {
+          put('index.css', readFileSync(oldIndex));
+          hashes[`${SITE_DIR}/index.css`] = written[`${SITE_DIR}/index.css`] ?? '';
+        } else {
+          put('index.css', `${index}\n`);
+          hashes[`${SITE_DIR}/index.css`] = sha(`${index}\n`);
         }
-        mkdirSync(dirname(target), { recursive: true });
-        writeFileSync(target, page.out.tsx);
-        hashes[page.file] = sha(page.out.tsx);
-      }
-      writeFileSync(join(src, SITE_DIR, WRITTEN_FILE), `${JSON.stringify(hashes, null, 2)}\n`);
-      writeFileSync(join(src, SITE_DIR, SPOTS_FILE), `${JSON.stringify(madeNow, null, 2)}\n`);
-      // The template's own class names: styled or not, as the template had them (design-check asks nothing of them).
-      const classes = [...new Set(converted.flatMap((page) => classesIn(page.out.tsx)))].sort().slice(0, 5000);
-      writeFileSync(join(src, SITE_DIR, TEMPLATE_CLASSES_FILE), `${JSON.stringify(classes)}\n`);
+        // Whatever else the folder held (a file the person added, one an earlier call copied) stays as it is.
+        for (const path of filesUnder(join(src, SITE_DIR))) {
+          if (copied.has(path) || BOOKKEEPING.has(path)) continue;
+          put(path, readFileSync(join(src, SITE_DIR, ...path.split('/'))));
+          const before = written[`${SITE_DIR}/${path}`];
+          if (before !== undefined) hashes[`${SITE_DIR}/${path}`] = before;
+        }
+        // The screens, before the copy goes in: a page the person changed is kept.
+        for (const page of converted) {
+          const target = join(src, ...page.file.split('/'));
+          if (keep.has(page.file) && existsSync(target)) {
+            hashes[page.file] = written[page.file] ?? '';
+            continue;
+          }
+          mkdirSync(dirname(target), { recursive: true });
+          writeFileSync(target, page.out.tsx);
+          hashes[page.file] = sha(page.out.tsx);
+        }
+        // What was written, with the copy itself: a crash leaves the old folder and its own record, or the new and its.
+        put(WRITTEN_FILE, `${JSON.stringify(hashes, null, 2)}\n`);
+        put(SPOTS_FILE, `${JSON.stringify(madeNow, null, 2)}\n`);
+        // The template's own class names: styled or not, as the template had them (design-check asks nothing of them).
+        put(TEMPLATE_CLASSES_FILE, `${JSON.stringify([...new Set(converted.flatMap((page) => classesIn(page.out.tsx)))].sort().slice(0, 5000))}\n`);
+      });
 
       // The pictures that became spots: the template's own files, filled, and credited as the template's.
       if (newSpots.length > 0) {
@@ -518,6 +555,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       const said = [
         `Brought ${quoted(template.name, 80)} into the ${side} side: ${String(converted.length)} ${converted.length === 1 ? 'page' : 'pages'} made into screens, ${String(order.length)} ${order.length === 1 ? 'stylesheet' : 'stylesheets'} and ${String(Math.max(0, copied.size - order.length - inline.length))} other files copied into ${appPath(appKey, side, 'src', SITE_DIR)}/ (index.css loads them in the pages' order, between the theme's colours and design.css), ${String(newSpots.length)} pictures made into filled spots${newSpots.length === 0 ? '' : ` (${newSpots.map((spot) => spot.id).join(', ')})`}.`,
         ...lines,
+        ...(needsSaid === '' ? [] : [needsSaid]),
         ...(refusedPages.length === 0 ? [] : [`Not made into screens: ${refusedPages.join('; ')}.`]),
         ...(keep.size === 0 ? [] : [`Kept as the person changed them: ${[...keep].join(', ')}.`]),
         ...(notCopied.length === 0 ? [] : [`Not copied (not a stylesheet, picture, SVG or font of the template): ${notCopied.map((path) => quoted(path, 120)).join(', ')}.`]),

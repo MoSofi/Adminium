@@ -89,7 +89,7 @@ export function screenWants(root: string, appKey: string, opts: { side: AppSide;
     { kind: 'package', name: ICONS_PACKAGE },
     // The made parts' helpers are of use only with Tailwind: an app that does without it is not asked for them.
     ...(without.has(TAILWIND_PACKAGE) ? [] : UI_HELPER_PACKAGES.map((name) => ({ kind: 'package' as const, name }))),
-    ...(opts.look === null ? [] : missingFonts(root, opts.look, opts.stylesDir === undefined ? undefined : { builtInDir: opts.stylesDir }).map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }))),
+    ...(opts.look === null ? [] : missingFonts(root, opts.look, { key: appKey, ...(opts.stylesDir === undefined ? {} : { builtInDir: opts.stylesDir }) }).map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }))),
   ];
   return wants.filter((want) => !without.has(want.kind === 'package' ? want.name : want.kind === 'font' ? want.family : want.host));
 }

@@ -1361,6 +1361,8 @@ describe('the needs card’s pictures section', () => {
     const look = JSON.parse(readFileSync(lookFile(), 'utf8')) as Record<string, unknown>;
     delete look['pictures'];
     writeFileSync(lookFile(), JSON.stringify({ ...look, templateSides: ['customer'] }));
+    // A staff side of Adminium's own look beside it: the style's fonts are its (a side that follows its template loads none).
+    mkdirSync(join(root, 'apps/repairs/staff/src'), { recursive: true });
     asked = [];
     answers.push({ type: 'needs', accept: [] });
     registry['@fontsource/archivo-black'] = '5.2.5';

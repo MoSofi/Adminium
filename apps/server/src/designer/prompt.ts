@@ -251,7 +251,7 @@ export function appNow(root: string, version: string, appKey: string, stylesDir?
   if (look !== null && sidesWithScreens(root, appKey).length > 0) {
     const resolved = resolveLook(root, look, stylesDir === undefined ? undefined : { builtInDir: stylesDir });
     const has = listedPackages(root);
-    const fonts = missingFonts(root, look, stylesDir === undefined ? undefined : { builtInDir: stylesDir }).map((font) => font.family);
+    const fonts = missingFonts(root, look, { key: appKey, ...(stylesDir === undefined ? {} : { builtInDir: stylesDir }) }).map((font) => font.family);
     lines.push(
       `The style of its screens: "${resolved.title}" (${look.skill}). ${resolved.line}${look.words === undefined ? '' : ` What the person said about the look, as data: "${look.words}".`} Its values are src/theme.css of each side, written by set_style.`,
       `Tailwind: ${has.has(TAILWIND_PACKAGE) ? 'on (use its classes with the theme\'s names)' : 'not in this project (use no Tailwind class)'}. Icons: ${has.has(ICONS_PACKAGE) ? `${ICONS_PACKAGE} is installed` : 'no icon package (inline SVG)'}.${fonts.length === 0 ? '' : ` The fonts ${fonts.join(', ')} are not installed: the system's own stand in, and nothing is to be done about it.`}`,

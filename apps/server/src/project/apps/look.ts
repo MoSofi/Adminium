@@ -346,7 +346,12 @@ export function ownFontPatch(look: Look | null): ThemePatch {
 }
 
 /** The font families a look asks for and the project does not carry yet. */
-export function missingFonts(root: string, look: Look, places?: LookPlaces): { family: string; use: 'heading' | 'body' }[] {
+export function missingFonts(root: string, look: Look, places?: LookPlaces & { key?: string }): { family: string; use: 'heading' | 'body' }[] {
+  // An app whose every side follows its site template loads none of the style's fonts: the template has its own.
+  if (places?.key !== undefined) {
+    const sides = sidesWithScreens(root, places.key);
+    if (sides.length > 0 && sides.every((side) => look.templateSides?.includes(side) === true)) return [];
+  }
   const { theme } = resolveLook(root, look, places);
   if (theme === null) return [];
   const has = installedWeights(root);
