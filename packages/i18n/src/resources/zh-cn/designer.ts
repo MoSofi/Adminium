@@ -1291,7 +1291,7 @@ export default {
     "serverCode": "每一段服务器代码在编写时都需要你批准。",
     "linksTitle": "待填写的链接",
     "takeOut": "移除我留空的链接",
-    "linkBad": "请使用以 https://、mailto: 或 tel: 开头的地址，或像 /about 这样的应用页面。",
+    "linkBad": "请使用以 https:// 、mailto: 或 tel: 开头的地址，或像 /about 这样的应用页面。",
     "addedTitle": "添加到项目",
     "addedSome": "已勾选 {ticked} / {total}",
     "changesTitle": "有什么要修改的吗？",

@@ -417,6 +417,10 @@ const ALLOWED_HOSTS = [
     test: /^…$/,
     why: 'the ellipsis placeholder in the link-list widget\'s URL input ("https://…"), translated into all 8 locales. An input placeholder — the string is rendered as a hint, and the ellipsis is not a hostname anything could resolve',
   },
+  {
+    test: /^$|^\[\^$/,
+    why: 'not an address: a bare scheme where a typed address is checked or shown as a hint (the Designer\'s template plan asks for a link that starts with "https://"), and the start of a pattern that tests for one (`https:\\/\\/[^…]`). No host follows, so nothing can be asked for',
+  },
 ];
 
 /**

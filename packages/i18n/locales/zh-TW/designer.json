@@ -1281,7 +1281,7 @@
     "serverCode": "每一段伺服器程式碼在撰寫時都需要你核准。",
     "linksTitle": "待填寫的連結",
     "takeOut": "移除我留白的連結",
-    "linkBad": "請使用以 https://、mailto: 或 tel: 開頭的位址，或像 /about 這樣的應用程式頁面。",
+    "linkBad": "請使用以 https:// 、mailto: 或 tel: 開頭的位址，或像 /about 這樣的應用程式頁面。",
     "addedTitle": "加入專案",
     "addedSome": "已勾選 {ticked} / {total}",
     "changesTitle": "有什麼要修改的嗎？",
