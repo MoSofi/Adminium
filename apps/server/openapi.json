@@ -70511,7 +70511,8 @@
                                 "test",
                                 "automation",
                                 "hook",
-                                "action"
+                                "action",
+                                "payment"
                               ]
                             },
                             "ruleId": {
