@@ -1,5 +1,15 @@
 # @adminium/llm
 
+## 0.3.31
+
+### Patch Changes
+
+- c90ce75: The input limit assumed for an Ollama model is now 23,500 tokens (it was 20,000), so a Designer request on Ollama that asks for screens and names an add-on, with every tool definition, still leaves room to talk.
+- Updated dependencies [2922278]
+- Updated dependencies [74f260e]
+  - @adminium/widgets@0.3.31
+  - @adminium/engine@0.3.31
+
 ## 0.3.30
 
 ### Patch Changes

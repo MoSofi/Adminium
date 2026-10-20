@@ -1,5 +1,25 @@
 # @adminium/widgets
 
+## 0.3.31
+
+### Patch Changes
+
+- 2922278: Adminium Designer's pictures are spots you fill. Each picture on an app's pages is a named spot (Hero, Team) drawn by `<Picture spot="…" />` from `@adminiumjs/adminium/side`: an empty one is a grey frame with its name, and in the preview it carries "Choose a picture". The picture dialog (the Pictures chip under the reply, the "Choose the pictures" card, or a click on a spot while pointing) lists the page's spots and each table's sample rows, and fills them from a search of Openverse (and Pexels or Unsplash where the server has their keys), from an upload, or from a picture already in the app. Each search result shows its licence as a badge with what it asks; "Credit + same licence" is hidden until you ask for it. Apply writes the pictures with their credits, saves a version, and can be undone; no turn and no model is used. Credits are drawn at the foot of the page that shows them.
+  
+  The Designer no longer searches for pictures itself (`find_pictures` is gone): it names spots (`add_spots`), puts a picture you attached in one (`fill_spot`), and the first card of a new app asks whether pictures stay placeholders or you choose them after each design. A turn that would take a picture you placed off its screen asks first. An app made before spots keeps its pictures, and "Make them swappable" turns them into spots in one turn.
+  
+  Fixed: adding an app's sample rows again no longer stops on a row you changed whose key the sample file names; that row is left as yours.
+- 74f260e: A column can now hold a **Picture**. In the page editor each column says what it holds — Text, Picture or File — in one choice, and a Picture column's field in the New and Edit dialogs shows the picture with Upload, Choose existing… and Remove. **Choose existing…** picks a picture another record of the table shows or, for someone who can open the Files page, one uploaded there; the record always gets its own copy (`POST /api/v1/files/{id}/copy`), so deleting either never touches the other. The switch that drew initials beside a value now shows the row's picture where the page has a Picture column (still initials on a link column). A record's Files tab counts and lists every file the record holds that the reader may read, and a file one of its columns names has no Delete there. On the Files page, "Not attached" is now "Not used yet", and a new "Uploaded here" shortcut lists the page's own uploads.
+  
+  Saving a record through a page's file column now names only a file the person uploaded (or copied) that no record holds yet; another person's pending upload, or a file another record or the Files page holds, is refused. A save made from a form whose page settings changed meanwhile is refused with a message, so a picture uploaded into a column that no longer holds files is not lost. An app manifest's picture column is an image column with a file rule that takes pictures only: its sample rows may give it one of the bundle's pictures. The form designer's "Segmented" layout now says it shows a file list, not an attachment list.
+- Updated dependencies [1247c3d]
+- Updated dependencies [74f260e]
+- Updated dependencies [348173e]
+  - @adminium/i18n@0.3.31
+  - @adminium/charts@0.3.31
+  - @adminium/tokens@0.3.31
+  - @adminium/ui@0.3.31
+
 ## 0.3.30
 
 ### Patch Changes

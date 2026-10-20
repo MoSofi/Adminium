@@ -1,5 +1,15 @@
 # @adminium/manifest
 
+## 0.3.31
+
+### Patch Changes
+
+- 74f260e: A column can now hold a **Picture**. In the page editor each column says what it holds — Text, Picture or File — in one choice, and a Picture column's field in the New and Edit dialogs shows the picture with Upload, Choose existing… and Remove. **Choose existing…** picks a picture another record of the table shows or, for someone who can open the Files page, one uploaded there; the record always gets its own copy (`POST /api/v1/files/{id}/copy`), so deleting either never touches the other. The switch that drew initials beside a value now shows the row's picture where the page has a Picture column (still initials on a link column). A record's Files tab counts and lists every file the record holds that the reader may read, and a file one of its columns names has no Delete there. On the Files page, "Not attached" is now "Not used yet", and a new "Uploaded here" shortcut lists the page's own uploads.
+  
+  Saving a record through a page's file column now names only a file the person uploaded (or copied) that no record holds yet; another person's pending upload, or a file another record or the Files page holds, is refused. A save made from a form whose page settings changed meanwhile is refused with a message, so a picture uploaded into a column that no longer holds files is not lost. An app manifest's picture column is an image column with a file rule that takes pictures only: its sample rows may give it one of the bundle's pictures. The form designer's "Segmented" layout now says it shows a file list, not an attachment list.
+- 348173e: "Start with an app" in Adminium Designer now shows each app's real screenshot instead of a placeholder, with a link to the app's demo on adminium.dev (or to its page there when it has no demo). The server fetches the screenshot from adminium.dev, keeps it, and serves it to the page. It does this only while the online app list is on, and it fetches only addresses on adminium.dev under `/shots/` or `/covers/`. If a picture cannot be loaded, the card falls back to the app's icon.
+- @adminium/add-on-contracts@0.3.31
+
 ## 0.3.30
 
 ### Patch Changes
