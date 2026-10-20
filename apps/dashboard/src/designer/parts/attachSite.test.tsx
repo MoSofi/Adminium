@@ -20,7 +20,9 @@ describe('a page or a stylesheet with a message', () => {
     expect(kindOf(file('page', 10, 'text/html'))).toBe('html');
     expect(kindOf(file('style.css'))).toBe('css');
     expect(kindOf(file('theme', 10, 'text/css'))).toBe('css');
-    expect(kindOf(file('site.zip'))).toBeNull();
+    // A zip is a site template: it waits apart from the files (see siteTray.test.tsx).
+    expect(kindOf(file('site.zip'))).toBe('site');
+    expect(kindOf(file('notes.txt'))).toBeNull();
   });
 
   it('waits as a chip that says "page" or "stylesheet", and one too large is refused by its name', () => {

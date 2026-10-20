@@ -155,11 +155,23 @@ export type SpendMark = 'turn-tokens' | 'session-tokens';
 export interface DesignerAttachment {
   id: string;
   label: string;
-  kind: 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css';
+  kind: 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css' | 'site';
   mediaType: string;
   bytes: number;
   rows?: number;
   columns?: string[];
+  /** A site template's pages and files kept, and what was left out (the first of them) with how many there were. */
+  pages?: number;
+  files?: number;
+  leftOut?: SiteLeftOut[];
+  leftOutCount?: number;
+}
+
+/** Why a site template's file was left out, as the server names it. */
+export type LeftOutReason = 'php' | 'video' | 'sound' | 'scss' | 'map' | 'zip' | 'source' | 'build-file' | 'build-folder' | 'hidden' | 'link' | 'not-file' | 'kind' | 'not-picture' | 'not-font' | 'svg-runs' | 'not-svg' | 'not-text';
+export interface SiteLeftOut {
+  file: string;
+  reason: LeftOutReason;
 }
 
 /** A person's Figma connection (`GET /designer/figma`): never the token. */
@@ -372,7 +384,7 @@ export interface DesignerPicked {
 }
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[]; picked?: DesignerPicked }
+  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows' | 'pages' | 'files'>[]; picked?: DesignerPicked }
   | { kind: 'text'; delta: string }
   | ({ kind: 'step'; id: string; tool: string; label: string; state: 'running' | 'done' | 'failed'; ms?: number; detail?: string } & StepFacts)
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
@@ -544,6 +556,53 @@ async function uploadAttachment(sessionId: string, file: Blob & { name?: string 
   return (body as { attachment: DesignerAttachment }).attachment;
 }
 
+/**
+ * A site template, as a zip: sent the moment it is dropped, with how far it has gone. `replace` is the
+ * site the person said this one replaces. A refusal throws the server's words; a session that already
+ * holds a site answers 409 with that site in its details.
+ */
+function uploadSite(sessionId: string, zip: Blob, filename: string, opts: { replace?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {}): Promise<DesignerAttachment> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', `${BASE}/sessions/${sessionId}/attachments/site?filename=${encodeURIComponent(filename)}${opts.replace === undefined ? '' : `&replace=${opts.replace}`}`);
+    request.withCredentials = true;
+    request.setRequestHeader('accept', 'application/json');
+    request.setRequestHeader('content-type', 'application/octet-stream');
+    for (const [name, value] of Object.entries(csrfHeaders())) request.setRequestHeader(name, value);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) opts.onProgress?.(event.loaded / event.total);
+    };
+    const abort = (): void => request.abort();
+    opts.signal?.addEventListener('abort', abort, { once: true });
+    request.onabort = () => reject(new DOMException('The upload was cancelled.', 'AbortError'));
+    request.onerror = () => reject(new ApiError(0, 'NETWORK', 'The site could not be sent. Check the connection and drop it again.', null));
+    request.onload = () => {
+      opts.signal?.removeEventListener('abort', abort);
+      let body: unknown = null;
+      try {
+        body = JSON.parse(request.responseText) as unknown;
+      } catch {
+        // Said below.
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve((body as { attachment: DesignerAttachment }).attachment);
+        return;
+      }
+      const envelope = (body ?? {}) as { error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } };
+      reject(
+        new ApiError(
+          request.status,
+          typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+          request.status === 413 ? `${filename} is over 25 MB.` : typeof envelope.error?.message === 'string' ? envelope.error.message : `The site could not be attached (${String(request.status)}).`,
+          typeof envelope.error?.requestId === 'string' ? envelope.error.requestId : null,
+          envelope.error?.details,
+        ),
+      );
+    };
+    request.send(zip);
+  });
+}
+
 /** One half of a Figma import, sent with a message: the server copies its own bytes in, so no body goes up. */
 async function uploadFigma(sessionId: string, importId: string, part: 'picture' | 'outline'): Promise<DesignerAttachment> {
   const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=figma&figma=${encodeURIComponent(importId)}&figma_part=${part}`, {
@@ -601,6 +660,9 @@ export const designerApi = {
   /** What the preview saw of the app's screen, for the turn that built it. */
   sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
+  uploadSite,
+  /** A file taken off a message before it is sent. */
+  removeAttachment: (id: string, attachment: string) => api.delete<void>(`${BASE}/sessions/${id}/attachments/${attachment}`),
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
   pictureThumbUrl: (id: string, shelf: string, picture: string) => `${BASE}/sessions/${id}/picture-thumb/${shelf}/${picture}`,
   pictures: (id: string) => api.get<PicturesView>(`${BASE}/sessions/${id}/pictures`),

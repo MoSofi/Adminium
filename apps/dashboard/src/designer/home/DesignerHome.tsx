@@ -76,7 +76,7 @@ export function DesignerHome(): ReactNode {
   /** "Turn versions on" was pressed after an earlier "Not now": the card is back for this visit. */
   const [versionsReopened, setVersionsReopened] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
-  const attach = useAttach();
+  const attach = useAttach({ notify: (title) => toasts.push({ variant: 'info', title }) });
   /** The session a first message with files made, kept until that message is sent. */
   const made = useRef<{ key: string; reply: Awaited<ReturnType<typeof designerApi.createSession>> } | null>(null);
   const readsImages = useReadsImages(model.picked, attach.hasImage);

@@ -13795,6 +13795,178 @@
     "status": "mt",
     "srcHash": "0e96f1e82105"
   },
+  "designer.template.cancel": {
+    "status": "mt",
+    "srcHash": "3d9193828be9"
+  },
+  "designer.template.cancelled": {
+    "status": "mt",
+    "srcHash": "9c3c7f516d35"
+  },
+  "designer.template.dismiss": {
+    "status": "mt",
+    "srcHash": "70afe9eff3f2"
+  },
+  "designer.template.dropped": {
+    "status": "mt",
+    "srcHash": "06bf0d34ee75"
+  },
+  "designer.template.files": {
+    "status": "mt",
+    "srcHash": "8a657041aa6b"
+  },
+  "designer.template.folderEmpty": {
+    "status": "mt",
+    "srcHash": "1a6d24762c9e"
+  },
+  "designer.template.inTray": {
+    "status": "mt",
+    "srcHash": "6d4ee363f508"
+  },
+  "designer.template.keep": {
+    "status": "mt",
+    "srcHash": "45229bc66261"
+  },
+  "designer.template.leftOut": {
+    "status": "mt",
+    "srcHash": "ac198d5406dd"
+  },
+  "designer.template.leftOutMore": {
+    "status": "mt",
+    "srcHash": "0aa2abb24fd4"
+  },
+  "designer.template.leftOutOf": {
+    "status": "mt",
+    "srcHash": "6e00d24fbbe6"
+  },
+  "designer.template.leftOutRow": {
+    "status": "mt",
+    "srcHash": "5d29b7095ce8"
+  },
+  "designer.template.leftOutTitle": {
+    "status": "mt",
+    "srcHash": "e3b33f3c31af"
+  },
+  "designer.template.pages": {
+    "status": "src",
+    "srcHash": "5c0451aaed78"
+  },
+  "designer.template.remove": {
+    "status": "mt",
+    "srcHash": "df7193a589dc"
+  },
+  "designer.template.removed": {
+    "status": "mt",
+    "srcHash": "42daa174bb84"
+  },
+  "designer.template.replace": {
+    "status": "mt",
+    "srcHash": "5e4bd6c5ff93"
+  },
+  "designer.template.replaces": {
+    "status": "mt",
+    "srcHash": "833d243d3b8b"
+  },
+  "designer.template.sendWaits": {
+    "status": "mt",
+    "srcHash": "d3ed171df8c0"
+  },
+  "designer.template.siteWord": {
+    "status": "mt",
+    "srcHash": "b205595bc8f0"
+  },
+  "designer.template.tooLarge": {
+    "status": "mt",
+    "srcHash": "8aab6ebb9ce1"
+  },
+  "designer.template.tooMany": {
+    "status": "mt",
+    "srcHash": "63aa3f74985a"
+  },
+  "designer.template.unreadable": {
+    "status": "mt",
+    "srcHash": "69dd17b8122b"
+  },
+  "designer.template.uploading": {
+    "status": "mt",
+    "srcHash": "ac7ca4a55d6c"
+  },
+  "designer.template.waitUpload": {
+    "status": "mt",
+    "srcHash": "2dc7f71b5b9a"
+  },
+  "designer.template.why.buildFile": {
+    "status": "mt",
+    "srcHash": "26d7aa152bfb"
+  },
+  "designer.template.why.buildFolder": {
+    "status": "mt",
+    "srcHash": "18b79d32daca"
+  },
+  "designer.template.why.hidden": {
+    "status": "mt",
+    "srcHash": "fea67c1931f8"
+  },
+  "designer.template.why.kind": {
+    "status": "mt",
+    "srcHash": "3a8cd01e46fb"
+  },
+  "designer.template.why.link": {
+    "status": "mt",
+    "srcHash": "6c1e04c2e179"
+  },
+  "designer.template.why.map": {
+    "status": "mt",
+    "srcHash": "f6d4fcaf1e59"
+  },
+  "designer.template.why.notFile": {
+    "status": "mt",
+    "srcHash": "83830f8c1ad1"
+  },
+  "designer.template.why.notFont": {
+    "status": "mt",
+    "srcHash": "807a1dadd50c"
+  },
+  "designer.template.why.notPicture": {
+    "status": "mt",
+    "srcHash": "e1ebc308ee0a"
+  },
+  "designer.template.why.notSvg": {
+    "status": "mt",
+    "srcHash": "0e52d052ad7c"
+  },
+  "designer.template.why.notText": {
+    "status": "mt",
+    "srcHash": "6e431a60e1be"
+  },
+  "designer.template.why.php": {
+    "status": "mt",
+    "srcHash": "d0f09bb902a0"
+  },
+  "designer.template.why.scss": {
+    "status": "mt",
+    "srcHash": "8f76bf52d43b"
+  },
+  "designer.template.why.sound": {
+    "status": "mt",
+    "srcHash": "c45fc7adc4c7"
+  },
+  "designer.template.why.source": {
+    "status": "mt",
+    "srcHash": "63271e77b6a4"
+  },
+  "designer.template.why.svgRuns": {
+    "status": "mt",
+    "srcHash": "d14639588747"
+  },
+  "designer.template.why.video": {
+    "status": "mt",
+    "srcHash": "29b270618166"
+  },
+  "designer.template.why.zip": {
+    "status": "mt",
+    "srcHash": "71ebf6e99acf"
+  },
   "designer.topbar.dashboard": {
     "status": "mt",
     "srcHash": "9088df9d25c3"

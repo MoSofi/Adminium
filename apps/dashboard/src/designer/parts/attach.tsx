@@ -11,11 +11,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, FileCode, FileSpreadsheet, FileText, FileUp, Frame, Image, Paintbrush, Paperclip, Type, X } from 'lucide-react';
+import { ChevronDown, FileCode, FileSpreadsheet, FileText, FileUp, Frame, Image, LayoutTemplate, Paintbrush, Paperclip, Type, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerAttachment, type FigmaImport, type FigmaStatus } from '../api.js';
+import { droppedFolder } from './packSite.js';
+import { SiteTray } from './siteTray.js';
+import { useSite, type SiteControl } from './siteState.js';
 
 export const MAX_FILES = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -25,14 +28,15 @@ const MAX_DOC_BYTES = 200 * 1024;
 const MAX_PAGE_BYTES = 512 * 1024;
 const MAX_STYLESHEET_BYTES = 1024 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2', '.md', '.markdown', 'text/markdown', '.html', '.htm', 'text/html', '.css', 'text/css'].join(',');
+const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2', '.md', '.markdown', 'text/markdown', '.html', '.htm', 'text/html', '.css', 'text/css', '.zip', 'application/zip', 'application/x-zip-compressed'].join(',');
 
-export type AttachKind = 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css';
+/** What a file with a message is; a site template (a zip) waits apart from the others. */
+export type AttachKind = 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css' | 'site';
 
 export interface PendingFile {
   key: string;
   file: File;
-  kind: AttachKind;
+  kind: Exclude<AttachKind, 'site'>;
   /** A picture's own address in this page, for its small view. */
   preview: string | null;
   /** Once it went up: where, and the id it was given. A send that failed after that does not send the file again. */
@@ -56,11 +60,13 @@ export const kindOf = (file: File): AttachKind | null =>
             ? 'html'
             : file.type === 'text/css' || /\.css$/i.test(file.name)
               ? 'css'
-              : null;
+              : file.type === 'application/zip' || file.type === 'application/x-zip-compressed' || /\.zip$/i.test(file.name)
+                ? 'site'
+                : null;
 
 /** The mark of a file shown without a picture of it. */
 function FileMark({ kind }: { kind: AttachKind }): ReactNode {
-  const Mark = kind === 'image' ? Image : kind === 'font' ? Type : kind === 'doc' ? FileText : kind === 'html' ? FileCode : kind === 'css' ? Paintbrush : FileSpreadsheet;
+  const Mark = kind === 'image' ? Image : kind === 'font' ? Type : kind === 'doc' ? FileText : kind === 'html' ? FileCode : kind === 'css' ? Paintbrush : kind === 'site' ? LayoutTemplate : FileSpreadsheet;
   return <Mark aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />;
 }
 
@@ -88,6 +94,8 @@ export interface AttachState {
   /** Send every waiting file to the session; the ids to give the turn. Throws what the server said of a file it refused. */
   upload(sessionId: string): Promise<string[]>;
   hasImage: boolean;
+  /** A site template with the message: sent at drop where there is a session, at send where there is none. */
+  site: SiteControl;
 }
 
 /**
@@ -205,7 +213,10 @@ export async function partsOf(file: Blob): Promise<Blob[]> {
   }
 }
 
-export function useAttach(): AttachState {
+export function useAttach(opts: { sessionId?: string | undefined; notify?: ((title: string) => void) | undefined } = {}): AttachState {
+  const site = useSite(opts);
+  const siteHeld = useRef(site.current);
+  siteHeld.current = site.current;
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [refused, setRefused] = useState<string | null>(null);
   const seq = useRef(0);
@@ -225,9 +236,13 @@ export function useAttach(): AttachState {
     let why: string | null = null;
     for (const file of list) {
       const kind = kindOf(file);
+      if (kind === 'site') {
+        site.addZip(file);
+        continue;
+      }
       if (kind === null) {
         why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2), a Markdown file (.md), an HTML or a CSS file, or a site template (.zip) can be attached.');
-      } else if (next.length >= MAX_FILES) {
+      } else if (next.length + (siteHeld.current === null ? 0 : 1) >= MAX_FILES) {
         why = t('designer:attach.tooMany', 'Up to {count} files go with one message.', { count: MAX_FILES });
       } else if (kind === 'image' && file.size > MAX_IMAGE_BYTES) {
         why = t('designer:attach.imageTooLarge', 'That picture is over 5 MB. Attach a smaller one.');
@@ -249,7 +264,7 @@ export function useAttach(): AttachState {
     held.current = next;
     setFiles(next);
     setRefused(why);
-  }, []);
+  }, [site.addZip]);
 
   const addFigma = useCallback((done: Pick<FigmaImport, 'importId' | 'pictureName' | 'outlineName'>) => {
     const next = [...held.current];
@@ -286,10 +301,14 @@ export function useAttach(): AttachState {
     held.current = held.current.filter((entry) => entry.sent === undefined);
     setFiles(held.current);
     setRefused(null);
-  }, []);
+    site.sent();
+  }, [site.sent]);
 
   const upload = useCallback(async (sessionId: string): Promise<string[]> => {
     const ids: string[] = [];
+    // The site first: on Home it goes up now, right after the session was made.
+    const siteId = await site.send(sessionId);
+    if (siteId !== null) ids.push(siteId);
     // The files as they were when the message was sent: one added while they go up waits for the next message.
     for (const entry of [...held.current]) {
       if (entry.sent?.sessionId !== sessionId && entry.figma !== undefined) {
@@ -309,9 +328,9 @@ export function useAttach(): AttachState {
       if (entry.sent !== undefined) ids.push(entry.sent.id);
     }
     return ids;
-  }, []);
+  }, [site.send]);
 
-  return useMemo(() => ({ files, refused, add, addFigma, remove, clear, upload, hasImage: files.some((entry) => entry.kind === 'image') }), [files, refused, add, addFigma, remove, clear, upload]);
+  return useMemo(() => ({ files, refused, add, addFigma, remove, clear, upload, hasImage: files.some((entry) => entry.kind === 'image'), site }), [files, refused, add, addFigma, remove, clear, upload, site]);
 }
 
 /** Whether the picked model reads pictures: asked the first time a picture is attached, and kept. */
@@ -343,6 +362,12 @@ export function attachHandlers(state: AttachState, disabled = false) {
       const dropped = [...event.dataTransfer.files];
       if (disabled || dropped.length === 0) return;
       event.preventDefault();
+      // A folder is a site template: the page packs it and sends it as one.
+      const folder = droppedFolder(event.dataTransfer.items);
+      if (folder !== null) {
+        state.site.addFolder(folder);
+        return;
+      }
       state.add(dropped);
     },
   };
@@ -427,9 +452,11 @@ export function AttachMenu({
 
 /** The files waiting with the message, and what is to be said about them before it is sent. */
 export function AttachTray({ state, modelName, readsImages }: { state: AttachState; modelName: string | null; readsImages: boolean | null }): ReactNode {
-  if (state.files.length === 0 && state.refused === null) return null;
+  const { site } = state;
+  if (state.files.length === 0 && state.refused === null && site.current === null && site.refused === null && site.confirm === null) return null;
   return (
-    <div className="flex flex-col gap-1.5 px-3 pt-2.5">
+    <div className="relative flex flex-col gap-1.5 px-3 pt-2.5">
+      <SiteTray site={site} />
       {state.files.length === 0 ? null : (
         <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0" aria-label={t('designer:attach.list', 'Attached files')}>
           {state.files.map((entry) => (
@@ -472,7 +499,7 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
 }
 
 /** A sent message's files: a picture small (opening whole in a new tab), a CSV as a chip with its rows, a font, a document, a page or a stylesheet as a chip with its name. */
-export function SentFiles({ sessionId, files }: { sessionId: string; files: readonly Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[] }): ReactNode {
+export function SentFiles({ sessionId, files }: { sessionId: string; files: readonly Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows' | 'pages' | 'files'>[] }): ReactNode {
   if (files.length === 0) return null;
   return (
     <ul className="m-0 flex list-none flex-wrap justify-end gap-1.5 p-0" aria-label={t('designer:attach.list', 'Attached files')}>
@@ -480,7 +507,20 @@ export function SentFiles({ sessionId, files }: { sessionId: string; files: read
         const href = designerApi.attachmentUrl(sessionId, file.id);
         return (
           <li key={file.id}>
-            {file.kind === 'image' ? (
+            {file.kind === 'site' ? (
+              <span className="flex items-center gap-1.5 rounded-[10px] bg-accent-soft px-2 py-1.5 text-[12px] font-bold text-fg">
+                <LayoutTemplate aria-hidden="true" className="size-3.5 shrink-0 text-accent" />
+                <span dir="auto" className="max-w-[180px] truncate font-mono font-semibold">
+                  {file.label}
+                </span>
+                <span className="font-semibold text-fg-muted">
+                  <span aria-hidden="true">· </span>
+                  {t('designer:template.pages', '{count, plural, one {# page} other {# pages}}', { count: file.pages ?? 0 })}
+                  <span aria-hidden="true"> · </span>
+                  {t('designer:template.files', '{count, plural, one {# file} other {# files}}', { count: file.files ?? 0 })}
+                </span>
+              </span>
+            ) : file.kind === 'image' ? (
               <a href={href} target="_blank" rel="noreferrer" aria-label={t('designer:attach.open', 'Open {name} in a new tab', { name: file.label })} className="block overflow-hidden rounded-xl border border-border">
                 <img src={href} alt={file.label} loading="lazy" className="block max-h-[120px] max-w-[180px] object-cover" />
               </a>

@@ -193,7 +193,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onSuccess: (reply) => queryClient.setQueryData(designerKeys.session(sessionId), reply),
     onError: fail(t('designer:build.saveFailed', 'The change was not saved')),
   });
-  const attach = useAttach();
+  const attach = useAttach({ sessionId, notify: (title) => toasts.push({ variant: 'info', title }) });
   /** The element of the preview the next message is about. */
   const [picked, setPicked] = useState<DesignerPicked | null>(null);
   const start = useMutation({

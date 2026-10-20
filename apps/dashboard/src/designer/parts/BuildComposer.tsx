@@ -6,14 +6,16 @@
  */
 import { useEffect, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { ArrowUp } from 'lucide-react';
+import { Tooltip } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { attachHandlers, type AttachState } from './attach.js';
 import { AttachControl } from './FromFigma.js';
+import { NO_SITE } from './siteState.js';
 
 const MAX_PX = 216;
 /** A box that takes no files. */
-const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false };
+const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false, site: NO_SITE };
 
 export function BuildComposer({
   value,
@@ -55,10 +57,12 @@ export function BuildComposer({
 
   const handlers = attachHandlers(attach ?? NO_ATTACH, attach === undefined || working);
 
+  // A site on its way: Send waits for it, and says so.
+  const waits = attach?.site.uploading === true;
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (canSend && value.trim() !== '') onSend();
+      if (canSend && !waits && value.trim() !== '') onSend();
     }
   };
 
@@ -90,6 +94,18 @@ export function BuildComposer({
             >
               <span aria-hidden="true" className="block size-[11px] rounded-[2px] bg-current" />
             </button>
+          ) : waits ? (
+            <Tooltip content={t('designer:template.waitUpload', 'Wait for the upload to finish.')}>
+              <button
+                type="button"
+                aria-disabled="true"
+                aria-label={t('designer:template.sendWaits', 'Send. Wait for the upload to finish.')}
+                data-part="send-waits"
+                className="ms-auto flex size-[34px] shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-surface-3 text-fg-subtle"
+              >
+                <ArrowUp aria-hidden="true" className="size-[17px]" />
+              </button>
+            </Tooltip>
           ) : (
             <button
               type="button"
