@@ -973,7 +973,7 @@ export default {
     "disconnect": "断开连接",
     "environment": "正在使用此项目环境中设置的 Figma 令牌。",
     "dead": "你的 Figma 令牌已失效。请粘贴新的令牌。",
-    "instructions": "在 Figma 中打开“设置”，然后“安全”，再打开“个人访问令牌”。创建一个可读取文件内容和文件元数据的令牌。Figma 只显示一次：复制后粘贴到这里。",
+    "instructions": "在 Figma 中打开“设置”，然后“安全”，再打开“个人访问令牌”。创建一个可读取你的用户信息、文件内容和文件元数据的令牌。Figma 只显示一次：复制后粘贴到这里。",
     "tokenLabel": "Figma 令牌",
     "tokenRefused": "Figma 未接受此令牌。请检查后重新粘贴。",
     "kept": "仅为你加密保存在此服务器上。只有你自己的导入会使用它。",

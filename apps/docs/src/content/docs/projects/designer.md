@@ -323,7 +323,7 @@ padding, colours, fonts and corners.
 Figma is read with a personal access token of your own. The first time, the dialog asks for one:
 
 1. In Figma, open Settings, then Security, then Personal access tokens.
-2. Make a token that can read file content and file metadata. Figma shows it once: copy it.
+2. Make a token that can read your user details, file content and file metadata. Figma shows it once: copy it.
 3. Paste it in **Figma token** and press **Connect**.
 
 Adminium asks Figma whose token it is before it keeps anything. A token Figma refuses is not kept:

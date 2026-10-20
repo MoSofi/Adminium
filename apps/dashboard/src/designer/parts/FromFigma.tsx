@@ -296,7 +296,7 @@ export function FromFigmaDialog({ open, onOpenChange, onImported, returnFocus }:
                 </div>
               ) : null}
               <p className="m-0 text-pretty text-[13px] leading-normal text-fg-muted">
-                {t('designer:figma.instructions', 'In Figma, open Settings, then Security, then Personal access tokens. Make a token that can read file content and file metadata. Figma shows it once: copy it, then paste it here.')}
+                {t('designer:figma.instructions', 'In Figma, open Settings, then Security, then Personal access tokens. Make a token that can read your user details, file content and file metadata. Figma shows it once: copy it, then paste it here.')}
               </p>
               <div className="flex flex-col gap-[7px]">
                 <label htmlFor={`${ids}-token`} className="text-[12.5px] font-bold">

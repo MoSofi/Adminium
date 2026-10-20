@@ -973,7 +973,7 @@ export default {
     "disconnect": "Disconnect",
     "environment": "Using the Figma token set in this project's environment.",
     "dead": "Your Figma token no longer works. Paste a new one.",
-    "instructions": "In Figma, open Settings, then Security, then Personal access tokens. Make a token that can read file content and file metadata. Figma shows it once: copy it, then paste it here.",
+    "instructions": "In Figma, open Settings, then Security, then Personal access tokens. Make a token that can read your user details, file content and file metadata. Figma shows it once: copy it, then paste it here.",
     "tokenLabel": "Figma token",
     "tokenRefused": "Figma did not accept this token. Check it and paste it again.",
     "kept": "Kept encrypted on this server for you only. Only your own imports use it.",

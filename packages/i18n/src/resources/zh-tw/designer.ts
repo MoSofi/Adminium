@@ -973,7 +973,7 @@ export default {
     "disconnect": "中斷連線",
     "environment": "正在使用此專案環境中設定的 Figma 權杖。",
     "dead": "你的 Figma 權杖已失效。請貼上新的權杖。",
-    "instructions": "在 Figma 中開啟「設定」，接著「安全性」，再開啟「個人存取權杖」。建立一個可讀取檔案內容與檔案中繼資料的權杖。Figma 只會顯示一次：複製後貼到這裡。",
+    "instructions": "在 Figma 中開啟「設定」，接著「安全性」，再開啟「個人存取權杖」。建立一個可讀取你的使用者資訊、檔案內容與檔案中繼資料的權杖。Figma 只會顯示一次：複製後貼到這裡。",
     "tokenLabel": "Figma 權杖",
     "tokenRefused": "Figma 未接受此權杖。請檢查後重新貼上。",
     "kept": "僅為你加密保存在此伺服器上。只有你自己的匯入會使用它。",

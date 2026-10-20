@@ -963,7 +963,7 @@
     "disconnect": "Déconnecter",
     "environment": "Le jeton Figma défini dans l'environnement de ce projet est utilisé.",
     "dead": "Votre jeton Figma ne fonctionne plus. Collez-en un nouveau.",
-    "instructions": "Dans Figma, ouvrez Paramètres, puis Sécurité, puis Jetons d’accès personnels. Créez un jeton qui peut lire le contenu et les métadonnées des fichiers. Figma ne l’affiche qu’une fois : copiez-le, puis collez-le ici.",
+    "instructions": "Dans Figma, ouvrez Paramètres, puis Sécurité, puis Jetons d’accès personnels. Créez un jeton qui peut lire vos informations d’utilisateur, ainsi que le contenu et les métadonnées des fichiers. Figma ne l’affiche qu’une fois : copiez-le, puis collez-le ici.",
     "tokenLabel": "Jeton Figma",
     "tokenRefused": "Figma n’a pas accepté ce jeton. Vérifiez-le et collez-le à nouveau.",
     "kept": "Conservé chiffré sur ce serveur, pour vous seul. Seuls vos propres imports l’utilisent.",

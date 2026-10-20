@@ -963,7 +963,7 @@
     "disconnect": "Trennen",
     "environment": "Es wird das Figma-Token aus der Umgebung dieses Projekts verwendet.",
     "dead": "Dein Figma-Token funktioniert nicht mehr. Füge ein neues ein.",
-    "instructions": "Öffne in Figma die Einstellungen, dann Sicherheit, dann Persönliche Zugriffstoken. Erstelle ein Token, das Dateiinhalte und Dateimetadaten lesen darf. Figma zeigt es nur einmal: Kopiere es und füge es hier ein.",
+    "instructions": "Öffne in Figma die Einstellungen, dann Sicherheit, dann Persönliche Zugriffstoken. Erstelle ein Token, das deine Benutzerdaten, Dateiinhalte und Dateimetadaten lesen darf. Figma zeigt es nur einmal: Kopiere es und füge es hier ein.",
     "tokenLabel": "Figma-Token",
     "tokenRefused": "Figma hat dieses Token nicht akzeptiert. Prüfe es und füge es erneut ein.",
     "kept": "Verschlüsselt auf diesem Server nur für dich gespeichert. Nur deine eigenen Importe verwenden es.",

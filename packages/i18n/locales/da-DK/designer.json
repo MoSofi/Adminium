@@ -963,7 +963,7 @@
     "disconnect": "Afbryd",
     "environment": "Bruger Figma-tokenet fra dette projekts miljø.",
     "dead": "Dit Figma-token virker ikke længere. Indsæt et nyt.",
-    "instructions": "Åbn Indstillinger i Figma, derefter Sikkerhed og så Personlige adgangstokens. Lav et token, der kan læse filindhold og filmetadata. Figma viser det kun én gang: kopiér det, og indsæt det her.",
+    "instructions": "Åbn Indstillinger i Figma, derefter Sikkerhed og så Personlige adgangstokens. Lav et token, der kan læse dine brugeroplysninger, filindhold og filmetadata. Figma viser det kun én gang: kopiér det, og indsæt det her.",
     "tokenLabel": "Figma-token",
     "tokenRefused": "Figma godkendte ikke dette token. Tjek det, og indsæt det igen.",
     "kept": "Gemt krypteret på denne server kun til dig. Kun dine egne importer bruger det.",

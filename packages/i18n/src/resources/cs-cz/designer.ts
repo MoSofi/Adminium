@@ -973,7 +973,7 @@ export default {
     "disconnect": "Odpojit",
     "environment": "Používá se token Figmy nastavený v prostředí tohoto projektu.",
     "dead": "Váš token Figmy už nefunguje. Vložte nový.",
-    "instructions": "Ve Figmě otevřete Nastavení, pak Zabezpečení, pak Osobní přístupové tokeny. Vytvořte token, který smí číst obsah souborů a metadata souborů. Figma ho ukáže jen jednou: zkopírujte ho a vložte sem.",
+    "instructions": "Ve Figmě otevřete Nastavení, pak Zabezpečení, pak Osobní přístupové tokeny. Vytvořte token, který smí číst údaje o vašem účtu, obsah souborů a metadata souborů. Figma ho ukáže jen jednou: zkopírujte ho a vložte sem.",
     "tokenLabel": "Token Figmy",
     "tokenRefused": "Figma tento token nepřijala. Zkontrolujte ho a vložte znovu.",
     "kept": "Uložen šifrovaně na tomto serveru jen pro vás. Používají ho jen vaše vlastní importy.",
