@@ -28,6 +28,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { previewShows } from './sight.js';
 import { installTestI18n } from '../../i18n/testing.js';
+import { BAKERY_PLAN } from '../parts/templatePlan.fixture.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, PicturesView, YourApp } from '../api.js';
 
@@ -758,13 +759,52 @@ describe('the build page', () => {
   it('draws nothing for a card it does not know, never another card’s buttons', async () => {
     stored = [
       ev(1, { kind: 'turn-started', text: 'Build it from my template.' }),
-      ev(1, { kind: 'card', card: { id: 't1', type: 'template-plan' } as never }),
+      ev(1, { kind: 'card', card: { id: 'x1', type: 'from-a-newer-server' } as never }),
       ev(1, { kind: 'turn-finished', outcome: 'done' }),
     ];
     await open();
     await screen.findByText('Build it from my template.');
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(document.querySelector('[data-card-id="t1"]')).toBeNull();
+    expect(document.querySelector('[data-card-id="x1"]')).toBeNull();
+  });
+
+  it('asks the template plan on its card, and sends the plan as it stands', async () => {
+    stored = [ev(1, { kind: 'turn-started', text: 'Build it from my template.' }), ev(1, { kind: 'card', card: { ...BAKERY_PLAN, id: 't1' } })];
+    await open();
+    const card = await screen.findByRole('group', { name: 'Your template, as an app' });
+    expect(card.dataset['cardId']).toBe('t1');
+    expect(card.textContent).toContain('From harbor-bakery: 5 tables, 2 forms, 3 things to decide, 6 links to fill.');
+    await userEvent.click(within(card).getByRole('button', { name: 'Review the plan…' }));
+    const sheet = screen.getByRole('dialog', { name: 'The plan for harbor-bakery' });
+    await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Make Subscribers a table' }));
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Build this' }));
+    await waitFor(() =>
+      expect(posted('/answers')).toEqual([
+        {
+          cardId: 't1',
+          value: {
+            tables: ['products', 'categories', 'orders', 'order_lines'],
+            decisions: { 'card-payments': 'replace', search: 'replace', 'chat-widget': 'replace' },
+            links: { instagram: '', facebook: '', 'learn-home': '', 'learn-about': '', careers: '', press: '' },
+            takeOutEmpty: true,
+            added: ['package:react', 'package:react-dom', 'package:tailwindcss', 'font:@fontsource/lora', 'font:@fontsource/inter'],
+          },
+        },
+      ]),
+    );
+  });
+
+  it('keeps a template plan answered in an earlier turn as the line of what was built', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Build it from my template.' }),
+      ev(1, { kind: 'card', card: { ...BAKERY_PLAN, id: 't1' } }),
+      ev(1, { kind: 'card-answered', id: 't1', value: { type: 'template-plan', tables: ['products', 'categories', 'orders', 'order_lines'], decisions: { 'card-payments': 'replace', search: 'replace', 'chat-widget': 'replace' }, links: {}, takeOutEmpty: true, added: [] } }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }),
+    ];
+    await open();
+    const card = await screen.findByRole('group', { name: 'Your template, as an app, answered' });
+    expect(card.textContent).toContain('Built: 4 tables, 2 forms. Replaced: Card payments, Search, and Chat widget. Left out: nothing.');
+    expect(within(card).queryByRole('button')).toBeNull();
   });
 
   it('asks for the pictures of the spots a design made, and the chip in the saved row opens the dialog with what is left to fill', async () => {

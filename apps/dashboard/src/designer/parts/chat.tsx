@@ -334,7 +334,7 @@ export function StyleChip({ title, fontsLater }: { title: string; fontsLater: bo
   );
 }
 
-function CardShell({
+export function CardShell({
   tone = 'plain',
   icon,
   title,
@@ -532,7 +532,7 @@ function StyleQuestion({
 }
 
 /** What a thing on the needs card is, in the page's words: the server sends what it is, never a sentence. */
-function needLine(item: NeedItem): string {
+export function needLine(item: NeedItem): string {
   if (item.kind === 'picture-site') return t('designer:needs.site', 'Pictures from {host} — shown straight from that site', { host: item.host });
   if (item.kind === 'font') {
     if (item.use === 'heading') return t('designer:needs.fontHeading', '{family} — a typeface, for headings', { family: item.family });
@@ -562,7 +562,7 @@ function needShort(item: NeedItem): string {
   return item.role === 'tailwind' ? 'Tailwind CSS' : item.name;
 }
 
-function NeedIcon({ item }: { item: NeedItem }): ReactNode {
+export function NeedIcon({ item }: { item: NeedItem }): ReactNode {
   const cls = 'mt-[2px] size-3.5 shrink-0 text-fg-subtle';
   if (item.kind === 'picture-site') return <ImageIcon aria-hidden="true" className={cls} />;
   if (item.kind === 'font') return <Type aria-hidden="true" className={cls} />;
@@ -573,7 +573,7 @@ function NeedIcon({ item }: { item: NeedItem }): ReactNode {
 }
 
 /** Whether Adminium itself knows the thing: those are offered ticked. A name only the Designer vouches for is not. */
-const knownNeed = (item: NeedItem): boolean => item.kind !== 'package' || item.role !== 'other';
+export const knownNeed = (item: NeedItem): boolean => item.kind !== 'package' || item.role !== 'other';
 
 /**
  * Everything a step needs from outside the project, on one card: a checkbox
@@ -1149,7 +1149,7 @@ function SpotFrame({ shape }: { shape: PictureShape }): ReactNode {
 }
 
 /** "Hero, Team" in the page's language. */
-function listOf(names: readonly string[]): string {
+export function listOf(names: readonly string[]): string {
   try {
     return new Intl.ListFormat(getI18nInstance()?.language ?? 'en-US', { style: 'long', type: 'conjunction' }).format(names);
   } catch {

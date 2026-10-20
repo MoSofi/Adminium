@@ -236,6 +236,8 @@ export type DesignerCard =
   | { id: string; type: 'keep-spot'; spot: string; label: string; screen: string }
   /** In a session of outside words: what the app would newly let strangers do, or its pages reach. Asked before it goes live. */
   | { id: string; type: 'access-change'; changes: AccessChangeView[]; planned: boolean }
+  /** The plan for building an app from a site template, asked once before anything is written. */
+  | ({ id: string } & TemplatePlanView)
   /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */
   | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[]; /** A site some of these are shown from, never copied. */ site?: string }
   /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */
@@ -256,6 +258,51 @@ export type NeedItem =
   | { id: string; kind: 'package'; name: string; version: string; role: NeedRole; why?: string }
   | { id: string; kind: 'font'; family: string; name: string; version: string; use: 'heading' | 'body' | 'other'; why?: string }
   | { id: string; kind: 'picture-site'; host: string; why?: string };
+
+/**
+ * What the template plan card shows. Every word in it is the template's or the model's, cleaned by the
+ * server: it is drawn as text, never as markup.
+ */
+export interface TemplatePlanView {
+  type: 'template-plan';
+  site: { attachment: string; name: string; pages: number; files: number };
+  tables: {
+    table: string;
+    label: string;
+    columns: { column: string; label: string }[];
+    /** The pages that show it. */
+    shownOn: string[];
+    /** Sample rows from the template's own blocks; of those, how many repeat another; how many it did not have. */
+    fromTemplate: number;
+    filler: number;
+    madeUp: number;
+    block?: string;
+    publicRead: string[];
+    addOn?: string;
+    addOnInfo?: { key: string; name: string; installed: boolean };
+  }[];
+  forms: { form: string; label: string; table: string; tableLabel: string; writable: string[]; lines?: string; perHour: number | null }[];
+  /** What the template shows: what works as it is, what an add-on does, what is not available and how it is handled. */
+  report: { id: string; label: string; where: string; status: 'works' | 'add-on' | 'not-available'; addOn?: string; build?: string; buildServerCode: boolean; replace?: string; leave?: string }[];
+  /** Links that lead nowhere. */
+  links: { id: string; label: string }[];
+  /** Not shown: kept as approved. */
+  roles: { role: string; tables: string[] }[];
+  added: NeedItem[];
+}
+
+/** How a thing the template shows and Adminium does not have is handled. */
+export type PlanChoice = 'build' | 'replace' | 'leave';
+
+/** The answer to the template plan card. With `changes`, nothing is approved: the Designer makes a new plan from them. */
+export interface TemplatePlanAnswer {
+  tables: string[];
+  decisions: Record<string, PlanChoice>;
+  links: Record<string, string>;
+  takeOutEmpty: boolean;
+  added: string[];
+  changes?: string;
+}
 
 export type PictureShape = 'wide' | 'tall' | 'square';
 /** What a design does with the page's pictures: leaves placeholders, or opens the picture dialog after it. */

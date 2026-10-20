@@ -12643,6 +12643,246 @@
     "status": "mt",
     "srcHash": "c686ff6f1178"
   },
+  "designer.plan.addOnRow": {
+    "status": "mt",
+    "srcHash": "d75deb745897"
+  },
+  "designer.plan.addOnTable": {
+    "status": "mt",
+    "srcHash": "3958b53189ee"
+  },
+  "designer.plan.addOnTableMissing": {
+    "status": "mt",
+    "srcHash": "cdc6663544c3"
+  },
+  "designer.plan.addedSome": {
+    "status": "mt",
+    "srcHash": "3552fa0f2a7d"
+  },
+  "designer.plan.addedTitle": {
+    "status": "mt",
+    "srcHash": "8e26e62d598a"
+  },
+  "designer.plan.allTicked": {
+    "status": "mt",
+    "srcHash": "a9a9bed4fd53"
+  },
+  "designer.plan.answeredAlso": {
+    "status": "mt",
+    "srcHash": "c7b2e0c56413"
+  },
+  "designer.plan.answeredBuilt": {
+    "status": "mt",
+    "srcHash": "79eb43b3c869"
+  },
+  "designer.plan.answeredLabel": {
+    "status": "mt",
+    "srcHash": "145bddef5ff7"
+  },
+  "designer.plan.answeredLeft": {
+    "status": "mt",
+    "srcHash": "487500921ee7"
+  },
+  "designer.plan.answeredLeftNothing": {
+    "status": "mt",
+    "srcHash": "53a45a4c029b"
+  },
+  "designer.plan.answeredMark": {
+    "status": "mt",
+    "srcHash": "e0aafffa028c"
+  },
+  "designer.plan.answeredReplaced": {
+    "status": "mt",
+    "srcHash": "edb2a59bb145"
+  },
+  "designer.plan.build": {
+    "status": "mt",
+    "srcHash": "bbd80cf7e2de"
+  },
+  "designer.plan.buildThis": {
+    "status": "mt",
+    "srcHash": "1dc71f4a5494"
+  },
+  "designer.plan.building": {
+    "status": "mt",
+    "srcHash": "54b9c2bb1782"
+  },
+  "designer.plan.changesOptional": {
+    "status": "mt",
+    "srcHash": "0c6c4102d4df"
+  },
+  "designer.plan.changesPlaceholder": {
+    "status": "mt",
+    "srcHash": "ada90a34509f"
+  },
+  "designer.plan.changesSent": {
+    "status": "mt",
+    "srcHash": "f4ca88af4e19"
+  },
+  "designer.plan.changesTitle": {
+    "status": "mt",
+    "srcHash": "f423bb6df20e"
+  },
+  "designer.plan.changesWritten": {
+    "status": "mt",
+    "srcHash": "e40f41a603c1"
+  },
+  "designer.plan.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "designer.plan.columnsMore": {
+    "status": "mt",
+    "srcHash": "87c00978309e"
+  },
+  "designer.plan.fixed": {
+    "status": "mt",
+    "srcHash": "5806437b2524"
+  },
+  "designer.plan.formAnyone": {
+    "status": "mt",
+    "srcHash": "b8261059f118"
+  },
+  "designer.plan.formLimit": {
+    "status": "mt",
+    "srcHash": "9bb0b46d63f7"
+  },
+  "designer.plan.formLines": {
+    "status": "mt",
+    "srcHash": "5a6f9ecc561d"
+  },
+  "designer.plan.formsCount": {
+    "status": "mt",
+    "srcHash": "df06d0f4ae62"
+  },
+  "designer.plan.formsState": {
+    "status": "mt",
+    "srcHash": "d2d31f5478f8"
+  },
+  "designer.plan.formsTitle": {
+    "status": "mt",
+    "srcHash": "a09753976545"
+  },
+  "designer.plan.leave": {
+    "status": "mt",
+    "srcHash": "145a9fc8973e"
+  },
+  "designer.plan.linkBad": {
+    "status": "mt",
+    "srcHash": "210528e3c56b"
+  },
+  "designer.plan.linksEmpty": {
+    "status": "mt",
+    "srcHash": "c61c60076fcc"
+  },
+  "designer.plan.linksFilled": {
+    "status": "mt",
+    "srcHash": "d9ad591065ac"
+  },
+  "designer.plan.linksTitle": {
+    "status": "mt",
+    "srcHash": "455a2285cef0"
+  },
+  "designer.plan.makeTable": {
+    "status": "mt",
+    "srcHash": "16b8c8b42357"
+  },
+  "designer.plan.notAvailable": {
+    "status": "mt",
+    "srcHash": "d1a17af19f53"
+  },
+  "designer.plan.option": {
+    "status": "mt",
+    "srcHash": "e55c2260b6cc"
+  },
+  "designer.plan.replace": {
+    "status": "mt",
+    "srcHash": "a7cf7b25a703"
+  },
+  "designer.plan.review": {
+    "status": "mt",
+    "srcHash": "9916f231d11b"
+  },
+  "designer.plan.samplesBoth": {
+    "status": "mt",
+    "srcHash": "0daa0199aa2f"
+  },
+  "designer.plan.samplesMadeUp": {
+    "status": "mt",
+    "srcHash": "0ac8bfa757f1"
+  },
+  "designer.plan.samplesNone": {
+    "status": "mt",
+    "srcHash": "e50dba0390b2"
+  },
+  "designer.plan.samplesTemplate": {
+    "status": "mt",
+    "srcHash": "cf961678c6a4"
+  },
+  "designer.plan.sendChanges": {
+    "status": "mt",
+    "srcHash": "b76481eaecda"
+  },
+  "designer.plan.serverCode": {
+    "status": "mt",
+    "srcHash": "2ba2197e5370"
+  },
+  "designer.plan.sheetTitle": {
+    "status": "mt",
+    "srcHash": "dca13e7ffde8"
+  },
+  "designer.plan.shownOn": {
+    "status": "mt",
+    "srcHash": "4df572621cf2"
+  },
+  "designer.plan.showsCount": {
+    "status": "mt",
+    "srcHash": "d662c3803cb2"
+  },
+  "designer.plan.showsTitle": {
+    "status": "mt",
+    "srcHash": "40900f029ebc"
+  },
+  "designer.plan.showsWorks": {
+    "status": "mt",
+    "srcHash": "4359ed1d32b2"
+  },
+  "designer.plan.summary": {
+    "status": "mt",
+    "srcHash": "d3477937bbb4"
+  },
+  "designer.plan.tableLine": {
+    "status": "mt",
+    "srcHash": "e736081f19ab"
+  },
+  "designer.plan.tablesCount": {
+    "status": "src",
+    "srcHash": "f09224672f7e"
+  },
+  "designer.plan.tablesHint": {
+    "status": "mt",
+    "srcHash": "ab119d71bc39"
+  },
+  "designer.plan.tablesSome": {
+    "status": "mt",
+    "srcHash": "308f90f2ce7c"
+  },
+  "designer.plan.tablesTitle": {
+    "status": "mt",
+    "srcHash": "42b5b938aff9"
+  },
+  "designer.plan.takeOut": {
+    "status": "mt",
+    "srcHash": "a8f87d5dcd71"
+  },
+  "designer.plan.title": {
+    "status": "mt",
+    "srcHash": "86aed879357f"
+  },
+  "designer.plan.worksRow": {
+    "status": "mt",
+    "srcHash": "a376a9b2eac6"
+  },
   "designer.preview.addressCustomer": {
     "status": "mt",
     "srcHash": "5264b9a15ab1"

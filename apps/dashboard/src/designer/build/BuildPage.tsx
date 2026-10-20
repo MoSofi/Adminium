@@ -57,6 +57,7 @@ import {
 } from '../parts/chat.js';
 import { useDesktopVersions, VersionsOfferDialog } from '../parts/DesktopVersions.js';
 import { PictureDialog } from '../parts/pictures/PictureDialog.js';
+import { TemplatePlanCard } from '../parts/templatePlan.js';
 import { TopBar } from '../parts/TopBar.js';
 import { DesktopBuildShare } from '../parts/DesktopProject.js';
 import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
@@ -476,6 +477,9 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   onRefuse={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
                 />
               );
+            }
+            if (card.type === 'template-plan') {
+              return <TemplatePlanCard key={card.id} card={card} answered={answered} closed={!live} answer={given} busy={busy} onSend={(value) => answer.mutate({ cardId: card.id, value })} />;
             }
             if (card.type === 'keep-spot') {
               return (
