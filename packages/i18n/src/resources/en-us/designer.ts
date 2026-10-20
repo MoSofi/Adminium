@@ -672,6 +672,10 @@ export default {
     "menu": "Attach",
     "files": "Files from your computer…",
     "filesHelp": "A picture, a CSV, font or Markdown file, an HTML or CSS file, or a site template (.zip)",
+    "folder": "A folder…",
+    "folderHelp": "A site template, as a folder",
+    "templates": "A site template in this project",
+    "templatesList": "Site templates in this project",
     "fromFigma": "From Figma…"
   },
   "needs": {
@@ -1181,6 +1185,16 @@ export default {
       "notSvg": "it is not an SVG picture",
       "notText": "it does not read as text",
       "kind": "this kind of file is not kept"
-    }
+    },
+    "reading": "{name}: reading the template…",
+    "notCopied": "{name} was not copied in as a site template: {why}",
+    "listLabel": "Site templates in this project",
+    "oneHere": "There is a site template in this project: {name}.",
+    "severalHere": "There are site templates in this project.",
+    "startFromIt": "Start from it",
+    "startFrom": "Start from {name}",
+    "rename": "{name}: rename this folder to use it (letters, digits, space, . _ -)",
+    "more": "and {count} more",
+    "boxText": "Make an app from {name}."
   }
 } as const;

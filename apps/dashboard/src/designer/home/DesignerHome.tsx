@@ -11,6 +11,7 @@
  * off and the line under the box says why (frame B).
  */
 import { attachHandlers, AttachTray, useAttach, useReadsImages } from '../parts/attach.js';
+import { HomeTemplates } from './homeTemplates.js';
 import { AttachControl } from '../parts/FromFigma.js';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -77,6 +78,8 @@ export function DesignerHome(): ReactNode {
   const [versionsReopened, setVersionsReopened] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const attach = useAttach({ notify: (title) => toasts.push({ variant: 'info', title }) });
+  /** The project's template the person started from: in the box now. */
+  const [startedTemplate, setStartedTemplate] = useState<string | null>(null);
   /** The session a first message with files made, kept until that message is sent. */
   const made = useRef<{ key: string; reply: Awaited<ReturnType<typeof designerApi.createSession>> } | null>(null);
   const readsImages = useReadsImages(model.picked, attach.hasImage);
@@ -108,7 +111,8 @@ export function DesignerHome(): ReactNode {
       // What is sent is what the menu shows: a choice this server does not offer (Mobile, picked before the server said it is a live one) is not sent.
       const target = chosen.id;
       const base = { title: nameFromRequest(text), ...(style === null || target === 'dashboard' || target === 'mobile' ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model, ...(model.effort === null ? {} : { effort: model.effort }) };
-      if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
+      // With nothing to attach (no file, no site template), the session starts with its message at once.
+      if (attach.files.length === 0 && attach.site.current === null && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
       // in the box, and the next send goes to the session already made instead of making another.
@@ -159,6 +163,15 @@ export function DesignerHome(): ReactNode {
           <TurnVersionsOn versions={desktopVersions} reopened={versionsReopened} onReopen={() => setVersionsReopened(true)} />
 
           <form onSubmit={send} className="relative z-20 mt-[clamp(26px,2.6vw,36px)] w-full max-w-[700px]">
+            <HomeTemplates
+              started={startedTemplate}
+              onStart={(name) => {
+                attach.site.addProject(name);
+                setStartedTemplate(name);
+                setText(t('designer:template.boxText', 'Make an app from {name}.', { name }));
+                box.current?.focus();
+              }}
+            />
             <div
               className={`rounded-[20px] border bg-surface shadow-sm transition-colors focus-within:border-accent ${cannotBuild ? 'border-warn/40' : 'border-border-strong'}`}
               onDragOver={drop.onDragOver}

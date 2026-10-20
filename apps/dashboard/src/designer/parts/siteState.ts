@@ -2,8 +2,9 @@
 /**
  * A site template with a message: a zip, or a folder the page packs into one.
  *
- * Where a session exists (the build page) it goes up the moment it is dropped, and the chip shows how
- * far; Send waits for it. On Home there is no session yet: the page holds the zip and sends it right
+ * Or one of the project's own site templates, taken by its name: the server reads the folder. Where a
+ * session exists (the build page) it goes in the moment it is chosen, and the chip shows how far;
+ * Send waits for it. On Home there is no session yet: the page holds the zip and sends it right
  * after the session is made, as the first thing the message carries. A session holds one site: a
  * second asks first ("This replaces …"), whether the first is still in the tray or went with an
  * earlier message (the server says so, with that site's name). Refusals are the server's sentence,
@@ -14,7 +15,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerAttachment } from '../api.js';
-import { packZip, PackRefusal, readFolder, SITE_MAX_ZIP_BYTES } from './packSite.js';
+import { packZip, PackRefusal, readFolder, SITE_MAX_ENTRIES, SITE_MAX_ZIP_BYTES } from './packSite.js';
 
 interface Pending {
   key: string;
@@ -22,14 +23,15 @@ interface Pending {
   name: string;
   /** What the server is told it was called. */
   filename: string;
-  zip: Blob;
+  /** A zip to send, or a template of the project the server reads by its name. */
+  source: { kind: 'zip'; zip: Blob } | { kind: 'project' };
 }
 
 export interface SiteTrayItem {
   key: string;
   name: string;
-  /** Held: waiting for a session (Home). Uploading: on its way, `percent` of it. Ready: in the session. */
-  phase: 'held' | 'uploading' | 'ready';
+  /** Held: waiting for a session (Home). Uploading: on its way, `percent` of it. Reading: the server reads the project's folder. Ready: in the session. */
+  phase: 'held' | 'uploading' | 'reading' | 'ready';
   percent: number;
   attachment?: DesignerAttachment;
   sessionId?: string;
@@ -45,6 +47,10 @@ export interface SiteControl {
   uploading: boolean;
   addZip(file: File): void;
   addFolder(dir: FileSystemDirectoryEntry): void;
+  /** A folder picked with the chooser: its files, by their paths inside it. */
+  addFiles(name: string, files: readonly { path: string; file: File }[]): void;
+  /** One of the project's own site templates, by the name the server listed. */
+  addProject(name: string): void;
   replace(): void;
   keep(): void;
   dismiss(): void;
@@ -64,6 +70,8 @@ export const NO_SITE: SiteControl = {
   uploading: false,
   addZip: () => undefined,
   addFolder: () => undefined,
+  addFiles: () => undefined,
+  addProject: () => undefined,
   replace: () => undefined,
   keep: () => undefined,
   dismiss: () => undefined,
@@ -93,17 +101,20 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
   const start = useCallback(
     (pending: Pending, target: string, replaceId: string | undefined, confirmed: boolean): Promise<DesignerAttachment> => {
       const abort = new AbortController();
-      const item: SiteTrayItem = { key: pending.key, name: pending.name, phase: 'uploading', percent: 0, pending };
+      const item: SiteTrayItem = { key: pending.key, name: pending.name, phase: pending.source.kind === 'zip' ? 'uploading' : 'reading', percent: 0, pending };
       put(item);
-      const promise: Promise<DesignerAttachment> = designerApi
-        .uploadSite(target, pending.zip, pending.filename, {
-          ...(replaceId === undefined ? {} : { replace: replaceId }),
-          signal: abort.signal,
-          onProgress: (fraction) => {
-            const now = held.current;
-            if (now?.key === pending.key && now.phase === 'uploading') put({ ...now, percent: Math.min(99, Math.round(fraction * 100)) });
-          },
-        })
+      const sending: Promise<DesignerAttachment> =
+        pending.source.kind === 'project'
+          ? designerApi.siteFromProject(target, pending.name, replaceId)
+          : designerApi.uploadSite(target, pending.source.zip, pending.filename, {
+              ...(replaceId === undefined ? {} : { replace: replaceId }),
+              signal: abort.signal,
+              onProgress: (fraction) => {
+                const now = held.current;
+                if (now?.key === pending.key && now.phase === 'uploading') put({ ...now, percent: Math.min(99, Math.round(fraction * 100)) });
+              },
+            });
+      const promise: Promise<DesignerAttachment> = sending
         .then((attachment) => {
           if (held.current?.key === pending.key) put({ ...item, phase: 'ready', percent: 100, attachment, sessionId: target });
           return attachment;
@@ -161,7 +172,38 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
         return;
       }
       seq.current += 1;
-      begin({ key: `s${String(seq.current)}`, name, filename: file.name, zip: file });
+      begin({ key: `s${String(seq.current)}`, name, filename: file.name, source: { kind: 'zip', zip: file } });
+    },
+    [begin],
+  );
+
+  const addFiles = useCallback(
+    (name: string, files: readonly { path: string; file: File }[]) => {
+      setRefused(null);
+      if (files.length > SITE_MAX_ENTRIES) {
+        setRefused(t('designer:template.tooMany', '{name} has more than 1,000 files and folders.', { name }));
+        return;
+      }
+      if (files.reduce((sum, each) => sum + each.file.size, 0) > SITE_MAX_ZIP_BYTES) {
+        setRefused(t('designer:template.tooLarge', '{name} is over 25 MB.', { name }));
+        return;
+      }
+      if (files.length === 0) {
+        setRefused(t('designer:template.folderEmpty', '{name} has no files in it.', { name }));
+        return;
+      }
+      void packZip(files).then((zip) => {
+        seq.current += 1;
+        begin({ key: `s${String(seq.current)}`, name, filename: name, source: { kind: 'zip', zip } });
+      });
+    },
+    [begin],
+  );
+
+  const addProject = useCallback(
+    (name: string) => {
+      seq.current += 1;
+      begin({ key: `s${String(seq.current)}`, name, filename: name, source: { kind: 'project' } });
     },
     [begin],
   );
@@ -176,7 +218,7 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
             return;
           }
           seq.current += 1;
-          begin({ key: `s${String(seq.current)}`, name: dir.name, filename: dir.name, zip: await packZip(files) });
+          begin({ key: `s${String(seq.current)}`, name: dir.name, filename: dir.name, source: { kind: 'zip', zip: await packZip(files) } });
         })
         .catch((error: unknown) => {
           const reason = error instanceof PackRefusal ? error.reason : 'unreadable';
@@ -197,7 +239,7 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
     setConfirm(null);
     if (chosen === null) return;
     // A first site still on its way is stopped: the server is told to replace whichever site it holds.
-    if (held.current?.phase === 'uploading') inflight.current?.abort.abort();
+    if (held.current?.phase === 'uploading' || held.current?.phase === 'reading') inflight.current?.abort.abort();
     put(null);
     place(chosen.next, chosen.replaceId, true);
     notify?.(t('designer:template.inTray', '{name} is in the tray.', { name: chosen.next.name }));
@@ -207,7 +249,7 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
     const it = held.current;
     if (it === null) return;
     put(null);
-    if (it.phase === 'uploading') inflight.current?.abort.abort();
+    if (it.phase === 'uploading' || it.phase === 'reading') inflight.current?.abort.abort();
     if (it.phase === 'ready' && it.attachment !== undefined && it.sessionId !== undefined) designerApi.removeAttachment(it.sessionId, it.attachment.id).catch(() => undefined);
     notify?.(t('designer:template.removed', '{name} is off this message.', { name: it.name }));
   }, [notify, put]);
@@ -224,7 +266,7 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
       const it = held.current;
       if (it === null) return null;
       if (it.phase === 'ready' && it.attachment !== undefined && it.sessionId === target) return it.attachment.id;
-      if (it.phase === 'uploading' && inflight.current?.key === it.key) return (await inflight.current.promise).id;
+      if ((it.phase === 'uploading' || it.phase === 'reading') && inflight.current?.key === it.key) return (await inflight.current.promise).id;
       return (await start(it.pending, target, undefined, false)).id;
     },
     [start],
@@ -239,9 +281,11 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
       current,
       refused,
       confirm: confirm === null ? null : { dropped: confirm.dropped, old: confirm.old },
-      uploading: current?.phase === 'uploading',
+      uploading: current?.phase === 'uploading' || current?.phase === 'reading',
       addZip,
       addFolder,
+      addFiles,
+      addProject,
       replace,
       keep: () => setConfirm(null),
       dismiss: () => setRefused(null),
@@ -250,6 +294,6 @@ export function useSite(opts: { sessionId?: string | undefined; notify?: ((title
       send,
       sent,
     }),
-    [current, refused, confirm, addZip, addFolder, replace, cancel, remove, send, sent],
+    [current, refused, confirm, addZip, addFolder, addFiles, addProject, replace, cancel, remove, send, sent],
   );
 }

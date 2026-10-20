@@ -141,7 +141,14 @@ export function SiteTray({ site }: { site: SiteControl }): ReactNode {
   return (
     <>
       <ReplaceConfirm site={site} />
-      {it === null ? null : it.phase === 'uploading' ? (
+      {it === null ? null : it.phase === 'reading' ? (
+        <div className="flex">
+          <div role="status" className="flex max-w-full items-center gap-[7px] rounded-[10px] bg-surface-3 py-1 pe-2 ps-2" data-part="site-reading">
+            <LoaderCircle aria-hidden="true" className="size-3.5 shrink-0 animate-spin text-accent motion-reduce:animate-none" />
+            <span className="text-[12.5px] font-bold leading-[1.6]">{withName(t('designer:template.reading', '{name}: reading the template…', { name: it.name }), it.name)}</span>
+          </div>
+        </div>
+      ) : it.phase === 'uploading' ? (
         <div className="flex">
           <div role="status" className="relative flex max-w-full items-center gap-[7px] overflow-hidden rounded-[10px] bg-surface-3 py-1 pe-[3px] ps-2" data-part="site-uploading">
             <LoaderCircle aria-hidden="true" className="size-3.5 shrink-0 animate-spin text-accent motion-reduce:animate-none" />

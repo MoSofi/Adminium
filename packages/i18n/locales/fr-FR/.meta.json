@@ -10343,6 +10343,14 @@
     "status": "mt",
     "srcHash": "9c904ccd3371"
   },
+  "designer.attach.folder": {
+    "status": "mt",
+    "srcHash": "7b12aa7fecce"
+  },
+  "designer.attach.folderHelp": {
+    "status": "mt",
+    "srcHash": "ab32dcbf9187"
+  },
   "designer.attach.fontTooLarge": {
     "status": "mt",
     "srcHash": "deb9e92ed09d"
@@ -10406,6 +10414,14 @@
   "designer.attach.stylesheetTooLarge": {
     "status": "mt",
     "srcHash": "30fe1a3411a1"
+  },
+  "designer.attach.templates": {
+    "status": "mt",
+    "srcHash": "4d7df9517e3a"
+  },
+  "designer.attach.templatesList": {
+    "status": "mt",
+    "srcHash": "020b7b0965d3"
   },
   "designer.attach.tooMany": {
     "status": "mt",
@@ -13795,6 +13811,10 @@
     "status": "mt",
     "srcHash": "0e96f1e82105"
   },
+  "designer.template.boxText": {
+    "status": "mt",
+    "srcHash": "73583fc62dc2"
+  },
   "designer.template.cancel": {
     "status": "mt",
     "srcHash": "3d9193828be9"
@@ -13847,9 +13867,29 @@
     "status": "mt",
     "srcHash": "e3b33f3c31af"
   },
+  "designer.template.listLabel": {
+    "status": "mt",
+    "srcHash": "020b7b0965d3"
+  },
+  "designer.template.more": {
+    "status": "mt",
+    "srcHash": "0aa2abb24fd4"
+  },
+  "designer.template.notCopied": {
+    "status": "mt",
+    "srcHash": "62fa7309bf5b"
+  },
+  "designer.template.oneHere": {
+    "status": "mt",
+    "srcHash": "cf00319cd640"
+  },
   "designer.template.pages": {
     "status": "src",
     "srcHash": "5c0451aaed78"
+  },
+  "designer.template.reading": {
+    "status": "mt",
+    "srcHash": "0c1d76534e21"
   },
   "designer.template.remove": {
     "status": "mt",
@@ -13858,6 +13898,10 @@
   "designer.template.removed": {
     "status": "mt",
     "srcHash": "42daa174bb84"
+  },
+  "designer.template.rename": {
+    "status": "mt",
+    "srcHash": "31798cb99892"
   },
   "designer.template.replace": {
     "status": "mt",
@@ -13871,9 +13915,21 @@
     "status": "mt",
     "srcHash": "d3ed171df8c0"
   },
+  "designer.template.severalHere": {
+    "status": "mt",
+    "srcHash": "9ac4c244b7e0"
+  },
   "designer.template.siteWord": {
     "status": "mt",
     "srcHash": "b205595bc8f0"
+  },
+  "designer.template.startFrom": {
+    "status": "mt",
+    "srcHash": "a96e16811c00"
+  },
+  "designer.template.startFromIt": {
+    "status": "mt",
+    "srcHash": "0657078aac9d"
   },
   "designer.template.tooLarge": {
     "status": "mt",
@@ -14626,6 +14682,10 @@
   "desktop.opening.notAProject.make": {
     "status": "mt",
     "srcHash": "8f14691f4a7e"
+  },
+  "desktop.opening.notAProject.template": {
+    "status": "mt",
+    "srcHash": "94a3647dacc5"
   },
   "desktop.packages.again": {
     "status": "mt",

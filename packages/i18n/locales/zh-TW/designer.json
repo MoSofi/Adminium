@@ -662,6 +662,10 @@
     "menu": "附加",
     "files": "電腦上的檔案…",
     "filesHelp": "圖片、CSV、字型或 Markdown 檔案、HTML 或 CSS 檔案，或網站範本（.zip）",
+    "folder": "資料夾…",
+    "folderHelp": "以資料夾形式的網站範本",
+    "templates": "本專案中的網站範本",
+    "templatesList": "本專案中的網站範本",
     "fromFigma": "從 Figma…"
   },
   "needs": {
@@ -1171,6 +1175,16 @@
       "notSvg": "它不是 SVG 圖片",
       "notText": "它無法當作文字讀取",
       "kind": "不保留此類檔案"
-    }
+    },
+    "reading": "{name}：正在讀取範本…",
+    "notCopied": "{name} 未作為網站範本複製進來：{why}",
+    "listLabel": "本專案中的網站範本",
+    "oneHere": "本專案中有一個網站範本：{name}。",
+    "severalHere": "本專案中有多個網站範本。",
+    "startFromIt": "從它開始",
+    "startFrom": "從 {name} 開始",
+    "rename": "{name}：請重新命名此資料夾後再使用（字母、數字、空格、. _ -）",
+    "more": "另有 {count} 個",
+    "boxText": "用 {name} 做一個應用程式。"
   }
 }

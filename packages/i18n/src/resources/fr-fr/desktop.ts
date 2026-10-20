@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "Vous pouvez créer un nouveau projet dans un dossier à l’intérieur.",
       "another": "Choisir un autre dossier",
-      "make": "Créer un nouveau projet ici"
+      "make": "Créer un nouveau projet ici",
+      "template": "Ce dossier contient un modèle de site. Le nouveau projet est créé à l’intérieur, et le modèle y est copié. Les fichiers de ce dossier ne sont pas modifiés."
     }
   },
   "key": {

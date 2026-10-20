@@ -662,6 +662,10 @@
     "menu": "Joindre",
     "files": "Fichiers de votre ordinateur…",
     "filesHelp": "Une image, un fichier CSV, une police ou un fichier Markdown, un fichier HTML ou CSS, ou un modèle de site (.zip)",
+    "folder": "Un dossier…",
+    "folderHelp": "Un modèle de site, en dossier",
+    "templates": "Un modèle de site de ce projet",
+    "templatesList": "Modèles de site de ce projet",
     "fromFigma": "Depuis Figma…"
   },
   "needs": {
@@ -1171,6 +1175,16 @@
       "notSvg": "ce n’est pas une image SVG",
       "notText": "il ne se lit pas comme du texte",
       "kind": "ce type de fichier n’est pas gardé"
-    }
+    },
+    "reading": "{name} : lecture du modèle…",
+    "notCopied": "{name} n’a pas été copié comme modèle de site : {why}",
+    "listLabel": "Modèles de site de ce projet",
+    "oneHere": "Ce projet contient un modèle de site : {name}.",
+    "severalHere": "Ce projet contient des modèles de site.",
+    "startFromIt": "Partir de celui-ci",
+    "startFrom": "Partir de {name}",
+    "rename": "{name} : renommez ce dossier pour l’utiliser (lettres, chiffres, espace, . _ -)",
+    "more": "et {count} de plus",
+    "boxText": "Fais une app à partir de {name}."
   }
 }

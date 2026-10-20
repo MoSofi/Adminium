@@ -662,6 +662,10 @@
     "menu": "附加",
     "files": "电脑上的文件…",
     "filesHelp": "图片、CSV、字体或 Markdown 文件、HTML 或 CSS 文件，或网站模板（.zip）",
+    "folder": "文件夹…",
+    "folderHelp": "以文件夹形式的网站模板",
+    "templates": "本项目中的网站模板",
+    "templatesList": "本项目中的网站模板",
     "fromFigma": "从 Figma…"
   },
   "needs": {
@@ -1171,6 +1175,16 @@
       "notSvg": "它不是 SVG 图片",
       "notText": "它无法作为文本读取",
       "kind": "不保留此类文件"
-    }
+    },
+    "reading": "{name}：正在读取模板…",
+    "notCopied": "{name} 未作为网站模板复制进来：{why}",
+    "listLabel": "本项目中的网站模板",
+    "oneHere": "本项目中有一个网站模板：{name}。",
+    "severalHere": "本项目中有多个网站模板。",
+    "startFromIt": "从它开始",
+    "startFrom": "从 {name} 开始",
+    "rename": "{name}：请重命名此文件夹后再使用（字母、数字、空格、. _ -）",
+    "more": "另有 {count} 个",
+    "boxText": "用 {name} 做一个应用。"
   }
 }

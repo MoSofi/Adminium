@@ -672,6 +672,10 @@ export default {
     "menu": "Připojit",
     "files": "Soubory z počítače…",
     "filesHelp": "Obrázek, soubor CSV, písmo nebo soubor Markdown, soubor HTML nebo CSS, nebo šablona webu (.zip)",
+    "folder": "Složka…",
+    "folderHelp": "Šablona webu jako složka",
+    "templates": "Šablona webu v tomto projektu",
+    "templatesList": "Šablony webu v tomto projektu",
     "fromFigma": "Z Figmy…"
   },
   "needs": {
@@ -1181,6 +1185,16 @@ export default {
       "notSvg": "není to obrázek SVG",
       "notText": "nedá se přečíst jako text",
       "kind": "tento druh souboru se neponechává"
-    }
+    },
+    "reading": "{name}: čte se šablona…",
+    "notCopied": "{name} se nezkopírovala jako šablona webu: {why}",
+    "listLabel": "Šablony webu v tomto projektu",
+    "oneHere": "V tomto projektu je šablona webu: {name}.",
+    "severalHere": "V tomto projektu jsou šablony webu.",
+    "startFromIt": "Začít z ní",
+    "startFrom": "Začít z {name}",
+    "rename": "{name}: přejmenujte tuto složku, abyste ji mohli použít (písmena, číslice, mezera, . _ -)",
+    "more": "a dalších {count}",
+    "boxText": "Udělej aplikaci z {name}."
   }
 } as const;

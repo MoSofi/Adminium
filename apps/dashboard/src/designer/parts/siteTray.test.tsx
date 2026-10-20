@@ -43,7 +43,7 @@ vi.mock('../api.js', async (importOriginal) => {
   };
 });
 
-const { AttachTray, attachHandlers, SentFiles, useAttach } = await import('./attach.js');
+const { AttachMenu, AttachTray, attachHandlers, SentFiles, useAttach } = await import('./attach.js');
 const { BuildComposer } = await import('./BuildComposer.js');
 const { crc32, packZip, readFolder, PackRefusal } = await import('./packSite.js');
 
@@ -266,6 +266,27 @@ describe('a dropped folder', () => {
     expect(prevent).toHaveBeenCalled();
     expect(uploads[0]).toMatchObject({ sessionId: SESSION, filename: 'harbor' });
     expect(hook.result.current.files).toEqual([]);
+  });
+
+  it('picked with "A folder…" is packed from its files’ paths and sent under the folder’s name', async () => {
+    const { hook } = setup(SESSION);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{"templates":[],"more":0,"note":null}', { status: 200, headers: { 'content-type': 'application/json' } }))));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AttachMenu state={hook.result.current} figma={undefined} onFigma={() => undefined} />
+      </QueryClientProvider>,
+    );
+    const input = document.querySelector('[data-part="attach-folder-input"]') as HTMLInputElement;
+    const inFolder = (path: string, text: string): File => {
+      const file = new File([text], path.split('/').pop() ?? path);
+      Object.defineProperty(file, 'webkitRelativePath', { value: path });
+      return file;
+    };
+    Object.defineProperty(input, 'files', { value: [inFolder('harbor/index.html', '<html></html>'), inFolder('harbor/css/site.css', 'a{}')], configurable: true });
+    fireEvent.change(input);
+    await vi.waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0]).toMatchObject({ sessionId: SESSION, filename: 'harbor' });
+    vi.unstubAllGlobals();
   });
 
   it('is refused at once with more than 1,000 entries', async () => {

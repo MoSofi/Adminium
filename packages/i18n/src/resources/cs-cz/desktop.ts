@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "Nový projekt můžete vytvořit ve složce uvnitř ní.",
       "another": "Vybrat jinou složku",
-      "make": "Vytvořit zde nový projekt"
+      "make": "Vytvořit zde nový projekt",
+      "template": "Tato složka obsahuje šablonu webu. Nový projekt se vytvoří uvnitř a šablona se do něj zkopíruje. Vlastní soubory této složky se nezmění."
     }
   },
   "key": {

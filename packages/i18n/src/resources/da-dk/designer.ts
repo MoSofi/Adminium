@@ -672,6 +672,10 @@ export default {
     "menu": "Vedhæft",
     "files": "Filer fra din computer…",
     "filesHelp": "Et billede, en CSV-, skrifttype- eller Markdown-fil, en HTML- eller CSS-fil eller en webstedsskabelon (.zip)",
+    "folder": "En mappe…",
+    "folderHelp": "En webskabelon som mappe",
+    "templates": "En webskabelon i dette projekt",
+    "templatesList": "Webskabeloner i dette projekt",
     "fromFigma": "Fra Figma…"
   },
   "needs": {
@@ -1181,6 +1185,16 @@ export default {
       "notSvg": "det er ikke et SVG-billede",
       "notText": "den kan ikke læses som tekst",
       "kind": "denne slags fil gemmes ikke"
-    }
+    },
+    "reading": "{name}: læser skabelonen…",
+    "notCopied": "{name} blev ikke kopieret ind som webskabelon: {why}",
+    "listLabel": "Webskabeloner i dette projekt",
+    "oneHere": "Der er en webskabelon i dette projekt: {name}.",
+    "severalHere": "Der er webskabeloner i dette projekt.",
+    "startFromIt": "Start ud fra den",
+    "startFrom": "Start ud fra {name}",
+    "rename": "{name}: omdøb mappen for at bruge den (bogstaver, tal, mellemrum, . _ -)",
+    "more": "og {count} mere",
+    "boxText": "Lav en app ud fra {name}."
   }
 } as const;

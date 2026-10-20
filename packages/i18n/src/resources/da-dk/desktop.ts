@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "Du kan lave et nyt projekt i en mappe inde i den.",
       "another": "Vælg en anden mappe",
-      "make": "Lav et nyt projekt her"
+      "make": "Lav et nyt projekt her",
+      "template": "Denne mappe indeholder en webskabelon. Det nye projekt laves inde i den, og skabelonen kopieres ind. Mappens egne filer ændres ikke."
     }
   },
   "key": {

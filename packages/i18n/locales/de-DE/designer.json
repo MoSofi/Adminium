@@ -662,6 +662,10 @@
     "menu": "Anhängen",
     "files": "Dateien von deinem Computer…",
     "filesHelp": "Ein Bild, eine CSV-, Schrift- oder Markdown-Datei, eine HTML- oder CSS-Datei oder eine Website-Vorlage (.zip)",
+    "folder": "Ein Ordner…",
+    "folderHelp": "Eine Website-Vorlage als Ordner",
+    "templates": "Eine Website-Vorlage in diesem Projekt",
+    "templatesList": "Website-Vorlagen in diesem Projekt",
     "fromFigma": "Aus Figma…"
   },
   "needs": {
@@ -1171,6 +1175,16 @@
       "notSvg": "es ist kein SVG-Bild",
       "notText": "es lässt sich nicht als Text lesen",
       "kind": "diese Art Datei wird nicht übernommen"
-    }
+    },
+    "reading": "{name}: Vorlage wird gelesen…",
+    "notCopied": "{name} wurde nicht als Website-Vorlage übernommen: {why}",
+    "listLabel": "Website-Vorlagen in diesem Projekt",
+    "oneHere": "In diesem Projekt liegt eine Website-Vorlage: {name}.",
+    "severalHere": "In diesem Projekt liegen Website-Vorlagen.",
+    "startFromIt": "Damit anfangen",
+    "startFrom": "Mit {name} anfangen",
+    "rename": "{name}: benenne diesen Ordner um, um ihn zu verwenden (Buchstaben, Ziffern, Leerzeichen, . _ -)",
+    "more": "und {count} weitere",
+    "boxText": "Mach eine App aus {name}."
   }
 }

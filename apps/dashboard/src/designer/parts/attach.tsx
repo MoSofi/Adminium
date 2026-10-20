@@ -11,11 +11,11 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, FileCode, FileSpreadsheet, FileText, FileUp, Frame, Image, LayoutTemplate, Paintbrush, Paperclip, Type, X } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@adminium/ui';
+import { ChevronDown, FileCode, FileSpreadsheet, FileText, FileUp, Folder, FolderUp, Frame, Image, LayoutTemplate, Paintbrush, Paperclip, Type, X } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import { designerApi, type DesignerAttachment, type FigmaImport, type FigmaStatus } from '../api.js';
+import { designerApi, designerKeys, type DesignerAttachment, type FigmaImport, type FigmaStatus } from '../api.js';
 import { droppedFolder } from './packSite.js';
 import { SiteTray } from './siteTray.js';
 import { useSite, type SiteControl } from './siteState.js';
@@ -394,10 +394,31 @@ export function AttachMenu({
   place?: 'home' | 'chat';
 }): ReactNode {
   const input = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  // The project's site templates, asked when the menu opens: names only.
+  const templates = useQuery({ queryKey: designerKeys.siteTemplates, queryFn: designerApi.siteTemplates, enabled: open, staleTime: 5_000, retry: false });
+  const usable = (templates.data?.templates ?? []).filter((entry) => entry.usable);
   const figmaOff = figma?.network === false;
   const item = 'items-start gap-2.5 rounded-[6px] [&_svg]:size-4 data-[disabled]:opacity-100 ' + (place === 'chat' ? 'px-2 py-[7px]' : 'px-2.5 py-[13px]');
   return (
     <>
+      <input
+        ref={folderInput}
+        type="file"
+        multiple
+        hidden
+        data-part="attach-folder-input"
+        {...{ webkitdirectory: '' }}
+        onChange={(event) => {
+          const picked = [...(event.target.files ?? [])];
+          event.target.value = '';
+          // A folder's files carry their path inside it, the folder's own name first.
+          const top = picked[0]?.webkitRelativePath.split('/')[0] ?? '';
+          if (picked.length > 0) state.site.addFiles(top, picked.map((file) => ({ path: file.webkitRelativePath.split('/').slice(1).join('/') || file.name, file })));
+        }}
+      />
       <input
         ref={input}
         type="file"
@@ -411,7 +432,13 @@ export function AttachMenu({
           event.target.value = '';
         }}
       />
-      <DropdownMenu modal={false}>
+      <DropdownMenu
+        modal={false}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setTemplatesOpen(false);
+        }}
+      >
         <DropdownMenuTrigger
           disabled={disabled}
           aria-label={t('designer:attach.menu', 'Attach')}
@@ -436,6 +463,12 @@ export function AttachMenu({
               </span>
             </span>
           </DropdownMenuItem>
+          <DropdownMenuItem className={item} icon={<FolderUp />} onSelect={() => folderInput.current?.click()} data-part="attach-folder">
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[13px] font-bold leading-[1.45] text-fg">{t('designer:attach.folder', 'A folder…')}</span>
+              <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">{t('designer:attach.folderHelp', 'A site template, as a folder')}</span>
+            </span>
+          </DropdownMenuItem>
           <DropdownMenuItem className={`${item} data-[disabled]:[&_svg]:text-fg-subtle`} icon={<Frame />} disabled={figmaOff} onSelect={onFigma} data-part="attach-figma">
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className={`text-[13px] font-bold leading-[1.45] ${figmaOff ? 'text-fg-subtle' : 'text-fg'}`}>{t('designer:attach.fromFigma', 'From Figma…')}</span>
@@ -444,6 +477,37 @@ export function AttachMenu({
               ) : null}
             </span>
           </DropdownMenuItem>
+          {usable.length === 0 ? null : (
+            <>
+              <DropdownMenuItem
+                className={item}
+                icon={<LayoutTemplate />}
+                aria-expanded={templatesOpen}
+                data-part="attach-templates"
+                onSelect={(event) => {
+                  // Opens in place: the names show under it, and the menu stays.
+                  event.preventDefault();
+                  setTemplatesOpen((was) => !was);
+                }}
+              >
+                <span className="flex min-w-0 flex-1 items-start justify-between gap-2">
+                  <span className="text-[13px] font-bold leading-[1.45] text-fg">{t('designer:attach.templates', 'A site template in this project')}</span>
+                  <ChevronDown aria-hidden="true" className={`mt-0.5 size-3.5 shrink-0 text-fg-subtle transition-transform motion-reduce:transition-none ${templatesOpen ? 'rotate-180' : ''}`} />
+                </span>
+              </DropdownMenuItem>
+              {templatesOpen ? (
+                <DropdownMenuGroup aria-label={t('designer:attach.templatesList', 'Site templates in this project')} className="flex flex-col ps-7">
+                  {usable.map((entry) => (
+                    <DropdownMenuItem key={entry.name} className={`${item} items-center gap-2 [&_svg]:size-3.5 [&_svg]:text-fg-subtle`} icon={<Folder />} onSelect={() => state.site.addProject(entry.name)}>
+                      <span dir="ltr" className="whitespace-nowrap font-mono text-[12.5px] font-semibold">
+                        {entry.name}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              ) : null}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

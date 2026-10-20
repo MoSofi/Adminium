@@ -73,7 +73,10 @@ let apps: YourApp[];
 let styles: DesignerStyle[] | null;
 
 let designerMode: 'local' | 'live' = 'local';
+/** The project's site templates, as the listing gives them. */
+let siteTemplates: { name: string; usable: boolean }[] = [];
 beforeEach(() => {
+  siteTemplates = [];
   designerMode = 'local';
   calls = [];
   models = WITH_MODEL;
@@ -104,6 +107,11 @@ function stubFetch(): void {
       if (url === '/api/v1/designer/styles' && styles !== null) return Promise.resolve(jsonResponse(200, { styles }));
       if (url === '/api/v1/designer/apps') return Promise.resolve(jsonResponse(200, { state: 'ok', apps: [] }));
       if (url === '/api/v1/auth/design-session') return Promise.resolve(jsonResponse(200, { ok: true }));
+      if (url === '/api/v1/designer/site-templates') return Promise.resolve(jsonResponse(200, { templates: siteTemplates, more: 0, note: null }));
+      if (url === `/api/v1/designer/sessions/${SESSION.id}/attachments/site-from-project`) {
+        return Promise.resolve(jsonResponse(201, { attachment: { id: 'att_00000000000000000005', label: 'harbor-bakery', kind: 'site', mediaType: 'application/zip', bytes: 1, pages: 1, files: 2, leftOut: [], leftOutCount: 0 } }));
+      }
+      if (url === `/api/v1/designer/sessions/${SESSION.id}/turns`) return Promise.resolve(jsonResponse(202, { turn: 1 }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'req_t' } }));
     }),
   );
@@ -167,6 +175,21 @@ describe('Designer Home with a model that cannot build', () => {
 });
 
 describe('sending from Designer Home', () => {
+  it('starts from a site template of the project: the box says so, and the session is made first, then the template, then the message that names it', async () => {
+    siteTemplates = [{ name: 'harbor-bakery', usable: true }];
+    const router = await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    await userEvent.click(await screen.findByRole('button', { name: 'Start from it' }));
+    expect(box().value).toBe('Make an app from harbor-bakery.');
+    await userEvent.type(box(), '{Enter}');
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/design/${SESSION.id}`));
+    // No message with the session: it waits for the template.
+    expect(created()[0]?.body).not.toHaveProperty('text');
+    const order = calls.filter((call) => call.method === 'POST').map((call) => call.url);
+    expect(order).toEqual(['/api/v1/designer/sessions', `/api/v1/designer/sessions/${SESSION.id}/attachments/site-from-project`, `/api/v1/designer/sessions/${SESSION.id}/turns`]);
+    expect(calls.find((call) => call.url.endsWith('/turns'))?.body).toMatchObject({ text: 'Make an app from harbor-bakery.', attachments: ['att_00000000000000000005'] });
+  });
+
   it('makes a line on Shift+Enter and sends on Enter, then opens the session', async () => {
     const router = await renderHome();
     await waitFor(() => expect(box().disabled).toBe(false));

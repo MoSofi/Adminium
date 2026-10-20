@@ -167,6 +167,13 @@ export interface DesignerAttachment {
   leftOutCount?: number;
 }
 
+/** The project's site templates (`GET /designer/site-templates`): names only, and why a folder was not copied in. */
+export interface SiteTemplates {
+  templates: { name: string; usable: boolean }[];
+  more: number;
+  note: { name: string; why: string } | null;
+}
+
 /** Why a site template's file was left out, as the server names it. */
 export type LeftOutReason = 'php' | 'video' | 'sound' | 'scss' | 'map' | 'zip' | 'source' | 'build-file' | 'build-folder' | 'hidden' | 'link' | 'not-file' | 'kind' | 'not-picture' | 'not-font' | 'svg-runs' | 'not-svg' | 'not-text';
 export interface SiteLeftOut {
@@ -498,6 +505,7 @@ export const designerKeys = {
   architecture: (id: string) => ['designer', 'architecture', id] as const,
   files: (id: string) => ['designer', 'files', id] as const,
   pictures: (id: string) => ['designer', 'pictures', id] as const,
+  siteTemplates: ['designer', 'site-templates'] as const,
 };
 
 /** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
@@ -661,6 +669,11 @@ export const designerApi = {
   sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
   uploadSite,
+  siteTemplates: () => api.get<SiteTemplates>(`${BASE}/site-templates`),
+  clearTemplateNote: () => api.delete<void>(`${BASE}/site-templates/note`),
+  /** A site template of the project, taken into a session by its name: the server finds and reads the folder. */
+  siteFromProject: (id: string, name: string, replace?: string) =>
+    api.post<{ attachment: DesignerAttachment }>(`${BASE}/sessions/${id}/attachments/site-from-project`, { name, ...(replace === undefined ? {} : { replace }) }).then((reply) => reply.attachment),
   /** A file taken off a message before it is sent. */
   removeAttachment: (id: string, attachment: string) => api.delete<void>(`${BASE}/sessions/${id}/attachments/${attachment}`),
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,

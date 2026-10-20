@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "Sie können in einem Ordner darin ein neues Projekt anlegen.",
       "another": "Anderen Ordner wählen",
-      "make": "Hier ein neues Projekt anlegen"
+      "make": "Hier ein neues Projekt anlegen",
+      "template": "Dieser Ordner enthält eine Website-Vorlage. Das neue Projekt wird darin angelegt, und die Vorlage wird hineinkopiert. Die eigenen Dateien dieses Ordners werden nicht geändert."
     }
   },
   "key": {

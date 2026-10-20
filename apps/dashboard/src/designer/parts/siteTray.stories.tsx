@@ -24,7 +24,7 @@ const SITE: DesignerAttachment = {
   ],
   leftOutCount: 2,
 };
-const pending = { key: 's1', name: 'harbor-bakery', filename: 'harbor-bakery.zip', zip: new Blob() };
+const pending = { key: 's1', name: 'harbor-bakery', filename: 'harbor-bakery.zip', source: { kind: 'zip' as const, zip: new Blob() } };
 const item = (over: Partial<SiteTrayItem>): SiteTrayItem => ({ key: 's1', name: 'harbor-bakery', phase: 'ready', percent: 100, attachment: SITE, sessionId: 'ds_000000000000000000000001', pending, ...over });
 const control = (over: Partial<SiteControl>): SiteControl => ({ ...NO_SITE, ...over });
 const box = (site: SiteControl) => (
