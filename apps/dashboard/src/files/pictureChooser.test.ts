@@ -41,13 +41,13 @@ afterEach(() => {
 
 const ID = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD';
 const view = (over: Record<string, unknown> = {}) => ({ id: ID, filename: 'wings.jpg', mime: 'image/jpeg', sizeBytes: 9, contentPath: `/api/v1/files/${ID}/content`, ...over });
-const chooser = (filesPage: boolean) => pictureChooser({ connectionId: 'conn_1', table: 'main.dishes', pageTitle: 'Dishes', tableLabel: 'Dishes', filesPage });
+const chooser = (filesPage: boolean) => pictureChooser({ connectionId: 'conn_1', table: 'main.dishes', pageTitle: 'Dishes', tableLabel: 'Dishes', filesPage, labelColumn: 'name' });
 
 describe('choosing a picture the workspace has, on the wire', () => {
   it('lists a column’s pictures by its two names under the API prefix, with each record’s name', async () => {
     answer = () => ({ status: 200, body: { data: [view({ recordLabel: 'Spicy wings' })] } });
     const items = await chooser(false).usedIn({ column: 'photo', q: 'wings', signal: new AbortController().signal });
-    expect(calls[0]?.url).toBe('/api/v1/files?connectionId=conn_1&usedInTable=main.dishes&usedInColumn=photo&limit=200&q=wings');
+    expect(calls[0]?.url).toBe('/api/v1/files?connectionId=conn_1&usedInTable=main.dishes&usedInColumn=photo&limit=200&usedInLabel=name&q=wings');
     expect(items).toEqual([expect.objectContaining({ id: ID, recordLabel: 'Spicy wings' })]);
   });
 

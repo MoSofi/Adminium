@@ -148,21 +148,22 @@ export function PageRecordBinding({
    * choice copied for the record by the server. The same transport the list's
    * form has; absent ⇒ the dialog edits a file column as its text.
    */
-  const pictureTitle = tableLabelPlural ?? t(page.title.key, page.title.fallback);
+  const pictureTitle = t(page.title.key, page.title.fallback);
+  const pictureTable = tableLabelPlural ?? pictureTitle;
   const filesPage = holdsSystemAction(bootstrap, 'files.manage');
   const editFiles = useMemo<PageCrudFiles | undefined>(() => {
     if (connectionId === null || !columns.some((column) => column.file !== undefined)) return undefined;
     const table = sourceTable ?? crud?.table ?? '';
     return {
       resolve: (refs) => resolveFiles([...refs]),
-      choose: pictureChooser({ connectionId, table, pageTitle: pictureTitle, tableLabel: pictureTitle, filesPage }),
+      choose: pictureChooser({ connectionId, table, pageTitle: pictureTitle, tableLabel: pictureTable, filesPage, labelColumn: columns.find((column) => column.isDisplay === true)?.name ?? keyField ?? undefined }),
       upload: async ({ file, column, signal, onProgress }) => {
         const result = await uploadFile({ file, connectionId, table, column, signal, onProgress });
         // The reference the SERVER minted, in the shape this column is configured for.
         return { ref: result.ref ?? result.data.id, file: result.data };
       },
     };
-  }, [connectionId, columns, sourceTable, crud, pictureTitle, filesPage]);
+  }, [connectionId, columns, sourceTable, crud, pictureTitle, pictureTable, filesPage, keyField]);
 
   // The list URL this record page is a child of — derived from bootstrap by
   // pageId (PageTemplateProps carries no slug). Hidden pages included: a

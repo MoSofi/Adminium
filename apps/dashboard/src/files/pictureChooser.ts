@@ -29,6 +29,8 @@ export interface PictureChooserInput {
   tableLabel: string;
   /** Whether this person can open the Files page: the second tab is theirs only. */
   filesPage: boolean;
+  /** The column the page names its records by, for each tile's name. */
+  labelColumn?: string | undefined;
 }
 
 function itemOf(file: FileDto): PickerItem {
@@ -47,7 +49,7 @@ export function pictureChooser(input: PictureChooserInput): PictureChooser {
   return {
     pageTitle: input.pageTitle,
     tableLabel: input.tableLabel,
-    usedIn: async ({ column, q }) => (await listUsedIn({ connectionId, table, column, q })).map(itemOf),
+    usedIn: async ({ column, q }) => (await listUsedIn({ connectionId, table, column, q, labelColumn: input.labelColumn })).map(itemOf),
     ...(input.filesPage ? { library: async ({ q }: { q: string }) => (await listLibrary({ connectionId, q })).map(itemOf) } : {}),
     copy: async ({ fileId, column }) => {
       try {

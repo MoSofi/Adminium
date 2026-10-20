@@ -135,6 +135,12 @@ export const filesListQuery = z.object({
   usedInTable: z.string().min(1).max(400).optional(),
   usedInColumn: z.string().min(1).max(200).optional(),
   /**
+   * The column the page names its records by (its display column): each
+   * file's `recordLabel` is read from it when the caller may read it in
+   * clear, else from the table's own label column, else the record's key.
+   */
+  usedInLabel: z.string().min(1).max(200).optional(),
+  /**
    * Uploaded at or after this epoch-ms instant — the Files page's **Recent**
    * preset.
    *

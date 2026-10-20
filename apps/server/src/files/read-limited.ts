@@ -12,6 +12,7 @@ import { isId, type MetaDb, type StoredFile } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import { labelColumnFor } from '../crud/labels.js';
+import { canReadPii } from '../crud/mask.js';
 import { readTableOf, readViewOf } from '../crud/read-view.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../crud/records.js';
 import { fetchVisible, type RowAction } from '../crud/row-limit.js';
@@ -198,7 +199,7 @@ export function columnReadCheck(meta: MetaDb): (request: FastifyRequest, input: 
  * secret or hidden column), else the record's key. A record that is not
  * there any more is left out.
  */
-export function recordLabelsOf(meta: MetaDb, manager: ConnectionManager): (request: FastifyRequest, input: { connectionId: string; table: string; recordIds: readonly string[] }) => Promise<Map<string, string>> {
+export function recordLabelsOf(meta: MetaDb, manager: ConnectionManager): (request: FastifyRequest, input: { connectionId: string; table: string; recordIds: readonly string[]; labelColumn?: string | undefined }) => Promise<Map<string, string>> {
   return async (request, input) => {
     const out = new Map<string, string>();
     if (input.recordIds.length === 0) return out;
@@ -207,7 +208,11 @@ export function recordLabelsOf(meta: MetaDb, manager: ConnectionManager): (reque
     const resolved = whole.linkTable(input.table);
     if (resolved === null) return out;
     const table = readTableOf(view, resolved);
-    const name = labelColumnFor(view, table);
+    // The column the page names its records by, when this reader sees it in clear; else the table's own label column.
+    const asked = input.labelColumn === undefined ? undefined : table.columns.get(input.labelColumn);
+    const askedReadable =
+      asked !== undefined && asked.unreadable !== true && asked.secret !== true && (asked.masked !== true || (await canReadPii(request, input.connectionId, table.id)));
+    const name = askedReadable ? asked.name : labelColumnFor(view, table);
     const labelColumn = name === null || table.columns.get(name)?.unreadable === true ? null : name;
     const { db } = await manager.data(input.connectionId);
     for (const recordId of new Set(input.recordIds)) {

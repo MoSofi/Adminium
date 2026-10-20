@@ -401,10 +401,13 @@ export function PageCrudBinding({
    * choice is copied for the record by the server.
    */
   const filesPage = bootstrap !== undefined && holdsSystemAction(bootstrap, 'files.manage');
-  const pageTitle = tableLabelPlural ?? t(page.title.key, page.title.fallback);
+  // "Used in {page}": the page's own title, as its nav names it; the table's label in a refusal.
+  const pageTitle = t(page.title.key, page.title.fallback);
+  const tableLabel = tableLabelPlural ?? pageTitle;
+  const labelColumn = columns.find((column) => column.isDisplay === true)?.name;
   const chooser = useMemo(
-    () => pictureChooser({ connectionId: page.source.connectionId ?? '', table: sourceTable, pageTitle, tableLabel: pageTitle, filesPage }),
-    [page.source.connectionId, sourceTable, pageTitle, filesPage],
+    () => pictureChooser({ connectionId: page.source.connectionId ?? '', table: sourceTable, pageTitle, tableLabel, filesPage, labelColumn }),
+    [page.source.connectionId, sourceTable, pageTitle, tableLabel, filesPage, labelColumn],
   );
   const fileAdapter = useMemo<PageCrudFiles>(
     () => ({

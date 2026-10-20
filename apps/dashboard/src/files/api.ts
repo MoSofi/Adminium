@@ -276,8 +276,10 @@ export async function copyFile(input: { fileId: string; connectionId: string; ta
 }
 
 /** The pictures a table's records hold in a column, each one this reader may read (`usedInTable`/`usedInColumn`). */
-export async function listUsedIn(input: { connectionId: string; table: string; column: string; q?: string | undefined }): Promise<FileDto[]> {
+export async function listUsedIn(input: { connectionId: string; table: string; column: string; q?: string | undefined; labelColumn?: string | undefined }): Promise<FileDto[]> {
   const query = new URLSearchParams({ connectionId: input.connectionId, usedInTable: input.table, usedInColumn: input.column, limit: '200' });
+  // The column the page names its records by: a tile says whose picture it is in the grid's own words.
+  if (input.labelColumn !== undefined) query.set('usedInLabel', input.labelColumn);
   if (input.q !== undefined && input.q !== '') query.set('q', input.q);
   const reply = await api.get<{ data: FileDto[] }>(`/api/v1/files?${query.toString()}`);
   return reply.data;

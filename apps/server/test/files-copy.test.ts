@@ -332,6 +332,11 @@ for (const [dialect, available] of ENGINES) {
         expect(saved.statusCode, saved.body).toBe(201);
         const menu = (await listed('lena', usedIn('menus', 'cover'))).find((file) => file.id === cover);
         expect(menu?.recordLabel).toBe('7');
+        // The page's own display column names it, for a reader who sees that column in clear only.
+        expect((await listed('lena', { ...usedIn('menus', 'cover'), usedInLabel: 'title' })).find((file) => file.id === cover)?.recordLabel).toBe('7');
+        expect((await listed('owner', { ...usedIn('menus', 'cover'), usedInLabel: 'title' })).find((file) => file.id === cover)?.recordLabel).toBe('Secret menu');
+        // A column the reader's role does not read is no name either.
+        expect((await listed('lena', { ...usedIn('dishes', 'photo'), usedInLabel: 'owner_id' })).find((file) => file.id === sams)?.recordLabel).toBe('Classic burger');
       });
 
       it('lists live files only: the bin with a "used in" is refused', async () => {

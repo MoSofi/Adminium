@@ -166,7 +166,7 @@ export interface FilesRoutesDeps {
   /** Whether the caller's role reads a column of a table. Absent: every column is read with its table. */
   columnReadable?: ((request: FastifyRequest, input: { connectionId: string; table: string; column: string }) => Promise<boolean>) | undefined;
   /** What a table's records are called, by id, as the caller's grid names them. Absent: by their keys. */
-  recordLabels?: ((request: FastifyRequest, input: { connectionId: string; table: string; recordIds: readonly string[] }) => Promise<Map<string, string>>) | undefined;
+  recordLabels?: ((request: FastifyRequest, input: { connectionId: string; table: string; recordIds: readonly string[]; labelColumn?: string | undefined }) => Promise<Map<string, string>>) | undefined;
   /**
    * The table's `config.attachments` block, for a SIDECAR upload (one that
    * names no column). Absent ⇒ sidecar uploads take only the workspace
@@ -808,6 +808,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           connectionId: query.connectionId!,
           table: usedTable,
           recordIds: visible.flatMap((row) => (row.entityId === null ? [] : [row.entityId])),
+          ...(query.usedInLabel === undefined ? {} : { labelColumn: query.usedInLabel }),
         });
         return {
           data: visible.map((row) => {
