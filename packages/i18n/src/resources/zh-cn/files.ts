@@ -16,7 +16,7 @@ export default {
     "trashFailed": "无法将此文件移至回收站"
   },
   "title": "文件",
-  "subtitle": "通过此工作区上传的所有文件，以及它们的字节存放在何处。",
+  "subtitle": "此工作区中的所有文件：记录上的文件和文件库中的文件，以及每个文件的存放位置。",
   "search": "按文件名搜索",
   "trash": {
     "notice": {
@@ -33,7 +33,8 @@ export default {
       "body": "清除搜索条件，或从侧栏中选择其他快捷入口。"
     },
     "title": "还没有文件",
-    "body": "有人将文件附加到记录或填写文件字段后，文件会显示在这里。"
+    "body": "当有人为记录添加文件或填写文件字段时，文件会出现在这里。",
+    "library": "这里还没有上传任何文件。"
   },
   "loadMore": "加载更多文件",
   "usage": {
@@ -51,22 +52,25 @@ export default {
   },
   "preset": {
     "all": "全部文件",
-    "unattached": "未附加",
+    "unattached": "尚未使用",
     "trash": "回收站",
-    "recent": "最近"
+    "recent": "最近",
+    "unattachedHelp": "没有被任何记录使用的上传文件。{hours} 小时后会移到回收站。",
+    "library": "在此上传"
   },
   "column": {
     "name": "文件",
     "size": "大小",
-    "attachedTo": "附加到",
+    "attachedTo": "所属记录",
     "destination": "存储目标",
     "added": "添加时间",
     "actions": "操作"
   },
   "row": {
-    "unattached": "未附加",
+    "unattached": "尚未使用",
     "localDestination": "本服务器的磁盘",
-    "noRecord": "未附加到任何记录"
+    "noRecord": "不在任何记录上",
+    "uploadedHere": "在此上传"
   },
   "action": {
     "restore": "恢复",
@@ -78,10 +82,10 @@ export default {
     "none": "无",
     "subtitle": "{size} · {type}",
     "destination": "存储目标",
-    "attachedTo": "附加到",
+    "attachedTo": "所属记录",
     "uploadedBy": "上传者",
     "added": "添加时间",
-    "attachedAt": "附加时间",
+    "attachedAt": "开始使用于",
     "trashedAt": "移入回收站时间",
     "id": "文件 ID",
     "checksum": "校验和",
@@ -107,7 +111,7 @@ export default {
     "cancelOne": "取消 {name}",
     "removeOne": "移除 {name}",
     "complete": "上传完成",
-    "completeBody": "这些文件现已在此工作区中，稍后可以附加到记录。",
+    "completeBody": "这些文件现在已在文件库中。在记录的字段中点“选择已有图片…”即可添加。记录会得到一份自己的副本。",
     "send": "{count, plural, other {上传 # 个文件}}",
     "done": "完成",
     "failed": "失败",

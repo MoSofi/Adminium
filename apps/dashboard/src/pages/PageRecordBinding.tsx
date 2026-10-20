@@ -338,7 +338,7 @@ export function PageRecordBinding({
     void attachmentsVersion;
     if (attachmentsConfig?.enabled !== true) return null;
     if (attachmentsConfig.column !== undefined) {
-      return columnAttachments({
+      const inColumn = columnAttachments({
         column: attachmentsConfig.column,
         crud: boundCrud,
         connectionId,
@@ -348,6 +348,8 @@ export function PageRecordBinding({
           ? {}
           : { destinationId: attachmentsConfig.destinationId }),
       });
+      // The panel edits this column itself: its files are the panel's, not another field's.
+      return inColumn === null ? null : { ...inColumn, column: attachmentsConfig.column, ...(filesPage ? { allFilesHref: '/files' } : {}) };
     }
     if (connectionId === null || recordId === undefined) return null;
     const table = entityTable;
@@ -360,6 +362,8 @@ export function PageRecordBinding({
       contentPath: file.contentPath,
     });
     return {
+      // The Files page, for someone who can open it: the tab is that page, filtered to this record.
+      ...(filesPage ? { allFilesHref: '/files' } : {}),
       list: async () => (await listRecordFiles({ connectionId, table, recordId })).map(toAttachment),
       upload: async ({ file, signal, onProgress }) =>
         toAttachment(
@@ -386,7 +390,7 @@ export function PageRecordBinding({
         await restoreFile(fileId);
       },
     };
-  }, [attachmentsConfig, connectionId, recordId, entityTable, attachmentsVersion]);
+  }, [attachmentsConfig, connectionId, recordId, entityTable, attachmentsVersion, filesPage]);
 
   const activity = useMemo<RecordActivityFeed | null>(() => {
     if (!hasStudioAccess(bootstrap.roles)) return null;

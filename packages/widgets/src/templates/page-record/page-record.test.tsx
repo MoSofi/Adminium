@@ -536,3 +536,51 @@ describe('PageRecord — the Attachments panel', () => {
     expect(attachments.restore).toHaveBeenCalledWith(attachment().id);
   });
 });
+
+describe('PageRecord — the record’s Files tab', () => {
+  const PHOTO = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD';
+  const SCAN = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCE';
+  const withPhoto = [...columns, spec({ name: 'photo', label: 'Photo', logicalType: 'varchar', file: { ref: 'url', accept: ['png', 'jpeg', 'webp', 'gif'] } })];
+  const file = (id: string, filename: string): RecordAttachment => ({ id, filename, mime: 'image/jpeg', sizeBytes: 1200, createdAt: 0, contentPath: `/api/v1/files/${id}/content` });
+  function apiWithPhoto(): CrudApi {
+    const api = makeApi();
+    api.get = vi.fn(async () => ({ data: { ...RECORD, photo: `https://admin.example.com/api/v1/files/${PHOTO}/content` }, inboundCounts: REFERENCES }));
+    return api;
+  }
+
+  it('counts what the record holds, says what the tab is, and links the Files page for those who can open it', async () => {
+    const attachments = { list: vi.fn(async () => [file(PHOTO, 'wings.jpg'), file(SCAN, 'allergens.pdf')]), upload: vi.fn(), remove: vi.fn(), allFilesHref: '/files' };
+    renderRecord(apiWithPhoto(), { columns: withPhoto, attachments: attachments as never, canAttach: true });
+    const tab = await screen.findByRole('tab', { name: /Files/ });
+    await waitFor(() => expect(tab.textContent).toContain('2'));
+    await userEvent.click(tab);
+    expect(await screen.findByText('Files kept with this record.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'All files are on the Files page' }).getAttribute('href')).toBe('/files');
+  });
+
+  it('a file a column names says so, with no Delete; a file kept beside the record keeps its Delete', async () => {
+    const attachments = { list: vi.fn(async () => [file(PHOTO, 'wings.jpg'), file(SCAN, 'allergens.pdf')]), upload: vi.fn(), remove: vi.fn(async () => undefined) };
+    renderRecord(apiWithPhoto(), { columns: withPhoto, attachments: attachments as never, canAttach: true });
+    await userEvent.click(await screen.findByRole('tab', { name: /Files/ }));
+    const rows = await screen.findAllByRole('listitem');
+    const photo = rows.find((row) => row.textContent?.includes('wings.jpg'))!;
+    const scan = rows.find((row) => row.textContent?.includes('allergens.pdf'))!;
+    expect(within(photo).getByText('In Photo')).toBeTruthy();
+    expect(within(photo).getByText("Change it in the record's Photo field.")).toBeTruthy();
+    expect(within(photo).queryByRole('button', { name: 'Delete' })).toBeNull();
+    expect(within(scan).getByRole('button', { name: 'Delete' })).toBeTruthy();
+    // No link for someone who cannot open the Files page.
+    expect(screen.queryByRole('link', { name: 'All files are on the Files page' })).toBeNull();
+  });
+
+  it('the panel’s own column (its files kept in a column of the record) keeps Delete on every file', async () => {
+    const api = makeApi();
+    api.get = vi.fn(async () => ({ data: { ...RECORD, docs: JSON.stringify([SCAN]) }, inboundCounts: REFERENCES }));
+    const attachments = { list: vi.fn(async () => [file(SCAN, 'allergens.pdf')]), upload: vi.fn(), remove: vi.fn(), column: 'docs' };
+    renderRecord(api, { columns: [...columns, spec({ name: 'docs', label: 'Docs', logicalType: 'text', file: { ref: 'id', multiple: true } })], attachments: attachments as never, canAttach: true });
+    await userEvent.click(await screen.findByRole('tab', { name: /Files/ }));
+    const row = (await screen.findAllByRole('listitem')).find((item) => item.textContent?.includes('allergens.pdf'))!;
+    expect(within(row).getByRole('button', { name: 'Delete' })).toBeTruthy();
+    expect(within(row).queryByText('In Docs')).toBeNull();
+  });
+});

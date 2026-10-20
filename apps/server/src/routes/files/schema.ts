@@ -179,6 +179,8 @@ export const filesContentQuery = z.object({
 });
 
 export const filesUsageReply = z.object({
+  /** How long an upload no record took is kept before it goes to the trash (`files.unattachedHours`). */
+  unattachedHours: z.number().int().optional(),
   data: z.array(
     z.object({
       /** `null` = this server's disk. */

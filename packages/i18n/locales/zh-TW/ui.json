@@ -1250,9 +1250,9 @@
         "emptyBody": "您上傳的檔案將在此顯示進度。"
       },
       "attachmentList": {
-        "description": "附加至記錄的檔案，附類型圖示、大小以及下載或刪除動作。",
-        "emptyTitle": "沒有附件",
-        "emptyBody": "附加至此記錄的檔案將顯示於此。"
+        "description": "隨記錄保存的檔案，附類型圖示、大小以及下載或刪除操作。",
+        "emptyTitle": "沒有檔案",
+        "emptyBody": "隨此記錄保存的檔案會顯示在這裡。"
       },
       "imageBoard": {
         "description": "附說明文字的圖片格線靈感板，適用於含圖片 URL 的資料表。",
@@ -2124,10 +2124,14 @@
       "attachmentsTab": "檔案",
       "attachments": {
         "emptyTitle": "尚無檔案",
-        "emptyBody": "附加到此記錄的檔案會顯示在這裡。",
-        "loading": "正在載入附件",
+        "emptyBody": "隨此記錄保存的檔案會顯示在這裡。",
+        "loading": "正在載入檔案",
         "removed": "{name} 已移至回收桶。",
-        "tooLarge": "該檔案超過此工作區允許的大小。"
+        "tooLarge": "該檔案超過此工作區允許的大小。",
+        "lead": "隨此記錄保存的檔案。",
+        "allFiles": "所有檔案都在「檔案」頁面",
+        "inColumn": "在{column}中",
+        "inColumnHelp": "請在記錄的{column}欄位中變更。"
       }
     },
     "pageRecord": {

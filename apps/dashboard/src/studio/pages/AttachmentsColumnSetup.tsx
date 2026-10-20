@@ -175,7 +175,7 @@ export function AttachmentsColumnSetup({
               )
             : t(
                 'studio:pages.attachments.column.boundHint',
-                'Turning attachments off later unbinds this page. The column and the files in it are left alone.',
+                'Turning this off later unbinds this page. The column and the files in it are left alone.',
               )}
         </p>
       </div>

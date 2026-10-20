@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Impossible de déplacer ce fichier dans la corbeille"
   },
   "title": "Fichiers",
-  "subtitle": "Tout ce qui a été téléversé dans cet espace de travail, et où sont stockés les octets.",
+  "subtitle": "Tous les fichiers de cet espace de travail : ceux des fiches et ceux de la bibliothèque. Et où chacun est conservé.",
   "search": "Rechercher par nom de fichier",
   "trash": {
     "notice": {
@@ -33,7 +33,8 @@ export default {
       "body": "Effacez la recherche, ou choisissez un autre raccourci dans le panneau latéral."
     },
     "title": "Aucun fichier pour l’instant",
-    "body": "Les fichiers apparaissent ici dès que quelqu’un en joint un à un enregistrement ou remplit un champ de type fichier."
+    "body": "Les fichiers arrivent ici quand quelqu’un en ajoute un à une fiche ou remplit un champ de fichier.",
+    "library": "Rien n’a encore été importé ici."
   },
   "loadMore": "Charger plus de fichiers",
   "usage": {
@@ -51,22 +52,25 @@ export default {
   },
   "preset": {
     "all": "Tous les fichiers",
-    "unattached": "Non joints",
+    "unattached": "Pas encore utilisés",
     "trash": "Corbeille",
-    "recent": "Récents"
+    "recent": "Récents",
+    "unattachedHelp": "Fichiers importés qu’aucune fiche n’a pris. Ils partent à la corbeille après {hours} heures.",
+    "library": "Importés ici"
   },
   "column": {
     "name": "Fichier",
     "size": "Taille",
-    "attachedTo": "Joint à",
+    "attachedTo": "Sur la fiche",
     "destination": "Destination",
     "added": "Ajouté le",
     "actions": "Actions"
   },
   "row": {
-    "unattached": "Non joint",
+    "unattached": "Pas encore utilisé",
     "localDestination": "Le disque de ce serveur",
-    "noRecord": "Rattaché à aucun enregistrement"
+    "noRecord": "Sur aucune fiche",
+    "uploadedHere": "Importé ici"
   },
   "action": {
     "restore": "Restaurer",
@@ -78,10 +82,10 @@ export default {
     "none": "Aucun",
     "subtitle": "{size} · {type}",
     "destination": "Destination",
-    "attachedTo": "Joint à",
+    "attachedTo": "Sur la fiche",
     "uploadedBy": "Téléversé par",
     "added": "Ajouté le",
-    "attachedAt": "Joint le",
+    "attachedAt": "Utilisé depuis",
     "trashedAt": "Déplacé dans la corbeille",
     "id": "Identifiant du fichier",
     "checksum": "Somme de contrôle",
@@ -107,7 +111,7 @@ export default {
     "cancelOne": "Annuler {name}",
     "removeOne": "Retirer {name}",
     "complete": "Téléversement terminé",
-    "completeBody": "Ces fichiers sont maintenant dans cet espace de travail et pourront être rattachés à un enregistrement plus tard.",
+    "completeBody": "Ces fichiers sont maintenant dans la bibliothèque. Ajoutez-en un à une fiche avec Choisir une image existante… dans son champ. La fiche reçoit sa propre copie.",
     "send": "{count, plural, one {Téléverser # fichier} other {Téléverser # fichiers}}",
     "done": "Terminé",
     "failed": "Échec",

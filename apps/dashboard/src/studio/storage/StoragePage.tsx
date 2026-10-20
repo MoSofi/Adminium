@@ -123,7 +123,7 @@ import {
 function migrateKindLabel(kind: MigrateKind): string {
   switch (kind) {
     case 'upload':
-      return t('studio:storage.kind.upload', 'Files attached to records');
+      return t('studio:storage.kind.upload', 'Files kept with records');
     case 'export':
       return t('studio:storage.kind.export', 'Export artifacts');
     case 'import':

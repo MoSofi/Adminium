@@ -1250,9 +1250,9 @@
         "emptyBody": "Nahrávané soubory zde zobrazí svůj průběh."
       },
       "attachmentList": {
-        "description": "Soubory připojené k záznamu, s ikonami typů, velikostmi a akcemi stažení či smazání.",
-        "emptyTitle": "Žádné přílohy",
-        "emptyBody": "Soubory připojené k tomuto záznamu se zobrazí zde."
+        "description": "Soubory uložené se záznamem, s ikonami typů, velikostmi a akcemi stažení nebo smazání.",
+        "emptyTitle": "Žádné soubory",
+        "emptyBody": "Zde se zobrazí soubory uložené s tímto záznamem."
       },
       "imageBoard": {
         "description": "Mřížka moodboardu s místy pro obrázky a popisky, pro tabulky s URL obrázků.",
@@ -2124,10 +2124,14 @@
       "attachmentsTab": "Soubory",
       "attachments": {
         "emptyTitle": "Zatím žádné soubory",
-        "emptyBody": "Soubory připojené k tomuto záznamu se zobrazí zde.",
-        "loading": "Načítání příloh",
+        "emptyBody": "Zde se zobrazí soubory uložené s tímto záznamem.",
+        "loading": "Načítání souborů",
         "removed": "{name} byl přesunut do koše.",
-        "tooLarge": "Soubor je větší, než tento pracovní prostor dovoluje."
+        "tooLarge": "Soubor je větší, než tento pracovní prostor dovoluje.",
+        "lead": "Soubory uložené s tímto záznamem.",
+        "allFiles": "Všechny soubory jsou na stránce Soubory",
+        "inColumn": "Ve sloupci {column}",
+        "inColumnHelp": "Změňte ho v poli {column} záznamu."
       }
     },
     "pageRecord": {

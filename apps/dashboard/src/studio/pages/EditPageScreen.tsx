@@ -1298,26 +1298,18 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
         <Card padded={false}>
           <CardHeader>
             <h2 className="text-section text-fg">
-              {t('studio:pages.editor.attachments', 'Attachments')}
+              {t('studio:pages.editor.attachments', 'Files on each record')}
             </h2>
           </CardHeader>
           <CardBody className="flex flex-col gap-4">
             <FormField
-              label={t(
-                'studio:pages.attachments.enable',
-                'Allow attachments on this table’s records',
-              )}
-              helper={
-                columnMode
-                  ? t(
-                      'studio:pages.attachments.enableHintColumn',
-                      'Files are stored in one column on this table, so they appear in the New and Edit dialogs as well as on each record.',
-                    )
-                  : `${sidecarReason ?? ''} ${t(
-                      'studio:pages.attachments.enableHintSidecar',
-                      'Files are linked on Adminium’s side instead. They appear on each record’s page, not in the New dialog.',
-                    )}`.trim()
-              }
+              label={t('studio:pages.attachments.enable', 'Let each record keep a list of files')}
+              // What this card is not: the item's own picture is a column's. A connection that cannot take a
+              // new column says why first.
+              helper={`${columnMode ? '' : (sidecarReason ?? '')} ${t(
+                'studio:pages.attachments.pictureHint',
+                'For the item’s own picture, set a column to Picture under Columns.',
+              )}`.trim()}
             >
               <Switch
                 checked={(attachments !== null && attachments.enabled) || attachmentsPending}

@@ -1250,9 +1250,9 @@
         "emptyBody": "Files you upload will show their progress here."
       },
       "attachmentList": {
-        "description": "Files attached to a record, with type icons, sizes, and download or delete actions.",
-        "emptyTitle": "No attachments",
-        "emptyBody": "Files attached to this record will appear here."
+        "description": "Files kept with a record, with type icons, sizes, and download or delete actions.",
+        "emptyTitle": "No files",
+        "emptyBody": "Files kept with this record appear here."
       },
       "imageBoard": {
         "description": "A moodboard grid of image slots with captions, for tables with image URLs.",
@@ -2124,10 +2124,14 @@
       "attachmentsTab": "Files",
       "attachments": {
         "emptyTitle": "No files yet",
-        "emptyBody": "Files attached to this record appear here.",
-        "loading": "Loading attachments",
+        "emptyBody": "Files kept with this record appear here.",
+        "loading": "Loading files",
         "removed": "{name} was moved to the trash.",
-        "tooLarge": "That file is larger than this workspace allows."
+        "tooLarge": "That file is larger than this workspace allows.",
+        "lead": "Files kept with this record.",
+        "allFiles": "All files are on the Files page",
+        "inColumn": "In {column}",
+        "inColumnHelp": "Change it in the record's {column} field."
       }
     },
     "pageRecord": {

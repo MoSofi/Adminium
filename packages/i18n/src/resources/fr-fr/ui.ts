@@ -1260,9 +1260,9 @@ export default {
         "emptyBody": "Les fichiers que vous téléversez afficheront ici leur progression."
       },
       "attachmentList": {
-        "description": "Fichiers joints à un enregistrement, avec icônes de type, tailles et actions de téléchargement ou de suppression.",
-        "emptyTitle": "Aucune pièce jointe",
-        "emptyBody": "Les fichiers joints à cet enregistrement apparaîtront ici."
+        "description": "Fichiers conservés avec une fiche, avec icônes de type, tailles et actions de téléchargement ou de suppression.",
+        "emptyTitle": "Aucun fichier",
+        "emptyBody": "Les fichiers conservés avec cette fiche apparaissent ici."
       },
       "imageBoard": {
         "description": "Une grille de moodboard avec emplacements d'images et légendes, pour les tables contenant des URL d'images.",
@@ -2134,10 +2134,14 @@ export default {
       "attachmentsTab": "Fichiers",
       "attachments": {
         "emptyTitle": "Aucun fichier pour le moment",
-        "emptyBody": "Les fichiers joints à cet enregistrement apparaissent ici.",
-        "loading": "Chargement des pièces jointes",
+        "emptyBody": "Les fichiers conservés avec cette fiche apparaissent ici.",
+        "loading": "Chargement des fichiers",
         "removed": "{name} a été déplacé vers la corbeille.",
-        "tooLarge": "Ce fichier dépasse ce que cet espace de travail autorise."
+        "tooLarge": "Ce fichier dépasse ce que cet espace de travail autorise.",
+        "lead": "Fichiers conservés avec cette fiche.",
+        "allFiles": "Tous les fichiers sont sur la page Fichiers",
+        "inColumn": "Dans {column}",
+        "inColumnHelp": "Modifiez-le dans le champ {column} de la fiche."
       }
     },
     "pageRecord": {

@@ -16967,6 +16967,10 @@
     "status": "mt",
     "srcHash": "76216f7884fd"
   },
+  "files.empty.library": {
+    "status": "mt",
+    "srcHash": "fc52dd713ace"
+  },
   "files.empty.title": {
     "status": "mt",
     "srcHash": "1a46941812a0"
@@ -16983,6 +16987,10 @@
     "status": "mt",
     "srcHash": "f7857dcc71d3"
   },
+  "files.preset.library": {
+    "status": "mt",
+    "srcHash": "233b03696e2f"
+  },
   "files.preset.recent": {
     "status": "mt",
     "srcHash": "76eec760c9b6"
@@ -16994,6 +17002,10 @@
   "files.preset.unattached": {
     "status": "mt",
     "srcHash": "4cb6b165c033"
+  },
+  "files.preset.unattachedHelp": {
+    "status": "mt",
+    "srcHash": "215e90a2a1e9"
   },
   "files.rail.byConnection": {
     "status": "mt",
@@ -17022,6 +17034,10 @@
   "files.row.unattached": {
     "status": "mt",
     "srcHash": "4cb6b165c033"
+  },
+  "files.row.uploadedHere": {
+    "status": "mt",
+    "srcHash": "233b03696e2f"
   },
   "files.search": {
     "status": "mt",
@@ -25247,6 +25263,10 @@
     "status": "mt",
     "srcHash": "9ad8fd964026"
   },
+  "studio.pages.attachments.pictureHint": {
+    "status": "mt",
+    "srcHash": "c691130e0d83"
+  },
   "studio.pages.attachments.sidecar.noPrivilege": {
     "status": "mt",
     "srcHash": "400dc7f4540f"
@@ -25312,8 +25332,28 @@
     "srcHash": "196fb9b5241b"
   },
   "studio.pages.columns.avatar": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "7631b26ea80b"
+  },
+  "studio.pages.columns.avatarPicture.from": {
+    "status": "mt",
+    "srcHash": "d02c1a354ba0"
+  },
+  "studio.pages.columns.avatarPicture.it": {
+    "status": "mt",
+    "srcHash": "8e791f31aad5"
+  },
+  "studio.pages.columns.avatarPicture.name": {
+    "status": "mt",
+    "srcHash": "f688f1208194"
+  },
+  "studio.pages.columns.avatarPicture.none": {
+    "status": "mt",
+    "srcHash": "51463332b5b9"
+  },
+  "studio.pages.columns.avatarPicture.toggle": {
+    "status": "mt",
+    "srcHash": "9b764f5b9746"
   },
   "studio.pages.columns.avatarToggle": {
     "status": "mt",
@@ -25338,6 +25378,10 @@
   "studio.pages.columns.file.acceptLabel": {
     "status": "mt",
     "srcHash": "2274fc39c395"
+  },
+  "studio.pages.columns.file.acceptPictures": {
+    "status": "mt",
+    "srcHash": "a4d5b8846beb"
   },
   "studio.pages.columns.file.badge": {
     "status": "mt",
@@ -25538,6 +25582,42 @@
   "studio.pages.columns.help": {
     "status": "mt",
     "srcHash": "5d345bc1dcc3"
+  },
+  "studio.pages.columns.holds.app": {
+    "status": "mt",
+    "srcHash": "3550ec87f122"
+  },
+  "studio.pages.columns.holds.appUnnamed": {
+    "status": "mt",
+    "srcHash": "914148865528"
+  },
+  "studio.pages.columns.holds.file": {
+    "status": "mt",
+    "srcHash": "2c3cafa4db3f"
+  },
+  "studio.pages.columns.holds.hint": {
+    "status": "mt",
+    "srcHash": "ed91f1f1151e"
+  },
+  "studio.pages.columns.holds.label": {
+    "status": "mt",
+    "srcHash": "b1c8168d6aa8"
+  },
+  "studio.pages.columns.holds.name": {
+    "status": "mt",
+    "srcHash": "063adccba813"
+  },
+  "studio.pages.columns.holds.picture": {
+    "status": "mt",
+    "srcHash": "61852524b8f8"
+  },
+  "studio.pages.columns.holds.text": {
+    "status": "mt",
+    "srcHash": "c3328c39b0e2"
+  },
+  "studio.pages.columns.holds.toText": {
+    "status": "mt",
+    "srcHash": "e9190be804ed"
   },
   "studio.pages.columns.lookupBack": {
     "status": "mt",
@@ -32527,6 +32607,10 @@
     "status": "mt",
     "srcHash": "81c0d915fa6d"
   },
+  "ui.templates.record.attachments.allFiles": {
+    "status": "mt",
+    "srcHash": "9fa067d42543"
+  },
   "ui.templates.record.attachments.emptyBody": {
     "status": "mt",
     "srcHash": "3d9b051d9677"
@@ -32534,6 +32618,18 @@
   "ui.templates.record.attachments.emptyTitle": {
     "status": "mt",
     "srcHash": "1a46941812a0"
+  },
+  "ui.templates.record.attachments.inColumn": {
+    "status": "mt",
+    "srcHash": "8611cdcf79ed"
+  },
+  "ui.templates.record.attachments.inColumnHelp": {
+    "status": "mt",
+    "srcHash": "0448610b5f3a"
+  },
+  "ui.templates.record.attachments.lead": {
+    "status": "mt",
+    "srcHash": "ea97f24f61e2"
   },
   "ui.templates.record.attachments.loading": {
     "status": "mt",

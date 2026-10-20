@@ -1260,9 +1260,9 @@ export default {
         "emptyBody": "Filer, du uploader, viser deres fremdrift her."
       },
       "attachmentList": {
-        "description": "Filer vedhæftet en post, med typeikoner, størrelser og handlinger til download eller sletning.",
-        "emptyTitle": "Ingen vedhæftede filer",
-        "emptyBody": "Filer vedhæftet denne post vises her."
+        "description": "Filer, der opbevares med en post, med typeikoner, størrelser og handlinger til at downloade eller slette.",
+        "emptyTitle": "Ingen filer",
+        "emptyBody": "Filer, der opbevares med denne post, vises her."
       },
       "imageBoard": {
         "description": "Et moodboard-gitter af billedpladser med billedtekster, til tabeller med billed-URL'er.",
@@ -2134,10 +2134,14 @@ export default {
       "attachmentsTab": "Filer",
       "attachments": {
         "emptyTitle": "Ingen filer endnu",
-        "emptyBody": "Filer knyttet til denne post vises her.",
-        "loading": "Indlæser vedhæftninger",
+        "emptyBody": "Filer, der opbevares med denne post, vises her.",
+        "loading": "Indlæser filer",
         "removed": "{name} blev flyttet til papirkurven.",
-        "tooLarge": "Filen er større, end dette arbejdsområde tillader."
+        "tooLarge": "Filen er større, end dette arbejdsområde tillader.",
+        "lead": "Filer, der opbevares med denne post.",
+        "allFiles": "Alle filer er på siden Filer",
+        "inColumn": "I {column}",
+        "inColumnHelp": "Skift den i postens felt {column}."
       }
     },
     "pageRecord": {

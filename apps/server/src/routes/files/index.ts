@@ -868,7 +868,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
             ...(available === undefined ? {} : { available }),
           });
         }
-        return { data: out };
+        return { data: out, unattachedHours: await settings.get('files.unattachedHours') };
       },
     );
 

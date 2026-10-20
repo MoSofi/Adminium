@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { EmptyState, IconButton, IconTile, MonoText } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 import { fileIconFor } from './media-icons.js';
 import {
@@ -40,6 +40,13 @@ export interface Attachment {
   type?: string | undefined;
   mime?: string | undefined;
   url?: string | undefined;
+  /**
+   * Where the item sits when it is not a file of the list's own: a record's
+   * file a column names ("In Photo"), with the line that says where it is
+   * changed. Such an item offers no Delete: deleting it would trash a file
+   * the column still names.
+   */
+  heldIn?: { tag: string; note: string } | undefined;
 }
 
 export interface AttachmentListProps {
@@ -82,8 +89,8 @@ export function AttachmentList({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? t('ui:widgets.media.attachmentList.emptyTitle', 'No attachments')}
-        body={emptyBody ?? t('ui:widgets.media.attachmentList.emptyBody', 'Files attached to this record will appear here.')}
+        title={emptyTitle ?? t('ui:widgets.media.attachmentList.emptyTitle', 'No files')}
+        body={emptyBody ?? t('ui:widgets.media.attachmentList.emptyBody', 'Files kept with this record appear here.')}
       />
     );
   }
@@ -102,8 +109,17 @@ export function AttachmentList({
           >
             <IconTile size="md" tone={FILE_KIND_TONE[kind]} icon={fileIconFor(item.type, item.mime, item.name, typeIconMap)} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-body-sm font-bold text-fg">{item.name}</p>
+              <p className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-body-sm font-bold text-fg">{item.name}</span>
+                {item.heldIn === undefined ? null : (
+                  <span data-part="attachment-held-in" className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-surface-3 px-1.5 py-px text-caption font-bold text-fg-muted">
+                    <ImageIcon aria-hidden className="size-3" />
+                    {item.heldIn.tag}
+                  </span>
+                )}
+              </p>
               {size !== undefined && <MonoText className="text-caption text-fg-subtle">{size}</MonoText>}
+              {item.heldIn === undefined ? null : <p className="text-caption text-fg-muted">{item.heldIn.note}</p>}
             </div>
             {/*
               Actions are revealed on hover/focus but must never be
@@ -121,7 +137,7 @@ export function AttachmentList({
                 <Download className="size-3.5" />
               </IconButton>
             )}
-            {actions.includes('delete') && (
+            {actions.includes('delete') && item.heldIn === undefined && (
               <IconButton
                 size="sm"
                 data-part="attachment-delete"

@@ -1260,9 +1260,9 @@ export default {
         "emptyBody": "Hochgeladene Dateien zeigen hier ihren Fortschritt."
       },
       "attachmentList": {
-        "description": "An einen Datensatz angehängte Dateien, mit Typsymbolen, Größen sowie Aktionen zum Herunterladen oder Löschen.",
-        "emptyTitle": "Keine Anhänge",
-        "emptyBody": "An diesen Datensatz angehängte Dateien erscheinen hier."
+        "description": "Dateien, die bei einem Datensatz liegen, mit Typsymbolen, Größen und Aktionen zum Herunterladen oder Löschen.",
+        "emptyTitle": "Keine Dateien",
+        "emptyBody": "Hier erscheinen die Dateien, die bei diesem Datensatz liegen."
       },
       "imageBoard": {
         "description": "Ein Moodboard-Raster aus Bildplätzen mit Bildunterschriften, für Tabellen mit Bild-URLs.",
@@ -2134,10 +2134,14 @@ export default {
       "attachmentsTab": "Dateien",
       "attachments": {
         "emptyTitle": "Noch keine Dateien",
-        "emptyBody": "An diesen Datensatz angehängte Dateien erscheinen hier.",
-        "loading": "Anhänge werden geladen",
+        "emptyBody": "Hier erscheinen die Dateien, die bei diesem Datensatz liegen.",
+        "loading": "Dateien werden geladen",
         "removed": "{name} wurde in den Papierkorb verschoben.",
-        "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt."
+        "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt.",
+        "lead": "Dateien, die bei diesem Datensatz liegen.",
+        "allFiles": "Alle Dateien sind auf der Seite Dateien",
+        "inColumn": "In {column}",
+        "inColumnHelp": "Ändern Sie sie im Feld {column} des Datensatzes."
       }
     },
     "pageRecord": {

@@ -19,7 +19,7 @@ import {
 import { entityFromTable, plainTableName } from '../../lib/names.js';
 import { useMaybeT } from '../../lib/i18n.js';
 import { useBoundPlaces } from '../page-crud/controls/use-bound-places.js';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
@@ -192,7 +192,14 @@ export interface PageRecordAttachments {
   remove(fileId: string): Promise<void>;
   /** Restore a file the panel just removed — the undo affordance. */
   restore?(fileId: string): Promise<void>;
+  /** The Files page, for someone who can open it: the panel links to it. Absent: no link. */
+  allFilesHref?: string | undefined;
+  /** The record's own column the panel keeps its list in (the column mode): its files are the panel's to delete. */
+  column?: string | undefined;
 }
+
+/** An Adminium file's id inside a stored value: the value itself, or its content link on any origin. */
+const FILE_ID_IN = /file_[0-9A-HJKMNP-TV-Z]{26}/;
 
 export interface PageRecordLabels {
   edit?: string | undefined;
@@ -699,29 +706,29 @@ function AttachmentsPanel({
   canAttach,
   maxBytes,
   locale,
+  items,
+  setItems,
+  reload,
+  heldIn,
+  listError,
 }: {
   attachments: PageRecordAttachments;
   canAttach: boolean;
   maxBytes?: number | undefined;
   locale?: string | undefined;
+  /** What the record holds, as the page read it (null while it reads): the tab counts it too. */
+  items: RecordAttachment[] | null;
+  setItems: (update: (current: RecordAttachment[] | null) => RecordAttachment[] | null) => void;
+  reload: () => void;
+  /** The column of the record that names a file, by the file's id: such a file is changed in that field, not here. */
+  heldIn: ReadonlyMap<string, string>;
+  /** Why the list could not be read, when it could not. */
+  listError: string | null;
 }) {
   const t = useMaybeT();
-  const [items, setItems] = useState<RecordAttachment[] | null>(null);
   const [uploads, setUploads] = useState<{ id: string; name: string; fraction: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [undoable, setUndoable] = useState<RecordAttachment | null>(null);
-
-  const reload = useCallback(() => {
-    void attachments
-      .list()
-      .then(setItems)
-      .catch((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : String(reason));
-        setItems([]);
-      });
-  }, [attachments]);
-
-  useEffect(reload, [reload]);
 
   async function send(file: File): Promise<void> {
     const id = `${file.name}:${String(Date.now())}`;
@@ -745,6 +752,15 @@ function AttachmentsPanel({
 
   return (
     <div className="flex flex-col gap-3" data-part="record-attachments">
+      <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-body-sm text-fg-muted" data-part="record-attachments-lead">
+        <span>{t('ui:templates.record.attachments.lead', 'Files kept with this record.')}</span>
+        {attachments.allFilesHref === undefined ? null : (
+          <a href={attachments.allFilesHref} className="inline-flex items-center gap-1 font-semibold text-accent underline-offset-2 hover:underline" data-part="record-attachments-all">
+            {t('ui:templates.record.attachments.allFiles', 'All files are on the Files page')}
+            <ArrowRight aria-hidden className="size-3.5 rtl:-scale-x-100" />
+          </a>
+        )}
+      </p>
       {canAttach && (
         <UploadDropzone
           multiple
@@ -777,9 +793,9 @@ function AttachmentsPanel({
         />
       )}
 
-      {error !== null && (
+      {(error ?? listError) !== null && (
         <p role="alert" className="text-body-sm text-danger" data-part="record-attachments-error">
-          {error}
+          {error ?? listError}
         </p>
       )}
 
@@ -805,25 +821,39 @@ function AttachmentsPanel({
       )}
 
       {items === null ? (
-        <Spinner label={t('ui:templates.record.attachments.loading', 'Loading attachments')} />
+        <Spinner label={t('ui:templates.record.attachments.loading', 'Loading files')} />
       ) : (
         <AttachmentList
-          items={items.map((file) => ({
-            id: file.id,
-            name: file.filename,
-            size: file.sizeBytes,
-            mime: file.mime,
-            url: file.contentPath,
-          }))}
+          limit={500}
+          items={items.map((file) => {
+            const column = heldIn.get(file.id);
+            return {
+              id: file.id,
+              name: file.filename,
+              size: file.sizeBytes,
+              mime: file.mime,
+              url: file.contentPath,
+              // A file a column of the record names is changed in that field: here it has no Delete.
+              ...(column === undefined
+                ? {}
+                : {
+                    heldIn: {
+                      tag: t('ui:templates.record.attachments.inColumn', 'In {column}', { column }),
+                      note: t('ui:templates.record.attachments.inColumnHelp', "Change it in the record's {column} field.", { column }),
+                    },
+                  }),
+            };
+          })}
           actions={canAttach ? ['download', 'delete'] : ['download']}
           {...(locale === undefined ? {} : { locale })}
           emptyTitle={t('ui:templates.record.attachments.emptyTitle', 'No files yet')}
           emptyBody={t(
             'ui:templates.record.attachments.emptyBody',
-            'Files attached to this record appear here.',
+            'Files kept with this record appear here.',
           )}
           onDelete={(item) => {
             const file = items.find((entry) => entry.id === item.id);
+            if (heldIn.has(item.id)) return;
             setItems((current) => (current ?? []).filter((entry) => entry.id !== item.id));
             if (file !== undefined) setUndoable(file);
             void attachments.remove(item.id).catch((reason: unknown) => {
@@ -1204,6 +1234,62 @@ export function PageRecord({
     }
   };
 
+  /*
+   * WHAT THE RECORD HOLDS, read with the record: the Files tab counts it, and
+   * the panel lists it. A file one of the record's columns names (its photo)
+   * is listed with that column's name and no Delete, because deleting it
+   * would trash a picture the column still names: it is changed in its field.
+   */
+  const [fileItems, setFileItems] = useState<RecordAttachment[] | null>(null);
+  const [fileItemsError, setFileItemsError] = useState<string | null>(null);
+  const reloadFiles = useCallback(() => {
+    if (attachments === null || attachments === undefined) return;
+    void attachments
+      .list()
+      .then((items) => {
+        setFileItemsError(null);
+        setFileItems(items);
+      })
+      .catch((reason: unknown) => {
+        setFileItemsError(reason instanceof Error ? reason.message : String(reason));
+        setFileItems([]);
+      });
+  }, [attachments]);
+  useEffect(() => {
+    setFileItems(null);
+    reloadFiles();
+  }, [reloadFiles, recordId, reloadTick]);
+  const [heldKeys, setHeldKeys] = useState<ReadonlyMap<string, ResolvedFile | null>>(() => new Map());
+  const heldRefs = useMemo(() => {
+    if (record === null) return [] as { ref: string; column: string }[];
+    return columns
+      .filter((column) => column.name !== attachments?.column)
+      .flatMap((column) => parseRefList(typeof record[column.name] === 'string' ? record[column.name] : Array.isArray(record[column.name]) ? JSON.stringify(record[column.name]) : null).map((ref) => ({ ref, column: column.label })));
+  }, [record, columns, attachments?.column]);
+  // A column that keeps a file by its storage key names it in words only the server can read.
+  useEffect(() => {
+    const keys = heldRefs.filter((one) => FILE_ID_IN.exec(one.ref) === null).map((one) => one.ref);
+    if (files === undefined || keys.length === 0 || fileItems === null || fileItems.length === 0) return undefined;
+    let alive = true;
+    files
+      .resolve(keys)
+      .then((resolved) => {
+        if (alive) setHeldKeys(resolved);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [files, heldRefs, fileItems]);
+  const heldIn = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const { ref, column } of heldRefs) {
+      const id = FILE_ID_IN.exec(ref)?.[0] ?? heldKeys.get(ref)?.id;
+      if (id !== undefined && !out.has(id)) out.set(id, column);
+    }
+    return out;
+  }, [heldRefs, heldKeys]);
+
   if (error !== null) {
     return (
       <EmptyState
@@ -1369,7 +1455,7 @@ export function PageRecord({
               </TabsTrigger>
             ))}
             {hasAttachments && (
-              <TabsTrigger value="__attachments">
+              <TabsTrigger value="__attachments" {...(fileItems === null ? {} : { count: fileItems.length })}>
                 {labels?.attachmentsTab ?? t('ui:templates.record.attachmentsTab', 'Files')}
               </TabsTrigger>
             )}
@@ -1422,6 +1508,11 @@ export function PageRecord({
                 canAttach={canAttach}
                 {...(maxFileBytes === undefined ? {} : { maxBytes: maxFileBytes })}
                 {...(locale === undefined ? {} : { locale })}
+                items={fileItems}
+                setItems={setFileItems}
+                reload={reloadFiles}
+                heldIn={heldIn}
+                listError={fileItemsError}
               />
             </TabsContent>
           )}

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3051 entries. */
+/** `namespace:key` — 3057 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1333,9 +1333,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'files:drawer.trashedAt',
   'files:drawer.uploadedBy',
   'files:empty.filtered.title',
+  'files:empty.library',
   'files:empty.title',
   'files:listFailed.title',
   'files:preset.all',
+  'files:preset.library',
   'files:preset.recent',
   'files:preset.trash',
   'files:preset.unattached',
@@ -2090,6 +2092,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:pages.attachments.type.office',
   'studio:pages.attachments.type.text',
   'studio:pages.columns.addSearch',
+  'studio:pages.columns.avatarPicture.toggle',
   'studio:pages.columns.avatarToggle',
   'studio:pages.columns.dragHandle',
   'studio:pages.columns.file.destinationLabel',
@@ -2098,10 +2101,13 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:pages.columns.file.maxLabel',
   'studio:pages.columns.file.maxToggle',
   'studio:pages.columns.file.refLabel',
-  'studio:pages.columns.file.switchToggle',
   'studio:pages.columns.foldLabel',
   'studio:pages.columns.followColumn',
   'studio:pages.columns.header',
+  'studio:pages.columns.holds.file',
+  'studio:pages.columns.holds.name',
+  'studio:pages.columns.holds.picture',
+  'studio:pages.columns.holds.text',
   'studio:pages.columns.lookupBack',
   'studio:pages.columns.lookupBroken',
   'studio:pages.columns.maskToggle',
