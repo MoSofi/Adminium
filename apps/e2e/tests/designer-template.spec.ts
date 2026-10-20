@@ -677,8 +677,13 @@ test('a template is built only after its plan is approved, and what goes beyond 
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole('heading', { level: 3 })).toHaveText([/^1What becomes a table/, /^2What the forms do/, /^3What the template shows/, /^4Added to the project/, /^5Anything to change\?/]);
   await expect(sheet.getByRole('checkbox', { name: 'Make Products a table' })).toBeChecked();
+  // What the plan opens to visitors, and who edits the tables, said where they are decided.
+  const tables = sheet.getByRole('region', { name: 'What becomes a table' });
+  await expect(tables).toContainText(/Visitors see: [^\n]*Name, [^\n]*Price/);
+  await expect(tables).toContainText('Who edits them in the dashboard: staff');
   await sheet.getByRole('button', { name: /What the forms do/ }).click();
   await expect(sheet.getByRole('region', { name: 'What the forms do' })).toContainText('Newsletter: writes to Subscribers. Anyone can send it, up to 5 times an hour.');
+  await expect(sheet.getByRole('region', { name: 'What the forms do' })).toContainText(/Visitors fill in: email/i);
   await sheet.getByRole('button', { name: /What the template shows/ }).click();
   const shows = sheet.getByRole('region', { name: 'What the template shows' });
   await expect(shows.getByRole('radio', { name: /^Replace: pay on delivery/ })).toBeChecked();
@@ -723,12 +728,6 @@ test('a template is built only after its plan is approved, and what goes beyond 
   const box = page.getByRole('textbox', { name: 'Message to Adminium Designer' });
   await box.fill('Let visitors leave a review too.');
   await page.keyboard.press('Enter');
-  // The turn opens by offering the base style's heading font, though the side follows its template and loads
-  // none of the style's fonts: left out, so nothing is installed.
-  const needs = page.getByRole('group', { name: 'The design needs a few things. Add them?' });
-  await expect(needs.getByRole('listitem')).toHaveText([/^Inter — a typeface, for headings/], { timeout: 60_000 });
-  await needs.getByRole('button', { name: 'Deselect all' }).click();
-  await needs.getByRole('button', { name: 'Send — add nothing' }).click();
   const check = page.getByRole('group', { name: 'Check this before it goes live', exact: true });
   await expect(check).toBeVisible({ timeout: 120_000 });
   await expect(check).toContainText('This was not on the plan you approved:');
@@ -738,4 +737,6 @@ test('a template is built only after its plan is approved, and what goes beyond 
   await expect(page.getByRole('paragraph').filter({ hasText: 'Visitors can leave a review once it is applied.' })).toBeVisible({ timeout: 120_000 });
   // Allowed, it went live: the template's side built and the app was applied.
   expect(claudeResults.findLast((result) => result.tool === 'apply_app')?.content).toMatch(/^Applied\./);
+  // The side follows its template: no font or package of a style is offered in this turn either.
+  await expect(page.getByRole('group', { name: 'The design needs a few things. Add them?' })).toHaveCount(0);
 });
