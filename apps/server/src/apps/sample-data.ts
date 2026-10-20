@@ -1947,6 +1947,17 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 done += 1;
                 continue;
               }
+              /*
+               * The operator changed it, and the sample names its very key: their row stands for the sample's, which
+               * is left out (it could only clash), and the rows after it point at theirs, as a row only for an empty
+               * table does. Adding the sample again after a removal that kept it would otherwise stop at that key.
+               */
+              if (current !== undefined && resolved.primaryKey.some((column) => values[column] !== undefined && values[column] !== null)) {
+                const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+                if (label !== null) labels.set(label, resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : key);
+                done += 1;
+                continue;
+              }
             }
             /*
              * The same row, already put there by another installed app's
