@@ -21,6 +21,7 @@ export interface FigmaLink {
 }
 
 const HOSTS = new Set(['figma.com', 'www.figma.com']);
+const HTTPS = 'https://';
 const KEY = /^[A-Za-z0-9]{10,128}$/;
 /** A node id as a link writes it ("1-2" or "1:2"), or an instance's ("I1-2;3-4"). */
 const NODE = /^(?:\d+[-:]\d+|I\d+[-:]\d+(?:;\d+[-:]\d+)+)$/;
@@ -41,7 +42,7 @@ export function parseFigmaLink(raw: string): { ok: true; link: FigmaLink } | { o
   let url: URL;
   try {
     // "figma.com/design/…", copied without its scheme, is the same link.
-    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : HTTPS + text);
   } catch {
     return { ok: false, reason: 'not-figma' };
   }
