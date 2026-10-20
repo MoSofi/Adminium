@@ -25,6 +25,7 @@ import type { Judged, LeftOutReason, SiteFileKind } from './site/judge.js';
 import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 
 import { parseCsv } from '../data-io/csv.js';
+import { imageTypeOf } from './picture-type.js';
 import { DESIGNER_DIR } from './session-store.js';
 import { ATTACHMENT_MAX_CSS_BYTES, ATTACHMENT_MAX_HTML_BYTES, countWords, isCssName, isHtmlName, isMinified, lastPart, missingInSite, namedFiles, siteCountWords, SITE_WINDOW_CHARS, startsAsPage } from './site-text.js';
 import { dataWindow, fenceFor, quoted } from './untrusted.js';
@@ -129,14 +130,7 @@ const STORED_EXT: Record<SiteFileKind, string> = { html: 'html', css: 'css', js:
 
 const EXT: Record<Attachment['mediaType'], string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'text/csv': 'csv', 'font/woff2': 'woff2', 'text/markdown': 'md', 'text/html': 'html', 'text/css': 'css', 'application/zip': 'zip' };
 
-/** A picture's type, from its first bytes; null when it is none of the four. */
-export function imageTypeOf(bytes: Buffer): Attachment['mediaType'] | null {
-  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (bytes.length >= 6 && (bytes.subarray(0, 6).toString('latin1') === 'GIF87a' || bytes.subarray(0, 6).toString('latin1') === 'GIF89a')) return 'image/gif';
-  if (bytes.length >= 12 && bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
-  return null;
-}
+export { imageTypeOf } from './picture-type.js';
 
 /** Whether a file is a WOFF2 font, by its first bytes. */
 export const isWoff2 = (bytes: Buffer): boolean => bytes.length >= 48 && bytes.subarray(0, 4).toString('latin1') === 'wOF2';

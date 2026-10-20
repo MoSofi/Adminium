@@ -21,7 +21,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import { imageTypeOf } from '../attachments.js';
+import { imageTypeOf } from '../picture-type.js';
 
 export const SITE_MAX_ENTRIES = 1000;
 export const SITE_MAX_FILES = 300;
