@@ -121,13 +121,13 @@ describe('a payment provider at load', () => {
 const backend = createDemoPaymentBackend();
 const STORED = { secretKey: 'demo_test_vouched01', webhookSecret: 'demo_whsec_vouched01' };
 
-function seam(over: Partial<PaymentSeamDeps> & { status?: string; credential?: CredentialEnvelope | null; runtime?: AddOnRuntimeState | null } = {}): PaymentSeamDeps & { calls: string[]; logs: string[] } {
+function seam(over: Partial<Omit<PaymentSeamDeps, 'runtime'>> & { status?: string; credential?: CredentialEnvelope | null; state?: AddOnRuntimeState | null } = {}): PaymentSeamDeps & { calls: string[]; logs: string[] } {
   const calls: string[] = [];
   const logs: string[] = [];
   const manifest = manifestFor('pay-x');
   const row = { id: 'man_1', status: over.status ?? 'installed' } as InstalledManifest['row'];
   const runtime: AddOnRuntimeState =
-    over.runtime ??
+    over.state ??
     ({
       providers: new Map([
         [
@@ -153,7 +153,7 @@ function seam(over: Partial<PaymentSeamDeps> & { status?: string; credential?: C
       deciders: new Map(),
     } as AddOnRuntimeState);
   return {
-    runtime: () => (over.runtime === null ? null : runtime),
+    runtime: () => (over.state === null ? null : runtime),
     manifests: {
       findByKey: async (key) => (key === 'pay-x' ? ({ row, document: manifest, attachments: [] } as InstalledManifest) : null),
       getCredential: async () =>
@@ -181,7 +181,7 @@ describe('the provider a key names', () => {
   it.each([
     ['not installed', 'nope', {}, 'NOT_INSTALLED'],
     ['switched off', 'pay-x', { status: 'disabled' }, 'SWITCHED_OFF'],
-    ['not loaded', 'pay-x', { runtime: null }, 'NOT_LOADED'],
+    ['not loaded', 'pay-x', { state: null }, 'NOT_LOADED'],
     ['without a key for the mode', 'pay-x', { credential: null }, 'NO_CREDENTIAL'],
   ] as const)('is refused when %s', async (_name, key, over, code) => {
     const found = await paymentProviderFor(seam(over as never), key, 'test');
@@ -201,7 +201,7 @@ describe('the provider a key names', () => {
       problems: [],
       deciders: new Map(),
     } as AddOnRuntimeState;
-    const found = await paymentProviderFor(seam({ runtime }), 'pay-x', 'test');
+    const found = await paymentProviderFor(seam({ state: runtime }), 'pay-x', 'test');
     expect(found.ok ? 'found' : found.code).toBe('NO_FACTORY');
   });
 
