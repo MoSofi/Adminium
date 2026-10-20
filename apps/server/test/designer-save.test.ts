@@ -297,7 +297,7 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     expect(groups.map((group) => group.key)).toEqual(['customer', 'dashboard', 'settings']);
     expect(groups[0]?.files.map((file) => file.label)).toEqual(expect.arrayContaining(['customer/App.tsx', 'customer/design.css']));
     expect(groups[1]?.files.map((file) => file.label)).toEqual(['dashboard/pages/items.json', 'dashboard/pages/requests.json']);
-    expect(groups[2]?.files.map((file) => file.label)).toEqual(['design.md', 'look.json', 'app.json']);
+    expect(groups[2]?.files.map((file) => file.label)).toEqual(['design.md', 'look.json', 'pictures/spots.json', 'app.json']);
     expect({ busy, version }).toEqual({ busy: null, version: 2 });
     for (const never of ['theme.css', 'fonts.css', 'main.tsx', 'app.css']) expect([...all.keys()], never).not.toContain(`${APP}/customer/src/${never}`);
 
@@ -643,10 +643,8 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
   it('lists the picture spots once there are any, and reads a saved spots.json as the server does: a spot that would not draw is refused', async () => {
     const { client, id } = await withApp({ side: true });
     const SPOTS = `${APP}/assets/pictures/spots.json`;
-    mkdirSync(join(root, APP, 'assets', 'pictures'), { recursive: true });
-    writeFileSync(join(root, SPOTS), '{ "hero": { "label": "Hero", "shape": "wide", "file": null } }\n');
-    const { groups } = await listed(client, id);
-    expect(groups.find((group) => group.key === 'settings')?.files.map((file) => file.label)).toEqual(['design.md', 'look.json', 'pictures/spots.json', 'app.json']);
+    // A side starts with no spots, in a file of its own.
+    expect(disk(SPOTS)).toBe('{}\n');
     const before = disk(SPOTS);
     for (const [name, content, said] of [
       ['a file that leaves the folder', '{ "hero": { "label": "Hero", "shape": "wide", "file": "../../../../.env" } }', 'not a picture in assets/pictures/'],

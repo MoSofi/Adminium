@@ -32,6 +32,7 @@ import { SURFACE_JSON_VERSION } from '../../cli/surfaces-root.js';
 import { BUILD_DIR, HELPERS_PACKAGE } from '../build-shared.js';
 import type { ClientBundler as Bundler } from '../client-build.js';
 import { toProjectPath } from '../paths.js';
+import { readCredits, readPictureFile, readSpots, unsplashAddress, PICTURES_DIR } from '../../designer/spots.js';
 import { APPS_DIR, SIDES, appDir, appPath, sideEntry, type AppSide } from './read-app.js';
 
 /** What a side imports the shared plumbing from. */
@@ -512,6 +513,50 @@ function manifestName(root: string, key: string): string {
   return '';
 }
 
+/** A picture's extension by its type, as the build names the copy it serves. */
+const PICTURE_EXT: Readonly<Record<string, string>> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
+
+/**
+ * The app's picture spots, as `Picture` (of `@adminiumjs/adminium/side`)
+ * draws them: each with the address its picture is served from and the
+ * credit of who made it. A spot's file is copied beside the page under a
+ * name that changes when it does, as the logo is, and read the way the
+ * server reads it (a plain picture inside `assets/pictures/`, or nothing);
+ * an Unsplash picture is shown from Unsplash's own address. Only
+ * `spots.json` lives in the app: how a spot is drawn is the engine's.
+ */
+export function sideSpots(root: string, key: string, assetsDir: string, prefix: string): Record<string, unknown> {
+  const credits = readCredits(root, key);
+  const out: Record<string, unknown> = {};
+  for (const spot of readSpots(root, key)) {
+    let src: string | null = null;
+    let creditOf: string | null = null;
+    if (spot.file !== null && spot.file.startsWith('https:')) {
+      src = unsplashAddress(spot.file);
+      creditOf = src;
+    } else if (spot.file !== null) {
+      const picture = readPictureFile(root, key, spot.file);
+      if (picture !== null) {
+        const name = `spot-${spot.id}-${createHash('sha256').update(picture.bytes).digest('hex').slice(0, 8)}.${PICTURE_EXT[picture.mime] ?? 'img'}`;
+        writeFileSync(join(assetsDir, name), picture.bytes);
+        src = `${prefix}/assets/${name}`;
+        creditOf = `${PICTURES_DIR}/${picture.path}`;
+      }
+    }
+    // A picture of the person's own or of their template carries no credit line: nobody else asked for one.
+    const credit = creditOf === null ? undefined : credits.find((line) => line.file === creditOf && line.licenceCode !== 'own' && line.licenceCode !== 'template');
+    out[spot.id] = {
+      label: spot.label,
+      shape: spot.shape,
+      src,
+      alt: spot.alt,
+      decorative: spot.decorative,
+      ...(credit === undefined ? {} : { credit: { title: credit.title, creator: credit.creator, creatorUrl: credit.creatorUrl, licence: credit.licence, licenceUrl: credit.licenceUrl, page: credit.page } }),
+    };
+  }
+  return out;
+}
+
 /** Build one side, replacing what was built before only once the new build is whole. */
 export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
   const { root, key, side } = opts;
@@ -557,6 +602,8 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
         __ADMINIUM_SIDE__: JSON.stringify(side),
         // A bundle `adminium dev` built asks the server whether it was rebuilt, and reloads.
         __ADMINIUM_DEV__: JSON.stringify(opts.dev === true),
+        // The picture spots, with their pictures copied beside the page: `Picture` draws them.
+        __ADMINIUM_SPOTS__: JSON.stringify(sideSpots(root, key, join(staging, 'assets'), prefix)),
       },
       metafile: true,
       logLevel: 'silent',

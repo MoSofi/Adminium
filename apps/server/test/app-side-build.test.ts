@@ -381,6 +381,47 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
   });
 });
 
+describe.skipIf(!ready)('picture spots in a side', () => {
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+
+  it('copies a spot’s picture beside the page, hands Picture its address and credit, and draws nothing from outside assets/pictures/', async () => {
+    // A side module that shows what the build handed `Picture`.
+    put('side-module.ts', "declare const __ADMINIUM_SPOTS__: unknown;\nexport const greeting: string = `SPOTS=${JSON.stringify(__ADMINIUM_SPOTS__)}`;\n");
+    mkdirSync(join(root, 'apps', 'repairs', 'assets', 'pictures'), { recursive: true });
+    writeFileSync(join(root, 'apps', 'repairs', 'assets', 'pictures', 'hero.png'), PNG);
+    writeFileSync(join(root, '.env'), 'SECRET=1\n');
+    put(
+      'apps/repairs/assets/pictures/spots.json',
+      JSON.stringify({
+        hero: { label: 'Hero', shape: 'wide', file: 'hero.png', alt: 'The shop', decorative: false },
+        out: { label: 'Out', shape: 'wide', file: '../../../../.env' },
+        sky: { label: 'Sky', shape: 'tall', file: 'https://images.unsplash.com/photo-1?w=1080' },
+        fake: { label: 'Fake', shape: 'tall', file: 'https://images.unsplash.com.evil.example/x' },
+        team: { label: 'Team', shape: 'square', file: null },
+      }),
+    );
+    put('apps/repairs/assets/pictures/CREDITS.json', JSON.stringify([{ file: 'assets/pictures/hero.png', title: 'Shop', creator: 'Ana', creatorUrl: '', licence: 'CC BY 2.0', licenceUrl: '', source: 'Openverse', page: '', licenceCode: 'by' }]));
+    // Built for a developer, so the bundle is read as it is written.
+    const built = await build({ dev: true });
+    const js = readdirSync(join(built.dir, 'assets')).find((name) => name.endsWith('.js')) ?? '';
+    const bundle = readFileSync(join(built.dir, 'assets', js), 'utf8');
+    // esbuild writes an object it is given to define as one variable of its own.
+    const literal = /define_ADMINIUM_SPOTS_default = (\{[\s\S]*?\});\n/.exec(bundle)?.[1] ?? 'null';
+    const spots = new Function(`return (${literal});`)() as Record<string, { src: string | null; credit?: unknown }> | null;
+    const copied = readdirSync(join(built.dir, 'assets')).filter((name) => name.startsWith('spot-'));
+    expect(copied).toEqual([expect.stringMatching(/^spot-hero-[0-9a-f]{8}\.png$/)]);
+    expect(readFileSync(join(built.dir, 'assets', copied[0] as string))).toEqual(PNG);
+    expect(spots).toMatchObject({
+      hero: { src: `/apps/repairs/staff/assets/${copied[0] as string}`, alt: 'The shop', credit: { title: 'Shop', creator: 'Ana', licence: 'CC BY 2.0' } },
+      out: { src: null },
+      sky: { src: 'https://images.unsplash.com/photo-1?w=1080' },
+      fake: { src: null },
+      team: { src: null },
+    });
+    expect(bundle).not.toContain('SECRET');
+  });
+});
+
 describe.skipIf(!ready || tailwindFolder() === null)('Tailwind in a side', () => {
   const cssOf = (dir: string): string => readFileSync(join(dir, 'assets', readdirSync(join(dir, 'assets')).find((name) => name.endsWith('.css')) ?? ''), 'utf8');
   const withTailwind = (): void => {

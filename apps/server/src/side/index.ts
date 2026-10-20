@@ -27,7 +27,7 @@
  * never used, because it is the reader's and is silently an hour out.
  */
 
-import { createElement, useEffect, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactElement } from 'react';
+import { createElement, useEffect, useState, type AnchorHTMLAttributes, type CSSProperties, type MouseEvent, type ReactElement } from 'react';
 
 declare const __ADMINIUM_APP_KEY__: string | undefined;
 declare const __ADMINIUM_APP_NAME__: string | undefined;
@@ -1247,6 +1247,229 @@ export function watchAddress(
 }
 
 watchAddress();
+
+// ── pictures in spots ────────────────────────────────────────────────────────
+
+declare const __ADMINIUM_SPOTS__: unknown;
+
+/** A spot as the build hands it over: its picture's address once the person filled it, else none. */
+export interface PictureSpot {
+  label: string;
+  shape: 'wide' | 'tall' | 'square';
+  /** Where the picture is served from; null for a spot nobody filled yet. */
+  src: string | null;
+  alt: string;
+  decorative: boolean;
+  /** Who made the picture, for the credits at the foot of the screen; absent for the person's own. */
+  credit?: { title: string; creator: string; creatorUrl: string; licence: string; licenceUrl: string; page: string };
+}
+
+const SPOT_RATIO: Readonly<Record<PictureSpot['shape'], string>> = { wide: '16 / 9', tall: '3 / 4', square: '1 / 1' };
+const https = (value: unknown): string => (typeof value === 'string' && /^https:\/\/[^\s"'<>]{1,1000}$/.test(value) ? value : '');
+
+/** The build's spots, read once and held to their shape: they come from a file a person may edit. */
+function spotsFrom(raw: unknown): Record<string, PictureSpot> {
+  const out: Record<string, PictureSpot> = {};
+  for (const [id, value] of Object.entries(record(raw))) {
+    const spot = record(value);
+    const shape = spot['shape'] === 'wide' || spot['shape'] === 'tall' || spot['shape'] === 'square' ? spot['shape'] : null;
+    if (!/^[a-z][a-z0-9-]{0,39}$/.test(id) || shape === null) continue;
+    const src = typeof spot['src'] === 'string' && (spot['src'].startsWith('/') || https(spot['src']) !== '') ? spot['src'] : null;
+    const credit = record(spot['credit']);
+    out[id] = {
+      label: plainLine(spot['label']) || id,
+      shape,
+      src,
+      alt: plainLine(spot['alt']),
+      decorative: spot['decorative'] === true,
+      ...(typeof credit['title'] === 'string'
+        ? { credit: { title: plainLine(credit['title']), creator: plainLine(credit['creator']), creatorUrl: https(credit['creatorUrl']), licence: plainLine(credit['licence']), licenceUrl: https(credit['licenceUrl']), page: https(credit['page']) } }
+        : {}),
+    };
+  }
+  return out;
+}
+
+/** What the build wrote in, read as the module loads, as the other values a build gives are. */
+const BUILT_SPOTS: unknown = typeof __ADMINIUM_SPOTS__ === 'undefined' ? {} : __ADMINIUM_SPOTS__;
+let spotsHeld: Record<string, PictureSpot> | null = null;
+
+/** The app's spots, as this bundle was built with them. */
+export function pictureSpots(): Record<string, PictureSpot> {
+  spotsHeld ??= spotsFrom(BUILT_SPOTS);
+  return spotsHeld;
+}
+
+/** For a test: the spots a bundle would have been built with. */
+export function useSpotsForTest(raw: unknown): void {
+  spotsHeld = spotsFrom(raw);
+  shownCredits.clear();
+}
+
+/** The spots drawn with their picture right now, by who draws them: their credits are said at the foot of the page. */
+const shownCredits = new Map<object, string>();
+let creditsLater = false;
+
+/** The credits line's words and links, in the order the pictures were drawn; empty when no picture on the screen asks for one. */
+export function creditsLine(): { text: string; href?: string }[] {
+  const spots = pictureSpots();
+  const seen = new Set<string>();
+  const parts: { text: string; href?: string }[] = [];
+  for (const id of shownCredits.values()) {
+    const credit = spots[id]?.credit;
+    if (credit === undefined || seen.has(id)) continue;
+    seen.add(id);
+    parts.push(parts.length === 0 ? { text: 'Picture credits: ' } : { text: ' ' });
+    parts.push({ text: credit.title || 'Untitled', ...(credit.page === '' ? {} : { href: credit.page }) }, { text: ' by ' }, { text: credit.creator || 'Unknown', ...(credit.creatorUrl === '' ? {} : { href: credit.creatorUrl }) });
+    if (credit.licence !== '') parts.push({ text: ', ' }, { text: credit.licence, ...(credit.licenceUrl === '' ? {} : { href: credit.licenceUrl }) });
+    parts.push({ text: '.' });
+  }
+  return parts;
+}
+
+const PICTURES_STYLE = `[data-picture-credits]{margin:0;padding:0 28px 18px;font-size:12px;line-height:1.5;color:var(--muted,#6b6b6b);text-align:start}[data-picture-credits] a{color:inherit;text-underline-offset:2px}[data-picture-credits] a:hover{color:var(--accent,inherit)}[data-picture-choose]:hover,[data-picture-choose]:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}`;
+
+/** The page's own styles for spots and credits, once: they are drawn outside any screen's stylesheet. */
+function pictureStyles(doc: Document): void {
+  if (doc.head === null || doc.querySelector('style[data-adminium-pictures]') !== null) return;
+  const style = doc.createElement('style');
+  style.setAttribute('data-adminium-pictures', '');
+  style.textContent = PICTURES_STYLE;
+  doc.head.appendChild(style);
+}
+
+/**
+ * The credits of the pictures on the screen, under "Picture credits", at the
+ * foot of the page: after the screen's own root, so whatever a screen draws,
+ * a picture that asks for its creator's name has it. Written with the page's
+ * own calls (no markup is read), and taken away when no picture asks.
+ */
+function drawCredits(): void {
+  creditsLater = false;
+  const doc = typeof document === 'undefined' ? null : document;
+  if (doc === null || doc.body === null) return;
+  const parts = creditsLine();
+  let line = doc.querySelector<HTMLElement>('p[data-picture-credits]');
+  if (parts.length === 0) {
+    line?.remove();
+    return;
+  }
+  pictureStyles(doc);
+  if (line === null) {
+    line = doc.createElement('p');
+    line.setAttribute('data-picture-credits', '');
+    doc.body.appendChild(line);
+  }
+  line.replaceChildren(
+    ...parts.map((part) => {
+      if (part.href === undefined) return doc.createTextNode(part.text);
+      const link = doc.createElement('a');
+      link.href = part.href;
+      link.rel = 'noopener noreferrer';
+      link.target = '_blank';
+      link.textContent = part.text;
+      return link;
+    }),
+  );
+}
+
+function creditsChanged(): void {
+  if (creditsLater) return;
+  creditsLater = true;
+  queueMicrotask(drawCredits);
+}
+
+/** Whether this page is the Designer's preview: a bundle `adminium dev` built, inside a frame. */
+const inPreview = (): boolean => DEV && framed() !== undefined;
+
+/** The Designer's preview is told a person chose a wireframe to fill: the picture dialog opens on it. */
+function chooseSpot(spot: string): void {
+  try {
+    framed()?.parent.postMessage({ type: 'adminium:side-spot', app: APP_KEY, side: SIDE, spot }, '*');
+  } catch {
+    // Choosing never breaks the page.
+  }
+}
+
+/**
+ * A picture of the page, in its spot: `<Picture spot="hero" />`.
+ *
+ * The spot is one the Designer named and the person fills from the picture
+ * dialog; this draws whatever they chose. A filled spot is an `<img>` cut to
+ * the spot's shape, with the person's words as its `alt` (`alt=""` when they
+ * ticked "Decorative"). A spot with no picture, or whose picture fails to
+ * load, is a wireframe: a box of the spot's shape in the theme's surface
+ * colour with a thin cross. In a built app the wireframe says nothing and is
+ * hidden from screen readers; in the Designer's preview it carries the spot's
+ * name and "Choose a picture", which opens the dialog on it.
+ *
+ * Every element drawn carries `data-picture-spot`, so pointing at the page
+ * knows a spot from any other picture. The credits of the pictures shown are
+ * drawn at the foot of the page, under "Picture credits".
+ */
+export function Picture(props: { spot: string; className?: string; style?: CSSProperties }): ReactElement {
+  const { spot: id, className, style } = props;
+  const spot = pictureSpots()[id];
+  const [failed, setFailed] = useState<string | null>(null);
+  const src = spot?.src ?? null;
+  const showing = spot !== undefined && src !== null && failed !== src;
+  const credited = showing && spot.credit !== undefined;
+  useEffect(() => {
+    if (!credited) return undefined;
+    const key = {};
+    shownCredits.set(key, id);
+    creditsChanged();
+    return () => {
+      shownCredits.delete(key);
+      creditsChanged();
+    };
+  }, [credited, id]);
+  const ratio = SPOT_RATIO[spot?.shape ?? 'wide'];
+  if (showing) {
+    return createElement('img', {
+      'data-picture-spot': id,
+      src,
+      alt: spot.decorative ? '' : spot.alt,
+      loading: 'lazy',
+      className,
+      onError: () => setFailed(src),
+      style: { display: 'block', width: '100%', aspectRatio: ratio, objectFit: 'cover', ...style },
+    });
+  }
+  const preview = inPreview();
+  const name = spot?.label ?? id;
+  return createElement(
+    'div',
+    {
+      'data-picture-spot': id,
+      className,
+      ...(preview ? {} : { 'aria-hidden': 'true' }),
+      style: { position: 'relative', width: '100%', aspectRatio: ratio, overflow: 'hidden', background: 'var(--surface, #f4f4f4)', borderRadius: 'var(--radius, 0)', ...style },
+    },
+    createElement(
+      'svg',
+      { viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true', style: { position: 'absolute', inset: 0, width: '100%', height: '100%' } },
+      createElement('line', { x1: 0, y1: 0, x2: 100, y2: 100, stroke: 'var(--line, #d9d9d9)', strokeWidth: 1, vectorEffect: 'non-scaling-stroke' }),
+      createElement('line', { x1: 100, y1: 0, x2: 0, y2: 100, stroke: 'var(--line, #d9d9d9)', strokeWidth: 1, vectorEffect: 'non-scaling-stroke' }),
+    ),
+    preview
+      ? createElement(
+          'button',
+          {
+            type: 'button',
+            'data-picture-choose': '',
+            onClick: () => chooseSpot(id),
+            ref: (el: HTMLButtonElement | null) => {
+              if (el !== null) pictureStyles(el.ownerDocument);
+            },
+            style: { position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '12px', border: 0, background: 'transparent', cursor: 'pointer', font: 'inherit' },
+          },
+          createElement('span', { style: { fontSize: '12.5px', fontWeight: 600, color: 'var(--muted, #6b6b6b)' } }, `${name} · ${spot?.shape ?? 'wide'}`),
+          createElement('span', { style: { fontSize: '13px', fontWeight: 600, color: 'var(--accent, #2563eb)', textDecoration: 'underline', textUnderlineOffset: '3px' } }, 'Choose a picture'),
+        )
+      : null,
+  );
+}
 
 // ── pointing at a part of the page ───────────────────────────────────────────
 

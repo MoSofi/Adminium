@@ -93,6 +93,9 @@ function walk(dir: string, prefix = '', out: { path: string; link: boolean; fold
   return out;
 }
 
+/** A screen that draws a picture spot: a web page's, never the phone app's. */
+const DRAWS_A_SPOT = /<Picture\b[^>]*\bspot\s*=|\bimport\s*\{[^}]*\bPicture\b[^}]*\}\s*from\s*['"]@adminiumjs\/adminium\/side['"]/;
+
 /**
  * What is wrong with the phone side's folder, or nothing. Every entry is a
  * way for a file to be run by Expo's build without a person having said yes
@@ -127,6 +130,9 @@ export function phoneShapeProblems(root: string, key: string): PhoneProblem[] {
       problems.push({ file: where(key, entry.path), message: 'is a dot file. A phone side has none but .gitignore: Expo loads .env files into its build.' });
     } else if (name === 'package.json' && entry.path !== 'package.json') {
       problems.push({ file: where(key, entry.path), message: 'is a second package.json. A phone side has one, at its top.' });
+    } else if (!entry.folder && /\.(?:tsx?|jsx?)$/.test(name) && !entry.path.startsWith('node_modules/') && DRAWS_A_SPOT.test(readFileSync(join(dir, entry.path), 'utf8'))) {
+      // The phone app is built by Metro, with no `@adminiumjs/adminium/side` and no <img>: a spot cannot be drawn there.
+      problems.push({ file: where(key, entry.path), message: 'draws a picture spot (<Picture spot="…">), and spots are on the web pages only. In the phone app a row’s picture comes from its picture column with pictureUrl, and a picture of its own is a file under mobile/assets/.' });
     }
   }
 

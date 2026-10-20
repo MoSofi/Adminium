@@ -405,6 +405,13 @@ export function addSide(opts: { root: string; key: string; name: string; side: A
       writeFileSync(join(dir, opts.side, file), text);
       created.push(appPath(opts.key, opts.side, file));
     }
+    // The page's pictures are spots the person fills: the list starts empty. How a spot is drawn is the engine's (`Picture`).
+    const spots = join(dir, 'assets', 'pictures', 'spots.json');
+    if (!existsSync(spots)) {
+      mkdirSync(dirname(spots), { recursive: true });
+      writeFileSync(spots, '{}\n');
+      created.push(appPath(opts.key, 'assets', 'pictures', 'spots.json'));
+    }
     // The staff starter reads the app's sample rows for its demo: an app with none gets an empty file to read.
     const sample = join(dir, 'seeds', 'sample.json');
     if (opts.side === 'staff' && !existsSync(sample)) {

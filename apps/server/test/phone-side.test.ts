@@ -93,6 +93,16 @@ describe('the shape of a phone side’s folder', () => {
     },
   );
 
+  it('refuses a screen that draws a picture spot: spots are on the web pages only', () => {
+    putPhone(root, 'shop', 'src/Home.tsx', "import { Picture } from '@adminiumjs/adminium/side';\nexport const Home = () => <Picture spot=\"hero\" />;\n");
+    expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/src/Home.tsx draws a picture spot (<Picture spot="…">), and spots are on the web pages only.')]);
+    putPhone(root, 'shop', 'src/Home.tsx', 'export const Home = () => <Picture spot="hero" />;\n');
+    expect(problems()).toHaveLength(1);
+    // A word in a comment or a string that is no spot is nothing.
+    putPhone(root, 'shop', 'src/Home.tsx', "// a picture of the shop\nexport const word = 'Picture';\n");
+    expect(problems()).toEqual([]);
+  });
+
   it('refuses a configuration file deeper in the phone folder too', () => {
     putPhone(root, 'shop', 'src/metro.config.js', 'module.exports = {};\n');
     expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/src/metro.config.js is a file Expo would run as configuration')]);
