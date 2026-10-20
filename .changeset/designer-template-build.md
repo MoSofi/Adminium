@@ -1,0 +1,9 @@
+---
+'@adminium/server': patch
+'@adminium/dashboard': patch
+'@adminium/i18n': patch
+---
+
+Adminium Designer builds an app from a site template. Before anything is written it reads the template (its repeated blocks and their fields, its forms, a cart, the features it shows and the links that lead nowhere) and asks one plan on a card, **Your template, as an app**: **Review the plan…** opens a sheet with what becomes a table, what each form does, what the template shows and whether Adminium does it (for each thing it does not: Build, Replace or Leave out, Replace picked where there is one, never Build), the links to fill, and what is added to the project (the screens' packages and the template's Google fonts). **Build this** builds only what was approved; text in **Anything to change?** sends the plan back as **Send my changes**. The answer is kept in `apps/<key>/template-plan.json` with the template's sha256, so a later session or a build stopped by a limit goes on without asking again, and a different template asks for a new plan.
+
+Then the template's stylesheets, pictures and fonts are copied into the side's `src/site/` (comments, other sites' addresses and missing files taken out), each page becomes a screen at its own address with its markup as it was, its pictures become spots filled with the template's own pictures (swappable in the picture dialog), and the side follows its template: none of Adminium's own look and no Tailwind. In a session that holds a template or a Figma design, **Check this before it goes live** asks before the app lets strangers do more than before, or a page calls an address outside Adminium, and only for what the approved plan does not cover. A model that reads too little at once for a template (Ollama, most OpenAI-compatible servers) is told so before it starts. `use_pictures` takes a template's own picture for a sample row by its path.
