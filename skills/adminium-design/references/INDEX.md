@@ -11,10 +11,10 @@ file. Every file is 8 KB or less.
 |---|---|---|
 | `references/guides/from-a-template--overview.md` | A website template as a working app | 1487 |
 | `references/guides/from-a-template--before-anything-the-licence-and-the-inventory.md` | Before anything: the licence and the inventory | 1663 |
-| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 4035 |
+| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 5125 |
 | `references/guides/from-a-template--the-side-s-folder.md` | The side's folder | 2628 |
 | `references/guides/from-a-template--pages-become-addresses.md` | Pages become addresses | 3285 |
-| `references/guides/from-a-template--the-stylesheets.md` | The stylesheets | 1625 |
+| `references/guides/from-a-template--the-stylesheets.md` | The stylesheets | 1760 |
 | `references/guides/from-a-template--scripts-become-react.md` | Scripts become React | 1871 |
 | `references/guides/from-a-template--repeated-content-becomes-tables.md` | Repeated content becomes tables | 2012 |
 | `references/guides/from-a-template--forms-become-limited-public-creates.md` | Forms become limited public creates | 1228 |

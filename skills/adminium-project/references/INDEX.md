@@ -50,7 +50,7 @@ file. Every file is 8 KB or less.
 | `references/projects/pages-and-widgets--react-and-other-packages.md` | React and other packages | 1085 |
 | `references/projects/pages-and-widgets--building-and-deploying.md` | Building and deploying | 752 |
 | `references/projects/deploy--overview.md` | Deploy a project | 731 |
-| `references/projects/deploy--what-every-host-needs.md` | What every host needs | 1621 |
+| `references/projects/deploy--what-every-host-needs.md` | What every host needs | 1624 |
 | `references/projects/deploy--docker.md` | Docker | 1996 |
 | `references/projects/deploy--render.md` | Render | 956 |
 | `references/projects/deploy--fly-io.md` | Fly.io | 1143 |

@@ -14,7 +14,9 @@ as the template wrote them, with four changes, listed in a comment at the top of
   loaded as a package.
 - **Fonts as packages.** A Google font is installed as its `@fontsource` package
   (`@fontsource/inter`), one import per weight the stylesheet uses, before the template's
-  stylesheet. In Adminium Designer the font is asked for with `request_package`.
+  stylesheet. In Adminium Designer the template's Google fonts are on the plan, under "Added to the
+  project", and `site/index.css` imports each ticked one first. Another font is asked for with
+  `request_package`.
 - **A CSS library from a CDN as a package.** Font Awesome's `<link>` to cdnjs becomes
   `@fortawesome/fontawesome-free`, imported from `main.tsx`.
 
