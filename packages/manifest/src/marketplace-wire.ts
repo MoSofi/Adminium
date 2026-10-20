@@ -95,10 +95,17 @@ const itemBase = {
       tint: z.string().optional(),
       iconPaths: z.array(z.string()).optional(),
       monogram: z.string().optional(),
+      // Screenshots of the item, the first one leading. A malformed list reads as none rather than
+      // costing the item its place on the shelf: it is a picture, not an install fact.
+      shots: z
+        .array(z.object({ src: z.string(), thumb: z.string().optional(), label: localized.optional() }))
+        .optional()
+        .catch(undefined),
     })
     .default({}),
   // `repo` is where an app's source is; an entry without one cannot be copied, and installs as before.
-  links: z.object({ page: z.string(), repo: z.string().optional() }),
+  // `demo` is the item's live demo on adminium.dev, where it has one (the same leniency as `shots`).
+  links: z.object({ page: z.string(), repo: z.string().optional(), demo: z.string().optional().catch(undefined) }),
   lastUpdatedAt: z.string(),
   file: z.object({ size: z.number().int().nonnegative(), publishedAt: z.string().nullable() }).nullable().default(null),
   newerRelease: z.object({ version, minAdminiumVersion: version }).optional(),

@@ -119,7 +119,11 @@ export default {
     "startThis": "Start med denne",
     "startApp": "Start med denne: {name}",
     "staffSide": "Medarbejderside",
-    "customerSide": "Kundeside"
+    "customerSide": "Kundeside",
+    "demo": "Prøv demoen",
+    "demoApp": "Prøv demoen: {name}",
+    "page": "Se den på adminium.dev",
+    "pageApp": "Se den på adminium.dev: {name}"
   },
   "apps": {
     "title": "Dine apps",

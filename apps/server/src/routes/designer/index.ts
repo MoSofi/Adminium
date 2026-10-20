@@ -28,7 +28,7 @@ import type { ArchitectureDocument } from '../../designer/architecture.js';
 import { safeTarget, type PreviewTickets } from '../../designer/preview.js';
 import { parseSelected, type AiConnections, type ConnectionId } from '../../llm/connections.js';
 import { pickLocalized } from '../../add-ons/catalog.js';
-import type { AppCatalog } from '../../apps/catalog.js';
+import { siteLink, type AppCatalog, type AppCatalogEntry } from '../../apps/catalog.js';
 import type { z } from 'zod';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
@@ -54,6 +54,7 @@ import {
   designerConnectionSaveBody,
   designerConnectionTestReply,
   designerAppsListReply,
+  designerAppPictureParams,
   designerCatalogApp,
   designerEventsQuery,
   designerModelCheckBody,
@@ -135,7 +136,13 @@ export interface DesignerRoutesDeps {
   root: string;
   limits: () => Promise<{ maxSteps: number; turnTokens: number; sessionTokens: number }>;
   /** The adminium.dev app list, for "Start with an app". */
-  appCatalog?: { isEnabled(): Promise<boolean>; fetchCatalog(signal?: AbortSignal): Promise<AppCatalog> } | undefined;
+  appCatalog?:
+    | {
+        isEnabled(): Promise<boolean>;
+        fetchCatalog(signal?: AbortSignal): Promise<AppCatalog>;
+        fetchPicture?(src: string, signal?: AbortSignal): Promise<{ bytes: Uint8Array; type: string }>;
+      }
+    | undefined;
   /** The live Designer's switch: with it, every route here answers only while it is on. Absent on a `design` server. */
   live?: Live | undefined;
   /** "Start with an app": copying one of the list into the project. Absent where the server cannot. */
@@ -190,6 +197,14 @@ const siteName = (filename: string): string => labelOf(filename).replace(/\.zip$
 
 /** How long the adminium.dev list is kept. */
 const CATALOG_CACHE_MS = 60 * 60 * 1000;
+
+/** Where a card sends a person to see the app: its live demo on adminium.dev, else its page there. */
+function siteFor(entry: AppCatalogEntry): { url: string; kind: 'demo' | 'page' } | null {
+  const demo = siteLink(entry.demo);
+  if (demo !== null) return { url: demo, kind: 'demo' };
+  const page = siteLink(entry.page);
+  return page === null ? null : { url: page, kind: 'page' };
+}
 
 /** How many events one catch-up read gives. */
 export const EVENTS_PAGE = 2000;
@@ -968,6 +983,9 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
 
     // "Start with an app": the adminium.dev list, installable apps only, read on the server and kept an hour.
     let listed: { at: number; apps: z.infer<typeof designerCatalogApp>[] } | null = null;
+    // Each app's screenshot address as the list last gave it, and the pictures fetched, kept while the server runs.
+    const shots = new Map<string, string>();
+    const pictures = new Map<string, { src: string; bytes: Uint8Array; type: string }>();
     app.get('/designer/apps', { preHandler: guard, config: RATE, schema: { response: { 200: designerAppsListReply } } }, async () => {
       if (deps.appCatalog === undefined || !(await deps.appCatalog.isEnabled())) return { state: 'off' as const, apps: [] };
       if (listed !== null && Date.now() - listed.at < CATALOG_CACHE_MS) return { state: 'ok' as const, apps: listed.apps };
@@ -984,13 +1002,45 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           iconTint: entry.iconTint ?? null,
           iconPaths: entry.iconPaths ?? [],
           monogram: entry.monogram ?? null,
+          picture: entry.shot === undefined ? null : { alt: pickLocalized(entry.shot.label, 'en-US') ?? '' },
+          site: siteFor(entry),
         }));
+        shots.clear();
+        for (const entry of catalog.apps) if (entry.shot !== undefined) shots.set(entry.key, entry.shot.src);
         listed = { at: Date.now(), apps };
         return { state: 'ok' as const, apps };
       } catch {
         return { state: 'unreachable' as const, apps: [] };
       }
     });
+
+    // A card's cover: the screenshot the list names, fetched by this server (the page's picture policy is this server only) and kept.
+    app.get(
+      '/designer/apps/:key/picture',
+      { preHandler: guard, config: RATE, schema: { params: designerAppPictureParams } },
+      async (request, reply) => {
+        const src = shots.get(request.params.key);
+        if (src === undefined || deps.appCatalog?.fetchPicture === undefined || !(await deps.appCatalog.isEnabled())) {
+          throw new NotFoundError('This app has no picture here.', { reason: 'NO_PICTURE' });
+        }
+        let picture = pictures.get(request.params.key);
+        if (picture === undefined || picture.src !== src) {
+          try {
+            picture = { src, ...(await deps.appCatalog.fetchPicture(src, AbortSignal.timeout(10_000))) };
+          } catch {
+            throw new NotFoundError('The picture could not be fetched.', { reason: 'NO_PICTURE' });
+          }
+          pictures.set(request.params.key, picture);
+        }
+        return reply
+          .header('content-type', picture.type)
+          .header('x-content-type-options', 'nosniff')
+          .header('content-security-policy', "default-src 'none'; sandbox")
+          .header('cache-control', 'private, max-age=86400')
+          .header('content-disposition', 'inline')
+          .send(Buffer.from(picture.bytes));
+      },
+    );
 
     // "Start with an app": the copy's key as it is typed, then the copy itself as a job the sheet watches.
     app.get(

@@ -119,7 +119,11 @@ export default {
     "startThis": "从这个开始",
     "startApp": "从这个开始：{name}",
     "staffSide": "员工端",
-    "customerSide": "客户端"
+    "customerSide": "客户端",
+    "demo": "试用演示",
+    "demoApp": "试用演示：{name}",
+    "page": "在 adminium.dev 上查看",
+    "pageApp": "在 adminium.dev 上查看：{name}"
   },
   "apps": {
     "title": "你的应用",

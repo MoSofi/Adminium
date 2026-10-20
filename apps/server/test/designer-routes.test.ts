@@ -910,6 +910,77 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect((await client.call('GET', '/api/v1/designer/apps')).body).toEqual({ state: 'off', apps: [] });
   });
 
+  it('give each app of the list its screenshot, served from this server, and a link to its demo or page', async () => {
+    const shot = 'https://adminium.dev/shots/clinic/find.webp';
+    const item = (key: string, art: Record<string, unknown>, links: Record<string, unknown>): Record<string, unknown> => ({
+      kind: 'app',
+      key,
+      availability: 'installable',
+      name: { en: key },
+      tagline: { en: 'An app.' },
+      author: { name: 'Adminium' },
+      art,
+      links,
+      lastUpdatedAt: '2026-10-20T00:00:00.000Z',
+      release: {
+        version: '0.1.0',
+        integrity: 'sha512-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ+/==',
+        categories: [],
+        capabilities: [],
+        publisher: 'Adminium',
+        sides: ['staff'],
+        minAdminiumVersion: '0.1.0',
+        addOns: { requires: [], suggests: [], features: [] },
+      },
+    });
+    const feed = {
+      format: 'adminium-marketplace/1',
+      generatedAt: '2026-10-20T00:00:00Z',
+      items: [
+        item('clinic', { shots: [{ src: shot, label: { en: 'Find a time' } }] }, { page: 'https://adminium.dev/marketplace/clinic/', demo: 'https://adminium.dev/demo/clinic-desk/' }),
+        item('crm', {}, { page: 'https://adminium.dev/marketplace/crm/' }),
+        item('odd', {}, { page: 'javascript:alert(1)', demo: 'https://evil.example/demo/' }),
+      ],
+    };
+    const reached: string[] = [];
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (!url.startsWith('https://adminium.dev/')) return realFetch(input, init);
+      reached.push(url);
+      if (url === shot) return Promise.resolve(new Response(new Uint8Array([82, 73, 70, 70]), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify(feed), { status: 200 }));
+    });
+    try {
+      const client = await server({ designer: true });
+      const listed = await client.call('GET', '/api/v1/designer/apps');
+      expect(listed.body).toMatchObject({
+        state: 'ok',
+        apps: [
+          { key: 'clinic', picture: { alt: 'Find a time' }, site: { url: 'https://adminium.dev/demo/clinic-desk/', kind: 'demo' } },
+          { key: 'crm', picture: null, site: { url: 'https://adminium.dev/marketplace/crm/', kind: 'page' } },
+          { key: 'odd', picture: null, site: null },
+        ],
+      });
+
+      const picture = (key: string) => composed!.app.inject({ method: 'GET', url: `/api/v1/designer/apps/${key}/picture`, headers: { host: HOST, cookie: client.owner } });
+      const first = await picture('clinic');
+      expect(first.statusCode).toBe(200);
+      expect(first.headers['content-type']).toBe('image/webp');
+      expect(first.headers['x-content-type-options']).toBe('nosniff');
+      expect([...first.rawPayload]).toEqual([82, 73, 70, 70]);
+      // Kept: a second card render asks adminium.dev nothing.
+      expect((await picture('clinic')).statusCode).toBe(200);
+      expect(reached.filter((url) => url === shot)).toHaveLength(1);
+      expect((await picture('crm')).statusCode).toBe(404);
+      expect((await picture('nobody')).statusCode).toBe(404);
+      // Without a session, nothing.
+      expect((await composed!.app.inject({ method: 'GET', url: '/api/v1/designer/apps/clinic/picture', headers: { host: HOST } })).statusCode).toBe(401);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('test a model without saving it, and save one to the project’s .env', async () => {
     const client = await server({ designer: true });
     const tested = await client.call('POST', '/api/v1/designer/connections/test', { provider: 'ollama', baseUrl: modelUrl, model: 'fake' });

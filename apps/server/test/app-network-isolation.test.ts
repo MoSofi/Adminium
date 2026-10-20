@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The app catalog's version of D8's proof (b G8-D3/D4): with its switch off,
- * NO app catalog code path makes an outbound call, and with it on, exactly
- * two first-party addresses are reached — the app feed and the downloads
- * host's `/apps/` folder.
+ * NO app catalog code path makes an outbound call, and with it on, only
+ * first-party addresses are reached — the app feed, the downloads host's
+ * `/apps/` folder, and the feed host's screenshots (the Designer's cards).
  *
  * Mirrors `add-on-network-isolation.test.ts`, recording thrower included: ALL
  * outbound network (fetch + node net/http/https) records the attempt and then
@@ -147,6 +147,8 @@ function wireItem(item: Record<string, unknown> = {}, release: Record<string, un
   };
 }
 
+const SHOT = 'https://adminium.dev/shots/clinic/find.webp';
+
 const shelf = (items: unknown[]) => ({ format: 'adminium-marketplace/1', generatedAt: '2026-09-16T00:00:00Z', items });
 const FEED = shelf([wireItem()]);
 
@@ -185,6 +187,7 @@ describe('app catalog: off means zero outbound attempts', () => {
     expect(await client.isEnabled()).toBe(false);
     await expect(client.fetchCatalog()).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
     await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
+    await expect(client.fetchPicture(SHOT)).rejects.toMatchObject({ reason: 'CATALOG_DISABLED' });
 
     expect(calls).toEqual([]);
     expect(guard.attempts).toEqual([]);
@@ -199,6 +202,7 @@ describe('app catalog: off means zero outbound attempts', () => {
     expect(client.networkFeaturesAllowed()).toBe(false);
     await expect(client.fetchCatalog()).rejects.toMatchObject({ reason: 'NETWORK_FEATURES_OFF' });
     await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'NETWORK_FEATURES_OFF' });
+    await expect(client.fetchPicture(SHOT)).rejects.toMatchObject({ reason: 'NETWORK_FEATURES_OFF' });
 
     expect(calls).toEqual([]);
     expect(guard.attempts).toEqual([]);
@@ -230,7 +234,7 @@ describe('app catalog: off means zero outbound attempts', () => {
   });
 });
 
-describe('app catalog: on, it reaches exactly two first-party addresses', () => {
+describe('app catalog: on, it reaches only first-party addresses', () => {
   beforeEach(async () => {
     await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, true);
   });
@@ -254,7 +258,15 @@ describe('app catalog: on, it reaches exactly two first-party addresses', () => 
     );
     const catalog = await client.fetchCatalog();
     expect(catalog.apps).toEqual([
-      { ...ENTRY, author: 'Adminium', iconTint: '#0f766e', iconPaths: ['M4 4h16v16H4z'], lastUpdatedAt: '2026-09-16T00:00:00.000Z', addOns: { requires: ['add-on-invoices'], suggests: [] } },
+      {
+        ...ENTRY,
+        author: 'Adminium',
+        iconTint: '#0f766e',
+        iconPaths: ['M4 4h16v16H4z'],
+        lastUpdatedAt: '2026-09-16T00:00:00.000Z',
+        page: 'https://adminium.dev/marketplace/clinic/',
+        addOns: { requires: ['add-on-invoices'], suggests: [] },
+      },
     ]);
     expect(calls.map((c) => c.url)).toEqual([`${APP_CATALOG_ENDPOINT}?adminium=${APP_VERSION}`]);
     expect(APP_CATALOG_ENDPOINT).toBe('https://adminium.dev/api/v1/marketplace/apps');
@@ -288,12 +300,59 @@ describe('app catalog: on, it reaches exactly two first-party addresses', () => 
     expect(appDownloadUrlFor('hotel', '0.1.1')).toBe('https://downloads.adminium.dev/apps/hotel/hotel-0.1.1.tgz');
   });
 
+  it('keeps the first screenshot and the demo link, and a malformed shot list costs the app nothing', async () => {
+    const shots = [
+      { src: SHOT, thumb: 'https://adminium.dev/shots/clinic/find-t.webp', label: { en: 'Find a time' } },
+      { src: 'https://adminium.dev/shots/clinic/day.webp' },
+    ];
+    const { client } = recording(
+      () =>
+        new Response(
+          JSON.stringify(
+            shelf([
+              wireItem({ art: { tint: '#0f766e', shots }, links: { page: 'https://adminium.dev/marketplace/clinic/', demo: 'https://adminium.dev/demo/clinic-desk/' } }),
+              wireItem({ key: 'hotel', art: { shots: 'not a list' }, links: { page: 'https://adminium.dev/marketplace/hotel/', demo: 7 } }),
+            ]),
+          ),
+          { status: 200 },
+        ),
+    );
+    const catalog = await client.fetchCatalog();
+    expect(catalog.apps[0]).toMatchObject({ shot: { src: SHOT, label: { en: 'Find a time' } }, demo: 'https://adminium.dev/demo/clinic-desk/' });
+    expect(catalog.apps[1]).toMatchObject({ key: 'hotel', page: 'https://adminium.dev/marketplace/hotel/' });
+    expect(catalog.apps[1]).not.toHaveProperty('shot');
+    expect(catalog.apps[1]).not.toHaveProperty('demo');
+  });
+
+  it('fetches a screenshot from the feed’s own host, and refuses any other address before a request', async () => {
+    const { client, calls } = recording(() => new Response(new Uint8Array([7, 7]), { status: 200 }));
+    expect(await client.fetchPicture(SHOT)).toEqual({ bytes: new Uint8Array([7, 7]), type: 'image/webp' });
+    expect(calls.map((c) => c.url)).toEqual([SHOT]);
+    expect(calls[0]!.init.redirect).toBe('manual');
+
+    for (const src of [
+      'https://evil.example/shots/clinic/find.webp',
+      'http://adminium.dev/shots/clinic/find.webp',
+      'https://downloads.adminium.dev/shots/clinic/find.webp',
+      'https://adminium.dev/api/v1/marketplace/apps',
+      'https://adminium.dev/shots/clinic/find.svg',
+      'https://adminium.dev/shots/clinic/find.webp?x=1',
+      'https://adminium.dev/shots/../admin/find.webp',
+      'https://user@adminium.dev/shots/clinic/find.webp',
+      'not a url',
+    ]) {
+      await expect(client.fetchPicture(src), src).rejects.toMatchObject({ reason: 'CATALOG_MALFORMED' });
+    }
+    expect(calls).toHaveLength(1);
+  });
+
   it('refuses a redirect on either leg, without following it', async () => {
     const { client } = recording(
       () => new Response(null, { status: 302, headers: { location: 'https://evil.example/x' } }),
     );
     await expect(client.fetchCatalog()).rejects.toMatchObject({ reason: 'REDIRECTED' });
     await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'REDIRECTED' });
+    await expect(client.fetchPicture(SHOT)).rejects.toMatchObject({ reason: 'REDIRECTED' });
   });
 
   it('names a missing release file as its own refusal', async () => {

@@ -219,6 +219,9 @@ function stubCatalog(): AppCatalogClient | undefined {
     fetchTarball: async () => {
       throw new Error('a route must never download inline');
     },
+    fetchPicture: async () => {
+      throw new Error('the app routes never fetch a picture');
+    },
   };
 }
 

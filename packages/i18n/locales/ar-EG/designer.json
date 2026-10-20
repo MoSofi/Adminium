@@ -109,7 +109,11 @@
     "startThis": "ابدأ بهذا",
     "startApp": "ابدأ بهذا: {name}",
     "staffSide": "واجهة الموظفين",
-    "customerSide": "واجهة العملاء"
+    "customerSide": "واجهة العملاء",
+    "demo": "جرّب العرض التجريبي",
+    "demoApp": "جرّب العرض التجريبي: {name}",
+    "page": "شاهده على adminium.dev",
+    "pageApp": "شاهده على adminium.dev: {name}"
   },
   "apps": {
     "title": "تطبيقاتك",

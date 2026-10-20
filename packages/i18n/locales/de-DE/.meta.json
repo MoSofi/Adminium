@@ -13523,6 +13523,14 @@
     "status": "mt",
     "srcHash": "bddd0ade3d15"
   },
+  "designer.start.demo": {
+    "status": "mt",
+    "srcHash": "38cfaf72c1d2"
+  },
+  "designer.start.demoApp": {
+    "status": "mt",
+    "srcHash": "0fed6cc6aee3"
+  },
   "designer.start.failed": {
     "status": "mt",
     "srcHash": "c0d164307950"
@@ -13538,6 +13546,14 @@
   "designer.start.off": {
     "status": "mt",
     "srcHash": "faeb480b7f4e"
+  },
+  "designer.start.page": {
+    "status": "mt",
+    "srcHash": "468f27774070"
+  },
+  "designer.start.pageApp": {
+    "status": "mt",
+    "srcHash": "a9239d8f76cc"
   },
   "designer.start.retry": {
     "status": "mt",

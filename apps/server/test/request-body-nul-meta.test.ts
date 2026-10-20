@@ -61,7 +61,14 @@ async function metaOn(engine: 'sqlite' | 'postgres' | 'mysql'): Promise<{ meta: 
     await admin.connect();
     await admin.query(`CREATE DATABASE "${database}"`);
     await admin.end();
-    const meta = createPostgresMetaDb({ pool: new pg.Pool({ connectionString: withDatabase(PG!, database), max: 4, types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>) }) });
+    const pool = new pg.Pool({ connectionString: withDatabase(PG!, database), max: 4, types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>) });
+    // `pool.end()` resolves before its clients have closed, so the DROP ... WITH
+    // (FORCE) below can kill one still closing (57P01). With no listener, pg
+    // throws that as an uncaught error and fails the whole run. The product's
+    // meta store guards its pool the same way (src/meta/store.ts).
+    pool.on('error', () => undefined);
+    pool.on('connect', (client) => client.on('error', () => undefined));
+    const meta = createPostgresMetaDb({ pool });
     return {
       meta,
       drop: async () => {

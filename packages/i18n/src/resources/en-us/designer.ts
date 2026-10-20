@@ -119,7 +119,11 @@ export default {
     "startThis": "Start with this",
     "startApp": "Start with this: {name}",
     "staffSide": "Staff side",
-    "customerSide": "Customer side"
+    "customerSide": "Customer side",
+    "demo": "Try the demo",
+    "demoApp": "Try the demo: {name}",
+    "page": "See it on adminium.dev",
+    "pageApp": "See it on adminium.dev: {name}"
   },
   "apps": {
     "title": "Your apps",

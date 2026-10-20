@@ -21,7 +21,7 @@ import { StartSheet, keyFromAppName } from './StartSheet.js';
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
 
-const APP: CatalogApp = { key: 'ordering', version: '0.2.3', name: 'Online Ordering', tagline: 'A menu, a cart and a kitchen screen.', category: 'Food', sides: ['staff', 'customer'], copyable: true, iconTint: null, iconPaths: [], monogram: null };
+const APP: CatalogApp = { key: 'ordering', version: '0.2.3', name: 'Online Ordering', tagline: 'A menu, a cart and a kitchen screen.', category: 'Food', sides: ['staff', 'customer'], copyable: true, iconTint: null, iconPaths: [], monogram: null, picture: null, site: null };
 const BUILD = { install: 'npm ci --ignore-scripts', command: 'VITE_ADMINIUM_SURFACE_SIDE=staff node_modules/.bin/vite build --base=/apps/my-online-ordering/staff/', output: 'dist-surface/my-online-ordering', fingerprint: 'f'.repeat(64) };
 const job = (over: Partial<StartJob>): StartJob => ({
   id: 'start_1',
