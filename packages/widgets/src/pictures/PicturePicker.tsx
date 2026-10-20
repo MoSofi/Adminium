@@ -78,6 +78,8 @@ export interface PicturePickerProps {
   onChoose: (items: readonly PickerItem[]) => Promise<PickerOutcome>;
   /** Where focus goes when the dialog closes: the button that opened it. */
   returnFocus?: (() => void) | undefined;
+  /** Radix's modality; `false` only for a story drawn inline with the page live behind it. */
+  modal?: boolean | undefined;
 }
 
 type Load = { state: 'loading' } | { state: 'failed' } | { state: 'ready'; items: readonly PickerItem[] };
@@ -113,11 +115,12 @@ export function formatBytes(bytes: number): string {
 const SEARCH_DEBOUNCE_MS = 250;
 
 export function PicturePicker(props: PicturePickerProps): ReactNode {
-  const { open, onOpenChange, returnFocus } = props;
+  const { open, onOpenChange, returnFocus, modal } = props;
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
+      {...(modal === undefined ? {} : { modal })}
       size="lg"
       className="h-[620px] max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:rounded-none"
     >
