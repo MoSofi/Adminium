@@ -102,6 +102,11 @@ export interface FolderDeps {
   holdsLinks?: (path: string) => boolean | null;
 }
 
+/** Whether a folder holds a site template: a page at its top. Names only; nothing is opened. */
+export function holdsSitePage(folder: FolderDeps, path: string): boolean {
+  return (folder.list(path) ?? []).some((name) => !name.startsWith('.') && /\.html?$/i.test(name));
+}
+
 /** A project's name as a folder's: lower case, words joined by dashes. */
 export function folderNameFor(name: string): string {
   return name

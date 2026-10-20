@@ -64,7 +64,8 @@ describe('making a project', () => {
     await expect(createMakeProject(deps(run, { log }))({ parent, folder: 'shop', root })).resolves.toEqual({ ok: true });
     expect(run).toHaveBeenCalledWith(
       '/Applications/Adminium.app/Contents/MacOS/Adminium',
-      ['/app/node_modules/@adminium/server/dist/cli/index.js', 'new', 'shop', '--yes', '--database', NEW_PROJECT_DATABASE],
+      // A site template in the parent goes into the project: the engine decides, and changes nothing of the parent.
+      ['/app/node_modules/@adminium/server/dist/cli/index.js', 'new', 'shop', '--yes', '--database', NEW_PROJECT_DATABASE, '--site-template', parent],
       { cwd: parent, env: { PATH: '/usr/bin', ELECTRON_RUN_AS_NODE: '1', ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"x"}' }, timeoutMs: MAKE_PROJECT_TIMEOUT_MS, onOutput: expect.any(Function) as unknown },
     );
     // The parent was made first: `new` is run IN it.

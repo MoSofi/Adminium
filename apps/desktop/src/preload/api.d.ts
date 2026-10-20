@@ -495,7 +495,7 @@ export type DesktopOpenProjectResult =
   /** Not agreed to yet on this computer, or its code changed since: ask, then call again with `agreed`. */
   | { readonly status: 'trust-needed'; readonly path: string; readonly displayPath: string; readonly changed: boolean }
   | { readonly status: 'missing' }
-  | { readonly status: 'not-a-project' }
+  | { readonly status: 'not-a-project'; /** The folder holds a site template (a page at its top): the new project made in it takes it along. */ readonly template?: boolean }
   /** Agreed to, and what it is built with is not on this computer: ask, then call `getPackages`. */
   | { readonly status: 'needs-packages'; readonly path: string; readonly displayPath: string }
   /** A server already has this folder (a terminal's, or another window's). */

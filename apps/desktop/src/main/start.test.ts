@@ -325,6 +325,17 @@ describe('opening a folder', () => {
     expect(chosen).toEqual([]);
   });
 
+  it('says a folder that is not a project holds a site template when it has a page at its top, and only then', async () => {
+    const template = join(home, 'harbor-bakery');
+    mkdirSync(join(template, 'css'), { recursive: true });
+    writeFileSync(join(template, 'css', 'about.html'), '<html></html>');
+    const { start } = service();
+    // A page one folder down is not one at its top.
+    await expect(start.openProject({ path: template, agreed: true })).resolves.toEqual({ status: 'not-a-project' });
+    writeFileSync(join(template, 'index.html'), '<html></html>');
+    await expect(start.openProject({ path: template, agreed: true })).resolves.toEqual({ status: 'not-a-project', template: true });
+  });
+
   it('remembers an agreed folder that has no packages yet, and does not start it', async () => {
     const shop = project('shop', { packages: false });
     await expect(service().start.openProject({ path: shop, agreed: true })).resolves.toEqual({ status: 'needs-packages', path: shop, displayPath: '~/shop' });

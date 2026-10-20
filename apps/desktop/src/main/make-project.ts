@@ -115,7 +115,8 @@ export function createMakeProject(
         onStep?.('packages');
       }
     };
-    const ran = await deps.run(deps.binary, [deps.cliEntry, 'new', folder, '--yes', '--database', NEW_PROJECT_DATABASE], {
+    // A folder holding a site template gives it to the project made in it; the engine decides, and leaves the folder as it was.
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'new', folder, '--yes', '--database', NEW_PROJECT_DATABASE, '--site-template', parent], {
       cwd: parent,
       env,
       timeoutMs: MAKE_PROJECT_TIMEOUT_MS,

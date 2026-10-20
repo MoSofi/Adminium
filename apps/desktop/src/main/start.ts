@@ -59,6 +59,7 @@ import {
   PROJECT_CONFIG_FILES,
   folderNameFor,
   forgetProject,
+  holdsSitePage,
   isProjectFolder,
   judgeNewProjectFolder,
   proposedParent,
@@ -344,8 +345,8 @@ export function createStartService(deps: StartDeps): StartService {
       } catch {
         return { status: 'missing' };
       }
-      // The folder itself, never a parent that happens to be a project.
-      if (!isProjectFolder(root, deps.folder.exists)) return { status: 'not-a-project' };
+      // The folder itself, never a parent that happens to be a project. One holding a site template says so: the project made in it takes it along.
+      if (!isProjectFolder(root, deps.folder.exists)) return { status: 'not-a-project', ...(holdsSitePage(deps.folder, root) ? { template: true } : {}) };
 
       const config = deps.readConfig();
       const known = config.projects.find((entry) => entry.path === root) ?? null;

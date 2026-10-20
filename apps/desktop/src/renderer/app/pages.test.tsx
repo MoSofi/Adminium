@@ -539,6 +539,17 @@ describe('the screens on the way into a folder', () => {
     });
   });
 
+  it('a folder that holds a site template says the new project takes it along, and that the folder is left as it is', async () => {
+    pick([{ status: 'not-a-project', template: true }]);
+    expect(await screen.findByText("This folder holds a site template. The new project is made inside it, and the template is copied in. This folder's own files are not changed.")).toBeTruthy();
+  });
+
+  it('a folder with no site template says nothing of one', async () => {
+    pick([{ status: 'not-a-project' }]);
+    expect(await screen.findByText('This folder is not an Adminium project.')).toBeTruthy();
+    expect(screen.queryByText(/holds a site template/)).toBeNull();
+  });
+
   it('"Choose another folder" opens the picker again', async () => {
     const { start } = pick([{ status: 'not-a-project' }]);
     fireEvent.click(await screen.findByRole('button', { name: 'Choose another folder' }));
