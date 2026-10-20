@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, s
 import { join } from 'node:path';
 
 import { cleanPalette, type PaletteColour } from '../project/apps/theme.js';
-import type { Judged, SiteFileKind } from './site/judge.js';
+import type { Judged, LeftOutReason, SiteFileKind } from './site/judge.js';
 
 import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 
@@ -87,7 +87,7 @@ export interface Attachment {
   /** A site template's pages and files kept, and what was left out with why (the first of them; `leftOutCount` says how many). Its files are a folder, listed in its `site.json`. */
   pages?: number;
   files?: number;
-  leftOut?: { file: string; why: string }[];
+  leftOut?: { file: string; reason: LeftOutReason }[];
   leftOutCount?: number;
   /** Who added it: a person's files count toward what one person may keep. Never sent to a page. */
   by?: string;
@@ -248,7 +248,7 @@ export interface Attachments {
 /** A site's `site.json`: each kept path, the name it is stored under, its kind, size and hash; and what was left out. */
 export interface SiteIndex {
   files: { path: string; stored: string; kind: SiteFileKind; bytes: number; sha256: string }[];
-  leftOut: { path: string; why: string }[];
+  leftOut: { path: string; reason: LeftOutReason; why: string }[];
   leftOutCount: number;
 }
 
@@ -358,7 +358,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
         at: now(),
         pages: judged.pages,
         files: judged.files.length,
-        leftOut: judged.leftOut.slice(0, 50).map((each) => ({ file: each.path, why: each.why })),
+        leftOut: judged.leftOut.slice(0, 50).map((each) => ({ file: each.path, reason: each.reason })),
         leftOutCount: judged.leftOutCount,
         ...(input.by === undefined ? {} : { by: input.by }),
       };

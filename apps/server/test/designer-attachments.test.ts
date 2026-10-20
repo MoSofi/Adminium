@@ -428,7 +428,7 @@ describe('a site template', () => {
   it('is kept as a folder of files under names of the server’s own, with site.json, staged and renamed into place', async () => {
     const { attachment, again } = files.addSite(SESSION, { label: 'harbor-bakery', judged: await judgeSite('harbor-bakery.zip', SITE), by: 'u1' });
     expect(again).toBe(false);
-    expect(attachment).toMatchObject({ kind: 'site', label: 'harbor-bakery', pages: 2, files: 4, leftOut: [{ file: 'shop.php', why: 'PHP is not used' }], leftOutCount: 1, by: 'u1' });
+    expect(attachment).toMatchObject({ kind: 'site', label: 'harbor-bakery', pages: 2, files: 4, leftOut: [{ file: 'shop.php', reason: 'php' }], leftOutCount: 1, by: 'u1' });
     const stored = readdirSync(folder(attachment.id)).sort();
     expect(stored).toEqual(['f0001.html', 'f0002.css', 'f0003.bin', 'f0004.html', 'site.json']);
     const index = JSON.parse(readFileSync(join(folder(attachment.id), 'site.json'), 'utf8')) as { files: { path: string; stored: string }[] };

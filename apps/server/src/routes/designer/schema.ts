@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import { LICENCE_CODES } from '../../designer/licences.js';
 import { PICTURE_PAGES_MAX, PICTURE_SHAPES, SOURCE_NAMES } from '../../designer/pictures.js';
+import { LEFT_OUT_REASONS, type LeftOutReason } from '../../designer/site/judge.js';
 
 const target = z.enum(['auto', 'dashboard', 'web', 'mobile']);
 
@@ -187,7 +188,7 @@ export const designerAttachment = z.object({
   /** A site template's pages and files kept, and what was left out (the first of them) with how many there were. */
   pages: z.number().int().optional(),
   files: z.number().int().optional(),
-  leftOut: z.array(z.object({ file: z.string(), why: z.string() })).optional(),
+  leftOut: z.array(z.object({ file: z.string(), reason: z.enum(Object.keys(LEFT_OUT_REASONS) as [LeftOutReason, ...LeftOutReason[]]) })).optional(),
   leftOutCount: z.number().int().optional(),
 });
 export const designerSiteQuery = z.object({

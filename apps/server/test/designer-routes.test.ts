@@ -505,7 +505,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     const sent = await send('harbor-bakery.zip', harbor);
     expect(sent.statusCode, sent.body).toBe(201);
     const site = (sent.json() as { attachment: { id: string } }).attachment;
-    expect(site).toEqual({ id: site.id, label: 'harbor-bakery', kind: 'site', mediaType: 'application/zip', bytes: page.length + 'body{color:#3b2a1a}'.length, pages: 1, files: 2, leftOut: [{ file: 'shop.php', why: 'PHP is not used' }], leftOutCount: 1 });
+    expect(site).toEqual({ id: site.id, label: 'harbor-bakery', kind: 'site', mediaType: 'application/zip', bytes: page.length + 'body{color:#3b2a1a}'.length, pages: 1, files: 2, leftOut: [{ file: 'shop.php', reason: 'php' }], leftOutCount: 1 });
     const folder = join(root!, '.adminium', 'designer', 'sessions', session.id, 'attachments', site.id);
     expect(existsSync(join(folder, 'site.json'))).toBe(true);
     // Never served back.

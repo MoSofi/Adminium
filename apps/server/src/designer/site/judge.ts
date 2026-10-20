@@ -34,6 +34,29 @@ export const SITE_LEFT_OUT_LISTED = 100;
 
 export type SiteFileKind = 'html' | 'css' | 'js' | 'picture' | 'svg' | 'font' | 'text';
 
+/** Why a file was left out: a code the page says in the person's language, and its words here. */
+export const LEFT_OUT_REASONS = {
+  php: 'PHP is not used',
+  video: 'videos are not kept',
+  sound: 'sounds are not kept',
+  scss: 'SCSS and Less are not used; their CSS is',
+  map: 'source maps are not kept',
+  zip: 'a zip inside the template is not opened',
+  source: 'source code that needs a build is not used',
+  'build-file': 'build files are not used',
+  'build-folder': 'build folders are not used',
+  hidden: 'hidden files are not kept',
+  link: 'links are not followed',
+  'not-file': 'it is not a file',
+  kind: 'this kind of file is not kept',
+  'not-picture': 'it is not the picture its name says',
+  'not-font': 'it is not the font its name says',
+  'svg-runs': 'it holds a script or a link that runs, so it is not kept',
+  'not-svg': 'it is not an SVG picture',
+  'not-text': 'it does not read as text',
+} as const;
+export type LeftOutReason = keyof typeof LEFT_OUT_REASONS;
+
 const KB = 1024;
 const MB = 1024 * KB;
 /** The most one file of each kind may be. */
@@ -66,7 +89,7 @@ export interface JudgedFile {
 export interface Judged {
   files: JudgedFile[];
   /** What was left out, each with its reason, at most `SITE_LEFT_OUT_LISTED` of them. */
-  leftOut: { path: string; why: string }[];
+  leftOut: { path: string; reason: LeftOutReason; why: string }[];
   leftOutCount: number;
   pages: number;
   bytes: number;
@@ -109,14 +132,14 @@ const EXT_KIND: Record<string, SiteFileKind> = {
 };
 
 /** Why a kind of file is left out, by its extension. */
-const LEFT_OUT_WHY: [RegExp, string][] = [
-  [/^(php\d?|phtml)$/, 'PHP is not used'],
-  [/^(mp4|webm|mov|avi|mkv|m4v|ogv|wmv|flv)$/, 'videos are not kept'],
-  [/^(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/, 'sounds are not kept'],
-  [/^(scss|sass|less|styl)$/, 'SCSS and Less are not used; their CSS is'],
-  [/^map$/, 'source maps are not kept'],
-  [/^(zip|rar|7z|tar|gz|tgz|bz2|xz)$/, 'a zip inside the template is not opened'],
-  [/^(ts|tsx|jsx|vue|svelte|coffee)$/, 'source code that needs a build is not used'],
+const LEFT_OUT_BY_EXT: [RegExp, LeftOutReason][] = [
+  [/^(php\d?|phtml)$/, 'php'],
+  [/^(mp4|webm|mov|avi|mkv|m4v|ogv|wmv|flv)$/, 'video'],
+  [/^(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/, 'sound'],
+  [/^(scss|sass|less|styl)$/, 'scss'],
+  [/^map$/, 'map'],
+  [/^(zip|rar|7z|tar|gz|tgz|bz2|xz)$/, 'zip'],
+  [/^(ts|tsx|jsx|vue|svelte|coffee)$/, 'source'],
 ];
 const BUILD_FILES = /^(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|composer\.json|composer\.lock|gulpfile\.js|gruntfile\.js|webpack\.config\.[cm]?js|vite\.config\.[cm]?[jt]s|rollup\.config\.[cm]?js|tailwind\.config\.[cm]?js|postcss\.config\.[cm]?js|bower\.json|makefile|dockerfile)$/i;
 /** What an operating system adds by itself: left out without a word. */
@@ -175,11 +198,11 @@ const SVG_RUNS = /<script|\son[a-z]+\s*=|<foreignobject|<!entity|<\?xml-styleshe
 /** Judges a template's entries: what is kept, what is left out and why, or one sentence that refuses it whole. */
 export async function judgeSite(label: string, entries: readonly SiteEntry[]): Promise<Judged> {
   if (entries.length > SITE_MAX_ENTRIES) throw new SiteRefusal('SITE_LIMIT', `${label} has more than ${SITE_MAX_ENTRIES.toLocaleString('en-US')} files and folders.`);
-  const leftOut: { path: string; why: string }[] = [];
+  const leftOut: { path: string; reason: LeftOutReason; why: string }[] = [];
   let leftOutCount = 0;
-  const leave = (path: string, why: string): void => {
+  const leave = (path: string, reason: LeftOutReason): void => {
     leftOutCount += 1;
-    if (leftOut.length < SITE_LEFT_OUT_LISTED) leftOut.push({ path, why });
+    if (leftOut.length < SITE_LEFT_OUT_LISTED) leftOut.push({ path, reason, why: LEFT_OUT_REASONS[reason] });
   };
 
   // Every path is checked, junk too: a bad name refuses the template wherever it sits.
@@ -208,30 +231,30 @@ export async function judgeSite(label: string, entries: readonly SiteEntry[]): P
     if (path.length > SITE_MAX_PATH) throw new SiteRefusal('SITE_LIMIT', `${label} has a file path over ${String(SITE_MAX_PATH)} characters (${path.slice(0, 60)}…).`);
     if (parts.length - 1 > SITE_MAX_DEPTH) throw new SiteRefusal('SITE_LIMIT', `${label} has a file more than ${String(SITE_MAX_DEPTH)} folders deep (${path}).`);
     if (entry.type === 'link') {
-      leave(path, 'links are not followed');
+      leave(path, 'link');
       continue;
     }
     if (entry.type !== 'file') {
-      leave(path, 'it is not a file');
+      leave(path, 'not-file');
       continue;
     }
     if (parts.some((part) => part.startsWith('.'))) {
-      leave(path, 'hidden files are not kept');
+      leave(path, 'hidden');
       continue;
     }
     if (parts.slice(0, -1).some((part) => part === 'node_modules')) {
-      leave(path, 'build folders are not used');
+      leave(path, 'build-folder');
       continue;
     }
     const file = parts[parts.length - 1] ?? '';
     const ext = /\.([a-z0-9]+)$/i.exec(file)?.[1]?.toLowerCase() ?? '';
     if (BUILD_FILES.test(file)) {
-      leave(path, 'build files are not used');
+      leave(path, 'build-file');
       continue;
     }
     const kind = TEXT_NAME.test(file) ? 'text' : EXT_KIND[ext];
     if (kind === undefined) {
-      leave(path, LEFT_OUT_WHY.find(([pattern]) => pattern.test(ext))?.[1] ?? 'this kind of file is not kept');
+      leave(path, LEFT_OUT_BY_EXT.find(([pattern]) => pattern.test(ext))?.[1] ?? 'kind');
       continue;
     }
     if (entry.size > SITE_FILE_CAPS[kind]) {
@@ -249,21 +272,21 @@ export async function judgeSite(label: string, entries: readonly SiteEntry[]): P
     const bytes = await entry.read();
     if (bytes.length > SITE_FILE_CAPS[kind] || bytes.length > entry.size) throw new SiteRefusal('SITE_LIMIT', `${path} is larger than it says.`);
     if (kind === 'picture' && !isPicture(bytes)) {
-      leave(path, 'it is not the picture its name says');
+      leave(path, 'not-picture');
       continue;
     }
     if (kind === 'font' && !isFont(bytes)) {
-      leave(path, 'it is not the font its name says');
+      leave(path, 'not-font');
       continue;
     }
     if (kind !== 'picture' && kind !== 'font') {
       const text = textOf(bytes);
       if (text === null) {
-        leave(path, 'it does not read as text');
+        leave(path, 'not-text');
         continue;
       }
       if (kind === 'svg' && (!/<svg[\s>]/i.test(text) || SVG_RUNS.test(text))) {
-        leave(path, /<svg[\s>]/i.test(text) ? 'it holds a script or a link that runs, so it is not kept' : 'it is not an SVG picture');
+        leave(path, /<svg[\s>]/i.test(text) ? 'svg-runs' : 'not-svg');
         continue;
       }
     }
