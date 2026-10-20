@@ -540,7 +540,8 @@ describe('the Designer’s tools', () => {
       '@fontsource/inter@5.2.8',
     ]);
     expect(added.content).toContain('lucide-react: draw each icon as a small inline SVG');
-    expect(JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8'))).toEqual({ skill: 'warm', without: ['lucide-react'] });
+    // What was left out is kept with the look, and so is the pictures choice the card started on.
+    expect(JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8'))).toEqual({ skill: 'warm', without: ['lucide-react'], pictures: 'placeholders' });
     expect(readFileSync(join(root, 'apps/repairs/customer/src/fonts.css'), 'utf8')).toContain('@import "@fontsource/playfair-display/700.css";');
   });
 
