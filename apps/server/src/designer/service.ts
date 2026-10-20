@@ -40,7 +40,7 @@ import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf
 import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
 import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
-import { currentSnapshot, outsideChanges, readApplied, withApproved, writeApplied } from './outside-check.js';
+import { currentSnapshot, outsideChanges, pageTables, readApplied, withApproved, writeApplied } from './outside-check.js';
 import { readTemplatePlan } from './site/template-plan.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
@@ -452,12 +452,13 @@ export function createDesigner(host: DesignerHost): Designer {
         events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'pictures', message: kept });
         return { ok: false, version: null };
       }
-      // In a session that holds words from outside: what strangers could now do, asked before it goes live.
-      const outside = await outsideAllowed(session, handle);
-      if (outside !== null) {
-        events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'access', message: outside });
-        return { ok: false, version: null };
-      }
+    }
+    // In a session that holds words from outside: what strangers could now do, asked before it goes live. Outside a turn
+    // (a restore, a hand save, a style or a picture applied) nothing can be asked, so it is refused until it is answered.
+    const outside = await outsideAllowed(session, handle, opts.askRemovals !== false);
+    if (outside !== null) {
+      events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'access', message: outside });
+      return { ok: false, version: null };
     }
 
     // Told to stop (Stop, a cap, a shutdown): nothing more is built or applied.
@@ -713,7 +714,7 @@ export function createDesigner(host: DesignerHost): Designer {
         if (existsSync(join(host.root, APPS_DIR, key, side, 'src', 'theme.css')) && !existsSync(file)) writeFileSync(file, DESIGN_CSS_START);
       }
       if (host.needs === undefined || look.direction !== undefined) return;
-      const wants = missingFonts(host.root, look, places)
+      const wants = missingFonts(host.root, look, { ...places, key })
         .filter((font) => !(look.without ?? []).includes(font.family))
         .map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }));
       if (wants.length > 0) await host.needs({ ask: handle.ask, signal: handle.signal, handle }, key, wants);
@@ -830,29 +831,49 @@ export function createDesigner(host: DesignerHost): Designer {
    * newly let strangers do, or its pages reach, is asked before it goes live: once a turn for each.
    * Null when nothing stands in the way; else what the model is to take out.
    */
-  async function outsideAllowed(session: DesignerSession, handle: TurnHandle): Promise<string | null> {
+  /** Whether a session or its app holds words from outside: a site template or a Figma design attached, or an app built from a template. */
+  const holdsOutsideWords = (session: DesignerSession): boolean => {
     const files = host.attachments?.list(session.id) ?? [];
-    if (!files.some((entry) => entry.kind === 'site' || entry.kind === 'html' || entry.kind === 'css' || entry.source === 'figma')) return null;
+    if (files.some((entry) => entry.kind === 'site' || entry.kind === 'html' || entry.kind === 'css' || entry.source === 'figma')) return true;
+    return readTemplatePlan(host.root, session.appKey) !== null || (readLook(host.root, session.appKey)?.templateSides ?? []).length > 0;
+  };
+
+  /** Changes said in a line for the model: the first twelve, and how many more. */
+  const changeLines = (changes: readonly { line: string }[]): string => `${changes.slice(0, 12).map((change) => change.line).join('; ')}${changes.length > 12 ? `; and ${String(changes.length - 12)} more` : ''}`;
+
+  /**
+   * In a session that holds words from outside (a site template, a Figma frame), what the app would
+   * newly let strangers do, or its pages reach, is asked before it goes live: once a turn for each.
+   * Outside a turn nothing can be asked, so a change not yet allowed keeps the app from being applied.
+   * Null when nothing stands in the way; else what is to be taken out.
+   */
+  async function outsideAllowed(session: DesignerSession, handle: TurnHandle, canAsk: boolean): Promise<string | null> {
+    if (!holdsOutsideWords(session)) return null;
     const key = session.appKey;
     // What the person approved on the template's plan is not asked again: only what goes beyond it.
     const plan = readTemplatePlan(host.root, key);
     const now = currentSnapshot(host.root, key);
-    const changes = outsideChanges(host.root, key, withApproved(readApplied(host.root, key), now, plan?.approved), now);
+    const changes = outsideChanges(host.root, key, withApproved(readApplied(host.root, key), now, plan?.approved, pageTables(host.root, key)), now);
     if (changes.length === 0) return null;
     let held = outsideAnswers.get(session.id);
-    if (held === undefined || held.turn !== handle.turn) {
+    if (canAsk && (held === undefined || held.turn !== handle.turn)) {
       held = { turn: handle.turn, answers: new Map() };
       outsideAnswers.set(session.id, held);
     }
-    const unasked = changes.filter((change) => !(held as { answers: Map<string, boolean> }).answers.has(change.id));
+    const answers = held?.answers ?? new Map<string, boolean>();
+    const unasked = changes.filter((change) => !answers.has(change.id));
     if (unasked.length > 0) {
-      const answer = await handle.ask({ type: 'access-change', changes: unasked.map((change) => change.view), planned: plan !== null });
+      if (!canAsk) return `Not applied: the app would let strangers do more than the person allowed (${changeLines(unasked)}). Nothing of it is live: the Designer asks about it in its next turn.`;
+      // One answer for all of them: the card lists twelve and says how many more.
+      const answer = await handle.ask({ type: 'access-change', changes: unasked.slice(0, 12).map((change) => change.view), ...(unasked.length > 12 ? { more: unasked.length - 12 } : {}), planned: plan !== null });
       const yes = answer.type === 'access-change' && answer.accept;
-      for (const change of unasked) held.answers.set(change.id, yes);
+      for (const change of unasked) answers.set(change.id, yes);
     }
-    const refused = changes.filter((change) => held.answers.get(change.id) === false);
+    const refused = changes.filter((change) => answers.get(change.id) === false);
     if (refused.length === 0) return null;
-    return `The person did not allow this: ${refused.map((change) => change.line).join('; ')}. Build without it (take it out of access.json, roles.json or the page's code), then apply_app again. Do not ask for it again in this turn.`;
+    return canAsk
+      ? `The person did not allow this: ${changeLines(refused)}. Build without it (take it out of access.json, roles.json or the page's code), then apply_app again. Do not ask for it again in this turn.`
+      : `Not applied: the person did not allow this, and it is still in the app's files: ${changeLines(refused)}. Ask the Designer to take it out.`;
   }
 
   /** Apply that is running or done, by session and the page's own id for it. */
@@ -1160,7 +1181,7 @@ export function createDesigner(host: DesignerHost): Designer {
         });
         if (look !== null && look.skill !== styleBefore) {
           const resolved = resolveLook(host.root, look, places);
-          const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+          const fonts = missingFonts(host.root, look, { ...places, key: session.appKey }).map((font) => font.family);
           handle.events.emit(session.turns, { kind: 'style', skill: look.skill, title: resolved.title, ...(fonts.length === 0 ? {} : { fonts }) });
         }
         const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: saveLabel(paths.map((path) => listed.get(path)?.label ?? path)) });
@@ -1219,7 +1240,7 @@ export function createDesigner(host: DesignerHost): Designer {
         const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before), pictures: before?.pictures, templateSides: before?.templateSides });
         applyLook(host.root, session.appKey, look, places);
         const handle = outsideATurn(store.read(session.id), by, hold.signal);
-        const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+        const fonts = missingFonts(host.root, look, { ...places, key: session.appKey }).map((font) => font.family);
         handle.events.emit(session.turns, { kind: 'style', skill: skill.key, title: skill.title, ...(fonts.length === 0 ? {} : { fonts }) });
         const applied = await pipeline(store.read(session.id), handle, { askRemovals: false });
         await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, style: look.skill });

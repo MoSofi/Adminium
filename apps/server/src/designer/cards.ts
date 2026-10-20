@@ -12,7 +12,7 @@ import { planAnswerFor, type TemplatePlanAnswer, type TemplatePlanRequest } from
 
 /** A change to who may do what, as the "Check this before it goes live" card words it. */
 export type ChangeView =
-  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns'; table: string; columns?: string[] }
+  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns' | 'read-all' | 'no-check' | 'hidden-rows'; table: string; columns?: string[] }
   | { kind: 'role'; role: string; isNew: boolean }
   | { kind: 'call'; screen: string };
 
@@ -123,6 +123,8 @@ export type DesignerCard =
        */
       type: 'access-change';
       changes: ChangeView[];
+      /** How many more changes the same answer is for, past those listed. */
+      more?: number;
       /** The person approved a template plan: what is asked is what was not on it. */
       planned: boolean;
     }

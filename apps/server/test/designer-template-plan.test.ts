@@ -118,8 +118,10 @@ describe('the kept plan', () => {
     expect(brief).toContain('apps/shop/template-plan.json');
     expect(brief).toContain('products (12 sample rows from the template)');
     expect(brief).toContain('Kept as fixed text: categories');
-    expect(brief).toContain('Contact → messages');
-    expect(brief).toContain('Card payments: leave');
+    expect(brief).toContain('form-1 → messages');
+    expect(brief).toContain('payments: leave');
+    // The plan's own words are the model's, made from the template's: none of them rides in the prompt.
+    for (const words of ['Contact', 'Card payments', 'Chat widget', 'Products', 'furni', 'Instagram']) expect(brief).not.toContain(words);
     expect(brief).toContain('never ask for it again');
     expect(brief.length).toBeLessThan(1200);
   });
@@ -129,15 +131,36 @@ describe('the check before going live, with an approved plan', () => {
   const snap = (access: AppliedSnapshot['access'], roles: AppliedSnapshot['roles'] = {}): AppliedSnapshot => ({ access, roles, calls: [] });
   const approved = FILE('a'.repeat(64)).approved;
 
-  it('asks nothing for what the plan approved', () => {
-    const now = snap([{ table: 'products', methods: ['GET'], select: ['id', 'name'], writable: [] }, { table: 'messages', methods: ['POST'], select: [], writable: ['name', 'body'] }], { staff: ['table:@products:read', 'table:@messages:read', 'page:@products'] });
-    expect(outsideChanges(root, 'shop', withApproved(null, now, approved), now)).toEqual([]);
+  it('asks nothing for what the plan approved: its reads, its forms with their check, its role’s rights and pages', () => {
+    const now = snap([{ table: 'products', methods: ['GET'], select: ['id', 'name'], writable: [] }, { table: 'messages', methods: ['POST'], select: [], writable: ['name', 'body'], humanCheck: true }], { staff: ['table:@products:read', 'table:@messages:read', 'page:@shop-products:view', 'limits:null'] });
+    expect(outsideChanges(root, 'shop', withApproved(null, now, approved, new Map([['shop-products', 'products']])), now)).toEqual([]);
+  });
+
+  it('asks for a page of a table the plan did not name', () => {
+    const now = snap([], { staff: ['page:@shop-secrets:view'] });
+    expect(outsideChanges(root, 'shop', withApproved(null, now, approved, new Map([['shop-secrets', 'secrets']])), now).map((change) => change.view)).toEqual([{ kind: 'role', role: 'staff', isNew: false }]);
   });
 
   it('asks for what goes beyond it: another method, another column, another table, a grant the plan did not name', () => {
     const now = snap([{ table: 'products', methods: ['GET', 'PATCH'], select: ['id', 'name', 'cost'], writable: [] }, { table: 'messages', methods: ['POST'], select: [], writable: ['name', 'body', 'phone'] }, { table: 'bookings', methods: ['POST'], select: [], writable: ['when'] }], { staff: ['table:@products:read', 'table:@secrets:read'] });
     const lines = outsideChanges(root, 'shop', withApproved(null, now, approved), now).map((change) => change.line);
     expect(lines).toEqual(['strangers could change rows of products', 'strangers could read cost of products', 'strangers could write phone of messages', 'strangers could add rows to bookings', 'the role "staff" could do more than before (1 new right)']);
+  });
+
+  it('asks when access widens without a new name: every column, the human check taken off, rows no longer kept back', () => {
+    const before = snap([{ table: 'products', methods: ['GET'], select: ['name'], writable: [], rows: '{"filters":{"published":true}}' }, { table: 'messages', methods: ['POST'], select: [], writable: ['body'], humanCheck: true }]);
+    const now = snap([{ table: 'products', methods: ['GET'], select: ['*'], writable: [], rows: '{}' }, { table: 'messages', methods: ['POST'], select: [], writable: ['body'], humanCheck: false }]);
+    expect(outsideChanges(root, 'shop', before, now).map((change) => change.view.kind === 'access' && change.view.verb)).toEqual(['read-all', 'hidden-rows', 'no-check']);
+  });
+
+  it('names every column it opens, and every change past twelve', () => {
+    const before = snap([{ table: 'products', methods: ['GET'], select: ['name'], writable: [] }]);
+    const columns = Array.from({ length: 20 }, (_, n) => `c${String(n)}`);
+    const now = snap([{ table: 'products', methods: ['GET'], select: ['name', ...columns], writable: [] }, ...Array.from({ length: 14 }, (_, n) => ({ table: `t${String(n)}`, methods: ['POST'], select: [], writable: ['a'] }))]);
+    const changes = outsideChanges(root, 'shop', before, now);
+    expect(changes).toHaveLength(15);
+    expect(changes[0]?.view).toMatchObject({ verb: 'read-columns', columns });
+    expect(changes[0]?.line).toContain('and 16 more');
   });
 
   it('without a plan, is what was applied', () => {

@@ -20,12 +20,21 @@ import { code } from '../project/apps/side-calls.js';
 import { DESIGNER_DIR } from './session-store.js';
 import { screenName } from './spots.js';
 
+/** Every column: a GET entry that names no `select` shows all but codes and secrets. */
+export const ALL_COLUMNS = '*';
+
 /** One public access entry, as much of it as can grow. */
 interface AccessLite {
   table: string;
   methods: string[];
+  /** For a GET, `[ALL_COLUMNS]` when it names none. */
   select: string[];
+  /** Its own columns, and its children's as `<child>.<column>`. */
   writable: string[];
+  /** Whether a stranger's create must pass the human check. Absent in a snapshot kept before it was read. */
+  humanCheck?: boolean;
+  /** What narrows the rows it reads or writes (`filters`, `claimedBy`, `visibleWith`, `claim`), as one text: any change of it is asked. */
+  rows?: string;
 }
 
 export interface AppliedSnapshot {
@@ -97,6 +106,9 @@ export function currentSnapshot(root: string, key: string): AppliedSnapshot {
   for (const role of Array.isArray(rolesRaw) ? rolesRaw : []) {
     if (role === null || typeof role !== 'object' || typeof (role as { key?: unknown }).key !== 'string') continue;
     const grants = new Set(strings((role as { permissions?: unknown }).permissions));
+    // What the role's updates may write: a limit taken off is more it can do.
+    const limits = (role as { limits?: unknown }).limits;
+    grants.add(`limits:${JSON.stringify(limits ?? null)}`);
     for (const table of Array.isArray((role as { tables?: unknown }).tables) ? ((role as { tables: unknown[] }).tables as unknown[]) : []) {
       if (table !== null && typeof table === 'object') grants.add(`table:${JSON.stringify(table)}`);
     }
@@ -106,7 +118,25 @@ export function currentSnapshot(root: string, key: string): AppliedSnapshot {
     access: entries.flatMap((entry) => {
       if (entry === null || typeof entry !== 'object' || typeof (entry as { table?: unknown }).table !== 'string') return [];
       const one = entry as Record<string, unknown>;
-      return [{ table: one['table'] as string, methods: strings(one['methods']), select: strings(one['select']), writable: strings(one['writable']) }];
+      const methods = strings(one['methods']);
+      const children = Array.isArray(one['children']) ? (one['children'] as unknown[]) : [];
+      const childWritable = children.flatMap((child) => {
+        if (child === null || typeof child !== 'object') return [];
+        const ref = typeof (child as { table?: unknown }).table === 'string' ? (child as { table: string }).table : '';
+        return strings((child as { writable?: unknown }).writable).map((column) => `${ref}.${column}`);
+      });
+      const narrowing: Record<string, unknown> = {};
+      for (const key of ['filters', 'claimedBy', 'visibleWith', 'claim']) if (one[key] !== undefined) narrowing[key] = one[key];
+      return [
+        {
+          table: one['table'] as string,
+          methods,
+          select: methods.includes('GET') && one['select'] === undefined ? [ALL_COLUMNS] : strings(one['select']),
+          writable: [...strings(one['writable']), ...childWritable],
+          humanCheck: one['humanCheck'] === true,
+          rows: JSON.stringify(narrowing),
+        },
+      ];
     }),
     roles,
     calls: outsideCalls(root, key),
@@ -130,6 +160,21 @@ export function writeApplied(root: string, key: string, snapshot: AppliedSnapsho
   renameSync(`${file}.tmp`, file);
 }
 
+/** Each of the app's pages, by its ref, and the table it shows (`bindings.rows`, else `source.table`). */
+export function pageTables(root: string, key: string): Map<string, string> {
+  const dir = join(appDir(root, key), 'manifest', 'pages');
+  const out = new Map<string, string>();
+  if (!existsSync(dir)) return out;
+  for (const name of readdirSync(dir).filter((file) => file.endsWith('.json')).slice(0, 500)) {
+    const page = readJson(join(dir, name));
+    if (page === null || typeof page !== 'object') continue;
+    const one = page as { ref?: unknown; bindings?: { rows?: unknown }; source?: { table?: unknown } };
+    const table = typeof one.bindings?.rows === 'string' ? one.bindings.rows : typeof one.source?.table === 'string' ? one.source.table : null;
+    if (typeof one.ref === 'string' && table !== null) out.set(one.ref, table);
+  }
+  return out;
+}
+
 /** A table's name as the person reads it: its manifest's name, else its ref. */
 function tableName(root: string, key: string, ref: string): string {
   const table = readJson(join(appDir(root, key), 'manifest', 'tables', `${ref}.json`));
@@ -150,12 +195,28 @@ export function outsideChanges(root: string, key: string, before: AppliedSnapsho
       if (old.some((candidate) => candidate.methods.includes(method))) continue;
       changes.push({ id: `access:${entry.table}:${method}`, line: `strangers could ${METHOD[method] ?? method} ${name}`, view: { kind: 'access', verb: VERB[method] ?? 'read', table: name } });
     }
-    const oldSelect = new Set(old.flatMap((candidate) => (candidate.methods.includes('GET') ? candidate.select : [])));
-    const newSelect = entry.methods.includes('GET') && old.some((candidate) => candidate.methods.includes('GET')) ? entry.select.filter((column) => !oldSelect.has(column)) : [];
-    if (newSelect.length > 0) changes.push({ id: `select:${entry.table}:${newSelect.join(',')}`, line: `strangers could read ${newSelect.slice(0, 4).join(', ')} of ${name}`, view: { kind: 'access', verb: 'read-columns', table: name, columns: newSelect.slice(0, 4) } });
+    const oldGet = old.filter((candidate) => candidate.methods.includes('GET'));
+    const oldSelect = new Set(oldGet.flatMap((candidate) => candidate.select));
+    if (entry.methods.includes('GET') && oldGet.length > 0 && !oldSelect.has(ALL_COLUMNS)) {
+      if (entry.select.includes(ALL_COLUMNS)) {
+        changes.push({ id: `select:${entry.table}:${ALL_COLUMNS}`, line: `strangers could read every column of ${name}`, view: { kind: 'access', verb: 'read-all', table: name } });
+      } else {
+        const newSelect = entry.select.filter((column) => !oldSelect.has(column));
+        if (newSelect.length > 0) changes.push({ id: `select:${entry.table}:${newSelect.join(',')}`, line: `strangers could read ${listed(newSelect)} of ${name}`, view: { kind: 'access', verb: 'read-columns', table: name, columns: newSelect.slice(0, 40) } });
+      }
+    }
     const oldWritable = new Set(old.flatMap((candidate) => candidate.writable));
     const newWritable = old.length > 0 ? entry.writable.filter((column) => !oldWritable.has(column)) : [];
-    if (newWritable.length > 0) changes.push({ id: `writable:${entry.table}:${newWritable.join(',')}`, line: `strangers could write ${newWritable.slice(0, 4).join(', ')} of ${name}`, view: { kind: 'access', verb: 'write-columns', table: name, columns: newWritable.slice(0, 4) } });
+    if (newWritable.length > 0) changes.push({ id: `writable:${entry.table}:${newWritable.join(',')}`, line: `strangers could write ${listed(newWritable)} of ${name}`, view: { kind: 'access', verb: 'write-columns', table: name, columns: newWritable.slice(0, 40) } });
+    // The human check taken off a create a stranger makes.
+    if (entry.methods.includes('POST') && entry.humanCheck !== true && old.some((candidate) => candidate.methods.includes('POST') && candidate.humanCheck === true)) {
+      changes.push({ id: `check:${entry.table}`, line: `strangers could add rows to ${name} with no check that a person sent them`, view: { kind: 'access', verb: 'no-check', table: name } });
+    }
+    // What narrowed the rows a stranger reaches (a filter, an owner, a link) changed or went.
+    const oldRows = old.filter((candidate) => candidate.rows !== undefined && candidate.methods.some((method) => entry.methods.includes(method)));
+    if (entry.rows !== undefined && oldRows.length > 0 && !oldRows.some((candidate) => candidate.rows === entry.rows)) {
+      changes.push({ id: `rows:${entry.table}:${entry.rows}`, line: `strangers could reach rows of ${name} that were kept from them`, view: { kind: 'access', verb: 'hidden-rows', table: name } });
+    }
   }
   for (const [role, grants] of Object.entries(now.roles)) {
     const had = new Set(was.roles[role] ?? []);
@@ -173,8 +234,11 @@ export function outsideChanges(root: string, key: string, before: AppliedSnapsho
     pages.add(file);
     changes.push({ id: `call:${file}`, line: `the ${screenName(file)} page calls an address outside Adminium`, view: { kind: 'call', screen: screenName(file) } });
   }
-  return changes.slice(0, 12);
+  return changes;
 }
+
+/** Columns in a line for the model: the first few, and how many more. */
+const listed = (columns: readonly string[]): string => (columns.length <= 4 ? columns.join(', ') : `${columns.slice(0, 4).join(', ')} and ${String(columns.length - 4)} more`);
 
 /** What a person approved on a template plan: its public entries and the tables its roles get. */
 export interface Approved {
@@ -186,7 +250,7 @@ export interface Approved {
  * What was applied, with what the person approved on a template plan added to it: then only what goes beyond the plan
  * is asked. A role the plan names may get its plan tables' grants (and open pages) without a second yes.
  */
-export function withApproved(before: AppliedSnapshot | null, now: AppliedSnapshot, approved: Approved | undefined): AppliedSnapshot | null {
+export function withApproved(before: AppliedSnapshot | null, now: AppliedSnapshot, approved: Approved | undefined, pageTables: ReadonlyMap<string, string> = new Map()): AppliedSnapshot | null {
   if (approved === undefined) return before;
   const base = before ?? { access: [], roles: {}, calls: [] };
   const access = [...base.access, ...approved.access.map((entry) => ({ table: entry.table, methods: [...entry.methods], select: [...(entry.select ?? [])], writable: [...(entry.writable ?? [])] }))];
@@ -195,7 +259,11 @@ export function withApproved(before: AppliedSnapshot | null, now: AppliedSnapsho
     const planned = new Set(tables);
     const covered = (now.roles[role] ?? []).filter((grant) => {
       const table = /^table:@([a-z][a-z0-9_]*)(?::|$)/.exec(grant)?.[1];
-      return (table !== undefined && planned.has(table)) || grant.startsWith('page:');
+      // A page grant is the page's: it is the plan's when the page shows one of the plan's tables.
+      const page = /^page:@([a-z0-9-]+)(?::|$)/.exec(grant)?.[1];
+      const pageTable = page === undefined ? undefined : pageTables.get(page);
+      // A role the plan names may get its plan tables' rights and pages; its limits are the role's own.
+      return (table !== undefined && planned.has(table)) || (pageTable !== undefined && planned.has(pageTable)) || grant.startsWith('limits:');
     });
     roles[role] = [...new Set([...(roles[role] ?? []), ...covered])].sort();
   }
