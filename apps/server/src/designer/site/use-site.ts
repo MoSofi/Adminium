@@ -23,14 +23,14 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { applyLook, lookInUse, readLook, sidesWithScreens } from '../../project/apps/look.js';
+import { applyLook, installedWeights, lookInUse, readLook, sidesWithScreens } from '../../project/apps/look.js';
 import { hasOwnBuild } from '../../project/apps/own-build.js';
 import { appDir, appPath, type AppSide } from '../../project/apps/read-app.js';
 import { DEFAULT_LOOK } from '../../project/apps/scaffold-app.js';
+import { classesIn, TEMPLATE_CLASSES_FILE } from '../../project/apps/design-check.js';
 import { recoverSiteSwap, SITE_DIR, swapSite } from '../../project/apps/site-swap.js';
 import { templateWants, type NeedsAsker } from '../ask-needs.js';
 import type { Attachment, Attachments, SiteIndex } from '../attachments.js';
-import { listedPackages } from '../needs.js';
 import { PICTURES_DIR, readCredits, readSpots, SPOT_ID, SPOTS_MAX, writeCredits, writeSpots, type SpotEntry } from '../spots.js';
 import type { DesignerTool, ToolOutcome } from '../tool-types.js';
 import { dataWindow, plainWords, quoted } from '../untrusted.js';
@@ -428,12 +428,17 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
 
       // The copy, whole: each file's bytes (a stylesheet as cleaned), the index, and the hashes of what was written.
       const hashes: Record<string, string> = {};
-      // The template's Google fonts, as the packages the project carries: one import per weight it named.
-      const listed = listedPackages(root);
+      // The template's Google fonts, as the packages the project carries: one import per weight it named that the package
+      // has (the nearest when none). A family not installed is left out, as the theme's fonts are: the build never fails for a font.
+      const weightsOf = installedWeights(root);
       const allTexts = [...site.pages.map((page) => page.html), ...order.map((path) => textOf(files.get(path)?.read() ?? null) ?? '')];
-      const fontImports = googleFonts(allTexts)
-        .filter((font) => listed.has(fontPackage(font.family)))
-        .flatMap((font) => (font.weights.length === 0 ? [fontPackage(font.family)] : font.weights.map((weight) => `${fontPackage(font.family)}/${String(weight)}.css`)));
+      const fontImports = googleFonts(allTexts).flatMap((font) => {
+        const has = weightsOf(font.family);
+        if (has === null || has.length === 0) return [];
+        const wanted = font.weights.filter((weight) => has.includes(weight));
+        const use = wanted.length > 0 ? wanted : [has.includes(400) ? 400 : (has[0] as number)];
+        return use.map((weight) => `${fontPackage(font.family)}/${String(weight)}.css`);
+      });
       const index = [
         '/* The site template, loaded in its pages\' own order. Written by use_site: change the template\'s files with use_site, and fix what you need in design.css. */',
         ...fontImports.map((path) => `@import ${JSON.stringify(path)};`),
@@ -472,6 +477,9 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       }
       writeFileSync(join(src, SITE_DIR, WRITTEN_FILE), `${JSON.stringify(hashes, null, 2)}\n`);
       writeFileSync(join(src, SITE_DIR, SPOTS_FILE), `${JSON.stringify(madeNow, null, 2)}\n`);
+      // The template's own class names: styled or not, as the template had them (design-check asks nothing of them).
+      const classes = [...new Set(converted.flatMap((page) => classesIn(page.out.tsx)))].sort().slice(0, 5000);
+      writeFileSync(join(src, SITE_DIR, TEMPLATE_CLASSES_FILE), `${JSON.stringify(classes)}\n`);
 
       // The pictures that became spots: the template's own files, filled, and credited as the template's.
       if (newSpots.length > 0) {

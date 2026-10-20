@@ -7,7 +7,7 @@
  * its content pictures filled spots, and the side follows its template. What the person changed by hand is
  * kept unless they say otherwise on a card of their own.
  */
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -17,6 +17,8 @@ import type { CardAnswer, CardRequest } from '../src/designer/cards.js';
 import { createEventLog } from '../src/designer/events.js';
 import { designSection } from '../src/designer/prompt.js';
 import { builtInStylesDir } from '../src/project/apps/design-skills.js';
+import { designIssues } from '../src/project/apps/design-check.js';
+import { sideBuildDir } from '../src/project/apps/side-build.js';
 import { createSkills } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import { judgeSite, type SiteEntry } from '../src/designer/site/judge.js';
@@ -28,7 +30,7 @@ import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
 import { createDesignerTools } from '../src/designer/tools.js';
 import { runCli } from '../src/cli/run.js';
 import { APP_VERSION } from '../src/version.js';
-import { tempProject } from './app-project-helpers.js';
+import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
 const session = { id: 'ds_000000000000000000000000', appKey: 'repairs', connectionId: 'c1' } as DesignerSession;
@@ -106,6 +108,13 @@ const make = (): void => {
         const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
         pkg.dependencies = { ...(pkg.dependencies ?? {}), ...Object.fromEntries(specs.map((spec) => [spec.name, spec.version])) };
         writeFileSync(join(root, 'package.json'), JSON.stringify(pkg));
+        // A font package as npm leaves it: one stylesheet per weight it comes in.
+        for (const spec of specs.filter((one) => one.name.startsWith('@fontsource/'))) {
+          const dir = join(root, 'node_modules', ...spec.name.split('/'));
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: spec.name, version: spec.version }));
+          for (const weight of [400, 700]) writeFileSync(join(dir, `${String(weight)}.css`), `@font-face { font-family: Inter; font-weight: ${String(weight)}; src: local(Inter); }\n`);
+        }
         return null;
       },
       windowOf: async () => window,
@@ -250,6 +259,13 @@ describe('the plan', () => {
     expect(done.content).toContain('link link-1 (“Learn more” on Home) → https://furni.example/about');
   });
 
+  it('imports no font the project does not carry: one left unticked is left out, and the build never fails for it', async () => {
+    answers.push(approve({ added: [] }));
+    await useSite({ attachment: site, plan: PLAN });
+    expect(installed.flat()).not.toContain('@fontsource/inter');
+    expect(readFileSync(side('site/index.css'), 'utf8')).not.toContain('@fontsource');
+  });
+
   it('is not asked again for the same template: a build stopped by a limit goes on from it', async () => {
     answers.push(approve());
     await useSite({ attachment: site, plan: PLAN });
@@ -364,6 +380,44 @@ describe('after the plan', () => {
     expect(one).toBeDefined();
     expect(two).not.toBe(one);
     expect(readFileSync(app((after.assets?.[one as string] as { file: string }).file)).subarray(24).toString()).toBe('chair');
+  });
+});
+
+describe.skipIf(!canBuildSides)('the side the template became', () => {
+  it('builds, with the template’s stylesheet and its pictures, and the design check has nothing to say of its pages', async () => {
+    answers.push(approve());
+    await useSite({ attachment: site, plan: PLAN });
+    // What the model writes next: one page per address.
+    writeFileSync(
+      side('App.tsx'),
+      [
+        "import { usePath } from '@adminiumjs/adminium/side';",
+        "import IndexPage from './pages/index';",
+        "import ShopPage from './pages/shop';",
+        'export default function App() {',
+        '  const path = usePath();',
+        "  return path === '/shop' ? <ShopPage /> : <IndexPage />;",
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const io = fakeIo({ interactive: false });
+    const code = await runCli(['app', 'build'], { io, deps: fakeDeps({ cwd: root, env: {} }) });
+    expect(io.stderr()).toBe('');
+    expect(code).toBe(0);
+    const dir = sideBuildDir(root, 'repairs', 'customer');
+    const assets = readdirSync(join(dir, 'assets'));
+    const css = assets.filter((file) => file.endsWith('.css')).map((file) => readFileSync(join(dir, 'assets', file), 'utf8')).join('\n');
+    expect(css).toContain('.product-item');
+    expect(css).not.toContain('tailwind');
+    // The products' pictures are the page's imports; the hero is a spot the build bakes in.
+    expect(assets.some((file) => /^chair-[A-Z0-9]+\.png$/.test(file))).toBe(true);
+    // Of the template's pages: no colour, font, inline-style or class finding (a template side keeps its own look).
+    const issues = (await designIssues(root, 'repairs')).filter((issue) => /customer\/src\/pages\//.test(issue.line));
+    expect(issues.map((issue) => issue.line)).toEqual([]);
+    // A class the model adds later is still checked.
+    writeFileSync(side('pages/shop.tsx'), `${readFileSync(side('pages/shop.tsx'), 'utf8').replace('className={"row"}', 'className={"row my-new-grid"}')}`);
+    expect((await designIssues(root, 'repairs')).map((issue) => issue.line).join('\n')).toContain('"my-new-grid"');
   });
 });
 

@@ -45,6 +45,11 @@ const MAX_FILES = 60;
 const MAX_BYTES = 256 * 1024;
 /** The first words of a page use_site made from a template's page. */
 export const CONVERTED_MARK = "// Made by Adminium Designer's use_site";
+/**
+ * The class names the template's own pages use, kept by use_site in the side's `src/site/`: they are the template's,
+ * styled or not as the template had them, so a template side is never asked to style one. A class added later is checked.
+ */
+export const TEMPLATE_CLASSES_FILE = '.classes.json';
 
 /**
  * Every stylesheet of a side's copy of its template, whatever its size: a class a converted page
@@ -99,6 +104,15 @@ function braced(text: string, from: number): string | null {
  * pieces (`btn-${size}`), or held in a variable, is not one this can read,
  * and is passed over: the piece next to a `${` is never a whole name.
  */
+function templateClasses(file: string): string[] {
+  try {
+    const read = JSON.parse(readFileSync(file, 'utf8')) as unknown;
+    return Array.isArray(read) ? read.filter((name): name is string => typeof name === 'string').slice(0, 5000) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function classesIn(source: string): string[] {
   const text = code(source);
   const found = new Set<string>();
@@ -466,6 +480,7 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
     // A class a screen uses that nothing styles.
     const defined = new Set<string>();
     for (const sheet of sheets) for (const name of classesDefined(sheet.text)) defined.add(name);
+    if (template) for (const name of templateClasses(join(src, SITE_DIR, TEMPLATE_CLASSES_FILE))) defined.add(name);
     const used = new Map<string, string>();
     const palette = new Map<string, string>();
     for (const screen of screens) {
