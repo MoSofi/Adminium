@@ -9,6 +9,9 @@
 import { RUN_EFFORTS } from '@adminium/llm';
 import { z } from 'zod';
 
+import { LICENCE_CODES } from '../../designer/licences.js';
+import { PICTURE_PAGES_MAX, PICTURE_SHAPES, SOURCE_NAMES } from '../../designer/pictures.js';
+
 const target = z.enum(['auto', 'dashboard', 'web', 'mobile']);
 
 export const designerSession = z.object({
@@ -201,6 +204,37 @@ export const designerAttachmentQuery = z.object({
 export const designerAttachmentParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), attachment: z.string().regex(/^att_[0-9a-f]{20}$/) });
 export const designerPictureThumbParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), shelf: z.string().regex(/^shelf_[0-9a-f]{16}$/), picture: z.string().regex(/^pic_[0-9a-f]{12}$/) });
 export const designerAttachmentReply = z.object({ attachment: designerAttachment });
+
+const designerShelfId = z.string().regex(/^shelf_[0-9a-f]{16}$/);
+const designerPictureId = z.string().regex(/^pic_[0-9a-f]{12}$/);
+export const designerPictureSearchQuery = z.object({
+  q: z.string().max(200),
+  source: z.enum(SOURCE_NAMES),
+  shape: z.enum(PICTURE_SHAPES).optional(),
+  page: z.coerce.number().int().min(1).max(PICTURE_PAGES_MAX).optional(),
+  shelf: designerShelfId.optional(),
+});
+const designerFoundPicture = z.object({
+  id: z.string(),
+  title: z.string(),
+  creator: z.string(),
+  source: z.string(),
+  licence: z.object({ code: z.enum(LICENCE_CODES), name: z.string() }),
+  page: z.string(),
+  shown: z.literal(true).optional(),
+});
+export const designerPictureSearchReply = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('ok'), shelf: z.string(), pictures: z.array(designerFoundPicture), more: z.boolean(), page: z.number().int() }),
+  z.object({ state: z.literal('busy'), source: z.enum(SOURCE_NAMES), minutes: z.number().int() }),
+  z.object({ state: z.literal('off') }),
+  z.object({ state: z.literal('failed') }),
+]);
+export const designerPicturePinBody = z.object({ shelf: designerShelfId, picture: designerPictureId });
+export const designerPicturePinReply = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('kept'), small: z.boolean(), shown: z.literal(true).optional() }),
+  z.object({ state: z.literal('gone') }),
+  z.object({ state: z.literal('failed') }),
+]);
 export const designerReadsImagesBody = z.object({ connectionId: z.string().min(1).max(200), model: z.string().min(1).max(200) });
 export const designerReadsImagesReply = z.object({ readsImages: z.boolean().nullable() });
 export const designerTurnReply = z.object({ turn: z.number().int() });

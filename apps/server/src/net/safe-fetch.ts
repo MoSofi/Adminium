@@ -67,7 +67,13 @@ export interface SafeResponse {
   url: string;
   contentType: string;
   body: Buffer;
+  /** The answer's headers, names in lower case (a source's `x-ratelimit-remaining`). */
+  headers?: Readonly<Record<string, string>>;
 }
+
+/** An answer's headers, each by its name in lower case, one value each. */
+const lowerHeaders = (headers: RawResponse['headers']): Record<string, string> =>
+  Object.fromEntries(Object.entries(headers).flatMap(([name, value]) => (typeof value === 'string' ? [[name.toLowerCase(), value]] : Array.isArray(value) && value[0] !== undefined ? [[name.toLowerCase(), value[0]]] : [])));
 
 /** Whether an address is one on the open internet: not this machine, not its network, not a range set aside. */
 export function isPublicAddress(raw: string): boolean {
@@ -183,8 +189,7 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
       }
       if (response.status < 200 || response.status >= 300) {
         response.destroy();
-        const headers = Object.fromEntries(Object.entries(response.headers).flatMap(([name, value]) => (typeof value === 'string' ? [[name.toLowerCase(), value]] : Array.isArray(value) && value[0] !== undefined ? [[name.toLowerCase(), value[0]]] : [])));
-        throw new SafeFetchError('status', `The address answered ${String(response.status)}.`, response.status, headers);
+        throw new SafeFetchError('status', `The address answered ${String(response.status)}.`, response.status, lowerHeaders(response.headers));
       }
       const declared = Number(response.headers['content-length']);
       if (Number.isFinite(declared) && declared > opts.maxBytes) {
@@ -206,7 +211,7 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
         parts.push(part);
       }
       const type = response.headers['content-type'];
-      return { status: response.status, url: target.url.toString(), contentType: (Array.isArray(type) ? type[0] : type) ?? '', body: Buffer.concat(parts) };
+      return { status: response.status, url: target.url.toString(), contentType: (Array.isArray(type) ? type[0] : type) ?? '', body: Buffer.concat(parts), headers: lowerHeaders(response.headers) };
     }
   } catch (error) {
     if (error instanceof SafeFetchError) throw error;

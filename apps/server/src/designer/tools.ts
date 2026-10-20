@@ -58,7 +58,7 @@ import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
-import { creditOf, downloadPicture, PICTURE_SHAPES, PICTURES_PER_CALL, PICTURES_PER_NEED, type FoundPicture, type PictureCredit, type PictureShape, type PictureShelf, type PictureSource } from './pictures.js';
+import { creditOf, downloadPicture, PICTURE_SHAPES, type FoundPicture, type PictureCredit, type PictureShape, type PictureShelf, type PictureSource } from './pictures.js';
 import { WANTS_OWN_PICTURES } from './prompt.js';
 import { createNeedsAsker, screenWants, type NeedsDeps } from './ask-needs.js';
 import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, type Wanted } from './needs.js';
@@ -248,6 +248,10 @@ function nearestIndex(skills: Skills, name: string): { skill: string; text: stri
 }
 
 /** What to do after a side is added: the order of the work, for the model. */
+/** The most pictures one need of find_pictures shows, and one call copies. */
+const PICTURES_PER_NEED = 8;
+const PICTURES_PER_CALL = 24;
+
 export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boolean; icons: boolean; picture: boolean; colours?: boolean; ownPictures?: boolean; /** The design document the person gave, by its name and its id. */ document?: { label: string; id: string } }): string {
   const app = `apps/${appKey}`;
   const doc = opts.document === undefined ? null : `the design document the person gave ("${opts.document.label.replace(/["\n]/g, ' ')}", attachment ${opts.document.id}: its text is in the message it came with, and read_attachment reads it again)`;
@@ -1945,7 +1949,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             const phrases = [...new Set([need.words, said.slice(0, 3).join(' '), said.slice(0, 2).join(' ')])];
             let pictures: FoundPicture[] = [];
             for (const phrase of phrases) {
-              pictures = (await (need.rows === null && showsFrom !== null ? showsFrom : source).search(phrase, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).slice(0, Math.min(need.count + 2, left));
+              pictures = (await (need.rows === null && showsFrom !== null ? showsFrom : source).search(phrase, { count: Math.min(need.count + 2, left), shape: need.shape, signal: ctx.signal })).pictures.slice(0, Math.min(need.count + 2, left));
               if (pictures.length > 0) break;
             }
             if (pictures.length === 0) problems.push(`"${need.id}": no picture was found for "${need.words}". Try plainer words, or do without.`);

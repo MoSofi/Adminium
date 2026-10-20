@@ -103,14 +103,15 @@ beforeEach(async () => {
   toldChosen = [];
   let seq = 0;
   pictureSource = {
-    name: 'Fake',
+    name: 'Openverse',
     search: async (words, opts) => {
       searched.push({ words, count: opts.count, ...(opts.shape === undefined ? {} : { shape: opts.shape }) });
-      return Array.from({ length: opts.count }, (): FoundPicture => {
+      const pictures = Array.from({ length: opts.count }, (): FoundPicture => {
         seq += 1;
         const n = String(seq).padStart(12, '0');
-        return { id: `pic_${n}`, thumb: `https://api.openverse.org/${n}`, files: [`https://files.example/${n}.jpg`], title: `Picture ${String(seq)}`, creator: `Maker ${String(seq)}`, creatorUrl: '', licence: 'CC BY 2.0', licenceUrl: 'https://creativecommons.org/licenses/by/2.0/', source: 'Fake', page: `https://files.example/page/${n}` };
+        return { id: `pic_${n}`, thumb: `https://api.openverse.org/${n}`, files: [`https://files.example/${n}.jpg`], title: `Picture ${String(seq)}`, creator: `Maker ${String(seq)}`, creatorUrl: '', licence: 'CC BY 2.0', licenceCode: 'by', licenceUrl: 'https://creativecommons.org/licenses/by/2.0/', source: 'Fake', page: `https://files.example/page/${n}` };
       });
+      return { pictures, more: false };
     },
   };
   tools = createDesignerTools(
@@ -120,7 +121,7 @@ beforeEach(async () => {
         shown: () => shownSource,
         shelf: createPictureShelf({ fetcher: async () => ({ body: Buffer.from([0xff, 0xd8, 0xff]), contentType: 'image/jpeg' }) }),
         // A picture whose title ends in 3 cannot be copied (gone, or too large).
-        download: async (picture) => (picture.title.endsWith('3') ? null : { bytes: Buffer.from([0xff, 0xd8, 0xff, ...Buffer.from(picture.id)]), ext: 'jpg' as const }),
+        download: async (picture) => (picture.title.endsWith('3') ? null : { bytes: Buffer.from([0xff, 0xd8, 0xff, ...Buffer.from(picture.id)]), ext: 'jpg' as const, small: false }),
         reseed: (key) => void reseeded.push(key),
       },
       newestVersion: async (name) => registry[name] ?? null,
@@ -795,14 +796,15 @@ describe('the Designer’s tools', () => {
     writeFileSync(table, JSON.stringify({ ...items, columns: [...items.columns, { ref: 'picture', type: 'text', semantic: 'image', nullable: true }] }));
     let n = 0;
     shownSource = {
-      name: 'Shown',
+      name: 'Unsplash',
       showsFrom: 'images.shown.example',
       search: async (words, opts) => {
         searched.push({ words, count: opts.count, shape: 'shown' });
-        return Array.from({ length: opts.count }, (): FoundPicture => {
+        const pictures = Array.from({ length: opts.count }, (): FoundPicture => {
           n += 1;
-          return { id: `pic_s${String(n)}`, thumb: `https://images.shown.example/t${String(n)}`, files: [], shown: `https://images.shown.example/p${String(n)}?w=1080`, chosenUrl: `https://api.shown.example/chosen/${String(n)}`, title: `Shown "${String(n)}"`, creator: 'Sam', creatorUrl: '', licence: 'Shown licence', licenceUrl: '', source: 'Shown', page: '' };
+          return { id: `pic_s${String(n)}`, thumb: `https://images.shown.example/t${String(n)}`, files: [], shown: `https://images.shown.example/p${String(n)}?w=1080`, chosenUrl: `https://api.shown.example/chosen/${String(n)}`, title: `Shown "${String(n)}"`, creator: 'Sam', creatorUrl: '', licence: 'Shown licence', licenceCode: 'unsplash', licenceUrl: '', source: 'Shown', page: '' };
         });
+        return { pictures, more: false };
       },
       chosen: async (picture) => void toldChosen.push(picture.id),
     };
@@ -1000,7 +1002,7 @@ describe('the Designer’s tools', () => {
   it('looks again with fewer words when a long phrase finds nothing, takes a table by its name in the database, and names the tables when there is none', async () => {
     const real = pictureSource as PictureSource;
     // A source that matches every word: four words or more find nothing.
-    pictureSource = { name: 'Fake', search: async (words, opts) => (words.split(' ').length > 3 ? (searched.push({ words, count: 0 }), []) : real.search(words, opts)) };
+    pictureSource = { name: 'Openverse', search: async (words, opts) => (words.split(' ').length > 3 ? (searched.push({ words, count: 0 }), { pictures: [], more: false }) : real.search(words, opts)) };
     answers.push({ type: 'pictures', accept: [] });
     await run('find_pictures', { needs: [{ id: 'hero', words: 'cozy warm restaurant interior dining room atmosphere', for: 'page' }, { id: 'items', words: 'bicycles', for: 'rows', table: 'repairs_items' }] });
     expect(searched.map((search) => search.words)).toEqual(['cozy warm restaurant interior dining room atmosphere', 'cozy warm restaurant', 'bicycles']);

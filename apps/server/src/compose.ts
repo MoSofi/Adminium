@@ -128,7 +128,9 @@ import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
-import { createPictureShelf, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
+import { createPictureDialog } from './designer/picture-dialog.js';
+import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
+import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
@@ -249,7 +251,7 @@ import { createFigmaClient } from './designer/figma/client.js';
 import { createFigmaImports } from './designer/figma/imports.js';
 import { createFigmaReader } from './designer/figma/service.js';
 import { createFigmaTokens } from './designer/figma/tokens.js';
-import type { SafeFetchOptions } from './net/safe-fetch.js';
+import { safeFetch, type SafeFetchOptions } from './net/safe-fetch.js';
 import { figmaRoutes } from './routes/designer/figma.js';
 import { hashPassword } from './auth/passwords.js';
 import { connectionsRoutes } from './routes/connections/index.js';
@@ -503,6 +505,11 @@ export interface ComposeServerOptions {
    * fake answers in its place. There is no setting for this: a server always calls api.figma.com.
    */
   figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /**
+   * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, and the
+   * pictures they name), so a fake answers in their place. There is no setting for this either.
+   */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -2297,25 +2304,27 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // A package's newest version, asked of the registry the project installs from; nothing is asked where this server calls nothing outside.
         const designerRegistry = createRegistry({ root, allowed: () => addOnCatalog.networkFeaturesAllowed() });
         const designerNeeds = createNeedsAsker({ root, version: APP_VERSION, newestVersion: designerRegistry, ...(pictureSites === undefined ? {} : { pictureSites }) });
-        // Free pictures for an app's pages: Pexels with the project's own key, else Openverse; none where this server calls nothing outside.
-        const designerShelf = createPictureShelf();
-        const pictureSource = (): PictureSource | null => {
-          if (!addOnCatalog.networkFeaturesAllowed()) return null;
+        // Free pictures for an app's pages, in the picture dialog: Openverse, Pexels and Unsplash with the project's own keys; none where this server calls nothing outside.
+        const pictureKey = (name: 'PEXELS_API_KEY' | 'UNSPLASH_ACCESS_KEY'): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
           const host = hostModels();
-          const key = (host !== null ? (host.read().PEXELS_API_KEY ?? '') : (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '')).trim();
-          return key === '' ? openverse() : pexels(key);
+          return (host !== null ? (host.read()[name] ?? '') : (process.env[name] ?? readDotEnv(root)?.[name] ?? '')).trim();
         };
+        const pictureFetch = (url: string, fetchOpts: SafeFetchOptions) => safeFetch(url, { ...fetchOpts, ...(opts.pictureSeams ?? {}) });
+        const pictureSources = (): PictureSource[] => {
+          if (!addOnCatalog.networkFeaturesAllowed()) return [];
+          const pexelsKey = pictureKey('PEXELS_API_KEY');
+          const unsplashKey = pictureKey('UNSPLASH_ACCESS_KEY');
+          return [openverse(pictureFetch), ...(pexelsKey === '' ? [] : [pexels(pexelsKey, pictureFetch)]), ...(unsplashKey === '' ? [] : [unsplash(unsplashKey, pictureFetch)])];
+        };
+        // A search's results, kept per session; each source's small copies counted where the source counts them.
+        let designerSearch: PictureSearch | null = null;
+        const designerShelf = createPictureShelf({ fetcher: pictureFetch, mayFetch: (picture) => designerSearch?.mayFetchThumb(picture) ?? true });
+        designerSearch = createPictureSearch({ sources: pictureSources, shelf: designerShelf });
+        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
+        const pictureSource = (): PictureSource | null => pictureSources().find((source) => source.name === 'Pexels') ?? pictureSources()[0] ?? null;
         // Unsplash, with the project's own key: for a page's pictures, shown from Unsplash's own site as its rules ask. Pexels, whose pictures are copied, comes first.
-        const shownPictureSource = (): PictureSource | null => {
-          if (!addOnCatalog.networkFeaturesAllowed()) return null;
-          const host = hostModels();
-          const env = host !== null ? host.read() : readDotEnv(root);
-          const own = host !== null ? {} : process.env;
-          if ((own['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
-          const key = (own['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
-          return key === '' ? null : unsplash(key);
-        };
+        const shownPictureSource = (): PictureSource | null => (pictureKey('PEXELS_API_KEY') !== '' ? null : (pictureSources().find((source) => source.name === 'Unsplash') ?? null));
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
         const figmaCache = createFigmaCache(root);
@@ -2439,6 +2448,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             attachments: designerAttachments,
             figma: { imports: figmaImports, reader: figmaReader },
             pictures: designerShelf,
+            pictureDialog,
             audit: designerAudit,
             ...(live === null ? {} : { live }),
             root,

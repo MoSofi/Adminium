@@ -76,6 +76,10 @@ import {
   designerLookBody,
   designerLookReply,
   designerPictureThumbParams,
+  designerPicturePinBody,
+  designerPicturePinReply,
+  designerPictureSearchQuery,
+  designerPictureSearchReply,
   designerStyleAddedReply,
   designerStyleParams,
   designerStyleRemovedReply,
@@ -137,6 +141,8 @@ export interface DesignerRoutesDeps {
   audit?: (action: string, actor: Actor, detail: Record<string, unknown>) => Promise<void>;
   /** The pictures a card is showing, to serve each one's small copy. Absent where the Designer looks for none. */
   pictures?: import('../../designer/pictures.js').PictureShelf;
+  /** The picture dialog: searching a source, and keeping what the person picks. */
+  pictureDialog?: import('../../designer/picture-dialog.js').PictureDialog;
   /** How an app fits together, from what the engine applied. */
   architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
@@ -465,6 +471,33 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           .header('cache-control', 'private, max-age=3600')
           .header('content-disposition', 'inline')
           .send(thumb.bytes);
+      },
+    );
+
+    // The picture dialog's search, one source at a time. Each source's allowance is this server's, kept by the search itself.
+    app.get(
+      '/designer/sessions/:id/pictures/search',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, querystring: designerPictureSearchQuery, response: { 200: designerPictureSearchReply } } },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (deps.pictureDialog === undefined) return { state: 'off' as const };
+        const { q, source, shape, page, shelf } = request.query;
+        return deps.pictureDialog.search(session.id, { q, source, ...(shape === undefined ? {} : { shape }), ...(page === undefined ? {} : { page }), ...(shelf === undefined ? {} : { shelf }) });
+      },
+    );
+
+    // A picture put in "what changes": kept for the session, and its bytes fetched now, outside any hold of the app's folder.
+    app.post(
+      '/designer/sessions/:id/pictures/pin',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('a picked picture is kept for the session only: nothing of the app changes until Apply, which is audited') },
+        schema: { params: designerSessionParams, body: designerPicturePinBody, response: { 200: designerPicturePinReply } },
+      },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (deps.pictureDialog === undefined) return { state: 'gone' as const };
+        return deps.pictureDialog.pin(session.id, request.body.shelf, request.body.picture);
       },
     );
 
