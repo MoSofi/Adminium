@@ -27,9 +27,11 @@
  */
 import { useMaybeT } from '../lib/i18n.js';
 import { Button, Modal, ModalFooter, ModalHeader, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
-import { Check, FileText, FolderOpen, Image as ImageIcon, Images, RotateCw, Search, SearchX, TriangleAlert, Upload } from 'lucide-react';
+import { FolderOpen, Image as ImageIcon, Images, RotateCw, Search, SearchX, TriangleAlert, Upload } from 'lucide-react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+
+import { PictureGrid, type GridTile } from './PictureGrid.js';
 
 /** One picture a source offers. */
 export interface PickerItem {
@@ -156,7 +158,6 @@ function PickerBody({ title, subtitle, sources, takes, refusal, room, multiple, 
   const [ticked, setTicked] = useState<readonly PickerItem[]>([]);
   const [focus, setFocus] = useState(0);
   const [busy, setBusy] = useState(false);
-  const grid = useRef<HTMLUListElement>(null);
   const source = sources.find((one) => one.key === tab) ?? sources[0];
 
   // On open, focus goes to the tab that is chosen (after the dialog's own first focus has landed).
@@ -229,45 +230,6 @@ function PickerBody({ title, subtitle, sources, takes, refusal, room, multiple, 
       return;
     }
     setTicked((current) => (current.some((one) => one.id === item.id) ? current.filter((one) => one.id !== item.id) : [...current, item]));
-  };
-
-  const onGridKey = (event: KeyboardEvent<HTMLUListElement>): void => {
-    if (items.length === 0) return;
-    const rtl = getComputedStyle(event.currentTarget).direction === 'rtl';
-    let next = at;
-    switch (event.key) {
-      case 'ArrowRight':
-        next += rtl ? -1 : 1;
-        break;
-      case 'ArrowLeft':
-        next += rtl ? 1 : -1;
-        break;
-      case 'ArrowDown':
-        next += cols;
-        break;
-      case 'ArrowUp':
-        next -= cols;
-        break;
-      case 'Home':
-        next = 0;
-        break;
-      case 'End':
-        next = items.length - 1;
-        break;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        // Space ticks; Enter chooses one picture, or ticks one of several.
-        if (event.key === ' ' && !multiple) return;
-        activate(items[at]!, at);
-        return;
-      default:
-        return;
-    }
-    event.preventDefault();
-    next = Math.max(0, Math.min(items.length - 1, next));
-    setFocus(next);
-    grid.current?.querySelectorAll<HTMLElement>('[role="option"]')[next]?.focus();
   };
 
   const live = full ? t('ui:templates.crud.picker.capLine', 'That is the most this record takes. Take one off to choose another.') : goneLine ? t('ui:templates.crud.picker.gone', 'That picture is no longer available.') : '';
@@ -363,69 +325,30 @@ function PickerBody({ title, subtitle, sources, takes, refusal, room, multiple, 
               )}
             </div>
           ) : (
-            <ul
-              ref={grid}
-              role="listbox"
-              aria-label={t('ui:templates.crud.picker.grid', 'Pictures')}
-              aria-multiselectable={multiple ? true : undefined}
-              onKeyDown={onGridKey}
-              data-part="picker-grid"
-              className={phone ? 'm-0 grid list-none grid-cols-3 gap-x-2.5 gap-y-3 p-0' : 'm-0 grid list-none grid-cols-4 gap-x-3.5 gap-y-4 p-0'}
-            >
-              {items.map((item, index) => {
-                const off = unavailable(item);
+            <PictureGrid
+              tiles={items.map((item, index): GridTile => {
                 const refused = !takes(item);
-                const on = isTicked(item);
-                const reasonId = `${ids}-why-${String(index)}`;
-                return (
-                  <li
-                    key={item.id}
-                    role="option"
-                    aria-label={tileName(item)}
-                    aria-selected={on}
-                    aria-disabled={off ? true : undefined}
-                    aria-describedby={refused ? reasonId : undefined}
-                    tabIndex={index === at ? 0 : -1}
-                    onFocus={() => setFocus(index)}
-                    onClick={() => activate(item, index)}
-                    data-part="picker-tile"
-                    className={`group flex min-w-0 flex-col gap-[7px] outline-none ${off ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span
-                      className={`relative block aspect-square w-full overflow-hidden rounded-md bg-surface-3 group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-accent ${on ? 'ring-2 ring-accent' : ''}`}
-                    >
-                      {refused ? (
-                        <span aria-hidden className="flex size-full flex-col items-center justify-center gap-1.5 text-fg-subtle opacity-55">
-                          <FileText className="size-[26px]" />
-                          <span className="font-mono text-[11px] font-bold">{typeOf(item.mime)}</span>
-                        </span>
-                      ) : (
-                        <img src={item.contentPath} alt="" className={`block size-full object-cover ${off ? 'opacity-40' : ''}`} />
-                      )}
-                      {multiple && !refused ? (
-                        <span
-                          aria-hidden
-                          className={`absolute end-2 top-2 flex size-6 items-center justify-center rounded-full border-2 border-white text-accent-fg ${on ? 'bg-accent' : 'bg-black/35'} ${off ? 'opacity-50' : ''}`}
-                        >
-                          {on ? <Check className="size-[13px]" /> : null}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-px">
-                      <span className={`truncate ${source?.caption === 'record' ? 'text-body-sm font-bold' : 'font-mono text-xs font-semibold'} ${off ? 'text-fg-muted' : 'text-fg'}`}>
-                        {source?.caption === 'record' ? (item.recordLabel ?? item.filename) : item.filename}
-                      </span>
-                      <span className="truncate font-mono text-caption text-fg-muted">{source?.caption === 'record' ? item.filename : formatBytes(item.sizeBytes)}</span>
-                      {refused ? (
-                        <span id={reasonId} className="mt-[3px] text-caption leading-[1.4] text-fg-muted">
-                          {refusal(item)}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                );
+                return {
+                  id: item.id,
+                  src: item.contentPath,
+                  name: tileName(item),
+                  title: source?.caption === 'record' ? (item.recordLabel ?? item.filename) : item.filename,
+                  sub: source?.caption === 'record' ? item.filename : formatBytes(item.sizeBytes),
+                  monoTitle: source?.caption !== 'record',
+                  ...(refused ? { refusal: { id: `${ids}-why-${String(index)}`, text: refusal(item), kind: typeOf(item.mime) } } : {}),
+                  off: unavailable(item),
+                  on: isTicked(item),
+                };
               })}
-            </ul>
+              label={t('ui:templates.crud.picker.grid', 'Pictures')}
+              aspect="square"
+              caption="under"
+              cols={cols}
+              multiple={multiple}
+              focus={at}
+              onFocus={setFocus}
+              onActivate={(index) => activate(items[index]!, index)}
+            />
           )}
         </TabsContent>
       </Tabs>
