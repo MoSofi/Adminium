@@ -102,8 +102,8 @@ export function cleanPicturePath(raw: unknown): string | null {
 
 /**
  * An address of a picture Unsplash serves, as it is to be written, or null.
- * Read as an address, never by its first letters: `https://images.unsplash.com.example/`
- * and `https://images.unsplash.com@example/` are someone else's.
+ * Read as an address, never by its first letters: a host that only begins
+ * with Unsplash's name, or one hidden behind an `@`, is someone else's.
  */
 export function unsplashAddress(raw: unknown): string | null {
   if (typeof raw !== 'string' || raw.length > 1000) return null;
