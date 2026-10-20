@@ -32,7 +32,9 @@ export type ChangeOrigin =
   | 'automation'
   | 'import'
   | 'hook'
-  | 'action';
+  | 'action'
+  /** A payment a customer made online, recorded by Adminium once the payment service confirmed it. */
+  | 'payment';
 
 /** Who made a change, or clicked an action. */
 export interface ProjectUser {

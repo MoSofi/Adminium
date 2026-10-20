@@ -96,6 +96,18 @@ for (const dialect of TEST_DIALECTS) {
         expect(await attempts.create(attempt(), T0 + 4)).not.toBeNull();
       });
 
+      it('holds the slot until the payment is written down, so nobody can pay twice meanwhile', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const one = (await attempts.create(attempt(), T0))!;
+        await attempts.move(one.id, 'open', { providerRef: 'cs_hold' }, T0 + 1);
+        await attempts.move(one.id, 'succeeded', {}, T0 + 2);
+        expect(await attempts.create(attempt(), T0 + 3)).toBeNull();
+        await attempts.move(one.id, 'recording', {}, T0 + 4);
+        expect(await attempts.create(attempt(), T0 + 5)).toBeNull();
+        await attempts.move(one.id, 'recorded', { recordedKey: 'row:x:1', recordedAt: T0 + 6 }, T0 + 6);
+        expect(await attempts.create(attempt(), T0 + 7)).not.toBeNull();
+      });
+
       it('moves only from the states its table allows', async () => {
         const attempts = paymentAttemptsRepo(meta());
         const one = (await attempts.create(attempt(), T0))!;

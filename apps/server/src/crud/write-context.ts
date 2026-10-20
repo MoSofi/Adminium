@@ -43,7 +43,9 @@ export type WriteOrigin =
   | 'hook'
   | 'action'
   /** A row an add-on's plan asked for, written by Adminium inside the save that posted it. */
-  | 'ledger';
+  | 'ledger'
+  /** A payment a customer made online, recorded by Adminium once the provider confirmed it (plan 70). */
+  | 'payment';
 
 /** Who a write is attributed to. */
 export interface WriteActor {

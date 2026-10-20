@@ -1540,7 +1540,7 @@ export interface AdminiumPaymentAttemptsTable {
   amount: string;
   currency: string;
   state: string;
-  /** Set while creating, open or processing; NULL after (one open attempt per payable). */
+  /** Set until the payment is recorded or refused; NULL after (one open attempt per payable). */
   openKey: string | null;
   linkId: Id | null;
   nonce: string;

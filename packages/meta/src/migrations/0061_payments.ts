@@ -61,7 +61,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('amount', c.str(AMOUNT), (col) => col.notNull())
     .addColumn('currency', c.str(3), (col) => col.notNull())
     .addColumn('state', c.str(20), (col) => col.notNull())
-    // `<connection>:<table>:<row>` or `document:<id>` while creating, open or processing; NULL after.
+    // `<connection>:<table>:<row>` or `document:<id>` until the payment is recorded or refused; NULL after.
     .addColumn('open_key', c.str(600))
     .addColumn('link_id', c.id)
     // Carried in the return URL and checked server-side; binds a return to this attempt.

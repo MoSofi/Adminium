@@ -59,8 +59,9 @@ export default defineHook({
 Every event also gets `db` (below), `log`, `user` (who made the change, or
 `null` for the public API), `origin`, `database`, `table` and `signal`, which
 is aborted when the hook runs out of time. `origin` says where the change came
-from: `dashboard`, `bulk`, `undo`, `public`, `automation`, `import`, `hook` or
-`action`.
+from: `dashboard`, `bulk`, `undo`, `public`, `automation`, `import`, `hook`,
+`action` or `payment` (a payment a customer made online, recorded by Adminium
+once the payment service confirmed it).
 
 ### Before a change
 

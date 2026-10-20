@@ -15,8 +15,9 @@
  *
  * ─── One open attempt per payable ──────────────────────────────────────────
  *
- * `open_key` is set while an attempt is creating, open or processing, and the
- * move out of those states sets it to NULL in the same statement. Its unique
+ * `open_key` is set from the moment an attempt is made until its payment is
+ * recorded or refused (`OPEN_ATTEMPT_STATES`), and the move out of those
+ * states sets it to NULL in the same statement. Its unique
  * index is the rule; `create` reads a duplicate as "an attempt is already
  * open" and returns null, never checks first.
  *
@@ -59,8 +60,14 @@ export const ATTEMPT_STATES = [
 ] as const;
 export type AttemptState = (typeof ATTEMPT_STATES)[number];
 
-/** The states in which an attempt holds its payable's one open slot. */
-export const OPEN_ATTEMPT_STATES: readonly AttemptState[] = ['creating', 'open', 'processing'];
+/**
+ * The states in which an attempt holds its payable's one open slot: from the
+ * moment it is made until its payment is written down (or refused). Holding
+ * it through `succeeded` and `recording` means a second checkout cannot start
+ * in the seconds between the money arriving and the record being written,
+ * which would let the customer pay twice.
+ */
+export const OPEN_ATTEMPT_STATES: readonly AttemptState[] = ['creating', 'open', 'processing', 'succeeded', 'recording'];
 
 /**
  * Every move an attempt may make, by target: the states it may come FROM.
