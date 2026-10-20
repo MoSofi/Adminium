@@ -9,7 +9,7 @@
  * Every word of the plan is the template's or the model's: drawn as text, never as markup.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Blocks, Check, ChevronDown, CircleAlert, CircleCheck, LayoutTemplate, LoaderCircle, Mail, MessageSquareText, Type, X } from 'lucide-react';
+import { Blocks, Check, ChevronDown, CircleAlert, CircleCheck, LayoutTemplate, LoaderCircle, Mail, MessageSquareText, Type, UsersRound, X } from 'lucide-react';
 import { Button, Checkbox, Drawer, DrawerClose, DrawerTitle, DrawerTrigger, RadioCard, RadioGroup, Switch } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
@@ -152,6 +152,29 @@ function toggled(set: ReadonlySet<string>, id: string, on: boolean): ReadonlySet
   if (on) next.add(id);
   else next.delete(id);
   return next;
+}
+
+type PlanTable = PlanCard['tables'][number];
+
+/** A column as the person reads it: its label where the plan has one, else its ref. */
+function columnName(table: PlanTable | undefined, ref: string): string {
+  return table?.columns.find((column) => column.column === ref)?.label ?? ref;
+}
+
+/** What visitors read of a table by the plan, by name; the id is not said. */
+function visibleColumns(table: PlanTable): string[] {
+  return table.publicRead.filter((ref) => ref !== 'id').map((ref) => columnName(table, ref));
+}
+
+/** A table as the person reads it: the plan's label, a form's, else its ref. */
+function tableName(card: PlanCard, ref: string): string {
+  return card.tables.find((table) => table.table === ref)?.label ?? card.forms.find((form) => form.table === ref)?.tableLabel ?? ref;
+}
+
+/** The dashboard rights approved with the plan, as the server keeps them: only on the tables it builds (ticked, or a form's). */
+function grantedRoles(card: PlanCard, ticked: ReadonlySet<string>): { role: string; tables: string[] }[] {
+  const own = new Set([...ticked, ...card.forms.flatMap((form) => [form.table, ...(form.lines === undefined ? [] : [form.lines])])]);
+  return card.roles.map((role) => ({ role: role.role, tables: role.tables.filter((table) => own.has(table)) })).filter((role) => role.tables.length > 0);
 }
 
 /** The line an answered card keeps: what was built, replaced and left out. */
@@ -481,6 +504,28 @@ function PlanSheet({
     onSubmit(changes === '' ? value : { ...value, changes });
   };
 
+  const roles = grantedRoles(card, draft.tables);
+  const rolesBlock =
+    roles.length === 0 ? null : (
+      <div className="mt-2 flex flex-col gap-1.5 border-t border-border pt-3">
+        {roles.map((role) => (
+          <p key={role.role} className="m-0 flex items-start gap-2 text-[12.5px] leading-normal text-fg">
+            <UsersRound aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
+            <span>
+              {fill(t('designer:plan.rolesEdit', 'Who edits them in the dashboard: {role} ({tables})', { role: MARK, tables: MARK2 }), [
+                [
+                  MARK,
+                  <span dir="auto" className="font-bold">
+                    {role.role}
+                  </span>,
+                ],
+                [MARK2, <span dir="auto">{commaList(role.tables.map((table) => tableName(card, table)))}</span>],
+              ])}
+            </span>
+          </p>
+        ))}
+      </div>
+    );
   const shownSections: { key: PlanSection; title: string; state: string; count: ReactNode; warn?: boolean; body: ReactNode }[] = [];
   if (card.tables.length > 0) {
     shownSections.push({
@@ -500,6 +545,8 @@ function PlanSheet({
               const names = table.columns.map((column) => column.label);
               const more = names.length > 3;
               const expanded = more && columnsOpen.has(table.table);
+              // Approved as a public read only when the table is ticked.
+              const seen = visibleColumns(table);
               const columnsLine = more ? t('designer:plan.columnsMore', '{list} and {count} more', { list: commaList(names.slice(0, 3)), count: names.length - 3 }) : commaList(names);
               const line = fill(t('designer:plan.tableLine', '{table}: {columns}', { table: MARK, columns: MARK2 }), [
                 [MARK, <span dir="auto" className="font-bold">{table.label}</span>],
@@ -544,6 +591,19 @@ function PlanSheet({
                         {t('designer:plan.shownOn', 'Shown on {pages}', { pages: commaList(table.shownOn) })}
                       </span>
                     )}
+                    {on && seen.length > 0 ? (
+                      <span className="text-[11.5px] text-fg-muted">
+                        {fill(t('designer:plan.visitorsSee', 'Visitors see: {columns}', { columns: MARK }), [
+                          [
+                            MARK,
+                            <span dir="auto" className="text-fg">
+                              {/* Folded, a long list is cut as the columns are. */}
+                              {more && !expanded && seen.length > 3 ? t('designer:plan.columnsMore', '{list} and {count} more', { list: commaList(seen.slice(0, 3)), count: seen.length - 3 }) : commaList(seen)}
+                            </span>,
+                          ],
+                        ])}
+                      </span>
+                    ) : null}
                     <span className="text-[11.5px] text-fg-muted">{samplesLine(table)}</span>
                     {table.addOnInfo === undefined ? null : (
                       <span className="flex items-center gap-1.5 text-[11.5px] text-fg-muted">
@@ -562,6 +622,7 @@ function PlanSheet({
               );
             })}
           </ul>
+          {rolesBlock}
         </>
       ),
     });
@@ -573,6 +634,7 @@ function PlanSheet({
       state: t('designer:plan.formsState', 'Each writes to a table'),
       count: monoCount(t('designer:plan.formsCount', '{count, plural, one {# form} other {# forms}}', { count: card.forms.length }), card.forms.length),
       body: (
+        <>
         <ul className="m-0 list-none p-0">
           {card.forms.map((form) => {
             const sentence =
@@ -588,11 +650,24 @@ function PlanSheet({
                 <span className="min-w-0 flex-1 text-pretty text-[13px] leading-normal text-fg">
                   {fill(sentence, [[MARK, <span dir="auto" className="font-bold">{form.label}</span>]])}
                   {lines === null ? null : <> {t('designer:plan.formLines', 'Its lines are written to {table}.', { table: lines })}</>}
+                  <span className="mt-0.5 block text-[11.5px] text-fg-muted">
+                    {fill(t('designer:plan.visitorsFill', 'Visitors fill in: {columns}', { columns: MARK }), [
+                      [
+                        MARK,
+                        <span dir="auto" className="text-fg">
+                          {commaList(form.writable.map((ref) => columnName(card.tables.find((table) => table.table === form.table), ref)))}
+                        </span>,
+                      ],
+                    ])}
+                  </span>
                 </span>
               </li>
             );
           })}
         </ul>
+        {/* With no tables of its own, the plan's rights are said with its forms. */}
+        {card.tables.length === 0 ? rolesBlock : null}
+        </>
       ),
     });
   }

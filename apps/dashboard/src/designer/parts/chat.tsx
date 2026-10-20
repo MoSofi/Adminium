@@ -1272,7 +1272,9 @@ export function accessChangeLine(change: AccessChangeView, allowed: boolean): st
     return allowed ? t('designer:access.roleAllowed', 'the role {role} can do more than before', { role: change.role }) : t('designer:access.role', 'the role {role} could do more than before', { role: change.role });
   }
   const table = change.table;
-  const columns = (change.columns ?? []).join(', ');
+  // Up to forty: the first four are named, the rest counted.
+  const named = change.columns ?? [];
+  const columns = named.length <= 4 ? named.join(', ') : t('designer:access.columnsMore', '{columns} and {count, plural, one {# more} other {# more}}', { columns: named.slice(0, 4).join(', '), count: named.length - 4 });
   switch (change.verb) {
     case 'add':
       return allowed ? t('designer:access.addAllowed', 'strangers can add rows to {table}', { table }) : t('designer:access.add', 'strangers could add rows to {table}', { table });
@@ -1280,6 +1282,12 @@ export function accessChangeLine(change: AccessChangeView, allowed: boolean): st
       return allowed ? t('designer:access.changeAllowed', 'strangers can change rows of {table}', { table }) : t('designer:access.change', 'strangers could change rows of {table}', { table });
     case 'read-columns':
       return allowed ? t('designer:access.readColumnsAllowed', 'strangers can read {columns} of {table}', { columns, table }) : t('designer:access.readColumns', 'strangers could read {columns} of {table}', { columns, table });
+    case 'read-all':
+      return allowed ? t('designer:access.readAllAllowed', 'strangers can read every column of {table}', { table }) : t('designer:access.readAll', 'strangers could read every column of {table}', { table });
+    case 'no-check':
+      return allowed ? t('designer:access.noCheckAllowed', 'strangers can add rows to {table} with no check that a person sent them', { table }) : t('designer:access.noCheck', 'strangers could add rows to {table} with no check that a person sent them', { table });
+    case 'hidden-rows':
+      return allowed ? t('designer:access.hiddenRowsAllowed', 'strangers can reach rows of {table} that were kept from them', { table }) : t('designer:access.hiddenRows', 'strangers could reach rows of {table} that were kept from them', { table });
     case 'write-columns':
       return allowed ? t('designer:access.writeColumnsAllowed', 'strangers can write {columns} of {table}', { columns, table }) : t('designer:access.writeColumns', 'strangers could write {columns} of {table}', { columns, table });
     default:
@@ -1305,6 +1313,7 @@ export function AccessChangeCard({
   onAllow: () => void;
   onRefuse: () => void;
 }): ReactNode {
+  const more = card.more ?? 0;
   if (answered || closed) {
     return (
       <div role="group" aria-label={t('designer:access.answeredLabel', 'Check before it goes live, answered')} data-card-id={card.id} tabIndex={-1} className="flex flex-col gap-1 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-[12.5px] leading-normal outline-none">
@@ -1312,12 +1321,20 @@ export function AccessChangeCard({
         {!answered ? (
           <span className="font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</span>
         ) : allowed === true ? (
-          card.changes.map((change, index) => (
-            <span key={index} className="flex items-start gap-2">
-              <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
-              <span dir="auto">{t('designer:access.allowed', 'Allowed: {change}.', { change: accessChangeLine(change, true) })}</span>
-            </span>
-          ))
+          <>
+            {card.changes.map((change, index) => (
+              <span key={index} className="flex items-start gap-2">
+                <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+                <span dir="auto">{t('designer:access.allowed', 'Allowed: {change}.', { change: accessChangeLine(change, true) })}</span>
+              </span>
+            ))}
+            {more === 0 ? null : (
+              <span className="flex items-start gap-2">
+                <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+                <span>{t('designer:access.moreAllowed', 'Also allowed: {count, plural, one {# more change} other {# more changes}} like these.', { count: more })}</span>
+              </span>
+            )}
+          </>
         ) : (
           <span className="flex items-start gap-2 text-fg-muted">
             <Ban aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
@@ -1341,6 +1358,8 @@ export function AccessChangeCard({
           );
         })}
       </ul>
+      {/* Past the listed ones: the same answer covers them. */}
+      {more === 0 ? null : <p className="m-0 text-[12.5px] leading-normal text-fg-muted">{t('designer:access.more', 'And {count, plural, one {# more change} other {# more changes}} like these.', { count: more })}</p>}
       <div className="flex flex-wrap gap-1.5">
         <button type="button" disabled={busy} onClick={onAllow} className={SECONDARY}>
           {t('designer:access.allow', 'Allow it')}

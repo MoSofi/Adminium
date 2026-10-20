@@ -72,6 +72,23 @@ export const CheckAsked = { tags: ['vrt'], render: () => chat(<AccessChangeCard 
 
 export const CheckAfterAPlan = { tags: ['vrt'], render: () => chat(<AccessChangeCard card={{ ...SHOP, changes: [...BOOKINGS.changes, ...SHOP.changes] }} answered={false} busy={false} onAllow={noop} onRefuse={noop} />) };
 
+const LONG = {
+  id: 'access-3',
+  type: 'access-change' as const,
+  changes: [
+    { kind: 'access' as const, verb: 'read-columns' as const, table: 'Bookings', columns: ['name', 'email', 'phone', 'party size', 'date', 'time', 'notes', 'table'] },
+    { kind: 'access' as const, verb: 'no-check' as const, table: 'Messages' },
+    { kind: 'access' as const, verb: 'read-all' as const, table: 'Menu items' },
+    { kind: 'access' as const, verb: 'hidden-rows' as const, table: 'Orders' },
+  ],
+  more: 5,
+  planned: true,
+};
+
+export const CheckWithMore = { tags: ['vrt'], render: () => chat(<AccessChangeCard card={LONG} answered={false} busy={false} onAllow={noop} onRefuse={noop} />) };
+
+export const CheckWithMoreAllowed = { tags: ['vrt'], render: () => chat(<AccessChangeCard card={LONG} answered allowed busy={false} onAllow={noop} onRefuse={noop} />) };
+
 export const CheckAllowed = { tags: ['vrt'], render: () => chat(<AccessChangeCard card={{ ...BOOKINGS, planned: true }} answered allowed busy={false} onAllow={noop} onRefuse={noop} />) };
 
 export const CheckNotAllowed = { tags: ['vrt'], render: () => chat(<AccessChangeCard card={SHOP} answered allowed={false} busy={false} onAllow={noop} onRefuse={noop} />) };

@@ -169,7 +169,7 @@ export interface DesignerAttachment {
 
 /** One change the access card asks about, as the server names it; the page words it. */
 export type AccessChangeView =
-  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns'; table: string; columns?: string[] }
+  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns' | 'read-all' | 'no-check' | 'hidden-rows'; table: string; columns?: string[] }
   | { kind: 'role'; role: string; isNew: boolean }
   | { kind: 'call'; screen: string };
 
@@ -235,7 +235,7 @@ export type DesignerCard =
   /** A turn took a picture the person placed off its screen: keep it there, or let it go. */
   | { id: string; type: 'keep-spot'; spot: string; label: string; screen: string }
   /** In a session of outside words: what the app would newly let strangers do, or its pages reach. Asked before it goes live. */
-  | { id: string; type: 'access-change'; changes: AccessChangeView[]; planned: boolean }
+  | { id: string; type: 'access-change'; changes: AccessChangeView[]; /** Changes past those listed that the same answer is for. */ more?: number; planned: boolean }
   /** The plan for building an app from a site template, asked once before anything is written. */
   | ({ id: string } & TemplatePlanView)
   /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */

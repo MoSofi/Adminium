@@ -298,6 +298,86 @@ describe('the sheet', () => {
   });
 });
 
+describe('what the plan approves, said before it is approved', () => {
+  /** Products shows five columns to visitors, one of them its id and one a ref with no label. */
+  const SHOWN: PlanCardFixture = {
+    ...BAKERY_PLAN,
+    tables: BAKERY_PLAN.tables.map((table) =>
+      table.table === 'products'
+        ? { ...table, publicRead: ['id', 'name', 'price', 'picture', 'in_stock', 'sku'] }
+        : table.table === 'subscribers'
+          ? { ...table, columns: [{ column: 'email_address', label: 'email' }, { column: 'joined', label: 'joined' }] }
+          : table,
+    ),
+    forms: BAKERY_PLAN.forms.map((form) => (form.form === 'newsletter' ? { ...form, writable: ['email_address'] } : form)),
+    roles: [
+      { role: 'staff', tables: ['orders', 'order_lines'] },
+      { role: 'front-desk', tables: ['messages', 'categories'] },
+    ],
+  };
+
+  it('says what visitors see of each ticked table, by its column names, short while folded', async () => {
+    draw({ card: SHOWN });
+    const { user, sheet } = await openSheet();
+    const row = (name: string) => within(sheet).getByRole('checkbox', { name: `Make ${name} a table` }).closest('li') as HTMLElement;
+    // Labels, not refs; a ref with no label as it is; never the id.
+    expect(row('Products').textContent).toContain('Visitors see: name, price, picture and 2 more');
+    await user.click(within(sheet).getByRole('button', { name: /^Products ?:/ }));
+    expect(row('Products').textContent).toContain('Visitors see: name, price, picture, in stock, sku');
+    expect(row('Products').textContent).not.toMatch(/Visitors see: id|, id/);
+    expect(row('Categories').textContent).toContain('Visitors see: name');
+    // What visitors read nothing of says nothing.
+    expect(row('Orders').textContent).not.toContain('Visitors see');
+    // An unticked table is not read by anyone: its line goes.
+    await user.click(within(sheet).getByRole('checkbox', { name: 'Make Categories a table' }));
+    expect(row('Categories').textContent).not.toContain('Visitors see');
+  });
+
+  it('says what visitors fill in on each form: names where the table is the plan’s, refs where it is not', async () => {
+    draw({ card: SHOWN, start: { sheet: true, sections: ['forms'] } });
+    const sheet = screen.getByRole('dialog');
+    const forms = within(sheet).getAllByRole('listitem').map((item) => item.textContent);
+    expect(forms.find((text) => text?.startsWith('Contact'))).toContain('Visitors fill in: name, email, message');
+    expect(forms.find((text) => text?.startsWith('Newsletter'))).toContain('Visitors fill in: email');
+    expect(forms.find((text) => text?.startsWith('Newsletter'))).not.toContain('email_address');
+  });
+
+  it('says who edits which tables in the dashboard, only of the tables the plan builds', async () => {
+    draw({ card: SHOWN });
+    const { user, sheet } = await openSheet();
+    expect(sheet.textContent).toContain('Who edits them in the dashboard: staff (Orders, Order lines)');
+    // A form’s table is the plan’s too, by the form’s own name for it.
+    expect(sheet.textContent).toContain('Who edits them in the dashboard: front-desk (Messages, Categories)');
+    await user.click(within(sheet).getByRole('checkbox', { name: 'Make Categories a table' }));
+    expect(sheet.textContent).toContain('Who edits them in the dashboard: front-desk (Messages)');
+    await user.click(within(sheet).getByRole('checkbox', { name: 'Make Orders a table' }));
+    await user.click(within(sheet).getByRole('checkbox', { name: 'Make Order lines a table' }));
+    expect(sheet.textContent).not.toContain('staff (');
+  });
+
+  it('sends the same answer: the lines only say what the plan holds', async () => {
+    const { onSend } = draw({ card: SHOWN });
+    const { user, sheet } = await openSheet();
+    await user.click(within(sheet).getByRole('button', { name: 'Build this' }));
+    expect(onSend).toHaveBeenCalledWith(START);
+  });
+
+  it('draws the template’s words in them as text', async () => {
+    const card: PlanCardFixture = {
+      ...SMALL,
+      tables: [{ ...SMALL.tables[0]!, columns: [{ column: 'name', label: '<img src=x onerror=alert(1)>' }], publicRead: ['name'] }],
+      forms: [{ ...SMALL.forms[0]!, table: 'dishes', tableLabel: '<b>Dishes</b>', writable: ['name'] }],
+      roles: [{ role: 'staff', tables: ['dishes'] }],
+    };
+    draw({ card: { ...card, tables: [{ ...card.tables[0]!, label: '<u>Dishes</u>' }] }, start: { sheet: true, sections: ['tables', 'forms'] } });
+    const sheet = screen.getByRole('dialog');
+    expect(sheet.textContent).toContain('Visitors see: <img src=x onerror=alert(1)>');
+    expect(sheet.textContent).toContain('Visitors fill in: <img src=x onerror=alert(1)>');
+    expect(sheet.textContent).toContain('Who edits them in the dashboard: staff (<u>Dishes</u>)');
+    expect(sheet.querySelector('img, u, b')).toBeNull();
+  });
+});
+
 describe('once it is sent', () => {
   it('says it is building while the answer is on its way, and is the button again when it was not taken', async () => {
     const { onSend, view } = draw();

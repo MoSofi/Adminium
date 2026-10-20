@@ -10055,6 +10055,18 @@
     "status": "mt",
     "srcHash": "50e7d41dd638"
   },
+  "designer.access.columnsMore": {
+    "status": "mt",
+    "srcHash": "960c3cd34315"
+  },
+  "designer.access.hiddenRows": {
+    "status": "mt",
+    "srcHash": "8caab29bdb44"
+  },
+  "designer.access.hiddenRowsAllowed": {
+    "status": "mt",
+    "srcHash": "01b94b26ad7f"
+  },
   "designer.access.lead": {
     "status": "mt",
     "srcHash": "a160eda2b9a3"
@@ -10062,6 +10074,14 @@
   "designer.access.leadNoPlan": {
     "status": "mt",
     "srcHash": "0345f9425f37"
+  },
+  "designer.access.more": {
+    "status": "mt",
+    "srcHash": "f90cf1b91c95"
+  },
+  "designer.access.moreAllowed": {
+    "status": "mt",
+    "srcHash": "bb491f00c364"
   },
   "designer.access.newRole": {
     "status": "mt",
@@ -10071,6 +10091,14 @@
     "status": "mt",
     "srcHash": "39b25a3c1f9a"
   },
+  "designer.access.noCheck": {
+    "status": "mt",
+    "srcHash": "47c3a587ae65"
+  },
+  "designer.access.noCheckAllowed": {
+    "status": "mt",
+    "srcHash": "44c9cf80197d"
+  },
   "designer.access.notAllowed": {
     "status": "mt",
     "srcHash": "2be799ea00e5"
@@ -10078,6 +10106,14 @@
   "designer.access.read": {
     "status": "mt",
     "srcHash": "d63ee1883155"
+  },
+  "designer.access.readAll": {
+    "status": "mt",
+    "srcHash": "512fd921b6a5"
+  },
+  "designer.access.readAllAllowed": {
+    "status": "mt",
+    "srcHash": "d59739e52fec"
   },
   "designer.access.readAllowed": {
     "status": "mt",
@@ -12803,6 +12839,10 @@
     "status": "mt",
     "srcHash": "9916f231d11b"
   },
+  "designer.plan.rolesEdit": {
+    "status": "mt",
+    "srcHash": "a53101e6434e"
+  },
   "designer.plan.samplesBoth": {
     "status": "mt",
     "srcHash": "0daa0199aa2f"
@@ -12878,6 +12918,14 @@
   "designer.plan.title": {
     "status": "mt",
     "srcHash": "86aed879357f"
+  },
+  "designer.plan.visitorsFill": {
+    "status": "mt",
+    "srcHash": "378f38c8ae8d"
+  },
+  "designer.plan.visitorsSee": {
+    "status": "mt",
+    "srcHash": "d1791b703aeb"
   },
   "designer.plan.worksRow": {
     "status": "mt",
