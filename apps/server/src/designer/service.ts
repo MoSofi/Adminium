@@ -8,7 +8,7 @@
  * made. The model never applies anything itself; it writes files, and this
  * decides what becomes of them.
  */
-import type { Attachment, Attachments } from './attachments.js';
+import { withSessionLock, type Attachment, type Attachments } from './attachments.js';
 import { PHONE_SIDE, hasPhoneCode } from '../project/apps/phone.js';
 import { phoneNow } from '../project/apps/phone-build.js';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -568,14 +568,20 @@ export function createDesigner(host: DesignerHost): Designer {
       const reads = sight.picture !== null && host.attachments !== undefined && (await host.connections.readsImages(session.connectionId as ConnectionId, session.model).catch(() => null)) === true;
       let image: { ref: string; mediaType: string; name: string } | undefined;
       if (reads && sight.picture !== null && host.attachments !== undefined) {
-        // The last picture of the page gives way to this one: found by its name, so one kept before a restart goes too.
-        for (const old of host.attachments.list(session.id)) if (SIGHT_FILE.test(old.label)) host.attachments.remove(session.id, old.id);
-        try {
-          const kept = host.attachments.add(session.id, { filename: `the ${sight.side} page as it shows.jpg`, bytes: sight.picture });
-          image = { ref: kept.id, mediaType: kept.mediaType, name: kept.label };
-        } catch {
-          // The session holds as many files as it may: the measured lines go without the picture.
-        }
+        const files = host.attachments;
+        const picture = sight.picture;
+        // One writer of the session's files at a time: a site being judged writes them too.
+        image = await withSessionLock(session.id, () => {
+          // The last picture of the page gives way to this one: found by its name, so one kept before a restart goes too.
+          for (const old of files.list(session.id)) if (SIGHT_FILE.test(old.label)) files.remove(session.id, old.id);
+          try {
+            const kept = files.add(session.id, { filename: `the ${sight.side} page as it shows.jpg`, bytes: picture });
+            return { ref: kept.id, mediaType: kept.mediaType, name: kept.label };
+          } catch {
+            // The session holds as many files as it may: the measured lines go without the picture.
+            return undefined;
+          }
+        });
       }
       // The pictures the person attached go with it again (the two newest): a page is held to the design only by a model that sees both at once.
       const designs =

@@ -179,11 +179,22 @@ export const designerSightReply = z.object({ kept: z.boolean() });
 export const designerAttachment = z.object({
   id: z.string(),
   label: z.string(),
-  kind: z.enum(['image', 'csv', 'font', 'doc', 'html', 'css']),
+  kind: z.enum(['image', 'csv', 'font', 'doc', 'html', 'css', 'site']),
   mediaType: z.string(),
   bytes: z.number().int(),
   rows: z.number().int().optional(),
   columns: z.array(z.string()).optional(),
+  /** A site template's pages and files kept, and what was left out (the first of them) with how many there were. */
+  pages: z.number().int().optional(),
+  files: z.number().int().optional(),
+  leftOut: z.array(z.object({ file: z.string(), why: z.string() })).optional(),
+  leftOutCount: z.number().int().optional(),
+});
+export const designerSiteQuery = z.object({
+  /** The zip's name, or the folder's the page packed: the site is called by it. */
+  filename: z.string().min(1).max(300),
+  /** The site this one replaces, as the person said after being asked: without it, a session that holds a site keeps it. */
+  replace: z.string().regex(/^att_[0-9a-f]{20}$/).optional(),
 });
 export const designerAttachmentQuery = z.object({
   filename: z.string().min(1).max(300),

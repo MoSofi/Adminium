@@ -34,7 +34,9 @@ import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/re
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { auditExempt } from '../../audit/coverage.js';
-import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { judgeSite, SiteRefusal } from '../../designer/site/judge.js';
+import { readZipDirectory, readZipEntry, ZIP_MAX_BYTES, ZipRefusal } from '../../designer/site/zip.js';
 import { FigmaError } from '../../designer/figma/client.js';
 import type { FigmaImports } from '../../designer/figma/imports.js';
 import type { FigmaReader } from '../../designer/figma/service.js';
@@ -59,6 +61,7 @@ import {
   designerAttachmentParams,
   designerAttachmentQuery,
   designerAttachmentReply,
+  designerSiteQuery,
   designerReadsImagesBody,
   designerReadsImagesReply,
   designerPreviewBody,
@@ -155,6 +158,8 @@ export interface DesignerRoutesDeps {
 
 /** The largest file a message takes (a CSV), and a little for the request around it. */
 const ATTACHMENT_BODY_LIMIT = ATTACHMENT_MAX_CSV_BYTES + 64 * 1024;
+/** A site template's zip, and a little for the request around it. */
+const SITE_BODY_LIMIT = ZIP_MAX_BYTES + 64 * 1024;
 
 /** How each kind the page may fetch back is served: a picture inline, the rest as a download. */
 const SERVED: Record<'image' | 'csv' | 'font' | 'doc', { type: string; ext: string }> = {
@@ -173,7 +178,11 @@ const publicAttachment = (entry: Attachment) => ({
   bytes: entry.bytes,
   ...(entry.rows === undefined ? {} : { rows: entry.rows }),
   ...(entry.columns === undefined ? {} : { columns: entry.columns }),
+  ...(entry.kind === 'site' ? { pages: entry.pages ?? 0, files: entry.files ?? 0, leftOut: entry.leftOut ?? [], leftOutCount: entry.leftOutCount ?? 0 } : {}),
 });
+
+/** A site's name: the zip's, without `.zip`, or the folder's the page packed. */
+const siteName = (filename: string): string => labelOf(filename).replace(/\.zip$/i, '') || 'site';
 
 /** How long the adminium.dev list is kept. */
 const CATALOG_CACHE_MS = 60 * 60 * 1000;
@@ -416,8 +425,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           try {
             const made = await withSessionLock(session.id, () =>
               part === 'picture'
-                ? deps.attachments.add(session.id, { filename: names.pictureName, bytes: imported.picture, imported: { source: 'figma', figma: stamp, label: names.pictureName } })
-                : deps.attachments.add(session.id, { filename: names.outlineName, bytes: Buffer.from(imported.outline, 'utf8'), imported: { source: 'figma', figma: { ...stamp, short: imported.short }, label: names.outlineName } }),
+                ? deps.attachments.add(session.id, { filename: names.pictureName, bytes: imported.picture, imported: { source: 'figma', figma: stamp, label: names.pictureName }, ...(userId === '' ? {} : { by: userId }) })
+                : deps.attachments.add(session.id, { filename: names.outlineName, bytes: Buffer.from(imported.outline, 'utf8'), imported: { source: 'figma', figma: { ...stamp, short: imported.short }, label: names.outlineName }, ...(userId === '' ? {} : { by: userId }) }),
             );
             return await reply.code(201).send({ attachment: publicAttachment(made) });
           } catch (error) {
@@ -441,6 +450,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
               bytes,
               ...(palette.length === 0 ? {} : { palette }),
               ...(whole === undefined || part === undefined || parts === undefined ? {} : { partOf: { id: whole, part, parts } }),
+              ...(request.user?.id === undefined ? {} : { by: request.user.id }),
             }),
           );
           return await reply.code(201).send({ attachment: publicAttachment(made) });
@@ -460,7 +470,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const entry = deps.attachments.find(session.id, request.params.attachment);
         const bytes = entry === null ? null : deps.attachments.read(session.id, entry.id);
         // A template's page or stylesheet is never served back: a model reads it as data, and a browser never gets it to draw.
-        if (entry === null || bytes === null || entry.kind === 'html' || entry.kind === 'css') throw new NotFoundError('There is no such file in this session.');
+        if (entry === null || bytes === null || entry.kind === 'html' || entry.kind === 'css' || entry.kind === 'site') throw new NotFoundError('There is no such file in this session.');
         const served = SERVED[entry.kind];
         return reply
           .header('content-type', entry.kind === 'image' ? entry.mediaType : served.type)
@@ -469,6 +479,78 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           .header('cache-control', 'private, max-age=3600')
           .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${served.ext}"`)
           .send(bytes);
+      },
+    );
+
+    /*
+     * A site template, as a zip: the person's own dropped one, or a folder the page packed. Sent the
+     * moment it is dropped, judged whole (`site/judge.ts`) by its own zip reader (`site/zip.ts`), and
+     * kept as one attachment. One site arrives at a time per session: the session's lock is held from
+     * the first byte read to the last written. A session holds one site; one that holds another is
+     * answered 409 with that site, until the person says to replace it. The same site again is the
+     * one already here.
+     */
+    app.post(
+      '/designer/sessions/:id/attachments/site',
+      {
+        onRequest: app.requireAuth,
+        preHandler: guard,
+        bodyLimit: SITE_BODY_LIMIT,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('a site template attached to a Designer session changes nothing by itself; the turn that builds from it is audited') },
+        schema: { params: designerSessionParams, querystring: designerSiteQuery, response: { 200: designerAttachmentReply, 201: designerAttachmentReply } },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the zip itself as the request body.', { reason: 'ATTACHMENT' });
+        const zip = request.body;
+        const label = labelOf(request.query.filename);
+        const by = request.user?.id;
+        const done = await withSessionLock(session.id, async () => {
+          const before = deps.attachments.list(session.id).find((entry) => entry.kind === 'site');
+          try {
+            const entries = readZipDirectory(zip, label);
+            const judged = await judgeSite(
+              label,
+              entries.map((entry) => ({ path: entry.name, size: entry.size, type: entry.type, read: () => readZipEntry(zip, entry, label) })),
+            );
+            if (before !== undefined && before.sha256 === judged.sha256) return { attachment: before, again: true };
+            if (before !== undefined && request.query.replace !== before.id) {
+              throw new ConflictError(`This replaces ${before.label}. What was already built from it stays.`, 'CONFLICT', { reason: 'SITE_REPLACES', site: { id: before.id, label: before.label } });
+            }
+            const made = deps.attachments.addSite(session.id, { label: siteName(request.query.filename), judged, ...(by === undefined ? {} : { by }) });
+            // The site it replaces leaves the session now; its folder goes once no turn is reading it.
+            if (before !== undefined && !made.again) {
+              deps.attachments.remove(session.id, before.id);
+              if (runner.active()?.sessionId !== session.id) deps.attachments.sweep(session.id);
+            }
+            return made;
+          } catch (error) {
+            if (error instanceof ZipRefusal || error instanceof SiteRefusal || error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
+            throw error;
+          }
+        });
+        return reply.code(done.again ? 200 : 201).send({ attachment: publicAttachment(done.attachment) });
+      },
+    );
+
+    // A file taken off a message before it is sent (a site's folder whole, once no turn reads it). A file that went with a message stays.
+    app.delete(
+      '/designer/sessions/:id/attachments/:attachment',
+      {
+        preHandler: guard,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('taking a file off a Designer message before it is sent changes nothing') },
+        schema: { params: designerAttachmentParams },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        await withSessionLock(session.id, () => {
+          const entry = deps.attachments.find(session.id, request.params.attachment);
+          if (entry === null || entry.partOf !== undefined) throw new NotFoundError('There is no such file in this session.');
+          if (entry.sent === true) throw new ConflictError('That file went with a message, so it stays in the session.', 'CONFLICT', { reason: 'SENT' });
+          deps.attachments.remove(session.id, entry.id);
+          if (runner.active()?.sessionId !== session.id) deps.attachments.sweep(session.id);
+        });
+        return reply.code(204).send();
       },
     );
 

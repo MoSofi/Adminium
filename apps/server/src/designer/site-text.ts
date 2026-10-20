@@ -199,3 +199,53 @@ export function minifiedSummary(kind: 'html' | 'css', text: string): string {
   }
   return out.join('\n');
 }
+
+/** A path a file names, from that file's own folder inside a site (a leading `/` from the site's top); null when it leaves the site. */
+export function resolveIn(from: string, ref: string): string | null {
+  let decoded = ref;
+  try {
+    decoded = decodeURIComponent(ref);
+  } catch {
+    // Kept as written.
+  }
+  const out = decoded.startsWith('/') ? [] : from.split('/').slice(0, -1);
+  for (const part of decoded.replace(/^\/+/, '').split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      if (out.length === 0) return null;
+      out.pop();
+      continue;
+    }
+    out.push(part);
+  }
+  return out.join('/');
+}
+
+/** The files a site's page or stylesheet names that the site does not hold (by their paths as written), and the other sites it loads from. */
+export function missingInSite(paths: ReadonlySet<string>, file: string, kind: 'html' | 'css', text: string): Named {
+  const named = namedFiles(kind, text);
+  return {
+    local: named.local.filter((each) => {
+      const at = resolveIn(file, each.path);
+      return at === null || !paths.has(at);
+    }),
+    hosts: named.hosts,
+  };
+}
+
+/** A site's kept files counted in words: "7 pages, 3 stylesheets, 2 scripts and 40 pictures". */
+export function siteCountWords(files: readonly { kind: 'html' | 'css' | 'js' | 'picture' | 'svg' | 'font' | 'text' }[]): string {
+  const words: [string, string, (kind: string) => boolean][] = [
+    ['page', 'pages', (kind) => kind === 'html'],
+    ['stylesheet', 'stylesheets', (kind) => kind === 'css'],
+    ['script', 'scripts', (kind) => kind === 'js'],
+    ['picture', 'pictures', (kind) => kind === 'picture' || kind === 'svg'],
+    ['font', 'fonts', (kind) => kind === 'font'],
+    ['licence or readme file', 'licence or readme files', (kind) => kind === 'text'],
+  ];
+  const parts = words.flatMap(([one, many, is]) => {
+    const count = files.filter((file) => is(file.kind)).length;
+    return count === 0 ? [] : [`${String(count)} ${count === 1 ? one : many}`];
+  });
+  return parts.length <= 1 ? (parts[0] ?? 'no files') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1] ?? ''}`;
+}

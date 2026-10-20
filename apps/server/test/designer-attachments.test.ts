@@ -4,7 +4,7 @@
  * is refused, and where it is kept. The whole-server path (the upload route,
  * the turn, the load) is in designer-routes.test.ts.
  */
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -30,6 +30,7 @@ import {
   labelOf,
   type Attachments,
 } from '../src/designer/attachments.js';
+import { judgeSite, type SiteEntry } from '../src/designer/site/judge.js';
 
 const SESSION = 'ds_000000000000000000000000';
 const WOFF2 = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(60, 1)]);
@@ -407,5 +408,121 @@ describe('a page or a stylesheet of a site template', () => {
     expect(note).toContain('read_attachment gives a summary of what it holds');
     expect(note).toContain('the look of the app\'s own screens');
     expect(note).not.toContain('app.min.css');
+  });
+});
+
+describe('a site template', () => {
+  const at = (path: string, data: Buffer | string): SiteEntry => {
+    const bytes = typeof data === 'string' ? Buffer.from(data) : data;
+    return { path, size: bytes.length, type: 'file', read: async () => bytes };
+  };
+  const SITE = [
+    at('index.html', '<!doctype html><html><head><title>Harbor SECRET</title><link rel="stylesheet" href="css/site.css"></head><body><img src="img/hero.png"><img src="img/missing.jpg"><script src="https://cdn.example.org/x.js"></script></body></html>'),
+    at('about.html', '<!doctype html><html><body>About us</body></html>'),
+    at('css/site.css', '.hero{background:url(../img/hero.png)} .x{background:url(/img/gone.png)}'),
+    at('img/hero.png', PNG),
+    at('shop.php', '<?php'),
+  ];
+  const folder = (id: string): string => join(root, '.adminium', 'designer', 'sessions', SESSION, 'attachments', id);
+
+  it('is kept as a folder of files under names of the server’s own, with site.json, staged and renamed into place', async () => {
+    const { attachment, again } = files.addSite(SESSION, { label: 'harbor-bakery', judged: await judgeSite('harbor-bakery.zip', SITE), by: 'u1' });
+    expect(again).toBe(false);
+    expect(attachment).toMatchObject({ kind: 'site', label: 'harbor-bakery', pages: 2, files: 4, leftOut: [{ file: 'shop.php', why: 'PHP is not used' }], leftOutCount: 1, by: 'u1' });
+    const stored = readdirSync(folder(attachment.id)).sort();
+    expect(stored).toEqual(['f0001.html', 'f0002.css', 'f0003.bin', 'f0004.html', 'site.json']);
+    const index = JSON.parse(readFileSync(join(folder(attachment.id), 'site.json'), 'utf8')) as { files: { path: string; stored: string }[] };
+    expect(index.files.map((file) => [file.path, file.stored])).toEqual([
+      ['about.html', 'f0001.html'],
+      ['css/site.css', 'f0002.css'],
+      ['img/hero.png', 'f0003.bin'],
+      ['index.html', 'f0004.html'],
+    ]);
+    // Nothing staged is left, and a site is never served back as bytes.
+    expect(readdirSync(join(root, '.adminium', 'designer', 'sessions', SESSION, 'attachments')).filter((name) => name.startsWith('.staging-'))).toEqual([]);
+    expect(files.read(SESSION, attachment.id)).toBeNull();
+    // A file is read by its path in the site, and by nothing else.
+    expect(files.siteFile(SESSION, attachment.id, 'css/site.css')?.bytes.toString()).toContain('.hero');
+    expect(files.siteFile(SESSION, attachment.id, '../attachments.json')).toBeNull();
+    expect(files.siteFile(SESSION, attachment.id, 'shop.php')).toBeNull();
+  });
+
+  it('is the one already here when the same site comes again, in any wrapping', async () => {
+    const first = files.addSite(SESSION, { label: 'harbor', judged: await judgeSite('h.zip', SITE) });
+    const wrapped = SITE.map((entry) => ({ ...entry, path: `harbor/${entry.path}` }));
+    const second = files.addSite(SESSION, { label: 'harbor', judged: await judgeSite('h.zip', wrapped) });
+    expect(second).toEqual({ attachment: first.attachment, again: true });
+    expect(files.list(SESSION)).toHaveLength(1);
+  });
+
+  it('leaves nothing behind when it cannot be written', async () => {
+    const judged = await judgeSite('h.zip', SITE);
+    const broken = { ...judged, files: judged.files.map((file, index) => (index === 2 ? { ...file, bytes: 42 as unknown as Buffer } : file)) };
+    expect(() => files.addSite(SESSION, { label: 'harbor', judged: broken })).toThrow();
+    expect(readdirSync(join(root, '.adminium', 'designer', 'sessions', SESSION, 'attachments')).filter((name) => name !== 'attachments.json')).toEqual([]);
+    expect(files.list(SESSION)).toEqual([]);
+  });
+
+  it('counts toward the session’s files and bytes, and a person’s files across every session', async () => {
+    const judged = await judgeSite('h.zip', SITE);
+    for (let index = 0; index < ATTACHMENT_MAX_PER_SESSION; index += 1) files.add(SESSION, { filename: 'p.png', bytes: PNG });
+    expect(refusal(() => files.addSite(SESSION, { label: 'h', judged }))).toBe('SESSION_FULL');
+    // A person who already keeps 500 MB across sessions: their next file is refused, another person's is not.
+    const other = 'ds_000000000000000000000001';
+    files.add(other, { filename: 'a.png', bytes: PNG, by: 'u1' });
+    const index = join(root, '.adminium', 'designer', 'sessions', other, 'attachments', 'attachments.json');
+    const listed = JSON.parse(readFileSync(index, 'utf8')) as { bytes: number }[];
+    listed[0]!.bytes = 500 * 1024 * 1024;
+    writeFileSync(index, JSON.stringify(listed));
+    expect(files.bytesBy('u1')).toBe(500 * 1024 * 1024);
+    const third = 'ds_000000000000000000000002';
+    expect(refusal(() => files.add(third, { filename: 'b.png', bytes: PNG, by: 'u1' }))).toBe('PERSON_FULL');
+    expect(refusal(() => files.addSite(third, { label: 'h', judged, by: 'u1' }))).toBe('PERSON_FULL');
+    expect(files.add(third, { filename: 'b.png', bytes: PNG, by: 'u2' }).kind).toBe('image');
+  });
+
+  it('keeps its folder after it is taken off until a sweep, which also takes staging a crash left', async () => {
+    let clock = 1_700_000_000_000;
+    const timed = createAttachments(root, { now: () => clock });
+    const { attachment } = timed.addSite(SESSION, { label: 'h', judged: await judgeSite('h.zip', SITE) });
+    const dir = join(root, '.adminium', 'designer', 'sessions', SESSION, 'attachments');
+    // A crash mid-stage: one new, one an hour and more old.
+    mkdirSync(join(dir, '.staging-new'));
+    mkdirSync(join(dir, '.staging-old'));
+    const old = new Date(clock - 2 * 60 * 60 * 1000);
+    utimesSync(join(dir, '.staging-old'), old, old);
+    clock = Date.now();
+    expect(timed.remove(SESSION, attachment.id)).toBe(true);
+    // A turn may still read it: the folder stays until a sweep.
+    expect(existsSync(join(dir, attachment.id))).toBe(true);
+    timed.sweep(SESSION);
+    expect(existsSync(join(dir, attachment.id))).toBe(false);
+    expect(existsSync(join(dir, '.staging-old'))).toBe(false);
+    expect(existsSync(join(dir, '.staging-new'))).toBe(true);
+    // At boot: every session's old staging, and nothing named.
+    utimesSync(join(dir, '.staging-new'), old, old);
+    timed.sweepStaging();
+    expect(existsSync(join(dir, '.staging-new'))).toBe(false);
+  });
+
+  it('marks files sent with a message, a picture’s parts with it', () => {
+    const picture = files.add(SESSION, { filename: 'p.png', bytes: PNG });
+    const part = files.add(SESSION, { filename: 'p.png', bytes: PNG, partOf: { id: picture.id, part: 1, parts: 2 } });
+    const left = files.add(SESSION, { filename: 'q.png', bytes: PNG });
+    files.markSent(SESSION, [picture.id]);
+    expect(files.find(SESSION, picture.id)?.sent).toBe(true);
+    expect(files.find(SESSION, part.id)?.sent).toBe(true);
+    expect(files.find(SESSION, left.id)?.sent).toBeUndefined();
+  });
+
+  it('goes with its message as counts and facts only: no path, title or text of the template', async () => {
+    const { attachment } = files.addSite(SESSION, { label: 'harbor-bakery', judged: await judgeSite('h.zip', SITE) });
+    const note = attachmentNote(files, SESSION, [attachment.id]);
+    expect(note).toContain(`The person attached a site template (attachment ${attachment.id}): 2 pages, 1 stylesheet and 1 picture; 1 file was left out, and the person was told why.`);
+    expect(note).toContain('read_attachment lists its files, and reads one by its "path"');
+    // img/missing.jpg from the page and /img/gone.png from the stylesheet; ../img/hero.png is there.
+    expect(note).toContain('Its pages and stylesheets name 2 files the template does not hold.');
+    expect(note).toContain('It loads files from 1 other site.');
+    for (const word of ['SECRET', 'About us', 'missing.jpg', 'gone.png', 'cdn.example.org', 'shop.php', 'index.html']) expect(note).not.toContain(word);
   });
 });

@@ -30,7 +30,7 @@
  * A card (a question, a package, data that would be lost) pauses the turn
  * until it is answered. Stop answers every waiting card with "stopped".
  */
-import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
+import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, withSessionLock, type Attachment, type Attachments } from './attachments.js';
 import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 import { cleanPicked, pickedNote } from './picked.js';
 import { requestTokens, type PromptOpts } from './prompt.js';
@@ -802,6 +802,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       const attached = ids.map((id) => deps.attachments?.find(sessionId, id) ?? null);
       if (attached.some((entry) => entry === null)) throw new ValidationFailedError('One of the attached files is not in this session. Attach it again.', { reason: 'TURN_ATTACHMENTS' });
       const files = attached.filter((entry): entry is Attachment => entry !== null);
+      // What no index names any more (the folder of a site that was replaced) goes now: no turn is reading it.
+      deps.attachments?.sweep(sessionId);
       // The element the person pointed at: said by a page a model wrote, so held to its shape before a word of it is passed on.
       const picked = input.picked === undefined ? null : cleanPicked(input.picked);
       if (input.picked !== undefined && picked === null) throw new ValidationFailedError('The element you picked could not be read. Pick it again.', { reason: 'TURN_PICKED' });
@@ -812,6 +814,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       // The folder was kept for this turn: it has it now.
       input.claim?.release();
       try {
+        // Files that go with a message stay in the session from now on; written as every writer of its files writes, one at a time.
+        const attachments = deps.attachments;
+        if (ids.length > 0 && attachments !== undefined) await withSessionLock(sessionId, () => attachments.markSent(sessionId, ids));
         if (session.turns > 0) await deps.beforeLaterTurn?.(session).catch((error: unknown) => deps.log?.('could not record the folder before a later turn', error));
         const updated = deps.store.update(sessionId, { turns: turn });
         // What the person saved by hand since the Designer last finished: named, so it reads each again before it writes it.
@@ -841,7 +846,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         events(sessionId).emit(turn, {
           kind: 'turn-started',
           text,
-          ...(files.length === 0 ? {} : { attachments: files.map((file) => ({ id: file.id, label: file.label, kind: file.kind, ...(file.rows === undefined ? {} : { rows: file.rows }) })) }),
+          ...(files.length === 0
+            ? {}
+            : { attachments: files.map((file) => ({ id: file.id, label: file.label, kind: file.kind, ...(file.rows === undefined ? {} : { rows: file.rows }), ...(file.kind === 'site' ? { pages: file.pages ?? 0, files: file.files ?? 0 } : {}) })) }),
           ...(picked === null ? {} : { picked }),
         });
         await deps.audit?.('designer.turn.started', updated, { turn, by: input.by.label });

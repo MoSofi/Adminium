@@ -2268,6 +2268,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         });
         // What people attach to a message, and loading an attached CSV's rows: the dashboard's own Import, for one of the app's tables.
         const designerAttachments = createAttachments(root);
+        // A site being staged when the server stopped: older than an hour, it is taken away.
+        designerAttachments.sweepStaging();
         const designerRows = createRowLoader({
           meta,
           manager,
