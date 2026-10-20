@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 
 import { builtInStylesDir, findDesignSkill, skillCss, skillFonts, skillTheme, type DesignSkill } from './design-skills.js';
 import { appDir, SIDES, type AppSide } from './read-app.js';
-import { cleanOwnFonts, cleanThemePatch, fontPackage, fontsCssOf, inkOn as inkOnColour, themeCssOf, themeFamilies, themeFrom, type OwnFont, type Theme, type ThemePatch, type WeightsOf } from './theme.js';
+import { cleanOwnFonts, cleanThemePatch, fontPackage, fontsCssOf, inkOn as inkOnColour, themeColoursCss, themeCssOf, themeFamilies, themeFrom, type OwnFont, type Theme, type ThemePatch, type WeightsOf } from './theme.js';
 
 export const LOOK_DIRECTIONS = ['clean', 'warm', 'bold', 'calm'] as const;
 export type LookDirection = (typeof LOOK_DIRECTIONS)[number];
@@ -406,6 +406,12 @@ export function applyLook(root: string, key: string, look: LookInput, places?: L
     written.push(`assets/fonts/${font.name}`);
   }
   for (const side of sidesWithScreens(root, key)) {
+    // A side that follows its site template takes the colours only: the template's stylesheets are its look.
+    if (kept.templateSides?.includes(side) === true) {
+      if (made.resolved.theme !== null) write(`${side}/src/theme.css`, themeColoursCss(made.resolved.theme));
+      if (!existsSync(join(dir, side, 'src', 'design.css'))) write(`${side}/src/design.css`, DESIGN_CSS_START);
+      continue;
+    }
     for (const [file, text] of Object.entries(made.files)) write(`${side}/src/${file}`, text);
     // A style with no parts of its own leaves none of the last style's behind.
     if (made.resolved.theme !== null && made.files['style.css'] === undefined) rmSync(join(dir, side, 'src', 'style.css'), { force: true });

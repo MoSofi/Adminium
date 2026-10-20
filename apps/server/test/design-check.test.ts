@@ -8,7 +8,7 @@
  * over, a class in a comment is not one, a class defined only inside a media
  * rule counts, a mark of plain typography is no emoji.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -525,5 +525,41 @@ describe('a side with more than one page and one address', () => {
     const first = await address();
     expect(first).toHaveLength(1);
     expect(await address()).toEqual(first);
+  });
+});
+
+describe('a side that follows its site template', () => {
+  const PAGE = "// Made by Adminium Designer's use_site from the template's page \"index.html\": the markup and words are the template's.\nexport default function HomePage() { return (<><section className={\"hero-banner\"} style={{ \"backgroundColor\": \"#123456\" }}>{\"Fresh\"}</section></>); }\n";
+
+  it('reads every stylesheet of its copy whatever its size, says nothing of the template’s colours, fonts or a page’s inline style, and asks for no logo', async () => {
+    rmSync(join(root, 'apps', 'cakes', 'assets', 'logo.svg'));
+    applyLook(root, 'cakes', { skill: 'warm', templateSides: ['customer'] });
+    // Over the 256 KB the other stylesheets are read up to: its classes still count.
+    write('customer/src/site/css/big.css', `${'.filler { margin: 0 }\n'.repeat(14_000)}.hero-banner { color: #abcdef; font-family: "Template Serif"; }\n`);
+    write('customer/src/site/index.css', '@import "./css/big.css";\n');
+    write('customer/src/design.css', '.x { color: #111111; background: #222222; border-color: #333333; outline-color: #444444; font-family: "Other"; }\n');
+    write('customer/src/pages/index.tsx', PAGE);
+    write('customer/src/App.tsx', "import HomePage from './pages/index';\nexport function App() { return <HomePage />; }\n");
+    const issues = await designIssues(root, 'cakes', {});
+    expect(issues.map((issue) => issue.kind)).not.toContain('class');
+    expect(issues.map((issue) => issue.kind)).not.toContain('colour');
+    expect(issues.map((issue) => issue.kind)).not.toContain('font');
+    expect(issues.map((issue) => issue.kind)).not.toContain('inline');
+    expect(issues.map((issue) => issue.kind)).not.toContain('logo');
+    // Its theme holds the colours only, and no dark block or color-scheme for a light template to fight.
+    const theme = readFileSync(join(src(), 'theme.css'), 'utf8');
+    expect(theme).toContain('--accent:');
+    expect(theme).not.toContain('color-scheme');
+    expect(theme).not.toContain('prefers-color-scheme');
+    expect(theme).not.toContain('--font-body');
+  });
+
+  it('still says a class nothing styles, and a page of the app’s own that is styled inline', async () => {
+    applyLook(root, 'cakes', { skill: 'warm', templateSides: ['customer'] });
+    write('customer/src/site/index.css', '.hero-banner { margin: 0 }\n');
+    write('customer/src/App.tsx', "export function App() { return <main className=\"not-styled\" style={{ color: 'red' }}>x</main>; }\n");
+    const issues = await designIssues(root, 'cakes', {});
+    expect(issues.find((issue) => issue.kind === 'class')?.line).toContain("one of the template's own classes");
+    expect(issues.map((issue) => issue.kind)).toContain('inline');
   });
 });

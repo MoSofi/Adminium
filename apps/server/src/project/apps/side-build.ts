@@ -33,7 +33,9 @@ import { BUILD_DIR, HELPERS_PACKAGE } from '../build-shared.js';
 import type { ClientBundler as Bundler } from '../client-build.js';
 import { toProjectPath } from '../paths.js';
 import { readCredits, readPictureFile, readSpots, unsplashAddress, PICTURES_DIR } from '../../designer/spots.js';
+import { readLook } from './look.js';
 import { APPS_DIR, SIDES, appDir, appPath, sideEntry, type AppSide } from './read-app.js';
+import { recoverSiteSwap } from './site-swap.js';
 
 /** What a side imports the shared plumbing from. */
 export const SIDE_MODULE = `${HELPERS_PACKAGE}/side`;
@@ -50,6 +52,10 @@ const FILE_LOADERS: Readonly<Record<string, 'file'>> = {
   '.ico': 'file',
   '.woff': 'file',
   '.woff2': 'file',
+  // An icon font's stylesheet names these beside its .woff2.
+  '.ttf': 'file',
+  '.otf': 'file',
+  '.eot': 'file',
 };
 
 export interface BuiltSide {
@@ -164,6 +170,12 @@ function sideModulePlugin(root: string, file: string) {
 
 /** The stylesheets of a side, in the order they are loaded. `tailwind` is not a file: the build makes its text. */
 export const SIDE_STYLES = ['theme.css', 'fonts.css', 'app.css', 'tailwind', 'style.css', 'design.css'] as const;
+/**
+ * A side that follows its site template: the colour variables, the template's stylesheets (as
+ * use_site copied them), then the fixes of `design.css`, which still win. None of Adminium's own
+ * look, and no Tailwind, whose reset and its `collapse` and `container` change a template's page.
+ */
+export const TEMPLATE_SIDE_STYLES = ['theme.css', 'site/index.css', 'design.css'] as const;
 const SIDE_ENTRY = 'adminium-side-entry';
 const TAILWIND_TEXT = 'adminium-tailwind.css';
 
@@ -173,13 +185,13 @@ const TAILWIND_TEXT = 'adminium-tailwind.css';
  * written again without an import still has its look. A stylesheet `main.tsx`
  * imports as well is bundled once, in the place it has here.
  */
-function sideEntryPlugin(src: string, tailwind: boolean) {
+function sideEntryPlugin(src: string, tailwind: boolean, template = false) {
   return {
     name: 'adminium-side-entry',
     setup(build: PluginBuild) {
       build.onResolve({ filter: /^adminium-side-entry$/ }, () => ({ path: SIDE_ENTRY, namespace: 'adminium-entry' }));
       build.onLoad({ filter: /.*/, namespace: 'adminium-entry' }, () => {
-        const lines = SIDE_STYLES.flatMap((name) => {
+        const lines = (template ? TEMPLATE_SIDE_STYLES : SIDE_STYLES).flatMap((name) => {
           if (name === 'tailwind') return tailwind ? [`import ${JSON.stringify(TAILWIND_TEXT)};`] : [];
           return existsSync(join(src, name)) ? [`import ${JSON.stringify(`./${name}`)};`] : [];
         });
@@ -572,8 +584,11 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
   mkdirSync(join(staging, 'assets'), { recursive: true });
 
   const src = join(source, 'src');
+  // A side that follows its site template: its copy put back in order after a crash, and no Tailwind.
+  const template = readLook(root, key)?.templateSides?.includes(side) === true;
+  if (template) recoverSiteSwap(src);
   // Tailwind, when the project carries the one this build knows; a project without it builds as it always did.
-  const tailwind = projectTailwind(root);
+  const tailwind = template ? null : projectTailwind(root);
   if (tailwind !== null && 'problem' in tailwind) throw new CliError(`Could not build the ${side} side of "${key}":\n${tailwind.problem}`);
   const scanned: string[] = [];
 
@@ -608,7 +623,7 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
       metafile: true,
       logLevel: 'silent',
       plugins: [
-        sideEntryPlugin(src, tailwind !== null),
+        sideEntryPlugin(src, tailwind !== null, template),
         sideModulePlugin(root, opts.sideModule ?? engineSideModule()),
         ...(tailwind === null ? [] : [tailwindPlugin(tailwind, src, (file) => scanned.push(file))]),
         containmentPlugin(root, key),

@@ -22,6 +22,7 @@ import { readCredits, readSpots, spotScreens, type SpotScreen } from '../../desi
 import { appDir, appPath, SIDES, type AppSide } from './read-app.js';
 import { code } from './side-calls.js';
 import { projectTailwind, tailwindCss } from './side-build.js';
+import { SITE_DIR } from './site-swap.js';
 import { contrast, inkOn, type Theme, type ThemeColours } from './theme.js';
 
 export interface DesignIssue {
@@ -42,6 +43,27 @@ export interface DesignCheckOptions extends LookPlaces {
 
 const MAX_FILES = 60;
 const MAX_BYTES = 256 * 1024;
+/** The first words of a page use_site made from a template's page. */
+export const CONVERTED_MARK = "// Made by Adminium Designer's use_site";
+
+/**
+ * Every stylesheet of a side's copy of its template, whatever its size: a class a converted page
+ * uses is styled there. Held to what the template's judge let in (300 files, 1 MB a stylesheet).
+ */
+function siteSheets(dir: string): { name: string; path: string; text: string }[] {
+  const out: { name: string; path: string; text: string }[] = [];
+  const walk = (folder: string, rel: string): void => {
+    if (!existsSync(folder)) return;
+    for (const entry of readdirSync(folder, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (out.length >= 300 || entry.isSymbolicLink()) continue;
+      const path = join(folder, entry.name);
+      if (entry.isDirectory()) walk(path, `${rel}/${entry.name}`);
+      else if (entry.isFile() && /\.css$/i.test(entry.name) && statSync(path).size <= 1024 * 1024) out.push({ name: `${rel}/${entry.name}`, path, text: readFileSync(path, 'utf8') });
+    }
+  };
+  walk(dir, SITE_DIR);
+  return out;
+}
 
 function sources(dir: string, keep: RegExp): { name: string; path: string; text: string }[] {
   const out: { name: string; path: string; text: string }[] = [];
@@ -435,8 +457,11 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
   for (const side of sides) {
     const src = join(dir, side, 'src');
     const at = (name: string): string => appPath(key, side, 'src', name);
+    // A side that follows its site template: the template decides colours, fonts and the page's markup.
+    const template = look?.templateSides?.includes(side) === true;
     const screens = sources(src, /\.(?:tsx|jsx)$/);
-    const sheets = sources(src, /\.css$/);
+    const sheets = template ? [...sources(src, /\.css$/).filter((sheet) => !sheet.name.startsWith(`${SITE_DIR}/`)), ...siteSheets(join(src, SITE_DIR))] : sources(src, /\.css$/);
+    const sideTailwind = template ? null : tailwind;
 
     // A class a screen uses that nothing styles.
     const defined = new Set<string>();
@@ -450,9 +475,9 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
       }
     }
     let unknown = [...used.keys()];
-    if (unknown.length > 0 && tailwind !== null && !('problem' in tailwind)) {
+    if (unknown.length > 0 && sideTailwind !== null && !('problem' in sideTailwind)) {
       try {
-        const known = classesDefined(await tailwindCss(tailwind, src, unknown));
+        const known = classesDefined(await tailwindCss(sideTailwind, src, unknown));
         unknown = unknown.filter((name) => !known.has(name));
       } catch {
         // Tailwind could not be asked: nothing is said of a class it might know.
@@ -462,12 +487,12 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
     for (const name of unknown.sort().slice(0, 12)) {
       issues.push({
         kind: 'class',
-        line: `- The class "${name}" (${at(used.get(name) as string)}) is styled nowhere, so that part shows unstyled: write .${name.replace(/[^\w-]/g, '\\$&')} { … } in ${at('design.css')}, or use a made part of app.css${tailwind === null ? '' : ' or a Tailwind class'} in its place.`,
+        line: `- The class "${name}" (${at(used.get(name) as string)}) is styled nowhere, so that part shows unstyled: write .${name.replace(/[^\w-]/g, '\\$&')} { … } in ${at('design.css')}, or use ${template ? "one of the template's own classes" : `a made part of app.css${sideTailwind === null ? '' : ' or a Tailwind class'}`} in its place.`,
       });
     }
 
     // A colour of Tailwind's own palette: it compiles, and the theme knows nothing of it.
-    if (tailwind !== null && !('problem' in tailwind) && palette.size > 0) {
+    if (sideTailwind !== null && !('problem' in sideTailwind) && palette.size > 0) {
       const names = [...palette.keys()].sort();
       issues.push({
         kind: 'colour',
@@ -486,7 +511,7 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
     }
 
     // Colours and fonts written as values, where the theme's belong.
-    for (const sheet of sheets.filter((entry) => entry.name === 'design.css')) {
+    for (const sheet of sheets.filter((entry) => entry.name === 'design.css' && !template)) {
       const colours = rawColours(sheet.text);
       if (colours.length > COLOURS_ALLOWED) {
         issues.push({
@@ -580,7 +605,8 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
       }
     }
 
-    for (const screen of screens) {
+    // A page use_site made keeps the template's own inline styles.
+    for (const screen of screens.filter((entry) => !(template && entry.text.startsWith(CONVERTED_MARK)))) {
       // A custom property passed down is not styling: `style={{ '--w': x }}` is left alone.
       const inline = [...code(screen.text).matchAll(/\bstyle\s*=\s*\{\{([^}]*)\}\}/g)].find((found) => /(^|,)\s*[a-zA-Z]+\s*:/.test(found[1] as string));
       if (inline !== undefined) {
@@ -589,8 +615,8 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
     }
   }
 
-  // A public side has a logo, and shows it.
-  if (sides.includes('customer' as AppSide)) {
+  // A public side has a logo, and shows it; a template's own page brings its own.
+  if (sides.includes('customer' as AppSide) && look?.templateSides?.includes('customer') !== true) {
     const logo = join(dir, 'assets', 'logo.svg');
     const shown = sources(join(dir, 'customer', 'src'), /\.(?:tsx|jsx)$/).some((screen) => /logo\.svg['"]|<Logo\b|function Logo\b|const Logo\b/.test(code(screen.text)));
     if (!existsSync(logo) && !shown) {

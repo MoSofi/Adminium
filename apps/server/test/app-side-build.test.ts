@@ -325,6 +325,41 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
     expect(css.split('h1{')).toHaveLength(2);
   });
 
+  it('loads a side that follows its site template as theme, template, design.css, with none of Adminium’s look, and its .ttf, .otf and .eot fonts', async () => {
+    put('apps/repairs/look.json', JSON.stringify({ skill: 'clean', templateSides: ['staff'] }));
+    put('apps/repairs/staff/src/main.tsx', MAIN.replace("import './app.css';\n", ''));
+    put('apps/repairs/staff/src/theme.css', ':root { --accent: #a04e26; }\n');
+    put('apps/repairs/staff/src/style.css', '.of-the-style { margin: 0; }\n');
+    put('apps/repairs/staff/src/fonts.css', '.of-the-fonts { margin: 0; }\n');
+    put('apps/repairs/staff/src/design.css', '.mine { color: var(--accent); }\n');
+    put('apps/repairs/staff/src/site/index.css', '@import "./css/site.css";\n');
+    put('apps/repairs/staff/src/site/css/site.css', '@font-face { font-family: Icons; src: url(../fonts/icons.ttf), url(../fonts/icons.otf), url(../fonts/icons.eot); }\n.hero { color: #123456; }\n');
+    for (const ext of ['ttf', 'otf', 'eot']) put(`apps/repairs/staff/src/site/fonts/icons.${ext}`, `font ${ext}`);
+    const built = await build();
+    const css = cssOf(built.dir);
+    const at = (text: string): number => css.indexOf(text);
+    expect(at('--accent')).toBeGreaterThanOrEqual(0);
+    expect(at('--accent')).toBeLessThan(at('.hero'));
+    expect(at('.hero')).toBeLessThan(at('.mine'));
+    expect(css).not.toContain('of-the-style');
+    expect(css).not.toContain('of-the-fonts');
+    expect(readdirSync(join(built.dir, 'assets')).filter((name) => /^icons-.*\.(ttf|otf|eot)$/.test(name))).toHaveLength(3);
+  });
+
+  it('puts a side’s template copy back in order before it builds, after a swap a crash stopped', async () => {
+    put('apps/repairs/look.json', JSON.stringify({ skill: 'clean', templateSides: ['staff'] }));
+    put('apps/repairs/staff/src/main.tsx', MAIN.replace("import './app.css';\n", ''));
+    put('apps/repairs/staff/src/theme.css', ':root { --accent: #a04e26; }\n');
+    // Moved aside, never moved back: the last good copy.
+    put('apps/repairs/staff/src/.site-aside/index.css', '.kept-copy { margin: 0; }\n');
+    put('apps/repairs/staff/src/.site-new/index.css', '.half-copy { margin: 0; }\n');
+    const css = cssOf((await build()).dir);
+    expect(css).toContain('kept-copy');
+    expect(css).not.toContain('half-copy');
+    expect(existsSync(join(root, 'apps/repairs/staff/src/site/index.css'))).toBe(true);
+    expect(existsSync(join(root, 'apps/repairs/staff/src/.site-aside'))).toBe(false);
+  });
+
   it('refuses an import that leaves the app’s folder, by a path, by a link or by a name mapped onto the project', async () => {
     put('secret.json', '{"key":"do-not-ship"}');
     put('.adminium/keys.json', '{"key":"do-not-ship"}');
@@ -443,6 +478,17 @@ describe.skipIf(!ready || tailwindFolder() === null)('Tailwind in a side', () =>
     symlinkSync(tailwindFolder() as string, join(root, 'node_modules', 'tailwindcss'), 'dir');
     expect(projectTailwind(root)).toBeNull();
     expect(cssOf((await build()).dir)).not.toContain('md\\:p-8');
+  });
+
+  it('gives a side that follows its site template no Tailwind, even in a project that has it', async () => {
+    withTailwind();
+    put('apps/repairs/look.json', JSON.stringify({ skill: 'clean', templateSides: ['staff'] }));
+    put('apps/repairs/staff/src/main.tsx', SCREEN);
+    put('apps/repairs/staff/src/site/index.css', '.collapse { visibility: visible; }\n');
+    const css = cssOf((await build()).dir);
+    expect(css).not.toContain('md\\:p-8');
+    expect(css).not.toContain('tailwindcss');
+    expect(css).toContain('.collapse{visibility:visible}');
   });
 
   it('compiles the classes a screen uses, with the theme’s names, and puts the made parts under them', async () => {

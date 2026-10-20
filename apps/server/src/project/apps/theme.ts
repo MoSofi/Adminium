@@ -408,6 +408,23 @@ ${colourBlock(theme.dark, '    ')}
 }`;
 }
 
+/**
+ * A template side's theme: its colour variables, and nothing else. The template's own stylesheets
+ * draw the page; these are for the parts the app adds (a cart line, a sign-in box). No
+ * `color-scheme` and no dark block: the template decides whether the page is light or dark, and a
+ * form control or a part of the app's own must not turn dark under a light template.
+ */
+export function themeColoursCss(theme: Theme): string {
+  return `/*
+ * This side follows its site template: the template's stylesheets draw the page (src/site/).
+ * These colour variables are for the parts the app adds. "Change the style" writes only these here.
+ */
+:root {
+${colourBlock(theme.light, '  ')}
+}
+`;
+}
+
 /** The weights a family's package has a stylesheet for, as the files in it say. */
 export type WeightsOf = (family: string) => readonly number[] | null;
 
