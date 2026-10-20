@@ -49,7 +49,7 @@ import {
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
-import type { DesignerEvent, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
+import type { DesignerEvent, DesignerEventBody, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
 import type { Actor, DesignerTool, ToolContext, TurnHandle } from './tool-types.js';
@@ -117,6 +117,8 @@ export interface RunnerDeps {
   opening?(session: DesignerSession, turn: TurnHandle): Promise<void>;
   /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
   closing?(session: DesignerSession): string[];
+  /** What the server says after a turn that applied, in its own words and the page's language (the app's picture spots): events, never the model's text. */
+  afterApplied?(session: DesignerSession, turn: { turn: number; tools: ReadonlySet<string> }): DesignerEventBody[];
   /** How long to wait before asking a provider again after it failed in passing; one entry per try. */
   retryWaitsMs?: readonly number[];
   /** The engine's last word: check, build, apply, and save a version. Emits its own events. */
@@ -230,7 +232,7 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_s
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
 export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
 /** The tools that change, check or apply the app. */
-const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'find_pictures', 'use_pictures']);
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'add_spots', 'fill_spot', 'use_pictures']);
 const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
 
 /** Wait, unless the turn is stopped first. */
@@ -436,6 +438,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let lookedAfter = 0;
     /** Whether this turn changed, checked or applied anything: only then is it held to the check. */
     let acted = false;
+    /** The tools that did their work in this turn, by name. */
+    const doneTools = new Set<string>();
     const waits = deps.retryWaitsMs ?? RETRY_WAITS_MS;
     let limit: { which: LimitKind; value: number } | null = null;
     const warned = new Set<SpendMark>();
@@ -686,6 +690,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
+            if (done.isError !== true) doneTools.add(tool.name);
             if (done.picture !== undefined) pictures.push(done.picture);
             if (done.isError !== true && (call.name === 'apply_app' || call.name === 'build_sides')) {
               // build_sides and then apply_app is one build, made twice: the preview opens the page again after the
@@ -748,6 +753,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // Stop during the last build ends that build: said as a stop, not as a build that failed.
         if (!verdict.ok && signal.aborted) throw new TurnStoppedError();
         if (!verdict.ok && outcome === 'done') outcome = 'not-applied';
+        if (verdict.ok) for (const body of deps.afterApplied?.(deps.store.read(session.id), { turn, tools: doneTools }) ?? []) log.emit(turn, body);
       }
     } catch (error) {
       if (error instanceof TurnStoppedError || signal.aborted) {

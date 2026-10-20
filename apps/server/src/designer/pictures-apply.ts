@@ -161,6 +161,18 @@ export function legacyPictures(root: string, key: string): string[] {
   return [...found].sort();
 }
 
+/** The first table whose sample rows wait for a picture, as the person reads it, and how many rows wait; null when none does. */
+export function emptyPictureRows(root: string, key: string, version: string): { table: string; count: number } | null {
+  const bundle = readBundle(root, key);
+  if (bundle === null) return null;
+  for (const table of pictureTables(root, key, version)) {
+    const rows = bundle.tables?.find((candidate) => candidate.ref === table.table)?.rows ?? [];
+    const count = rows.filter((row) => row[table.column] === null || row[table.column] === undefined).length;
+    if (count > 0) return { table: table.label, count };
+  }
+  return null;
+}
+
 /** What the picture dialog draws, for an app: its spots, its tables' sample rows, and the pictures already in it. */
 export function picturesState(
   root: string,

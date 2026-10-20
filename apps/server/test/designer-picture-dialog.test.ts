@@ -485,3 +485,43 @@ describe('Apply', { timeout: 180_000 }, () => {
     expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/undo`, { from: (done.body['version'] as { n: number }).n, to: done.body['before'] })).status).toBe(409);
   });
 });
+
+describe('the picture spots, as a turn that applied ends', { timeout: 180_000 }, () => {
+  const turnEvents = async (app: WithApp, turn: number): Promise<{ kind: string; turn: number; note?: string; count?: number; card?: { type: string; spots?: { id: string }[]; rows?: unknown } }[]> => {
+    let events: { kind: string; turn: number }[] = [];
+    await vi.waitFor(
+      async () => {
+        events = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as never;
+        expect(events.filter((event) => event.kind === 'turn-finished')).toHaveLength(turn);
+      },
+      { timeout: 60_000, interval: 100 },
+    );
+    return events.filter((event) => event.turn === turn) as never;
+  };
+  const addsSpot: ScriptStep = () => ({ calls: [{ name: 'add_spots', arguments: { spots: [{ id: 'deals', label: 'Deals', shape: 'wide', shows: 'the deals of the week' }] } }] });
+
+  it('says the spots it made are placeholders when nobody chose, opens the picture card when the person chose to, and reminds of empty ones after', async () => {
+    const app = await withApp();
+    script = [addsSpot];
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Add a deals section.' })).status).toBe(202);
+    const first = await turnEvents(app, 2);
+    expect(first.find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'placeholders', count: 4 });
+    expect(first.some((event) => event.kind === 'card')).toBe(false);
+
+    // The person chose to pick pictures after each design.
+    const look = JSON.parse(app.disk('look.json')) as Record<string, unknown>;
+    writeFileSync(join(app.root, APP, 'look.json'), JSON.stringify({ ...look, pictures: 'choose' }));
+    script = [() => ({ calls: [{ name: 'add_spots', arguments: { spots: [{ id: 'menu', label: 'Menu', shape: 'square' }] } }] })];
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Add a menu picture.' })).status).toBe(202);
+    const second = await turnEvents(app, 3);
+    const card = second.find((event) => event.kind === 'card')?.card;
+    expect(card).toMatchObject({ type: 'spots', rows: { count: 2 } });
+    expect(card?.spots?.map((spot) => spot.id)).toEqual(['hero', 'team', 'kitchen', 'deals', 'menu']);
+    // It waits for nothing: the turn is over, and nobody is asked.
+    expect(second.at(-1)?.kind).toBe('turn-finished');
+
+    // A turn that makes no spot, while some are empty: one line.
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Make the title bigger.' })).status).toBe(202);
+    expect((await turnEvents(app, 4)).find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'still-empty', count: 5 });
+  });
+});

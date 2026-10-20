@@ -2322,9 +2322,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const designerShelf = createPictureShelf({ fetcher: pictureFetch, mayFetch: (picture) => designerSearch?.mayFetchThumb(picture) ?? true });
         designerSearch = createPictureSearch({ sources: pictureSources, shelf: designerShelf });
         const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
-        const pictureSource = (): PictureSource | null => pictureSources().find((source) => source.name === 'Pexels') ?? pictureSources()[0] ?? null;
-        // Unsplash, with the project's own key: for a page's pictures, shown from Unsplash's own site as its rules ask. Pexels, whose pictures are copied, comes first.
-        const shownPictureSource = (): PictureSource | null => (pictureKey('PEXELS_API_KEY') !== '' ? null : (pictureSources().find((source) => source.name === 'Unsplash') ?? null));
+
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
         const figmaCache = createFigmaCache(root);
@@ -2345,7 +2343,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           version: APP_VERSION,
           meta,
           needs: designerNeeds,
-          findsPictures: () => pictureSource() !== null,
+          findsPictures: () => pictureSources().length > 0,
           pictureDialog,
           ...(opts.designerSeam === undefined ? {} : { seam: opts.designerSeam }),
           ...(opts.designerHoldCapMs === undefined ? {} : { holdCapMs: opts.designerHoldCapMs }),
@@ -2431,7 +2429,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 rowLoader: designerRows,
                 ...(pictureSites === undefined ? {} : { pictureSites }),
                 newestVersion: designerRegistry,
-                pictures: { source: pictureSource, shown: shownPictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
+                pictures: { reseed: (key) => designer?.reseedAfterApply(key) },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
                 figma: { reader: figmaReader, cache: figmaCache, windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'] },
               },

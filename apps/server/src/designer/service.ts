@@ -36,10 +36,10 @@ import { findProject } from '../project/locate.js';
 import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
 import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, searchText, withLineEnds, FILES_SAVED_MAX, SEARCH_FILE_HITS_MAX, SEARCH_HITS_MAX, type FileGroup, type SearchHit, type SearchOptions } from './files.js';
 import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
-import { APPLY_IDS_KEPT, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
+import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
-import { SPOTS_FILE, spotsFileProblem } from './spots.js';
+import { readSpots, SPOTS_FILE, spotsFileProblem } from './spots.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -691,6 +691,21 @@ export function createDesigner(host: DesignerHost): Designer {
         .filter((font) => !(look.without ?? []).includes(font.family))
         .map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }));
       if (wants.length > 0) await host.needs({ ask: handle.ask, signal: handle.signal, handle }, key, wants);
+    },
+    // The app's picture spots, as a turn that applied ends: the card that opens the dialog, or a line about what is still empty.
+    afterApplied: (session, { turn, tools }) => {
+      const key = session.appKey;
+      if (hasOwnBuild(host.root, key)) return [];
+      const empty = readSpots(host.root, key).filter((spot) => spot.file === null);
+      const mode = readLook(host.root, key)?.pictures;
+      if (tools.has('add_spots') && mode === 'choose') {
+        const rows = emptyPictureRows(host.root, key, host.version);
+        if (empty.length === 0 && rows === null) return [];
+        return [{ kind: 'card', card: { id: `spots-${String(turn)}`, type: 'spots', spots: empty.map((spot) => ({ id: spot.id, label: spot.label, shape: spot.shape })), ...(rows === null ? {} : { rows }) } }];
+      }
+      if (empty.length === 0) return [];
+      // No choice was asked (no needs card was due): placeholders, said once with the turn that made them.
+      return [{ kind: 'pictures-note', note: tools.has('add_spots') && mode === undefined ? 'placeholders' : 'still-empty', count: empty.length }];
     },
     // What the person is told when the turn ends and a file they attached is still in no table: the model said nothing of it, so the Designer does.
     closing: (session) =>

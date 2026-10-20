@@ -71,7 +71,12 @@ export type DesignerEventBody =
   /** Pictures put in their spots from the picture dialog, with no turn: their names, and the version they were saved as. */
   | { kind: 'pictures'; names: string[]; version: { n: number; name: string } | null }
   /** The pictures' Undo: the app's files are as they were in this version again. */
-  | { kind: 'pictures-undone'; to: number };
+  | { kind: 'pictures-undone'; to: number }
+  /**
+   * The server's word on the app's pictures as a turn ends: the spots it added are placeholders (the person chose
+   * nothing yet), or some are still empty. Said in the page's language, from the counts.
+   */
+  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number };
 
 /** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
 export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';

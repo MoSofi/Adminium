@@ -86,6 +86,17 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /**
+       * The spots a design made, waiting for their pictures: shown as a turn ends when the person chose to pick
+       * pictures after each design. It waits for no answer (the turn is over): the picture dialog's Apply is its answer.
+       */
+      type: 'spots';
+      spots: { id: string; label: string; shape: 'wide' | 'tall' | 'square' }[];
+      /** A table's sample rows that wait for a picture too: the table as the person reads it, and how many. */
+      rows?: { table: string; count: number };
+    }
+  | {
+      id: string;
       type: 'removal';
       appKey: string;
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
@@ -124,5 +135,7 @@ export function answerFor(card: DesignerCard, value: unknown): CardAnswer | null
     const offered = new Set(card.groups.flatMap((group) => group.pictures.map((picture) => picture.id)));
     return { type: 'pictures', accept: [...new Set(given['accept'].filter((id): id is string => typeof id === 'string' && offered.has(id)))] };
   }
+  // The spots card is answered by an Apply of the picture dialog, never on the card.
+  if (card.type === 'spots') return null;
   return typeof given['accept'] === 'boolean' ? { type: card.type, accept: given['accept'] } : null;
 }

@@ -16,7 +16,6 @@ import { createEventLog } from '../src/designer/events.js';
 import { createSkills } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import type { NeedItem } from '../src/designer/needs.js';
-import { createPictureShelf, type FoundPicture, type PictureSource } from '../src/designer/pictures.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
 import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages } from '../src/designer/tools.js';
 import { runCli } from '../src/cli/run.js';
@@ -45,12 +44,7 @@ let pictureClosed: string | null;
 /** What the registry has, by package (a missing name: no such package), and what was installed. */
 let registry: Record<string, string>;
 let installed: { name: string; version: string }[][];
-/** The picture source the tools search (null: this server calls nothing outside), what it was asked, and the apps to be seeded again. */
-let pictureSource: PictureSource | null;
-/** A source whose pictures are shown from its own site (null: none), and the pictures it was told were chosen. */
-let shownSource: PictureSource | null;
-let toldChosen: string[];
-let searched: { words: string; count: number; shape?: string }[];
+/** The apps whose sample rows are to be added again. */
 let reseeded: string[];
 
 const session = { id: 'ds_000000000000000000000000', appKey: 'repairs' } as DesignerSession;
@@ -97,33 +91,10 @@ beforeEach(async () => {
   pictureClosed = null;
   registry = { tailwindcss: '4.3.3', 'lucide-react': '0.544.0', clsx: '2.1.1', 'tailwind-merge': '3.3.1', '@fontsource/inter': '5.2.8', '@fontsource/playfair-display': '5.2.8', 'date-fns': '4.1.0' };
   installed = [];
-  searched = [];
   reseeded = [];
-  shownSource = null;
-  toldChosen = [];
-  let seq = 0;
-  pictureSource = {
-    name: 'Openverse',
-    search: async (words, opts) => {
-      searched.push({ words, count: opts.count, ...(opts.shape === undefined ? {} : { shape: opts.shape }) });
-      const pictures = Array.from({ length: opts.count }, (): FoundPicture => {
-        seq += 1;
-        const n = String(seq).padStart(12, '0');
-        return { id: `pic_${n}`, thumb: `https://api.openverse.org/${n}`, files: [`https://files.example/${n}.jpg`], title: `Picture ${String(seq)}`, creator: `Maker ${String(seq)}`, creatorUrl: '', licence: 'CC BY 2.0', licenceCode: 'by', licenceUrl: 'https://creativecommons.org/licenses/by/2.0/', source: 'Fake', page: `https://files.example/page/${n}` };
-      });
-      return { pictures, more: false };
-    },
-  };
   tools = createDesignerTools(
     {
-      pictures: {
-        source: () => pictureSource,
-        shown: () => shownSource,
-        shelf: createPictureShelf({ fetcher: async () => ({ body: Buffer.from([0xff, 0xd8, 0xff]), contentType: 'image/jpeg' }) }),
-        // A picture whose title ends in 3 cannot be copied (gone, or too large).
-        download: async (picture) => (picture.title.endsWith('3') ? null : { bytes: Buffer.from([0xff, 0xd8, 0xff, ...Buffer.from(picture.id)]), ext: 'jpg' as const, small: false }),
-        reseed: (key) => void reseeded.push(key),
-      },
+      pictures: { reseed: (key) => void reseeded.push(key) },
       newestVersion: async (name) => registry[name] ?? null,
       install: async (specs) => {
         installed.push([...specs]);
@@ -727,127 +698,6 @@ describe('the Designer’s tools', () => {
     expect(asked).toHaveLength(1);
   });
 
-  it('find free pictures: one card for all of them, the ticked ones copied into the app with their credits, the sample rows given theirs', async () => {
-    // For rows of a table there is no such table for, the need is left out with a sentence, and the page's pictures still go on.
-    answers.push({ type: 'pictures', accept: [] });
-    const none = await run('find_pictures', { needs: [{ id: 'Hero Shot!', words: 'a bike workshop', for: 'page', count: 2, shape: 'wide' }, { id: 'items', words: 'bicycles', for: 'rows', table: 'no_such_table', column: 'title' }] });
-    expect(none).toMatchObject({ isError: true, facts: { outcome: 'declined' } });
-    expect(asked).toHaveLength(1);
-    const first = asked[0] as Extract<CardRequest, { type: 'pictures' }>;
-    // Two more than asked for are shown, so a picture that cannot be copied has a stand-in. The id is made safe for a file's name.
-    expect(first.groups).toEqual([{ id: 'hero-shot', label: 'a bike workshop', shape: 'wide', pictures: expect.arrayContaining([expect.objectContaining({ title: 'Picture 1', creator: 'Maker 1', licence: 'CC BY 2.0', source: 'Fake' })]) }]);
-    expect(first.groups[0]?.pictures).toHaveLength(4);
-    expect(JSON.stringify(first)).not.toContain('files.example');
-    expect(existsSync(join(root, 'apps/repairs/assets'))).toBe(false);
-
-    // The table has no picture column, and the model named one that is not: the column is added here, not asked of the model. Both kinds on one card.
-    const table = join(root, 'apps/repairs/manifest/tables/items.json');
-    expect(readFileSync(table, 'utf8')).not.toContain('"semantic"');
-    asked = [];
-    searched = [];
-    const tick = async (card: CardRequest): Promise<CardAnswer> => ({ type: 'pictures', accept: card.type === 'pictures' ? card.groups.flatMap((group) => group.pictures.map((picture) => picture.id)).filter((_id, index) => index !== 0) : [] });
-    const signal = new AbortController().signal;
-    const ask = async (card: CardRequest): Promise<CardAnswer> => {
-      asked.push(card);
-      return tick(card);
-    };
-    const done = await tool('find_pictures').run(
-      { needs: [{ id: 'hero', words: 'a bike workshop', for: 'page', count: 2, shape: 'wide' }, { id: 'items', words: 'bicycles', for: 'rows', table: 'items', column: 'title', count: 3 }] },
-      { session, turn: 1, signal, ask, handle: { turn: 1, by: { id: null, label: 'x' }, signal, ask, events: createEventLog({ lastSeq: 0, append: () => undefined, publish: () => undefined }) } },
-    );
-    expect(searched).toEqual([
-      { words: 'a bike workshop', count: 4, shape: 'wide' },
-      { words: 'bicycles', count: 5, shape: 'square' },
-    ]);
-    expect(asked.map((card) => card.type)).toEqual(['pictures']);
-    expect(done, done.content).toMatchObject({ label: 'Added 5 pictures', facts: { outcome: 'added', count: 5 } });
-    // The page's pictures, under names of ours, with how a screen takes each.
-    expect(readdirSync(join(root, 'apps/repairs/assets/pictures')).sort()).toEqual(['CREDITS.json', 'hero-1.jpg', 'hero-2.jpg']);
-    expect(done.content).toContain("apps/repairs/assets/pictures/hero-1.jpg — in a screen: import hero1 from '../../assets/pictures/hero-1.jpg'");
-    // The rows' pictures: the bundle's own assets, and the first rows point at them; the rows go in again once the app is applied.
-    const bundle = JSON.parse(readFileSync(join(root, 'apps/repairs/seeds/sample.json'), 'utf8')) as { assets: Record<string, { file: string; sha256: string }>; tables: { ref: string; rows: Record<string, unknown>[] }[] };
-    expect(Object.keys(bundle.assets)).toEqual(['picture-items-1', 'picture-items-2', 'picture-items-3']);
-    expect(bundle.assets['picture-items-1']).toMatchObject({ file: 'seeds/pictures/items-1.jpg', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) });
-    expect(bundle.tables[0]?.rows.map((row) => row['picture'])).toEqual([{ '@asset': 'picture-items-1' }, { '@asset': 'picture-items-2' }, { '@asset': 'picture-items-3' }, undefined, undefined, undefined]);
-    expect(reseeded).toEqual(['repairs']);
-    expect((JSON.parse(readFileSync(table, 'utf8')) as { columns: unknown[] }).columns.at(-1)).toEqual({ ref: 'picture', type: 'text', semantic: 'image', nullable: true, rules: { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 5 * 1024 * 1024 } } });
-    expect(done.content).toContain('The table "items" had no picture column, so "picture" was added to its file');
-    expect((await run('check_app')).content).toContain('No errors.');
-    // Asked again, with whatever column name: the table's own picture column is used, and no second one is added.
-    answers.push({ type: 'pictures', accept: [] });
-    await run('find_pictures', { needs: [{ id: 'more', words: 'bicycles', for: 'rows', table: 'items', column: 'photo' }] });
-    expect((JSON.parse(readFileSync(table, 'utf8')) as { columns: { ref: string }[] }).columns.filter((column) => column.ref === 'picture')).toHaveLength(1);
-    // Who made each, and under which licence, is kept with them.
-    const credits = JSON.parse(readFileSync(join(root, 'apps/repairs/assets/pictures/CREDITS.json'), 'utf8')) as { file: string; creator: string; licence: string }[];
-    expect(credits.map((credit) => credit.file)).toEqual(['assets/pictures/hero-1.jpg', 'assets/pictures/hero-2.jpg', 'seeds/pictures/items-1.jpg', 'seeds/pictures/items-2.jpg', 'seeds/pictures/items-3.jpg']);
-    expect(credits[0]).toMatchObject({ creator: expect.stringMatching(/^Maker /), licence: 'CC BY 2.0' });
-    expect(done.content).toContain('Picture credits');
-
-    // A server set to call nothing outside looks for none, and says what to do instead.
-    pictureSource = null;
-    asked = [];
-    expect(await run('find_pictures', { needs: [{ id: 'hero', words: 'a workshop', for: 'page' }] })).toMatchObject({ isError: true, content: expect.stringContaining('looks for no pictures'), facts: { outcome: 'refused' } });
-    expect(asked).toEqual([]);
-  });
-
-  it('with a source that may not be copied: page pictures are shown from its site, which the tick allows and the card names; rows still get files', async () => {
-    const table = join(root, 'apps/repairs/manifest/tables/items.json');
-    const items = JSON.parse(readFileSync(table, 'utf8')) as { columns: unknown[] };
-    writeFileSync(table, JSON.stringify({ ...items, columns: [...items.columns, { ref: 'picture', type: 'text', semantic: 'image', nullable: true }] }));
-    let n = 0;
-    shownSource = {
-      name: 'Unsplash',
-      showsFrom: 'images.shown.example',
-      search: async (words, opts) => {
-        searched.push({ words, count: opts.count, shape: 'shown' });
-        const pictures = Array.from({ length: opts.count }, (): FoundPicture => {
-          n += 1;
-          return { id: `pic_s${String(n)}`, thumb: `https://images.shown.example/t${String(n)}`, files: [], shown: `https://images.shown.example/p${String(n)}?w=1080`, chosenUrl: `https://api.shown.example/chosen/${String(n)}`, title: `Shown "${String(n)}"`, creator: 'Sam', creatorUrl: '', licence: 'Shown licence', licenceCode: 'unsplash', licenceUrl: '', source: 'Shown', page: '' };
-        });
-        return { pictures, more: false };
-      },
-      chosen: async (picture) => void toldChosen.push(picture.id),
-    };
-    // All but the first are ticked.
-    answers.push({ type: 'pictures', accept: ['pic_s2', 'pic_s3', 'pic_000000000001', 'pic_000000000002'] });
-    const done = await run('find_pictures', { needs: [{ id: 'hero', words: 'a bike workshop', for: 'page', count: 2 }, { id: 'items', words: 'bicycles', for: 'rows', table: 'items', column: 'picture', count: 2 }] });
-    // The page's need went to the source that shows; the rows' to the one whose pictures are copied.
-    expect(searched).toEqual([{ words: 'a bike workshop', count: 4, shape: 'shown' }, { words: 'bicycles', count: 4, shape: 'square' }]);
-    const card = asked[0] as Extract<CardRequest, { type: 'pictures' }>;
-    expect(card.site).toBe('images.shown.example');
-    // Neither a picture's address nor the address the source is told at is on the card.
-    expect(JSON.stringify(card)).not.toMatch(/shown\.example\/[pt]|api\.shown/);
-    expect(done, done.content).toMatchObject({ label: 'Added 4 pictures', facts: { outcome: 'added', count: 4 } });
-    // Allowed by the tick, the source told of each chosen one and of no other, and nothing of them copied.
-    expect([...pictureAllowed]).toEqual(['images.shown.example']);
-    expect(toldChosen).toEqual(['pic_s2', 'pic_s3']);
-    expect(readdirSync(join(root, 'apps/repairs/assets/pictures'))).toEqual(['CREDITS.json']);
-    expect(readdirSync(join(root, 'apps/repairs/seeds/pictures')).sort()).toEqual(['items-1.jpg', 'items-2.jpg']);
-    expect(done.content).toContain('- <img src="https://images.shown.example/p2?w=1080" alt="Shown 2" loading="lazy" />');
-    expect(done.content).toContain('Pictures from images.shown.example are allowed now');
-    const credits = JSON.parse(readFileSync(join(root, 'apps/repairs/assets/pictures/CREDITS.json'), 'utf8')) as { file: string; source: string }[];
-    expect(credits.map((credit) => `${credit.source} ${credit.file}`)).toEqual(['Shown https://images.shown.example/p2?w=1080', 'Shown https://images.shown.example/p3?w=1080', 'Fake seeds/pictures/items-1.jpg', 'Fake seeds/pictures/items-2.jpg']);
-    // The page that shows them is not told it loads from a site that is not allowed.
-    expect((await run('check_app')).content).toContain('No errors.');
-
-    // None of them ticked: the site is not allowed and the source is told nothing.
-    pictureAllowed.clear();
-    toldChosen = [];
-    answers.push({ type: 'pictures', accept: [] });
-    await run('find_pictures', { needs: [{ id: 'team', words: 'mechanics', for: 'page' }] });
-    expect(pictureAllowed.size).toBe(0);
-    expect(toldChosen).toEqual([]);
-
-    // Where a person's yes cannot allow a site (a live server), that source is not used at all: pictures are copied.
-    pictureClosed = 'On this server the sites are set by whoever runs it.';
-    searched = [];
-    asked = [];
-    answers.push({ type: 'pictures', accept: [] });
-    await run('find_pictures', { needs: [{ id: 'yard', words: 'a yard', for: 'page' }] });
-    expect(searched).toEqual([{ words: 'a yard', count: 3, shape: 'wide' }]);
-    expect((asked[0] as Extract<CardRequest, { type: 'pictures' }>).site).toBeUndefined();
-  });
-
   it('let a picture the person showed decide the look: no style is picked for the kind of business over it', async () => {
     rmSync(join(root, 'apps/repairs/customer'), { recursive: true, force: true });
     rmSync(join(root, 'apps/repairs/look.json'), { force: true });
@@ -866,8 +716,9 @@ describe('the Designer’s tools', () => {
     expect(JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8'))).toMatchObject({ skill: 'clean' });
     expect(added.content).toContain('a plain base and nothing more, because the person showed the design they want');
     expect(added.content).not.toContain('picked for this kind of business');
-    // And they bring the pictures: nothing is looked for.
-    expect(added.content).toContain('do not call find_pictures');
+    // Pictures are spots the person fills, whatever they said: nothing is looked for.
+    expect(added.content).toContain('every picture of the page is a spot the person fills');
+    expect(added.content).not.toContain('find_pictures');
   });
 
   it('put the person’s own pictures in the app: one for a page, one on a sample row, and nothing that is not a picture of theirs', async () => {
@@ -879,24 +730,25 @@ describe('the Designer’s tools', () => {
     const sheet = attachments.add(session.id, { filename: 'rows.csv', bytes: Buffer.from('a,b\n1,2\n') });
     let reseeded = '';
     const mine = createDesignerTools(
-      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, newestVersion: async () => null, install: async () => null, pictures: { source: () => null, shelf: undefined as never, reseed: (key) => void (reseeded = key) } },
+      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, newestVersion: async () => null, install: async () => null, pictures: { reseed: (key) => void (reseeded = key) } },
       'repairs',
     );
     const call = (input: Record<string, unknown>) => (mine.find((candidate) => candidate.name === 'use_pictures') as DesignerTool).run(input, context());
     const sample = JSON.parse(readFileSync(join(root, 'apps/repairs/seeds/sample.json'), 'utf8')) as { tables: { ref: string; rows: unknown[] }[] };
     const table = (sample.tables[0] as { ref: string }).ref;
 
-    const done = await call({ pictures: [{ attachment: villa.id, for: 'page', name: 'Hero!' }, { attachment: kitchen.id, for: 'rows', table }, { attachment: part.id, for: 'page' }, { attachment: sheet.id, for: 'page' }, { attachment: 'att_00000000000000000000', for: 'page' }] });
+    const done = await call({ pictures: [{ attachment: villa.id, for: 'page', name: 'Hero!' }, { attachment: kitchen.id, for: 'rows', table }, { attachment: part.id, for: 'rows', table }, { attachment: sheet.id, for: 'rows', table }, { attachment: 'att_00000000000000000000', for: 'rows', table }] });
     expect(done.isError).toBeUndefined();
-    expect(done.content).toContain('2 of the person\'s pictures are in the app now.');
-    expect(done.content).toContain("import hero from '../../assets/pictures/hero.png'");
+    expect(done.content).toContain('1 of the person\'s pictures is in the app now.');
+    // A page's picture is a spot's: never copied for a screen to import.
+    expect(done.content).toContain('"the villa.png": a page\'s picture goes in a spot. Name it with add_spots when it is not there, then call fill_spot with this attachment.');
+    expect(existsSync(join(root, 'apps/repairs/assets/pictures/hero.png'))).toBe(false);
     expect(done.content).toContain(`is the picture of sample row 1 of "${table}" (column "picture")`);
     expect(done.content).toContain('it is a part of one');
     expect(done.content).toContain('"rows.csv" is not a picture the person attached');
     expect(done.content).toContain('there is no such attachment in this session');
-    expect(done.facts).toEqual({ outcome: 'added', count: 2 });
-    // The files are theirs, byte for byte; the row points at its picture; the table got its column; the rows are added again.
-    expect(readFileSync(join(root, 'apps/repairs/assets/pictures/hero.png')).equals(png('villa'))).toBe(true);
+    expect(done.facts).toEqual({ outcome: 'added', count: 1 });
+    // The file is theirs, byte for byte; the row points at its picture; the table got its column; the rows are added again.
     expect(readFileSync(join(root, 'apps/repairs/seeds/pictures', `${table}.png`)).equals(png('kitchen'))).toBe(true);
     const after = JSON.parse(readFileSync(join(root, 'apps/repairs/seeds/sample.json'), 'utf8')) as { assets: Record<string, { file: string }>; tables: { rows: Record<string, unknown>[] }[] };
     expect(after.tables[0]?.rows[0]?.['picture']).toEqual({ '@asset': `picture-own-${table}` });
@@ -905,7 +757,7 @@ describe('the Designer’s tools', () => {
     expect(reseeded).toBe('repairs');
 
     // Nothing of theirs named: said, and nothing written.
-    expect((await call({ pictures: [{ attachment: sheet.id, for: 'page' }] })).isError).toBe(true);
+    expect((await call({ pictures: [{ attachment: sheet.id, for: 'rows', table }] })).isError).toBe(true);
   });
 
   it('let a design document the person gave decide the look, and read it back by line', async () => {
@@ -997,22 +849,6 @@ describe('the Designer’s tools', () => {
     await call('use_font', { attachment: font.id, family: 'brand sans', use: 'heading', weight: 400 });
     expect(readdirSync(join(root, 'apps/repairs/assets/fonts')).sort()).toEqual(['brand-sans-400.woff2', 'brand-sans-700.woff2']);
     expect((JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8')) as { ownFonts: unknown[] }).ownFonts).toHaveLength(2);
-  });
-
-  it('looks again with fewer words when a long phrase finds nothing, takes a table by its name in the database, and names the tables when there is none', async () => {
-    const real = pictureSource as PictureSource;
-    // A source that matches every word: four words or more find nothing.
-    pictureSource = { name: 'Openverse', search: async (words, opts) => (words.split(' ').length > 3 ? (searched.push({ words, count: 0 }), { pictures: [], more: false }) : real.search(words, opts)) };
-    answers.push({ type: 'pictures', accept: [] });
-    await run('find_pictures', { needs: [{ id: 'hero', words: 'cozy warm restaurant interior dining room atmosphere', for: 'page' }, { id: 'items', words: 'bicycles', for: 'rows', table: 'repairs_items' }] });
-    expect(searched.map((search) => search.words)).toEqual(['cozy warm restaurant interior dining room atmosphere', 'cozy warm restaurant', 'bicycles']);
-    // The card names each need by the words the model gave, whatever found them; the table was found by its database name and given its picture column.
-    expect((asked[0] as Extract<CardRequest, { type: 'pictures' }>).groups.map((group) => `${group.id}: ${group.label}`)).toEqual(['hero: cozy warm restaurant interior dining room atmosphere', 'items: bicycles']);
-    // The person ticked none: the table's file is as it was. A search that ends with no picture changes no table.
-    expect(readFileSync(join(root, 'apps/repairs/manifest/tables/items.json'), 'utf8')).not.toContain('"semantic"');
-
-    const told = await run('find_pictures', { needs: [{ id: 'x', words: 'bicycles', for: 'rows', table: 'bikes' }] });
-    expect(told.content).toMatch(/there is no table "bikes" in this app \(its tables: .*items.*\)/);
   });
 
   it('keeps the rows’ pictures when the sample file is written again with file names where the pictures were', async () => {
@@ -1280,16 +1116,19 @@ describe('a file the person changed by hand', () => {
 });
 
 describe('the order of the work after a side is added', () => {
-  it('looks for no picture when the person brings their own, and builds the sections of the picture they showed', () => {
-    const own = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: true, colours: true, ownPictures: true });
-    expect(own).toContain('do not call find_pictures');
-    expect(own).not.toContain('call find_pictures ONCE');
+  it('draws every picture as a spot the person fills, and builds the sections of the picture they showed', () => {
+    const own = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: true, colours: true });
+    expect(own).toContain('Call add_spots ONCE');
+    expect(own).toContain('<Picture spot="hero" className="…" />');
+    expect(own).toContain("import { Picture } from '@adminiumjs/adminium/side'");
+    expect(own).toContain('never an <img> of a picture file');
+    expect(own).not.toContain('find_pictures');
     expect(own).toContain('it is the design');
     expect(own).toContain("the sections of the person's picture, each one, in its order");
     // The step after it keeps its number and its words.
     expect(own).toContain('\n3. Write apps/evergreen/manifest/access.json');
     const plain = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: false });
-    expect(plain).toContain('call find_pictures ONCE');
+    expect(plain).toContain('Call add_spots ONCE');
     expect(plain).toContain('a header with the logo and links');
   });
 
@@ -1343,5 +1182,57 @@ describe('what a design does with pictures', () => {
     expect(JSON.parse(readFileSync(lookFile, 'utf8'))).toMatchObject({ skill: 'warm', pictures: 'choose', templateSides: ['customer'] });
     expect((await run('set_style', { accent: '#225588' })).isError).toBeUndefined();
     expect(JSON.parse(readFileSync(lookFile, 'utf8'))).toMatchObject({ accent: '#225588', pictures: 'choose' });
+  });
+});
+
+describe('picture spots, named by the Designer and filled by the person', () => {
+  const spotsFile = (): string => join(root, 'apps', 'repairs', 'assets', 'pictures', 'spots.json');
+  const spots = (): Record<string, { label: string; shape: string; file: string | null; alt: string }> => JSON.parse(readFileSync(spotsFile(), 'utf8')) as never;
+
+  it('names spots, never looks for a picture, and leaves a spot that is there exactly as it is', async () => {
+    const made = await run('add_spots', { spots: [{ id: 'hero', label: 'Hero', shape: 'wide', shows: 'the shop at night', search: 'bike shop night' }, { id: 'team', label: 'Team', shape: 'square', shows: 'the people who fix bikes' }] });
+    expect(made).toMatchObject({ label: 'Named 2 picture spots', facts: { outcome: 'added', count: 2 } });
+    expect(made.content).toContain('<Picture spot="hero" />');
+    expect(made.content).toContain("import { Picture } from '@adminiumjs/adminium/side'");
+    expect(spots()).toEqual({
+      hero: { label: 'Hero', shape: 'wide', shows: 'the shop at night', search: 'bike shop night', file: null, alt: '', decorative: false },
+      // With no search words, the first of what it shows.
+      team: { label: 'Team', shape: 'square', shows: 'the people who fix bikes', search: 'the people who fix', file: null, alt: '', decorative: false },
+    });
+    // The person filled the hero. A second call with its id changes nothing of it: a new place needs a new id.
+    const filled = { ...spots(), hero: { ...spots()['hero'], file: 'hero-1234abcd.jpg', alt: 'The shop' } };
+    writeFileSync(spotsFile(), JSON.stringify(filled));
+    const again = await run('add_spots', { spots: [{ id: 'hero', label: 'Big banner', shape: 'tall', shows: 'something else' }, { id: 'Bad Id', label: 'x', shape: 'wide' }, { id: 'kitchen', label: 'Kitchen', shape: 'round' }] });
+    expect(again.content).toContain('Already there, and kept as they are (a new place needs a new id):\n- "hero" (Hero, wide)');
+    expect(again.content).toContain('"Bad Id" is not a spot\'s id');
+    expect(again.content).toContain('"kitchen": give a "label" and a "shape" (wide, tall or square).');
+    expect(spots()).toEqual(filled);
+  });
+
+  it('puts a picture the person attached to this message in a spot, and nothing they sent before', async () => {
+    await run('add_spots', { spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] });
+    const attachments = createAttachments(root);
+    const png = (tail: string): Buffer => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from(tail)]);
+    const now = attachments.add(session.id, { filename: 'our-shop_front.png', bytes: png('front') });
+    const before = attachments.add(session.id, { filename: 'passport.png', bytes: png('private') });
+    // Turn 1 sent the passport; this turn (2) sends the shop front. The person's own words name an id too: words are not an attachment.
+    const messages = [
+      { turn: 1, message: { role: 'user', content: [{ type: 'text', text: 'Here is my passport' }, { type: 'image', ref: before.id, mediaType: 'image/png', data: '' }] } },
+      { turn: 2, message: { role: 'user', content: [{ type: 'text', text: `Use ${before.id} for the hero.` }, { type: 'text', text: `\n\n(Attached: our-shop_front.png, ${now.id})` }, { type: 'image', ref: now.id, mediaType: 'image/png', data: '' }] } },
+    ];
+    const mine = createDesignerTools({ root, version: APP_VERSION, designer: () => ({ store: { messages: () => messages } }) as never, skills: createSkills(), listAddOns: async () => [], attachments }, 'repairs');
+    const ctx = { ...context(), turn: 2 };
+    const fill = (input: Record<string, unknown>) => (mine.find((candidate) => candidate.name === 'fill_spot') as DesignerTool).run(input, ctx);
+    const refused = await fill({ spot: 'hero', attachment: before.id });
+    expect(refused).toMatchObject({ isError: true });
+    expect(refused.content).toContain('was not attached to the person\'s message in this turn');
+    expect(spots()['hero']?.file).toBeNull();
+    expect((await fill({ spot: 'nowhere', attachment: now.id })).content).toContain('There is no spot "nowhere". Name it first with add_spots.');
+    const done = await fill({ spot: 'hero', attachment: now.id });
+    expect(done).toMatchObject({ label: 'Put your picture in Hero', facts: { outcome: 'added', count: 1 } });
+    // Its own file, named by the spot; its words from the file's name.
+    const hero = spots()['hero'];
+    expect(hero).toMatchObject({ file: expect.stringMatching(/^hero-[0-9a-f]{8}\.png$/), alt: 'our shop front' });
+    expect(readFileSync(join(root, 'apps', 'repairs', 'assets', 'pictures', hero?.file as string)).equals(png('front'))).toBe(true);
   });
 });
