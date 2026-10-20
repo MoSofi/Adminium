@@ -394,7 +394,10 @@ export default {
     "spotsFailed": "Keine Bildplätze erstellt",
     "spotFilling": "Setzt Ihr Bild in {subject} ein",
     "spotFilled": "Ihr Bild ist in {subject}",
-    "spotFillFailed": "Ihr Bild wurde nicht in {subject} eingesetzt"
+    "spotFillFailed": "Ihr Bild wurde nicht in {subject} eingesetzt",
+    "siteBuilding": "Bildschirme aus {subject} werden gebaut",
+    "siteBuilt": "{count, plural, one {# Bildschirm} other {# Bildschirme}} aus {subject} gebaut",
+    "siteFailed": "Nicht aus der Vorlage gebaut"
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -1196,5 +1199,32 @@ export default {
     "rename": "{name}: benenne diesen Ordner um, um ihn zu verwenden (Buchstaben, Ziffern, Leerzeichen, . _ -)",
     "more": "und {count} weitere",
     "boxText": "Mach eine App aus {name}."
+  },
+  "access": {
+    "title": "Prüfe das, bevor es live geht",
+    "lead": "Das stand nicht im Plan, den du freigegeben hast:",
+    "leadNoPlan": "Dafür braucht es zuerst dein Ja:",
+    "allow": "Erlauben",
+    "refuse": "Nicht erlauben",
+    "allowed": "Erlaubt: {change}.",
+    "notAllowed": "Nicht erlaubt. Der Designer baut ohne.",
+    "answeredLabel": "Prüfen, bevor es live geht, beantwortet",
+    "answeredMark": "Beantwortet",
+    "add": "Fremde könnten {table} Zeilen hinzufügen",
+    "addAllowed": "Fremde können {table} Zeilen hinzufügen",
+    "change": "Fremde könnten Zeilen von {table} ändern",
+    "changeAllowed": "Fremde können Zeilen von {table} ändern",
+    "read": "Fremde könnten {table} lesen",
+    "readAllowed": "Fremde können {table} lesen",
+    "readColumns": "Fremde könnten {columns} von {table} lesen",
+    "readColumnsAllowed": "Fremde können {columns} von {table} lesen",
+    "writeColumns": "Fremde könnten {columns} von {table} schreiben",
+    "writeColumnsAllowed": "Fremde können {columns} von {table} schreiben",
+    "newRole": "eine neue Rolle, {role}, könnte sich anmelden und die App nutzen",
+    "newRoleAllowed": "eine neue Rolle, {role}, kann sich anmelden und die App nutzen",
+    "role": "die Rolle {role} könnte mehr als bisher",
+    "roleAllowed": "die Rolle {role} kann mehr als bisher",
+    "call": "die Seite {screen} ruft eine Adresse außerhalb von Adminium auf",
+    "callAllowed": "die Seite {screen} darf eine Adresse außerhalb von Adminium aufrufen"
   }
 } as const;

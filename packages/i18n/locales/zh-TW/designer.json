@@ -384,7 +384,10 @@
     "spotsFailed": "未建立圖片位",
     "spotFilling": "正在把你的圖片放進 {subject}",
     "spotFilled": "你的圖片已放進 {subject}",
-    "spotFillFailed": "你的圖片未能放進 {subject}"
+    "spotFillFailed": "你的圖片未能放進 {subject}",
+    "siteBuilding": "正在根據 {subject} 建置畫面",
+    "siteBuilt": "已根據 {subject} 建置 {count, plural, other {# 個畫面}}",
+    "siteFailed": "未能根據範本建置"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -1186,5 +1189,32 @@
     "rename": "{name}：請重新命名此資料夾後再使用（字母、數字、空格、. _ -）",
     "more": "另有 {count} 個",
     "boxText": "用 {name} 做一個應用程式。"
+  },
+  "access": {
+    "title": "上線前請檢查",
+    "lead": "這不在你核准的計畫中：",
+    "leadNoPlan": "這需要你先同意：",
+    "allow": "允許",
+    "refuse": "不允許",
+    "allowed": "已允許：{change}。",
+    "notAllowed": "未允許。Designer 將不含這一項來建置。",
+    "answeredLabel": "上線前檢查，已回答",
+    "answeredMark": "已回答",
+    "add": "陌生人可能會在 {table} 新增列",
+    "addAllowed": "陌生人可以在 {table} 新增列",
+    "change": "陌生人可能會修改 {table} 的列",
+    "changeAllowed": "陌生人可以修改 {table} 的列",
+    "read": "陌生人可能會讀取 {table}",
+    "readAllowed": "陌生人可以讀取 {table}",
+    "readColumns": "陌生人可能會讀取 {table} 的 {columns}",
+    "readColumnsAllowed": "陌生人可以讀取 {table} 的 {columns}",
+    "writeColumns": "陌生人可能會寫入 {table} 的 {columns}",
+    "writeColumnsAllowed": "陌生人可以寫入 {table} 的 {columns}",
+    "newRole": "新角色 {role} 可能會登入並使用此應用程式",
+    "newRoleAllowed": "新角色 {role} 可以登入並使用此應用程式",
+    "role": "角色 {role} 可能會比以前能做更多",
+    "roleAllowed": "角色 {role} 可以比以前做更多",
+    "call": "{screen} 頁面呼叫了 Adminium 以外的位址",
+    "callAllowed": "{screen} 頁面可以呼叫 Adminium 以外的位址"
   }
 }

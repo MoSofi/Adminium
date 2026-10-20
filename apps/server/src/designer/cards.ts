@@ -9,6 +9,12 @@
  */
 import type { NeedItem } from './needs.js';
 
+/** A change to who may do what, as the "Check this before it goes live" card words it. */
+export type ChangeView =
+  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns'; table: string; columns?: string[] }
+  | { kind: 'role'; role: string; isNew: boolean }
+  | { kind: 'call'; screen: string };
+
 export type DesignerCard =
   | {
       id: string;
@@ -110,6 +116,17 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /**
+       * In a session that holds words from outside (a site template, a Figma frame): what the app would
+       * let strangers do, or its pages reach, that the person did not approve. Every word is the server's.
+       */
+      type: 'access-change';
+      changes: ChangeView[];
+      /** The person approved a template plan: what is asked is what was not on it. */
+      planned: boolean;
+    }
+  | {
+      id: string;
       type: 'removal';
       appKey: string;
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
@@ -130,6 +147,7 @@ export type CardAnswer =
   | { type: 'rows'; accept: boolean }
   /** Yes: keep the picture on its screen. */
   | { type: 'keep-spot'; accept: boolean }
+  | { type: 'access-change'; accept: boolean }
   | { type: 'removal'; accept: boolean };
 
 /** A card's answer, checked against the card it is for; null when it does not fit. */

@@ -394,7 +394,10 @@ export default {
     "spotsFailed": "Žádná místa pro obrázky nevytvořena",
     "spotFilling": "Vkládá váš obrázek do {subject}",
     "spotFilled": "Váš obrázek je v {subject}",
-    "spotFillFailed": "Váš obrázek nebyl vložen do {subject}"
+    "spotFillFailed": "Váš obrázek nebyl vložen do {subject}",
+    "siteBuilding": "Staví se obrazovky z {subject}",
+    "siteBuilt": "Postaveno z {subject}: {count, plural, one {# obrazovka} few {# obrazovky} other {# obrazovek}}",
+    "siteFailed": "Ze šablony se nic nepostavilo"
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -1196,5 +1199,32 @@ export default {
     "rename": "{name}: přejmenujte tuto složku, abyste ji mohli použít (písmena, číslice, mezera, . _ -)",
     "more": "a dalších {count}",
     "boxText": "Udělej aplikaci z {name}."
+  },
+  "access": {
+    "title": "Zkontrolujte to, než to půjde ven",
+    "lead": "Tohle nebylo v plánu, který jste schválili:",
+    "leadNoPlan": "Tohle nejdřív potřebuje vaše ano:",
+    "allow": "Povolit",
+    "refuse": "Nepovolit",
+    "allowed": "Povoleno: {change}.",
+    "notAllowed": "Nepovoleno. Designer to postaví bez toho.",
+    "answeredLabel": "Kontrola před zveřejněním, zodpovězeno",
+    "answeredMark": "Zodpovězeno",
+    "add": "cizí lidé by mohli přidávat řádky do {table}",
+    "addAllowed": "cizí lidé mohou přidávat řádky do {table}",
+    "change": "cizí lidé by mohli měnit řádky {table}",
+    "changeAllowed": "cizí lidé mohou měnit řádky {table}",
+    "read": "cizí lidé by mohli číst {table}",
+    "readAllowed": "cizí lidé mohou číst {table}",
+    "readColumns": "cizí lidé by mohli číst {columns} z {table}",
+    "readColumnsAllowed": "cizí lidé mohou číst {columns} z {table}",
+    "writeColumns": "cizí lidé by mohli zapisovat {columns} v {table}",
+    "writeColumnsAllowed": "cizí lidé mohou zapisovat {columns} v {table}",
+    "newRole": "nová role {role} by se mohla přihlásit a používat aplikaci",
+    "newRoleAllowed": "nová role {role} se může přihlásit a používat aplikaci",
+    "role": "role {role} by mohla víc než dřív",
+    "roleAllowed": "role {role} může víc než dřív",
+    "call": "stránka {screen} volá adresu mimo Adminium",
+    "callAllowed": "stránka {screen} smí volat adresu mimo Adminium"
   }
 } as const;

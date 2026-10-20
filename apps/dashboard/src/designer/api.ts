@@ -167,6 +167,12 @@ export interface DesignerAttachment {
   leftOutCount?: number;
 }
 
+/** One change the access card asks about, as the server names it; the page words it. */
+export type AccessChangeView =
+  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns'; table: string; columns?: string[] }
+  | { kind: 'role'; role: string; isNew: boolean }
+  | { kind: 'call'; screen: string };
+
 /** The project's site templates (`GET /designer/site-templates`): names only, and why a folder was not copied in. */
 export interface SiteTemplates {
   templates: { name: string; usable: boolean }[];
@@ -228,6 +234,8 @@ export type DesignerCard =
   | { id: string; type: 'spots'; spots: { id: string; label: string; shape: PictureShape }[]; rows?: { table: string; count: number } }
   /** A turn took a picture the person placed off its screen: keep it there, or let it go. */
   | { id: string; type: 'keep-spot'; spot: string; label: string; screen: string }
+  /** In a session of outside words: what the app would newly let strangers do, or its pages reach. Asked before it goes live. */
+  | { id: string; type: 'access-change'; changes: AccessChangeView[]; planned: boolean }
   /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */
   | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[]; /** A site some of these are shown from, never copied. */ site?: string }
   /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */

@@ -40,6 +40,7 @@ import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf
 import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
 import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
+import { currentSnapshot, outsideChanges, readApplied, writeApplied } from './outside-check.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -450,6 +451,12 @@ export function createDesigner(host: DesignerHost): Designer {
         events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'pictures', message: kept });
         return { ok: false, version: null };
       }
+      // In a session that holds words from outside: what strangers could now do, asked before it goes live.
+      const outside = await outsideAllowed(session, handle);
+      if (outside !== null) {
+        events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'access', message: outside });
+        return { ok: false, version: null };
+      }
     }
 
     // Told to stop (Stop, a cap, a shutdown): nothing more is built or applied.
@@ -498,6 +505,8 @@ export function createDesigner(host: DesignerHost): Designer {
       }
     }
 
+    // What the app allows now is what the next apply in a session of outside words is compared with.
+    writeApplied(host.root, key, currentSnapshot(host.root, key));
     // An apply that changes nothing says nothing about its pages: what the last real one said still holds.
     if (result?.state === 'installed' || result?.state === 'applied') {
       pageWarnings.set(key, result.pageWarnings ?? []);
@@ -810,6 +819,36 @@ export function createDesigner(host: DesignerHost): Designer {
       if (keep) lines.push(`The person wants their picture "${spot.label}" kept on ${was.screen}: put <Picture spot="${spot.id}" /> back in ${was.file} where it was, then apply_app again.`);
     }
     return lines.length === 0 ? null : lines.join('\n');
+  }
+
+  /** What the person said of each outside change, by session, for the turn they said it in. */
+  const outsideAnswers = new Map<string, { turn: number; answers: Map<string, boolean> }>();
+
+  /**
+   * In a session that holds words from outside (a site template, a Figma frame), what the app would
+   * newly let strangers do, or its pages reach, is asked before it goes live: once a turn for each.
+   * Null when nothing stands in the way; else what the model is to take out.
+   */
+  async function outsideAllowed(session: DesignerSession, handle: TurnHandle): Promise<string | null> {
+    const files = host.attachments?.list(session.id) ?? [];
+    if (!files.some((entry) => entry.kind === 'site' || entry.source === 'figma')) return null;
+    const key = session.appKey;
+    const changes = outsideChanges(host.root, key, readApplied(host.root, key), currentSnapshot(host.root, key));
+    if (changes.length === 0) return null;
+    let held = outsideAnswers.get(session.id);
+    if (held === undefined || held.turn !== handle.turn) {
+      held = { turn: handle.turn, answers: new Map() };
+      outsideAnswers.set(session.id, held);
+    }
+    const unasked = changes.filter((change) => !(held as { answers: Map<string, boolean> }).answers.has(change.id));
+    if (unasked.length > 0) {
+      const answer = await handle.ask({ type: 'access-change', changes: unasked.map((change) => change.view), planned: existsSync(join(host.root, APPS_DIR, key, 'template-plan.json')) });
+      const yes = answer.type === 'access-change' && answer.accept;
+      for (const change of unasked) held.answers.set(change.id, yes);
+    }
+    const refused = changes.filter((change) => held.answers.get(change.id) === false);
+    if (refused.length === 0) return null;
+    return `The person did not allow this: ${refused.map((change) => change.line).join('; ')}. Build without it (take it out of access.json, roles.json or the page's code), then apply_app again. Do not ask for it again in this turn.`;
   }
 
   /** Apply that is running or done, by session and the page's own id for it. */

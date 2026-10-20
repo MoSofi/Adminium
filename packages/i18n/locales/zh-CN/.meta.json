@@ -10015,6 +10015,106 @@
     "status": "mt",
     "srcHash": "b8f35d6c7c8a"
   },
+  "designer.access.add": {
+    "status": "mt",
+    "srcHash": "467f2d78e24b"
+  },
+  "designer.access.addAllowed": {
+    "status": "mt",
+    "srcHash": "152e437c3106"
+  },
+  "designer.access.allow": {
+    "status": "mt",
+    "srcHash": "f55038f9fcee"
+  },
+  "designer.access.allowed": {
+    "status": "mt",
+    "srcHash": "a6b9fb1f969f"
+  },
+  "designer.access.answeredLabel": {
+    "status": "mt",
+    "srcHash": "a48605fbb1d6"
+  },
+  "designer.access.answeredMark": {
+    "status": "mt",
+    "srcHash": "e0aafffa028c"
+  },
+  "designer.access.call": {
+    "status": "mt",
+    "srcHash": "7391deb8aede"
+  },
+  "designer.access.callAllowed": {
+    "status": "mt",
+    "srcHash": "86dab5d5b8c0"
+  },
+  "designer.access.change": {
+    "status": "mt",
+    "srcHash": "48c68b344dfc"
+  },
+  "designer.access.changeAllowed": {
+    "status": "mt",
+    "srcHash": "50e7d41dd638"
+  },
+  "designer.access.lead": {
+    "status": "mt",
+    "srcHash": "a160eda2b9a3"
+  },
+  "designer.access.leadNoPlan": {
+    "status": "mt",
+    "srcHash": "0345f9425f37"
+  },
+  "designer.access.newRole": {
+    "status": "mt",
+    "srcHash": "619273ab5680"
+  },
+  "designer.access.newRoleAllowed": {
+    "status": "mt",
+    "srcHash": "39b25a3c1f9a"
+  },
+  "designer.access.notAllowed": {
+    "status": "mt",
+    "srcHash": "2be799ea00e5"
+  },
+  "designer.access.read": {
+    "status": "mt",
+    "srcHash": "d63ee1883155"
+  },
+  "designer.access.readAllowed": {
+    "status": "mt",
+    "srcHash": "033e4a5f1f98"
+  },
+  "designer.access.readColumns": {
+    "status": "mt",
+    "srcHash": "db4d38572486"
+  },
+  "designer.access.readColumnsAllowed": {
+    "status": "mt",
+    "srcHash": "08bf2928ceaa"
+  },
+  "designer.access.refuse": {
+    "status": "mt",
+    "srcHash": "9b603f948a3d"
+  },
+  "designer.access.role": {
+    "status": "mt",
+    "srcHash": "1e620374e3c1"
+  },
+  "designer.access.roleAllowed": {
+    "status": "mt",
+    "srcHash": "ec542930311d"
+  },
+  "designer.access.title": {
+    "status": "mt",
+    "srcHash": "a6caabbdd5aa"
+  },
+  "designer.access.writeColumns": {
+    "status": "mt",
+    "srcHash": "f9af104b1236"
+  },
+  "designer.access.writeColumnsAllowed": {
+    "status": "mt",
+    "srcHash": "08ea4686284c"
+  },
   "designer.apps.continue": {
     "status": "mt",
     "srcHash": "2e02623966f9"
@@ -13518,6 +13618,18 @@
   "designer.step.sideDone": {
     "status": "mt",
     "srcHash": "1751bee8a1ee"
+  },
+  "designer.step.siteBuilding": {
+    "status": "mt",
+    "srcHash": "478f836be019"
+  },
+  "designer.step.siteBuilt": {
+    "status": "mt",
+    "srcHash": "f725168533fc"
+  },
+  "designer.step.siteFailed": {
+    "status": "mt",
+    "srcHash": "dd9f1f46feff"
   },
   "designer.step.spotFillFailed": {
     "status": "mt",

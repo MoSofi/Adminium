@@ -394,7 +394,10 @@ export default {
     "spotsFailed": "Ingen billedpladser lavet",
     "spotFilling": "Sætter dit billede i {subject}",
     "spotFilled": "Dit billede er i {subject}",
-    "spotFillFailed": "Dit billede blev ikke sat i {subject}"
+    "spotFillFailed": "Dit billede blev ikke sat i {subject}",
+    "siteBuilding": "Bygger skærmene ud fra {subject}",
+    "siteBuilt": "Byggede {count, plural, one {# skærm} other {# skærme}} ud fra {subject}",
+    "siteFailed": "Byggede ikke ud fra skabelonen"
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -1196,5 +1199,32 @@ export default {
     "rename": "{name}: omdøb mappen for at bruge den (bogstaver, tal, mellemrum, . _ -)",
     "more": "og {count} mere",
     "boxText": "Lav en app ud fra {name}."
+  },
+  "access": {
+    "title": "Tjek dette, før det går live",
+    "lead": "Dette var ikke med i den plan, du godkendte:",
+    "leadNoPlan": "Dette kræver først dit ja:",
+    "allow": "Tillad det",
+    "refuse": "Tillad det ikke",
+    "allowed": "Tilladt: {change}.",
+    "notAllowed": "Ikke tilladt. Designeren bygger uden det.",
+    "answeredLabel": "Tjek før det går live, besvaret",
+    "answeredMark": "Besvaret",
+    "add": "fremmede kunne tilføje rækker til {table}",
+    "addAllowed": "fremmede kan tilføje rækker til {table}",
+    "change": "fremmede kunne ændre rækker i {table}",
+    "changeAllowed": "fremmede kan ændre rækker i {table}",
+    "read": "fremmede kunne læse {table}",
+    "readAllowed": "fremmede kan læse {table}",
+    "readColumns": "fremmede kunne læse {columns} i {table}",
+    "readColumnsAllowed": "fremmede kan læse {columns} i {table}",
+    "writeColumns": "fremmede kunne skrive {columns} i {table}",
+    "writeColumnsAllowed": "fremmede kan skrive {columns} i {table}",
+    "newRole": "en ny rolle, {role}, kunne logge ind og bruge appen",
+    "newRoleAllowed": "en ny rolle, {role}, kan logge ind og bruge appen",
+    "role": "rollen {role} kunne mere end før",
+    "roleAllowed": "rollen {role} kan mere end før",
+    "call": "siden {screen} kalder en adresse uden for Adminium",
+    "callAllowed": "siden {screen} må kalde en adresse uden for Adminium"
   }
 } as const;

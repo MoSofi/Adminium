@@ -46,6 +46,7 @@ import {
   SpendNotice,
   FigmaPausedLine,
   KeepSpotCard,
+  AccessChangeCard,
   PictureLines,
   PictureNote,
   PicturesChip,
@@ -461,6 +462,20 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               // Answered by an Apply: what the dialog changed from this turn on.
               const chosen = [...new Set(turns.filter((one) => one.turn >= turn.turn).flatMap((one) => one.pictures.flatMap((line) => (line.kind === 'applied' ? line.names : []))))];
               return <SpotsCard key={card.id} card={card} chosen={chosen} onChoose={() => openPictures(card.spots[0]?.id ?? null)} />;
+            }
+            if (card.type === 'access-change') {
+              return (
+                <AccessChangeCard
+                  key={card.id}
+                  card={card}
+                  answered={answered}
+                  closed={!live}
+                  allowed={yes}
+                  busy={busy}
+                  onAllow={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
+                  onRefuse={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
+                />
+              );
             }
             if (card.type === 'keep-spot') {
               return (

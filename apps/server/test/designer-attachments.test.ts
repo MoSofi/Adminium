@@ -406,7 +406,7 @@ describe('a page or a stylesheet of a site template', () => {
     expect(note).toContain('a stylesheet of a site template');
     expect(note).toContain(', minified).');
     expect(note).toContain('read_attachment gives a summary of what it holds');
-    expect(note).toContain('the look of the app\'s own screens');
+    expect(note).toContain('Call use_site with it to bring its look into the app\'s side');
     expect(note).not.toContain('app.min.css');
   });
 });

@@ -232,7 +232,7 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_s
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
 export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
 /** The tools that change, check or apply the app. */
-const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'add_spots', 'fill_spot', 'use_pictures']);
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'add_spots', 'fill_spot', 'use_pictures', 'use_site']);
 const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
 
 /** Wait, unless the turn is stopped first. */

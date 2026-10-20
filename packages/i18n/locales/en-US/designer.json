@@ -384,7 +384,10 @@
     "spotsFailed": "No picture spots made",
     "spotFilling": "Putting your picture in {subject}",
     "spotFilled": "Your picture is in {subject}",
-    "spotFillFailed": "Your picture was not put in {subject}"
+    "spotFillFailed": "Your picture was not put in {subject}",
+    "siteBuilding": "Building the screens from {subject}",
+    "siteBuilt": "Built {count, plural, one {# screen} other {# screens}} from {subject}",
+    "siteFailed": "Did not build from the template"
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -1186,5 +1189,32 @@
     "rename": "{name}: rename this folder to use it (letters, digits, space, . _ -)",
     "more": "and {count} more",
     "boxText": "Make an app from {name}."
+  },
+  "access": {
+    "title": "Check this before it goes live",
+    "lead": "This was not on the plan you approved:",
+    "leadNoPlan": "This needs your yes first:",
+    "allow": "Allow it",
+    "refuse": "Do not allow it",
+    "allowed": "Allowed: {change}.",
+    "notAllowed": "Not allowed. The Designer will build without it.",
+    "answeredLabel": "Check before it goes live, answered",
+    "answeredMark": "Answered",
+    "add": "strangers could add rows to {table}",
+    "addAllowed": "strangers can add rows to {table}",
+    "change": "strangers could change rows of {table}",
+    "changeAllowed": "strangers can change rows of {table}",
+    "read": "strangers could read {table}",
+    "readAllowed": "strangers can read {table}",
+    "readColumns": "strangers could read {columns} of {table}",
+    "readColumnsAllowed": "strangers can read {columns} of {table}",
+    "writeColumns": "strangers could write {columns} of {table}",
+    "writeColumnsAllowed": "strangers can write {columns} of {table}",
+    "newRole": "a new role, {role}, could sign in and use the app",
+    "newRoleAllowed": "a new role, {role}, can sign in and use the app",
+    "role": "the role {role} could do more than before",
+    "roleAllowed": "the role {role} can do more than before",
+    "call": "the {screen} page calls an address outside Adminium",
+    "callAllowed": "the {screen} page can call an address outside Adminium"
   }
 }

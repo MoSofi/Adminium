@@ -384,7 +384,10 @@
     "spotsFailed": "Aucun emplacement d’image créé",
     "spotFilling": "Place votre image dans {subject}",
     "spotFilled": "Votre image est dans {subject}",
-    "spotFillFailed": "Votre image n’a pas été placée dans {subject}"
+    "spotFillFailed": "Votre image n’a pas été placée dans {subject}",
+    "siteBuilding": "Construction des écrans à partir de {subject}",
+    "siteBuilt": "{count, plural, one {# écran construit} other {# écrans construits}} à partir de {subject}",
+    "siteFailed": "Rien n’a été construit à partir du modèle"
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -1186,5 +1189,32 @@
     "rename": "{name} : renommez ce dossier pour l’utiliser (lettres, chiffres, espace, . _ -)",
     "more": "et {count} de plus",
     "boxText": "Fais une app à partir de {name}."
+  },
+  "access": {
+    "title": "Vérifiez ceci avant la mise en ligne",
+    "lead": "Ceci n’était pas dans le plan que vous avez approuvé :",
+    "leadNoPlan": "Ceci demande d’abord votre accord :",
+    "allow": "L’autoriser",
+    "refuse": "Ne pas l’autoriser",
+    "allowed": "Autorisé : {change}.",
+    "notAllowed": "Non autorisé. Le Designer construira sans.",
+    "answeredLabel": "Vérifier avant la mise en ligne, répondu",
+    "answeredMark": "Répondu",
+    "add": "des inconnus pourraient ajouter des lignes à {table}",
+    "addAllowed": "des inconnus peuvent ajouter des lignes à {table}",
+    "change": "des inconnus pourraient modifier les lignes de {table}",
+    "changeAllowed": "des inconnus peuvent modifier les lignes de {table}",
+    "read": "des inconnus pourraient lire {table}",
+    "readAllowed": "des inconnus peuvent lire {table}",
+    "readColumns": "des inconnus pourraient lire {columns} de {table}",
+    "readColumnsAllowed": "des inconnus peuvent lire {columns} de {table}",
+    "writeColumns": "des inconnus pourraient écrire {columns} de {table}",
+    "writeColumnsAllowed": "des inconnus peuvent écrire {columns} de {table}",
+    "newRole": "un nouveau rôle, {role}, pourrait se connecter et utiliser l’app",
+    "newRoleAllowed": "un nouveau rôle, {role}, peut se connecter et utiliser l’app",
+    "role": "le rôle {role} pourrait faire plus qu’avant",
+    "roleAllowed": "le rôle {role} peut faire plus qu’avant",
+    "call": "la page {screen} appelle une adresse hors d’Adminium",
+    "callAllowed": "la page {screen} peut appeler une adresse hors d’Adminium"
   }
 }

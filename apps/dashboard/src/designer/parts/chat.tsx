@@ -43,11 +43,16 @@ import {
   RotateCcw,
   RotateCw,
   TriangleAlert,
+  Ban,
+  Globe,
+  ShieldAlert,
+  UserPlus,
+  UsersRound,
 } from 'lucide-react';
 import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type NeedItem, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
+import { LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type NeedItem, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
 import { figmaPausedLine, SUBJECT, secondsOf, shortSubject, stepCost, stepLine } from '../build/stepLine.js';
 import type { PictureLine, StepRow } from '../build/turns.js';
 import { versionName } from '../build/versionName.js';
@@ -1253,6 +1258,95 @@ export function KeepSpotCard({
         </button>
         <button type="button" disabled={busy} onClick={onLetGo} className={SECONDARY}>
           {t('designer:keepSpot.letGo', 'Let it go')}
+        </button>
+      </div>
+    </CardShell>
+  );
+}
+
+/** One change the access card asks about, in the person's words: what could happen, or once allowed, what can. */
+export function accessChangeLine(change: AccessChangeView, allowed: boolean): string {
+  if (change.kind === 'call') return allowed ? t('designer:access.callAllowed', 'the {screen} page can call an address outside Adminium', { screen: change.screen }) : t('designer:access.call', 'the {screen} page calls an address outside Adminium', { screen: change.screen });
+  if (change.kind === 'role') {
+    if (change.isNew) return allowed ? t('designer:access.newRoleAllowed', 'a new role, {role}, can sign in and use the app', { role: change.role }) : t('designer:access.newRole', 'a new role, {role}, could sign in and use the app', { role: change.role });
+    return allowed ? t('designer:access.roleAllowed', 'the role {role} can do more than before', { role: change.role }) : t('designer:access.role', 'the role {role} could do more than before', { role: change.role });
+  }
+  const table = change.table;
+  const columns = (change.columns ?? []).join(', ');
+  switch (change.verb) {
+    case 'add':
+      return allowed ? t('designer:access.addAllowed', 'strangers can add rows to {table}', { table }) : t('designer:access.add', 'strangers could add rows to {table}', { table });
+    case 'change':
+      return allowed ? t('designer:access.changeAllowed', 'strangers can change rows of {table}', { table }) : t('designer:access.change', 'strangers could change rows of {table}', { table });
+    case 'read-columns':
+      return allowed ? t('designer:access.readColumnsAllowed', 'strangers can read {columns} of {table}', { columns, table }) : t('designer:access.readColumns', 'strangers could read {columns} of {table}', { columns, table });
+    case 'write-columns':
+      return allowed ? t('designer:access.writeColumnsAllowed', 'strangers can write {columns} of {table}', { columns, table }) : t('designer:access.writeColumns', 'strangers could write {columns} of {table}', { columns, table });
+    default:
+      return allowed ? t('designer:access.readAllowed', 'strangers can read {table}', { table }) : t('designer:access.read', 'strangers could read {table}', { table });
+  }
+}
+
+/** Before it goes live, in a session of outside words: what the app would newly allow, each said in the person's words. */
+export function AccessChangeCard({
+  card,
+  answered,
+  closed = false,
+  allowed,
+  busy,
+  onAllow,
+  onRefuse,
+}: {
+  card: Extract<DesignerCard, { type: 'access-change' }>;
+  answered: boolean;
+  closed?: boolean;
+  allowed?: boolean | undefined;
+  busy: boolean;
+  onAllow: () => void;
+  onRefuse: () => void;
+}): ReactNode {
+  if (answered || closed) {
+    return (
+      <div role="group" aria-label={t('designer:access.answeredLabel', 'Check before it goes live, answered')} data-card-id={card.id} tabIndex={-1} className="flex flex-col gap-1 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-[12.5px] leading-normal outline-none">
+        <span className="text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle">{t('designer:access.answeredMark', 'Answered')}</span>
+        {!answered ? (
+          <span className="font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</span>
+        ) : allowed === true ? (
+          card.changes.map((change, index) => (
+            <span key={index} className="flex items-start gap-2">
+              <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+              <span dir="auto">{t('designer:access.allowed', 'Allowed: {change}.', { change: accessChangeLine(change, true) })}</span>
+            </span>
+          ))
+        ) : (
+          <span className="flex items-start gap-2 text-fg-muted">
+            <Ban aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
+            <span>{t('designer:access.notAllowed', 'Not allowed. The Designer will build without it.')}</span>
+          </span>
+        )}
+      </div>
+    );
+  }
+  return (
+    <CardShell cardId={card.id} icon={<ShieldAlert className="size-[15px] text-warn" />} title={t('designer:access.title', 'Check this before it goes live')}>
+      <p className="m-0 text-[12.5px] leading-normal text-fg-muted">{card.planned ? t('designer:access.lead', 'This was not on the plan you approved:') : t('designer:access.leadNoPlan', 'This needs your yes first:')}</p>
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {card.changes.map((change, index) => {
+          const Mark = change.kind === 'call' ? Globe : change.kind === 'role' ? UsersRound : UserPlus;
+          return (
+            <li key={index} className="flex items-start gap-2 text-[12.5px] leading-normal text-fg">
+              <Mark aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-muted" />
+              <span dir="auto">{accessChangeLine(change, false)}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" disabled={busy} onClick={onAllow} className={SECONDARY}>
+          {t('designer:access.allow', 'Allow it')}
+        </button>
+        <button type="button" disabled={busy} onClick={onRefuse} className={SECONDARY}>
+          {t('designer:access.refuse', 'Do not allow it')}
         </button>
       </div>
     </CardShell>

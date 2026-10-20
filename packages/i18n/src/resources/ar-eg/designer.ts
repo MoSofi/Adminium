@@ -394,7 +394,10 @@ export default {
     "spotsFailed": "لم تُنشأ مواضع للصور",
     "spotFilling": "يضع صورتك في {subject}",
     "spotFilled": "صورتك في {subject}",
-    "spotFillFailed": "لم توضع صورتك في {subject}"
+    "spotFillFailed": "لم توضع صورتك في {subject}",
+    "siteBuilding": "جارٍ بناء الشاشات من {subject}",
+    "siteBuilt": "بُنيت {count, plural, zero {# شاشة} one {شاشة واحدة} two {شاشتان} few {# شاشات} many {# شاشة} other {# شاشة}} من {subject}",
+    "siteFailed": "لم يُبنَ شيء من القالب"
   },
   "steps": {
     "count": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
@@ -1196,5 +1199,32 @@ export default {
     "rename": "{name}: أعد تسمية هذا المجلد لاستخدامه (حروف، أرقام، مسافة، . _ -)",
     "more": "و{count} أخرى",
     "boxText": "اصنع تطبيقًا من {name}."
+  },
+  "access": {
+    "title": "تحقّق من هذا قبل النشر",
+    "lead": "لم يكن هذا في الخطة التي وافقت عليها:",
+    "leadNoPlan": "هذا يحتاج إلى موافقتك أولًا:",
+    "allow": "اسمح به",
+    "refuse": "لا تسمح به",
+    "allowed": "مسموح: {change}.",
+    "notAllowed": "غير مسموح. سيبني المصمم بدونه.",
+    "answeredLabel": "التحقق قبل النشر، تمت الإجابة",
+    "answeredMark": "تمت الإجابة",
+    "add": "قد يضيف الغرباء صفوفًا إلى {table}",
+    "addAllowed": "يمكن للغرباء إضافة صفوف إلى {table}",
+    "change": "قد يغيّر الغرباء صفوف {table}",
+    "changeAllowed": "يمكن للغرباء تغيير صفوف {table}",
+    "read": "قد يقرأ الغرباء {table}",
+    "readAllowed": "يمكن للغرباء قراءة {table}",
+    "readColumns": "قد يقرأ الغرباء {columns} من {table}",
+    "readColumnsAllowed": "يمكن للغرباء قراءة {columns} من {table}",
+    "writeColumns": "قد يكتب الغرباء {columns} في {table}",
+    "writeColumnsAllowed": "يمكن للغرباء كتابة {columns} في {table}",
+    "newRole": "قد يتمكن دور جديد، {role}، من تسجيل الدخول واستخدام التطبيق",
+    "newRoleAllowed": "يمكن لدور جديد، {role}، تسجيل الدخول واستخدام التطبيق",
+    "role": "قد يتمكن الدور {role} من فعل أكثر من قبل",
+    "roleAllowed": "يمكن للدور {role} فعل أكثر من قبل",
+    "call": "صفحة {screen} تتصل بعنوان خارج Adminium",
+    "callAllowed": "يمكن لصفحة {screen} الاتصال بعنوان خارج Adminium"
   }
 } as const;
