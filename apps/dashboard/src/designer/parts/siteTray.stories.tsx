@@ -5,6 +5,9 @@
  * on Home before there is a session. Dark, right-to-left and density come from the Storybook
  * globals and the VRT matrix.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import { AppToastProvider } from '../../pages/toasts.js';
 import type { DesignerAttachment } from '../api.js';
 import { BuildComposer } from './BuildComposer.js';
 import { NO_SITE, type SiteControl, type SiteTrayItem } from './siteState.js';
@@ -44,10 +47,16 @@ export const GoingUp = {
   render: () => {
     const site = control({ current: item({ phase: 'uploading', percent: 64 }), uploading: true });
     const attach = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false, site };
+    // The composer's attach menu reads the project's templates when it opens, and its Figma dialog says things in toasts:
+    // a client and a toast host of its own, asked nothing here.
     return (
-      <div className="w-[340px] bg-bg">
-        <BuildComposer value="Make this my bakery." onChange={() => undefined} onSend={() => undefined} onStop={() => undefined} working={false} canSend placeholder="" model={null} attach={attach} tray={box(site)} />
-      </div>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })}>
+        <AppToastProvider>
+        <div className="w-[340px] bg-bg">
+          <BuildComposer value="Make this my bakery." onChange={() => undefined} onSend={() => undefined} onStop={() => undefined} working={false} canSend placeholder="" model={null} attach={attach} tray={box(site)} />
+        </div>
+        </AppToastProvider>
+      </QueryClientProvider>
     );
   },
 };
