@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0061 — payments (plan 70). Numbered at merge: plans 68 and 69 merge
- * first, and this file takes the next free number then.
+ * Wave 0061 — payments.
  *
  * A shop's customers pay what they owe on a provider's hosted page; Adminium
  * records the payment against the invoice or record, exactly once, across two
@@ -171,7 +170,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('state', c.str(20), (col) => col.notNull())
     .addColumn('idempotency_key', c.str(80), (col) => col.notNull())
     .addColumn('provider_refund_id', c.str(255))
-    // `staff` (made in Adminium) or `provider` (made in the provider's dashboard, Q4 = A).
+    // `staff` (made in Adminium) or `provider` (made in the provider's dashboard, then recorded and flagged).
     .addColumn('source', c.str(16), (col) => col.notNull())
     .addColumn('requested_by', c.id)
     .addColumn('failure_message', c.str(2000))

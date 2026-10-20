@@ -4,15 +4,16 @@
  * credential envelope.
  *
  * The generic connect form stores one set of secrets and needs every field in
- * one call (T11). A payment service needs a test set and a live set, saved
- * field by field, each replaceable without disconnecting (plan 70 §3.10). So
+ * one call. A payment service needs a test set and a live set, saved field by
+ * field, each replaceable without disconnecting, so a shop can set up test
+ * first and live later and roll one key without losing the other. So
  * the envelope's secret for a payment add-on is a small versioned document:
  *
  *     { payments: 1, test: { secretKey, webhookSecret }, live: { … } }
  *
  * It is read here, parsed (never cast), and handed to the provider half for
  * one call. A field is written with `withField`; the routes that call it are
- * Studio's (P2), never the generic connect route.
+ * Studio's own, never the generic connect route.
  */
 import type { PaymentCredentials, PaymentMode } from '@adminium/add-on-contracts';
 import type { CredentialEnvelope } from '@adminium/meta';

@@ -5,7 +5,8 @@
  * ─── WHY IT IS A JOB, AND AT-LEAST-ONCE ────────────────────────────────────
  *
  * The attempt lives in the meta store; the payment row usually lives in the
- * shop's database. They never share a transaction (T5), so no single commit
+ * shop's database. They never share a transaction (separate pools, often
+ * separate engines), so no single commit
  * can say "the money arrived and it is written down". Recording is therefore
  * a job that may run more than once — after a crash, a lost lock, a second
  * delivery — and is made exactly-once by the payment's own reference: the
@@ -17,7 +18,8 @@
  *               written by a run that died before step 5: finish.
  *   3. check:   what the provider took against what is due NOW; any mismatch,
  *               a voided invoice, a deleted row → `record_refused` with the
- *               reason (Activity shows it; a person decides the refund, Q3 = A)
+ *               reason (Activity shows it; a person decides any refund,
+ *               never this job)
  *   4. write:   insert-first, the attempt id in the unique column; a unique
  *               violation means another run got there: read that row, finish
  *   5. finish:  recording → recorded, with the row's key
@@ -29,8 +31,8 @@
  *
  * ─── TEST MODE NEVER WRITES TO A SHOP TABLE ────────────────────────────────
  *
- * A test-mode success is kept in the meta store only, marked test (plan 70
- * §3.14): a test card must never settle a real invoice.
+ * A test-mode success is kept in the meta store only, marked test: a test
+ * card must never settle a real invoice.
  */
 import { compareAmounts, sameAmount } from '@adminium/add-on-contracts';
 import { isDuplicateKeyError, keptPaymentsRepo, paymentAttemptsRepo, type AttemptProblem, type MetaDb, type PaymentAttempt } from '@adminium/meta';

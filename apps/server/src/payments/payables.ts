@@ -2,7 +2,7 @@
 /**
  * What can be paid, and how much is due on it NOW.
  *
- * Three kinds (plan 70 §3.5), one rule: the amount due is re-read on the
+ * Three kinds, one rule: the amount due is re-read on the
  * server every time. A link never carries an amount and a browser never sends
  * one, so nothing here takes an amount from a caller.
  *

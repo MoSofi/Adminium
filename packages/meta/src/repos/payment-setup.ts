@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The payments set-up repos (migration 0061, plan 70): pay links, payable
+ * The payments set-up repos (migration 0061): pay links, payable
  * profiles, ways to pay, the small settings documents and the card-testing
  * counters. The rows money depends on are in `payments.ts`.
  *

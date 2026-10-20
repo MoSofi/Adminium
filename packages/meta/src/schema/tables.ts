@@ -1520,7 +1520,7 @@ export interface AdminiumAssistantTurnsTable {
 }
 
 // ---------------------------------------------------------------------------
-// wave 0061 — payments (plan 70)
+// wave 0061 — payments
 // ---------------------------------------------------------------------------
 
 /** One try to pay one payable at one provider. Moves only by compare-and-set (0061). */

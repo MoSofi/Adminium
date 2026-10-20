@@ -290,7 +290,7 @@ describe('composition root (compose.ts)', () => {
     expect(jobs.scheduler.names()).toContain(TELEMETRY_SCHEDULE_NAME);
     // And it is a REAL schedule with a next tick, not a registered no-op.
     expect(jobs.scheduler.nextRun(TELEMETRY_SCHEDULE_NAME)).toBeInstanceOf(Date);
-    // Payments: the record job has a handler, and its pickup a real schedule (plan 70).
+    // Payments: the record job has a handler, and its pickup a real schedule.
     expect(jobs.registry.has(PAYMENTS_RECORD_JOB)).toBe(true);
     expect(jobs.scheduler.nextRun(PAYMENTS_RECORD_PICKUP_NAME)).toBeInstanceOf(Date);
 

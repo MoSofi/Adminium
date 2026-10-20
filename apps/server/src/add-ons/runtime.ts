@@ -68,7 +68,7 @@ export type LoadRefusal =
  * vouch for — the same sources the deciding contracts use (a bundled pin, a
  * catalogue download, a dev key outside production). A payment provider
  * handles a shop's money and its keys, so a sideloaded look-alike must never
- * load, whatever its manifest says (plan 70 §3.3).
+ * load, whatever its manifest says.
  */
 export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(['payment-provider']);
 

@@ -2317,7 +2317,7 @@ export const automationOriginSchema = z.enum([
   'automation',
   'hook',
   'action',
-  // A payment a customer made online, recorded by Adminium (plan 70).
+  // A payment a customer made online, recorded by Adminium.
   'payment',
 ]);
 export type AutomationOrigin = z.infer<typeof automationOriginSchema>;

@@ -95,7 +95,7 @@ export const CONTRACT_REGISTRY = [
      * THE SEVENTH: MONEY THAT MOVES AT A PAYMENT SERVICE. A shop's customer
      * pays on the provider's own hosted page; the provider half starts the
      * checkout, says how it ended, refunds, and proves its webhooks. Consumed
-     * by the engine's payments (plan 70), selected by add-on key, and loaded
+     * by the engine's payments, selected by add-on key, and loaded
      * only from a package Adminium can vouch for. Online payments only:
      * in-person terminals are a contract of their own when they are built.
      * Its two implementers are the Stripe and PayPal add-ons, proven against

@@ -1483,7 +1483,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     { jitterMs: TIMED_MOVES_JITTER_MS },
   );
-  // Payments (plan 70): the job that records a payment exactly once, and the
+  // Payments: the job that records a payment exactly once, and the
   // pickup that queues it again for any attempt a dead job left behind.
   registerPaymentsRecordHandler(jobs.registry, { meta, sources: createPayableSources({ meta, manager }), writes: recordWrites, app, log: app.log });
   jobs.scheduler.registerSchedule(

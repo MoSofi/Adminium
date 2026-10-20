@@ -9,7 +9,7 @@
  * that moves at the provider: start a checkout, say how one ended, end one,
  * refund, prove a webhook came from the provider, list the events whose webhook
  * went missing, and say which ways to pay the account has switched on.
- * In-person terminals are a different contract (`card-terminal@1`, wave 2).
+ * In-person terminals will be a contract of their own when they are built.
  *
  * ─── THE SHAPE ─────────────────────────────────────────────────────────────
  *

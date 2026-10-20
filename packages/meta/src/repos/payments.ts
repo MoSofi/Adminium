@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The payments repos (migration 0061, plan 70): attempts, events, the payments
+ * The payments repos (migration 0061): attempts, events, the payments
  * Adminium keeps itself, and refunds — the rows money depends on.
  *
  * ─── Every move is a compare-and-set ───────────────────────────────────────
