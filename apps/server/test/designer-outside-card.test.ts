@@ -21,7 +21,7 @@ import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { publicEndpointsRepo, type MetaDb } from '@adminium/meta';
+import { publicEndpointsRepo, publicKeysRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -182,7 +182,7 @@ afterEach(async () => {
   install = null;
 });
 
-type Card = { id: string; type: string; changes?: unknown[]; planned?: boolean };
+type Card = { id: string; type: string; changes?: unknown[]; more?: number; planned?: boolean };
 type DesignerEventRow = { kind: string; turn: number; outcome?: string; ok?: boolean; state?: string; stage?: string; message?: string; card?: Card };
 
 /** Asks `probe` every 100 ms until it gives a value; a minute without one fails with `what`. */
@@ -198,6 +198,7 @@ async function until<T>(probe: () => Promise<T | undefined>, what: () => string)
 
 interface Desk {
   root: string;
+  call: (method: 'GET' | 'POST' | 'PUT', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
   meta: MetaDb;
   mainId: string;
   id: string;
@@ -267,7 +268,7 @@ async function desk(engine: MetaEngine, first: Record<string, unknown> = appFile
   const setup = await app.inject({ method: 'POST', url: '/api/v1/setup/super-admin', headers: { host: HOST }, payload: { email: 'owner@example.test', password: 'a-long-enough-test-password-1!', name: 'Owner' } });
   expect(setup.statusCode, setup.body).toBe(201);
   const owner = String(setup.headers['set-cookie']).split(';')[0] ?? '';
-  const call = async (method: 'GET' | 'POST', url: string, payload?: unknown): Promise<{ status: number; body: Record<string, unknown> }> => {
+  const call = async (method: 'GET' | 'POST' | 'PUT', url: string, payload?: unknown): Promise<{ status: number; body: Record<string, unknown> }> => {
     const res = await app.inject({ method, url, headers: { host: HOST, cookie: owner }, ...(payload === undefined ? {} : { payload: payload as Record<string, unknown> }) });
     return { status: res.statusCode, body: (res.body === '' ? {} : res.json()) as Record<string, unknown> };
   };
@@ -289,6 +290,7 @@ async function desk(engine: MetaEngine, first: Record<string, unknown> = appFile
     }, said(turn));
   const ready: Desk = {
     root,
+    call,
     meta,
     mainId,
     id,
@@ -363,13 +365,25 @@ function writePlan(desk: Desk, site: { id: string; sha256: string }): void {
 
 // ── what is checked ─────────────────────────────────────────────────────────
 
-/** What strangers may do on the server now: each public endpoint's table and methods, and what they write. */
+/**
+ * What strangers may do on the server now: each public endpoint the app's live keys grant, with the methods they
+ * grant and what it writes. (An endpoint taken out of the manifest keeps its row; its key no longer grants it.)
+ */
 async function liveAccess(desk: Desk): Promise<string[]> {
+  const keys = (await publicKeysRepo(desk.meta).listManagedBy(KEY)).filter((key) => key.revokedAt === null && key.access !== null);
+  const granted = new Map<string, Set<string>>();
+  for (const key of keys) {
+    for (const [endpoint, methods] of Object.entries(JSON.parse(key.access as string) as Record<string, string[]>)) {
+      for (const method of methods) granted.set(endpoint, (granted.get(endpoint) ?? new Set()).add(method));
+    }
+  }
   const endpoints = await publicEndpointsRepo(desk.meta).listByConnection(desk.mainId);
   return endpoints
-    .map((endpoint) => {
-      const definition = JSON.parse(endpoint.definition) as { path: string; methods: string[]; writable?: string[] };
-      return `${definition.path} ${definition.methods.join(',')}${definition.writable === undefined ? '' : ` writes ${definition.writable.join(',')}`}`;
+    .flatMap((endpoint) => {
+      const methods = [...(granted.get(endpoint.id) ?? [])].sort();
+      if (methods.length === 0) return [];
+      const definition = JSON.parse(endpoint.definition) as { path: string; writable?: string[] };
+      return [`${definition.path} ${methods.join(',')}${definition.writable === undefined ? '' : ` writes ${definition.writable.join(',')}`}`];
     })
     .sort();
 }
@@ -377,8 +391,6 @@ async function liveAccess(desk: Desk): Promise<string[]> {
 const toolSaid = (): string[] => [...new Set(asked.flatMap((messages) => messages.filter((message) => message.role === 'tool').map((message) => message.content ?? '')))];
 const applied = (desk: Desk): { access: { table: string; methods: string[]; writable: string[] }[]; roles: Record<string, string[]> } =>
   JSON.parse(readFileSync(join(desk.root, '.adminium', 'designer', 'applied', `${KEY}.json`), 'utf8')) as never;
-
-
 
 const ADD_MESSAGES = { kind: 'access', verb: 'add', table: 'messages' };
 const CONTACT_LIVE = '/contact_desk_messages POST writes name,email,body';
@@ -436,7 +448,7 @@ describe.each(META_ENGINES)('Check this before it goes live, on $name', (engine)
       expect(applies(events).map((apply) => apply.ok)).toEqual([true, true, true]);
       expect(events.at(-1)).toMatchObject({ outcome: 'done' });
       expect(await liveAccess(d)).toEqual([CONTACT_LIVE]);
-      expect(applied(d).access).toEqual([{ table: 'messages', methods: ['POST'], select: ['id'], writable: ['name', 'email', 'body'] }]);
+      expect(applied(d).access).toEqual([{ table: 'messages', methods: ['POST'], select: ['id'], writable: ['name', 'email', 'body'], humanCheck: true, rows: '{}' }]);
 
       const next = await d.turn('Make the title bigger.', [() => ({ calls: [APPLY] }), () => ({ text: 'Done.' })]);
       expect((await d.over(next)).at(-1)).toMatchObject({ outcome: 'done' });
@@ -462,6 +474,7 @@ describe.each(META_ENGINES)('Check this before it goes live, on $name', (engine)
       expect(applies(events).map((apply) => apply.ok)).toEqual([true, true]);
       expect(events.at(-1)).toMatchObject({ outcome: 'done' });
       expect(applied(d)).toMatchObject({ access: [], roles: { staff: expect.not.arrayContaining(['table:@messages:read']) } });
+      expect(await liveAccess(d)).toEqual([]);
     });
 
     it('asks nothing a template plan the person approved covers, and only what goes beyond it', async () => {
@@ -501,6 +514,133 @@ describe.each(META_ENGINES)('Check this before it goes live, on $name', (engine)
       await d.answer(card, true);
       expect((await d.over(beyond, 1)).at(-1)).toMatchObject({ outcome: 'done' });
       expect(applied(d).roles['staff']).toContain('table:@items:delete');
+    });
+
+    it('refuses, outside a turn, what the person did not allow: a restore and a hand save apply none of it', async () => {
+      const d = await desk(engine);
+      // A version that lets strangers write messages, made in a turn before anything came from outside, then taken back.
+      const opened = await d.turn('Let people send a message.', [() => ({ calls: [...writes(accessFile([CONTACT])), APPLY] })]);
+      expect((await d.over(opened)).at(-1)).toMatchObject({ outcome: 'done' });
+      const closed = await d.turn('Close the form again.', [() => ({ calls: [...writes(accessFile([])), APPLY] })]);
+      expect((await d.over(closed)).at(-1)).toMatchObject({ outcome: 'done' });
+      expect(await liveAccess(d)).toEqual([]);
+      attachPage(d);
+
+      // Going back to the version that grants it (kept as a version of its own): never asked, so not applied.
+      const back = await d.call('POST', `/api/v1/designer/sessions/${d.id}/versions/2/restore`, { record: true });
+      expect(back.status, JSON.stringify(back.body)).toBe(200);
+      expect(back.body).toMatchObject({ applied: false });
+      const restored = applies(await d.over(closed)).at(-1);
+      expect(restored).toMatchObject({ ok: false, state: 'not-applied', stage: 'access' });
+      expect(restored?.message).toMatch(/^Not applied: the app would let strangers do more than the person allowed \(strangers could add rows to messages\)\./);
+      expect(await liveAccess(d)).toEqual([]);
+
+      // A hand save of a dashboard page, as the person makes one.
+      const page = `${APP}/manifest/pages/${KEY}-items.json`;
+      const handSave = async (fallback: string): Promise<string> => {
+        const listed = (await d.call('GET', `/api/v1/designer/sessions/${d.id}/files`)).body['groups'] as { files: { path: string; hash: string }[] }[];
+        const base = listed.flatMap((group) => group.files).find((file) => file.path === page)?.hash;
+        expect(base, page).toBeDefined();
+        const content = readFileSync(join(d.root, page), 'utf8').replace(/"fallback": "[^"]*"/, `"fallback": "${fallback}"`);
+        const saved = await d.call('PUT', `/api/v1/designer/sessions/${d.id}/files`, { files: [{ path: page, content, base }] });
+        expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+        expect(saved.body).toMatchObject({ applied: false, problems: { stage: 'apply' } });
+        return (saved.body['problems'] as { lines: string[] }).lines[0] ?? '';
+      };
+      expect(await handSave('Things')).toMatch(/^Not applied: the app would let strangers do more than the person allowed \(strangers could add rows to messages\)\./);
+      expect(await liveAccess(d)).toEqual([]);
+
+      // The next turn asks it, and the person says no; the files still hold it, and the next hand save applies none of it.
+      const asking = await d.turn('Keep going.', [() => ({ calls: [APPLY] }), () => ({ text: 'Done.' })]);
+      await d.answer(await d.card(asking), false);
+      expect((await d.over(asking, 1)).at(-1)).toMatchObject({ outcome: 'not-applied' });
+      expect(await handSave('Stuff')).toMatch(/^Not applied: the person did not allow this, and it is still in the app's files: strangers could add rows to messages\./);
+      expect(await liveAccess(d)).toEqual([]);
+      expect(applied(d).access).toEqual([]);
+    });
+
+    it('lists twelve changes and how many more, and “Do not allow” refuses every one of them', async () => {
+      const boxes = Array.from({ length: 14 }, (_unused, n) => `box_${String(n + 1).padStart(2, '0')}`);
+      const tables = Object.fromEntries(
+        boxes.map((ref) => [`manifest/tables/${ref}.json`, { ref, label: { 'en-US': 'Box' }, labelPlural: { 'en-US': 'Boxes' }, keyField: 'name', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text', maxLength: 80, nullable: true }] }]),
+      );
+      const d = await desk(engine, appFiles(tables));
+      attachPage(d);
+      const turn = await d.turn('Let people drop things in every box.', [
+        () => ({ calls: [...writes(accessFile(boxes.map((table) => ({ table, methods: ['POST'], select: ['id'], writable: ['name'], humanCheck: true })))), APPLY] }),
+        () => ({ text: 'The boxes are open.' }),
+      ]);
+      const card = await d.card(turn);
+      expect(card.changes).toEqual(boxes.slice(0, 12).map((table) => ({ kind: 'access', verb: 'add', table })));
+      expect(card.more).toBe(2);
+      await d.answer(card, false);
+      // apply_app's apply and the turn's last: both refused, the second asking nothing of the two past the twelve.
+      const events = await d.over(turn, 1);
+      expect(applies(events).map((apply) => apply.stage)).toEqual(['access', 'access']);
+      expect(await liveAccess(d)).toEqual([]);
+      expect(applied(d).access).toEqual([]);
+      const told = toolSaid().find((said) => said.startsWith('It was not applied (access):')) ?? '';
+      expect(told).toContain(`The person did not allow this: ${boxes.slice(0, 12).map((table) => `strangers could add rows to ${table}`).join('; ')}; and 2 more.`);
+    });
+
+    it('is asked of an app built from a template plan, in a session that holds nothing from outside', async () => {
+      const d = await desk(engine);
+      writePlan(d, { id: 'att_00000000000000000000', sha256: '0'.repeat(64) });
+      const turn = await d.turn('Show the products.', [() => ({ calls: [...writes(accessFile([{ table: 'products', methods: ['GET'], select: ['id', 'name'] }])), APPLY] })]);
+      const card = await d.card(turn);
+      expect(card).toMatchObject({ changes: [{ kind: 'access', verb: 'read', table: 'products' }], planned: true });
+      await d.answer(card, false);
+      expect((await d.over(turn, 1)).at(-1)).toMatchObject({ outcome: 'not-applied' });
+      expect(await liveAccess(d)).toEqual([]);
+    });
+
+    it('is asked of an app whose screens are a template’s, in a session that holds nothing from outside', async () => {
+      const d = await desk(engine);
+      writeFileSync(join(d.root, APP, 'look.json'), JSON.stringify({ skill: 'clean', templateSides: ['customer'] }));
+      const turn = await d.turn('Let people send a message.', [() => ({ calls: [...writes(accessFile([CONTACT])), APPLY] })]);
+      const card = await d.card(turn);
+      expect(card).toMatchObject({ changes: [ADD_MESSAGES], planned: false });
+      await d.answer(card, false);
+      expect((await d.over(turn, 1)).at(-1)).toMatchObject({ outcome: 'not-applied' });
+      expect(await liveAccess(d)).toEqual([]);
+    });
+
+    it('asks for access widened with no new column named: a read that loses its columns, a create its check, a read its filter', async () => {
+      const PRODUCTS = { table: 'products', methods: ['GET'], select: ['id', 'name'] };
+      const OPEN_ITEMS = { table: 'items', methods: ['GET'], select: ['id', 'title', 'status'], filters: [{ column: 'status', op: 'eq', value: 'open' }] };
+      const d = await desk(engine, appFiles(accessFile([PRODUCTS, CONTACT, OPEN_ITEMS])));
+      attachPage(d);
+      const { select: _select, ...allProducts } = PRODUCTS;
+      const { humanCheck: _check, ...unchecked } = CONTACT;
+      const { filters: _filters, ...allItems } = OPEN_ITEMS;
+      const turn = await d.turn('Open it all up.', [() => ({ calls: [...writes(accessFile([allProducts, unchecked, allItems])), APPLY] })]);
+      const card = await d.card(turn);
+      expect(card).toMatchObject({
+        changes: [
+          { kind: 'access', verb: 'read-all', table: 'products' },
+          { kind: 'access', verb: 'no-check', table: 'messages' },
+          { kind: 'access', verb: 'hidden-rows', table: 'items' },
+        ],
+        planned: false,
+      });
+      expect(card.more).toBeUndefined();
+      await d.answer(card, true);
+      expect((await d.over(turn, 1)).at(-1)).toMatchObject({ outcome: 'done' });
+    });
+
+    it('asks nothing of a planned role’s page of a plan table, and asks for its page of another table', async () => {
+      const page = (table: string) => ({ [`manifest/pages/${KEY}-${table}.json`]: { ref: `${KEY}-${table}`, template: 'page-crud', title: { key: `${KEY}.${table}`, fallback: table }, nav: { group: 'main', icon: 'list', order: 3 }, bindings: { rows: table } } });
+      const d = await desk(engine, appFiles({ ...page('products'), ...page('messages') }));
+      writePlan(d, await attachSite(d));
+      const covered = await d.turn('Let the staff open the products.', [() => ({ calls: [...writes(staffWith('table:@products:read', `page:@${KEY}-products:view`)), APPLY] })]);
+      expect((await d.over(covered)).at(-1)).toMatchObject({ outcome: 'done' });
+
+      const beyond = await d.turn('And the messages page.', [() => ({ calls: [...writes(staffWith('table:@products:read', `page:@${KEY}-products:view`, `page:@${KEY}-messages:view`)), APPLY] })]);
+      const card = await d.card(beyond);
+      expect(card).toMatchObject({ changes: [{ kind: 'role', role: 'staff', isNew: false }], planned: true });
+      await d.answer(card, false);
+      expect((await d.over(beyond, 1)).at(-1)).toMatchObject({ outcome: 'not-applied' });
+      expect(toolSaid()).toContainEqual(expect.stringContaining('the role "staff" could do more than before (1 new right)'));
     });
   });
 });
