@@ -26,6 +26,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildLogger } from '../src/app.js';
 import { hashPassword } from '../src/auth/passwords.js';
 import { composeServer, TELEMETRY_SCHEDULE_NAME } from '../src/compose.js';
+import { PAYMENTS_RECORD_JOB, PAYMENTS_RECORD_PICKUP_NAME } from '../src/payments/record.js';
 import { ADAPTER_PACKAGES } from '../src/connections/register-adapters.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
@@ -289,6 +290,9 @@ describe('composition root (compose.ts)', () => {
     expect(jobs.scheduler.names()).toContain(TELEMETRY_SCHEDULE_NAME);
     // And it is a REAL schedule with a next tick, not a registered no-op.
     expect(jobs.scheduler.nextRun(TELEMETRY_SCHEDULE_NAME)).toBeInstanceOf(Date);
+    // Payments: the record job has a handler, and its pickup a real schedule (plan 70).
+    expect(jobs.registry.has(PAYMENTS_RECORD_JOB)).toBe(true);
+    expect(jobs.scheduler.nextRun(PAYMENTS_RECORD_PICKUP_NAME)).toBeInstanceOf(Date);
 
     await app.close();
     await meta.db.destroy();

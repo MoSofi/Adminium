@@ -58,6 +58,10 @@ export const PAYMENTS_RECORD_MAX_ATTEMPTS = 40;
 /** An attempt left in `succeeded` or `recording` this long is picked up again. */
 export const RECORD_PICKUP_AFTER_MS = 10 * 60 * 1000;
 
+/** The pickup's schedule: every five minutes. */
+export const PAYMENTS_RECORD_PICKUP_NAME = 'payments-record-pickup';
+export const PAYMENTS_RECORD_PICKUP_CRON = '*/5 * * * *';
+
 export interface RecordDeps {
   meta: MetaDb;
   sources: PayableSources;
@@ -334,7 +338,7 @@ export function registerPaymentsRecordHandler(registry: JobRegistry, deps: Recor
 
 /** Queues the record job for an attempt. A racing enqueue of the same attempt is "already queued". */
 export async function enqueueRecord(
-  enqueue: (input: { kind: string; payload: unknown; dedupeKey: string; maxAttempts: number }) => Promise<unknown>,
+  enqueue: (input: { kind: string; payload: Record<string, unknown>; dedupeKey: string; maxAttempts: number }) => Promise<unknown>,
   attemptId: string,
 ): Promise<boolean> {
   try {

@@ -34,6 +34,7 @@ import {
   settingsRepo,
   usersRepo,
   type MetaDb,
+  paymentEventsRepo,
 } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -198,6 +199,25 @@ describe('firing the sweep deletes what the policy says', () => {
 
     const remaining = await meta.db.selectFrom('adminium_public_sessions').select('id').execute();
     expect(remaining.map((row) => row.id)).toEqual([live.id]);
+  });
+
+  it('drops handled payment events past retention.paymentEventsDays, and keeps unhandled ones', async () => {
+    const { meta, server } = await compose();
+    const events = paymentEventsRepo(meta);
+    await settingsRepo(meta).set('retention.paymentEventsDays', 30, { updatedBy: null });
+    const base = { provider: 'demo', mode: 'test', type: 'checkout.succeeded', kind: 'checkout', checkoutRef: null, paymentRef: null, refundRef: null, attemptId: null, source: 'webhook' as const, body: null };
+    const longAgo = Date.now() - 60 * DAY_MS;
+    const handled = await events.record({ ...base, eventId: 'evt_old_handled' }, longAgo);
+    await events.markProcessed(handled.event.id, longAgo);
+    const waiting = await events.record({ ...base, eventId: 'evt_old_waiting' }, longAgo);
+    const recent = await events.record({ ...base, eventId: 'evt_recent' });
+    await events.markProcessed(recent.event.id);
+
+    await server.jobs.scheduler.trigger(RETENTION_GC_SCHEDULE_NAME);
+
+    const left = await meta.db.selectFrom('adminium_payment_events').select('id').execute();
+    // An event nobody handled is work, however old; the sweep never takes it.
+    expect(left.map((row) => row.id).sort()).toEqual([waiting.event.id, recent.event.id].sort());
   });
 
   it('drops finished jobs past retention.jobsDays and keeps pending ones', async () => {

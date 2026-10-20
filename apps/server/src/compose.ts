@@ -185,6 +185,8 @@ import { sealStoredWebhookSecrets } from './automations/webhook-secrets.js';
 import { createAutomations, decorateAutomations } from './automations/register.js';
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
 import { TIMED_MOVES_JITTER_MS, TIMED_MOVES_SCHEDULE_NAME, enqueueTimedMoves, registerTimedMovesHandler } from './states/timed-moves.js';
+import { createPayableSources } from './payments/payables.js';
+import { PAYMENTS_RECORD_PICKUP_CRON, PAYMENTS_RECORD_PICKUP_NAME, pickUpRecordings, registerPaymentsRecordHandler } from './payments/record.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
 import { announceEffects } from './states/effects.js';
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
@@ -1480,6 +1482,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await enqueueTimedMoves({ ...timedMoves, enqueue: (input: EnqueueJobInput) => jobs.enqueue(input) });
     },
     { jitterMs: TIMED_MOVES_JITTER_MS },
+  );
+  // Payments (plan 70): the job that records a payment exactly once, and the
+  // pickup that queues it again for any attempt a dead job left behind.
+  registerPaymentsRecordHandler(jobs.registry, { meta, sources: createPayableSources({ meta, manager }), writes: recordWrites, app, log: app.log });
+  jobs.scheduler.registerSchedule(
+    PAYMENTS_RECORD_PICKUP_NAME,
+    PAYMENTS_RECORD_PICKUP_CRON,
+    async () => {
+      const queued = await pickUpRecordings(meta, (input) => jobs.enqueue(input));
+      if (queued > 0) app.log.info({ queued }, 'payments: recordings picked up again');
+    },
+    { jitterMs: 30_000 },
   );
   jobs.scheduler.registerSchedule(
     AUTOMATION_SCHEDULE_SCAN_NAME,
