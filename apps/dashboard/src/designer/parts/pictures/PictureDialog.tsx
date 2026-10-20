@@ -176,6 +176,7 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
   const [picks, setPicks] = useState<readonly Pick[]>([]);
   const [mode, setMode] = useState<PicturesMode | null>(null);
   const modeNow = mode ?? data?.mode ?? 'placeholders';
+  const keepsMode = data?.mode !== null;
   const modeChanged = data !== undefined && mode !== null && mode !== data.mode;
   const changes = picks.length + (modeChanged ? 1 : 0);
   const setPick = (key: string, patch: Partial<Pick>): void => setPicks((before) => before.map((pick) => (pick.target === key ? { ...pick, ...patch } : pick)));
@@ -829,7 +830,7 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
       </div>
       {changesRegion}
       <div className="flex shrink-0 flex-wrap items-center gap-x-3.5 gap-y-2.5 border-t border-border px-5 py-3">
-        <ModeControl value={modeNow} onChange={setMode} ids={ids} />
+        {keepsMode ? <ModeControl value={modeNow} onChange={setMode} ids={ids} /> : null}
         <div className="ms-auto flex flex-wrap items-center justify-end gap-2.5">
           {working ? (
             <span id={`${ids}-wait`} className="flex items-center gap-1.5 text-caption font-semibold text-fg-muted">

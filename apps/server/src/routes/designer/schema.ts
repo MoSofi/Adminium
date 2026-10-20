@@ -248,7 +248,8 @@ export const designerPicturesReply = z.object({
   ),
   tables: z.array(z.object({ table: z.string(), label: z.string(), column: z.string(), rows: z.array(z.object({ row: z.number().int(), label: z.string(), version: z.string(), thumb: z.string().nullable() })) })),
   inApp: z.array(z.object({ key: z.string(), name: z.string(), thumb: z.string(), licence: designerLicenceCode })),
-  mode: z.enum(['placeholders', 'choose']),
+  /** Null for an app whose look was kept before styles: it keeps no choice, and the dialog asks none. */
+  mode: z.enum(['placeholders', 'choose']).nullable(),
   legacy: z.number().int(),
   sources: z.array(z.object({ name: z.string(), busy: z.number().int().nullable() })),
   unsplash: z.enum(['ok', 'closed']),

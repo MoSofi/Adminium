@@ -245,7 +245,8 @@ export interface PicturesView {
   tables: { table: string; label: string; column: string; rows: { row: number; label: string; version: string; thumb: string | null }[] }[];
   /** Pictures already in the app, to use again: a file of `assets/pictures/`, or a picture attached in this session. */
   inApp: { key: string; name: string; thumb: string; licence: LicenceCode }[];
-  mode: PicturesMode;
+  /** What a design does with the page's pictures; null for an app whose look was kept before styles, which keeps no choice. */
+  mode: PicturesMode | null;
   /** Pictures the app's screens import themselves (made before spots). */
   legacy: number;
   /** The sources this server can search, each with the minutes it is busy for. */

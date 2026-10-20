@@ -8,7 +8,7 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -461,6 +461,17 @@ describe('Apply', { timeout: 180_000 }, () => {
     expect(JSON.parse(app.disk('look.json'))).toMatchObject({ pictures: 'placeholders' });
     // Nothing to change at all is no Apply.
     expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/apply`, { id: 'apply-mode-0003', fills: [] })).status).toBe(422);
+  });
+
+  it('keeps the choice of an app with no look kept, with the look its sides are drawn with; one whose look was kept before styles is asked none', async () => {
+    const app = await withApp();
+    rmSync(join(app.root, APP, 'look.json'));
+    expect((await app.state() as unknown as { mode: string | null }).mode).toBe('placeholders');
+    const kept = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/apply`, { id: 'apply-nolook-01', fills: [], mode: 'choose' });
+    expect(kept.body).toMatchObject({ applied: true });
+    expect(JSON.parse(app.disk('look.json'))).toMatchObject({ skill: 'clean', pictures: 'choose' });
+    writeFileSync(join(app.root, APP, 'look.json'), JSON.stringify({ direction: 'warm' }));
+    expect((await app.state() as unknown as { mode: string | null }).mode).toBeNull();
   });
 
   it('is refused while a turn runs: “Wait for the Designer to finish, then apply.”', async () => {

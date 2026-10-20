@@ -27,8 +27,9 @@ import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { checkApp } from '../project/apps/check-app.js';
-import { readLook } from '../project/apps/look.js';
+import { lookInUse } from '../project/apps/look.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
+import { DEFAULT_LOOK } from '../project/apps/scaffold-app.js';
 import { appDir, SIDES } from '../project/apps/read-app.js';
 import type { Attachments } from './attachments.js';
 import type { LicenceCode } from './licences.js';
@@ -178,7 +179,7 @@ export function picturesState(
   root: string,
   key: string,
   opts: { sessionId: string; version: string; attachments?: Attachments; fileUrl: (path: string) => string; attachmentUrl: (id: string) => string },
-): { ownBuild: boolean; spots: DialogSpot[]; tables: DialogTable[]; inApp: InAppPicture[]; mode: 'placeholders' | 'choose'; legacy: number } {
+): { ownBuild: boolean; spots: DialogSpot[]; tables: DialogTable[]; inApp: InAppPicture[]; mode: 'placeholders' | 'choose' | null; legacy: number } {
   if (hasOwnBuild(root, key)) return { ownBuild: true, spots: [], tables: [], inApp: [], mode: 'placeholders', legacy: 0 };
   const credits = readCredits(root, key);
   const creditFor = (file: string): PictureCredit | undefined => credits.find((line) => line.file === file);
@@ -239,7 +240,9 @@ export function picturesState(
     if (entry.kind !== 'image' || entry.partOf !== undefined || entry.source !== undefined) continue;
     inApp.push({ key: `attachment:${entry.id}`, name: entry.label, thumb: opts.attachmentUrl(entry.id), licence: 'own' });
   }
-  return { ownBuild: false, spots, tables, inApp, mode: readLook(root, key)?.pictures ?? 'placeholders', legacy: legacyPictures(root, key).length };
+  // The look the sides are drawn with keeps the choice (a style's, written by the first Apply that changes it); a look kept before styles cannot.
+  const look = lookInUse(root, key, DEFAULT_LOOK);
+  return { ownBuild: false, spots, tables, inApp, mode: look.direction === undefined ? (look.pictures ?? 'placeholders') : null, legacy: legacyPictures(root, key).length };
 }
 
 /** A fill whose picture is in hand, ready to be written under the hold. */

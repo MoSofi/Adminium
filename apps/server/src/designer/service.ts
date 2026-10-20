@@ -835,7 +835,8 @@ export function createDesigner(host: DesignerHost): Designer {
       const byTarget = new Map([...written.results, ...gone].map((result) => [result.target, result]));
       const results = fills.map((fill) => byTarget.get(targetOf(fill)) ?? { target: targetOf(fill), state: 'gone' as const });
       // The choice of the dialog's footer: kept with the look, and saved with these pictures.
-      const look = mode === undefined ? null : readLook(host.root, key);
+      // An app made with no look kept goes by the one its sides are drawn with: keeping the choice writes it down.
+      const look = mode === undefined ? null : lookInUse(host.root, key, DEFAULT_LOOK);
       const modeChanged = look !== null && look.direction === undefined && look.pictures !== mode;
       if (modeChanged && mode !== undefined) applyLook(host.root, key, { ...look, pictures: mode }, places);
       if (!results.some((result) => result.state === 'applied') && !modeChanged) return { results, version: null, applied: false, before };
