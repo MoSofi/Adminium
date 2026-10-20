@@ -142,8 +142,8 @@ describe('the Attach menu', () => {
     expect(attach().getAttribute('aria-haspopup')).toBe('menu');
     await userEvent.click(attach());
     const items = await screen.findAllByRole('menuitem');
-    expect(items.map((item) => item.textContent)).toEqual(['Files from your computer…A picture, a CSV, font or Markdown file, an HTML or CSS file, or a site template (.zip)', 'From Figma…']);
-    expect(items[1]?.hasAttribute('data-disabled')).toBe(false);
+    expect(items.map((item) => item.textContent)).toEqual(['Files from your computer…A picture, a CSV, font or Markdown file, an HTML or CSS file, or a site template (.zip)', 'A folder…A site template, as a folder', 'From Figma…']);
+    expect(items[2]?.hasAttribute('data-disabled')).toBe(false);
   });
 
   it('keeps From Figma… in the menu, unavailable with its reason, where network features are off', async () => {

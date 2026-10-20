@@ -124,7 +124,7 @@ export default {
       "line": "You can make a new project in a folder inside it.",
       "another": "Choose another folder",
       "make": "Make a new project here",
-      "template": "This folder holds a site template. The new project is made inside it, and the template is copied in. This folder's own files are not changed."
+      "template": "This folder holds a site template. The new project is made inside it, and the template is copied in. This folder’s own files are not changed."
     }
   },
   "key": {

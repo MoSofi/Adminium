@@ -160,7 +160,7 @@ function NotAProject({ step, actions }: { step: Extract<OpeningStep, { status: '
           {step.template === true ? (
             <span className="mt-1 flex items-start gap-2 text-[13px] leading-normal text-fg" data-part="holds-template">
               <LayoutTemplate aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
-              <span className="text-pretty">{t('desktop:opening.notAProject.template', "This folder holds a site template. The new project is made inside it, and the template is copied in. This folder's own files are not changed.")}</span>
+              <span className="text-pretty">{t('desktop:opening.notAProject.template', 'This folder holds a site template. The new project is made inside it, and the template is copied in. This folder’s own files are not changed.')}</span>
             </span>
           ) : null}
         </div>
