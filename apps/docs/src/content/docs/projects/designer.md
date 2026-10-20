@@ -67,7 +67,8 @@ sentences on what was built, and the result is saved as a version (`v1`, `v2`, â
 | It asks a question | The turn waits. Choose an answer, or write your own |
 | A change would remove data | A card names the table or column and how many rows hold data. Nothing is removed until you accept |
 | It needs something from outside the project | One card lists all of it, each with a checkbox: packages, fonts, a site to show pictures from. Nothing is added until you press **Send** |
-| It found pictures | A card shows them. The ones you tick are copied into the app |
+| It made picture spots | With **Let me choose them now**, a card opens the picture dialog on them. Otherwise they stay grey frames until you fill them |
+| It would take your picture off a screen | A card asks before a picture you placed leaves the screen it was on |
 | It wants to add a phone app | The turn waits on a question: a phone app installs Expo's packages (about 350 MB) and builds with Expo on this computer. Nothing is installed until you say yes |
 | You press **Stop** | The turn ends within a second. What it wrote stays in the folder; **Put the files back** returns to the last version |
 | It reaches a limit | The turn ends and says which limit. **Keep going** starts the next turn where it stopped |
@@ -170,27 +171,49 @@ letter away from a known package is not offered at all.
 
 ### Pictures
 
-A page about food, rooms or people needs pictures of them. The Designer searches a source of free
-pictures and shows what it found on a card, in groups. Tick the ones to use and press **Send**:
-they are copied into your app (`apps/<key>/assets/pictures/`), or into the sample rows of a table
-that has a picture column, each with its credit in `assets/pictures/CREDITS.json`. The page then
-shows them from your own server.
+Each picture on your app's pages is a **spot**: a named place (Hero, Team, Kitchen) with a shape,
+drawn by the screens with `<Picture spot="hero" />`. The Designer makes the spots and never chooses
+their pictures; you do. An empty spot is a grey frame with its name. In the preview it also says
+**Choose a picture**; a visitor sees only the frame.
+
+The first card of a new app asks what a design does with them: **Placeholders for now** (the
+default), or **Let me choose them now**, which opens the picture dialog after each design. You can
+change that choice in the dialog's footer.
+
+The **picture dialog** opens from the **Pictures** chip under the last reply, from the card, from a
+spot's **Choose a picture**, or by pointing at a picture (**Pick an element**, then **Change the
+pictureâ€¦**). It lists the page's spots, then each table's sample rows that take a picture. A
+picture can come from three places:
+
+| From | What happens |
+|---|---|
+| **Search pictures** | One source at a time, searched with the spot's own words. Each picture shows its licence as a badge and what it asks of you |
+| **Upload** | A PNG, JPEG, WebP or GIF of yours, up to 5 MB. Use only pictures you made or have permission to use |
+| **Already in this app** | A picture the app has, or one you attached in this session |
+
+Each choice goes into **What changes**, with the words that describe it for people who cannot see
+it (or **Decorative: say nothing**). **Apply** writes them all at once, with no turn and no model:
+the pictures into `apps/<key>/assets/pictures/`, their credits into `assets/pictures/CREDITS.json`
+(shown at the foot of the page that shows them, under **Picture credits**), and a version, with
+**Undo**. A sample row's picture is that row's own file, and the sample rows nobody changed are
+added again with it. A picture you attach to a message can be put in a spot by the Designer.
 
 | Source | When |
 |---|---|
-| [Openverse](https://openverse.org) | By default. Pictures under licences that allow use and change for any purpose; no key |
+| [Openverse](https://openverse.org) | By default. Pictures under licences that allow use and change for any purpose; no key. **Credit + same licence** (CC BY-SA) is hidden until you ask for it |
 | [Pexels](https://www.pexels.com) | When your project's `.env` has `PEXELS_API_KEY` |
-| [Unsplash](https://unsplash.com) | When your project's `.env` has `UNSPLASH_ACCESS_KEY` and no Pexels key. For a page's pictures only; sample rows still get theirs from Openverse |
+| [Unsplash](https://unsplash.com) | When your project's `.env` has `UNSPLASH_ACCESS_KEY`. For a page's spots only |
 
 Unsplash's rules ask that its pictures be shown from Unsplash's own address and never copied. So a
-picture you tick from Unsplash is not copied into your app: the page loads it from
-`images.unsplash.com`, the card says so before you send, your tick allows that one site (it is
-kept in `ADMINIUM_CSP_IMG_HOSTS`), and Unsplash is told the picture was chosen, as it asks. That
-site then sees each visit to a page that shows its pictures. On a live server, where the sites
-pictures may come from are set by whoever runs it, Unsplash is not used.
+picture you apply from Unsplash is not copied into your app: the page loads it from
+`images.unsplash.com`, your Apply allows that one site (it is kept in `ADMINIUM_CSP_IMG_HOSTS`), and
+Unsplash is told the picture was chosen, as it asks. That site then sees each visit to a page that
+shows its pictures. On a live server, where the sites pictures may come from are set by whoever runs
+it, Unsplash is not used. On a server set to call nothing outside itself, there is no search; Upload
+and Already in this app still work.
 
-A picture you attach to a message is yours to use. With no picture, the Designer draws a tile in
-the style's colours. On a server set to call nothing outside itself, it looks for none.
+An app made before spots keeps the pictures its screens import. **Make them swappable** in the
+dialog turns them into spots in one turn, with the same pictures and credits.
 
 ### Your own styles
 
