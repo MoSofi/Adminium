@@ -462,10 +462,12 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // The latest turn a picture came with: one attached again (a retry of its turn) is that turn's, not an old one.
         for (const entry of entries) for (const block of entry.message.content) if (block.type === 'image' && block.ref !== undefined) pictureTurns.set(block.ref, entry.turn);
         const opening = entries.find((entry) => entry.turn === turn && entry.message.role === 'user')?.message.content.find((block) => block.type === 'text');
+        const sent = tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }));
         const request = await deps.prompt(session, transcript, {
           turn,
           pictureTurns,
           pictures: !blind.has(session.id),
+          tools: sent,
           ...(opening?.type === 'text' ? { said: opening.text } : {}),
         });
         const carriesPictures = request.messages.some((message) => message.content.some((block) => block.type === 'image' && block.data.length > 0));
@@ -477,7 +479,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             result = await runner.run({
               system: request.system,
               messages: request.messages,
-              tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
+              tools: sent,
               model: session.model,
               maxTokens: room,
               ...(effort === undefined ? {} : { effort }),

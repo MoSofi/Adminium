@@ -19,6 +19,7 @@ import type { DesignerEvent } from '../src/designer/events.js';
 import { createEventLog, TEXT_FLUSH_CHARS } from '../src/designer/events.js';
 import { createDesignerRunner, MAX_REPAIRS, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle, pictureBlocks } from '../src/designer/runner.js';
 import { createSessionStore, type DesignerSession, type SessionStore } from '../src/designer/session-store.js';
+import type { PromptOpts } from '../src/designer/prompt.js';
 import type { DesignerTool } from '../src/designer/tool-types.js';
 import { closeDangling, INTERRUPTED, joinUserMessages } from '../src/designer/transcript.js';
 
@@ -209,6 +210,7 @@ function harness(
     advice?: () => string[];
     sight?: NonNullable<Parameters<typeof createDesignerRunner>[0]['sight']>;
     holdCapMs?: number;
+    onPrompt?: (opts: PromptOpts | undefined) => void;
   } = {},
 ): Harness {
   const model = scripted(steps);
@@ -223,7 +225,10 @@ function harness(
     store,
     runnerFor: async () => ({ runner: model }),
     tools: () => opts.tools ?? [echo, writing, asking],
-    prompt: async (_session, messages) => ({ system: 'You build apps.', messages }),
+    prompt: async (_session, messages, promptOpts) => {
+      opts.onPrompt?.(promptOpts);
+      return { system: 'You build apps.', messages };
+    },
     pipeline: async (_session, handle) => {
       h.pipelineRuns += 1;
       if (opts.pipeline !== undefined) return opts.pipeline(handle);
@@ -275,6 +280,16 @@ describe('a Designer turn', () => {
     expect(store.messages(session.id).map((entry) => entry.message.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
     expect(store.read(session.id)).toMatchObject({ turns: 1, tokens: { in: 200, out: 20 } });
     expect(store.eventsSince(session.id, 0, 100).events).toHaveLength(10);
+  });
+
+  it('tells the prompt which tools the request carries, as they are sent, so their room is counted', async () => {
+    const session = newSession();
+    const seen: (PromptOpts | undefined)[] = [];
+    const h = harness([says('Done.')], { onPrompt: (promptOpts) => seen.push(promptOpts) });
+    await h.runner.start(session.id, { text: 'Hello.', by: { id: 'u1', label: 'Owner' } });
+    await h.runner.settled();
+    expect(seen[0]?.tools?.map((tool) => tool.name)).toEqual(['read_file', 'write_file', 'ask_person']);
+    expect(seen[0]?.tools).toEqual(h.model.requests[0]?.tools);
   });
 
   it('tells the model of the element the person pointed at, after their own words, and refuses what is no element', async () => {
