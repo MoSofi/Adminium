@@ -17,6 +17,7 @@ import { createSkills } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import type { NeedItem } from '../src/designer/needs.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
+import { legacyPictures } from '../src/designer/pictures-apply.js';
 import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages } from '../src/designer/tools.js';
 import { runCli } from '../src/cli/run.js';
 import { addPhoneSide } from '../src/project/apps/scaffold-app.js';
@@ -1204,7 +1205,7 @@ describe('picture spots, named by the Designer and filled by the person', () => 
     const filled = { ...spots(), hero: { ...spots()['hero'], file: 'hero-1234abcd.jpg', alt: 'The shop' } };
     writeFileSync(spotsFile(), JSON.stringify(filled));
     const again = await run('add_spots', { spots: [{ id: 'hero', label: 'Big banner', shape: 'tall', shows: 'something else' }, { id: 'Bad Id', label: 'x', shape: 'wide' }, { id: 'kitchen', label: 'Kitchen', shape: 'round' }] });
-    expect(again.content).toContain('Already there, and kept as they are (a new place needs a new id):\n- "hero" (Hero, wide)');
+    expect(again.content).toContain('Already there, and kept as they are (a new place needs a new id):\n- "hero" (Hero, wide, with hero-1234abcd.jpg)');
     expect(again.content).toContain('"Bad Id" is not a spot\'s id');
     expect(again.content).toContain('"kitchen": give a "label" and a "shape" (wide, tall or square).');
     expect(spots()).toEqual(filled);
@@ -1276,5 +1277,42 @@ describe('the needs card’s pictures section', () => {
     // A card was due (the style's fonts), and it asks nothing about pictures.
     expect(card?.items.length).toBeGreaterThan(0);
     expect(card?.pictures).toBeUndefined();
+  });
+});
+
+describe('an app made before picture spots, made swappable', () => {
+  const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
+  const names = ['hero-1', 'team-1', 'kitchen-1', 'menu-1', 'patio-1'];
+  const screen = (converted: readonly string[]): string =>
+    `import { Picture } from '@adminiumjs/adminium/side';\n${names
+      .filter((name) => !converted.includes(name))
+      .map((name) => `import ${name.replace('-1', '')} from '../../assets/pictures/${name}.jpg';`)
+      .join('\n')}\nexport function App() {\n  return <main>${names.map((name) => (converted.includes(name) ? `<Picture spot="${name.replace('-1', '')}" />` : `<img src={${name.replace('-1', '')}} alt="The ${name.replace('-1', '')}" />`)).join('')}</main>;\n}\n`;
+  const ask = (name: string) => ({ id: name.replace('-1', ''), label: name.replace('-1', ''), shape: 'wide', file: `${name}.jpg`, alt: `The ${name.replace('-1', '')}` });
+
+  it('turns each picture into a spot that keeps it, and run again after stopping halfway, makes the rest and no second of any', async () => {
+    const pictures = join(root, 'apps', 'repairs', 'assets', 'pictures');
+    mkdirSync(pictures, { recursive: true });
+    for (const name of names) writeFileSync(join(pictures, `${name}.jpg`), JPEG);
+    mkdirSync(join(root, 'apps', 'repairs', 'customer', 'src'), { recursive: true });
+    const app = join(root, 'apps', 'repairs', 'customer', 'src', 'App.tsx');
+    writeFileSync(app, screen([]));
+    expect(legacyPictures(root, 'repairs')).toHaveLength(5);
+
+    // The first run stops after two.
+    expect((await run('add_spots', { spots: names.slice(0, 2).map(ask) })).facts).toEqual({ outcome: 'added', count: 2 });
+    writeFileSync(app, screen(names.slice(0, 2)));
+    expect(legacyPictures(root, 'repairs')).toHaveLength(3);
+
+    // Run again, over all five: the two made are kept as they are, the three left are made.
+    const again = await run('add_spots', { spots: names.map(ask) });
+    expect(again.facts).toEqual({ outcome: 'added', count: 3 });
+    writeFileSync(app, screen(names));
+    const spots = JSON.parse(readFileSync(join(pictures, 'spots.json'), 'utf8')) as Record<string, { file: string; alt: string }>;
+    expect(Object.keys(spots)).toEqual(['hero', 'team', 'kitchen', 'menu', 'patio']);
+    expect(spots['kitchen']).toMatchObject({ file: 'kitchen-1.jpg', alt: 'The kitchen' });
+    expect(legacyPictures(root, 'repairs')).toEqual([]);
+    // A file the screens do not show is no picture to start a spot from.
+    expect((await run('add_spots', { spots: [{ id: 'other', label: 'Other', shape: 'wide', file: '../../.env' }] })).content).toContain('is not a picture this app\'s screens import from assets/pictures/');
   });
 });

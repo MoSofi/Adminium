@@ -21,6 +21,7 @@ import { join, relative, sep } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, ProviderError, type ProviderId, type RunBlock, type RunMessage } from '@adminium/llm';
 import { namedAddOns, type Posting, type PostingMapping, type PostingPoint } from '@adminium/manifest';
 
+import { legacyPictures } from './pictures-apply.js';
 import { checkApp, accessInWords } from '../project/apps/check-app.js';
 import { builtInStylesDir, skillGuidance } from '../project/apps/design-skills.js';
 import { missingFonts, readLook, resolveLook, sidesWithScreens } from '../project/apps/look.js';
@@ -253,6 +254,13 @@ export function appNow(root: string, version: string, appKey: string, stylesDir?
     lines.push(
       `The style of its screens: "${resolved.title}" (${look.skill}). ${resolved.line}${look.words === undefined ? '' : ` What the person said about the look, as data: "${look.words}".`} Its values are src/theme.css of each side, written by set_style.`,
       `Tailwind: ${has.has(TAILWIND_PACKAGE) ? 'on (use its classes with the theme\'s names)' : 'not in this project (use no Tailwind class)'}. Icons: ${has.has(ICONS_PACKAGE) ? `${ICONS_PACKAGE} is installed` : 'no icon package (inline SVG)'}.${fonts.length === 0 ? '' : ` The fonts ${fonts.join(', ')} are not installed: the system's own stand in, and nothing is to be done about it.`}`,
+    );
+  }
+  // An app made before picture spots: its screens import their pictures. They become spots when the person asks, and only then.
+  const legacy = hasOwnBuild(root, appKey) ? [] : legacyPictures(root, appKey);
+  if (legacy.length > 0) {
+    lines.push(
+      `Its screens import ${String(legacy.length)} picture(s) from assets/pictures/, made before picture spots: ${legacy.slice(0, 8).join(', ')}. Only when the person asks to make them swappable: for each, add_spots with an id, a label, its shape, "file" (that picture) and "alt" (its <img>'s alt), then put <Picture spot="…" /> where the <img> was and take its import out. Change nothing else.`,
     );
   }
   let summary = lines.join('\n');

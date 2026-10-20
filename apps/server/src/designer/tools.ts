@@ -44,7 +44,7 @@ import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
-import { cleanSpot, plainWords, readSpots, serverOwned, SPOT_ID, SPOTS_MAX, spotVersion, writeSpots, type SpotEntry } from './spots.js';
+import { cleanSpot, plainWords, readPictureFile, readSpots, serverOwned, SPOT_ID, SPOTS_MAX, spotVersion, writeSpots, type SpotEntry } from './spots.js';
 import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, phoneFileRefusal, renamesTables } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
@@ -59,7 +59,7 @@ import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import { PICTURE_SHAPES } from './pictures.js';
-import { prepareFills, writeFills } from './pictures-apply.js';
+import { legacyPictures, prepareFills, writeFills } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
 import { createNeedsAsker, screenWants, type NeedsDeps } from './ask-needs.js';
 import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, type Wanted } from './needs.js';
@@ -1868,7 +1868,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     {
       name: 'add_spots',
       description:
-        'Name the picture spots of the app’s pages, all in ONE call: each is a place a picture goes, which the person fills from the Pictures dialog. "spots": each with "id" (small letters: "hero"), "label" (short, in the person’s language), "shape" (wide, tall or square), "shows" (what belongs there, one line) and "search" (two to four words to search pictures with). A spot that is there already stays as it is.',
+        'Name the picture spots of the app’s pages, all in ONE call: each is a place a picture goes, which the person fills from the Pictures dialog. "spots": each with "id" (small letters: "hero"), "label" (short, in the person’s language), "shape" (wide, tall or square), "shows" (what belongs there, one line) and "search" (two to four words to search pictures with). For a picture a screen already imports from assets/pictures/, "file" names it and "alt" keeps its words. A spot that is there already stays as it is.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1884,6 +1884,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
                 shape: { type: 'string', enum: [...PICTURE_SHAPES] },
                 shows: { type: 'string' },
                 search: { type: 'string' },
+                file: { type: 'string' },
+                alt: { type: 'string' },
               },
               required: ['id', 'label', 'shape'],
               additionalProperties: false,
@@ -1901,6 +1903,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own pictures in src/: add them there.');
         const asked = Array.isArray(input['spots']) ? (input['spots'] as unknown[]).slice(0, 12) : [];
         const spots = readSpots(deps.root, appKey);
+        const legacy = legacyPictures(deps.root, appKey);
         const made: SpotEntry[] = [];
         const kept: SpotEntry[] = [];
         const problems: string[] = [];
@@ -1917,7 +1920,13 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             kept.push(there);
             continue;
           }
-          const spot = cleanSpot({ label: item['label'], shape: item['shape'], shows: item['shows'], search: item['search'], file: null });
+          // A picture the screens already show (an app made before spots) starts its own spot, with its words: nothing else of the app's.
+          const given = typeof item['file'] === 'string' ? item['file'].replace(/^(?:\.\.\/)*(?:assets\/pictures\/)?/, '') : null;
+          if (given !== null && (!legacy.includes(given) || readPictureFile(deps.root, appKey, given) === null)) {
+            problems.push(`"${id}": "${given.slice(0, 80)}" is not a picture this app's screens import from assets/pictures/. Leave "file" out for a new spot.`);
+            continue;
+          }
+          const spot = cleanSpot({ label: item['label'], shape: item['shape'], shows: item['shows'], search: item['search'], file: given, alt: given === null ? '' : item['alt'] });
           if (spot === null) {
             problems.push(`"${id}": give a "label" and a "shape" (wide, tall or square).`);
             continue;
@@ -1930,7 +1939,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         }
         if (made.length === 0 && kept.length === 0) return none(problems.join('\n') || 'Give "spots": each with an "id", a "label" and a "shape".');
         if (made.length > 0) writeSpots(deps.root, appKey, [...spots, ...made]);
-        const line = (spot: SpotEntry): string => `- "${spot.id}" (${spot.label}, ${spot.shape}): <Picture spot="${spot.id}" />`;
+        const line = (spot: SpotEntry): string => `- "${spot.id}" (${spot.label}, ${spot.shape}${spot.file === null ? '' : `, with ${spot.file}`}): <Picture spot="${spot.id}" />`;
         return text(
           [
             made.length === 0 ? null : `Made ${String(made.length)} spot(s):\n${made.map(line).join('\n')}`,

@@ -341,17 +341,23 @@ describe('picture spots', () => {
     expect(await lines()).toEqual([]);
   });
 
-  it('says a picture file shown with an <img> is a spot’s, the logo excepted, and a credit its licence asks for when no screen gives it', async () => {
+  it('says a spot’s picture shown with an <img> is the spot’s to draw, and a credit its licence asks for when no screen gives it', async () => {
+    spots({ shop: { label: 'Shop', shape: 'wide', file: 'shop-1a2b3c4d.jpg', alt: 'The shop' } });
+    write('customer/src/App.tsx', `import shop from '../../assets/pictures/shop-1a2b3c4d.jpg';\n${screen('<div className="page"><img src={logo} alt="" className="logo" /><img src={shop} alt="" /></div>')}`);
+    expect(await lines()).toEqual([
+      '- The spot "shop" (Shop) is named and no screen draws it: draw it with <Picture spot="shop" /> where it belongs.',
+      '- apps/cakes/customer/src/App.tsx shows the picture of the spot "shop" with an <img>: draw <Picture spot="shop" /> in its place, which shows the picture the person chose, now and after they change it.',
+    ]);
+    // A picture from before spots, with a credit its licence asks for: the credit is asked for, the picture left as it is.
     spots({});
     write('customer/src/App.tsx', `import shop from '../../assets/pictures/shop-1.jpg';\n${screen('<div className="page"><img src={logo} alt="" className="logo" /><img src={shop} alt="" /></div>')}`);
     write('assets/pictures/CREDITS.json', JSON.stringify([{ file: 'assets/pictures/shop-1.jpg', title: 'Shop', creator: 'Ana', creatorUrl: '', licence: 'CC BY 2.0', licenceUrl: '', source: 'Openverse', page: '', licenceCode: 'by' }]));
     expect(await lines()).toEqual([
-      '- apps/cakes/customer/src/App.tsx shows assets/pictures/shop-1.jpg with an <img>: a page\'s picture is a spot the person fills. Name it with add_spots and draw it with <Picture spot="…" />.',
-      '- apps/cakes/customer/src/App.tsx shows "Shop" (CC BY 2.0), whose licence asks for its creator\'s name, and no screen gives it: show it at the foot of the page under "Picture credits", or make the picture a spot (a spot\'s credit is drawn for it).',
+      '- apps/cakes/customer/src/App.tsx shows "Shop" (CC BY 2.0), whose licence asks for its creator\'s name, and no screen gives it: show it at the foot of the page under "Picture credits" (import credits from \'../../assets/pictures/CREDITS.json\').',
     ]);
-    // A screen that gives the credits: only the spot is asked for.
+    // A screen that gives the credits: nothing to say.
     write('customer/src/Footer.tsx', 'export function Footer() { return <p>Picture credits: …</p>; }');
-    expect(await lines()).toHaveLength(1);
+    expect(await lines()).toEqual([]);
   });
 
   it('says a spot drawn for each row of a list: three in one repeated part, or an id built from the row', async () => {

@@ -567,3 +567,14 @@ describe('a person who brings the pictures', () => {
     }
   });
 });
+
+describe('an app made before picture spots', () => {
+  it('is told how its pictures become spots, to do only when the person asks; an app with spots is told nothing of it', () => {
+    expect(appNow(root, APP_VERSION, 'repairs').text).not.toContain('made before picture spots');
+    mkdirSync(join(root, 'apps/repairs/assets/pictures'), { recursive: true });
+    writeFileSync(join(root, 'apps/repairs/assets/pictures/hero-1.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0]));
+    writeFileSync(join(root, 'apps/repairs/customer/src/Hero.tsx'), "import hero1 from '../../assets/pictures/hero-1.jpg';\nexport const Hero = () => <img src={hero1} alt='The shop' />;\n");
+    const said = appNow(root, APP_VERSION, 'repairs').text;
+    expect(said).toContain('Its screens import 1 picture(s) from assets/pictures/, made before picture spots: hero-1.jpg. Only when the person asks to make them swappable:');
+  });
+});

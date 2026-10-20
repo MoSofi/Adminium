@@ -404,10 +404,13 @@ function spotIssues(root: string, key: string, sides: readonly AppSide[]): Desig
   for (const screen of screens) {
     const file = importedPicture(screen.text);
     if (file !== null) {
-      issues.push({ kind: 'spots', line: `- ${screen.at} shows assets/pictures/${file} with an <img>: a page's picture is a spot the person fills. Name it with add_spots and draw it with <Picture spot="…" />.` });
+      // A spot's own picture, imported by hand: the spot draws it (and falls back, and credits it). A picture from before
+      // spots is left as it is: it becomes a spot when the person asks, never by a finding.
+      const owner = named.find((spot) => spot.file === file);
+      if (owner !== undefined) issues.push({ kind: 'spots', line: `- ${screen.at} shows the picture of the spot "${owner.id}" with an <img>: draw <Picture spot="${owner.id}" /> in its place, which shows the picture the person chose, now and after they change it.` });
       const credit = credits.find((line) => line.file === `assets/pictures/${file}`);
       if (credit !== undefined && (credit.licenceCode === 'by' || credit.licenceCode === 'by-sa' || (credit.licenceCode === undefined && /^CC BY/i.test(credit.licence))) && !creditsSaid) {
-        issues.push({ kind: 'spots', line: `- ${screen.at} shows "${credit.title}" (${credit.licence}), whose licence asks for its creator's name, and no screen gives it: show it at the foot of the page under "Picture credits", or make the picture a spot (a spot's credit is drawn for it).` });
+        issues.push({ kind: 'spots', line: `- ${screen.at} shows "${credit.title}" (${credit.licence}), whose licence asks for its creator's name, and no screen gives it: show it at the foot of the page under "Picture credits" (import credits from '../../assets/pictures/CREDITS.json').` });
       }
     }
     if (spotPerRow(screen.text)) issues.push({ kind: 'spots', line: `- ${screen.at} draws a spot for each row of a list: a picture of what is on offer belongs to its row. Give the table a picture column and show it with pictureUrl; keep spots for the page's own pictures.` });
