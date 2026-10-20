@@ -177,8 +177,8 @@ export interface Attachments {
       bytes: Buffer;
       palette?: unknown;
       partOf?: { id: string; part: number; parts: number };
-      /** A file this server made from outside words (a Figma import), with what it was read from. Never given by a request. */
-      imported?: { source: 'figma'; figma: NonNullable<Attachment['figma']> };
+      /** A file this server made from outside words (a Figma import), with what it was read from and its name. Never given by a request. */
+      imported?: { source: 'figma'; figma: NonNullable<Attachment['figma']>; label?: string };
     },
   ): Attachment;
   /** The parts a tall picture is sent as, the top first; empty unless every one of them is there. */
@@ -259,7 +259,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
         const doc = docOf(bytes);
         if (doc === null) throw new AttachmentError('NOT_ACCEPTED', 'That file does not read as text. A Markdown file (.md) is plain text.');
         if (doc.trim() === '') throw new AttachmentError('EMPTY', 'That file is empty.');
-        entry = { kind: 'doc', mediaType: 'text/markdown', lines: doc.replace(/\n+$/, '').split('\n').length, ...(describesLook(labelOf(input.filename), doc) ? { design: true } : {}) };
+        entry = { kind: 'doc', mediaType: 'text/markdown', lines: doc.replace(/\n+$/, '').split('\n').length, ...(describesLook(input.imported?.label ?? labelOf(input.filename), doc) ? { design: true } : {}) };
       } else {
         if (bytes.length > ATTACHMENT_MAX_CSV_BYTES) throw new AttachmentError('TOO_LARGE', 'That file is over 10 MB. For a file that size, use Import on the table’s own page.');
         const csv = csvOf(bytes);
@@ -296,7 +296,12 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       }
       const made: Attachment = {
         id: `att_${randomBytes(10).toString('hex')}`,
-        label: whole === undefined || partOf === undefined ? labelOf(input.filename) : `${whole.label} (part ${String(partOf.part)} of ${String(partOf.parts)})`.slice(0, 160),
+        label:
+          input.imported?.label !== undefined
+            ? input.imported.label.slice(0, 160)
+            : whole === undefined || partOf === undefined
+              ? labelOf(input.filename)
+              : `${whole.label} (part ${String(partOf.part)} of ${String(partOf.parts)})`.slice(0, 160),
         ...entry,
         ...(partOf === undefined ? {} : { partOf: partOf.id, part: partOf.part, parts: partOf.parts }),
         ...(input.imported === undefined ? {} : { source: input.imported.source, figma: input.imported.figma }),
@@ -313,6 +318,23 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       return made;
     },
   };
+}
+
+/**
+ * One writer of a session's files at a time (F12). Each step of `add` and `remove` runs to its end
+ * without a pause, but a writer that awaits between reading what it adds and adding it (a Figma
+ * import, read again from what the server kept) waits here for the one before it.
+ */
+const sessionLocks = new Map<string, Promise<unknown>>();
+export async function withSessionLock<T>(sessionId: string, work: () => T | Promise<T>): Promise<T> {
+  const before = sessionLocks.get(sessionId) ?? Promise.resolve();
+  const mine = before.catch(() => undefined).then(work);
+  sessionLocks.set(sessionId, mine);
+  try {
+    return await mine;
+  } finally {
+    if (sessionLocks.get(sessionId) === mine) sessionLocks.delete(sessionId);
+  }
 }
 
 /** The most columns of a CSV a model is shown: a file a thousand columns wide would otherwise fill every request of the session. */

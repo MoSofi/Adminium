@@ -34,7 +34,12 @@ import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/re
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { auditExempt } from '../../audit/coverage.js';
-import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { FigmaError } from '../../designer/figma/client.js';
+import type { FigmaImports } from '../../designer/figma/imports.js';
+import type { FigmaReader } from '../../designer/figma/service.js';
+import { plainWords } from '../../designer/untrusted.js';
+import { figmaFailure, importNames } from './figma.js';
 import { addDesignSkill, removeDesignSkill, SKILL_UPLOAD_MAX_BYTES, SkillUploadError } from '../../designer/skill-upload.js';
 import {
   designerAnswerBody,
@@ -126,6 +131,8 @@ export interface DesignerRoutesDeps {
   owner?: { needsPassword(userId: string | null): Promise<boolean>; set(input: { email: string; password: string }, by: Actor): Promise<string> } | undefined;
   /** What people attach to a message. */
   attachments: Attachments;
+  /** Frames imported from Figma and not sent yet, and reading one again: an upload names one by its id. */
+  figma?: { imports: FigmaImports; reader: FigmaReader } | undefined;
   /** A row in the audit log, for what the routes themselves change (a style added or removed). */
   audit?: (action: string, actor: Actor, detail: Record<string, unknown>) => Promise<void>;
   /** The pictures a card is showing, to serve each one's small copy. Absent where the Designer looks for none. */
@@ -367,6 +374,37 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request, reply) => {
         const session = store.read(request.params.id);
+        // A frame imported from Figma: the server's own bytes, stamped with where they came from. Nothing in the request is the file.
+        if (request.query.figma !== undefined) {
+          const part = request.query.figma_part;
+          if (deps.figma === undefined || part === undefined) throw new ValidationFailedError('Say which half of the Figma import this is: its picture or its design document.', { reason: 'ATTACHMENT' });
+          const userId = request.user?.id ?? '';
+          const found = deps.figma.imports.find(userId, request.query.figma);
+          if (found === null) throw new NotFoundError('That Figma import is no longer here. Import the frame again.');
+          let done = found.held;
+          if (done === null) {
+            try {
+              done = await deps.figma.reader.importFrame(userId, found.link, { by: 'person' });
+            } catch (error) {
+              if (error instanceof FigmaError) throw figmaFailure(error);
+              throw error;
+            }
+          }
+          const names = importNames(done.frame);
+          const stamp = { fileKey: done.fileKey, nodeId: done.nodeId, version: done.version, frame: plainWords(done.frame, 200) };
+          const imported = done;
+          try {
+            const made = await withSessionLock(session.id, () =>
+              part === 'picture'
+                ? deps.attachments.add(session.id, { filename: names.pictureName, bytes: imported.picture, imported: { source: 'figma', figma: stamp, label: names.pictureName } })
+                : deps.attachments.add(session.id, { filename: names.outlineName, bytes: Buffer.from(imported.outline, 'utf8'), imported: { source: 'figma', figma: { ...stamp, short: imported.short }, label: names.outlineName } }),
+            );
+            return await reply.code(201).send({ attachment: publicAttachment(made) });
+          } catch (error) {
+            if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
+            throw error;
+          }
+        }
         if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the file itself as the request body.', { reason: 'ATTACHMENT' });
         try {
           // A picture's colours, as the page read them: thousandths of the picture each.
@@ -376,12 +414,15 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
             .map((entry) => ({ hex: `#${entry.slice(0, 6)}`, share: Math.min(1, Number(entry.slice(7)) / 1000) }));
           const { part_of: whole, part, parts } = request.query;
           if ((whole === undefined) !== (part === undefined) || (whole === undefined) !== (parts === undefined)) throw new ValidationFailedError('A part of a picture names its picture, which part it is and how many there are.', { reason: 'ATTACHMENT' });
-          const made = deps.attachments.add(session.id, {
-            filename: request.query.filename,
-            bytes: request.body,
-            ...(palette.length === 0 ? {} : { palette }),
-            ...(whole === undefined || part === undefined || parts === undefined ? {} : { partOf: { id: whole, part, parts } }),
-          });
+          const bytes = request.body;
+          const made = await withSessionLock(session.id, () =>
+            deps.attachments.add(session.id, {
+              filename: request.query.filename,
+              bytes,
+              ...(palette.length === 0 ? {} : { palette }),
+              ...(whole === undefined || part === undefined || parts === undefined ? {} : { partOf: { id: whole, part, parts } }),
+            }),
+          );
           return await reply.code(201).send({ attachment: publicAttachment(made) });
         } catch (error) {
           if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });

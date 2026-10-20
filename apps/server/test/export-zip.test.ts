@@ -49,6 +49,7 @@ import {
   EXPORTED_COLUMNS,
   PlaintextSecretError,
   assertNoCredentialColumns,
+  credentialShaped,
   redactSettings,
 } from '../src/export/redaction.js';
 import { exportZip } from '../src/export/zip-service.js';
@@ -60,6 +61,7 @@ import { exportZip } from '../src/export/zip-service.js';
 const DSN_SENTINEL = 'SENTINEL-DSN-PASSWORD-9f3a1c7e';
 const API_KEY_SENTINEL = 'SENTINEL-LLM-APIKEY-4b8d2e6f';
 const SMTP_SENTINEL = 'SENTINEL-SMTP-PASSWORD-71ac93bd';
+const FIGMA_SENTINEL = 'SENTINEL-FIGMA-TOKEN-ENVELOPE-5e2d';
 const DATA_DSN = `postgres://ava:${DSN_SENTINEL}@db.internal:5432/northwind`;
 
 const MASTER_SECRET = 'test-secret-that-is-at-least-32-chars-long';
@@ -211,6 +213,12 @@ async function seedInstance(): Promise<Seeded> {
       recoveryCodes: null,
       avatarFileId: null,
       lastLoginAt: null,
+      // A person's Figma token (plan 69): on the users row, which is never exported.
+      figmaTokenEncrypted: FIGMA_SENTINEL,
+      figmaHandle: 'ava.reyes',
+      figmaUserId: '1111',
+      figmaPausedUntil: null,
+      figmaPauseDated: writeBool(meta, false),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
@@ -497,7 +505,7 @@ describe('secrets never leak into the bundle', () => {
    */
   async function scanForSentinels(path: string): Promise<string[]> {
     const hits: string[] = [];
-    const sentinels = [DSN_SENTINEL, API_KEY_SENTINEL, SMTP_SENTINEL, 'SENTINEL-PASSWORD-HASH'];
+    const sentinels = [DSN_SENTINEL, API_KEY_SENTINEL, SMTP_SENTINEL, FIGMA_SENTINEL, 'SENTINEL-PASSWORD-HASH'];
     const raw = await readFile(path);
 
     // 1. the raw archive bytes (catches anything stored uncompressed)
@@ -671,6 +679,11 @@ describe('the allow-list itself', () => {
     expect(() => {
       assertNoCredentialColumns();
     }).not.toThrow();
+  });
+
+  it('would refuse a person’s Figma token by its name, and never lists the users table', () => {
+    expect(credentialShaped('figmaTokenEncrypted')).toBe(true);
+    expect(Object.keys(EXPORTED_COLUMNS)).not.toContain('adminium_users');
   });
 
   it('does not name a table outside the config set', () => {

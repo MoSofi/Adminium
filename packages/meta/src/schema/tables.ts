@@ -69,6 +69,14 @@ export interface AdminiumUsersTable {
   status: string;
   totpSecretEncrypted: string | null;
   totpEnabled: BoolColumn;
+  /** A person's own Figma token, encrypted under its own purpose key (0061). Read only by `figmaTokenOf`, never into `User`. */
+  figmaTokenEncrypted: string | null;
+  figmaHandle: string | null;
+  /** Whose Figma account the token is: the Figma user `/v1/me` named. */
+  figmaUserId: string | null;
+  /** Epoch ms until which the Designer's own Figma reads are paused for this Figma user; dated when Figma said when. */
+  figmaPausedUntil: Ts | null;
+  figmaPauseDated: BoolColumn;
   /** JSON array of argon2id hashes. */
   recoveryCodes: JsonColumn | null;
   /** Soft ref → adminium_files (created in a later wave; no FK). */

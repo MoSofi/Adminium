@@ -108,7 +108,10 @@ export function usersRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
       };
-      await db.insertInto('adminium_users').values(row).execute();
+      await db
+        .insertInto('adminium_users')
+        .values({ ...row, figmaTokenEncrypted: null, figmaHandle: null, figmaUserId: null, figmaPausedUntil: null, figmaPauseDated: writeBool(meta, false) })
+        .execute();
       return mapUser(row as Selectable<AdminiumUsersTable>);
     },
 

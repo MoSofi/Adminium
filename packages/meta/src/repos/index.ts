@@ -53,3 +53,4 @@ export * from './assistant-use.js';
 export * from './teams.js';
 export * from './automation-spells.js';
 export * from './notification-schedules.js';
+export * from './figma-tokens.js';
