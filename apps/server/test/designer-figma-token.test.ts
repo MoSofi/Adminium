@@ -39,6 +39,7 @@ for (const engine of META_ENGINES) {
       expect(JSON.stringify(await tokens.status(ava))).not.toContain('figd_');
       // Kept under another secret, it cannot be read, and is as good as none.
       expect(await createFigmaTokens({ meta: handle.meta, secret: `${TEST_SECRET}-other` }).figmaTokenOf(ava)).toBeNull();
+      expect(await createFigmaTokens({ meta: handle.meta, secret: `${TEST_SECRET}-other` }).status(ava)).toEqual({ connected: false, source: null, handle: null });
       expect(await tokens.remove(ava)).toBe(true);
       expect(await tokens.figmaTokenOf(ava)).toBeNull();
     });

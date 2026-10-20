@@ -86,8 +86,9 @@ export function createFigmaTokens(deps: FigmaTokensDeps): FigmaTokens {
   return {
     async status(userId) {
       if ((await environmentFor(userId)) !== null) return { connected: true, source: 'environment', handle: null };
-      const row = await repo.read(userId);
-      return row === null || row.encrypted === null ? { connected: false, source: null, handle: null } : { connected: true, source: 'mine', handle: row.handle };
+      // A token kept under another ADMINIUM_SECRET cannot be used: it is shown as none, so the person is asked for it again.
+      const own = await mine(userId);
+      return own === null ? { connected: false, source: null, handle: null } : { connected: true, source: 'mine', handle: own.handle };
     },
     async figmaTokenOf(userId) {
       const fromEnvironment = await environmentFor(userId);
