@@ -9,6 +9,7 @@ import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { ResolvedFile } from '../../families/tables/cells.js';
 import { formatRefList, parseRefList } from '../../page-config/file-refs.js';
 import { PictureField, type PictureChooser } from '../../pictures/PictureField.js';
+import type { FileFieldUpload } from './file-upload.js';
 
 /**
  * The `file` field kind's editor.
@@ -34,15 +35,7 @@ import { PictureField, type PictureChooser } from '../../pictures/PictureField.j
  * input the column had before — visible, editable, honest.
  */
 
-export interface FileFieldUpload {
-  /** Uploads and resolves to the value to store in the column. */
-  (input: {
-    file: File;
-    column: string;
-    signal: AbortSignal;
-    onProgress: (fraction: number) => void;
-  }): Promise<{ ref: string; file: ResolvedFile }>;
-}
+export type { FileFieldUpload } from './file-upload.js';
 
 export interface FileFieldProps {
   column: GridColumnSpec;

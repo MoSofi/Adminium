@@ -28,7 +28,7 @@ import type { GridColumnSpec } from '../families/tables/column-spec.js';
 import type { ResolvedFile } from '../families/tables/cells.js';
 import { formatRefList, parseRefList } from '../page-config/file-refs.js';
 import { PICTURE_KIND_MIMES, PICTURE_KIND_NAMES, PICTURE_KINDS, isPictureKind, pictureKindOf, type PictureKind } from '../page-config/picture-kinds.js';
-import type { FileFieldUpload } from '../templates/page-crud/FileField.js';
+import type { FileFieldUpload } from '../templates/page-crud/file-upload.js';
 import { formatBytes, PicturePicker, typeOf, type PickerItem, type PickerOutcome, type PickerSource } from './PicturePicker.js';
 
 /**
