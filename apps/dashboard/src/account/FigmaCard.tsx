@@ -37,8 +37,11 @@ export function FigmaCard(): ReactNode {
     },
     onError: (error) => {
       const figma = error instanceof ApiError ? ((error.details ?? {}) as { figma?: FigmaRefusal }).figma : undefined;
+      // Refused by this server, not by Figma (the Designer switched off, a sign-in that ran out): the server's own sentence.
       setRefused(
-        figma === undefined || figma.kind === 'token'
+        figma === undefined && error instanceof ApiError
+          ? error.message
+          : figma === undefined || figma.kind === 'token'
           ? t('security.figma.refused', 'Figma did not accept this token. Check it and paste it again.')
           : figma.kind === 'network-off'
             ? t('security.figma.off', 'Figma is off on this server: network features are turned off.')

@@ -30,6 +30,7 @@ beforeEach(() => {
       calls.push({ method, ...(body === undefined ? {} : { body }) });
       if (figma === null) return Promise.resolve(jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'no', requestId: 'r' } }));
       if (method === 'PUT') {
+        if ((body as { token: string }).token === 'figd_while_off') return Promise.resolve(jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'Adminium Designer is switched off on this server.', requestId: 'r', details: { reason: 'DESIGNER_OFF' } } }));
         if ((body as { token: string }).token !== 'figd_new_token') return Promise.resolve(jsonResponse(422, { error: { code: 'VALIDATION_FAILED', message: 'x', requestId: 'r', details: { reason: 'FIGMA', figma: { kind: 'token' } } } }));
         figma = { ...figma, handle: 'ava.new' };
       }
@@ -77,6 +78,15 @@ describe('the Figma card', () => {
     await waitFor(() => expect(card.textContent).toContain('Connected to Figma as ava.new'));
     expect(within(card).queryByLabelText('New token')).toBeNull();
     expect(calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([{ token: 'figd_wrong' }, { token: 'figd_new_token' }]);
+  });
+
+  it('says the server’s own reason when the server, not Figma, refused the token', async () => {
+    mount();
+    const card = await screen.findByTestId('security-figma');
+    await userEvent.click(within(card).getByRole('button', { name: 'Change token' }));
+    await userEvent.type(within(card).getByLabelText('New token'), 'figd_while_off{Enter}');
+    expect(await within(card).findByText('Adminium Designer is switched off on this server.')).toBeTruthy();
+    expect(within(card).queryByText('Figma did not accept this token. Check it and paste it again.')).toBeNull();
   });
 
   it('asks before it disconnects, then says the Designer is where Figma is connected', async () => {
