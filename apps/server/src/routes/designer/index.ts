@@ -156,6 +156,14 @@ export interface DesignerRoutesDeps {
 /** The largest file a message takes (a CSV), and a little for the request around it. */
 const ATTACHMENT_BODY_LIMIT = ATTACHMENT_MAX_CSV_BYTES + 64 * 1024;
 
+/** How each kind the page may fetch back is served: a picture inline, the rest as a download. */
+const SERVED: Record<'image' | 'csv' | 'font' | 'doc', { type: string; ext: string }> = {
+  image: { type: 'image/png', ext: 'png' },
+  csv: { type: 'text/csv; charset=utf-8', ext: 'csv' },
+  font: { type: 'font/woff2', ext: 'woff2' },
+  doc: { type: 'text/plain; charset=utf-8', ext: 'md' },
+};
+
 /** An attachment as the page is told of it: never its hash, never where it is kept. */
 const publicAttachment = (entry: Attachment) => ({
   id: entry.id,
@@ -451,13 +459,15 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const session = store.read(request.params.id);
         const entry = deps.attachments.find(session.id, request.params.attachment);
         const bytes = entry === null ? null : deps.attachments.read(session.id, entry.id);
-        if (entry === null || bytes === null) throw new NotFoundError('There is no such file in this session.');
+        // A template's page or stylesheet is never served back: a model reads it as data, and a browser never gets it to draw.
+        if (entry === null || bytes === null || entry.kind === 'html' || entry.kind === 'css') throw new NotFoundError('There is no such file in this session.');
+        const served = SERVED[entry.kind];
         return reply
-          .header('content-type', entry.kind === 'image' ? entry.mediaType : entry.kind === 'font' ? 'font/woff2' : entry.kind === 'doc' ? 'text/plain; charset=utf-8' : 'text/csv; charset=utf-8')
+          .header('content-type', entry.kind === 'image' ? entry.mediaType : served.type)
           .header('x-content-type-options', 'nosniff')
           .header('content-security-policy', "default-src 'none'; sandbox")
           .header('cache-control', 'private, max-age=3600')
-          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${entry.kind === 'font' ? 'woff2' : entry.kind === 'doc' ? 'md' : 'csv'}"`)
+          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${served.ext}"`)
           .send(bytes);
       },
     );

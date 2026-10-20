@@ -22,7 +22,7 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font' | 'doc'; rows?: number }[]; /** The element of the preview the message is about. */ picked?: Picked }
+  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css'; rows?: number }[]; /** The element of the preview the message is about. */ picked?: Picked }
   | { kind: 'text'; delta: string }
   | {
       kind: 'step';

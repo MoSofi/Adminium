@@ -179,7 +179,7 @@ export const designerSightReply = z.object({ kept: z.boolean() });
 export const designerAttachment = z.object({
   id: z.string(),
   label: z.string(),
-  kind: z.enum(['image', 'csv', 'font', 'doc']),
+  kind: z.enum(['image', 'csv', 'font', 'doc', 'html', 'css']),
   mediaType: z.string(),
   bytes: z.number().int(),
   rows: z.number().int().optional(),
