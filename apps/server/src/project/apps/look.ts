@@ -23,7 +23,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { dirname, join } from 'node:path';
 
 import { builtInStylesDir, findDesignSkill, skillCss, skillFonts, skillTheme, type DesignSkill } from './design-skills.js';
-import { appDir, type AppSide } from './read-app.js';
+import { appDir, SIDES, type AppSide } from './read-app.js';
 import { cleanOwnFonts, cleanThemePatch, fontPackage, fontsCssOf, inkOn as inkOnColour, themeCssOf, themeFamilies, themeFrom, type OwnFont, type Theme, type ThemePatch, type WeightsOf } from './theme.js';
 
 export const LOOK_DIRECTIONS = ['clean', 'warm', 'bold', 'calm'] as const;
@@ -44,7 +44,14 @@ export interface Look {
   without?: string[];
   /** Font files of the person's own, in the app's `assets/fonts/`. */
   ownFonts?: OwnFont[];
+  /** What a design does with the page's pictures: leaves placeholders (the default), or opens the picture dialog after it. */
+  pictures?: LookPictures;
+  /** The sides that follow a site template's own look, not a style's. */
+  templateSides?: AppSide[];
 }
+
+export const LOOK_PICTURES = ['placeholders', 'choose'] as const;
+export type LookPictures = (typeof LOOK_PICTURES)[number];
 
 /** The most of a person's words kept. */
 export const LOOK_WORDS_MAX = 200;
@@ -194,7 +201,7 @@ export function readLook(root: string, key: string): Look | null {
   try {
     const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
     if (typeof raw['skill'] !== 'string' && !isDirection(raw['direction'])) return null;
-    return cleanLook({ skill: raw['skill'], direction: raw['direction'], accent: raw['accent'], words: raw['words'], theme: raw['theme'], without: raw['without'], ownFonts: raw['ownFonts'] });
+    return cleanLook({ skill: raw['skill'], direction: raw['direction'], accent: raw['accent'], words: raw['words'], theme: raw['theme'], without: raw['without'], ownFonts: raw['ownFonts'], pictures: raw['pictures'], templateSides: raw['templateSides'] });
   } catch {
     return null;
   }
@@ -217,7 +224,7 @@ export function lookInUse(root: string, key: string, fresh: Look): Look {
 const SKILL_KEY = /^[a-z][a-z0-9-]{1,39}$/;
 
 /** A look with only what a look may hold. With a `skill` it is a style; with a `direction` alone, a look kept before styles. */
-export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?: unknown; words?: unknown; theme?: unknown; without?: unknown; ownFonts?: unknown }): Look {
+export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?: unknown; words?: unknown; theme?: unknown; without?: unknown; ownFonts?: unknown; pictures?: unknown; templateSides?: unknown }): Look {
   const words =
     typeof input.words === 'string'
       ? [...input.words]
@@ -234,6 +241,7 @@ export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?
   const skill = named !== undefined && named === direction ? undefined : named;
   const patch = skill === undefined ? {} : cleanThemePatch(input.theme).patch;
   const ownFonts = cleanOwnFonts(input.ownFonts);
+  const templateSides = Array.isArray(input.templateSides) ? SIDES.filter((side) => (input.templateSides as unknown[]).includes(side)) : [];
   const without = Array.isArray(input.without) ? [...new Set(input.without.filter((name): name is string => typeof name === 'string' && name.length > 0 && name.length <= 214 && /^[@A-Za-z0-9][\w@/. ~-]*$/.test(name)))].sort().slice(0, 40) : [];
   return {
     skill: skill ?? direction ?? 'clean',
@@ -245,6 +253,8 @@ export function cleanLook(input: { skill?: unknown; direction?: unknown; accent?
     ...(without.length === 0 ? {} : { without }),
     // A look kept before styles names no family of its own, so it carries no font file either.
     ...(skill === undefined || ownFonts.length === 0 ? {} : { ownFonts }),
+    ...((LOOK_PICTURES as readonly unknown[]).includes(input.pictures) ? { pictures: input.pictures as LookPictures } : {}),
+    ...(templateSides.length === 0 ? {} : { templateSides }),
   };
 }
 
@@ -256,6 +266,8 @@ const lookFile = (look: Look): Record<string, unknown> => ({
   ...(look.direction !== undefined || look.theme === undefined ? {} : { theme: look.theme }),
   ...(look.without === undefined ? {} : { without: look.without }),
   ...(look.ownFonts === undefined ? {} : { ownFonts: look.ownFonts }),
+  ...(look.pictures === undefined ? {} : { pictures: look.pictures }),
+  ...(look.templateSides === undefined ? {} : { templateSides: look.templateSides }),
 });
 
 /** The sides of an app that have screens of the starter's kind: a `src/` folder under the side. */

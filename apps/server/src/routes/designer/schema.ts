@@ -89,7 +89,7 @@ export const designerSessionCreateBody = z.object({
 const styleKey = z.string().regex(/^[a-z][a-z0-9-]{1,39}$/);
 const swatch = z.object({ bg: z.string(), text: z.string(), accent: z.string() });
 /** A look as the page is told it. `earlier`: kept before styles, drawn as it was until a style is picked. */
-const publicLook = z.object({ skill: z.string(), title: z.string(), origin: z.enum(['built-in', 'project', 'earlier']), accent: z.string().optional(), swatch: swatch.optional() });
+const publicLook = z.object({ skill: z.string(), title: z.string(), origin: z.enum(['built-in', 'project', 'earlier']), accent: z.string().optional(), swatch: swatch.optional(), pictures: z.enum(['placeholders', 'choose']).optional() });
 
 export const designerSessionReply = z.object({
   session: designerSession,

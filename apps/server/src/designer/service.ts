@@ -194,6 +194,8 @@ export interface PublicLook {
   origin: 'built-in' | 'project' | 'earlier';
   accent?: string;
   swatch?: { bg: string; text: string; accent: string };
+  /** What a design does with the page's pictures: the mode the picture dialog's footer shows. */
+  pictures?: 'placeholders' | 'choose';
 }
 
 /** The picture columns of tables customers read, no sample row of which has a picture. */
@@ -375,6 +377,7 @@ export function createDesigner(host: DesignerHost): Designer {
       origin: look.direction !== undefined ? 'earlier' : (resolved.skill?.origin ?? 'project'),
       ...(look.accent === undefined ? {} : { accent: look.accent }),
       ...(theme === null ? {} : { swatch: { bg: theme.light.bg, text: theme.light.text, accent: theme.light.accent } }),
+      pictures: look.pictures ?? 'placeholders',
     };
   };
 
@@ -915,7 +918,7 @@ export function createDesigner(host: DesignerHost): Designer {
             // A look kept before styles has a direction and no style: it is read as it always was.
             refuse('look.json names a style: "skill", with the key of one of the styles.');
           }
-          look = cleanLook({ skill: given['skill'], direction: given['direction'], accent: given['accent'], words: given['words'], theme: given['theme'], without: given['without'], ownFonts: given['ownFonts'] });
+          look = cleanLook({ skill: given['skill'], direction: given['direction'], accent: given['accent'], words: given['words'], theme: given['theme'], without: given['without'], ownFonts: given['ownFonts'], pictures: given['pictures'], templateSides: given['templateSides'] });
           try {
             sideLookFiles(host.root, look, places);
           } catch (error) {
@@ -1026,7 +1029,7 @@ export function createDesigner(host: DesignerHost): Designer {
         await host.seam?.('held', 'style');
         const before = readLook(host.root, session.appKey);
         // A font file of the person's own stays in use across a change of style.
-        const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before) });
+        const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before), pictures: before?.pictures, templateSides: before?.templateSides });
         applyLook(host.root, session.appKey, look, places);
         const handle = outsideATurn(store.read(session.id), by, hold.signal);
         const fonts = missingFonts(host.root, look, places).map((font) => font.family);

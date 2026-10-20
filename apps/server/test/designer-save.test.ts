@@ -640,6 +640,18 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     expect((await eventsOf(client, id)).filter((event) => event.kind === 'style')).toHaveLength(2);
   });
 
+  it('keeps what a design does with pictures through a saved look.json and a change of style from the page', async () => {
+    const { client, id } = await withApp({ side: true });
+    const LOOK = `${APP}/look.json`;
+    const saved = await save(client, id, { [LOOK]: JSON.stringify({ ...(JSON.parse(disk(LOOK)) as object), pictures: 'choose' }) });
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    expect(JSON.parse(disk(LOOK))).toMatchObject({ pictures: 'choose' });
+    const styled = await client.call('POST', `/api/v1/designer/sessions/${id}/look`, { skill: 'warm' });
+    expect(styled.status, JSON.stringify(styled.body)).toBe(200);
+    expect(JSON.parse(disk(LOOK))).toMatchObject({ skill: 'warm', pictures: 'choose' });
+    expect(styled.body['look']).toMatchObject({ skill: 'warm', pictures: 'choose' });
+  });
+
   it('lists the picture spots once there are any, and reads a saved spots.json as the server does: a spot that would not draw is refused', async () => {
     const { client, id } = await withApp({ side: true });
     const SPOTS = `${APP}/assets/pictures/spots.json`;

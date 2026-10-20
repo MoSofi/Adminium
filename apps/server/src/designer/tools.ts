@@ -1268,6 +1268,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           theme: sameStyle && now.direction === undefined ? mergePatches(now.theme ?? {}, given.patch) : mergePatches(ownFontPatch(now), given.patch),
           without: now.without,
           ownFonts: now.ownFonts,
+          pictures: now.pictures,
+          templateSides: now.templateSides,
         });
         applyLook(deps.root, appKey, look, places);
         // The fonts the look now names and the project lacks: asked for here, on one card.
@@ -1331,6 +1333,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           theme: mergePatches(now.direction === undefined ? (now.theme ?? {}) : {}, { fonts: { [use]: { family } } }),
           without: now.without,
           ownFonts: [...others, { family, weight, file }],
+          pictures: now.pictures,
+          templateSides: now.templateSides,
         });
         applyLook(deps.root, appKey, look, places);
         return text(

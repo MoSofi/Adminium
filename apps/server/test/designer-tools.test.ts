@@ -1329,3 +1329,19 @@ describe('what the person placed', () => {
     expect(await run('write_file', { path: 'apps/repairs/assets/pictures/notes.txt', content: 'x' })).not.toMatchObject({ isError: true });
   });
 });
+
+describe('what a design does with pictures', () => {
+  it('is kept in the look through a change of style', async () => {
+    said = 'Something for my team.';
+    answers.push({ type: 'question', text: 'clean' }, { type: 'needs', accept: [] });
+    await run('add_side', { side: 'customer' });
+    // Whatever the style's fonts ask for, the person leaves out.
+    answers.push(...Array.from({ length: 4 }, () => ({ type: 'needs', accept: [] }) as CardAnswer));
+    const lookFile = join(root, 'apps', 'repairs', 'look.json');
+    writeFileSync(lookFile, JSON.stringify({ skill: 'clean', pictures: 'choose', templateSides: ['customer'] }));
+    expect((await run('set_style', { style: 'warm' })).isError).toBeUndefined();
+    expect(JSON.parse(readFileSync(lookFile, 'utf8'))).toMatchObject({ skill: 'warm', pictures: 'choose', templateSides: ['customer'] });
+    expect((await run('set_style', { accent: '#225588' })).isError).toBeUndefined();
+    expect(JSON.parse(readFileSync(lookFile, 'utf8'))).toMatchObject({ accent: '#225588', pictures: 'choose' });
+  });
+});
