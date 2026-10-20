@@ -1015,7 +1015,7 @@ describe('pointing at a part of the page', () => {
     const cross = el('svg', { closest: (selector: string) => (selector === '[data-picture-spot]' ? spot : null) });
     p.heard.get('mousemove')?.(p.event({ type: 'mousemove', target: cross }));
     // The outline's tag names the spot, not the tag under the pointer.
-    expect(p.added[1]?.textContent).toBe('hero');
+    expect((p.added[1] as unknown as { textContent: string }).textContent).toBe('hero');
     p.heard.get('click')?.(p.event({ type: 'click', target: cross }));
     expect(p.posted).toEqual([
       {

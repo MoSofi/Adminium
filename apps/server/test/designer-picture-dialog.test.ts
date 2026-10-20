@@ -448,6 +448,21 @@ describe('Apply', { timeout: 180_000 }, () => {
     expect(after.assets['picture-items-2']?.file).not.toBe(after.assets['picture-items-1']?.file);
   });
 
+  it('keeps what a design does with pictures, chosen in its footer, with the pictures it saves, or alone', async () => {
+    const app = await withApp();
+    const opened = await app.state();
+    const [pick] = await app.pick('team');
+    const both = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/apply`, { id: 'apply-mode-0001', fills: [{ spot: 'team', version: versionOf(opened, 'team'), from: pick }], mode: 'choose' });
+    expect(both.body).toMatchObject({ applied: true, version: { name: expect.stringContaining('Pictures: Team') } });
+    expect(JSON.parse(app.disk('look.json'))).toMatchObject({ pictures: 'choose' });
+    expect((await app.state() as unknown as { mode: string }).mode).toBe('choose');
+    const alone = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/apply`, { id: 'apply-mode-0002', fills: [], mode: 'placeholders' });
+    expect(alone.body).toMatchObject({ results: [], applied: true, version: { name: expect.stringContaining('Pictures: placeholders after each design') } });
+    expect(JSON.parse(app.disk('look.json'))).toMatchObject({ pictures: 'placeholders' });
+    // Nothing to change at all is no Apply.
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/apply`, { id: 'apply-mode-0003', fills: [] })).status).toBe(422);
+  });
+
   it('is refused while a turn runs: “Wait for the Designer to finish, then apply.”', async () => {
     const app = await withApp();
     const opened = await app.state();

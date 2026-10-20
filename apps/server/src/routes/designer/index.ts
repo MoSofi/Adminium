@@ -524,7 +524,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           ...(fill.alt === undefined ? {} : { alt: fill.alt }),
           ...(fill.decorative === undefined ? {} : { decorative: fill.decorative }),
         }));
-        return designer.applyPictures(request.params.id, { id: request.body.id, fills }, actorOf(request));
+        return designer.applyPictures(request.params.id, { id: request.body.id, fills, ...(request.body.mode === undefined ? {} : { mode: request.body.mode }) }, actorOf(request));
       },
     );
 

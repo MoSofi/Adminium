@@ -276,9 +276,10 @@ export const designerPicturesApplyBody = z.object({
         })
         .refine((fill) => (fill.spot === undefined) !== (fill.row === undefined), { message: 'Each fill names a spot or a row, not both.' }),
     )
-    .min(1)
     .max(60),
-});
+  /** What a design does with the page's pictures from now on, chosen in the dialog's footer: saved with this Apply. */
+  mode: z.enum(['placeholders', 'choose']).optional(),
+}).refine((body) => body.fills.length > 0 || body.mode !== undefined, { message: 'An Apply changes a picture, or what a design does with pictures.' });
 export const designerPicturesApplyReply = z.object({
   results: z.array(z.object({ target: z.string(), state: z.enum(['applied', 'conflict', 'gone']), small: z.literal(true).optional() })),
   version: z.object({ n: z.number().int(), name: z.string() }).nullable(),

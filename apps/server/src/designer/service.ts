@@ -189,7 +189,7 @@ export interface Designer {
    * hold; then each is checked against the version it was opened at, written whole, built, applied and saved as a
    * version. A repeat of one Apply (the same `id`) gets the first one's answer.
    */
-  applyPictures(sessionId: string, input: { id: string; fills: readonly Fill[] }, by: Actor): Promise<PicturesApplied>;
+  applyPictures(sessionId: string, input: { id: string; fills: readonly Fill[]; mode?: 'placeholders' | 'choose' }, by: Actor): Promise<PicturesApplied>;
   /** An Apply's Undo: back to the version before it, while the app is still at the version it saved. */
   undoPictures(sessionId: string, input: { from: number; to: number }, by: Actor): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
   /**
@@ -809,7 +809,7 @@ export function createDesigner(host: DesignerHost): Designer {
   /** Apply that is running or done, by session and the page's own id for it. */
   const appliedPictures = new Map<string, Map<string, Promise<PicturesApplied>>>();
 
-  async function applyPicturesNow(session: DesignerSession, fills: readonly Fill[], by: Actor): Promise<PicturesApplied> {
+  async function applyPicturesNow(session: DesignerSession, fills: readonly Fill[], by: Actor, mode?: 'placeholders' | 'choose'): Promise<PicturesApplied> {
     const key = session.appKey;
     if (hasOwnBuild(host.root, key)) throw new ConflictError('This app builds its own screens: its pictures are in its own files.', 'CONFLICT', { reason: 'OWN_BUILD' });
     if (host.pictureDialog === undefined) throw new ConflictError('This Designer fills no picture spots.', 'CONFLICT', { reason: 'NO_PICTURES' });
@@ -834,12 +834,16 @@ export function createDesigner(host: DesignerHost): Designer {
       });
       const byTarget = new Map([...written.results, ...gone].map((result) => [result.target, result]));
       const results = fills.map((fill) => byTarget.get(targetOf(fill)) ?? { target: targetOf(fill), state: 'gone' as const });
-      if (!results.some((result) => result.state === 'applied')) return { results, version: null, applied: false, before };
+      // The choice of the dialog's footer: kept with the look, and saved with these pictures.
+      const look = mode === undefined ? null : readLook(host.root, key);
+      const modeChanged = look !== null && look.direction === undefined && look.pictures !== mode;
+      if (modeChanged && mode !== undefined) applyLook(host.root, key, { ...look, pictures: mode }, places);
+      if (!results.some((result) => result.state === 'applied') && !modeChanged) return { results, version: null, applied: false, before };
       // A sample row took a new picture: the installed sample rows nobody changed are added again with it.
       if (written.rows) reseeds.add(key);
       const handle = outsideATurn(store.read(session.id), by, hold.signal);
-      const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: `Pictures: ${written.names.join(', ')}` });
-      handle.events.emit(session.turns, { kind: 'pictures', names: written.names, version: verdict.version });
+      const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: written.names.length === 0 ? `Pictures: ${mode === 'choose' ? 'chosen after each design' : 'placeholders after each design'}` : `Pictures: ${written.names.join(', ')}` });
+      if (written.names.length > 0) handle.events.emit(session.turns, { kind: 'pictures', names: written.names, version: verdict.version });
       // Unsplash is told once, after the write, and never again: a count is not worth a second call.
       for (const picture of written.chosen) void host.pictureDialog.chosen(picture);
       await host.audit('designer.pictures.applied', by, { sessionId: session.id, appKey: key, changed: written.names, version: verdict.version?.n ?? null, applied: verdict.ok });
@@ -1209,7 +1213,7 @@ export function createDesigner(host: DesignerHost): Designer {
       appliedPictures.set(session.id, kept);
       const first = kept.get(input.id);
       if (first !== undefined) return first;
-      const work = applyPicturesNow(session, input.fills, by);
+      const work = applyPicturesNow(session, input.fills, by, input.mode);
       kept.set(input.id, work);
       while (kept.size > APPLY_IDS_KEPT) kept.delete(kept.keys().next().value as string);
       // A refusal is not an answer to keep: the next try is a try of its own.
