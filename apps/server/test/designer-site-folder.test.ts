@@ -105,8 +105,10 @@ describe('reading one file of a template folder', () => {
     put(join(dir, 'secret.txt'), 'the owner’s key');
     const seen = lstatSync(page);
     expect((await readNoFollow(root, page, seen, 1024)).toString()).toBe(PAGE);
+    // The file the walk saw is moved aside, never deleted: a file system may give a new file the number of
+    // one just deleted, which no dev+ino check can tell apart.
+    renameSync(page, join(dir, 'aside.html'));
     // The last part made a link: not opened at all.
-    rmSync(page);
     symlinkSync(join(dir, 'secret.txt'), page);
     await expect(readNoFollow(root, page, seen, 1024)).rejects.toMatchObject({ code: 'ELOOP' });
     // Another file in its place: not the one the walk saw.
