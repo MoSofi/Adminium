@@ -267,6 +267,8 @@ export interface TableStatesRule {
       createIn?: string[];
       changeIn?: string[];
       clearOnCreate?: string[];
+      /** A new child moves this row to this state, by this table's own listed move; a row already there is left as it is. */
+      moveOnCreate?: string;
       /** While the parent is in one of `when`, a locked child may still empty these columns of its own, and change nothing else. */
       release?: { when: string[]; columns: string[] };
       /** A child's link column → the columns of the row it points at that stay as they are while it points there. */
@@ -385,6 +387,8 @@ export interface StateParent {
   /** The states a row is changed or deleted in (`changeIn`, else `parentIn`): absent, any. */
   changeIn?: string[];
   clearOnCreate?: string[];
+  /** The parent's state a new row moves it to, by the parent's own listed move (`moveOnCreate`): left as it is when already there. */
+  moveOnCreate?: string;
   release?: { when: string[]; columns: string[] };
   /**
    * The rows this table's links point at whose columns a row here keeps
@@ -1348,6 +1352,7 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>, relations: reado
         ...((rule.createIn ?? rule.parentIn) === undefined ? {} : { createIn: rule.createIn ?? rule.parentIn }),
         ...((rule.changeIn ?? rule.parentIn) === undefined ? {} : { changeIn: rule.changeIn ?? rule.parentIn }),
         ...(rule.clearOnCreate === undefined ? {} : { clearOnCreate: rule.clearOnCreate }),
+        ...(rule.moveOnCreate === undefined ? {} : { moveOnCreate: rule.moveOnCreate }),
         ...(rule.release === undefined ? {} : { release: rule.release }),
         ...(links.length === 0 ? {} : { links }),
         ...(unresolved.length === 0 ? {} : { unresolvedLinks: unresolved }),

@@ -910,6 +910,10 @@ export function statesRuleIssue(
     const issue = linked(id, child.via);
     if (issue !== null) return issue;
     for (const name of child.clearOnCreate ?? []) if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
+    // A new child moves this row by one of its own listed moves: one must go there.
+    if (child.moveOnCreate !== undefined && !Object.values(states.moves).some((moves) => moves.some((move) => (typeof move === 'string' ? move : move.to) === child.moveOnCreate))) {
+      return `No listed move goes to ${JSON.stringify(child.moveOnCreate)}, so a new row cannot move this one there.`;
+    }
     const childTable = model.tables.find((candidate) => candidate.id === id)!;
     if (child.release !== undefined) {
       if (child.lock !== true) return `A ${childTable.name} row is released only from its parent's lock.`;

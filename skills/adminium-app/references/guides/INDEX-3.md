@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/maps--overview.md` | Maps, places and routes | 367 |
 | `references/guides/maps--what-works-with-nothing-set-up.md` | What works with nothing set up | 842 |
 | `references/guides/maps--the-map-server.md` | The map server | 1337 |
 | `references/guides/maps--the-link-out-to-a-maps-app.md` | The link out to a maps app | 1185 |

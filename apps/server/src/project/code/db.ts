@@ -31,7 +31,7 @@ import { bindWriteValue, normalizeWriteValue } from '../../crud/write-values.js'
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { FileReconciler } from '../../files/reconcile.js';
 import { getPrincipal } from '../../rbac/principal.js';
-import { announceEffects } from '../../states/effects.js';
+import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
 import type { AnyRecord, ListOptions, ProjectDb, ProjectTable, RawDatabase, RecordId } from './define.js';
 
@@ -227,9 +227,11 @@ export function createProjectDb(deps: ProjectDbDeps, scope: ProjectDbScope): Pro
           target: resolved.target,
           values: valuesFor(resolved, values),
           context: scope.context,
-          announce: async (stored, _values, posted) => {
+          announce: async (stored, written, posted) => {
             await announce(resolved, 'create', stored, null, stored);
             await tellPostings(deps.app, { connectionId: resolved.connection.id, view: resolved.view, postings: posted, origin, ...attribution(scope.context), hops: scope.context.hops });
+            // The parent the new row moved (`moveOnCreate`), as a change of its own made by the same code.
+            await announceEffects(deps.app, { connectionId: resolved.connection.id, view: resolved.view, effects: effectsOf(written), origin, ...attribution(scope.context), meta: deps.meta, hops: scope.context.hops });
           },
         });
         return row as R;

@@ -106,15 +106,23 @@ undo, or be judged late by another row's time. A table a project hook watches is
 time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
 Undo.
 
-#### Undo of a move
+#### A new child moves its parent
 
-A move marked `"undo": true` takes back the listed move the other way: the kitchen marked an
-order ready by mistake, and moves it back to preparing.
+A child row may move the row it belongs to, in the same write: the crew's sign-off, made on a
+phone by somebody who reads no job, signs the job off, and the office's counts and the rules that
+run on a job signed off follow. Say it on the child, under the parent's `children`, with
+`moveOnCreate` (Adminium 0.3.30):
 
 ```json
-"moves": {
-  "preparing": ["ready"],
-  "ready": [{ "to": "preparing", "undo": true,
-              "requires": { "time": { "before": { "column": "ready_at", "plus": { "minutes": 1 } } } } }]
+"states": {
+  "column": "state", "initial": "open",
+  "moves": {
+    "open": ["installed"],
+    "installed": [{ "to": "signed-off",
+                    "requires": { "children": { "sign_offs": 1 }, "where": [{ "column": "blocking_snags", "eq": 0 }] } }]
+  },
+  "children": {
+    "sign_offs": { "via": "job_id", "createIn": ["open", "installed", "signed-off"], "moveOnCreate": "signed-off" }
+  }
 }
 ```

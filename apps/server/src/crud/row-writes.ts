@@ -470,9 +470,36 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
       const opened = opts.connectionId === undefined ? [] : readThrough(model, table.id, column);
       if (opened.length > 0) {
         const theirs = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id });
-        if (!opened.some((other) => permissionSetAllows(theirs, `table:${opts.connectionId!}:${other.id}:read`))) {
-          throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
+        const readable = opened.filter((other) => permissionSetAllows(theirs, `table:${opts.connectionId!}:${other.id}:read`));
+        /*
+         * And the very row this listing is against is one they would read once listed: a reach of their own rows (being
+         * listed makes it theirs), or a reach whose `while` the row holds now. Reading the table is not enough: an
+         * operations manager reads every WON deal, and listed on an open one she would be named on a deal she cannot open.
+         */
+        let reached = false;
+        for (const other of readable) {
+          const held = rowReachesOf(theirs, opts.connectionId!, other.id, 'read');
+          if (held === null) {
+            reached = true;
+            break;
+          }
+          const way = (other.belongs ?? []).find((one): one is Extract<BelongsWay, { through: unknown }> => 'through' in one && one.through.table === table.id && one.through.user === column);
+          const next: Row = { ...(before ?? {}), ...values };
+          const key = way === undefined ? undefined : next[way.through.link];
+          const on = way?.through.on ?? other.primaryKey[0];
+          const row = key === undefined || key === null || on === undefined ? undefined : await db.selectFrom(other.id as never).selectAll().where(sql.ref(on), '=', key as never).limit(1).executeTakeFirst();
+          // A link to no row is the link check's own refusal.
+          if (row === undefined) {
+            reached = true;
+            break;
+          }
+          const holds = (reach: (typeof held)[number]): boolean => reach.while === undefined || reach.while.in.some((one) => String(one) === String((row as Row)[reach.while!.column]));
+          if (held.some((reach) => holds(reach) && (reach.reach === 'all' || reach.by === undefined))) {
+            reached = true;
+            break;
+          }
         }
+        if (!reached) throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
       }
       /*
        * A ROW HANDED OVER GOES TO SOMEBODY WHO CAN WORK IT. Not to a person

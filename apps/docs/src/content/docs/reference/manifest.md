@@ -1525,6 +1525,7 @@ least one of:
 | `createIn` | 1–16 states: a child row may be **added** only while this row is in one of them (a payment taken on a stay still booked or in house). Not with `lock` or `parentIn`. |
 | `changeIn` | 1–16 states: a child row may be **changed or deleted** only while this row is in one of them (a payment voided on a cancelled stay too). Not with `lock` or `parentIn`. |
 | `clearOnCreate` | 1–8 nullable columns of **this** row, emptied when a child row is created (a recorded payment clears the client's "I've sent it"). |
+| `moveOnCreate` | A state of **this** row: a child row created moves it there, by one of this table's listed moves (a sign-off made on site signs its job off). A row already there is left as it is. Needs Adminium 0.3.30. See [A new child moves its parent](#a-new-child-moves-its-parent). |
 | `lockLinked` | `{ "<link>": ["<column>", …] }`: for 1–8 of the child's foreign keys to other tables, 1–16 columns of the row the link points at that do not change while a child row points at it (the hours of time an invoice line bills). The key is never one. |
 
 and, with `lock`:
@@ -1768,6 +1769,57 @@ replaces); and the move it makes may not wait for another row, be an
 undo, or be judged late by another row's time. A table a project hook watches is refused at run
 time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
 Undo.
+
+#### A new child moves its parent
+
+A child row may move the row it belongs to, in the same write: the crew's sign-off, made on a
+phone by somebody who reads no job, signs the job off, and the office's counts and the rules that
+run on a job signed off follow. Say it on the child, under the parent's `children`, with
+`moveOnCreate` (Adminium 0.3.30):
+
+```json
+"states": {
+  "column": "state", "initial": "open",
+  "moves": {
+    "open": ["installed"],
+    "installed": [{ "to": "signed-off",
+                    "requires": { "children": { "sign_offs": 1 }, "where": [{ "column": "blocking_snags", "eq": 0 }] } }]
+  },
+  "children": {
+    "sign_offs": { "via": "job_id", "createIn": ["open", "installed", "signed-off"], "moveOnCreate": "signed-off" }
+  }
+}
+```
+
+When a `sign_offs` row is created, its job moves to `signed-off` by the job's own listed move,
+once the new row is in: that move's conditions are judged on the job as held, with the new row
+already counted (`children: { "sign_offs": 1 }` passes on the first sign-off), and its stamps,
+totals and limits are written as for any move of the job. It is announced as a change of the job
+by the same person: the job's screens refresh, its audit names the sign-off's maker, and a rule
+that runs on the job's move to `signed-off` runs.
+
+- A job **already** `signed-off` is left as it is, and the row is made: a correction, a new
+  sign-off that names the one it corrects, moves nothing.
+- A job in a state with **no listed move** to `signed-off` (still `open` above), or whose move's
+  conditions do not hold (a snag still blocking), refuses the whole write: `409`
+  `STATE_MOVE_REFUSED`, and no row is made. List `"open": ["installed", "signed-off"]` and a
+  sign-off made on an open job signs it off too.
+- **Whoever may create the child moves the parent.** The move is the app's own declared move, as an
+  [effect](#effects)'s is: the roles a move is kept for do not stop it, and the person needs no
+  right to read or change the parent. A refusal about the parent is told as that person reads the
+  parent's table. Give `moveOnCreate` only to a child whose rows belong with the parent they move.
+- Only a create moves the parent. A change of the child, its move to another parent, or its delete
+  moves nothing. Importing rows and loading sample data are history: they move nothing either. A
+  save that moved its parent offers no Undo.
+
+The move is made as an effect's is, so the same tables are refused: the state must be one a listed
+move goes to, from a state the child is added in (`createIn` or `parentIn`, when given); not only
+by an undo, nor only by an add-on's ledger (`planned`); not one that waits for another row or is
+judged late by another row's time; not one that sets off this table's own [effects](#effects) (an
+effect moves one row, never a chain). The parent may not be a line of another table's states, book
+people by the day, keep a [limit](#capacity) of its own, be private, be the app's outbox, or be
+watched by a project hook (refused when the row is made). An add-on's shape keeps its children's
+`moveOnCreate` as it wrote it.
 
 #### Undo of a move
 

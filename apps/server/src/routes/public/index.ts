@@ -77,6 +77,7 @@ import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
 import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals.js';
 import type { PostedOutcome } from '../../crud/ledger-write.js';
+import type { EffectWritten } from '../../crud/states.js';
 import { askedFor, prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -3035,6 +3036,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // The person the address made, heard of once the whole write has committed.
       const made = madePerson as Row | null;
       if (made !== null && people !== null) await announcePerson(request, ok, people.table, made, finder!.identityRef);
+      // A parent outside the tree its rows moved (`moveOnCreate`): a change of its own, heard of once the write committed.
+      await announceEffects(app, { connectionId: ok.key.connectionId, view, effects: outcome.effects, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
       // The guest's confirmation, when the endpoint sends one. Queued, never awaited on SMTP.
       const confirm = resource.confirm === null ? null : publicConfirmSchema.safeParse(resource.confirm);
       if (confirm?.success === true) {
@@ -3190,10 +3193,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         };
         let inserted: Row;
         const context = await publicWriteContext(request, ok, { table: found.table.id, claim: found.resource.claim });
+        /** The parent the new row moved (`moveOnCreate`), heard of once the write has committed. */
+        const moved: EffectWritten[] = [];
         try {
           const create = (on: WriteTarget, told: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) => {
             // The row's own announcement, then what it handed to a ledger.
-            const announce = async (row: Row, _values: Row, posted?: readonly PostedOutcome[]): Promise<void> => {
+            const announce = async (row: Row, written: Row, posted?: readonly PostedOutcome[]): Promise<void> => {
+              moved.push(...effectsOf(written));
               await told(row);
               await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: posted, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
             };
@@ -3263,6 +3269,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 },
               });
               inserted = outcome.root;
+              moved.push(...(outcome.effects ?? []));
               if (made !== null) await announceCreate(made);
               await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: outcome.postings, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
             } else {
@@ -3313,6 +3320,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
+        await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects: moved, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
 
         // The guest's confirmation, when the endpoint sends one. Queued, never
         // awaited on SMTP, and never a reason to fail the booking just made.
@@ -4237,7 +4245,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
         }
         // The rows the batch's moves moved too (a stay's room), as changes of their own.
-        await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects: preparedUpdates.flatMap((row) => effectsOf(row.values)), origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
+        // …and the parents its new rows moved (`moveOnCreate`).
+        await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects: [...preparedInserts.flatMap((row) => effectsOf(row.values)), ...preparedUpdates.flatMap((row) => effectsOf(row.values))], origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
         await writes.afterEach('create', target, context, written.created.map((record) => ({ record, before: null })));
         await writes.afterEach(
           'update',

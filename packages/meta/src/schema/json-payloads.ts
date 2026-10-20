@@ -1463,6 +1463,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
             createIn: z.array(stateName).min(1).max(16).optional(),
             changeIn: z.array(stateName).min(1).max(16).optional(),
             clearOnCreate: z.array(ruleColumn).min(1).max(8).optional(),
+            /** A new child moves this row to this state, by this table's own listed move; a row already there is left as it is. */
+            moveOnCreate: stateName.optional(),
             release: z.object({ when: z.array(stateName).min(1).max(16), columns: z.array(ruleColumn).min(1).max(8) }).optional(),
             lockLinked: z.record(ruleColumn, z.array(ruleColumn).min(1).max(16)).optional(),
           }),

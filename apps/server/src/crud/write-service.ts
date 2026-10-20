@@ -129,7 +129,7 @@ import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js'
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, fillLinksFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
-import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
+import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, movesParentsOnCreate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
 import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
@@ -166,6 +166,7 @@ import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.j
 import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
 import { hasLimits, judgeCapacity } from './capacity/judge.js';
 import { LockMoved, beginOn, withNamedLocks, type NamedLock } from './capacity/locks.js';
+import { refusedOn } from './refusal-table.js';
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
@@ -2423,7 +2424,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         zone: await zoneFor(rules, target),
         origin: context.origin,
         declared: context.declared,
-        effect: action === 'update' && (rules.states?.effects?.length ?? 0) > 0 ? effectWriter(target, context, clock) : undefined,
+        // A move's or a changed link's effects; a new row's move of its parent (`moveOnCreate`), made the same way.
+        effect:
+          (action === 'update' && (rules.states?.effects?.length ?? 0) > 0) || (action === 'create' && !history && movesParentsOnCreate(target.table))
+            ? effectWriter(target, context, clock)
+            : undefined,
         ...(renewing === undefined ? {} : { renewing }),
       });
     }
@@ -2571,6 +2576,35 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const [column, state] = Object.entries(effect.set)[0]!;
       const prepared = await prepareEffect(db, target, context, clock, link, key, column, String(state));
       if (prepared !== null && !sameValue(prepared.before[column], state)) out.push(prepared);
+    }
+    return out;
+  }
+
+  /**
+   * The totals a new row's move of its parents (`moveOnCreate`) climbs into,
+   * named from a look at each parent now, holding nothing: a parent already
+   * in the state moves nothing and names none. The move itself is judged
+   * again on the parent as held, once the row is in.
+   */
+  async function parentMoveStarts(db: Db, target: WriteTarget, context: WriteContext, clock: WriteClock, values: Row): Promise<ClimbStart[]> {
+    const out: ClimbStart[] = [];
+    for (const parent of target.table.table?.stateParents ?? []) {
+      const key = values[parent.via];
+      if (parent.moveOnCreate === undefined || key === null || key === undefined) continue;
+      let theirs: TableRules | null;
+      try {
+        theirs = rulesOf({ ...target, table: target.view.table(parent.table) });
+      } catch {
+        // A table the model no longer has: the move refuses the write when it runs.
+        continue;
+      }
+      if ((theirs?.rollupsInto?.length ?? 0) === 0) continue;
+      const prepared = await prepareEffect(db, target, context, clock, { via: parent.via, table: parent.table, key: parent.key }, key, parent.column, parent.moveOnCreate).catch((error: unknown) => {
+        throw refusedOn(error, parent.table);
+      });
+      if (prepared === null || sameValue(prepared.before[parent.column], parent.moveOnCreate)) continue;
+      if (!movesTotal(prepared.rules, prepared.rules?.rollupsInto ?? [], prepared.checked)) continue;
+      out.push(...chainStarts(prepared.rules, [{ record: { ...prepared.before, ...prepared.checked }, before: prepared.before }]));
     }
     return out;
   }
@@ -3807,6 +3841,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       });
       const currency = currencyFor(target);
       await refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]);
+      // A new row that moves its parent (history moves nothing).
+      const movesParent = context.origin !== 'import' && movesParentsOnCreate(target.table);
       const booking = rules?.booking;
       const need = booking === undefined ? null : bookingNeed(booking, checked, null);
       const now = new Date();
@@ -3840,6 +3876,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           booking !== undefined && need !== null
             ? brand({ ...checked, ...(await guardedValue(() => checkBooking(booking, within, { row: checked, before: null, need, now }), input.mapError)) })
             : checked;
+        // A parent this row moves (`moveOnCreate`): the totals its move climbs into, held with this row's own, top-down,
+        // before the parent itself is held — the order a change of the parent takes them in.
+        if (movesParent && target.dialect !== 'sqlite') {
+          const also = await parentMoveStarts(db, within, context, clock, placed);
+          if (also.length > 0) await holdChainWith(db, target.dialect, [...chainStarts(rules, [{ record: placed, before: null }]), ...also], NO_CURRENCY, false);
+        }
         // The parents whose totals this row moves, held before it is written.
         const held = await holdParents(rules, within, [{ record: placed, before: null }], currency);
         // And the row a line that posts belongs to.
@@ -3934,8 +3976,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               ? withBookingLock({ ...target, timezone: zone }, day, write)
               : series !== null && !inTransaction(target.db)
                 ? withNamedLock(target, series, 'NUMBER_BUSY', write)
-                : settles(rules) || series !== null || postingScope(rules) !== null
+                : settles(rules) || series !== null || postingScope(rules) !== null || movesParent
                   ? // A table with a posting rule too: a row stored that turns out to post must be one that can be taken back.
+                    // A row that moves its parent too: the totals that move climbs into are held for the whole write.
                     atomically(target, write)
                   : write(target.db),
         input.mapError,
@@ -4152,6 +4195,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (again !== null) throw new TreeSignal('replayed', again);
         // 6. The person found or made by address (a save only; never a quote).
         const person = dry || input.identity === undefined ? {} : await at(rootRow.node, () => input.identity!(trx));
+        // 7a. A parent outside the tree a row moves (`moveOnCreate`): the totals its move climbs into, top-down, before any parent is held.
+        if (!dry && rootRow.target.dialect !== 'sqlite') {
+          const also: ClimbStart[] = [];
+          for (const row of everyRow) {
+            if (!movesParentsOnCreate(row.target.table) || context.origin === 'import') continue;
+            also.push(...(await at(row.node, () => parentMoveStarts(trx, { ...row.target, db: trx }, context, clock, peeked.get(row) ?? row.node.values))));
+          }
+          if (also.length > 0) await holdChainWith(trx, rootRow.target.dialect, also, NO_CURRENCY, false);
+        }
         // 7. Every row outside the tree it is tied to, held for ALL rows at once in the one order: totals top-down, parents, linked rows for share.
         const held = dry ? new Map<string, Map<string, Row>>() : await at(rootRow.node, () => holdOutside(trx, rootRow.target.dialect, everyRow, peeked, currency));
         // 7b. The write's own rows it changes besides the tree, held last (the own rows' place in the order); a quote's, only read.
@@ -4363,7 +4415,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           }
           rows.push({ node: row.node, record });
         }
-        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false, ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }) };
+        // The parents outside the tree its rows moved as they were made (`moveOnCreate`), for the caller to announce.
+        const effects = [...preparedOf.values()].flatMap((checked) => guardOf(checked)?.effected ?? []);
+        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false, ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }), ...(effects.length === 0 ? {} : { effects }) };
         // 11. The price the caller expected (a save only), then 12: commit — or a quote rolled back.
         if (!dry) await input.expect?.(trx, outcome.root, rows, adjusted);
         // The price is as the caller was shown it without the code that no longer stands: the code is refused after all.

@@ -69,7 +69,7 @@ import { pairsOf } from '../trace.js';
 import { isOwnTable } from '../validate.js';
 import { madeRowOf } from '../step-rows.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
-import { announceEffects } from '../../states/effects.js';
+import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
 
 type CreateAction = Extract<AutomationAction, { kind: 'record.create' }>;
@@ -324,8 +324,23 @@ async function createRowWhole(ctx: ActionContext, table: ResolvedTable, values: 
       values,
       context: writeContext(ctx),
       mapError: failStep,
-      announce: (row) =>
-        announce(ctx, { table, action: 'create', entity: entityOf(row), before: null, after: row }),
+      announce: async (row, written) => {
+        await announce(ctx, { table, action: 'create', entity: entityOf(row), before: null, after: row });
+        // The parent the new row moved (`moveOnCreate`), as a change of its own made by the same rule.
+        if (ctx.app !== undefined && ctx.source !== null) {
+          await announceEffects(ctx.app, {
+            connectionId: ctx.source.connectionId,
+            view: target.view,
+            effects: effectsOf(written),
+            origin: 'automation',
+            actor: { id: ctx.rule.id, label: ctx.rule.name },
+            auditCategory: 'automation',
+            meta: ctx.meta,
+            ruleId: ctx.rule.id,
+            hops: ctx.hops + 1,
+          });
+        }
+      },
     }),
   );
   return { ref: entityOf(inserted), row: inserted };
