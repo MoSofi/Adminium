@@ -424,6 +424,7 @@ export const SETTINGS_REGISTRY = {
   // Hourly public API request counts. The keys page shows the last
   // 24 hours; the rest is kept for this many days.
   'retention.publicRequestStatsDays': def(z.number().int().min(1).max(365), 30, 'Public API request count retention in days', P),
+  'retention.paymentEventsDays': def(z.number().int().min(7).max(3650), 90, 'Days a handled payment event is kept (attempts, payments and refunds are kept)', P),
   // ── the page assistant ────────────────────────────────────────────────────
   //
   // What the assistant is called wherever it introduces itself. Portable: it

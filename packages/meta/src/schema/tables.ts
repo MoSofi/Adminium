@@ -1519,6 +1519,177 @@ export interface AdminiumAssistantTurnsTable {
   proposalDoneAt: Ts | null;
 }
 
+// ---------------------------------------------------------------------------
+// wave 0061 — payments (plan 70)
+// ---------------------------------------------------------------------------
+
+/** One try to pay one payable at one provider. Moves only by compare-and-set (0061). */
+export interface AdminiumPaymentAttemptsTable {
+  /** PK, and the idempotency key every provider call for this attempt carries. */
+  id: Id;
+  /** The provider add-on's key (`demo` for the built-in demo provider). */
+  provider: string;
+  mode: string;
+  accountId: string | null;
+  payableKind: string;
+  connectionId: Id | null;
+  tableName: string | null;
+  rowKey: string;
+  payableLabel: string;
+  /** Decimal text, never a number. */
+  amount: string;
+  currency: string;
+  state: string;
+  /** Set while creating, open or processing; NULL after (one open attempt per payable). */
+  openKey: string | null;
+  linkId: Id | null;
+  nonce: string;
+  providerRef: string | null;
+  checkoutUrl: string | null;
+  paymentRef: string | null;
+  takenAmount: string | null;
+  takenCurrency: string | null;
+  paidWith: JsonColumn | null;
+  problem: JsonColumn | null;
+  recordedKey: string | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+  settledAt: Ts | null;
+  recordedAt: Ts | null;
+  flaggedAt: Ts | null;
+}
+
+/** A webhook, or a status change a poll found, unique per provider, mode and event id (0061). */
+export interface AdminiumPaymentEventsTable {
+  id: Id;
+  provider: string;
+  mode: string;
+  eventId: string;
+  type: string;
+  kind: string;
+  checkoutRef: string | null;
+  paymentRef: string | null;
+  refundRef: string | null;
+  attemptId: Id | null;
+  source: string;
+  body: JsonColumn | null;
+  receivedAt: Ts;
+  processedAt: Ts | null;
+}
+
+/** A payment Adminium keeps itself; `attemptId` unique so recording is insert-first (0061). */
+export interface AdminiumPaymentsTable {
+  id: Id;
+  payableKind: string;
+  connectionId: Id | null;
+  tableName: string | null;
+  rowKey: string;
+  payableKey: string;
+  number: string | null;
+  amount: string;
+  currency: string;
+  refundedAmount: ColumnType<string, string | undefined, string>;
+  method: string;
+  methodNote: string | null;
+  provider: string | null;
+  mode: string;
+  attemptId: Id | null;
+  approvalCode: string | null;
+  cardLast4: string | null;
+  note: string | null;
+  paidOn: Ts;
+  recordedBy: string;
+  recordedByUser: Id | null;
+  voided: ColumnType<boolean | 0 | 1, boolean | 0 | 1 | undefined, boolean | 0 | 1>;
+  voidReason: string | null;
+  voidedAt: Ts | null;
+  createdAt: Ts;
+}
+
+/** A refund, its idempotency key minted at the confirm step (0061). */
+export interface AdminiumRefundsTable {
+  id: Id;
+  attemptId: Id | null;
+  paymentId: Id | null;
+  provider: string;
+  mode: string;
+  paymentRef: string;
+  amount: string;
+  currency: string;
+  reason: string;
+  note: string | null;
+  state: string;
+  idempotencyKey: string;
+  providerRefundId: string | null;
+  source: string;
+  requestedBy: Id | null;
+  failureMessage: string | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+  settledAt: Ts | null;
+  appliedAt: Ts | null;
+  undoneAt: Ts | null;
+}
+
+/** A pay link: its token hashed and sealed, one current per payable (0061). */
+export interface AdminiumPaymentLinksTable {
+  id: Id;
+  tokenHash: string;
+  tokenSealed: string;
+  payableKind: string;
+  connectionId: Id | null;
+  tableName: string | null;
+  rowKey: string;
+  mode: string;
+  currentKey: string | null;
+  expiresAt: Ts;
+  revokedAt: Ts | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+}
+
+/** A table an admin marked payable, and how (0061). */
+export interface AdminiumPayableProfilesTable {
+  id: Id;
+  connectionId: Id;
+  tableName: string;
+  mapping: JsonColumn;
+  ownerApp: string | null;
+  enabled: ColumnType<boolean | 0 | 1, boolean | 0 | 1 | undefined, boolean | 0 | 1>;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** A way to pay and its per-market rules (0061). */
+export interface AdminiumPaymentMethodsTable {
+  id: Id;
+  source: string;
+  method: string;
+  label: JsonColumn | null;
+  enabled: ColumnType<boolean | 0 | 1, boolean | 0 | 1 | undefined, boolean | 0 | 1>;
+  rules: JsonColumn;
+  details: JsonColumn | null;
+  position: ColumnType<number, number | undefined, number>;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** Small payment documents under a name: the pay page, the address, cursors, read counts, health (0061). */
+export interface AdminiumPaymentSettingsTable {
+  name: string;
+  value: JsonColumn;
+  updatedAt: Ts;
+}
+
+/** Card-testing caps: hits per bucket per hour window (0061). */
+export interface AdminiumPaymentCountersTable {
+  bucket: string;
+  windowStart: Ts;
+  hits: number;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1587,6 +1758,15 @@ export interface MetaDB {
   adminium_team_members: AdminiumTeamMembersTable;
   adminium_automation_spells: AdminiumAutomationSpellsTable;
   adminium_notification_schedules: AdminiumNotificationSchedulesTable;
+  adminium_payment_attempts: AdminiumPaymentAttemptsTable;
+  adminium_payment_events: AdminiumPaymentEventsTable;
+  adminium_payments: AdminiumPaymentsTable;
+  adminium_refunds: AdminiumRefundsTable;
+  adminium_payment_links: AdminiumPaymentLinksTable;
+  adminium_payable_profiles: AdminiumPayableProfilesTable;
+  adminium_payment_methods: AdminiumPaymentMethodsTable;
+  adminium_payment_settings: AdminiumPaymentSettingsTable;
+  adminium_payment_counters: AdminiumPaymentCountersTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1657,4 +1837,13 @@ export const META_TABLE_NAMES = [
   'adminium_team_members',
   'adminium_automation_spells',
   'adminium_notification_schedules',
+  'adminium_payment_attempts',
+  'adminium_payment_events',
+  'adminium_payments',
+  'adminium_refunds',
+  'adminium_payment_links',
+  'adminium_payable_profiles',
+  'adminium_payment_methods',
+  'adminium_payment_settings',
+  'adminium_payment_counters',
 ] as const satisfies readonly (keyof MetaDB)[];

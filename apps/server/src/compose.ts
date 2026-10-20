@@ -56,6 +56,8 @@ import {
   publicChallengesRepo,
   publicProofsRepo,
   publicSessionsRepo,
+  paymentCountersRepo,
+  paymentEventsRepo,
   sessionsRepo,
   settingsRepo,
   type EnqueueJobInput,
@@ -3161,6 +3163,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     } catch (error) {
       app.log.warn({ err: error }, 'retention sweep: public request stats purge failed');
     }
+    // Payment events once handled, past `retention.paymentEventsDays`, and the
+    // card-testing counters past a day. Attempts, payments and refunds are the
+    // shop's records and are never swept. In its own catch, like the rest.
+    let paymentEvents: number | null = null;
+    try {
+      const days = await settings.get('retention.paymentEventsDays');
+      paymentEvents = await paymentEventsRepo(meta).gc(at, days);
+      paymentEvents += await paymentCountersRepo(meta).gc(at);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: payment event purge failed');
+    }
 
     app.log.info(
       {
@@ -3173,6 +3186,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         publicSessions,
         publicChallenges,
         publicRequestStats,
+        paymentEvents,
         jobsDays,
         auditLogDays,
         automationRunsDays,

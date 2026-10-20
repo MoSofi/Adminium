@@ -140,6 +140,18 @@ export const ID_PREFIXES = {
   atn: 'adminium_assistant_turns',
   // wave 0057 — a team of people. Its members are a junction with no id of their own.
   team: 'adminium_teams',
+  /*
+   * wave 0061 — payments. `pat` an attempt, `pev` an event, `pay` a payment
+   * Adminium keeps, `rfd` a refund, `plk` a pay link, `ppf` a payable profile,
+   * `pmt` a way to pay. Settings and counters have natural keys and no prefix.
+   */
+  pat: 'adminium_payment_attempts',
+  pev: 'adminium_payment_events',
+  pay: 'adminium_payments',
+  rfd: 'adminium_refunds',
+  plk: 'adminium_payment_links',
+  ppf: 'adminium_payable_profiles',
+  pmt: 'adminium_payment_methods',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
