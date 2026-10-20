@@ -10379,6 +10379,14 @@
     "status": "mt",
     "srcHash": "25c6fe05ae0f"
   },
+  "designer.attach.page": {
+    "status": "mt",
+    "srcHash": "767013ce0ee0"
+  },
+  "designer.attach.pageTooLarge": {
+    "status": "mt",
+    "srcHash": "c6da5573bcd9"
+  },
   "designer.attach.pasted": {
     "status": "mt",
     "srcHash": "f9caa87a75c5"
@@ -10390,6 +10398,14 @@
   "designer.attach.rows": {
     "status": "mt",
     "srcHash": "c1d7737f9e08"
+  },
+  "designer.attach.stylesheet": {
+    "status": "src",
+    "srcHash": "220d19d1bc70"
+  },
+  "designer.attach.stylesheetTooLarge": {
+    "status": "mt",
+    "srcHash": "30fe1a3411a1"
   },
   "designer.attach.tooMany": {
     "status": "mt",

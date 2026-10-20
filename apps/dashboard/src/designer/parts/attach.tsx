@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Files with a message: a picture, a CSV, a font or a Markdown document,
- * attached from the Attach menu, a paste or a drop, and a frame imported from
+ * Files with a message: a picture, a CSV, a font, a Markdown document, or a
+ * page or stylesheet of a site template, attached from the Attach menu, a paste or a drop, and a frame imported from
  * Figma. They wait in the page and go up when the message is sent, so Home
  * (where there is no session yet) and the build page work the same way. The
  * server decides what a file is, from its bytes; what is checked here is only
@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, FileSpreadsheet, FileText, FileUp, Frame, Image, Paperclip, Type, X } from 'lucide-react';
+import { ChevronDown, FileCode, FileSpreadsheet, FileText, FileUp, Frame, Image, Paintbrush, Paperclip, Type, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -22,13 +22,17 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_CSV_BYTES = 10 * 1024 * 1024;
 const MAX_FONT_BYTES = 400 * 1024;
 const MAX_DOC_BYTES = 200 * 1024;
+const MAX_PAGE_BYTES = 512 * 1024;
+const MAX_STYLESHEET_BYTES = 1024 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2', '.md', '.markdown', 'text/markdown'].join(',');
+const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2', '.md', '.markdown', 'text/markdown', '.html', '.htm', 'text/html', '.css', 'text/css'].join(',');
+
+export type AttachKind = 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css';
 
 export interface PendingFile {
   key: string;
   file: File;
-  kind: 'image' | 'csv' | 'font' | 'doc';
+  kind: AttachKind;
   /** A picture's own address in this page, for its small view. */
   preview: string | null;
   /** Once it went up: where, and the id it was given. A send that failed after that does not send the file again. */
@@ -37,8 +41,9 @@ export interface PendingFile {
   figma?: { importId: string; part: 'picture' | 'outline' };
 }
 
-// A Markdown document is known by its name alone, here and on the server: a browser gives one no type, or a type of its own.
-const kindOf = (file: File): 'image' | 'csv' | 'font' | 'doc' | null =>
+// A Markdown document and a stylesheet are known by their names alone, here and on the server: a browser gives one no type, or a type of its own.
+// The server reads a page from how it starts; here its name is enough to say what can be said at once.
+export const kindOf = (file: File): AttachKind | null =>
   IMAGE_TYPES.includes(file.type)
     ? 'image'
     : file.type === 'text/csv' || /\.csv$/i.test(file.name)
@@ -47,12 +52,27 @@ const kindOf = (file: File): 'image' | 'csv' | 'font' | 'doc' | null =>
         ? 'font'
         : /\.(md|markdown)$/i.test(file.name)
           ? 'doc'
-          : null;
+          : file.type === 'text/html' || /\.html?$/i.test(file.name)
+            ? 'html'
+            : file.type === 'text/css' || /\.css$/i.test(file.name)
+              ? 'css'
+              : null;
 
 /** The mark of a file shown without a picture of it. */
-function FileMark({ kind }: { kind: 'image' | 'csv' | 'font' | 'doc' }): ReactNode {
-  const Mark = kind === 'image' ? Image : kind === 'font' ? Type : kind === 'doc' ? FileText : FileSpreadsheet;
+function FileMark({ kind }: { kind: AttachKind }): ReactNode {
+  const Mark = kind === 'image' ? Image : kind === 'font' ? Type : kind === 'doc' ? FileText : kind === 'html' ? FileCode : kind === 'css' ? Paintbrush : FileSpreadsheet;
   return <Mark aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />;
+}
+
+/** What a page or a stylesheet is, said after its name on its chip; nothing for the other kinds. */
+function KindWord({ kind }: { kind: AttachKind }): ReactNode {
+  if (kind !== 'html' && kind !== 'css') return null;
+  return (
+    <span className="shrink-0 font-medium text-fg-muted">
+      <span aria-hidden="true">· </span>
+      {kind === 'html' ? t('designer:attach.page', 'page') : t('designer:attach.stylesheet', 'stylesheet')}
+    </span>
+  );
 }
 
 export interface AttachState {
@@ -217,6 +237,10 @@ export function useAttach(): AttachState {
         why = t('designer:attach.fontTooLarge', 'That font file is over 400 KB. Attach one weight of the font as a .woff2 file.');
       } else if (kind === 'doc' && file.size > MAX_DOC_BYTES) {
         why = t('designer:attach.docTooLarge', 'That document is over 200 KB. Attach a shorter one, or paste the part that matters into the message.');
+      } else if (kind === 'html' && file.size > MAX_PAGE_BYTES) {
+        why = t('designer:attach.pageTooLarge', '{name} is over 512 KB, larger than a page of a site template is.', { name: file.name });
+      } else if (kind === 'css' && file.size > MAX_STYLESHEET_BYTES) {
+        why = t('designer:attach.stylesheetTooLarge', '{name} is over 1 MB, larger than a stylesheet of a site template is.', { name: file.name });
       } else {
         seq.current += 1;
         next.push({ key: `f${String(seq.current)}`, file, kind, preview: kind === 'image' ? URL.createObjectURL(file) : null });
@@ -418,6 +442,7 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
               <span dir="auto" className="min-w-0 truncate">
                 {entry.file.name === '' ? t('designer:attach.pasted', 'Pasted picture') : entry.file.name}
               </span>
+              <KindWord kind={entry.kind} />
               <button
                 type="button"
                 onClick={() => state.remove(entry.key)}
@@ -446,7 +471,7 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
   );
 }
 
-/** A sent message's files: a picture small (opening whole in a new tab), a CSV as a chip with its rows, a font or a document as a chip with its name. */
+/** A sent message's files: a picture small (opening whole in a new tab), a CSV as a chip with its rows, a font, a document, a page or a stylesheet as a chip with its name. */
 export function SentFiles({ sessionId, files }: { sessionId: string; files: readonly Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[] }): ReactNode {
   if (files.length === 0) return null;
   return (
@@ -466,6 +491,7 @@ export function SentFiles({ sessionId, files }: { sessionId: string; files: read
                   {file.label}
                 </span>
                 {file.rows === undefined ? null : <span className="font-medium text-fg-muted">{t('designer:attach.rows', '{count, plural, one {# row} other {# rows}}', { count: file.rows })}</span>}
+                <KindWord kind={file.kind} />
               </span>
             )}
           </li>
