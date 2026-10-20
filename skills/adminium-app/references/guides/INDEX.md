@@ -12,7 +12,6 @@
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
 | `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5351 |
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
-| `references/guides/manifest-by-task--a-child-row-that-moves-its-record.md` | A child row that moves its record | 1418 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
 | `references/guides/manifest-by-task--let-a-customer-find-their-own-row.md` | Let a customer find their own row | 2981 |
@@ -86,5 +85,7 @@
 | `references/guides/timed-moves--the-job-that-makes-the-moves.md` | The job that makes the moves | 2092 |
 | `references/guides/timed-moves--rows-the-job-sets-aside.md` | Rows the job sets aside | 1431 |
 | `references/guides/timed-moves--what-a-timed-move-never-does.md` | What a timed move never does | 1374 |
+| `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
+| `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
 
 More: `references/guides/INDEX-2.md`
