@@ -44,6 +44,7 @@ import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
+import { serverOwned } from './spots.js';
 import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, phoneFileRefusal, renamesTables } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
@@ -528,6 +529,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     if (inside === null) return null;
     // A build of its own is a person's to give an app: no app gets one from a model.
     if (inside === 'build.json') return refused('build.json names a command this machine runs, and only a person writes it. Build the screens in src/<side>/ as the skill says.', 'Not yours to change');
+    // What the person placed, and what the server writes for them: never a file tool's.
+    const owned = serverOwned(appKey, jail.normalise(path).normalize('NFC'));
+    if (owned !== null) return refused(owned, 'Not yours to change');
     // A phone side: what Expo's build runs is a person's, and the engine's own files stay the engine's.
     const phone = phoneFileRefusal(deps.root, appKey, inside, jail.normalise(path).normalize('NFC'));
     if (phone !== null) return refused(phone, 'Not yours to change');

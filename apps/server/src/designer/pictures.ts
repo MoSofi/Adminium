@@ -23,6 +23,7 @@ import { randomBytes } from 'node:crypto';
 
 import { pictureTypeOf, safeFetch, type SafeFetchOptions } from '../net/safe-fetch.js';
 import { plainLine } from '../project/apps/design-skills.js';
+import type { LicenceCode } from './licences.js';
 
 export const PICTURE_SHAPES = ['wide', 'tall', 'square'] as const;
 export type PictureShape = (typeof PICTURE_SHAPES)[number];
@@ -224,7 +225,9 @@ export async function downloadPicture(picture: FoundPicture, opts: { fetcher?: F
   return null;
 }
 
+/** One line of an app's `assets/pictures/CREDITS.json`: a picture's file (as screens and `spots.json` name it) and who made it. */
 export interface PictureCredit {
+  /** Relative to the app (`assets/pictures/hero-1.jpg`), or the address a picture is shown from. */
   file: string;
   title: string;
   creator: string;
@@ -233,6 +236,8 @@ export interface PictureCredit {
   licenceUrl: string;
   source: string;
   page: string;
+  /** The licence's code, for its badge; absent on a line written before badges. */
+  licenceCode?: LicenceCode;
 }
 
 export const creditOf = (picture: FoundPicture, file: string): PictureCredit => ({

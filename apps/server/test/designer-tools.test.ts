@@ -1304,3 +1304,26 @@ describe('the order of the work after a side is added', () => {
     expect(both).toContain("Where the picture does not show a value (a font's name, a colour's exact number, the spacing), take it from the design document the person gave");
   });
 });
+
+describe('what the person placed', () => {
+  it('is never written, edited or deleted by a file tool: the spots and their credits are the server’s to write', async () => {
+    const pictures = join(root, 'apps', 'repairs', 'assets', 'pictures');
+    mkdirSync(pictures, { recursive: true });
+    writeFileSync(join(pictures, 'spots.json'), '{}\n');
+    writeFileSync(join(pictures, 'CREDITS.json'), '[]\n');
+    for (const [name, input] of [
+      ['write_file', { path: 'apps/repairs/assets/pictures/spots.json', content: '{ "hero": { "label": "Hero", "shape": "wide", "file": "x.jpg" } }' }],
+      ['write_file', { path: 'apps/repairs/assets/pictures/credits.json', content: '[]' }],
+      ['edit_file', { path: 'apps/repairs/assets/pictures/spots.json', old: '{}', new: '{ "x": 1 }' }],
+      ['delete_file', { path: 'apps/repairs/assets/pictures/CREDITS.json' }],
+      ['write_file', { path: 'apps/repairs/template-plan.json', content: '{}' }],
+    ] as const) {
+      const done = await run(name, input);
+      expect(done, `${name} ${input.path}`).toMatchObject({ isError: true, label: 'Not yours to change' });
+    }
+    expect(readFileSync(join(pictures, 'spots.json'), 'utf8')).toBe('{}\n');
+    expect(existsSync(join(pictures, 'CREDITS.json'))).toBe(true);
+    // A picture file beside them is the app's like any other.
+    expect(await run('write_file', { path: 'apps/repairs/assets/pictures/notes.txt', content: 'x' })).not.toMatchObject({ isError: true });
+  });
+});

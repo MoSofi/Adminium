@@ -640,6 +640,31 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     expect((await eventsOf(client, id)).filter((event) => event.kind === 'style')).toHaveLength(2);
   });
 
+  it('lists the picture spots once there are any, and reads a saved spots.json as the server does: a spot that would not draw is refused', async () => {
+    const { client, id } = await withApp({ side: true });
+    const SPOTS = `${APP}/assets/pictures/spots.json`;
+    mkdirSync(join(root, APP, 'assets', 'pictures'), { recursive: true });
+    writeFileSync(join(root, SPOTS), '{ "hero": { "label": "Hero", "shape": "wide", "file": null } }\n');
+    const { groups } = await listed(client, id);
+    expect(groups.find((group) => group.key === 'settings')?.files.map((file) => file.label)).toEqual(['design.md', 'look.json', 'pictures/spots.json', 'app.json']);
+    const before = disk(SPOTS);
+    for (const [name, content, said] of [
+      ['a file that leaves the folder', '{ "hero": { "label": "Hero", "shape": "wide", "file": "../../../../.env" } }', 'not a picture in assets/pictures/'],
+      ['a file that is not there', '{ "hero": { "label": "Hero", "shape": "wide", "file": "gone.png" } }', 'not a picture of this app'],
+      ['a spot with no shape', '{ "hero": { "label": "Hero" } }', 'needs a "label" and a "shape"'],
+      ['not JSON', '{ "hero": ', 'not valid JSON'],
+    ] as const) {
+      const res = await save(client, id, { [BRIEF]: '# With bad spots\n', [SPOTS]: content });
+      expect([res.status, reason(res), details(res)['path']], name).toEqual([422, 'SPOTS', SPOTS]);
+      expect(String(details(res)['message']), name).toContain(said);
+      expect(disk(SPOTS), name).toBe(before);
+    }
+    // A good one is written as it was sent (the server's own reading of it is the build's).
+    const good = await save(client, id, { [SPOTS]: '{ "hero": { "label": "Hero", "shape": "wide", "file": null, "alt": "The shop" } }\n' });
+    expect(good.status, JSON.stringify(good.body)).toBe(200);
+    expect(JSON.parse(disk(SPOTS))).toMatchObject({ hero: { alt: 'The shop' } });
+  });
+
   it('lets a saved app.json change what the app is called and nothing else, and keeps a file’s own line ends', async () => {
     const { client, id } = await withApp({ side: true });
     const APP_JSON = `${APP}/manifest/app.json`;

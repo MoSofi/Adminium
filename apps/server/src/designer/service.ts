@@ -36,6 +36,7 @@ import { findProject } from '../project/locate.js';
 import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
 import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, searchText, withLineEnds, FILES_SAVED_MAX, SEARCH_FILE_HITS_MAX, SEARCH_HITS_MAX, type FileGroup, type SearchHit, type SearchOptions } from './files.js';
 import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
+import { SPOTS_FILE, spotsFileProblem } from './spots.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -881,6 +882,11 @@ export function createDesigner(host: DesignerHost): Designer {
           if (isAppJson(key, file.path)) {
             const problem = appJsonProblem(old.toString('utf8'), content);
             if (problem !== null) throw new ValidationFailedError(problem.message, { reason: 'APP_JSON', path: file.path, ...(problem.field === null ? {} : { field: problem.field }) });
+          }
+          // The picture spots, read as the server reads them: a spot that would not draw is said now, not at the build.
+          if (file.path === `${APPS_DIR}/${key}/${SPOTS_FILE}`) {
+            const problem = spotsFileProblem(host.root, key, content);
+            if (problem !== null) throw new ValidationFailedError(problem, { reason: 'SPOTS', path: file.path, message: problem });
           }
           before.set(file.path, old);
           next.set(file.path, content);
