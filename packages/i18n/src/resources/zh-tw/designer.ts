@@ -381,7 +381,14 @@ export default {
     "partsAdding": "正在加入現成元件",
     "partsAdded": "已加入現成元件",
     "partsFailed": "未加入現成元件",
-    "looked": "建置後查看了 {subject}"
+    "looked": "建置後查看了 {subject}",
+    "figmaReading": "正在從 Figma 讀取 {subject}",
+    "figmaRead": "已從 Figma 讀取 {subject}",
+    "figmaSaved": "已從儲存的副本讀取 {subject}",
+    "figmaNot": "未讀取 Figma",
+    "figmaCost": "（{count, plural, other {# 次 Figma 讀取}}）",
+    "figmaPaused": "你的 Figma 讀取已暫停，直到 {date}。設計工具會根據你匯入的設計文件工作。",
+    "figmaPausedMonth": "你的 Figma 讀取已暫停，直到下個月。設計工具會根據你匯入的設計文件工作。"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "第 {step} 步 · 目前已用 {tokens} 個詞元",
     "working": "正在處理",
     "seconds": "{seconds} 秒",
-    "failedMark": "（失敗）"
+    "failedMark": "（失敗）",
+    "skippedMark": "（已略過）"
   },
   "turn": {
     "continue": "繼續",

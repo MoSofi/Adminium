@@ -295,7 +295,8 @@ describe('an add-on this server does not have', () => {
 
 describe('the Designer’s tools', () => {
   it('are a closed list, each with an object schema', () => {
-    expect(tools.map((candidate) => candidate.name)).toEqual([...DESIGNER_TOOL_NAMES]);
+    // read_figma is offered only in a session that holds a frame imported from Figma (designer-figma-tool.test.ts).
+    expect(tools.map((candidate) => candidate.name)).toEqual(DESIGNER_TOOL_NAMES.filter((name) => name !== 'read_figma'));
     for (const candidate of tools) expect(candidate.inputSchema['type'], candidate.name).toBe('object');
   });
 

@@ -314,6 +314,31 @@ describe('a Designer turn', () => {
     }
   });
 
+  it('joins a picture a step read to the turn, named in words before it, after the results', async () => {
+    const session = newSession();
+    const reading: DesignerTool = {
+      name: 'read_figma',
+      description: 'Read a part.',
+      inputSchema: { type: 'object' },
+      running: () => 'Reading Header from Figma',
+      subject: () => 'Header',
+      run: async () => ({ content: 'the outline', label: 'Read Header from Figma (1 Figma read)', subject: 'Header', facts: { count: 1 }, picture: { ref: 'att_00000000000000000009', mediaType: 'image/png', name: 'figma part 1:5.png' } }),
+    };
+    const h = harness([calls('read_figma'), says('Done.')], { tools: [reading] });
+    await h.runner.start(session.id, { text: 'Look at the header.', by: { id: 'u1', label: 'Owner' } });
+    await h.runner.settled();
+    const results = store.messages(session.id).find((entry) => entry.message.content.some((block) => block.type === 'tool_result'))?.message.content ?? [];
+    expect(results.map((block) => block.type)).toEqual(['tool_result', 'text', 'image']);
+    expect(results[1]).toEqual({ type: 'text', text: '\nThe picture read_figma read of "figma part 1:5.png":' });
+    expect(results[2]).toMatchObject({ type: 'image', ref: 'att_00000000000000000009', mediaType: 'image/png', data: '' });
+    // The line names the part, running and done, with the reads it cost.
+    const steps = h.published.filter((event) => event.kind === 'step');
+    expect(steps.map((event) => (event.kind === 'step' ? [event.state, event.subject, event.count] : null))).toEqual([
+      ['running', 'Header', undefined],
+      ['done', 'Header', 1],
+    ]);
+  });
+
   it('tells the model of the element the person pointed at, after their own words, and refuses what is no element', async () => {
     const session = newSession();
     const h = harness([says('The button is larger now.')]);

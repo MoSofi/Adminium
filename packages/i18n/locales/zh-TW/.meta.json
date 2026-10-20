@@ -12739,6 +12739,34 @@
     "status": "mt",
     "srcHash": "bdf7203c8d6a"
   },
+  "designer.step.figmaCost": {
+    "status": "mt",
+    "srcHash": "8c7255b54f54"
+  },
+  "designer.step.figmaNot": {
+    "status": "mt",
+    "srcHash": "9ae39bcbbbfb"
+  },
+  "designer.step.figmaPaused": {
+    "status": "mt",
+    "srcHash": "85b1a1029878"
+  },
+  "designer.step.figmaPausedMonth": {
+    "status": "mt",
+    "srcHash": "485e7c2d1ea0"
+  },
+  "designer.step.figmaRead": {
+    "status": "mt",
+    "srcHash": "7dfd954e29fd"
+  },
+  "designer.step.figmaReading": {
+    "status": "mt",
+    "srcHash": "5739f24ad14a"
+  },
+  "designer.step.figmaSaved": {
+    "status": "mt",
+    "srcHash": "e078ad926c1d"
+  },
   "designer.step.fileNotRead": {
     "status": "mt",
     "srcHash": "b120508f42a8"
@@ -13026,6 +13054,10 @@
   "designer.steps.seconds": {
     "status": "mt",
     "srcHash": "c1f7eddeb673"
+  },
+  "designer.steps.skippedMark": {
+    "status": "mt",
+    "srcHash": "b7ce47f1f4f8"
   },
   "designer.steps.summary": {
     "status": "mt",

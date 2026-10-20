@@ -381,7 +381,14 @@ export default {
     "partsAdding": "يضيف أجزاء جاهزة",
     "partsAdded": "تمت إضافة أجزاء جاهزة",
     "partsFailed": "لم تُضف أجزاء جاهزة",
-    "looked": "نظر إلى {subject} بعد البناء"
+    "looked": "نظر إلى {subject} بعد البناء",
+    "figmaReading": "جارٍ قراءة {subject} من Figma",
+    "figmaRead": "تمت قراءة {subject} من Figma",
+    "figmaSaved": "تمت قراءة {subject} من النسخة المحفوظة",
+    "figmaNot": "لم تتم قراءة Figma",
+    "figmaCost": " ({count, plural, zero {# قراءة من Figma} one {قراءة واحدة من Figma} two {قراءتان من Figma} few {# قراءات من Figma} many {# قراءة من Figma} other {# قراءة من Figma}})",
+    "figmaPaused": "قراءات Figma متوقفة مؤقتًا لك حتى {date}. يعمل المصمم من مستند التصميم الذي استوردته.",
+    "figmaPausedMonth": "قراءات Figma متوقفة مؤقتًا لك حتى الشهر القادم. يعمل المصمم من مستند التصميم الذي استوردته."
   },
   "steps": {
     "count": "{count, plural, zero {لا خطوات} one {خطوة واحدة} two {خطوتان} few {# خطوات} many {# خطوة} other {# خطوة}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "الخطوة {step} · {tokens} رمزًا حتى الآن",
     "working": "يعمل",
     "seconds": "{seconds} ث",
-    "failedMark": "(فشل)"
+    "failedMark": "(فشل)",
+    "skippedMark": "(تم تخطيه)"
   },
   "turn": {
     "continue": "متابعة",

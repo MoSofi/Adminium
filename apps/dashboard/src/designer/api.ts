@@ -280,6 +280,9 @@ export type StepFacts = {
   outcome?: 'added' | 'declined' | 'refused' | 'failed';
   ended?: 'stopped' | 'error' | 'miss';
   look?: string;
+  /** A Figma read that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
+  until?: number;
+  dated?: boolean;
 };
 
 /** One element of the previewed page, as the person pointed at it: what the screen said of it. */

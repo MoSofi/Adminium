@@ -381,7 +381,14 @@ export default {
     "partsAdding": "Přidává hotové části",
     "partsAdded": "Přidány hotové části",
     "partsFailed": "Žádné hotové části nebyly přidány",
-    "looked": "Po sestavení se podíval na {subject}"
+    "looked": "Po sestavení se podíval na {subject}",
+    "figmaReading": "Čte se {subject} z Figmy",
+    "figmaRead": "{subject} přečteno z Figmy",
+    "figmaSaved": "{subject} přečteno z uložené kopie",
+    "figmaNot": "Figma nebyla přečtena",
+    "figmaCost": " ({count, plural, one {# čtení Figmy} few {# čtení Figmy} other {# čtení Figmy}})",
+    "figmaPaused": "Čtení Figmy máte pozastavené do {date}. Designer pracuje z dokumentu návrhu, který jste importovali.",
+    "figmaPausedMonth": "Čtení Figmy máte pozastavené do příštího měsíce. Designer pracuje z dokumentu návrhu, který jste importovali."
   },
   "steps": {
     "count": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "Krok {step} · zatím {tokens} tokenů",
     "working": "Pracuje",
     "seconds": "{seconds} s",
-    "failedMark": "(selhalo)"
+    "failedMark": "(selhalo)",
+    "skippedMark": "(přeskočeno)"
   },
   "turn": {
     "continue": "Pokračovat",

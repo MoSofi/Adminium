@@ -2412,8 +2412,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 newestVersion: designerRegistry,
                 pictures: { source: pictureSource, shown: shownPictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
+                figma: { reader: figmaReader, cache: figmaCache, windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'] },
               },
               session.appKey,
+              session.id,
             ),
         });
         await api.register(

@@ -487,5 +487,6 @@ export function designDocsLine(attachments: Attachments, sessionId: string): str
   const docs = attachments.list(sessionId).filter((entry) => entry.kind === 'doc' && entry.design === true);
   if (docs.length === 0) return '';
   const named = docs.map((entry) => `${entry.source === undefined ? `"${entry.label.replace(/["\n]/g, ' ')}"` : quoted(entry.label, 120)} (attachment ${entry.id})`).join(', ');
-  return `The person gave ${docs.length === 1 ? 'a design document' : 'design documents'} in this session: ${named}. ${docs.length === 1 ? 'It is' : 'The newest is'} the design of the app's own screens, before the style and before your own taste. When its text is not in the messages you were given, read it again with read_attachment before you design or restyle a screen.`;
+  const figma = docs.some((entry) => entry.source === 'figma' && entry.figma !== undefined);
+  return `The person gave ${docs.length === 1 ? 'a design document' : 'design documents'} in this session: ${named}. ${docs.length === 1 ? 'It is' : 'The newest is'} the design of the app's own screens, before the style and before your own taste. When its text is not in the messages you were given, read it again with read_attachment before you design or restyle a screen.${figma ? ' One was imported from Figma: read_figma reads a part of its frame in more detail, by the node id a line ends with, and can spend one of the person\'s Figma reads.' : ''}`;
 }

@@ -381,7 +381,14 @@ export default {
     "partsAdding": "正在添加现成部件",
     "partsAdded": "已添加现成部件",
     "partsFailed": "未添加现成部件",
-    "looked": "构建后查看了 {subject}"
+    "looked": "构建后查看了 {subject}",
+    "figmaReading": "正在从 Figma 读取 {subject}",
+    "figmaRead": "已从 Figma 读取 {subject}",
+    "figmaSaved": "已从保存的副本读取 {subject}",
+    "figmaNot": "未读取 Figma",
+    "figmaCost": "（{count, plural, other {# 次 Figma 读取}}）",
+    "figmaPaused": "你的 Figma 读取已暂停，直到 {date}。设计器会根据你导入的设计文档工作。",
+    "figmaPausedMonth": "你的 Figma 读取已暂停，直到下个月。设计器会根据你导入的设计文档工作。"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "第 {step} 步 · 目前已用 {tokens} 个令牌",
     "working": "正在处理",
     "seconds": "{seconds} 秒",
-    "failedMark": "（失败）"
+    "failedMark": "（失败）",
+    "skippedMark": "（已跳过）"
   },
   "turn": {
     "continue": "继续",

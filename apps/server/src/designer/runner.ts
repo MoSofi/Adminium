@@ -649,6 +649,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
 
         const malformed = new Map(result.malformed.map((entry) => [entry.id, entry]));
         const results: RunBlock[] = [];
+        /** Pictures the steps read: they join the results, each named in words before it. */
+        const pictures: NonNullable<Awaited<ReturnType<DesignerTool['run']>>['picture']>[] = [];
         for (const call of calls) {
           if (signal.aborted) break;
           const bad = malformed.get(call.id);
@@ -664,7 +666,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           if (ACTING.has(tool.name)) acted = true;
           const stepId = `${String(turn)}.${String(steps)}.${call.id}`;
           const started = now();
-          const subject = stepSubject(call.input);
+          const subject = safeLabel(() => tool.subject?.(call.input, context)?.slice(0, 200) ?? '', '') || stepSubject(call.input);
           const about = subject === undefined ? {} : { subject };
           log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input), tool.name), state: 'running', ...about });
           try {
@@ -677,12 +679,14 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               state: done.isError === true ? 'failed' : 'done',
               ms: now() - started,
               ...about,
+              ...(done.subject === undefined ? {} : { subject: done.subject.slice(0, 200) }),
               ...(done.facts ?? {}),
               ...(done.isError === true ? { ended: done.miss === true ? ('miss' as const) : ('error' as const) } : {}),
               // A failure says why on the page too: the first line of what the model was told.
               ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
+            if (done.picture !== undefined) pictures.push(done.picture);
             if (done.isError !== true && (call.name === 'apply_app' || call.name === 'build_sides')) {
               // build_sides and then apply_app is one build, made twice: the preview opens the page again after the
               // first, and what the page then says of itself is older than the second. Counting from the second
@@ -711,7 +715,18 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `The tool failed: ${message}` });
           }
         }
-        if (results.length > 0) deps.store.appendMessage(session.id, turn, { role: 'user', content: results });
+        if (results.length > 0) {
+          deps.store.appendMessage(session.id, turn, {
+            role: 'user',
+            content: [
+              ...results,
+              ...pictures.flatMap((picture) => [
+                { type: 'text' as const, text: `\nThe picture read_figma read of ${JSON.stringify(picture.name.slice(0, 120))}:` },
+                { type: 'image' as const, mediaType: picture.mediaType, data: '', ref: picture.ref, name: picture.name },
+              ]),
+            ],
+          });
+        }
         if (signal.aborted) throw new TurnStoppedError();
 
         // A model that sends only calls that cannot be read is not going to start making sense.

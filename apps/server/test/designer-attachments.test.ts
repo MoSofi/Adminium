@@ -333,6 +333,13 @@ describe('a frame imported from Figma', () => {
     expect(large).toContain('Its design document, whole:');
   });
 
+  it('names read_figma in every later request only where a frame was imported', () => {
+    files.add(SESSION, { filename: 'DESIGN.md', bytes: Buffer.from(DESIGN_MD) });
+    expect(designDocsLine(files, SESSION)).not.toContain('read_figma');
+    imported();
+    expect(designDocsLine(files, SESSION)).toContain('read_figma reads a part of its frame in more detail');
+  });
+
   it('is named through the outside-words quoting in every later request', () => {
     const doc = files.add(SESSION, { filename: 'Home "x" — Figma design.md', bytes: Buffer.from(OUTLINE), imported: { source: 'figma', figma: STAMP } });
     expect(designDocsLine(files, SESSION)).toContain(`"Home \\"x\\" — Figma design.md" (attachment ${doc.id})`);

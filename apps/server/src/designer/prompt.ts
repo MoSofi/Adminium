@@ -370,8 +370,8 @@ const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSO
 const PICTURE_TURNS = 2;
 /** The most pictures, and bytes of pictures, one request carries: providers cap a request's size. (A tall picture goes as several parts.) */
 const PICTURES_MAX = 16;
-/** A picture the server took of the page: nobody attached it. */
-const PAGE_PICTURE = /^the (staff|customer) page as it shows\.jpg$/;
+/** A picture the server took (of the page, or of a part of a Figma frame read_figma read): nobody attached it. */
+const PAGE_PICTURE = /^(the (staff|customer) page as it shows\.jpg|figma part I?[0-9:;]+\.png)$/;
 const PICTURES_MAX_BYTES = 12 * 1024 * 1024;
 
 export interface PictureOpts {

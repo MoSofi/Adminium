@@ -35,8 +35,12 @@ export interface ToolOutcome {
   label: string;
   /** More for the page, never for the model: a check's findings, the first error. */
   detail?: string;
-  /** What the page words the line from, in its own language. */
-  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string };
+  /** What the page words the line from, in its own language. `until`/`dated`: reads of an outside source are paused until then (Figma's limit). */
+  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string; until?: number; dated?: boolean };
+  /** What the step is about, when the tool knows better than its input says (a Figma node's name, where the input names its id). */
+  subject?: string;
+  /** A picture the step read, joined to the turn after the results, named in words first (a part of a Figma frame). */
+  picture?: { ref: string; mediaType: string; name: string };
   /**
    * From a step that built or applied the app: a mark of what the server now
    * serves for it (its manifest and its screens). The same mark as the build
@@ -63,6 +67,8 @@ export interface DesignerTool {
   inputSchema: Record<string, unknown>;
   /** What the step says while it runs: "Writing tables/jobs.json". */
   running(input: Record<string, unknown>): string;
+  /** What the step is about, for its line, when the input does not say it in a path or a name. */
+  subject?(input: Record<string, unknown>, ctx: ToolContext): string | undefined;
   run(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolOutcome>;
 }
 

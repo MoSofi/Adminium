@@ -371,7 +371,14 @@
     "partsAdding": "Ajoute des éléments prêts à l’emploi",
     "partsAdded": "A ajouté des éléments prêts à l’emploi",
     "partsFailed": "Aucun élément prêt à l’emploi ajouté",
-    "looked": "A regardé {subject} après la construction"
+    "looked": "A regardé {subject} après la construction",
+    "figmaReading": "Lecture de {subject} depuis Figma",
+    "figmaRead": "{subject} lu depuis Figma",
+    "figmaSaved": "{subject} lu depuis la copie enregistrée",
+    "figmaNot": "Figma n’a pas été lu",
+    "figmaCost": " ({count, plural, one {# lecture Figma} other {# lectures Figma}})",
+    "figmaPaused": "Les lectures Figma sont suspendues pour vous jusqu’au {date}. Le Designer travaille à partir du document de design que vous avez importé.",
+    "figmaPausedMonth": "Les lectures Figma sont suspendues pour vous jusqu’au mois prochain. Le Designer travaille à partir du document de design que vous avez importé."
   },
   "steps": {
     "count": "{count, plural, one {# étape} other {# étapes}}",
@@ -380,7 +387,8 @@
     "usage": "Étape {step} · {tokens} jetons jusqu’ici",
     "working": "En cours",
     "seconds": "{seconds} s",
-    "failedMark": "(échec)"
+    "failedMark": "(échec)",
+    "skippedMark": "(sauté)"
   },
   "turn": {
     "continue": "Continuer",

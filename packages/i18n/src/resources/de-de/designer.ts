@@ -381,7 +381,14 @@ export default {
     "partsAdding": "Fügt fertige Bausteine hinzu",
     "partsAdded": "Fertige Bausteine hinzugefügt",
     "partsFailed": "Keine fertigen Bausteine hinzugefügt",
-    "looked": "Hat sich {subject} nach dem Build angesehen"
+    "looked": "Hat sich {subject} nach dem Build angesehen",
+    "figmaReading": "{subject} wird aus Figma gelesen",
+    "figmaRead": "{subject} aus Figma gelesen",
+    "figmaSaved": "{subject} aus der gespeicherten Kopie gelesen",
+    "figmaNot": "Figma nicht gelesen",
+    "figmaCost": " ({count, plural, one {# Figma-Lesevorgang} other {# Figma-Lesevorgänge}})",
+    "figmaPaused": "Figma-Lesevorgänge sind für dich bis {date} pausiert. Der Designer arbeitet mit dem Design-Dokument, das du importiert hast.",
+    "figmaPausedMonth": "Figma-Lesevorgänge sind für dich bis nächsten Monat pausiert. Der Designer arbeitet mit dem Design-Dokument, das du importiert hast."
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "Schritt {step} · bisher {tokens} Tokens",
     "working": "Arbeitet",
     "seconds": "{seconds} s",
-    "failedMark": "(fehlgeschlagen)"
+    "failedMark": "(fehlgeschlagen)",
+    "skippedMark": "(übersprungen)"
   },
   "turn": {
     "continue": "Weiter",

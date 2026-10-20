@@ -381,7 +381,14 @@ export default {
     "partsAdding": "Tilføjer færdige dele",
     "partsAdded": "Tilføjede færdige dele",
     "partsFailed": "Ingen færdige dele blev tilføjet",
-    "looked": "Kiggede på {subject} efter buildet"
+    "looked": "Kiggede på {subject} efter buildet",
+    "figmaReading": "Læser {subject} fra Figma",
+    "figmaRead": "Læste {subject} fra Figma",
+    "figmaSaved": "Læste {subject} fra den gemte kopi",
+    "figmaNot": "Læste ikke Figma",
+    "figmaCost": " ({count, plural, one {# Figma-læsning} other {# Figma-læsninger}})",
+    "figmaPaused": "Figma-læsninger er sat på pause for dig indtil {date}. Designeren arbejder ud fra det designdokument, du importerede.",
+    "figmaPausedMonth": "Figma-læsninger er sat på pause for dig indtil næste måned. Designeren arbejder ud fra det designdokument, du importerede."
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "Trin {step} · {tokens} tokens indtil nu",
     "working": "Arbejder",
     "seconds": "{seconds} s",
-    "failedMark": "(mislykkedes)"
+    "failedMark": "(mislykkedes)",
+    "skippedMark": "(sprunget over)"
   },
   "turn": {
     "continue": "Fortsæt",

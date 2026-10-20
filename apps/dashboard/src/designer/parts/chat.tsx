@@ -23,7 +23,9 @@ import {
   Copy,
   ChevronDown,
   CircleSlash2,
+  CirclePause,
   CircleAlert,
+  Info,
   CircleStop,
   CircleX,
   Gauge,
@@ -42,7 +44,7 @@ import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { designerApi, LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type NeedItem, type SpendMark, type StyleChoice } from '../api.js';
-import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
+import { figmaPausedLine, SUBJECT, secondsOf, shortSubject, stepCost, stepLine } from '../build/stepLine.js';
 import type { StepRow } from '../build/turns.js';
 import { versionName } from '../build/versionName.js';
 import { lookLine, lookName, LookSwatch, StyleSwatch } from './look.js';
@@ -162,7 +164,40 @@ export function DesignerMessage({ text, streaming, children }: { text: string; s
 function StepLine({ row }: { row: StepRow }): ReactNode {
   const line = stepLine(row);
   const subject = row.subject === undefined ? '' : shortSubject(row.subject);
-  return <>{withMono(line, [SUBJECT], [subject])}</>;
+  const cost = stepCost(row);
+  // What the step cost the person (Figma reads), in the row's quiet weight, its number in mono.
+  const count = String(row.count ?? '');
+  const at = cost === null ? -1 : cost.indexOf(count);
+  return (
+    <>
+      {withMono(line, [SUBJECT], [subject])}
+      {cost === null ? null : (
+        <span className="font-medium text-fg-muted">
+          {at < 0 ? (
+            cost
+          ) : (
+            <>
+              {cost.slice(0, at)}
+              <span className="font-mono">{count}</span>
+              {cost.slice(at + count.length)}
+            </>
+          )}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** Under a turn whose Figma reads were paused: until when, and that the Designer works from what was imported. */
+export function FigmaPausedLine({ rows }: { rows: readonly StepRow[] }): ReactNode {
+  const line = figmaPausedLine(rows, getI18nInstance()?.language);
+  if (line === null) return null;
+  return (
+    <p className="m-0 flex items-start gap-2 text-[12.5px] leading-normal text-fg-muted">
+      <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
+      <span>{line}</span>
+    </p>
+  );
 }
 
 export function StepsBlock({
@@ -220,6 +255,8 @@ export function StepsBlock({
                       <LoaderCircle className="size-[13px] animate-spin" />
                     ) : row.state === 'failed' ? (
                       <CircleX className="size-[13px]" />
+                    ) : row.state === 'missed' && row.tool === 'read_figma' ? (
+                      <CirclePause className="size-[13px]" />
                     ) : row.state === 'missed' ? (
                       <CircleSlash2 className="size-[13px]" />
                     ) : row.tool === 'sight' ? (
@@ -232,6 +269,7 @@ export function StepsBlock({
                     <StepLine row={row} />
                     {row.state === 'running' ? <span className="sr-only"> {t('designer:steps.running', '(running)')}</span> : null}
                     {row.state === 'failed' ? <span className="sr-only"> {t('designer:steps.failedMark', '(failed)')}</span> : null}
+                    {row.state === 'missed' && row.tool === 'read_figma' ? <span className="sr-only"> {t('designer:steps.skippedMark', '(skipped)')}</span> : null}
                   </span>
                   {row.ms === null || row.state === 'running' ? null : (
                     <span className="shrink-0 font-mono text-[11px] text-fg-subtle">{t('designer:steps.seconds', '{seconds} s', { seconds: secondsOf(row.ms) })}</span>

@@ -270,6 +270,16 @@ describe('an app copied from a published one', () => {
   });
 });
 
+describe('a picture of a part of a Figma frame', () => {
+  it('is sent in the turn read_figma read it and the next, then becomes a line, as a picture of the page is', () => {
+    const bytes = Buffer.from('png');
+    const message: RunMessage = { role: 'user', content: [{ type: 'image', mediaType: 'image/png', data: '', ref: 'att_00000000000000000009', name: 'figma part 1:5.png' }] };
+    const sent = (turn: number) => withPictures([message], { reads: true, bytesOf: () => bytes, turnOf: () => 3, turn });
+    expect(sent(4)[0]?.content[0]).toMatchObject({ type: 'image', data: bytes.toString('base64') });
+    expect(sent(5)[0]?.content[0]).toMatchObject({ type: 'text' });
+  });
+});
+
 describe('the room a request has', () => {
   it('counts the tool definitions sent with it, so the conversation is trimmed to what is really left', async () => {
     const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });

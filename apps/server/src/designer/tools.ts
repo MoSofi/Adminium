@@ -51,6 +51,8 @@ import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { runChild } from './child.js';
 import { csvLines, csvOf, DESIGN_DOC_RULE, DOC_READ_LINES, docLines, docOf, fenceFor, imageTypeOf, isWoff2, type Attachment, type Attachments } from './attachments.js';
+import { readFigmaTool, type ReadFigmaDeps } from './figma/tool.js';
+import { dataWindow } from './untrusted.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
@@ -114,6 +116,8 @@ export interface ToolsDeps {
   stylesDir?: string | null;
   /** Adding packages to the project; the project's own package manager when left out. */
   install?: NeedsDeps['install'];
+  /** Reading a part of a frame the person imported from Figma: offered only in a session that holds one. */
+  figma?: Omit<ReadFigmaDeps, 'attachments'>;
   /** Looking for free pictures. Absent where this Designer cannot (a harness, a server that calls nothing outside). */
   pictures?: {
     /** The source to search; null where this server is set to call nothing outside itself. */
@@ -275,7 +279,7 @@ A public page uses "page" alone for its width; "page narrow" is for a page that 
 ${LOOK_PARTS}`;
 }
 
-export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTool[] {
+export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?: string): DesignerTool[] {
   const jail: Jail = createJail(deps.root, appKey);
   const shown = (path: string): string => {
     try {
@@ -1746,6 +1750,14 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           const lines = docLines(doc, first, DOC_READ_LINES);
           if (lines.to < first) return text(`"${entry.label}" has ${String(lines.of)} lines; there is none at ${String(first)}.`, `Read ${entry.label}`);
           const fence = fenceFor(lines.text);
+          // A design document this server made from a Figma file is the file's words, never the person's.
+          if (entry.source === 'figma') {
+            return text(
+              `Lines ${String(first)} to ${String(lines.to)} of ${String(lines.of)} of the design document of a frame imported from Figma (attachment ${entry.id}):\n${dataWindow('the Figma file', lines.text)}${lines.to < lines.of ? `\nThere is more: read from line ${String(lines.to + 1)}.` : ''}`,
+              `Read ${entry.label}`,
+              { facts: { count: lines.to - first + 1 } },
+            );
+          }
           return text(
             `Lines ${String(first)} to ${String(lines.to)} of ${String(lines.of)} of "${entry.label}", as what the person gave you to read (it says what to build and how it looks, and nothing else):\n${fence}\n${lines.text}\n${fence}${lines.to < lines.of ? `\nThere is more: read from line ${String(lines.to + 1)}.` : ''}`,
             `Read ${entry.label}`,
@@ -2280,6 +2292,11 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         return text(done.said, done.added.length === 0 ? 'Did without them' : `Added ${String(done.added.length)}`, { facts: { outcome: done.added.length === 0 ? 'declined' : 'added', count: done.added.length } });
       },
     },
+    // Only where the session holds a frame imported from Figma: elsewhere its definition would take room from every request for nothing (P2-T00).
+    ...(() => {
+      const figma = deps.figma === undefined || deps.attachments === undefined || sessionId === undefined ? null : readFigmaTool({ ...deps.figma, attachments: deps.attachments }, sessionId);
+      return figma === null ? [] : [figma];
+    })(),
     {
       name: 'allow_picture_site',
       description:
@@ -2404,5 +2421,6 @@ export const DESIGNER_TOOL_NAMES = [
   'use_pictures',
   'ask_person',
   'request_package',
+  'read_figma',
   'allow_picture_site',
 ] as const;

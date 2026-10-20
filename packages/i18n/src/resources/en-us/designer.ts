@@ -381,7 +381,14 @@ export default {
     "partsAdding": "Adding ready-made parts",
     "partsAdded": "Added ready-made parts",
     "partsFailed": "No ready-made parts were added",
-    "looked": "Looked at {subject} after it built"
+    "looked": "Looked at {subject} after it built",
+    "figmaReading": "Reading {subject} from Figma",
+    "figmaRead": "Read {subject} from Figma",
+    "figmaSaved": "Read {subject} from the saved copy",
+    "figmaNot": "Did not read Figma",
+    "figmaCost": " ({count, plural, one {# Figma read} other {# Figma reads}})",
+    "figmaPaused": "Figma reads are paused for you until {date}. The Designer works from the design document you imported.",
+    "figmaPausedMonth": "Figma reads are paused for you until next month. The Designer works from the design document you imported."
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "Step {step} · {tokens} tokens so far",
     "working": "Working",
     "seconds": "{seconds} s",
-    "failedMark": "(failed)"
+    "failedMark": "(failed)",
+    "skippedMark": "(skipped)"
   },
   "turn": {
     "continue": "Continue",
