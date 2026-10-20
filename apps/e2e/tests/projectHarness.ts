@@ -53,6 +53,7 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const CLI = join(repoRoot, 'apps', 'server', 'dist', 'cli', 'index.js');
 const DASHBOARD = join(repoRoot, 'apps', 'dashboard', 'dist');
 const FIGMA_DESIGN = join(repoRoot, 'apps', 'e2e', 'scripts', 'figma-design.mjs');
+const PICTURE_DESIGN = join(repoRoot, 'apps', 'e2e', 'scripts', 'picture-design.mjs');
 
 /** Clear of the engine ports (+0), the first-run server (+20) and the SMTP sink (+100, +101). */
 export const PROJECT_PORT = PORT + 40;
@@ -390,6 +391,21 @@ export class ProjectHarness {
       const link = /Open this link once to sign in: (\S+)/.exec(this.output())?.[1];
       if (link !== undefined) return link;
       if (Date.now() > deadline) throw new Error(`the Figma design server printed no link:\n${this.output()}`);
+    }
+  }
+
+  /**
+   * `adminium design` as `scripts/picture-design.mjs` starts it: the same start, with the picture
+   * sources answered by a fake in that process through the safe fetch's own seams.
+   */
+  async designWithFakePictures(env: Record<string, string> = {}): Promise<string> {
+    await this.stop();
+    this.server = new ServerProcess(['--port', String(PROJECT_PORT)], this.root, env, PICTURE_DESIGN);
+    await this.waitForHealth();
+    for (const deadline = Date.now() + 60_000; ; await sleep(250)) {
+      const link = /Open this link once to sign in: (\S+)/.exec(this.output())?.[1];
+      if (link !== undefined) return link;
+      if (Date.now() > deadline) throw new Error(`the pictures design server printed no link:\n${this.output()}`);
     }
   }
 

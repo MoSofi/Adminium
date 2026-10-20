@@ -64,6 +64,8 @@ export interface CreateRelocationHostOptions {
   designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer (`ComposeServerOptions.designer`). */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
   /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
   figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** Tests only, and only in-process: how the picture sources are reached (`ComposeServerOptions.pictureSeams`). No flag or variable sets it. */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
   shared?: { port: number; ownerToken?: string } | undefined;
   /** Test seam: defaults to `process.exit`. */
@@ -98,6 +100,7 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
       ...(opts.designer === undefined ? {} : { designer: opts.designer }),
       ...(opts.shared === undefined ? {} : { shared: opts.shared }),
       ...(opts.figmaSeams === undefined ? {} : { figmaSeams: opts.figmaSeams }),
+      ...(opts.pictureSeams === undefined ? {} : { pictureSeams: opts.pictureSeams }),
     });
     setShutdownTarget(server.app);
     return server;

@@ -275,6 +275,8 @@ export interface StartServerOptions {
   shared?: { port: number; ownerToken?: string } | undefined;
   /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
   figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** Tests only, and only in-process: how the picture sources are reached (`ComposeServerOptions.pictureSeams`). No flag or variable sets it. */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
@@ -327,6 +329,7 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     ...(opts.designer === undefined ? {} : { designer: opts.designer }),
     ...(opts.shared === undefined ? {} : { shared: opts.shared }),
     ...(opts.figmaSeams === undefined ? {} : { figmaSeams: opts.figmaSeams }),
+    ...(opts.pictureSeams === undefined ? {} : { pictureSeams: opts.pictureSeams }),
   });
   // Falling through on a missed override is the resolver's contract (the
   // implicit candidates degrade the same way), but a path the operator WROTE

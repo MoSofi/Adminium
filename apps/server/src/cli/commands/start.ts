@@ -195,6 +195,8 @@ export interface StartFlags {
   shared?: { ownerToken?: string | undefined } | undefined;
   /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
   figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** Tests only, and only in-process: how the picture sources are reached (`ComposeServerOptions.pictureSeams`). No flag or variable sets it. */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
 }
 
 /**
@@ -487,6 +489,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       ...(design !== undefined || flags.shared === undefined ? {} : { shared: { port: env.PORT, ...(flags.shared.ownerToken === undefined ? {} : { ownerToken: flags.shared.ownerToken }) } }),
       ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(prepared.thisComputer === true ? { thisComputer: true } : {}), ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
       ...(flags.figmaSeams === undefined ? {} : { figmaSeams: flags.figmaSeams }),
+      ...(flags.pictureSeams === undefined ? {} : { pictureSeams: flags.pictureSeams }),
       log: (message) => {
         io.out(message);
       },

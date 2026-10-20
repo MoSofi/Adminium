@@ -64,7 +64,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      testIgnore: [/onboarding\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma)?\.spec\.ts$/],
+      testIgnore: [/onboarding\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma|-pictures)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
@@ -82,9 +82,9 @@ export default defineConfig({
     // session is the project owner's, saved by the spec's own setup.
     {
       name: 'project',
-      // Eight files, one port: they run one after the other (`workers: 1`), each on a project of its own.
-      // The `designer` files run `adminium design` there (the Figma one with Figma faked in its process) and sign in by its link.
-      testMatch: [/project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma)?\.spec\.ts$/],
+      // Nine files, one port: they run one after the other (`workers: 1`), each on a project of its own.
+      // The `designer` files run `adminium design` there (the Figma one with Figma faked in its process, the pictures one with the picture sources) and sign in by its link.
+      testMatch: [/project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma|-pictures)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], baseURL: PROJECT_URL, storageState: projectStatePath() },
     },
   ],
