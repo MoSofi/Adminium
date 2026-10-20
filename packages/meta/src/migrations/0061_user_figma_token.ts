@@ -2,8 +2,8 @@
 /**
  * Wave 0061 — a person's own Figma token, on their own row.
  *
- * The Designer reads a frame from Figma with the token of the person who asked (plan 69, ruled O1:
- * one token per person; a shared one would let anyone import anything its owner can open).
+ * The Designer reads a frame from Figma with the token of the person who asked: one token per
+ * person, since a shared one would let anyone import anything its owner can open.
  *
  * ─── The columns ──────────────────────────────────────────────────────────
  * - `figma_token_encrypted`: the token in the server's AES-GCM envelope, under a key of its own

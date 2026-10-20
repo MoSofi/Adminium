@@ -22,7 +22,7 @@ import type { FigmaNode, FigmaNodeAnswer } from './client.js';
 export const OUTLINE_LONG_CHARS = 32_000;
 /** The short form, for a model whose window is smaller than `FIGMA_LONG_FORM_WINDOW`: about 1,100 tokens. */
 export const OUTLINE_SHORT_CHARS = 4000;
-/** The window, in tokens, from which a model is given the long form (plan 69, M11). */
+/** The window, in tokens, from which a model is given the long form: below it the long form would leave no room to talk. */
 export const FIGMA_LONG_FORM_WINDOW = 32_000;
 /** How deep the outline goes, and how many nodes it shows, at most. */
 export const OUTLINE_DEPTH = 8;

@@ -213,7 +213,7 @@ async function seedInstance(): Promise<Seeded> {
       recoveryCodes: null,
       avatarFileId: null,
       lastLoginAt: null,
-      // A person's Figma token (plan 69): on the users row, which is never exported.
+      // A person's Figma token: on the users row, which is never exported.
       figmaTokenEncrypted: FIGMA_SENTINEL,
       figmaHandle: 'ava.reyes',
       figmaUserId: '1111',

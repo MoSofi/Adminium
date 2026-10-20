@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The person's Figma connection on their Security page (plan 69, P2-T07; comp `designs/plan-69/Files
- * And Record Files Screen.dc.html`, frames 2s-a to 2s-c), so a token can be seen and taken off without
+ * The person's Figma connection on their Security page, so a token can be seen and taken off without
  * starting an import. It reads the same route as the Designer's "From Figma…" dialog.
  *
  * Connecting happens in the Designer (that is where a token is first needed); here a token is
- * changed in a field of the card (ruled R4) or disconnected, which asks first (R3). A person who
+ * changed in a field of the card or disconnected, which asks first, as the dialog does. A person who
  * cannot use the Designer has no Figma connection, and sees no card.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

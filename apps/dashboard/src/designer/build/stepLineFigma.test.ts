@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * read_figma's step line (plan 69, P2-T08; comp S17.1): the part it read, the reads it cost said
+ * read_figma's step line: the part it read, the reads it cost said
  * after it, the saved copy said as free, a read that did not happen said plainly, and the line under
  * the turn while Figma has paused the person's reads.
  */

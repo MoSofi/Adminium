@@ -3,7 +3,7 @@
  * A person's own Figma token: kept encrypted on their own row, read only where a Figma request is
  * made, and never anywhere else.
  *
- * - One token per person (plan 69, ruled O1): a shared token would let anyone import whatever its
+ * - One token per person: a shared token would let anyone import whatever its
  *   owner can open. Each person's imports and the Designer's reads in their turns use theirs.
  * - Encrypted with the server's AES-GCM helper under a key of its own purpose, never the two-factor
  *   key. The column is not on `User`, so it is never on a request's user; `figmaTokenOf` is the one

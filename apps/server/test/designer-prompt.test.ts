@@ -42,7 +42,7 @@ afterEach(() => {
 const session = (over: Partial<DesignerSession> = {}): DesignerSession =>
   ({ id: 'ds_000000000000000000000000', appKey: 'repairs', target: 'auto', connectionId: 'env:ollama', model: 'm', ...over }) as DesignerSession;
 const say = (role: 'user' | 'assistant', text: string): RunMessage => ({ role, content: [{ type: 'text', text }] });
-/** The least a request leaves for the conversation itself, on the smallest window (plan 69, P2-T00). */
+/** The least a request leaves for the conversation itself, on the smallest window. */
 const CONVERSATION_FLOOR = 2000;
 
 describe('what the Designer’s model is told', () => {
@@ -263,7 +263,7 @@ describe('an app copied from a published one', () => {
     expect(estimateTokens(system)).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.ollama / 2);
 
     // What goes with every request is the system prompt AND every tool's definition: on Ollama they leave room to talk.
-    // (Plan 69, P0-T03: 9,967 + 5,753 = 15,720 of 16,000 on 2026-10-19.)
+    // (9,967 + 5,753 = 15,720 of 16,000 when this was measured, 2026-10-19.)
     const tools = createDesignerTools({ root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], mode: 'live' }, 'repairs');
     const sent = estimateTokens(system) + toolTokens(tools);
     expect(sent).toBeLessThanOrEqual(ASSISTANT_INPUT_TOKEN_LIMIT.ollama - 2000 - CONVERSATION_FLOOR);

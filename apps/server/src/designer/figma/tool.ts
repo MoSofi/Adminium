@@ -2,7 +2,7 @@
 /**
  * `read_figma`: one part of a frame the person imported from Figma, read later in a turn.
  *
- * The frame is named only by what the server stamped on the import's attachments (S13): the model
+ * The frame is named only by what the server stamped on the import's attachments: the model
  * gives a node id, never a file key, and no Figma fact is ever read back from a document's text. A
  * crafted "… — Figma design.md" attached by hand carries no stamp, and makes this read nothing.
  *

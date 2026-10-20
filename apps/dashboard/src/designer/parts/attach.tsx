@@ -325,7 +325,7 @@ export function attachHandlers(state: AttachState, disabled = false) {
 }
 
 /**
- * The Attach menu (plan 69, U3): the clip opens a menu of the ways in, and a drop or a paste on
+ * The Attach menu: the clip opens a menu of the ways in, and a drop or a paste on
  * the box still attaches at once. "From Figma…" opens its dialog; with network features off it
  * stays in the menu, unavailable, and says why.
  */

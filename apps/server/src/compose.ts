@@ -2305,7 +2305,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           const key = (own['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
           return key === '' ? null : unsplash(key);
         };
-        // Figma: each person's own token (ruled O1), what was read with it, and frames imported but not sent yet.
+        // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
         const figmaCache = createFigmaCache(root);
         // The project's own token stands in for its owner's under `adminium design` only, read from the process's environment (never the project's .env).

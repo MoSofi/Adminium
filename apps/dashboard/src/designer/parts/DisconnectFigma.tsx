@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Disconnect Figma?": one question for one action, asked the same way in the Designer's "From
- * Figma…" dialog and on the person's Security page (plan 69, ruled R3). Each screen passes its own
+ * Figma…" dialog and on the person's Security page. Each screen passes its own
  * words: the Security page does not load the Designer's.
  */
 import type { ReactNode } from 'react';

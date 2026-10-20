@@ -6,7 +6,7 @@
  * bucket. The token goes one way: it is checked with Figma (`/v1/me`) before anything is kept, kept
  * encrypted, and never sent back; a reply says only whether there is one, whose it is and its Figma
  * handle. On a live server the token is the person's own, so the refusal that keeps model
- * connections in Settings → AI does not apply here (ruled O1).
+ * connections in Settings → AI does not apply here.
  *
  * Seeing and removing a token always works, also while the Designer is switched off on a live
  * server, so a person can take theirs off from their Security page. Connecting and importing need the

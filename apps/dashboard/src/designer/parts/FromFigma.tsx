@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "From Figma…": the person's own Figma connection and a frame's link, in one dialog (plan 69, P2;
- * comp `designs/plan-69/Designer Bring In.dc.html`, frames 2a–2l).
+ * "From Figma…": the person's own Figma connection and a frame's link, in one dialog.
  *
  * There is no models panel: the connection lives here. Not connected, the dialog asks for a personal
  * access token and says where Figma makes one; connected, it says whose it is, with "Change token"
@@ -450,7 +449,7 @@ export function FromFigmaDialog({ open, onOpenChange, onImported, returnFocus }:
           ) : null}
         </ModalFooter>
       </Modal>
-      {/* Disconnect asks first, here as on the Security page (R3). */}
+      {/* Disconnect asks first, here as on the Security page. */}
       <DisconnectFigma
         open={asking}
         onOpenChange={setAsking}

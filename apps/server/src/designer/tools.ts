@@ -2292,7 +2292,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         return text(done.said, done.added.length === 0 ? 'Did without them' : `Added ${String(done.added.length)}`, { facts: { outcome: done.added.length === 0 ? 'declined' : 'added', count: done.added.length } });
       },
     },
-    // Only where the session holds a frame imported from Figma: elsewhere its definition would take room from every request for nothing (P2-T00).
+    // Only where the session holds a frame imported from Figma: elsewhere its definition would take room from every request for nothing.
     ...(() => {
       const figma = deps.figma === undefined || deps.attachments === undefined || sessionId === undefined ? null : readFigmaTool({ ...deps.figma, attachments: deps.attachments }, sessionId);
       return figma === null ? [] : [figma];

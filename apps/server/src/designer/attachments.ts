@@ -321,7 +321,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
 }
 
 /**
- * One writer of a session's files at a time (F12). Each step of `add` and `remove` runs to its end
+ * One writer of a session's files at a time. Each step of `add` and `remove` runs to its end
  * without a pause, but a writer that awaits between reading what it adds and adding it (a Figma
  * import, read again from what the server kept) waits here for the one before it.
  */

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The Attach menu and the "From Figma…" dialog, on Designer Home through the real `/design` route
- * (plan 69, P2-T06 and T07; comp `designs/plan-69/Designer Bring In.dc.html`).
  *
  *  1. The clip is a menu named "Attach": files from the computer, with every kind it takes named,
  *     and From Figma…, unavailable with its reason when network features are off.

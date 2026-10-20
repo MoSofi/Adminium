@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Figma card on a person's Security page (plan 69, P2-T07; comp frames 2s-a to 2s-c): it says
- * whose token is kept, changes it in a field of its own (R4), disconnects after asking (R3), says
+ * The Figma card on a person's Security page: it says whose token is kept, changes it in a field of
+ * its own, disconnects after asking, says
  * when the project's own token is in use, and is not drawn for a person with no Figma connection to
  * see.
  */
