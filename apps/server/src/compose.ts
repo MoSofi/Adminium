@@ -2904,7 +2904,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * installed. The log is the one place an operator on such a host looks, so it
    * says which, and what to do.
    */
-  void packagesReady
+  const installedChecked = packagesReady
     .then(async () => {
       const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
       const refs = (rows: readonly InstalledManifest[]) =>
@@ -2933,6 +2933,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     .catch((err: unknown) => {
       app.log.warn({ err }, 'could not check installed add-ons and apps against the data directory');
     });
+  /*
+   * Both run in the background and read the meta store. A server closed before
+   * they settle waits for them, so its store is never closed under one of their
+   * queries: a Postgres pool asked to end waits for that connection for ever.
+   * Neither rejects.
+   */
+  app.addHook('onClose', async () => {
+    await Promise.all([addOnsLoaded, installedChecked]);
+  });
 
   // Telemetry. OPT-IN: `report()` reads `telemetry.enabled` FIRST and returns
   // before building a payload, so an instance that has not consented
