@@ -1677,7 +1677,7 @@ export default {
           "title": "Sections"
         },
         "segmented": {
-          "body": "Priorité segmentée, description longue, liste de pièces jointes, personne assignée.",
+          "body": "Priorité segmentée, description longue, liste de fichiers, personne assignée.",
           "title": "Segments et fichiers"
         },
         "split": {

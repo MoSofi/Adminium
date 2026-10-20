@@ -1677,7 +1677,7 @@ export default {
           "title": "Sektioner"
         },
         "segmented": {
-          "body": "Segmenteret prioritet, lang beskrivelse, vedhæftningsliste, ansvarlig.",
+          "body": "Segmenteret prioritet, lang beskrivelse, filliste, ansvarlig.",
           "title": "Segmenter og filer"
         },
         "split": {

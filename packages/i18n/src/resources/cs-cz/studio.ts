@@ -1677,7 +1677,7 @@ export default {
           "title": "Sekce"
         },
         "segmented": {
-          "body": "Segmentovaná priorita, dlouhý popis, seznam příloh, přiřazená osoba.",
+          "body": "Segmentovaná priorita, dlouhý popis, seznam souborů, přiřazená osoba.",
           "title": "Segmenty a soubory"
         },
         "split": {

@@ -1677,7 +1677,7 @@ export default {
           "title": "Abschnitte"
         },
         "segmented": {
-          "body": "Segmentierte Priorität, lange Beschreibung, Anhangsliste, zuständige Person.",
+          "body": "Segmentierte Priorität, lange Beschreibung, Dateiliste, zuständige Person.",
           "title": "Segmente und Dateien"
         },
         "split": {
