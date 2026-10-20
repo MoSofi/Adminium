@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Files with a message: a picture, a CSV, a font or a Markdown document,
- * attached by the clip, a paste or
- * a drop. They wait in the page and go up when the message is sent, so Home
+ * attached from the Attach menu, a paste or a drop, and a frame imported from
+ * Figma. They wait in the page and go up when the message is sent, so Home
  * (where there is no session yet) and the build page work the same way. The
  * server decides what a file is, from its bytes; what is checked here is only
- * what can be said at once: too many, too large, plainly the wrong kind.
+ * what can be said at once: too many, too large, plainly the wrong kind. A
+ * Figma import's two files are the server's own: the page holds only their
+ * names and the import's id, and the upload names the import.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileSpreadsheet, FileText, Paperclip, Type, X } from 'lucide-react';
+import { ChevronDown, FileSpreadsheet, FileText, FileUp, Frame, Image, Paperclip, Type, X } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import { designerApi, type DesignerAttachment } from '../api.js';
+import { designerApi, type DesignerAttachment, type FigmaImport, type FigmaStatus } from '../api.js';
 
 export const MAX_FILES = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -30,6 +33,8 @@ export interface PendingFile {
   preview: string | null;
   /** Once it went up: where, and the id it was given. A send that failed after that does not send the file again. */
   sent?: { sessionId: string; id: string };
+  /** Half of a frame imported from Figma: the server holds its bytes under the import's id. */
+  figma?: { importId: string; part: 'picture' | 'outline' };
 }
 
 // A Markdown document is known by its name alone, here and on the server: a browser gives one no type, or a type of its own.
@@ -44,9 +49,9 @@ const kindOf = (file: File): 'image' | 'csv' | 'font' | 'doc' | null =>
           ? 'doc'
           : null;
 
-/** The mark of a file that is no picture. */
-function FileMark({ kind }: { kind: 'csv' | 'font' | 'doc' }): ReactNode {
-  const Mark = kind === 'font' ? Type : kind === 'doc' ? FileText : FileSpreadsheet;
+/** The mark of a file shown without a picture of it. */
+function FileMark({ kind }: { kind: 'image' | 'csv' | 'font' | 'doc' }): ReactNode {
+  const Mark = kind === 'image' ? Image : kind === 'font' ? Type : kind === 'doc' ? FileText : FileSpreadsheet;
   return <Mark aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />;
 }
 
@@ -55,6 +60,8 @@ export interface AttachState {
   /** Why the last file was not taken, in words; null when it was. */
   refused: string | null;
   add(list: Iterable<File>): void;
+  /** A frame imported from Figma: its picture and its design document, as two files. One already waiting is not added again. */
+  addFigma(done: Pick<FigmaImport, 'importId' | 'pictureName' | 'outlineName'>): void;
   remove(key: string): void;
   /** Take off the files that went up with a message that was sent; one added since stays. */
   clear(): void;
@@ -199,7 +206,7 @@ export function useAttach(): AttachState {
     for (const file of list) {
       const kind = kindOf(file);
       if (kind === null) {
-        why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2) or a Markdown file (.md) can be attached.');
+        why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2), a Markdown file (.md), an HTML or a CSS file, or a site template (.zip) can be attached.');
       } else if (next.length >= MAX_FILES) {
         why = t('designer:attach.tooMany', 'Up to {count} files go with one message.', { count: MAX_FILES });
       } else if (kind === 'image' && file.size > MAX_IMAGE_BYTES) {
@@ -214,6 +221,28 @@ export function useAttach(): AttachState {
         seq.current += 1;
         next.push({ key: `f${String(seq.current)}`, file, kind, preview: kind === 'image' ? URL.createObjectURL(file) : null });
       }
+    }
+    held.current = next;
+    setFiles(next);
+    setRefused(why);
+  }, []);
+
+  const addFigma = useCallback((done: Pick<FigmaImport, 'importId' | 'pictureName' | 'outlineName'>) => {
+    const next = [...held.current];
+    let why: string | null = null;
+    for (const [part, name] of [['picture', done.pictureName], ['outline', done.outlineName]] as const) {
+      // The same frame imported twice is one pair of files: the newer import stands in for the older.
+      const same = next.findIndex((entry) => entry.figma?.part === part && entry.file.name === name && entry.sent === undefined);
+      if (same >= 0) {
+        next[same] = { ...(next[same] as PendingFile), figma: { importId: done.importId, part } };
+        continue;
+      }
+      if (next.length >= MAX_FILES) {
+        why = t('designer:attach.tooMany', 'Up to {count} files go with one message.', { count: MAX_FILES });
+        continue;
+      }
+      seq.current += 1;
+      next.push({ key: `f${String(seq.current)}`, file: new File([], name), kind: part === 'picture' ? 'image' : 'doc', preview: null, figma: { importId: done.importId, part } });
     }
     held.current = next;
     setFiles(next);
@@ -239,7 +268,9 @@ export function useAttach(): AttachState {
     const ids: string[] = [];
     // The files as they were when the message was sent: one added while they go up waits for the next message.
     for (const entry of [...held.current]) {
-      if (entry.sent?.sessionId !== sessionId) {
+      if (entry.sent?.sessionId !== sessionId && entry.figma !== undefined) {
+        entry.sent = { sessionId, id: (await designerApi.uploadFigma(sessionId, entry.figma.importId, entry.figma.part)).id };
+      } else if (entry.sent?.sessionId !== sessionId) {
         entry.sent = { sessionId, id: (await designerApi.uploadAttachment(sessionId, entry.file, entry.kind === 'image' ? await paletteOf(entry.file) : '')).id };
         if (entry.kind === 'image') {
           // A tall picture goes up again as parts a model reads. One that fails is no reason to stop: without all of them the server sends the picture whole, as before.
@@ -251,12 +282,12 @@ export function useAttach(): AttachState {
           }
         }
       }
-      ids.push(entry.sent.id);
+      if (entry.sent !== undefined) ids.push(entry.sent.id);
     }
     return ids;
   }, []);
 
-  return useMemo(() => ({ files, refused, add, remove, clear, upload, hasImage: files.some((entry) => entry.kind === 'image') }), [files, refused, add, remove, clear, upload]);
+  return useMemo(() => ({ files, refused, add, addFigma, remove, clear, upload, hasImage: files.some((entry) => entry.kind === 'image') }), [files, refused, add, addFigma, remove, clear, upload]);
 }
 
 /** Whether the picked model reads pictures: asked the first time a picture is attached, and kept. */
@@ -293,8 +324,29 @@ export function attachHandlers(state: AttachState, disabled = false) {
   };
 }
 
-export function AttachButton({ state, disabled = false }: { state: AttachState; disabled?: boolean }): ReactNode {
+/**
+ * The Attach menu (plan 69, U3): the clip opens a menu of the ways in, and a drop or a paste on
+ * the box still attaches at once. "From Figma…" opens its dialog; with network features off it
+ * stays in the menu, unavailable, and says why.
+ */
+export function AttachMenu({
+  state,
+  disabled = false,
+  figma,
+  onFigma,
+  place = 'home',
+}: {
+  state: AttachState;
+  disabled?: boolean;
+  /** The person's Figma connection; undefined while it is asked, or where this person cannot use it. */
+  figma: FigmaStatus | undefined;
+  onFigma: () => void;
+  /** Home opens the menu downward; the chat's composer, at the foot of its column, opens it upward. */
+  place?: 'home' | 'chat';
+}): ReactNode {
   const input = useRef<HTMLInputElement>(null);
+  const figmaOff = figma?.network === false;
+  const item = 'items-start gap-2.5 rounded-[6px] [&_svg]:size-4 data-[disabled]:opacity-100 ' + (place === 'chat' ? 'px-2 py-[7px]' : 'px-2.5 py-[13px]');
   return (
     <>
       <input
@@ -310,16 +362,41 @@ export function AttachButton({ state, disabled = false }: { state: AttachState; 
           event.target.value = '';
         }}
       />
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => input.current?.click()}
-        aria-label={t('designer:attach.button', 'Attach a picture, a CSV file, a font or a Markdown file')}
-        title={t('designer:attach.button', 'Attach a picture, a CSV file, a font or a Markdown file')}
-        className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] text-fg-muted hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <Paperclip aria-hidden="true" className="size-4" />
-      </button>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger
+          disabled={disabled}
+          aria-label={t('designer:attach.menu', 'Attach')}
+          title={t('designer:attach.menu', 'Attach')}
+          data-part="attach-menu"
+          className={`flex shrink-0 items-center gap-0.5 rounded-[10px] border border-transparent px-[5px] text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-border-strong data-[state=open]:bg-surface-3 data-[state=open]:text-fg ${place === 'chat' ? 'h-[30px]' : 'h-[34px]'}`}
+        >
+          <Paperclip aria-hidden="true" className={place === 'chat' ? 'size-[15px]' : 'size-4'} />
+          <ChevronDown aria-hidden="true" className="size-3 text-fg-subtle" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side={place === 'chat' ? 'top' : 'bottom'}
+          align="start"
+          aria-label={t('designer:attach.menu', 'Attach')}
+          className="w-[310px] max-w-[calc(100vw-32px)] rounded-[14px] p-[5px]"
+        >
+          <DropdownMenuItem className={item} icon={<FileUp />} onSelect={() => input.current?.click()}>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[13px] font-bold leading-[1.45] text-fg">{t('designer:attach.files', 'Files from your computer…')}</span>
+              <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">
+                {t('designer:attach.filesHelp', 'A picture, a CSV, font or Markdown file, an HTML or CSS file, or a site template (.zip)')}
+              </span>
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem className={`${item} data-[disabled]:[&_svg]:text-fg-subtle`} icon={<Frame />} disabled={figmaOff} onSelect={onFigma} data-part="attach-figma">
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className={`text-[13px] font-bold leading-[1.45] ${figmaOff ? 'text-fg-subtle' : 'text-fg'}`}>{t('designer:attach.fromFigma', 'From Figma…')}</span>
+              {figmaOff ? (
+                <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">{t('designer:figma.off', 'Figma is off on this server: network features are turned off.')}</span>
+              ) : null}
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 }
@@ -336,7 +413,7 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
               {entry.preview !== null ? (
                 <img src={entry.preview} alt="" className="size-7 shrink-0 rounded-md object-cover" />
               ) : (
-                <FileMark kind={entry.kind === 'image' ? 'doc' : entry.kind} />
+                <FileMark kind={entry.kind} />
               )}
               <span dir="auto" className="min-w-0 truncate">
                 {entry.file.name === '' ? t('designer:attach.pasted', 'Pasted picture') : entry.file.name}

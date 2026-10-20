@@ -8,11 +8,12 @@ import { useEffect, type KeyboardEvent, type ReactNode, type RefObject } from 'r
 import { ArrowUp } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
-import { AttachButton, attachHandlers, type AttachState } from './attach.js';
+import { attachHandlers, type AttachState } from './attach.js';
+import { AttachControl } from './FromFigma.js';
 
 const MAX_PX = 216;
 /** A box that takes no files. */
-const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false };
+const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false };
 
 export function BuildComposer({
   value,
@@ -78,7 +79,7 @@ export function BuildComposer({
         />
         <div className="flex items-center gap-1.5 px-2 pb-2 pt-1">
           {model}
-          {attach === undefined ? null : <AttachButton state={attach} disabled={working} />}
+          {attach === undefined ? null : <AttachControl state={attach} disabled={working} place="chat" focusBox={() => inputRef?.current?.focus()} />}
           {working ? (
             <button
               type="button"

@@ -54,6 +54,7 @@ import {
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
+import { FigmaCard } from './FigmaCard.js';
 import { PasswordCard } from './PasswordCard.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
@@ -91,6 +92,7 @@ export function SecurityPage(): ReactNode {
 
       <PasswordCard />
       <TwoFactorCard enabled={bootstrap.user.totpEnabled} />
+      <FigmaCard />
       <SessionsCard localeTag={localeTag} now={now} />
     </PageSurface>
   );

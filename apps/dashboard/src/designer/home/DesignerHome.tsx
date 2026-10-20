@@ -10,7 +10,8 @@
  * says how to add one (frame A); with a model that cannot build, sending is
  * off and the line under the box says why (frame B).
  */
-import { AttachButton, attachHandlers, AttachTray, useAttach, useReadsImages } from '../parts/attach.js';
+import { attachHandlers, AttachTray, useAttach, useReadsImages } from '../parts/attach.js';
+import { AttachControl } from '../parts/FromFigma.js';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -179,7 +180,6 @@ export function DesignerHome(): ReactNode {
               />
               <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-2">
                 {control.element}
-                <AttachButton state={attach} disabled={noModel} />
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     disabled={noModel}
@@ -200,6 +200,7 @@ export function DesignerHome(): ReactNode {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <AttachControl state={attach} disabled={noModel} place="home" focusBox={() => box.current?.focus()} />
                 {/* A style is the look of the app's web screens: a dashboard-only app and a phone app have none to pick. */}
                 {target === 'dashboard' || target === 'mobile' ? null : <StylePicker value={style} disabled={noModel} onChange={setStyle} />}
                 <button

@@ -642,7 +642,7 @@ describe('the build page', () => {
 
     // What is plainly neither kind is said at once, and nothing is sent for it.
     fireEvent.drop(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), { dataTransfer: { files: [new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' })], types: ['Files'] } });
-    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2) or a Markdown file (.md) can be attached.');
+    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2), a Markdown file (.md), an HTML or a CSS file, or a site template (.zip) can be attached.');
 
     // A font of the person's own goes with the message too, known by its name where the browser gives no type; one too large for a font is said at once.
     await userEvent.upload(input, new File(['wOF2'], 'Brand Sans.woff2', { type: '' }));

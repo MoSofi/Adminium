@@ -1676,6 +1676,24 @@
       "secretHelper": "Collez le lien de configuration dans votre application d’authentification, ou saisissez la clé à la main.",
       "secret": "Clé de configuration",
       "title": "Authentification à deux facteurs"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Non connecté. Connectez Figma depuis le menu Joindre du Designer, Depuis Figma…",
+      "connectedAs": "Connecté à Figma en tant que {handle}",
+      "kept": "Conservé chiffré sur ce serveur, pour vous seul. Seuls vos propres imports l’utilisent.",
+      "environment": "Le jeton Figma défini dans l'environnement de ce projet est utilisé.",
+      "changeToken": "Changer de jeton",
+      "disconnect": "Déconnecter",
+      "newToken": "Nouveau jeton",
+      "saveToken": "Enregistrer le jeton",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "refused": "Figma n’a pas accepté ce jeton. Vérifiez-le et collez-le à nouveau.",
+      "off": "Figma est désactivé sur ce serveur : les fonctions réseau sont coupées.",
+      "unreachable": "Figma n’a pas répondu. Réessayez dans un instant.",
+      "disconnectTitle": "Déconnecter Figma ?",
+      "disconnectBody": "Vos imports déjà dans le Designer restent."
     }
   },
   "team": {

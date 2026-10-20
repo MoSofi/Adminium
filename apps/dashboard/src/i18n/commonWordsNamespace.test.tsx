@@ -41,7 +41,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'account/PreferencesPage.tsx': [],
   // Teams, a page of its own beside the People list: it waits for the same group's words.
   'team/TeamsPage.tsx': [],
-  'account/SecurityPage.tsx': [],
+  // The Figma card is drawn by the Security page alone, with its words.
+  'account/SecurityPage.tsx': ['account/FigmaCard.tsx'],
   // The password form, on `/account` too: it waits for its own words wherever it is mounted.
   'account/PasswordCard.tsx': [],
   'reports/ScheduledReportsPage.tsx': [],
