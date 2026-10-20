@@ -135,7 +135,21 @@ declare module 'fastify' {
     publicSwitches: { forget(connectionId: string, table: string): void };
     /** The ONE widget-data result cache `routes/widget-data` serves from (compose). */
     widgetDataCache: WidgetDataCache;
+    /** The file reconciler the data routes hold, for the writes made outside them (compose). */
+    fileReconciler: FileReconciler;
   }
+}
+
+/**
+ * The files of a write nobody made by hand — a rule's step, a timed move, a
+ * row another row's move moved. Nobody judged a file such a write names, so
+ * it takes none (the sweep judges an upload nobody holds); what the row
+ * stops naming is let go as a person's change lets it go, or the file stays
+ * attached to a row that no longer shows it, and is never swept. Nothing
+ * without a composed server.
+ */
+export function lettingGoFiles(app: FastifyInstance): Pick<AfterRecordWriteInput, 'files' | 'filesLettingGoOnly'> {
+  return app.hasDecorator('fileReconciler') ? { files: app.fileReconciler, filesLettingGoOnly: true } : {};
 }
 
 /**
@@ -175,6 +189,8 @@ export interface AfterRecordWriteInput extends RecordWriteEvent {
   auditCategory?: AuditCategory | undefined;
   /** Column-bound file reconciliation. Absent ⇒ no file behaviour. */
   files?: FileReconciler | undefined;
+  /** The write cannot judge a file it names: `files` lets go and takes nothing ({@link lettingGoFiles}). */
+  filesLettingGoOnly?: boolean | undefined;
   /** The store the audit row goes to when there is no request. */
   meta?: MetaDb | undefined;
 }
@@ -270,7 +286,7 @@ export async function afterRecordWrite(
   const reconciled =
     input.files === undefined
       ? null
-      : await input.files.reconcile({ connectionId, table: table.id, entity, before, after, ruled: ruledBlocksOf(table.columns.values()) });
+      : await input.files.reconcile({ connectionId, table: table.id, entity, before, after, ruled: ruledBlocksOf(table.columns.values()), lettingGoOnly: input.filesLettingGoOnly });
 
   if (app.hasDecorator('realtime')) {
     // An open record page refetches its Attachments panel. Every frame rides

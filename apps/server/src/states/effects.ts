@@ -11,7 +11,7 @@
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
-import { afterRecordWrite, type AfterRecordWriteInput } from '../crud/after-record-write.js';
+import { afterRecordWrite, lettingGoFiles, type AfterRecordWriteInput } from '../crud/after-record-write.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { pkLabel } from '../crud/records.js';
 import type { Row } from '../crud/mask.js';
@@ -52,6 +52,8 @@ export async function announceEffects(app: FastifyInstance, input: EffectsAnnoun
       ...(input.hops === undefined ? {} : { hops: input.hops }),
       ...(input.auditCategory === undefined ? {} : { auditCategory: input.auditCategory }),
       ...(input.meta === undefined ? {} : { meta: input.meta }),
+      // Nobody wrote the moved row's values by hand: a file they clear or replace is let go, one they name taken by nobody.
+      ...lettingGoFiles(app),
     });
   }
 }
