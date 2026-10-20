@@ -86,9 +86,9 @@ describe('the site templates on Home', () => {
   });
 
   it('says why a folder was not copied in, until it is put away', async () => {
-    listing = { templates: [], more: 0, note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' } };
+    listing = { templates: [], more: 0, note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' } };
     render(wrap(<HomeTemplates started={null} onStart={() => undefined} />));
-    expect((await screen.findByRole('status')).textContent).toBe('Downloads was not copied in as a site template: Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.');
+    expect((await screen.findByRole('status')).textContent).toBe('Downloads was not copied in as a site template: Downloads holds more than 1,000 files and folders.');
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(cleared).toBe(1);
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());

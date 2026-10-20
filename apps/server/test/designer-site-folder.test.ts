@@ -183,8 +183,8 @@ describe('a template’s copy into a project', () => {
     expect(templateNameOf('Harbor Bakery (v2)!')).toBe('Harbor Bakery -v2-');
     expect(templateNameOf('...')).toBe('site');
     expect(await readTemplateNote(dir)).toBeNull();
-    await writeTemplateNote(dir, { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' });
-    expect(await readTemplateNote(dir)).toEqual({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' });
+    await writeTemplateNote(dir, { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' });
+    expect(await readTemplateNote(dir)).toEqual({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' });
     await clearTemplateNote(dir);
     expect(await readTemplateNote(dir)).toBeNull();
   });
@@ -193,7 +193,7 @@ describe('a template’s copy into a project', () => {
     const root = join(dir, 'Downloads');
     put(join(root, 'index.html'), PAGE);
     const snapshot = { entries: [], stopped: 'too-many' as const };
-    expect(await copyTemplateInto('Downloads', snapshot, root, 'Downloads')).toEqual({ copied: false, why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' });
+    expect(await copyTemplateInto('Downloads', snapshot, root, 'Downloads')).toEqual({ copied: false, why: 'Downloads holds more than 1,000 files and folders.' });
     const copied = await copyTemplateInto('harbor', await snapshotTemplate(root, 'none'), root, 'x');
     expect(copied).toEqual({ copied: true, pages: 1, files: 1 });
   });
@@ -233,7 +233,7 @@ describe('adminium new --site-template', () => {
     expect(code).toBe(0);
     expect(existsSync(join(root, 'my-app', 'package.json'))).toBe(true);
     expect(existsSync(join(root, 'my-app', 'site-templates'))).toBe(false);
-    const why = 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.';
+    const why = 'Downloads holds more than 1,000 files and folders.';
     expect(out).toContain(`Downloads was not copied in as a site template: ${why}`);
     expect(await readTemplateNote(join(root, 'my-app'))).toEqual({ name: 'Downloads', why });
     // A template the judge refuses says the judge's own sentence.

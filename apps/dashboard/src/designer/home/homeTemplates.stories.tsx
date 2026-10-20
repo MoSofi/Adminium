@@ -41,5 +41,5 @@ export const Several = {
 
 export const NotCopied = {
   tags: ['vrt'],
-  render: () => frame(<HomeTemplatesView listing={{ templates: [], more: 0, note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' } }} started={null} onStart={noop} onDismiss={noop} />),
+  render: () => frame(<HomeTemplatesView listing={{ templates: [], more: 0, note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' } }} started={null} onStart={noop} onDismiss={noop} />),
 };

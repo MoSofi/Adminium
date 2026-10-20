@@ -281,18 +281,19 @@ test('a site template as a zip goes up at once, says what was left out, asks bef
   await expect(page.getByRole('list', { name: 'Attached files' }).last().getByRole('listitem')).toHaveText(['corner-cafe· 1 page · 1 file']);
 });
 
+// eslint-disable-next-line no-empty-pattern -- Playwright reads fixtures from this pattern; the tests share the page above.
 test('a template in the project’s site-templates is offered on Home and in the attach menu, and taken in by its name', async ({}, testInfo) => {
   testInfo.setTimeout(240_000);
   project.write('site-templates/harbor-bakery/index.html', PAGE);
   project.write('site-templates/harbor-bakery/css/style.css', STYLE);
   project.write('site-templates/studio-one/index.html', '<!doctype html><html><body>Studio</body></html>');
   project.write('site-templates/bad name!/index.html', PAGE);
-  project.write('.adminium/designer/site-template-note.json', JSON.stringify({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' }));
+  project.write('.adminium/designer/site-template-note.json', JSON.stringify({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' }));
 
   await page.goto(sessionUrl.replace(/\/design\/ds_[0-9a-z]{24}$/, '/design'));
   await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible();
   const note = page.locator('[data-part="template-note"]');
-  await expect(note).toHaveText('Downloads was not copied in as a site template: Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.');
+  await expect(note).toHaveText('Downloads was not copied in as a site template: Downloads holds more than 1,000 files and folders.');
   const card = page.getByRole('region', { name: 'Site templates in this project' });
   await expect(card).toContainText('There are site templates in this project.');
   await expect(card.getByRole('listitem')).toHaveText(['bad name!: rename this folder to use it (letters, digits, space, . _ -)', 'harbor-bakeryStart from it', 'studio-oneStart from it']);

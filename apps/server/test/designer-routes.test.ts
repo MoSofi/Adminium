@@ -568,7 +568,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     put(join(root!, 'secret.txt'), 'the owner’s key');
     symlinkSync(join(root!, 'secret.txt'), join(tpl, 'harbor-bakery', 'notes.txt'));
     put(join(tpl, 'harbor bakery!', 'index.html'), '<!doctype html><html></html>');
-    writeFileSync(join(root!, '.adminium', 'designer', 'site-template-note.json'), JSON.stringify({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' }));
+    writeFileSync(join(root!, '.adminium', 'designer', 'site-template-note.json'), JSON.stringify({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' }));
 
     const listed = await client.call('GET', '/api/v1/designer/site-templates');
     expect(listed.body).toEqual({
@@ -577,7 +577,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
         { name: 'harbor-bakery', usable: true },
       ],
       more: 0,
-      note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' },
+      note: { name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders.' },
     });
     expect((await composed!.app.inject({ method: 'DELETE', url: '/api/v1/designer/site-templates/note', headers: { host: HOST, cookie: client.owner } })).statusCode).toBe(204);
     expect((await client.call('GET', '/api/v1/designer/site-templates')).body['note']).toBeNull();

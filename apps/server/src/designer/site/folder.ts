@@ -223,8 +223,8 @@ export async function copyTemplateInto(
   projectRoot: string,
   name: string,
 ): Promise<{ copied: true; pages: number; files: number } | { copied: false; why: string }> {
-  if (snapshot.stopped === 'too-many') return { copied: false, why: `${label} holds more than ${SITE_MAX_ENTRIES.toLocaleString('en-US')} files and folders, so it is not copied in as a site template.` };
-  if (snapshot.stopped === 'too-slow') return { copied: false, why: `${label} took too long to read, so it is not copied in as a site template.` };
+  if (snapshot.stopped === 'too-many') return { copied: false, why: `${label} holds more than ${SITE_MAX_ENTRIES.toLocaleString('en-US')} files and folders.` };
+  if (snapshot.stopped === 'too-slow') return { copied: false, why: `${label} took too long to read.` };
   let judged;
   try {
     judged = await judgeSite(label, snapshot.entries);
