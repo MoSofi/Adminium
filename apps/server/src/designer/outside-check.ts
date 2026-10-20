@@ -175,3 +175,29 @@ export function outsideChanges(root: string, key: string, before: AppliedSnapsho
   }
   return changes.slice(0, 12);
 }
+
+/** What a person approved on a template plan: its public entries and the tables its roles get. */
+export interface Approved {
+  access: readonly { table: string; methods: readonly string[]; select?: readonly string[]; writable?: readonly string[] }[];
+  roles: readonly { role: string; tables: readonly string[] }[];
+}
+
+/**
+ * What was applied, with what the person approved on a template plan added to it: then only what goes beyond the plan
+ * is asked. A role the plan names may get its plan tables' grants (and open pages) without a second yes.
+ */
+export function withApproved(before: AppliedSnapshot | null, now: AppliedSnapshot, approved: Approved | undefined): AppliedSnapshot | null {
+  if (approved === undefined) return before;
+  const base = before ?? { access: [], roles: {}, calls: [] };
+  const access = [...base.access, ...approved.access.map((entry) => ({ table: entry.table, methods: [...entry.methods], select: [...(entry.select ?? [])], writable: [...(entry.writable ?? [])] }))];
+  const roles = { ...base.roles };
+  for (const { role, tables } of approved.roles) {
+    const planned = new Set(tables);
+    const covered = (now.roles[role] ?? []).filter((grant) => {
+      const table = /^table:@([a-z][a-z0-9_]*)(?::|$)/.exec(grant)?.[1];
+      return (table !== undefined && planned.has(table)) || grant.startsWith('page:');
+    });
+    roles[role] = [...new Set([...(roles[role] ?? []), ...covered])].sort();
+  }
+  return { access, roles, calls: base.calls };
+}

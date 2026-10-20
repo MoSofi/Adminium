@@ -40,7 +40,8 @@ import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf
 import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
 import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
-import { currentSnapshot, outsideChanges, readApplied, writeApplied } from './outside-check.js';
+import { currentSnapshot, outsideChanges, readApplied, withApproved, writeApplied } from './outside-check.js';
+import { readTemplatePlan } from './site/template-plan.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -831,9 +832,12 @@ export function createDesigner(host: DesignerHost): Designer {
    */
   async function outsideAllowed(session: DesignerSession, handle: TurnHandle): Promise<string | null> {
     const files = host.attachments?.list(session.id) ?? [];
-    if (!files.some((entry) => entry.kind === 'site' || entry.source === 'figma')) return null;
+    if (!files.some((entry) => entry.kind === 'site' || entry.kind === 'html' || entry.kind === 'css' || entry.source === 'figma')) return null;
     const key = session.appKey;
-    const changes = outsideChanges(host.root, key, readApplied(host.root, key), currentSnapshot(host.root, key));
+    // What the person approved on the template's plan is not asked again: only what goes beyond it.
+    const plan = readTemplatePlan(host.root, key);
+    const now = currentSnapshot(host.root, key);
+    const changes = outsideChanges(host.root, key, withApproved(readApplied(host.root, key), now, plan?.approved), now);
     if (changes.length === 0) return null;
     let held = outsideAnswers.get(session.id);
     if (held === undefined || held.turn !== handle.turn) {
@@ -842,7 +846,7 @@ export function createDesigner(host: DesignerHost): Designer {
     }
     const unasked = changes.filter((change) => !(held as { answers: Map<string, boolean> }).answers.has(change.id));
     if (unasked.length > 0) {
-      const answer = await handle.ask({ type: 'access-change', changes: unasked.map((change) => change.view), planned: existsSync(join(host.root, APPS_DIR, key, 'template-plan.json')) });
+      const answer = await handle.ask({ type: 'access-change', changes: unasked.map((change) => change.view), planned: plan !== null });
       const yes = answer.type === 'access-change' && answer.accept;
       for (const change of unasked) held.answers.set(change.id, yes);
     }
