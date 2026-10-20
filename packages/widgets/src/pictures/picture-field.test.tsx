@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ResolvedFile } from '../families/tables/cells.js';
 import { gridColumnSpecSchema, type GridColumnSpec } from '../families/tables/column-spec.js';
+import { CellValue } from '../families/tables/cells.js';
 import { controlForColumn, legalControls } from '../templates/page-crud/field-mapping.js';
 import { FileField, type FileFieldUpload } from '../templates/page-crud/FileField.js';
 import { PictureCopyRefused, type PictureChooser } from './PictureField.js';
@@ -198,5 +199,36 @@ describe('the picker', () => {
     expect(await within(dialog).findByText('No other Dishes record has a picture yet.')).toBeTruthy();
     await userEvent.type(within(dialog).getByRole('searchbox'), 'wings');
     expect(await within(dialog).findByText('No file name matches “wings”.')).toBeTruthy();
+  });
+});
+
+describe('the row’s picture beside a value', () => {
+  const name = gridColumnSpecSchema.parse({ name: 'name', label: 'Name', logicalType: 'varchar', avatar: true });
+  const chef = gridColumnSpecSchema.parse({ name: 'chef_id', label: 'Chef', logicalType: 'integer', fk: { table: 'staff', column: 'id', display: 'chef_name' } });
+  const row = { name: 'Spicy wings', photo: id(1), chef_id: 4, chef_name: 'Lena Ortiz' };
+  const files = new Map([[id(1), file(1)]]);
+
+  it('shows the row’s picture from the page’s picture column, and its initials when the picture does not load', () => {
+    render(<CellValue column={name} row={row} context={{ files, pictureColumns: ['photo'] }} />);
+    const img = document.querySelector('[data-part="cell-avatar"] img');
+    expect(img?.getAttribute('src')).toBe(file(1).contentPath);
+    act(() => {
+      img?.dispatchEvent(new Event('error'));
+    });
+    expect(screen.getByText('SW')).toBeTruthy();
+  });
+
+  it('initials with no picture column; and a chip that names another record never shows this row’s picture', () => {
+    const { rerender } = render(<CellValue column={name} row={row} context={{ files }} />);
+    expect(document.querySelector('[data-part="cell-avatar"] img')).toBeNull();
+    rerender(<CellValue column={chef} row={row} context={{ files, pictureColumns: ['photo'] }} />);
+    expect(document.querySelector(`img[src="${file(1).contentPath}"]`)).toBeNull();
+  });
+
+  it('with two picture columns, shows the one the column names', () => {
+    const cover = { ...row, cover: id(2) };
+    const both = new Map([...files, [id(2), file(2)]]);
+    render(<CellValue column={{ ...name, avatarFrom: 'cover' }} row={cover} context={{ files: both, pictureColumns: ['photo', 'cover'] }} />);
+    expect(document.querySelector('[data-part="cell-avatar"] img')?.getAttribute('src')).toBe(file(2).contentPath);
   });
 });

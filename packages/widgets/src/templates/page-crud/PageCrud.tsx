@@ -43,6 +43,7 @@ import { optionsForColumn, withFactChoices } from './field-mapping.js';
 import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import { fieldMessagesOf } from './field-issues.js';
 import { isDeletePreview, PageSettingsChangedError } from './crud-api.js';
+import { isPictureBlock } from '../../page-config/picture-kinds.js';
 import type {
   CrudApi,
   CrudExportFormat,
@@ -644,6 +645,8 @@ export function PageCrud({
     // array identity changes on every render and would re-ask per keystroke.
   }, [files, fileRefsKey, fileRefs]);
 
+  // The page's picture columns: an avatar beside one of this table's own values shows the row's picture.
+  const pictureColumns = useMemo(() => columns.filter((column) => isPictureBlock(column.file)).map((column) => column.name), [columns]);
   const cellContext: CellContext = useMemo(
     () => ({
       onEvent,
@@ -652,9 +655,10 @@ export function PageCrud({
       locale,
       currency,
       files: resolvedFiles,
+      pictureColumns,
       ...(files?.thumbnailMaxBytes === undefined ? {} : { thumbnailMaxBytes: files.thumbnailMaxBytes }),
     }),
-    [onEvent, canUnmask, source.connectionId, locale, currency, resolvedFiles, files?.thumbnailMaxBytes],
+    [onEvent, canUnmask, source.connectionId, locale, currency, resolvedFiles, files?.thumbnailMaxBytes, pictureColumns],
   );
 
   const pushUndoToast = useCallback(
