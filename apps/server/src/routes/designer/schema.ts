@@ -193,6 +193,10 @@ export const designerAttachmentQuery = z.object({
     .string()
     .regex(/^[0-9a-f]{6}:\d{1,4}(,[0-9a-f]{6}:\d{1,4}){0,15}$/)
     .optional(),
+  /** A frame the person imported from Figma (`POST /designer/figma/import`): the server copies in its own bytes, and no body is sent. */
+  figma: z.string().regex(/^imp_[0-9a-f]{24}$/).optional(),
+  /** Which half of that import: its picture or its design document. */
+  figma_part: z.enum(['picture', 'outline']).optional(),
 });
 export const designerAttachmentParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), attachment: z.string().regex(/^att_[0-9a-f]{20}$/) });
 export const designerPictureThumbParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), shelf: z.string().regex(/^shelf_[0-9a-f]{16}$/), picture: z.string().regex(/^pic_[0-9a-f]{12}$/) });
@@ -467,3 +471,26 @@ export const designerPhoneReply = z.object({
 });
 
 export const designerPhoneOpenBody = z.object({ address: z.string().min(7).max(15) }).strict();
+
+/** A person's Figma connection, as their dialog and their Security page show it: never the token. */
+export const designerFigmaReply = z.object({
+  connected: z.boolean(),
+  /** `mine`: kept here for them; `environment`: the project's own token, under `adminium design`. */
+  source: z.enum(['mine', 'environment']).nullable(),
+  handle: z.string().nullable(),
+  /** False when this server calls nothing outside itself (`ADMINIUM_NETWORK_FEATURES` off). */
+  network: z.boolean(),
+  /** False where what is kept of a frame does not outlive the next deploy. */
+  lasting: z.boolean(),
+});
+export const designerFigmaTokenBody = z.object({ token: z.string().trim().min(1).max(500) });
+export const designerFigmaImportBody = z.object({ link: z.string().trim().min(1).max(2048) });
+export const designerFigmaImportReply = z.object({
+  importId: z.string(),
+  outlineName: z.string(),
+  pictureName: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  /** Reads Figma counted for this import: 0 when it came from the copy this server kept. */
+  reads: z.number().int(),
+});

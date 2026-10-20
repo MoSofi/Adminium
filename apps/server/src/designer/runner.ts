@@ -31,6 +31,7 @@
  * until it is answered. Stop answers every waiting card with "stopped".
  */
 import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
+import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 import { cleanPicked, pickedNote } from './picked.js';
 import { requestTokens, type PromptOpts } from './prompt.js';
 import { randomBytes } from 'node:crypto';
@@ -123,6 +124,8 @@ export interface RunnerDeps {
   limits(): Promise<DesignerLimits>;
   /** What people attach to a message: pictures and CSV files, kept in the session's folder. */
   attachments?: Attachments;
+  /** The most tokens a request to the session's model may carry: a Figma import goes as its short form below a floor. */
+  windowOf?(session: DesignerSession): Promise<number>;
   /** Send an event to the pages watching this session. */
   publish(event: DesignerEvent & { sessionId: string }): void;
   /** Record a turn's start and end. */
@@ -462,10 +465,12 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // The latest turn a picture came with: one attached again (a retry of its turn) is that turn's, not an old one.
         for (const entry of entries) for (const block of entry.message.content) if (block.type === 'image' && block.ref !== undefined) pictureTurns.set(block.ref, entry.turn);
         const opening = entries.find((entry) => entry.turn === turn && entry.message.role === 'user')?.message.content.find((block) => block.type === 'text');
+        const sent = tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }));
         const request = await deps.prompt(session, transcript, {
           turn,
           pictureTurns,
           pictures: !blind.has(session.id),
+          tools: sent,
           ...(opening?.type === 'text' ? { said: opening.text } : {}),
         });
         const carriesPictures = request.messages.some((message) => message.content.some((block) => block.type === 'image' && block.data.length > 0));
@@ -477,7 +482,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             result = await runner.run({
               system: request.system,
               messages: request.messages,
-              tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
+              tools: sent,
               model: session.model,
               maxTokens: room,
               ...(effort === undefined ? {} : { effort }),
@@ -644,6 +649,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
 
         const malformed = new Map(result.malformed.map((entry) => [entry.id, entry]));
         const results: RunBlock[] = [];
+        /** Pictures the steps read: they join the results, each named in words before it. */
+        const pictures: NonNullable<Awaited<ReturnType<DesignerTool['run']>>['picture']>[] = [];
         for (const call of calls) {
           if (signal.aborted) break;
           const bad = malformed.get(call.id);
@@ -659,7 +666,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           if (ACTING.has(tool.name)) acted = true;
           const stepId = `${String(turn)}.${String(steps)}.${call.id}`;
           const started = now();
-          const subject = stepSubject(call.input);
+          const subject = safeLabel(() => tool.subject?.(call.input, context)?.slice(0, 200) ?? '', '') || stepSubject(call.input);
           const about = subject === undefined ? {} : { subject };
           log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input), tool.name), state: 'running', ...about });
           try {
@@ -672,12 +679,14 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               state: done.isError === true ? 'failed' : 'done',
               ms: now() - started,
               ...about,
+              ...(done.subject === undefined ? {} : { subject: done.subject.slice(0, 200) }),
               ...(done.facts ?? {}),
               ...(done.isError === true ? { ended: done.miss === true ? ('miss' as const) : ('error' as const) } : {}),
               // A failure says why on the page too: the first line of what the model was told.
               ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
+            if (done.picture !== undefined) pictures.push(done.picture);
             if (done.isError !== true && (call.name === 'apply_app' || call.name === 'build_sides')) {
               // build_sides and then apply_app is one build, made twice: the preview opens the page again after the
               // first, and what the page then says of itself is older than the second. Counting from the second
@@ -706,7 +715,18 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `The tool failed: ${message}` });
           }
         }
-        if (results.length > 0) deps.store.appendMessage(session.id, turn, { role: 'user', content: results });
+        if (results.length > 0) {
+          deps.store.appendMessage(session.id, turn, {
+            role: 'user',
+            content: [
+              ...results,
+              ...pictures.flatMap((picture) => [
+                { type: 'text' as const, text: `\nThe picture read_figma read of ${JSON.stringify(picture.name.slice(0, 120))}:` },
+                { type: 'image' as const, mediaType: picture.mediaType, data: '', ref: picture.ref, name: picture.name },
+              ]),
+            ],
+          });
+        }
         if (signal.aborted) throw new TurnStoppedError();
 
         // A model that sends only calls that cannot be read is not going to start making sense.
@@ -791,7 +811,10 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // What the person saved by hand since the Designer last finished: named, so it reads each again before it writes it.
         const edited = (session.handEdits ?? []).filter(plainPath).slice(0, HAND_EDITS_MAX);
         // The person's words first and alone; what the server says about a file is a block of its own; a picture is a reference, never its bytes.
-        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids);
+        const window = files.some((file) => file.source === 'figma') ? await deps.windowOf?.(session).catch(() => undefined) : undefined;
+        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids, window === undefined ? {} : { window });
+        // A model with a small window gets a Figma frame's short form, and not its picture: both would leave no room to talk.
+        const sent = files.filter((file) => file.kind === 'image' && !(file.source === 'figma' && window !== undefined && window < FIGMA_LONG_FORM_WINDOW));
         deps.store.appendMessage(sessionId, turn, {
           role: 'user',
           content: [
@@ -806,7 +829,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
                     text: `\n\n(Since your last turn the person changed these files by hand: ${JSON.stringify(edited)}. Read each one again before you change it, and keep what they changed unless this message asks otherwise.)`,
                   },
                 ]),
-            ...files.filter((file) => file.kind === 'image').flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
+            ...sent.flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
           ],
         });
         events(sessionId).emit(turn, {

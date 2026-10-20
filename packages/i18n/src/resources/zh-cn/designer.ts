@@ -381,7 +381,14 @@ export default {
     "partsAdding": "正在添加现成部件",
     "partsAdded": "已添加现成部件",
     "partsFailed": "未添加现成部件",
-    "looked": "构建后查看了 {subject}"
+    "looked": "构建后查看了 {subject}",
+    "figmaReading": "正在从 Figma 读取 {subject}",
+    "figmaRead": "已从 Figma 读取 {subject}",
+    "figmaSaved": "已从保存的副本读取 {subject}",
+    "figmaNot": "未读取 Figma",
+    "figmaCost": "（{count, plural, other {# 次 Figma 读取}}）",
+    "figmaPaused": "你的 Figma 读取已暂停，直到 {date}。设计器会根据你导入的设计文档工作。",
+    "figmaPausedMonth": "你的 Figma 读取已暂停，直到下个月。设计器会根据你导入的设计文档工作。"
   },
   "steps": {
     "count": "{count, plural, other {# 步}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "第 {step} 步 · 目前已用 {tokens} 个令牌",
     "working": "正在处理",
     "seconds": "{seconds} 秒",
-    "failedMark": "（失败）"
+    "failedMark": "（失败）",
+    "skippedMark": "（已跳过）"
   },
   "turn": {
     "continue": "继续",
@@ -642,7 +650,7 @@ export default {
     "remove": "移除 {name}",
     "open": "在新标签页中打开 {name}",
     "rows": "{count, plural, other {# 行}}",
-    "wrongKind": "只能附加图片（PNG、JPEG、WebP 或 GIF）、CSV 文件、字体（.woff2）或 Markdown 文件（.md）。",
+    "wrongKind": "只能附加图片（PNG、JPEG、WebP 或 GIF）、CSV 文件、字体（.woff2）、Markdown 文件（.md）、HTML 或 CSS 文件，或网站模板（.zip）。",
     "tooMany": "一条消息最多附加 {count} 个文件。",
     "imageTooLarge": "该图片超过 5 MB。请附加较小的图片。",
     "csvTooLarge": "该文件超过 10 MB。这种大小的文件请在表自己的页面使用“导入”。",
@@ -650,7 +658,11 @@ export default {
     "docTooLarge": "该文档超过 200 KB。请附加较短的文档，或将重要部分粘贴到消息中。",
     "noPictures": "{model} 无法读取图片。请描述其中的要点，或选择能读取图片的模型。",
     "noPicturesPlain": "此模型无法读取图片。请描述其中的要点，或选择能读取图片的模型。",
-    "notSent": "消息未发送"
+    "notSent": "消息未发送",
+    "menu": "附加",
+    "files": "电脑上的文件…",
+    "filesHelp": "图片、CSV、字体或 Markdown 文件、HTML 或 CSS 文件，或网站模板（.zip）",
+    "fromFigma": "从 Figma…"
   },
   "needs": {
     "title": "设计需要几样东西。要添加吗？",
@@ -928,5 +940,51 @@ export default {
     "area": "拖动选出要截图的页面部分",
     "drawing": "正在截图…",
     "failed": "页面无法绘制这一部分。请重试，或附上您自己的图片。"
+  },
+  "figma": {
+    "title": "从 Figma 导入",
+    "close": "关闭",
+    "cancel": "取消",
+    "import": "导入",
+    "connect": "连接",
+    "checking": "正在检查…",
+    "loading": "正在询问服务器…",
+    "notConnected": "未连接到 Figma。",
+    "connectedAs": "已作为 {handle} 连接到 Figma",
+    "changeToken": "更换令牌",
+    "disconnect": "断开连接",
+    "environment": "正在使用此项目环境中设置的 Figma 令牌。",
+    "dead": "你的 Figma 令牌已失效。请粘贴新的令牌。",
+    "instructions": "在 Figma 中打开“设置”，然后“安全”，再打开“个人访问令牌”。创建一个可读取文件内容和文件元数据的令牌。Figma 只显示一次：复制后粘贴到这里。",
+    "tokenLabel": "Figma 令牌",
+    "tokenRefused": "Figma 未接受此令牌。请检查后重新粘贴。",
+    "kept": "仅为你加密保存在此服务器上。只有你自己的导入会使用它。",
+    "showToken": "显示令牌",
+    "hideToken": "隐藏令牌",
+    "linkLabel": "Figma 框架的链接",
+    "reading": "正在从 Figma 读取框架…",
+    "standing": "每次导入会读取 Figma 两次。View 或 Collab 席位每月可读取 {reads} 次，约十次导入。在文件更改之前，再次导入同一框架不计次数。",
+    "noDisk": "此服务器重新部署后会丢失保存的副本，因此部署后的导入会再次读取 Figma。",
+    "limitDate": "你的席位的 Figma 限额暂时已用完。你可以在 {date} 再次读取。",
+    "limitMonth": "你的席位的 Figma 限额暂时已用完。你可以在下个月再次读取。",
+    "limitWait": "Figma 要求我们稍候。请在 {minutes, plural, other {# 分钟}}后重试。",
+    "off": "此服务器已关闭 Figma：网络功能已关闭。",
+    "saved": "此版本的框架已经导入过。没有使用 Figma 读取次数。",
+    "disconnected": "已断开与 Figma 的连接。令牌已从此服务器移除。",
+    "disconnectTitle": "断开 Figma 连接？",
+    "disconnectBody": "已在设计器中的导入内容会保留。",
+    "err": {
+      "notFigma": "这不是 Figma 链接。",
+      "noFrame": "请在 Figma 中选择一个框架并复制其链接。",
+      "figjam": "这是一个 FigJam 白板。请粘贴设计框架的链接。",
+      "slides": "这是一个 Slides 演示文稿。请粘贴设计框架的链接。",
+      "proto": "这是一个原型链接。请粘贴设计框架的链接。",
+      "noAccess": "你的 Figma 帐号无法打开此文件。请让文件所有者与你共享。",
+      "gone": "该框架已不在文件中。",
+      "render": "Figma 无法绘制此框架。请重试，或选择其他框架。",
+      "big": "请选择更小的框架：此框架渲染后超过 5 MB。",
+      "tooMuch": "此框架包含的内容超出一次可读取的范围。请选择更小的框架。",
+      "unreachable": "Figma 没有响应。请稍后重试。"
+    }
   }
 } as const;

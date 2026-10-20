@@ -696,6 +696,24 @@ export default {
       "secretHelper": "Paste the setup link into your authenticator, or type the key in by hand.",
       "secret": "Setup key",
       "title": "Two-factor authentication"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Not connected. Connect Figma from the Designer's Attach menu, From Figma…",
+      "connectedAs": "Connected to Figma as {handle}",
+      "kept": "Kept encrypted on this server for you only. Only your own imports use it.",
+      "environment": "Using the Figma token set in this project's environment.",
+      "changeToken": "Change token",
+      "disconnect": "Disconnect",
+      "newToken": "New token",
+      "saveToken": "Save token",
+      "cancel": "Cancel",
+      "close": "Close",
+      "refused": "Figma did not accept this token. Check it and paste it again.",
+      "off": "Figma is off on this server: network features are turned off.",
+      "unreachable": "Figma did not answer. Try again in a moment.",
+      "disconnectTitle": "Disconnect Figma?",
+      "disconnectBody": "Your imports already in the Designer stay."
     }
   },
   "reports": {

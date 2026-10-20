@@ -337,6 +337,23 @@ export function designSection(root: string, appKey: string, skills: Skills, styl
   return parts.join('\n\n');
 }
 
+/** A tool as a request carries it: its name, its description and the JSON schema of what it takes. */
+export interface SentTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+/**
+ * What the tool definitions cost, as they are sent with every request: a provider wraps each one
+ * (`{ type, function: { name, description, parameters } }`), and the wrapping is counted too. On Ollama
+ * the 27 tools of 2026-10 were 5,753 tokens, sent with every request.
+ */
+export function toolTokens(tools: readonly SentTool[]): number {
+  if (tools.length === 0) return 0;
+  return estimateTokens(JSON.stringify(tools.map((tool) => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } }))));
+}
+
 /** Messages with every picture's bytes left out: what an estimate reads, and what a log may hold. */
 const withoutBytes = (messages: readonly RunMessage[]): RunMessage[] =>
   messages.map((message) => (message.content.some((block) => block.type === 'image') ? { ...message, content: message.content.map((block) => (block.type === 'image' ? { ...block, data: '' } : block)) } : message));
@@ -353,8 +370,8 @@ const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSO
 const PICTURE_TURNS = 2;
 /** The most pictures, and bytes of pictures, one request carries: providers cap a request's size. (A tall picture goes as several parts.) */
 const PICTURES_MAX = 16;
-/** A picture the server took of the page: nobody attached it. */
-const PAGE_PICTURE = /^the (staff|customer) page as it shows\.jpg$/;
+/** A picture the server took (of the page, or of a part of a Figma frame read_figma read): nobody attached it. */
+const PAGE_PICTURE = /^(the (staff|customer) page as it shows\.jpg|figma part I?[0-9:;]+\.png)$/;
 const PICTURES_MAX_BYTES = 12 * 1024 * 1024;
 
 export interface PictureOpts {
@@ -483,6 +500,8 @@ export interface PromptOpts {
   pictureTurns?: ReadonlyMap<string, number>;
   /** False once the provider refused a request that carried pictures: they go as a line of text from then on. */
   pictures?: boolean;
+  /** The tools sent with this request: their definitions take room in the window as the system prompt does. */
+  tools?: readonly SentTool[];
 }
 
 export function createPrompt(deps: PromptDeps) {
@@ -512,9 +531,9 @@ export function createPrompt(deps: PromptDeps) {
     const designDocs = designs && deps.attachments !== undefined ? designDocsLine(deps.attachments, session.id) : '';
     const system = `${PREAMBLE.replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`)}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${designDocs === '' ? '' : `\n\n${designDocs}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 
-    // The limit is what a request may carry; the reply has its own room beyond it.
+    // The limit is what a request may carry; the reply has its own room beyond it. The tools go with every request.
     const limit = ASSISTANT_INPUT_TOKEN_LIMIT[provider];
-    const budget = limit - SLACK_TOKENS - estimateTokens(system);
+    const budget = limit - SLACK_TOKENS - estimateTokens(system) - toolTokens(opts.tools ?? []);
     if (budget < 2000) {
       throw new ProviderError({
         provider,

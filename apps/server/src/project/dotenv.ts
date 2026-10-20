@@ -34,7 +34,12 @@ export const AI_ENV_NAMES = [
 ] as const;
 export type AiEnvName = (typeof AI_ENV_NAMES)[number];
 
-export const KEPT_OUT_OF_THE_ENVIRONMENT: readonly string[] = AI_ENV_NAMES;
+/**
+ * Names the project's `.env` never copies into the environment. The AI keys are read from the file
+ * where they are needed; `ADMINIUM_FIGMA_TOKEN` is the project owner's own token under `adminium
+ * design`, and is taken from the process's environment only, never from a file kept in the project.
+ */
+export const KEPT_OUT_OF_THE_ENVIRONMENT: readonly string[] = [...AI_ENV_NAMES, 'ADMINIUM_FIGMA_TOKEN'];
 
 /** The variables in `<root>/.env`, or null when there is no such file. */
 export function readDotEnv(root: string): Record<string, string> | null {

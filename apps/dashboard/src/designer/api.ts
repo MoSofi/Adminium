@@ -162,6 +162,35 @@ export interface DesignerAttachment {
   columns?: string[];
 }
 
+/** A person's Figma connection (`GET /designer/figma`): never the token. */
+export interface FigmaStatus {
+  connected: boolean;
+  /** `mine`: kept on this server for them; `environment`: the project's own token, under `adminium design`. */
+  source: 'mine' | 'environment' | null;
+  handle: string | null;
+  /** False when this server calls nothing outside itself. */
+  network: boolean;
+  /** False where what this server keeps of a frame does not outlive the next deploy. */
+  lasting: boolean;
+}
+
+/** A frame imported from Figma and kept on the server until the message it goes with is sent. */
+export interface FigmaImport {
+  importId: string;
+  outlineName: string;
+  pictureName: string;
+  width: number;
+  height: number;
+  /** Reads Figma counted: 0 when it came from the copy this server kept. */
+  reads: number;
+}
+
+/** Why Figma could not be read (`details.figma` of a refusal), as the server lists it. */
+export type FigmaRefusal =
+  | { kind: 'network-off' | 'token' | 'no-access' | 'no-frame' | 'render-failed' | 'too-large' | 'document-too-large' | 'unreachable' | 'not-connected' }
+  | { kind: 'limit'; type: 'low' | 'high'; retryAfterSeconds: number | null }
+  | { kind: 'paused'; until: number; dated: boolean };
+
 export type DesignerCard =
   | {
       id: string;
@@ -251,6 +280,9 @@ export type StepFacts = {
   outcome?: 'added' | 'declined' | 'refused' | 'failed';
   ended?: 'stopped' | 'error' | 'miss';
   look?: string;
+  /** A Figma read that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
+  until?: number;
+  dated?: boolean;
 };
 
 /** One element of the previewed page, as the person pointed at it: what the screen said of it. */
@@ -378,6 +410,7 @@ export const designerKeys = {
   models: ['designer', 'models'] as const,
   styles: ['designer', 'styles'] as const,
   session: (id: string) => ['designer', 'session', id] as const,
+  figma: ['designer', 'figma'] as const,
   versions: (id: string) => ['designer', 'versions', id] as const,
   architecture: (id: string) => ['designer', 'architecture', id] as const,
   files: (id: string) => ['designer', 'files', id] as const,
@@ -439,7 +472,39 @@ async function uploadAttachment(sessionId: string, file: Blob & { name?: string 
   return (body as { attachment: DesignerAttachment }).attachment;
 }
 
+/** One half of a Figma import, sent with a message: the server copies its own bytes in, so no body goes up. */
+async function uploadFigma(sessionId: string, importId: string, part: 'picture' | 'outline'): Promise<DesignerAttachment> {
+  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=figma&figma=${encodeURIComponent(importId)}&figma_part=${part}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', ...csrfHeaders() },
+  });
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    // Said below.
+  }
+  if (!response.ok) {
+    const envelope = (body ?? {}) as { error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } };
+    throw new ApiError(
+      response.status,
+      typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+      typeof envelope.error?.message === 'string' ? envelope.error.message : `The file could not be attached (${String(response.status)}).`,
+      typeof envelope.error?.requestId === 'string' ? envelope.error.requestId : null,
+      envelope.error?.details,
+    );
+  }
+  return (body as { attachment: DesignerAttachment }).attachment;
+}
+
 export const designerApi = {
+  figma: () => api.get<FigmaStatus>(`${BASE}/figma`),
+  /** Checked with Figma before it is kept; a token Figma refuses is not kept. */
+  saveFigmaToken: (token: string) => api.put<FigmaStatus>(`${BASE}/figma`, { token }),
+  removeFigma: () => api.delete<FigmaStatus>(`${BASE}/figma`),
+  importFigma: (link: string) => api.post<FigmaImport>(`${BASE}/figma/import`, { link }),
+  uploadFigma,
   state: () => api.get<DesignerState>(`${BASE}/state`),
   yourApps: () => api.get<{ apps: YourApp[] }>(`${BASE}/sessions`),
   catalog: () => api.get<{ state: 'ok' | 'off' | 'unreachable'; apps: CatalogApp[] }>(`${BASE}/apps`),
@@ -497,6 +562,7 @@ export const designerApi = {
 };
 
 export const designerStateQuery = () => queryOptions({ queryKey: designerKeys.state, queryFn: designerApi.state });
+export const figmaQuery = () => queryOptions({ queryKey: designerKeys.figma, queryFn: designerApi.figma, staleTime: 30_000, retry: false });
 export const yourAppsQuery = () => queryOptions({ queryKey: designerKeys.apps, queryFn: designerApi.yourApps });
 export const catalogQuery = () => queryOptions({ queryKey: designerKeys.catalog, queryFn: designerApi.catalog, staleTime: 5 * 60_000, retry: false });
 export const modelsQuery = () => queryOptions({ queryKey: designerKeys.models, queryFn: designerApi.models, staleTime: 30_000 });

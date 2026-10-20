@@ -19,6 +19,8 @@ import type { DesignerEvent } from '../src/designer/events.js';
 import { createEventLog, TEXT_FLUSH_CHARS } from '../src/designer/events.js';
 import { createDesignerRunner, MAX_REPAIRS, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle, pictureBlocks } from '../src/designer/runner.js';
 import { createSessionStore, type DesignerSession, type SessionStore } from '../src/designer/session-store.js';
+import { createAttachments, type Attachments } from '../src/designer/attachments.js';
+import type { PromptOpts } from '../src/designer/prompt.js';
 import type { DesignerTool } from '../src/designer/tool-types.js';
 import { closeDangling, INTERRUPTED, joinUserMessages } from '../src/designer/transcript.js';
 
@@ -209,6 +211,9 @@ function harness(
     advice?: () => string[];
     sight?: NonNullable<Parameters<typeof createDesignerRunner>[0]['sight']>;
     holdCapMs?: number;
+    onPrompt?: (opts: PromptOpts | undefined) => void;
+    attachments?: Attachments;
+    windowOf?: (session: DesignerSession) => Promise<number>;
   } = {},
 ): Harness {
   const model = scripted(steps);
@@ -223,7 +228,10 @@ function harness(
     store,
     runnerFor: async () => ({ runner: model }),
     tools: () => opts.tools ?? [echo, writing, asking],
-    prompt: async (_session, messages) => ({ system: 'You build apps.', messages }),
+    prompt: async (_session, messages, promptOpts) => {
+      opts.onPrompt?.(promptOpts);
+      return { system: 'You build apps.', messages };
+    },
     pipeline: async (_session, handle) => {
       h.pipelineRuns += 1;
       if (opts.pipeline !== undefined) return opts.pipeline(handle);
@@ -235,6 +243,8 @@ function harness(
     ...(opts.advice === undefined ? {} : { advice: opts.advice }),
     ...(opts.sight === undefined ? {} : { sight: opts.sight }),
     ...(opts.holdCapMs === undefined ? {} : { holdCapMs: opts.holdCapMs }),
+    ...(opts.attachments === undefined ? {} : { attachments: opts.attachments }),
+    ...(opts.windowOf === undefined ? {} : { windowOf: opts.windowOf }),
     retryWaitsMs: [0, 0],
     publish: (event) => h.published.push(event),
     audit: async (action) => {
@@ -275,6 +285,58 @@ describe('a Designer turn', () => {
     expect(store.messages(session.id).map((entry) => entry.message.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
     expect(store.read(session.id)).toMatchObject({ turns: 1, tokens: { in: 200, out: 20 } });
     expect(store.eventsSince(session.id, 0, 100).events).toHaveLength(10);
+  });
+
+  it('tells the prompt which tools the request carries, as they are sent, so their room is counted', async () => {
+    const session = newSession();
+    const seen: (PromptOpts | undefined)[] = [];
+    const h = harness([says('Done.')], { onPrompt: (promptOpts) => seen.push(promptOpts) });
+    await h.runner.start(session.id, { text: 'Hello.', by: { id: 'u1', label: 'Owner' } });
+    await h.runner.settled();
+    expect(seen[0]?.tools?.map((tool) => tool.name)).toEqual(['read_file', 'write_file', 'ask_person']);
+    expect(seen[0]?.tools).toEqual(h.model.requests[0]?.tools);
+  });
+
+  it('sends a Figma frame’s picture and whole document to a large window, and its short form alone to a small one', async () => {
+    const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 1)]);
+    const stamp = { fileKey: 'AbCdEf0123456789', nodeId: '1:2', version: '42', frame: 'Checkout', short: '# short form' };
+    for (const [window, pictures, words] of [[160_000, 1, 'Its design document, whole:'], [20_000, 0, 'Its short form, made for this model']] as const) {
+      const session = newSession();
+      const attachments = createAttachments(root);
+      const doc = attachments.add(session.id, { filename: 'Checkout — Figma design.md', bytes: Buffer.from('# "Checkout" — Figma design\n- palette: #ffffff ×1'), imported: { source: 'figma', figma: stamp } });
+      const picture = attachments.add(session.id, { filename: 'Checkout.png', bytes: PNG, imported: { source: 'figma', figma: stamp } });
+      const h = harness([says('Done.')], { attachments, windowOf: async () => window });
+      await h.runner.start(session.id, { text: 'Build this.', by: { id: 'u1', label: 'Owner' }, attachments: [doc.id, picture.id] });
+      await h.runner.settled();
+      const first = store.messages(session.id)[0]?.message.content ?? [];
+      expect(first.filter((block) => block.type === 'image')).toHaveLength(pictures);
+      expect(first.some((block) => block.type === 'text' && block.text.includes(words))).toBe(true);
+    }
+  });
+
+  it('joins a picture a step read to the turn, named in words before it, after the results', async () => {
+    const session = newSession();
+    const reading: DesignerTool = {
+      name: 'read_figma',
+      description: 'Read a part.',
+      inputSchema: { type: 'object' },
+      running: () => 'Reading Header from Figma',
+      subject: () => 'Header',
+      run: async () => ({ content: 'the outline', label: 'Read Header from Figma (1 Figma read)', subject: 'Header', facts: { count: 1 }, picture: { ref: 'att_00000000000000000009', mediaType: 'image/png', name: 'figma part 1:5.png' } }),
+    };
+    const h = harness([calls('read_figma'), says('Done.')], { tools: [reading] });
+    await h.runner.start(session.id, { text: 'Look at the header.', by: { id: 'u1', label: 'Owner' } });
+    await h.runner.settled();
+    const results = store.messages(session.id).find((entry) => entry.message.content.some((block) => block.type === 'tool_result'))?.message.content ?? [];
+    expect(results.map((block) => block.type)).toEqual(['tool_result', 'text', 'image']);
+    expect(results[1]).toEqual({ type: 'text', text: '\nThe picture read_figma read of "figma part 1:5.png":' });
+    expect(results[2]).toMatchObject({ type: 'image', ref: 'att_00000000000000000009', mediaType: 'image/png', data: '' });
+    // The line names the part, running and done, with the reads it cost.
+    const steps = h.published.filter((event) => event.kind === 'step');
+    expect(steps.map((event) => (event.kind === 'step' ? [event.state, event.subject, event.count] : null))).toEqual([
+      ['running', 'Header', undefined],
+      ['done', 'Header', 1],
+    ]);
   });
 
   it('tells the model of the element the person pointed at, after their own words, and refuses what is no element', async () => {

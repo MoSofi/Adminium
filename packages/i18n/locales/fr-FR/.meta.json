@@ -6971,6 +6971,70 @@
     "srcHash": "f82be68a7fb4",
     "status": "mt"
   },
+  "common.security.figma.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "common.security.figma.changeToken": {
+    "status": "mt",
+    "srcHash": "e84f6216f1ef"
+  },
+  "common.security.figma.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "common.security.figma.connectedAs": {
+    "status": "mt",
+    "srcHash": "d41f8bf11ed4"
+  },
+  "common.security.figma.disconnect": {
+    "status": "mt",
+    "srcHash": "ed28e0686e12"
+  },
+  "common.security.figma.disconnectBody": {
+    "status": "mt",
+    "srcHash": "f518567ee154"
+  },
+  "common.security.figma.disconnectTitle": {
+    "status": "mt",
+    "srcHash": "1f884cb71fa9"
+  },
+  "common.security.figma.environment": {
+    "status": "mt",
+    "srcHash": "8b2dae4b80f1"
+  },
+  "common.security.figma.kept": {
+    "status": "mt",
+    "srcHash": "f5ce5c69dd6a"
+  },
+  "common.security.figma.newToken": {
+    "status": "mt",
+    "srcHash": "89832f0f5351"
+  },
+  "common.security.figma.none": {
+    "status": "mt",
+    "srcHash": "5200f8bdc645"
+  },
+  "common.security.figma.off": {
+    "status": "mt",
+    "srcHash": "04ca3547bb3e"
+  },
+  "common.security.figma.refused": {
+    "status": "mt",
+    "srcHash": "57d8555ca62e"
+  },
+  "common.security.figma.saveToken": {
+    "status": "mt",
+    "srcHash": "6f8c69b69239"
+  },
+  "common.security.figma.title": {
+    "status": "src",
+    "srcHash": "13be65af4dc9"
+  },
+  "common.security.figma.unreachable": {
+    "status": "mt",
+    "srcHash": "3ccc54d57341"
+  },
   "common.security.password.changed": {
     "status": "mt",
     "srcHash": "092a16e7af1a"
@@ -10271,9 +10335,21 @@
     "status": "mt",
     "srcHash": "c03688be6f47"
   },
+  "designer.attach.files": {
+    "status": "mt",
+    "srcHash": "03bb909db196"
+  },
+  "designer.attach.filesHelp": {
+    "status": "mt",
+    "srcHash": "9c904ccd3371"
+  },
   "designer.attach.fontTooLarge": {
     "status": "mt",
     "srcHash": "deb9e92ed09d"
+  },
+  "designer.attach.fromFigma": {
+    "status": "mt",
+    "srcHash": "2fe23969dd94"
   },
   "designer.attach.imageTooLarge": {
     "status": "mt",
@@ -10282,6 +10358,10 @@
   "designer.attach.list": {
     "status": "mt",
     "srcHash": "a5a109e95c5b"
+  },
+  "designer.attach.menu": {
+    "status": "mt",
+    "srcHash": "1afff0157ce3"
   },
   "designer.attach.noPictures": {
     "status": "mt",
@@ -11166,6 +11246,174 @@
   "designer.export.working": {
     "status": "mt",
     "srcHash": "583cccdcd165"
+  },
+  "designer.figma.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.figma.changeToken": {
+    "status": "mt",
+    "srcHash": "e84f6216f1ef"
+  },
+  "designer.figma.checking": {
+    "status": "mt",
+    "srcHash": "820d6004b037"
+  },
+  "designer.figma.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "designer.figma.connect": {
+    "status": "mt",
+    "srcHash": "b65463cb6a42"
+  },
+  "designer.figma.connectedAs": {
+    "status": "mt",
+    "srcHash": "d41f8bf11ed4"
+  },
+  "designer.figma.dead": {
+    "status": "mt",
+    "srcHash": "61578394c5a2"
+  },
+  "designer.figma.disconnect": {
+    "status": "mt",
+    "srcHash": "ed28e0686e12"
+  },
+  "designer.figma.disconnectBody": {
+    "status": "mt",
+    "srcHash": "f518567ee154"
+  },
+  "designer.figma.disconnectTitle": {
+    "status": "mt",
+    "srcHash": "1f884cb71fa9"
+  },
+  "designer.figma.disconnected": {
+    "status": "mt",
+    "srcHash": "714205fa0dda"
+  },
+  "designer.figma.environment": {
+    "status": "mt",
+    "srcHash": "8b2dae4b80f1"
+  },
+  "designer.figma.err.big": {
+    "status": "mt",
+    "srcHash": "79fdd7d2463a"
+  },
+  "designer.figma.err.figjam": {
+    "status": "mt",
+    "srcHash": "18b1ea8e59da"
+  },
+  "designer.figma.err.gone": {
+    "status": "mt",
+    "srcHash": "b83afb9e2911"
+  },
+  "designer.figma.err.noAccess": {
+    "status": "mt",
+    "srcHash": "431a69fb885b"
+  },
+  "designer.figma.err.noFrame": {
+    "status": "mt",
+    "srcHash": "35bfb321b919"
+  },
+  "designer.figma.err.notFigma": {
+    "status": "mt",
+    "srcHash": "7ff0dfd4ac5a"
+  },
+  "designer.figma.err.proto": {
+    "status": "mt",
+    "srcHash": "8518d878c176"
+  },
+  "designer.figma.err.render": {
+    "status": "mt",
+    "srcHash": "a05f1254fd15"
+  },
+  "designer.figma.err.slides": {
+    "status": "mt",
+    "srcHash": "6697093d3afb"
+  },
+  "designer.figma.err.tooMuch": {
+    "status": "mt",
+    "srcHash": "2a58f6a25d0b"
+  },
+  "designer.figma.err.unreachable": {
+    "status": "mt",
+    "srcHash": "3ccc54d57341"
+  },
+  "designer.figma.hideToken": {
+    "status": "mt",
+    "srcHash": "c144b107e071"
+  },
+  "designer.figma.import": {
+    "status": "mt",
+    "srcHash": "d6fbc9d2bdd5"
+  },
+  "designer.figma.instructions": {
+    "status": "mt",
+    "srcHash": "cc8efdce7f12"
+  },
+  "designer.figma.kept": {
+    "status": "mt",
+    "srcHash": "f5ce5c69dd6a"
+  },
+  "designer.figma.limitDate": {
+    "status": "mt",
+    "srcHash": "98bc3fb2c64e"
+  },
+  "designer.figma.limitMonth": {
+    "status": "mt",
+    "srcHash": "b3f8e59dd152"
+  },
+  "designer.figma.limitWait": {
+    "status": "mt",
+    "srcHash": "c2f1dab7907f"
+  },
+  "designer.figma.linkLabel": {
+    "status": "mt",
+    "srcHash": "96d9fb77235b"
+  },
+  "designer.figma.loading": {
+    "status": "mt",
+    "srcHash": "f37ab15c8393"
+  },
+  "designer.figma.noDisk": {
+    "status": "mt",
+    "srcHash": "405f1306e688"
+  },
+  "designer.figma.notConnected": {
+    "status": "mt",
+    "srcHash": "e54c58c348fb"
+  },
+  "designer.figma.off": {
+    "status": "mt",
+    "srcHash": "04ca3547bb3e"
+  },
+  "designer.figma.reading": {
+    "status": "mt",
+    "srcHash": "3608e66bcf60"
+  },
+  "designer.figma.saved": {
+    "status": "mt",
+    "srcHash": "b6b44e8f38b9"
+  },
+  "designer.figma.showToken": {
+    "status": "mt",
+    "srcHash": "b85f0c3e4ee3"
+  },
+  "designer.figma.standing": {
+    "status": "mt",
+    "srcHash": "4e45730ddfee"
+  },
+  "designer.figma.title": {
+    "status": "mt",
+    "srcHash": "0c9038f4d541"
+  },
+  "designer.figma.tokenLabel": {
+    "status": "mt",
+    "srcHash": "e5294fc0b702"
+  },
+  "designer.figma.tokenRefused": {
+    "status": "mt",
+    "srcHash": "57d8555ca62e"
   },
   "designer.home.cannotBuild": {
     "status": "mt",
@@ -12491,6 +12739,34 @@
     "status": "mt",
     "srcHash": "bdf7203c8d6a"
   },
+  "designer.step.figmaCost": {
+    "status": "mt",
+    "srcHash": "8c7255b54f54"
+  },
+  "designer.step.figmaNot": {
+    "status": "mt",
+    "srcHash": "9ae39bcbbbfb"
+  },
+  "designer.step.figmaPaused": {
+    "status": "mt",
+    "srcHash": "85b1a1029878"
+  },
+  "designer.step.figmaPausedMonth": {
+    "status": "mt",
+    "srcHash": "485e7c2d1ea0"
+  },
+  "designer.step.figmaRead": {
+    "status": "mt",
+    "srcHash": "7dfd954e29fd"
+  },
+  "designer.step.figmaReading": {
+    "status": "mt",
+    "srcHash": "5739f24ad14a"
+  },
+  "designer.step.figmaSaved": {
+    "status": "mt",
+    "srcHash": "e078ad926c1d"
+  },
   "designer.step.fileNotRead": {
     "status": "mt",
     "srcHash": "b120508f42a8"
@@ -12778,6 +13054,10 @@
   "designer.steps.seconds": {
     "status": "src",
     "srcHash": "c1f7eddeb673"
+  },
+  "designer.steps.skippedMark": {
+    "status": "mt",
+    "srcHash": "b7ce47f1f4f8"
   },
   "designer.steps.summary": {
     "status": "mt",

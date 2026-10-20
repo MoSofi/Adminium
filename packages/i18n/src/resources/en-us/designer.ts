@@ -381,7 +381,14 @@ export default {
     "partsAdding": "Adding ready-made parts",
     "partsAdded": "Added ready-made parts",
     "partsFailed": "No ready-made parts were added",
-    "looked": "Looked at {subject} after it built"
+    "looked": "Looked at {subject} after it built",
+    "figmaReading": "Reading {subject} from Figma",
+    "figmaRead": "Read {subject} from Figma",
+    "figmaSaved": "Read {subject} from the saved copy",
+    "figmaNot": "Did not read Figma",
+    "figmaCost": " ({count, plural, one {# Figma read} other {# Figma reads}})",
+    "figmaPaused": "Figma reads are paused for you until {date}. The Designer works from the design document you imported.",
+    "figmaPausedMonth": "Figma reads are paused for you until next month. The Designer works from the design document you imported."
   },
   "steps": {
     "count": "{count, plural, one {# step} other {# steps}}",
@@ -390,7 +397,8 @@ export default {
     "usage": "Step {step} · {tokens} tokens so far",
     "working": "Working",
     "seconds": "{seconds} s",
-    "failedMark": "(failed)"
+    "failedMark": "(failed)",
+    "skippedMark": "(skipped)"
   },
   "turn": {
     "continue": "Continue",
@@ -642,7 +650,7 @@ export default {
     "remove": "Take {name} off",
     "open": "Open {name} in a new tab",
     "rows": "{count, plural, one {# row} other {# rows}}",
-    "wrongKind": "Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2) or a Markdown file (.md) can be attached.",
+    "wrongKind": "Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2), a Markdown file (.md), an HTML or a CSS file, or a site template (.zip) can be attached.",
     "tooMany": "Up to {count} files go with one message.",
     "imageTooLarge": "That picture is over 5 MB. Attach a smaller one.",
     "csvTooLarge": "That file is over 10 MB. For a file that size, use Import on the table’s own page.",
@@ -650,7 +658,11 @@ export default {
     "docTooLarge": "That document is over 200 KB. Attach a shorter one, or paste the part that matters into the message.",
     "noPictures": "{model} does not read pictures. Describe what matters in it, or pick a model that does.",
     "noPicturesPlain": "This model does not read pictures. Describe what matters in it, or pick a model that does.",
-    "notSent": "The message was not sent"
+    "notSent": "The message was not sent",
+    "menu": "Attach",
+    "files": "Files from your computer…",
+    "filesHelp": "A picture, a CSV, font or Markdown file, an HTML or CSS file, or a site template (.zip)",
+    "fromFigma": "From Figma…"
   },
   "needs": {
     "title": "The design needs a few things. Add them?",
@@ -928,5 +940,51 @@ export default {
     "area": "Drag over the part of the page to take a picture of",
     "drawing": "Taking the picture…",
     "failed": "The page could not draw that part. Try again, or attach a picture of your own."
+  },
+  "figma": {
+    "title": "From Figma",
+    "close": "Close",
+    "cancel": "Cancel",
+    "import": "Import",
+    "connect": "Connect",
+    "checking": "Checking…",
+    "loading": "Asking the server…",
+    "notConnected": "Not connected to Figma.",
+    "connectedAs": "Connected to Figma as {handle}",
+    "changeToken": "Change token",
+    "disconnect": "Disconnect",
+    "environment": "Using the Figma token set in this project's environment.",
+    "dead": "Your Figma token no longer works. Paste a new one.",
+    "instructions": "In Figma, open Settings, then Security, then Personal access tokens. Make a token that can read file content and file metadata. Figma shows it once: copy it, then paste it here.",
+    "tokenLabel": "Figma token",
+    "tokenRefused": "Figma did not accept this token. Check it and paste it again.",
+    "kept": "Kept encrypted on this server for you only. Only your own imports use it.",
+    "showToken": "Show the token",
+    "hideToken": "Hide the token",
+    "linkLabel": "Link to a Figma frame",
+    "reading": "Reading the frame from Figma…",
+    "standing": "Each import reads Figma twice. On a View or Collab seat Figma allows {reads} reads a month, so about ten imports. Importing a frame again is free until the file changes.",
+    "noDisk": "This server forgets saved copies when it is deployed again, so an import after a deploy reads Figma again.",
+    "limitDate": "Figma's limit for your seat is used up for now. You can read again on {date}.",
+    "limitMonth": "Figma's limit for your seat is used up for now. You can read again next month.",
+    "limitWait": "Figma asked us to wait. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "off": "Figma is off on this server: network features are turned off.",
+    "saved": "Already imported this version of the frame. No Figma read was used.",
+    "disconnected": "Disconnected from Figma. The token was removed from this server.",
+    "disconnectTitle": "Disconnect Figma?",
+    "disconnectBody": "Your imports already in the Designer stay.",
+    "err": {
+      "notFigma": "That is not a Figma link.",
+      "noFrame": "Pick a frame in Figma and copy its link.",
+      "figjam": "That is a FigJam board. Paste a link to a design frame.",
+      "slides": "That is a Slides deck. Paste a link to a design frame.",
+      "proto": "That is a prototype link. Paste a link to a design frame.",
+      "noAccess": "Your Figma account cannot open this file. Ask its owner to share it with you.",
+      "gone": "That frame is not in the file any more.",
+      "render": "Figma could not draw this frame. Try again, or pick another frame.",
+      "big": "Pick a smaller frame: this one renders over 5 MB.",
+      "tooMuch": "This frame holds more than can be read at once. Pick a smaller frame.",
+      "unreachable": "Figma did not answer. Try again in a moment."
+    }
   }
 } as const;

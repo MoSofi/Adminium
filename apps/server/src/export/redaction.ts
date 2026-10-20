@@ -151,6 +151,9 @@ const CREDENTIAL_COLUMN_PATTERNS: readonly RegExp[] = [
   /lastError/i,
 ];
 
+/** Whether a column's name says it holds a credential. */
+export const credentialShaped = (column: string): boolean => CREDENTIAL_COLUMN_PATTERNS.some((re) => re.test(column));
+
 /** Throws if any allow-listed column looks credential-bearing. */
 export function assertNoCredentialColumns(): void {
   for (const [table, columns] of Object.entries(EXPORTED_COLUMNS)) {

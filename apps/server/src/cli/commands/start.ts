@@ -32,6 +32,7 @@
  * no way to boot the old image at all (not even to export before restoring).
  */
 
+import type { SafeFetchOptions } from '../../net/safe-fetch.js';
 import { createLocalOwner, firstRun, isBootstrapRequired, settingsRepo, usersRepo } from '@adminium/meta';
 
 import {
@@ -192,6 +193,8 @@ export interface StartFlags {
    * to, and with `ownerToken` the app's window signs the project's owner in once, on this computer only.
    */
   shared?: { ownerToken?: string | undefined } | undefined;
+  /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
+  figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
 }
 
 /**
@@ -483,6 +486,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       ...(projectServer === undefined ? {} : { project: projectServer }),
       ...(design !== undefined || flags.shared === undefined ? {} : { shared: { port: env.PORT, ...(flags.shared.ownerToken === undefined ? {} : { ownerToken: flags.shared.ownerToken }) } }),
       ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(prepared.thisComputer === true ? { thisComputer: true } : {}), ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
+      ...(flags.figmaSeams === undefined ? {} : { figmaSeams: flags.figmaSeams }),
       log: (message) => {
         io.out(message);
       },

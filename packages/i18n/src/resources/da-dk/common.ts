@@ -1686,6 +1686,24 @@ export default {
       "secretHelper": "Indsæt opsætningslinket i din godkendelsesapp, eller skriv nøglen ind i hånden.",
       "secret": "Opsætningsnøgle",
       "title": "Tofaktorgodkendelse"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Ikke forbundet. Forbind Figma fra Designerens menu Vedhæft, Fra Figma…",
+      "connectedAs": "Forbundet til Figma som {handle}",
+      "kept": "Gemt krypteret på denne server kun til dig. Kun dine egne importer bruger det.",
+      "environment": "Bruger Figma-tokenet fra dette projekts miljø.",
+      "changeToken": "Skift token",
+      "disconnect": "Afbryd",
+      "newToken": "Nyt token",
+      "saveToken": "Gem token",
+      "cancel": "Annullér",
+      "close": "Luk",
+      "refused": "Figma godkendte ikke dette token. Tjek det, og indsæt det igen.",
+      "off": "Figma er slået fra på denne server: netværksfunktioner er slået fra.",
+      "unreachable": "Figma svarede ikke. Prøv igen om lidt.",
+      "disconnectTitle": "Afbryd Figma?",
+      "disconnectBody": "Dine importer, der allerede er i Designer, bliver."
     }
   },
   "team": {

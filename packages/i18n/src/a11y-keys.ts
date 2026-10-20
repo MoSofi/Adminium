@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3036 entries. */
+/** `namespace:key` — 3044 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -629,6 +629,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:reports.nextRun',
   'common:reports.subtitle',
   'common:reports.title',
+  'common:security.figma.disconnectTitle',
   'common:security.password.changed',
   'common:security.password.confirm',
   'common:security.password.current',
@@ -858,8 +859,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:arch.staffSide',
   'designer:arch.tables',
   'designer:arch.uses',
-  'designer:attach.button',
   'designer:attach.list',
+  'designer:attach.menu',
   'designer:attach.notSent',
   'designer:attach.open',
   'designer:attach.pasted',
@@ -948,6 +949,13 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:export.saveTitle',
   'designer:export.saved',
   'designer:export.title',
+  'designer:figma.close',
+  'designer:figma.disconnectTitle',
+  'designer:figma.disconnected',
+  'designer:figma.hideToken',
+  'designer:figma.saved',
+  'designer:figma.showToken',
+  'designer:figma.title',
   'designer:home.failed',
   'designer:home.ignoredEnvHide',
   'designer:home.placeholder',

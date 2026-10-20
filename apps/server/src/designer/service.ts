@@ -64,6 +64,8 @@ export interface DesignerHost {
   log: (message: string, error?: unknown) => void;
   /** What people attach to a message. */
   attachments?: Attachments;
+  /** The most tokens a request to a session's model may carry. */
+  windowOf?: (session: DesignerSession) => Promise<number>;
   /** The tools and what the model is told; given by the parts that build them. */
   tools?: (session: DesignerSession) => DesignerTool[];
   prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[], opts?: import('./prompt.js').PromptOpts) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
@@ -550,6 +552,7 @@ export function createDesigner(host: DesignerHost): Designer {
       return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS, ...(effort === undefined ? {} : { effort }) };
     },
     ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
+    ...(host.windowOf === undefined ? {} : { windowOf: host.windowOf }),
     tools: (session) => host.tools?.(session) ?? [],
     prompt: async (session, messages, opts) => host.prompt?.(session, messages, opts) ?? { system: 'You are Adminium Designer.', messages },
     pipeline: (session, handle) => pipeline(session, handle),

@@ -1686,6 +1686,24 @@ export default {
       "secretHelper": "把設定連結貼到你的驗證器中，或手動輸入這組金鑰。",
       "secret": "設定金鑰",
       "title": "兩步驟驗證"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "未連線。請在設計工具的「附加」選單中選擇「從 Figma…」來連線 Figma。",
+      "connectedAs": "已以 {handle} 連線到 Figma",
+      "kept": "僅為你加密保存在此伺服器上。只有你自己的匯入會使用它。",
+      "environment": "正在使用此專案環境中設定的 Figma 權杖。",
+      "changeToken": "更換權杖",
+      "disconnect": "中斷連線",
+      "newToken": "新權杖",
+      "saveToken": "儲存權杖",
+      "cancel": "取消",
+      "close": "關閉",
+      "refused": "Figma 未接受此權杖。請檢查後重新貼上。",
+      "off": "此伺服器已關閉 Figma：網路功能已關閉。",
+      "unreachable": "Figma 沒有回應。請稍後重試。",
+      "disconnectTitle": "中斷 Figma 連線？",
+      "disconnectBody": "已在設計工具中的匯入內容會保留。"
     }
   },
   "team": {

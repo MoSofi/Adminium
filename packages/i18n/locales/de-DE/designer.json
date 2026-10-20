@@ -371,7 +371,14 @@
     "partsAdding": "Fügt fertige Bausteine hinzu",
     "partsAdded": "Fertige Bausteine hinzugefügt",
     "partsFailed": "Keine fertigen Bausteine hinzugefügt",
-    "looked": "Hat sich {subject} nach dem Build angesehen"
+    "looked": "Hat sich {subject} nach dem Build angesehen",
+    "figmaReading": "{subject} wird aus Figma gelesen",
+    "figmaRead": "{subject} aus Figma gelesen",
+    "figmaSaved": "{subject} aus der gespeicherten Kopie gelesen",
+    "figmaNot": "Figma nicht gelesen",
+    "figmaCost": " ({count, plural, one {# Figma-Lesevorgang} other {# Figma-Lesevorgänge}})",
+    "figmaPaused": "Figma-Lesevorgänge sind für dich bis {date} pausiert. Der Designer arbeitet mit dem Design-Dokument, das du importiert hast.",
+    "figmaPausedMonth": "Figma-Lesevorgänge sind für dich bis nächsten Monat pausiert. Der Designer arbeitet mit dem Design-Dokument, das du importiert hast."
   },
   "steps": {
     "count": "{count, plural, one {# Schritt} other {# Schritte}}",
@@ -380,7 +387,8 @@
     "usage": "Schritt {step} · bisher {tokens} Tokens",
     "working": "Arbeitet",
     "seconds": "{seconds} s",
-    "failedMark": "(fehlgeschlagen)"
+    "failedMark": "(fehlgeschlagen)",
+    "skippedMark": "(übersprungen)"
   },
   "turn": {
     "continue": "Weiter",
@@ -632,7 +640,7 @@
     "remove": "{name} entfernen",
     "open": "{name} in neuem Tab öffnen",
     "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
-    "wrongKind": "Nur ein Bild (PNG, JPEG, WebP oder GIF), eine CSV-Datei, eine Schrift (.woff2) oder eine Markdown-Datei (.md) kann angehängt werden.",
+    "wrongKind": "Nur ein Bild (PNG, JPEG, WebP oder GIF), eine CSV-Datei, eine Schrift (.woff2), eine Markdown-Datei (.md), eine HTML- oder CSS-Datei oder eine Website-Vorlage (.zip) kann angehängt werden.",
     "tooMany": "Bis zu {count} Dateien passen zu einer Nachricht.",
     "imageTooLarge": "Dieses Bild ist größer als 5 MB. Hänge ein kleineres an.",
     "csvTooLarge": "Diese Datei ist größer als 10 MB. Für eine Datei dieser Größe nutze Import auf der Seite der Tabelle.",
@@ -640,7 +648,11 @@
     "docTooLarge": "Dieses Dokument ist größer als 200 KB. Hänge ein kürzeres an oder füge den wichtigen Teil in die Nachricht ein.",
     "noPictures": "{model} liest keine Bilder. Beschreibe, worauf es darin ankommt, oder wähle ein Modell, das Bilder liest.",
     "noPicturesPlain": "Dieses Modell liest keine Bilder. Beschreibe, worauf es darin ankommt, oder wähle ein Modell, das Bilder liest.",
-    "notSent": "Die Nachricht wurde nicht gesendet"
+    "notSent": "Die Nachricht wurde nicht gesendet",
+    "menu": "Anhängen",
+    "files": "Dateien von deinem Computer…",
+    "filesHelp": "Ein Bild, eine CSV-, Schrift- oder Markdown-Datei, eine HTML- oder CSS-Datei oder eine Website-Vorlage (.zip)",
+    "fromFigma": "Aus Figma…"
   },
   "needs": {
     "title": "Das Design braucht ein paar Dinge. Hinzufügen?",
@@ -918,5 +930,51 @@
     "area": "Ziehen Sie über den Teil der Seite, von dem ein Bild aufgenommen werden soll",
     "drawing": "Bild wird aufgenommen…",
     "failed": "Die Seite konnte diesen Teil nicht zeichnen. Versuchen Sie es erneut oder hängen Sie ein eigenes Bild an."
+  },
+  "figma": {
+    "title": "Aus Figma",
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "import": "Importieren",
+    "connect": "Verbinden",
+    "checking": "Wird geprüft…",
+    "loading": "Server wird gefragt…",
+    "notConnected": "Nicht mit Figma verbunden.",
+    "connectedAs": "Mit Figma verbunden als {handle}",
+    "changeToken": "Token ändern",
+    "disconnect": "Trennen",
+    "environment": "Es wird das Figma-Token aus der Umgebung dieses Projekts verwendet.",
+    "dead": "Dein Figma-Token funktioniert nicht mehr. Füge ein neues ein.",
+    "instructions": "Öffne in Figma die Einstellungen, dann Sicherheit, dann Persönliche Zugriffstoken. Erstelle ein Token, das Dateiinhalte und Dateimetadaten lesen darf. Figma zeigt es nur einmal: Kopiere es und füge es hier ein.",
+    "tokenLabel": "Figma-Token",
+    "tokenRefused": "Figma hat dieses Token nicht akzeptiert. Prüfe es und füge es erneut ein.",
+    "kept": "Verschlüsselt auf diesem Server nur für dich gespeichert. Nur deine eigenen Importe verwenden es.",
+    "showToken": "Token anzeigen",
+    "hideToken": "Token verbergen",
+    "linkLabel": "Link zu einem Figma-Frame",
+    "reading": "Frame wird aus Figma gelesen…",
+    "standing": "Jeder Import liest Figma zweimal. Mit einem View- oder Collab-Platz erlaubt Figma {reads} Lesevorgänge im Monat, also etwa zehn Importe. Einen Frame erneut zu importieren ist kostenlos, bis sich die Datei ändert.",
+    "noDisk": "Dieser Server vergisst gespeicherte Kopien, wenn er neu bereitgestellt wird. Ein Import danach liest Figma erneut.",
+    "limitDate": "Das Figma-Limit für deinen Platz ist vorerst aufgebraucht. Du kannst am {date} wieder lesen.",
+    "limitMonth": "Das Figma-Limit für deinen Platz ist vorerst aufgebraucht. Du kannst nächsten Monat wieder lesen.",
+    "limitWait": "Figma hat uns gebeten zu warten. Versuche es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
+    "off": "Figma ist auf diesem Server aus: Netzwerkfunktionen sind ausgeschaltet.",
+    "saved": "Diese Version des Frames wurde bereits importiert. Es wurde kein Figma-Lesevorgang verbraucht.",
+    "disconnected": "Von Figma getrennt. Das Token wurde von diesem Server entfernt.",
+    "disconnectTitle": "Figma trennen?",
+    "disconnectBody": "Deine Importe, die schon im Designer sind, bleiben.",
+    "err": {
+      "notFigma": "Das ist kein Figma-Link.",
+      "noFrame": "Wähle in Figma einen Frame aus und kopiere seinen Link.",
+      "figjam": "Das ist ein FigJam-Board. Füge einen Link zu einem Design-Frame ein.",
+      "slides": "Das ist eine Slides-Präsentation. Füge einen Link zu einem Design-Frame ein.",
+      "proto": "Das ist ein Prototyp-Link. Füge einen Link zu einem Design-Frame ein.",
+      "noAccess": "Dein Figma-Konto kann diese Datei nicht öffnen. Bitte ihren Besitzer, sie mit dir zu teilen.",
+      "gone": "Dieser Frame ist nicht mehr in der Datei.",
+      "render": "Figma konnte diesen Frame nicht zeichnen. Versuche es erneut oder wähle einen anderen Frame.",
+      "big": "Wähle einen kleineren Frame: Dieser wird größer als 5 MB.",
+      "tooMuch": "Dieser Frame enthält mehr, als auf einmal gelesen werden kann. Wähle einen kleineren Frame.",
+      "unreachable": "Figma hat nicht geantwortet. Versuche es gleich noch einmal."
+    }
   }
 }

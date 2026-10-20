@@ -25,6 +25,8 @@ export class SafeFetchError extends Error {
     readonly reason: 'address' | 'blocked' | 'unresolved' | 'redirects' | 'too-large' | 'timeout' | 'status' | 'network',
     message: string,
     readonly status?: number,
+    /** For a status: the answer's headers, names in lower case (a 429's `retry-after`). */
+    readonly headers?: Readonly<Record<string, string>>,
   ) {
     super(message);
   }
@@ -181,7 +183,8 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
       }
       if (response.status < 200 || response.status >= 300) {
         response.destroy();
-        throw new SafeFetchError('status', `The address answered ${String(response.status)}.`, response.status);
+        const headers = Object.fromEntries(Object.entries(response.headers).flatMap(([name, value]) => (typeof value === 'string' ? [[name.toLowerCase(), value]] : Array.isArray(value) && value[0] !== undefined ? [[name.toLowerCase(), value[0]]] : [])));
+        throw new SafeFetchError('status', `The address answered ${String(response.status)}.`, response.status, headers);
       }
       const declared = Number(response.headers['content-length']);
       if (Number.isFinite(declared) && declared > opts.maxBytes) {

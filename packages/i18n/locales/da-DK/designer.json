@@ -371,7 +371,14 @@
     "partsAdding": "Tilføjer færdige dele",
     "partsAdded": "Tilføjede færdige dele",
     "partsFailed": "Ingen færdige dele blev tilføjet",
-    "looked": "Kiggede på {subject} efter buildet"
+    "looked": "Kiggede på {subject} efter buildet",
+    "figmaReading": "Læser {subject} fra Figma",
+    "figmaRead": "Læste {subject} fra Figma",
+    "figmaSaved": "Læste {subject} fra den gemte kopi",
+    "figmaNot": "Læste ikke Figma",
+    "figmaCost": " ({count, plural, one {# Figma-læsning} other {# Figma-læsninger}})",
+    "figmaPaused": "Figma-læsninger er sat på pause for dig indtil {date}. Designeren arbejder ud fra det designdokument, du importerede.",
+    "figmaPausedMonth": "Figma-læsninger er sat på pause for dig indtil næste måned. Designeren arbejder ud fra det designdokument, du importerede."
   },
   "steps": {
     "count": "{count, plural, one {# trin} other {# trin}}",
@@ -380,7 +387,8 @@
     "usage": "Trin {step} · {tokens} tokens indtil nu",
     "working": "Arbejder",
     "seconds": "{seconds} s",
-    "failedMark": "(mislykkedes)"
+    "failedMark": "(mislykkedes)",
+    "skippedMark": "(sprunget over)"
   },
   "turn": {
     "continue": "Fortsæt",
@@ -632,7 +640,7 @@
     "remove": "Fjern {name}",
     "open": "Åbn {name} i en ny fane",
     "rows": "{count, plural, one {# række} other {# rækker}}",
-    "wrongKind": "Kun et billede (PNG, JPEG, WebP eller GIF), en CSV-fil, en skrifttype (.woff2) eller en Markdown-fil (.md) kan vedhæftes.",
+    "wrongKind": "Kun et billede (PNG, JPEG, WebP eller GIF), en CSV-fil, en skrifttype (.woff2), en Markdown-fil (.md), en HTML- eller CSS-fil eller en webstedsskabelon (.zip) kan vedhæftes.",
     "tooMany": "Op til {count} filer kan følge med én besked.",
     "imageTooLarge": "Det billede er over 5 MB. Vedhæft et mindre.",
     "csvTooLarge": "Den fil er over 10 MB. Til en fil af den størrelse skal du bruge Import på tabellens egen side.",
@@ -640,7 +648,11 @@
     "docTooLarge": "Det dokument er over 200 KB. Vedhæft et kortere, eller indsæt den del, der betyder noget, i beskeden.",
     "noPictures": "{model} læser ikke billeder. Beskriv det vigtige i det, eller vælg en model, der gør.",
     "noPicturesPlain": "Denne model læser ikke billeder. Beskriv det vigtige i det, eller vælg en model, der gør.",
-    "notSent": "Beskeden blev ikke sendt"
+    "notSent": "Beskeden blev ikke sendt",
+    "menu": "Vedhæft",
+    "files": "Filer fra din computer…",
+    "filesHelp": "Et billede, en CSV-, skrifttype- eller Markdown-fil, en HTML- eller CSS-fil eller en webstedsskabelon (.zip)",
+    "fromFigma": "Fra Figma…"
   },
   "needs": {
     "title": "Designet har brug for et par ting. Skal de tilføjes?",
@@ -918,5 +930,51 @@
     "area": "Træk hen over den del af siden, der skal tages et billede af",
     "drawing": "Tager billedet…",
     "failed": "Siden kunne ikke tegne den del. Prøv igen, eller vedhæft dit eget billede."
+  },
+  "figma": {
+    "title": "Fra Figma",
+    "close": "Luk",
+    "cancel": "Annullér",
+    "import": "Importér",
+    "connect": "Forbind",
+    "checking": "Tjekker…",
+    "loading": "Spørger serveren…",
+    "notConnected": "Ikke forbundet til Figma.",
+    "connectedAs": "Forbundet til Figma som {handle}",
+    "changeToken": "Skift token",
+    "disconnect": "Afbryd",
+    "environment": "Bruger Figma-tokenet fra dette projekts miljø.",
+    "dead": "Dit Figma-token virker ikke længere. Indsæt et nyt.",
+    "instructions": "Åbn Indstillinger i Figma, derefter Sikkerhed og så Personlige adgangstokens. Lav et token, der kan læse filindhold og filmetadata. Figma viser det kun én gang: kopiér det, og indsæt det her.",
+    "tokenLabel": "Figma-token",
+    "tokenRefused": "Figma godkendte ikke dette token. Tjek det, og indsæt det igen.",
+    "kept": "Gemt krypteret på denne server kun til dig. Kun dine egne importer bruger det.",
+    "showToken": "Vis tokenet",
+    "hideToken": "Skjul tokenet",
+    "linkLabel": "Link til en Figma-ramme",
+    "reading": "Læser rammen fra Figma…",
+    "standing": "Hver import læser Figma to gange. På en View- eller Collab-plads tillader Figma {reads} læsninger om måneden, altså omkring ti importer. Det er gratis at importere en ramme igen, indtil filen ændres.",
+    "noDisk": "Denne server glemmer gemte kopier, når den udrulles igen, så en import efter en udrulning læser Figma igen.",
+    "limitDate": "Figmas grænse for din plads er brugt op for nu. Du kan læse igen den {date}.",
+    "limitMonth": "Figmas grænse for din plads er brugt op for nu. Du kan læse igen næste måned.",
+    "limitWait": "Figma bad os vente. Prøv igen om {minutes, plural, one {# minut} other {# minutter}}.",
+    "off": "Figma er slået fra på denne server: netværksfunktioner er slået fra.",
+    "saved": "Denne version af rammen er allerede importeret. Der blev ikke brugt nogen Figma-læsning.",
+    "disconnected": "Forbindelsen til Figma er afbrudt. Tokenet er fjernet fra denne server.",
+    "disconnectTitle": "Afbryd Figma?",
+    "disconnectBody": "Dine importer, der allerede er i Designer, bliver.",
+    "err": {
+      "notFigma": "Det er ikke et Figma-link.",
+      "noFrame": "Vælg en ramme i Figma, og kopiér dens link.",
+      "figjam": "Det er en FigJam-tavle. Indsæt et link til en designramme.",
+      "slides": "Det er en Slides-præsentation. Indsæt et link til en designramme.",
+      "proto": "Det er et prototypelink. Indsæt et link til en designramme.",
+      "noAccess": "Din Figma-konto kan ikke åbne denne fil. Bed ejeren om at dele den med dig.",
+      "gone": "Den ramme findes ikke længere i filen.",
+      "render": "Figma kunne ikke tegne denne ramme. Prøv igen, eller vælg en anden ramme.",
+      "big": "Vælg en mindre ramme: denne bliver over 5 MB.",
+      "tooMuch": "Denne ramme indeholder mere, end der kan læses på én gang. Vælg en mindre ramme.",
+      "unreachable": "Figma svarede ikke. Prøv igen om lidt."
+    }
   }
 }

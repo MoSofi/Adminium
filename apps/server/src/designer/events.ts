@@ -43,6 +43,9 @@ export type DesignerEventBody =
       look?: string;
       /** How a failed step ended: stopped by the person, an error in the tool, or a miss (a file or reference that is not there, which the model is told how to find). */
       ended?: 'stopped' | 'error' | 'miss';
+      /** A read of Figma that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
+      until?: number;
+      dated?: boolean;
     }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
   | { kind: 'spend'; which: SpendMark; mark: number; used: number }

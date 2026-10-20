@@ -33,7 +33,7 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
+import { ASSISTANT_INPUT_TOKEN_LIMIT, llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
 import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   documentProfilesRepo,
@@ -243,7 +243,14 @@ import { bridgeRoutes } from './routes/bridge/index.js';
 import { metaRoutes } from './routes/meta/index.js';
 import { setupStoreRoutes } from './routes/setup/store.js';
 import { createSetupService } from './setup/service.js';
-import { appRoleNames, needsPassword, setLocalOwnerCredentials } from './auth/local-owner.js';
+import { appRoleNames, needsPassword, ownerOnThisComputer, setLocalOwnerCredentials } from './auth/local-owner.js';
+import { cacheOutlivesDeploys, createFigmaCache, machineFacts } from './designer/figma/cache.js';
+import { createFigmaClient } from './designer/figma/client.js';
+import { createFigmaImports } from './designer/figma/imports.js';
+import { createFigmaReader } from './designer/figma/service.js';
+import { createFigmaTokens } from './designer/figma/tokens.js';
+import type { SafeFetchOptions } from './net/safe-fetch.js';
+import { figmaRoutes } from './routes/designer/figma.js';
 import { hashPassword } from './auth/passwords.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
@@ -491,6 +498,11 @@ export interface ComposeServerOptions {
   designerSeam?: ((step: 'held' | 'write', detail?: string) => void | Promise<void>) | undefined;
   /** For tests: how long such a piece of work may hold the project folder before it is told to stop. */
   designerHoldCapMs?: number | undefined;
+  /**
+   * For tests only: how Figma's API is reached (the safe fetch's own `resolve` and `connect`), so a
+   * fake answers in its place. There is no setting for this: a server always calls api.figma.com.
+   */
+  figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -2293,6 +2305,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           const key = (own['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
           return key === '' ? null : unsplash(key);
         };
+        // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
+        const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
+        const figmaCache = createFigmaCache(root);
+        // The project's own token stands in for its owner's under `adminium design` only, read from the process's environment (never the project's .env).
+        const figmaEnvToken = (process.env['ADMINIUM_FIGMA_TOKEN'] ?? '').trim();
+        const figmaTokens = createFigmaTokens({
+          meta,
+          secret: env.ADMINIUM_SECRET,
+          ...(designerOpts.mode === 'local' && figmaEnvToken !== '' ? { environment: { token: figmaEnvToken, ownerId: async () => (await ownerOnThisComputer(meta))?.id ?? null } } : {}),
+        });
+        const figmaReader = createFigmaReader({ client: figmaClient, cache: figmaCache, tokens: figmaTokens });
+        const figmaImports = createFigmaImports();
+        // Set where it is not obeyed: said on the Designer's Home with the others.
+        const figmaIgnored = (designerOpts.mode !== 'local' && figmaEnvToken !== '') || readDotEnv(root)?.['ADMINIUM_FIGMA_TOKEN'] !== undefined ? ['ADMINIUM_FIGMA_TOKEN'] : [];
+        if (designerOpts.mode !== 'local' && figmaEnvToken !== '') app.log.warn('ADMINIUM_FIGMA_TOKEN is used only by `adminium design`: on a server each person connects their own Figma token.');
         designer = createDesigner({
           root,
           version: APP_VERSION,
@@ -2359,6 +2386,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             needsName: (session) => designer?.needsName(session) === true,
           }),
           attachments: designerAttachments,
+          windowOf: async (session) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(session.connectionId))?.provider ?? 'openai-compatible'],
           tools: (session) =>
             createDesignerTools(
               {
@@ -2384,8 +2412,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 newestVersion: designerRegistry,
                 pictures: { source: pictureSource, shown: shownPictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
+                figma: { reader: figmaReader, cache: figmaCache, windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'] },
               },
               session.appKey,
+              session.id,
             ),
         });
         await api.register(
@@ -2394,8 +2424,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             versions: designerVersions,
             connections: aiConnections,
             mode: designerOpts.mode,
-            ignoredEnv: opts.designer?.ignoredEnv ?? [],
+            ignoredEnv: [...(opts.designer?.ignoredEnv ?? []), ...figmaIgnored],
             attachments: designerAttachments,
+            figma: { imports: figmaImports, reader: figmaReader },
             pictures: designerShelf,
             audit: designerAudit,
             ...(live === null ? {} : { live }),
@@ -2470,6 +2501,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 },
                 appKey,
               ),
+          }),
+        );
+        await api.register(
+          figmaRoutes({
+            tokens: figmaTokens,
+            client: figmaClient,
+            reader: figmaReader,
+            imports: figmaImports,
+            network: () => addOnCatalog.networkFeaturesAllowed(),
+            lasting: cacheOutlivesDeploys(figmaCache.dir, machineFacts),
+            ...(live === null ? {} : { live }),
           }),
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.

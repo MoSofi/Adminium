@@ -44,6 +44,7 @@ import {
   RemovalCard,
   SavedChip,
   SpendNotice,
+  FigmaPausedLine,
   StepsBlock,
   StoppedNote,
   UsageLine,
@@ -377,6 +378,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
         <SentPicked picked={turn.picked} />
         <DesignerMessage text={turn.reply} streaming={live}>
           <StepsBlock rows={turn.steps} stepCount={turn.stepCount} live={live} ms={ms} open={isOpen} onToggle={() => setOpen((map) => ({ ...map, [turn.turn]: !isOpen }))} />
+          <FigmaPausedLine rows={turn.steps} />
           {live && turn.usage !== null ? <UsageLine step={turn.usage.step} tokens={turn.usage.tokens} /> : null}
           {turn.cards.map(({ card, answered, answer: given }) => {
             const said = answerOf(given);
