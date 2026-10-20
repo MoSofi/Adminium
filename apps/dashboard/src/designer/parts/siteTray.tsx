@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, type ReactNode } from 'react';
 import { CircleAlert, FileArchive, FileX, LayoutTemplate, LoaderCircle, X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@adminium/ui';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import type { LeftOutReason } from '../api.js';
@@ -71,10 +71,10 @@ export function leftOutWhy(reason: LeftOutReason): string {
 
 const iconButton = 'flex size-[22px] shrink-0 items-center justify-center rounded-md hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-accent';
 
-/** What was left out of a site: a link that opens the list. */
+/** What was left out of a site: a link that opens the list (the chip around it is the list's anchor). */
 function LeftOut({ name, list, count }: { name: string; list: readonly { file: string; reason: LeftOutReason }[]; count: number }): ReactNode {
   return (
-    <Popover>
+    <>
       <PopoverTrigger className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] font-bold text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent" data-part="site-left-out">
         {t('designer:template.leftOut', '{count} left out', { count })}
       </PopoverTrigger>
@@ -90,7 +90,7 @@ function LeftOut({ name, list, count }: { name: string; list: readonly { file: s
         </ul>
         {count > list.length ? <p className="m-0 px-2 pb-1.5 text-[12px] text-fg-muted">{t('designer:template.leftOutMore', 'and {count} more', { count: count - list.length })}</p> : null}
       </PopoverContent>
-    </Popover>
+    </>
   );
 }
 
@@ -153,34 +153,38 @@ export function SiteTray({ site }: { site: SiteControl }): ReactNode {
           </div>
         </div>
       ) : (
-        <div className="flex">
-          <div className="flex max-w-full items-start gap-[7px] rounded-[10px] bg-accent-soft py-1 pe-[3px] ps-2" data-part="site-chip">
-            <LayoutTemplate aria-hidden="true" className="mt-[3px] size-3.5 shrink-0 text-accent" />
-            <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-[12.5px] font-bold leading-[1.6]">
-              <span>
-                <span dir="auto" className="font-mono font-semibold">
-                  {it.name}
-                </span>
-                <span className="font-semibold text-fg-muted">
-                  <span aria-hidden="true"> · </span>
-                  {it.attachment === undefined ? (
-                    t('designer:template.siteWord', 'site template')
-                  ) : (
-                    <>
-                      {t('designer:template.pages', '{count, plural, one {# page} other {# pages}}', { count: it.attachment.pages ?? 0 })}
+        <Popover>
+          <div className="flex">
+            <PopoverAnchor asChild>
+              <div className="flex max-w-full items-start gap-[7px] rounded-[10px] bg-accent-soft py-1 pe-[3px] ps-2" data-part="site-chip">
+                <LayoutTemplate aria-hidden="true" className="mt-[3px] size-3.5 shrink-0 text-accent" />
+                <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-[12.5px] font-bold leading-[1.6]">
+                  <span>
+                    <span dir="auto" className="font-mono font-semibold">
+                      {it.name}
+                    </span>
+                    <span className="font-semibold text-fg-muted">
                       <span aria-hidden="true"> · </span>
-                      {t('designer:template.files', '{count, plural, one {# file} other {# files}}', { count: it.attachment.files ?? 0 })}
-                    </>
-                  )}
+                      {it.attachment === undefined ? (
+                        t('designer:template.siteWord', 'site template')
+                      ) : (
+                        <>
+                          {t('designer:template.pages', '{count, plural, one {# page} other {# pages}}', { count: it.attachment.pages ?? 0 })}
+                          <span aria-hidden="true"> · </span>
+                          {t('designer:template.files', '{count, plural, one {# file} other {# files}}', { count: it.attachment.files ?? 0 })}
+                        </>
+                      )}
+                    </span>
+                  </span>
+                  {it.attachment !== undefined && (it.attachment.leftOutCount ?? 0) > 0 ? <LeftOut name={it.name} list={it.attachment.leftOut ?? []} count={it.attachment.leftOutCount ?? 0} /> : null}
                 </span>
-              </span>
-              {it.attachment !== undefined && (it.attachment.leftOutCount ?? 0) > 0 ? <LeftOut name={it.name} list={it.attachment.leftOut ?? []} count={it.attachment.leftOutCount ?? 0} /> : null}
-            </span>
-            <button type="button" onClick={site.remove} aria-label={t('designer:template.remove', 'Remove {name}', { name: it.name })} className={`${iconButton} text-accent`}>
-              <X aria-hidden="true" className="size-[13px]" />
-            </button>
+                <button type="button" onClick={site.remove} aria-label={t('designer:template.remove', 'Remove {name}', { name: it.name })} className={`${iconButton} text-accent`}>
+                  <X aria-hidden="true" className="size-[13px]" />
+                </button>
+              </div>
+            </PopoverAnchor>
           </div>
-        </div>
+        </Popover>
       )}
       {site.refused === null ? null : (
         <div role="alert" className="flex items-start gap-2 rounded-[10px] bg-danger-soft py-2 pe-1 ps-2.5 text-[12.5px] leading-normal">
