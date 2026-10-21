@@ -52,6 +52,7 @@ import { normalizeWriteValue } from '../crud/write-values.js';
 import { AppError } from '../errors.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { resolvePayable, rowKeyOf, type PayableSources, type ResolvedPayable } from './payables.js';
+import { followRefundsOnRecord } from './refunds.js';
 
 export const PAYMENTS_RECORD_JOB = 'payments.record';
 
@@ -132,6 +133,12 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
     // `recording` and the next run (which finds the row) sets it again.
     if (payable !== null) await setPaidStatus(deps, attempt!.payable, payable, actorOf(attempt!), null);
     const moved = await attempts.move(attempt!.id, 'recorded', { recordedKey: key, recordedAt: now() }, now());
+    // Refunds made before it was written down (an event that came first) follow now.
+    if (moved) {
+      await followRefundsOnRecord(deps, attempt!.id).catch((error: unknown) => {
+        deps.log?.warn({ attempt: attempt!.id, err: error }, 'payment recorded; its refunds are written by the sweep');
+      });
+    }
     // Only the run that moved it: a retry, a racing run or the pickup finds it recorded and tells nobody again.
     if (moved && deps.onRecorded !== undefined) {
       const recorded = await attempts.byId(attempt!.id);

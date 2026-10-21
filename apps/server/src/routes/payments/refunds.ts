@@ -8,18 +8,28 @@
  *   POST /payments/refunds               the confirm step: one refund, under the
  *                                        key the dialog minted at that step
  *
+ * Both reach the payment's record the way the Payment panel does: a table
+ * record only under the person's own row limits, one they do not reach
+ * answering as a payment that is not there. A record since deleted, and an
+ * invoice made on the Invoices page, have no row to limit by.
+ *
  * What a refund does, and why each refusal, is `payments/refunds.ts`.
  */
 import { REFUND_REASONS } from '@adminium/add-on-contracts';
-import { paymentAttemptsRepo, refundsRepo, type RefundRow } from '@adminium/meta';
+import { paymentAttemptsRepo, refundsRepo, type PaymentAttempt, type RefundRow } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { audited, auditExempt } from '../../audit/coverage.js';
+import { fetchVisible } from '../../crud/row-limit.js';
+import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { pkOfRowKey } from '../../payments/payables.js';
 import { refundableOf, refundRefusalOf, requestRefund, type RefundDeps } from '../../payments/refunds.js';
+import { createPublicViews } from '../../public-api/runtime.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import type { PermissionSet } from '../../rbac/resolver.js';
 
 const idParams = z.object({ id: z.string().min(1).max(64) });
 const refundBody = z
@@ -82,14 +92,43 @@ function personOf(request: FastifyRequest): string {
 }
 
 export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
+  const views = createPublicViews(deps.meta);
+
+  /** The payment, when this person reaches its record; refuses (or answers "no such payment") otherwise. */
+  async function reachable(request: FastifyRequest, attemptId: string): Promise<PaymentAttempt> {
+    const attempt = await paymentAttemptsRepo(deps.meta).byId(attemptId);
+    if (attempt === null) throw new NotFoundError('No such payment.');
+    const { connectionId, tableName, rowKey } = attempt.payable;
+    if (attempt.payable.kind === 'document' || connectionId === null || tableName === null) return attempt;
+    const found = await deps.sources.table(connectionId, tableName);
+    // The table is gone: no row is left to limit by.
+    if (found === null) return attempt;
+    const table = found.table;
+    if (!(await request.can(`table:${connectionId}:${table.id}:read`))) throw new ForbiddenError('You may not read the record this payment was for.', 'TABLE_FORBIDDEN');
+    const pk = pkOfRowKey(table, rowKey);
+    if (pk === null) return attempt;
+    const byKey = () => found.target.db.selectFrom(table.id).selectAll().where((eb) => eb.and(Object.entries(pk).map(([column, value]) => eb(found.target.db.dynamic.ref(column), '=', value)))).executeTakeFirst();
+    // When the row limits cannot be worked out, nothing is refunded: never past them.
+    const set = (request as unknown as { rbacResolution?: PermissionSet }).rbacResolution;
+    const view = await views.viewFor(connectionId);
+    if (set === undefined || view === null || !view.model.tables.some((one) => one.id === table.id)) {
+      throw new ForbiddenError('You may not refund this payment: which records you may see cannot be worked out.', 'TABLE_FORBIDDEN');
+    }
+    const context = await rowLimitContextOf(deps.meta, set, connectionId, view.model);
+    if (context === null) return attempt;
+    if ((await fetchVisible(context, found.target.db, table, pk, 'read')) !== undefined) return attempt;
+    // Hidden by the person's row limits: answered as a payment that is not there. A row deleted since is no one's to hide.
+    if ((await byKey()) !== undefined) throw new NotFoundError('No such payment.');
+    return attempt;
+  }
+
   return async (app) => {
     app.get(
       '/payments/attempts/:id/refund',
       { preHandler: app.rbac.require(PERMISSIONS.paymentsRefund), config: { audit: auditExempt('reading what a refund would do changes nothing') }, schema: { params: idParams, response: { 200: previewReply } } },
       async (request) => {
         personOf(request);
-        const attempt = await paymentAttemptsRepo(deps.meta).byId(request.params.id);
-        if (attempt === null) throw new NotFoundError('No such payment.');
+        const attempt = await reachable(request, request.params.id);
         return {
           data: {
             label: attempt.payableLabel,
@@ -111,6 +150,7 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
       async (request) => {
         const by = personOf(request);
         const body = request.body;
+        await reachable(request, body.attemptId);
         const answer = await requestRefund(deps, { attemptId: body.attemptId, amount: body.amount, reason: body.reason, note: body.note === '' ? null : body.note, key: body.key, requestedBy: by });
         if (!answer.ok) {
           if (answer.refusal.code === 'KEY_REUSED' || answer.refusal.code === 'BUSY') throw new ConflictError(answer.refusal.message, 'CONFLICT', { reason: answer.refusal.code });

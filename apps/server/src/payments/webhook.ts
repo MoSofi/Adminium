@@ -192,7 +192,8 @@ export async function followEvent(
     await paymentEventsRepo(deps.meta).markProcessed(event.id, at);
     return true;
   }
-  if (attempt !== null && event.kind !== 'dispute' && event.kind !== 'refund') return enqueueSettle(deps.enqueue, attempt.id, event.id);
+  // Anything else about a payment, a refund event that names no refund among it, is the settle job's.
+  if (attempt !== null && event.kind !== 'dispute') return enqueueSettle(deps.enqueue, attempt.id, event.id);
   await paymentEventsRepo(deps.meta).markProcessed(event.id, at);
   return false;
 }

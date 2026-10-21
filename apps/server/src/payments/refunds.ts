@@ -24,7 +24,10 @@
  * Refused before the provider is asked: money not taken, still waiting for
  * the bank, disputed, refunded in full, more than is left. The provider's
  * own refusals (a method that cannot be refunded online, a window passed)
- * come back in its words.
+ * come back in its words. Only such a refusal fails a refund: any other
+ * answer (the service down, its key refused, an answer outside its contract)
+ * leaves it `requested`, and it is asked again with the same key. Two asks of
+ * one refund at once are one ask.
  *
  * ─── THE RECORD FOLLOWS ────────────────────────────────────────────────────
  *
@@ -35,27 +38,44 @@
  * increment, so a repeat or a race writes the same thing. The balance then
  * reopens by itself. A table that keeps no refunds keeps the refund in
  * Adminium only: the record's balance is left to the table's own rules. A
- * record's status changes only through its "refunded in full" rule. A pay
- * link is never revived: the old one stays retired.
+ * record's status changes only through its "refunded in full" rule (and
+ * back to its "paid" one when a refund fails afterwards). A pay link is never
+ * revived: the old one stays retired.
+ *
+ * Only a live payment writes to the shop's tables: a test or demo refund is
+ * kept in Adminium alone, like the payment it refunds. A refund made before
+ * its payment was written down follows once it is. Refunds never stand above
+ * what was paid on the record: past it, the record shows what was paid as
+ * refunded, and the refund is flagged. A write that fails (the database
+ * away, a rule refusing) never undoes the refund the provider made: it is
+ * flagged and tried again until it lands; a payment row since deleted is
+ * flagged for a person.
  *
  * ─── A REFUND MADE AT THE PROVIDER ─────────────────────────────────────────
  *
  * A refund event about a payment Adminium recorded, for a refund Adminium
  * did not ask for, is asked of the provider and recorded as made there
  * (source `provider`): the record follows the same way, and it is flagged in
- * Activity for a person to look at.
+ * Activity for a person to look at. Its amount is read in the currency's own
+ * decimals; one in another currency than was paid is kept and flagged, never
+ * written. An event about a refund asked here whose answer was lost (the
+ * same payment, the same amount, still waiting for its id) is that refund,
+ * not one made there.
  *
  * ─── DISPUTES ──────────────────────────────────────────────────────────────
  *
  * A dispute event marks the payment disputed (and, later, closed). The
  * event says that it happened and when, and nothing more: the deadline, the
  * amount and the outcome are read in the provider's own dashboard. A dispute
- * never changes the record by itself.
+ * never changes the record by itself. Events arrive in any order: each moves
+ * only what is older than itself, an update after the close reopens nothing,
+ * and only a new dispute after a close opens one again.
  */
 import {
   addAmounts,
   compareAmounts,
   decimalToMinor,
+  DEMO_PAYMENT_KEY,
   isProviderError,
   sameAmount,
   subtractAmounts,
@@ -90,6 +110,9 @@ export const PAYMENTS_REFUND_JOB = 'payments.refund';
 export const PAYMENTS_REFUND_MAX_ATTEMPTS = 20;
 /** A refund still on its way is asked about again after this long. */
 export const REFUND_ASK_AFTER_MS = 10 * 60_000;
+
+/** What makes the record follow its refunds: the record job has it too. */
+export type FollowDeps = Pick<RecordDeps, 'meta' | 'sources' | 'writes' | 'app' | 'log' | 'now'>;
 
 export interface RefundDeps extends Pick<RecordDeps, 'writes' | 'app' | 'log'> {
   meta: MetaDb;
@@ -226,8 +249,25 @@ export async function requestRefund(deps: RefundDeps, input: RefundRequest): Pro
   return { ok: true, refund: await askProvider(deps, made.refund), fresh: true };
 }
 
+/** The provider's answers that refuse a refund in so many words: only these fail it. */
+const REFUSALS: ReadonlySet<string> = new Set(['REFUND_REFUSED', 'AMOUNT_UNREPRESENTABLE', 'CURRENCY_UNSUPPORTED', 'INVALID_REQUEST']);
+
+/** Asks in flight, by refund: a second ask of the same refund waits for the first, never asks beside it. */
+const asking = new Map<string, Promise<RefundRow>>();
+
 /** Asks the provider for a refund row that has not reached it yet, with its own key. */
-async function askProvider(deps: RefundDeps, refund: RefundRow): Promise<RefundRow> {
+function askProvider(deps: RefundDeps, refund: RefundRow): Promise<RefundRow> {
+  const inFlight = asking.get(refund.id);
+  if (inFlight !== undefined) return inFlight;
+  const ask = askOnce(deps, refund).finally(() => asking.delete(refund.id));
+  asking.set(refund.id, ask);
+  return ask;
+}
+
+async function askOnce(deps: RefundDeps, asked: RefundRow): Promise<RefundRow> {
+  // As it stands now: an ask that finished a moment ago may have moved it.
+  const refund = (await refundsRepo(deps.meta).byId(asked.id)) ?? asked;
+  if (refund.state !== 'requested' || refund.providerRefundId !== null) return refund;
   const lookup = await deps.providerFor(refund.provider, refund.mode as PaymentMode);
   // The service cannot be asked now (switched off, keys being replaced): asked again later, same key.
   if (!lookup.ok) return refund;
@@ -239,7 +279,11 @@ async function askProvider(deps: RefundDeps, refund: RefundRow): Promise<RefundR
     idempotencyKey: refund.idempotencyKey,
   });
   if (isProviderError(answer)) {
-    if (answer.retryable) return refund;
+    // Anything but a refusal may have made the refund: it stays asked, and is asked again with the same key.
+    if (answer.retryable || !REFUSALS.has(answer.code)) {
+      deps.log?.warn({ refund: refund.id, code: answer.code }, 'refund not answered yet; asked again with the same key');
+      return refund;
+    }
     return moveTo(deps, refund, 'failed', { failureMessage: answer.providerMessage.slice(0, 2000) || 'The payment service refused the refund.' });
   }
   return follow(deps, refund, answer);
@@ -263,7 +307,14 @@ async function moveTo(deps: RefundDeps, refund: RefundRow, to: RefundRowState, p
   const at = nowOf(deps);
   const refunds = refundsRepo(deps.meta);
   if (to === 'requested') return refund;
-  const moved = await refunds.move(refund.id, to, patch, at);
+  let moved: boolean;
+  try {
+    moved = await refunds.move(refund.id, to, patch, at);
+  } catch (error) {
+    // Another row holds this provider refund already (an event recorded it while this answer was lost).
+    if (!isDuplicateKeyError(error) || patch.providerRefundId === undefined) throw error;
+    return mergeInto(deps, refund, patch.providerRefundId);
+  }
   const now = (await refunds.byId(refund.id)) ?? refund;
   if (!moved) return now;
   if (to === 'failed' || to === 'cancelled') {
@@ -271,48 +322,121 @@ async function moveTo(deps: RefundDeps, refund: RefundRow, to: RefundRowState, p
     if (refund.attemptId !== null) await moveHold(deps.meta, refund.attemptId, `-${refund.amount}`, at);
     await tellRefundFailed(deps, now).catch(() => undefined);
   }
-  if (refund.attemptId !== null && (to === 'succeeded' || refund.state === 'succeeded')) await followRecord(deps, refund.attemptId);
+  if (refund.attemptId !== null && (to === 'succeeded' || refund.state === 'succeeded')) await followOrRetry(deps, refund.id, refund.attemptId);
   return (await refunds.byId(refund.id)) ?? now;
+}
+
+/**
+ * Two rows for one refund at the provider: the one that holds its id keeps
+ * it, and the twin is closed as the same refund, counted once. What the twin
+ * held is given back, and nobody is told of a failure that never happened.
+ */
+async function mergeInto(deps: RefundDeps, twin: RefundRow, providerRefundId: string): Promise<RefundRow> {
+  const at = nowOf(deps);
+  const refunds = refundsRepo(deps.meta);
+  const holder = await refunds.byProviderId(twin.provider, twin.mode, providerRefundId);
+  if (await refunds.move(twin.id, 'cancelled', { failureMessage: 'The same refund as one already recorded: counted once.' }, at)) {
+    if (twin.attemptId !== null) await moveHold(deps.meta, twin.attemptId, `-${twin.amount}`, at);
+  }
+  deps.log?.warn({ refund: twin.id, holder: holder?.id ?? null }, 'refund answered with an id another row holds; counted once');
+  return holder ?? (await refunds.byId(twin.id)) ?? twin;
+}
+
+/**
+ * The record follows a refund the provider made. When writing fails, the
+ * refund stands (it happened): it is flagged and queued, and the sweep finds
+ * it too, until the write lands.
+ */
+async function followOrRetry(deps: RefundDeps, refundId: string, attemptId: string): Promise<void> {
+  try {
+    await followRecord(deps, attemptId);
+  } catch (error) {
+    deps.log?.warn({ refund: refundId, attempt: attemptId, err: error }, 'refund made; writing it to the record failed, tried again');
+    await refundsRepo(deps.meta).setProblem(refundId, 'NOT_WRITTEN', nowOf(deps)).catch(() => false);
+    if (deps.enqueue !== undefined) await enqueueRefund(deps.enqueue, { refundId }).catch(() => false);
+  }
+}
+
+/** Whether the record has yet to follow this refund (done and not applied, or failed after it was). */
+export function recordBehind(refund: RefundRow): boolean {
+  if (refund.attemptId === null || (refund.problemCode !== null && refund.problemCode !== 'NOT_WRITTEN')) return false;
+  return (refund.state === 'succeeded' && refund.appliedAt === null) || (refund.state === 'failed' && refund.appliedAt !== null && refund.undoneAt === null);
+}
+
+/**
+ * A payment just written down, with refunds made before it was: the record
+ * follows them now. A write that fails is flagged and left to the sweep.
+ */
+export async function followRefundsOnRecord(deps: FollowDeps, attemptId: string): Promise<void> {
+  const rows = await refundsRepo(deps.meta).forAttempt(attemptId);
+  if (!rows.some(recordBehind)) return;
+  try {
+    await followRecord(deps, attemptId);
+  } catch (error) {
+    deps.log?.warn({ attempt: attemptId, err: error }, 'payment recorded; writing its refunds to the record failed, tried again');
+    for (const row of rows) if (recordBehind(row)) await refundsRepo(deps.meta).setProblem(row.id, 'NOT_WRITTEN', nowOf(deps)).catch(() => false);
+  }
 }
 
 // ─── The record follows ─────────────────────────────────────────────────────
 
 export type RecordFollow = 'written' | 'kept-only' | 'not-recorded' | 'gone';
 
+/** Only a live payment at a real service writes to the shop's tables; a test or demo one stays in Adminium. */
+function writesShop(attempt: Pick<PaymentAttempt, 'mode' | 'provider'>): boolean {
+  return attempt.mode === 'live' && attempt.provider !== DEMO_PAYMENT_KEY;
+}
+
 /**
  * Writes what stands refunded on an attempt's payment to where it was
  * recorded, then marks each refund done as applied (and each failed one that
- * had been as undone). The total is written, so a repeat writes the same.
+ * had been as undone). The total is written, so a repeat writes the same. A
+ * refund in another currency than was paid is not counted; refunds above what
+ * was paid write what was paid, and the refund past it is flagged.
  */
-export async function followRecord(deps: RefundDeps, attemptId: string): Promise<RecordFollow> {
+export async function followRecord(deps: FollowDeps, attemptId: string): Promise<RecordFollow> {
   const at = nowOf(deps);
   const attempts = paymentAttemptsRepo(deps.meta);
   const refunds = refundsRepo(deps.meta);
   const attempt = await attempts.byId(attemptId);
   if (attempt === null) return 'gone';
+  const currency = attempt.takenCurrency ?? attempt.currency;
+  const scale = currencyScale(currency);
   const rows = await refunds.forAttempt(attempt.id);
-  const done = rows.filter((row) => row.state === 'succeeded');
+  const done = rows.filter((row) => row.state === 'succeeded' && row.currency === currency);
   const sum = sumAmounts(done.map((row) => row.amount));
-  const total = exactAmount(sum, currencyScale(attempt.takenCurrency ?? attempt.currency)) ?? sum;
+  let total = exactAmount(sum, scale) ?? sum;
+  let past: RefundRow | null = null;
+  if (attempt.takenAmount !== null && compareAmounts(total, attempt.takenAmount) === 1) {
+    total = exactAmount(attempt.takenAmount, scale) ?? attempt.takenAmount;
+    past = done.at(-1) ?? null;
+  }
   const key = attempt.recordedKey;
   let outcome: RecordFollow;
   if (attempt.state !== 'recorded' || key === null) outcome = 'not-recorded';
   else if (key.startsWith('kept:')) {
     const written = await keptPaymentsRepo(deps.meta).setRefunded(key.slice('kept:'.length), total);
     outcome = written ? 'written' : 'gone';
-  } else outcome = await writeTableRefund(deps, attempt, key, total);
-  if (outcome === 'written') {
+  } else if (!writesShop(attempt)) outcome = 'kept-only';
+  else outcome = await writeTableRefund(deps, attempt, key, total);
+  if (outcome === 'written' || outcome === 'kept-only') {
     for (const row of done) if (row.appliedAt === null) await refunds.markApplied(row.id, at);
     for (const row of rows) if (row.state === 'failed' && row.appliedAt !== null && row.undoneAt === null) await refunds.markUndone(row.id, at);
+    for (const row of rows) if (row.problemCode === 'NOT_WRITTEN') await refunds.setProblem(row.id, null, at, 'NOT_WRITTEN');
+    if (past !== null) await refunds.setProblem(past.id, 'MORE_THAN_PAID', at);
+  }
+  if (outcome === 'written' && writesShop(attempt)) {
     await setRefundedStatus(deps, attempt, total).catch((error: unknown) => {
       deps.log?.warn({ attempt: attempt.id, err: error }, 'refund recorded; the record’s status rule did not apply');
     });
   }
+  // The payment row it refunds is no longer there: a person looks; it is not tried again.
+  if (outcome === 'gone') for (const row of rows) if (recordBehind(row)) await refunds.setProblem(row.id, 'RECORD_GONE', at);
   return outcome;
 }
 
 /** The refunded total on a payments table row (`row:<table>:<rowKey>`), when the table keeps refunds. */
-async function writeTableRefund(deps: RefundDeps, attempt: PaymentAttempt, key: string, total: string): Promise<RecordFollow> {
+async function writeTableRefund(deps: FollowDeps, attempt: PaymentAttempt, key: string, total: string): Promise<RecordFollow> {
   const payable = await resolvePayable(deps.sources, attempt.payable);
   if (payable === null || payable.recordInto.kind !== 'table' || attempt.payable.connectionId === null) return 'gone';
   const into = payable.recordInto;
@@ -328,7 +452,7 @@ async function writeTableRefund(deps: RefundDeps, attempt: PaymentAttempt, key: 
   const value = into.amountUnit === 'minor' ? decimalToMinor(total, scale) : total;
   if (value === null) return 'gone';
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
-  await writes.update({
+  const written = await writes.update({
     target: found.target,
     pk,
     values: { [into.refunded]: value },
@@ -336,24 +460,39 @@ async function writeTableRefund(deps: RefundDeps, attempt: PaymentAttempt, key: 
     skipIfNone: true,
     announce: async () => {},
   });
-  return 'written';
+  if (written.count > 0) return 'written';
+  // Nothing changed: the same total again (MySQL counts only changed rows), or the row deleted.
+  const there = await found.target.db
+    .selectFrom(found.table.id)
+    .select(found.table.primaryKey.map((column) => found.target.db.dynamic.ref(column)))
+    .where((eb) => eb.and(Object.entries(pk).map(([column, one]) => eb(found.target.db.dynamic.ref(column), '=', one))))
+    .executeTakeFirst();
+  return there === undefined ? 'gone' : 'written';
 }
 
-/** Refunded in full: the record's mapped "refunded" status, and nothing else (a part refund changes no status). */
-async function setRefundedStatus(deps: RefundDeps, attempt: PaymentAttempt, total: string): Promise<void> {
-  if (attempt.takenAmount === null || !sameAmount(total, attempt.takenAmount)) return;
+/**
+ * Refunded in full: the record's mapped "refunded" status. A record that
+ * reads "refunded" and no longer is (a refund failed afterwards) goes back to
+ * its "paid" status. A part refund changes no status.
+ */
+async function setRefundedStatus(deps: FollowDeps, attempt: PaymentAttempt, total: string): Promise<void> {
+  if (attempt.takenAmount === null) return;
+  const full = sameAmount(total, attempt.takenAmount);
   const ref = attempt.payable;
   const payable = await resolvePayable(deps.sources, ref);
   if (payable?.status?.refunded == null || ref.connectionId === null || ref.tableName === null) return;
   const found = await deps.sources.table(ref.connectionId, ref.tableName);
   const row = await deps.sources.readRow(ref.connectionId, ref.tableName, ref.rowKey);
-  if (found === null || row === null || row[payable.status.column] === payable.status.refunded) return;
+  if (found === null || row === null) return;
+  const now = row[payable.status.column];
+  const want = full ? payable.status.refunded : now === payable.status.refunded ? payable.status.paid : null;
+  if (want === null || now === want) return;
   const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
   await writes.update({
     target: found.target,
     pk,
-    values: { [payable.status.column]: payable.status.refunded },
+    values: { [payable.status.column]: want },
     context: { origin: 'payment', hops: 0, actor: { kind: 'system', id: null, label: 'Refund' }, request: null },
     skipIfNone: true,
     announce: async () => {},
@@ -407,6 +546,15 @@ export async function refundEvent(deps: RefundDeps, input: { provider: string; m
   // About money Adminium never took: not ours to record.
   if (attempt === null) return null;
   const at = nowOf(deps);
+  // A refund asked here whose answer was lost: the same payment and amount, still waiting for its id. It is that one.
+  const lost = (await refunds.forAttempt(attempt.id)).find((row) => row.source === 'staff' && row.state === 'requested' && row.providerRefundId === null && row.currency === state.currency && sameAmount(row.amount, state.amount));
+  if (lost !== undefined && (await refunds.adopt(lost.id, input.refundRef, at))) {
+    return follow(deps, (await refunds.byId(lost.id)) ?? lost, state);
+  }
+  const paidIn = attempt.takenCurrency ?? attempt.currency;
+  const otherCurrency = state.currency !== paidIn;
+  // In the currency's own decimals ("20" is 20.00 EUR, 20.000 KWD), so sums and the record read it as written.
+  const amount = exactAmount(state.amount, currencyScale(state.currency)) ?? state.amount;
   let made: { refund: RefundRow; fresh: boolean };
   try {
     made = await refunds.create(
@@ -416,7 +564,7 @@ export async function refundEvent(deps: RefundDeps, input: { provider: string; m
         provider: input.provider,
         mode: input.mode,
         paymentRef: state.paymentRef,
-        amount: state.amount,
+        amount,
         currency: state.currency,
         reason: 'other',
         note: null,
@@ -434,9 +582,14 @@ export async function refundEvent(deps: RefundDeps, input: { provider: string; m
     return again === null ? null : settleRefund(deps, again.id, { strict: true });
   }
   if (!made.fresh) return settleRefund(deps, made.refund.id, { strict: true });
-  // It happened: held even past what Adminium thought was left.
-  if (made.refund.state !== 'failed' && made.refund.state !== 'cancelled') await moveHold(deps.meta, attempt.id, made.refund.amount, at, true);
-  if (made.refund.state === 'succeeded') await followRecord(deps, attempt.id);
+  if (otherCurrency) {
+    // Not in what was paid: kept and flagged, never held against it nor written to the record.
+    await refunds.setProblem(made.refund.id, 'CURRENCY_DIFFERS', at);
+  } else {
+    // It happened: held even past what Adminium thought was left.
+    if (made.refund.state !== 'failed' && made.refund.state !== 'cancelled') await moveHold(deps.meta, attempt.id, made.refund.amount, at, true);
+    if (made.refund.state === 'succeeded') await followOrRetry(deps, made.refund.id, attempt.id);
+  }
   await tellMadeAtProvider(deps, attempt, made.refund).catch(() => undefined);
   return (await refunds.byId(made.refund.id)) ?? made.refund;
 }
@@ -448,12 +601,21 @@ export function disputeClosesOn(type: string): boolean {
   return /closed|resolved|won|lost|reinstated/i.test(type);
 }
 
-/** A verified dispute event about a payment: marks it disputed (or closed) and tells payment managers once. */
+/** Whether a provider's dispute event type opens a new dispute (`charge.dispute.created`, `CUSTOMER.DISPUTE.CREATED`), not news of one. */
+export function disputeOpensOn(type: string): boolean {
+  return /created|opened/i.test(type);
+}
+
+/**
+ * A verified dispute event about a payment: marks it disputed (or closed) and
+ * tells payment managers once per dispute. Each event moves only what is
+ * older than itself (the repo's `noteDispute`).
+ */
 export async function disputeEvent(deps: Pick<RefundDeps, 'meta' | 'notices' | 'now'>, attempt: PaymentAttempt, event: { type: string; occurredAt: number }): Promise<void> {
   const state = disputeClosesOn(event.type) ? 'closed' : 'open';
   const at = event.occurredAt > 0 ? event.occurredAt : nowOf(deps);
-  const moved = await paymentAttemptsRepo(deps.meta).noteDispute(attempt.id, state, at);
-  if (moved && state === 'open') await tellDisputeOpened(deps, attempt).catch(() => undefined);
+  const moved = await paymentAttemptsRepo(deps.meta).noteDispute(attempt.id, state, at, disputeOpensOn(event.type));
+  if (moved && state === 'open') await tellDisputeOpened(deps, attempt, at).catch(() => undefined);
 }
 
 // ─── Notices ────────────────────────────────────────────────────────────────
@@ -485,11 +647,12 @@ async function tellMadeAtProvider(deps: RefundDeps, attempt: PaymentAttempt, ref
   });
 }
 
-async function tellDisputeOpened(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt): Promise<void> {
+async function tellDisputeOpened(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt, openedAt: number): Promise<void> {
   if (deps.notices === undefined || attempt.mode !== 'live') return;
   await tellPaymentManagers(deps.notices, {
     kind: 'payments.dispute',
-    about: `dispute:${attempt.id}:${String(attempt.dispute?.at ?? 0)}`,
+    // Once per dispute: keyed by when this one opened, not by the one before it.
+    about: `dispute:${attempt.id}:${String(openedAt)}`,
     urgent: true,
     actionUrl: '/studio/payments?tab=activity',
     words: () => ({
@@ -520,14 +683,23 @@ export function registerPaymentsRefundHandler(registry: JobRegistry, deps: Refun
     async (payload) => {
       if ('refundId' in payload) {
         const refund = await settleRefund(deps, payload.refundId, { strict: true });
+        if (refund !== null) await followStrict(deps, refund.id);
         return { state: refund?.state ?? 'gone' };
       }
       const refund = await refundEvent(deps, { provider: payload.provider, mode: payload.mode, refundRef: payload.refundRef });
+      if (refund !== null) await followStrict(deps, refund.id);
       if (payload.eventId !== undefined) await paymentEventsRepo(deps.meta).markProcessed(payload.eventId, nowOf(deps));
       return { state: refund?.state ?? 'not-ours' };
     },
     { internal: true },
   );
+}
+
+/** In the job: a refund the record has yet to follow is written now, and a failure throws, so the job tries again. */
+async function followStrict(deps: RefundDeps, refundId: string): Promise<void> {
+  const refund = await refundsRepo(deps.meta).byId(refundId);
+  if (refund === null || refund.attemptId === null || !recordBehind(refund)) return;
+  await followRecord(deps, refund.attemptId);
 }
 
 /** Queues the refund job. A second queue of the same while one waits is "already queued". */
@@ -545,11 +717,16 @@ export async function enqueueRefund(
   }
 }
 
-/** Refunds still on their way for a while: asked about again (the sweep's net under a missed event). */
+/**
+ * Refunds still on their way for a while: asked about again (the sweep's net
+ * under a missed event); and refunds the record has not followed yet (a write
+ * that failed), written again.
+ */
 export async function pickUpRefunds(deps: Pick<RefundDeps, 'meta' | 'enqueue' | 'now'>): Promise<number> {
   if (deps.enqueue === undefined) return 0;
+  const refunds = refundsRepo(deps.meta);
   let queued = 0;
-  for (const refund of await refundsRepo(deps.meta).waiting(nowOf(deps) - REFUND_ASK_AFTER_MS, 100)) {
+  for (const refund of [...(await refunds.waiting(nowOf(deps) - REFUND_ASK_AFTER_MS, 100)), ...(await refunds.unfollowed(100))]) {
     if (await enqueueRefund(deps.enqueue, { refundId: refund.id })) queued += 1;
   }
   return queued;
