@@ -3973,7 +3973,17 @@ export default {
       "countryInvalid": "請輸入兩個字母的代碼，例如 DE。",
       "lines": "在付款頁面上顯示發票明細",
       "providerBranding": "在 Stripe 頁面上，客戶還會看到您在 Stripe 控制台中設定的名稱和標誌。",
-      "logoPending": "標誌已上傳。儲存後才會在付款頁面上使用。"
+      "logoPending": "標誌已上傳。儲存後才會在付款頁面上使用。",
+      "where": "客戶在哪裡付款",
+      "whereStaff": "（您的員工網址）",
+      "whereCustomer": "（您的客戶網址）",
+      "whereNote": "付款連結一律使用您在此處選擇的網址。",
+      "whereNone": "請先設定此伺服器的公開網址：付款連結需要一個客戶能連上的網址。",
+      "previewTitle": "預覽 · 發票",
+      "previewFrame": "付款頁面預覽",
+      "openPreview": "開啟完整預覽",
+      "previewNote": "僅限員工。它使用模擬的付款服務，不會移轉任何金錢。",
+      "previewFailed": "無法開啟完整預覽。請重試。"
     },
     "way": {
       "card": "信用卡",
@@ -3981,6 +3991,20 @@ export default {
       "bankTransfer": "銀行轉帳",
       "cashOnDelivery": "貨到付款",
       "other": "其他線下付款方式"
+    },
+    "test": {
+      "title": "傳送測試付款",
+      "intro": "在新分頁中為一張 {amount} 的模擬發票開啟付款頁面。",
+      "send": "傳送測試付款",
+      "waitingStripe": "正在等待付款頁面上的付款。請使用 Stripe 測試卡 {card}。",
+      "waitingPaypal": "正在等待付款頁面上的付款。測試付款需要沙盒買家帳戶的登入資訊：請在 PayPal 開發者網站上前往 Testing tools → Sandbox accounts。",
+      "again": "再次開啟付款頁面",
+      "took": "{service} 收取了 {amount}（測試）",
+      "webhook": "Webhook 已到達",
+      "noWebhook": "沒有收到 Webhook：付款是透過查詢找到的",
+      "wouldRecord": "將會記錄的內容：一筆 {amount} 的付款。",
+      "wouldRecordWith": "將會記錄的內容：一筆 {amount} 的付款，{paidWith}。",
+      "nothingWritten": "沒有在您的資料表中寫入任何內容。"
     }
   }
 } as const;

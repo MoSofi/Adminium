@@ -452,3 +452,66 @@ export async function uploadPayPageLogo(file: File): Promise<string> {
   }
   return body.data.fileId;
 }
+
+// ─── Where customers pay ────────────────────────────────────────────────────
+
+export interface PayAddress {
+  /** The saved pay address, or null before one is chosen. */
+  origin: string | null;
+  /** The addresses it may be: this server's public address and its customer domains. */
+  choices: string[];
+  /** Which of them is the staff address (this server's public address). */
+  staffOrigin?: string | null;
+}
+
+export const PAYMENTS_PAY_ADDRESS_QUERY_KEY = ['payments', 'pay-address'] as const;
+
+export function payAddressQuery() {
+  return queryOptions({
+    queryKey: PAYMENTS_PAY_ADDRESS_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: PayAddress }>('/api/v1/payments/pay-address')).data,
+    retry: false,
+  });
+}
+
+export async function savePayAddress(origin: string): Promise<PayAddress> {
+  return (await api.put<{ data: PayAddress }>('/api/v1/payments/pay-address', { origin })).data;
+}
+
+// ─── Test payments and the full preview ─────────────────────────────────────
+
+export interface StartedTestPayment {
+  rowKey: string;
+  label: string;
+  url: string;
+  amount: string;
+  currency: string;
+}
+
+/** A throwaway payable for one service (`demo` for the full preview) and a test link to it. */
+export async function startTestPayment(service: string): Promise<StartedTestPayment> {
+  return (await api.post<{ data: StartedTestPayment }>('/api/v1/payments/test-payments', { service })).data;
+}
+
+export interface TestPaymentTrip {
+  label: string;
+  service: string;
+  amount: string;
+  currency: string;
+  state: string | null;
+  taken: { amount: string; currency: string } | null;
+  paidWith: string | null;
+  webhookArrived: boolean;
+  recorded: boolean;
+}
+
+export function testPaymentQuery(rowKey: string | null) {
+  return queryOptions({
+    queryKey: ['payments', 'test-payment', rowKey] as const,
+    queryFn: async () => (await api.get<{ data: TestPaymentTrip }>(`/api/v1/payments/test-payments/${encodeURIComponent(rowKey ?? '')}`)).data,
+    enabled: rowKey !== null,
+    // While the customer side is open in the other tab: ask again until it is recorded.
+    refetchInterval: (query) => (query.state.data?.recorded === true || query.state.data?.state === 'failed' || query.state.data?.state === 'cancelled' ? false : 3000),
+    retry: false,
+  });
+}

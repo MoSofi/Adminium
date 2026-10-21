@@ -8,15 +8,32 @@
  * lines. The logo is a PNG, JPEG or WebP image only: an SVG on a public page
  * is a script waiting to happen. It is uploaded to the payments' own logo
  * route and kept as a branding file, like the workspace logo.
+ *
+ * Beside the form, the real pay page in a phone frame, on a made-up invoice:
+ * it follows the form as it is typed (the page is told by message, from this
+ * origin only), and "Open a full preview" opens it for real, in test mode,
+ * with the pretend payment service. Where customers pay is chosen here too.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Image as ImageIcon, Store, Upload } from 'lucide-react';
-import { Alert, Button, Card, CardBody, CardHeader, FormField, IconTile, Input, Switch } from '@adminium/ui';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ExternalLink, Image as ImageIcon, Info, Store, Upload } from 'lucide-react';
+import { Alert, Button, Card, CardBody, CardHeader, FormField, IconTile, Input, Radio, RadioGroup, Switch } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
-import { LOGO_TYPES, PAYMENTS_PAY_PAGE_QUERY_KEY, payPageQuery, savePayPage, uploadPayPageLogo, type PayPageSettings } from './paymentsApi.js';
+import {
+  LOGO_TYPES,
+  PAYMENTS_PAY_ADDRESS_QUERY_KEY,
+  PAYMENTS_PAY_PAGE_QUERY_KEY,
+  payAddressQuery,
+  payPageQuery,
+  savePayAddress,
+  savePayPage,
+  startTestPayment,
+  uploadPayPageLogo,
+  type PayAddress,
+  type PayPageSettings,
+} from './paymentsApi.js';
 import { countryName } from './paymentsWords.js';
 
 function errorText(error: unknown): string {
@@ -28,9 +45,103 @@ function errorText(error: unknown): string {
   return t('studio:payments.error.unknown', 'That did not work. Try again.');
 }
 
-function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: boolean }) {
+/** The real pay page in a phone frame, told the form's values as they change. */
+function PayPagePreview({ page }: { page: PayPageSettings }): ReactNode {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [opening, setOpening] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const send = useCallback(() => {
+    frame.current?.contentWindow?.postMessage(
+      { type: 'adminium-pay-preview', shop: { name: page.shopName.trim(), email: page.contactEmail?.trim() || null, phone: page.contactPhone?.trim() || null }, logoFileId: page.logoFileId, showLines: page.showLines },
+      window.location.origin,
+    );
+  }, [page]);
+  useEffect(() => send(), [send]);
+  useEffect(() => {
+    // The page says when it listens; it is told what is on the form then.
+    const ready = (event: MessageEvent): void => {
+      if (event.origin === window.location.origin && (event.data as { type?: unknown } | null)?.type === 'adminium-pay-preview-ready') send();
+    };
+    window.addEventListener('message', ready);
+    return () => window.removeEventListener('message', ready);
+  }, [send]);
+
+  async function openFull(): Promise<void> {
+    setFailed(false);
+    setOpening(true);
+    // Opened at once, so no pop-up blocker takes it for an unasked window.
+    const opened = window.open('about:blank', '_blank');
+    try {
+      const started = await startTestPayment('demo');
+      if (opened === null) window.location.assign(started.url);
+      else opened.location.href = started.url;
+    } catch {
+      opened?.close();
+      setFailed(true);
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  return (
+    <div className="flex w-[320px] max-w-full flex-col items-center gap-3" data-testid="payments-page-preview">
+      <p className="self-start text-[10.5px] font-bold uppercase tracking-[0.05em] text-fg-subtle">
+        {t('studio:payments.page.previewTitle', 'Preview · invoice')} <span className="font-mono">INV-0042</span>
+      </p>
+      <div className="w-[300px] max-w-full overflow-hidden rounded-[40px] border-[10px] border-fg bg-surface shadow-lg">
+        <iframe ref={frame} src="/pay/preview" title={t('studio:payments.page.previewFrame', 'Pay page preview')} className="block h-[600px] w-full border-0" onLoad={send} />
+      </div>
+      <Button variant="secondary" iconLeft={<ExternalLink className="size-4" />} disabled={opening} onClick={() => void openFull()} data-testid="payments-page-full-preview">
+        {t('studio:payments.page.openPreview', 'Open a full preview')}
+      </Button>
+      <p className="max-w-[280px] text-center text-[11.5px] text-fg-subtle">{t('studio:payments.page.previewNote', 'Staff only. It uses a pretend payment service and moves no money.')}</p>
+      {failed ? (
+        <p role="alert" className="text-[12.5px] text-danger">
+          {t('studio:payments.page.previewFailed', 'The full preview could not be opened. Try again.')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** "Where customers pay": this server's public address or one of its customer domains. */
+function AddressChoice({ address, value, onChange, readOnly }: { address: PayAddress; value: string | null; onChange: (origin: string) => void; readOnly: boolean }): ReactNode {
+  if (address.choices.length === 0) {
+    return <p className="text-[12.5px] text-fg-muted">{t('studio:payments.page.whereNone', "Set this server's public address first: pay links need an address customers can reach.")}</p>;
+  }
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend id="payments-page-where" className="mb-1.5 text-[12.5px] font-bold">
+        {t('studio:payments.page.where', 'Where customers pay')}
+      </legend>
+      <RadioGroup aria-labelledby="payments-page-where" value={value ?? ''} disabled={readOnly} onValueChange={onChange} data-testid="payments-page-where">
+        {address.choices.map((origin) => (
+          <Radio
+            key={origin}
+            value={origin}
+            label={
+              <span>
+                <span dir="ltr" className="font-mono text-[12.5px] font-semibold">
+                  {origin}
+                </span>{' '}
+                <span className="text-fg-muted">
+                  {origin === (address.staffOrigin ?? null) ? t('studio:payments.page.whereStaff', '(your staff address)') : t('studio:payments.page.whereCustomer', '(your customer address)')}
+                </span>
+              </span>
+            }
+          />
+        ))}
+      </RadioGroup>
+      <p className="text-[11.5px] text-fg-subtle">{t('studio:payments.page.whereNote', 'Pay links always use the address you choose here.')}</p>
+    </fieldset>
+  );
+}
+
+function PayPageForm({ saved, address, canManage }: { saved: PayPageSettings; address: PayAddress; canManage: boolean }) {
   const client = useQueryClient();
   const [page, setPage] = useState<PayPageSettings>(saved);
+  const [origin, setOrigin] = useState<string | null>(address.origin);
+  useEffect(() => setOrigin(address.origin), [address.origin]);
   const [status, setStatus] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   useEffect(() => setPage(saved), [saved]);
@@ -43,11 +154,16 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
     setPage((current) => ({ ...current, ...patch }));
   };
   const save = useMutation({
-    mutationFn: () => savePayPage(body),
+    mutationFn: async () => {
+      await savePayPage(body);
+      // A new pay address moves every link and webhook: saved only when it was changed.
+      if (origin !== null && origin !== address.origin) await savePayAddress(origin);
+    },
     onMutate: () => setStatus(null),
     onSuccess: async () => {
       setStatus(t('studio:payments.page.saved', 'Pay page saved'));
       await client.invalidateQueries({ queryKey: PAYMENTS_PAY_PAGE_QUERY_KEY });
+      await client.invalidateQueries({ queryKey: PAYMENTS_PAY_ADDRESS_QUERY_KEY });
     },
   });
   const upload = useMutation({
@@ -71,7 +187,8 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
   const readOnly = !canManage;
 
   return (
-    <Card data-testid="payments-page">
+    <div className="flex flex-wrap items-start gap-5">
+    <Card data-testid="payments-page" className="min-w-0 flex-[1_1_420px]">
       <CardHeader className="flex flex-wrap items-center gap-3">
         <IconTile icon={<Store />} />
         <div className="min-w-0 flex-1">
@@ -151,7 +268,19 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
             {t('studio:payments.page.lines', "Show the invoice's lines on the pay page")}
           </label>
         </div>
-        <p className="text-[12.5px] text-fg-muted">{t('studio:payments.page.providerBranding', 'Customers also see the name and logo set in your Stripe dashboard on the Stripe page.')}</p>
+        <AddressChoice
+          address={address}
+          value={origin}
+          readOnly={readOnly}
+          onChange={(next) => {
+            setStatus(null);
+            setOrigin(next);
+          }}
+        />
+        <p className="flex items-start gap-2 rounded-md bg-surface-2 px-3 py-2.5 text-[12.5px] text-fg-muted">
+          <Info className="mt-[3px] size-3.5 shrink-0 text-info" aria-hidden="true" />
+          <span>{t('studio:payments.page.providerBranding', 'Customers also see the name and logo set in your Stripe dashboard on the Stripe page.')}</span>
+        </p>
         {save.isError ? <Alert tone="danger" role="alert" title={errorText(save.error)} /> : null}
         <p role="status" className="text-[12.5px]" data-testid="payments-page-status">
           {status}
@@ -165,12 +294,16 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
         ) : null}
       </CardBody>
     </Card>
+    <PayPagePreview page={page} />
+    </div>
   );
 }
 
 export function PayPageTab({ canManage }: { canManage: boolean }): ReactNode {
   const page = useQuery(payPageQuery());
-  if (page.isPending) return <p className="text-[13px] text-fg-muted">{t('studio:payments.loading', 'Loading…')}</p>;
+  const address = useQuery(payAddressQuery());
+  if (page.isPending || address.isPending) return <p className="text-[13px] text-fg-muted">{t('studio:payments.loading', 'Loading…')}</p>;
   if (page.isError) return <Alert tone="danger" role="alert" title={errorText(page.error)} />;
-  return <PayPageForm saved={page.data} canManage={canManage} />;
+  if (address.isError) return <Alert tone="danger" role="alert" title={errorText(address.error)} />;
+  return <PayPageForm saved={page.data} address={address.data} canManage={canManage} />;
 }

@@ -3963,7 +3963,17 @@
       "countryInvalid": "Saisissez un code à deux lettres, comme DE.",
       "lines": "Afficher les lignes de la facture sur la page de paiement",
       "providerBranding": "Les clients voient aussi le nom et le logo définis dans votre tableau de bord Stripe, sur la page Stripe.",
-      "logoPending": "Logo téléversé. Enregistrez pour l’utiliser sur la page de paiement."
+      "logoPending": "Logo téléversé. Enregistrez pour l’utiliser sur la page de paiement.",
+      "where": "Où les clients paient",
+      "whereStaff": "(votre adresse pour le personnel)",
+      "whereCustomer": "(votre adresse pour les clients)",
+      "whereNote": "Les liens de paiement utilisent toujours l’adresse que vous choisissez ici.",
+      "whereNone": "Définissez d’abord l’adresse publique de ce serveur : les liens de paiement ont besoin d’une adresse que les clients peuvent atteindre.",
+      "previewTitle": "Aperçu · facture",
+      "previewFrame": "Aperçu de la page de paiement",
+      "openPreview": "Ouvrir un aperçu complet",
+      "previewNote": "Réservé à l’équipe. L’aperçu utilise un service de paiement fictif et ne fait circuler aucun argent.",
+      "previewFailed": "L’aperçu complet n’a pas pu s’ouvrir. Réessayez."
     },
     "way": {
       "card": "Cartes",
@@ -3971,6 +3981,20 @@
       "bankTransfer": "Virement bancaire",
       "cashOnDelivery": "Paiement à la livraison",
       "other": "Un autre moyen de paiement à la main"
+    },
+    "test": {
+      "title": "Envoyer un paiement test",
+      "intro": "Ouvre la page de paiement d’une facture fictive de {amount} dans un nouvel onglet.",
+      "send": "Envoyer un paiement test",
+      "waitingStripe": "En attente du paiement sur la page de paiement. Utilisez la carte de test Stripe {card}.",
+      "waitingPaypal": "En attente du paiement sur la page de paiement. Un paiement test demande les identifiants d’un acheteur sandbox : Testing tools → Sandbox accounts sur le site pour développeurs de PayPal.",
+      "again": "Rouvrir la page de paiement",
+      "took": "{service} a encaissé {amount} (Test)",
+      "webhook": "le webhook est arrivé",
+      "noWebhook": "aucun webhook n’est arrivé : le paiement a été trouvé en interrogeant le service",
+      "wouldRecord": "voici ce qui serait enregistré : un paiement de {amount}.",
+      "wouldRecordWith": "voici ce qui serait enregistré : un paiement de {amount}, {paidWith}.",
+      "nothingWritten": "Rien n’a été écrit dans vos tables."
     }
   }
 }

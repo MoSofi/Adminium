@@ -46,7 +46,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { fetchBack, fetchChallenge, mayGoTo, openLink, postCheckout, type Credentials, type PayPage, type PayState, type PayWay } from './api.js';
+import { fetchBack, fetchChallenge, fetchPreview, isPreviewEdit, mayGoTo, openLink, postCheckout, type Credentials, type PayPage, type PayState, type PayWay } from './api.js';
 import { groupedIban, money, shortDate } from './money.js';
 import { solve } from './proof.js';
 import type { PayRoute } from './route.js';
@@ -136,6 +136,9 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
   const [asks, setAsks] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** In Studio's preview: the logo being shown (saved or just uploaded), and the sample lines kept while the switch is off. */
+  const [previewLogo, setPreviewLogo] = useState<string | null>(null);
+  const sampleLines = useRef<NonNullable<PayPage['payable']>['lines']>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const languageButton = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -148,6 +151,8 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
         const opened = await openLink(route.token);
         setCredentials(opened.credentials);
         setPage(opened.page);
+      } else if (route.kind === 'preview') {
+        setPage(await fetchPreview());
       } else {
         setPage(await fetchBack(route.nonce));
       }
@@ -160,6 +165,26 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
   useEffect(() => {
     void load();
   }, []);
+
+  // Studio's preview follows the settings as they are typed, from this server's own Studio only.
+  useEffect(() => {
+    if (route.kind !== 'preview') return undefined;
+    const listen = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin || !isPreviewEdit(event.data)) return;
+      const edit = event.data;
+      setPreviewLogo(edit.logoFileId);
+      setPage((current) => {
+        if (current === null) return current;
+        if (current.payable?.lines != null) sampleLines.current = current.payable.lines;
+        const lines = edit.showLines ? (sampleLines.current ?? [{ label: 'Sourdough loaves × 24', amount: '96.00' }, { label: 'Delivery', amount: '24.00' }]) : null;
+        return { ...current, shop: { ...current.shop, ...edit.shop, hasLogo: edit.logoFileId !== null }, payable: current.payable === null ? null : { ...current.payable, lines } };
+      });
+    };
+    window.addEventListener('message', listen);
+    // Says it is listening, so Studio sends what is on its form now.
+    window.parent?.postMessage({ type: 'adminium-pay-preview-ready' }, window.location.origin);
+    return () => window.removeEventListener('message', listen);
+  }, [route]);
 
   // The way back keeps asking while the provider has not said, and never moves focus while it does.
   useEffect(() => {
@@ -205,6 +230,7 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
 
   // ── Pressing a provider's way ──────────────────────────────────────────
   async function pay(source: string): Promise<void> {
+    // The preview's buttons go nowhere: it is a made-up invoice.
     if (route.kind !== 'link' || phase.kind !== 'page') return;
     setPhase({ kind: 'getting-ready', source });
     setMessage(null);
@@ -522,6 +548,8 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
         <div className="pp-header-inner">
           {shop.hasLogo && route.kind === 'link' ? (
             <img className="pp-logo" src={`/pay/api/${encodeURIComponent(route.token)}/logo`} alt="" />
+          ) : shop.hasLogo && route.kind === 'preview' ? (
+            <img className="pp-logo" src={`/pay/api/preview/logo${previewLogo === null ? '' : `?file=${encodeURIComponent(previewLogo)}`}`} alt="" />
           ) : (
             <span className="pp-monogram" aria-hidden="true" dir="ltr">
               {monogram(shop.name)}

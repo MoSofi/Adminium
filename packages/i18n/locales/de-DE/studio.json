@@ -3602,7 +3602,7 @@
         "testWebhook": "Sandbox-Webhook",
         "liveKey": "Live-App"
       },
-      "path": "Wählen Sie, wie Sie Ihren Stripe-Schlüssel erstellen",
+      "path": "Wählen Sie, wie Sie Ihren Schlüssel für Stripe erstellen",
       "testKey": "Testschlüssel",
       "testWebhook": "Test-Webhook",
       "testPayment": "Testzahlung senden",
@@ -3688,7 +3688,7 @@
       "eventsRead": "Eine Zahlung finden, deren Webhook verloren ging",
       "disputesRead": "Rückbuchungen zeigen",
       "methodsRead": "Sehen, welche Zahlungswege Sie eingeschaltet haben",
-      "accountRead": "Zeigen, zu welchem Stripe-Konto der Schlüssel gehört",
+      "accountRead": "Zeigen, zu welchem Konto bei Stripe der Schlüssel gehört",
       "webhooksRead": "Ihren Live-Webhook prüfen",
       "heading": "Der Zugriff, den der Schlüssel braucht",
       "note": "Beide Wege geben dem Schlüssel genau diesen Zugriff. Lassen Sie alles andere auf „Kein“.",
@@ -3702,7 +3702,7 @@
         "step5": "Die Vorlage entpacken und ihren Ordner öffnen",
         "step7": "Die App im Dashboard von Stripe installieren und ihren Schlüssel kopieren",
         "title": "Mit Ihrer eigenen Stripe App (so empfiehlt es Stripe)",
-        "desc": "Sie laden einmal eine kleine App in Ihr eigenes Stripe-Konto hoch, mit dem Kommandozeilenwerkzeug von Stripe. Sie erstellt einen Schlüssel mit genau dem Zugriff unten.",
+        "desc": "Sie laden einmal eine kleine App in Ihr eigenes Konto bei Stripe hoch, mit dem Kommandozeilenwerkzeug von Stripe. Sie erstellt einen Schlüssel mit genau dem Zugriff unten.",
         "note": "Einmal in Ihrem Testkonto und einmal in Ihrem Live-Konto hochladen."
       },
       "hand": {
@@ -3741,7 +3741,7 @@
       "done": "erledigt"
     },
     "title": "Zahlungen",
-    "subtitle": "Nehmen Sie Zahlungen für Rechnungen und andere Datensätze an. Das Geld geht direkt auf Ihr eigenes Stripe- oder PayPal-Konto; Adminium hält es nie.",
+    "subtitle": "Nehmen Sie Zahlungen für Rechnungen und andere Datensätze an. Das Geld geht direkt auf Ihr eigenes Konto bei Stripe oder PayPal; Adminium hält es nie.",
     "tab": {
       "setup": "Einrichtung",
       "ways": "Zahlungsarten",
@@ -3963,7 +3963,17 @@
       "countryInvalid": "Geben Sie einen zweistelligen Code wie DE ein.",
       "lines": "Die Rechnungspositionen auf der Zahlungsseite zeigen",
       "providerBranding": "Die Kundschaft sieht auch den Namen und das Logo, die im Dashboard von Stripe eingestellt sind, auf der Seite von Stripe.",
-      "logoPending": "Logo hochgeladen. Speichern Sie, um es auf der Zahlungsseite zu verwenden."
+      "logoPending": "Logo hochgeladen. Speichern Sie, um es auf der Zahlungsseite zu verwenden.",
+      "where": "Wo die Kundschaft bezahlt",
+      "whereStaff": "(Ihre Mitarbeiteradresse)",
+      "whereCustomer": "(Ihre Kundenadresse)",
+      "whereNote": "Zahlungslinks verwenden immer die Adresse, die Sie hier wählen.",
+      "whereNone": "Legen Sie zuerst die öffentliche Adresse dieses Servers fest: Zahlungslinks brauchen eine Adresse, die die Kundschaft erreichen kann.",
+      "previewTitle": "Vorschau · Rechnung",
+      "previewFrame": "Vorschau der Zahlungsseite",
+      "openPreview": "Vollständige Vorschau öffnen",
+      "previewNote": "Nur für das Team. Die Vorschau nutzt einen simulierten Zahlungsdienst und bewegt kein Geld.",
+      "previewFailed": "Die vollständige Vorschau konnte nicht geöffnet werden. Versuchen Sie es erneut."
     },
     "way": {
       "card": "Karten",
@@ -3971,6 +3981,20 @@
       "bankTransfer": "Banküberweisung",
       "cashOnDelivery": "Nachnahme",
       "other": "Eine andere Zahlungsart von Hand"
+    },
+    "test": {
+      "title": "Testzahlung senden",
+      "intro": "Öffnet die Zahlungsseite für eine simulierte Rechnung über {amount} in einem neuen Tab.",
+      "send": "Testzahlung senden",
+      "waitingStripe": "Warten auf die Zahlung auf der Zahlungsseite. Verwenden Sie die Testkarte {card} von Stripe.",
+      "waitingPaypal": "Warten auf die Zahlung auf der Zahlungsseite. Eine Testzahlung braucht die Anmeldedaten eines Sandbox-Käuferkontos: Testing tools → Sandbox accounts auf der Entwickler-Website von PayPal.",
+      "again": "Zahlungsseite erneut öffnen",
+      "took": "{service} hat {amount} abgebucht (Test)",
+      "webhook": "der Webhook ist angekommen",
+      "noWebhook": "kein Webhook ist angekommen: Die Zahlung wurde durch Nachfragen gefunden",
+      "wouldRecord": "das würde erfasst: eine Zahlung über {amount}.",
+      "wouldRecordWith": "das würde erfasst: eine Zahlung über {amount}, {paidWith}.",
+      "nothingWritten": "In Ihre Tabellen wurde nichts geschrieben."
     }
   }
 }

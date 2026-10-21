@@ -13,7 +13,13 @@
  *   - every locale bundle (`packages/i18n/locales/**.json`), whole;
  *   - the docs site's pages and the skills, whole (Markdown and MDX).
  *
- * Both apostrophes count (' and ’). A fix is a rewording, never an exemption.
+ * Both apostrophes count (' and ’). In the locale bundles, the docs and the
+ * skills a mark joined into a compound is refused too ("Stripe-Konto",
+ * "Stripe-siden"): it is the mark modified, and the other languages write
+ * "Konto bei Stripe", "siden hos Stripe". Code is not read for compounds, since
+ * a provider's own header names are written that way.
+ *
+ * A fix is a rewording, never an exemption.
  *
  *   node scripts/check-mark-possessives.mjs
  */
@@ -30,6 +36,7 @@ const ts = require('typescript');
 /** The marks this gate guards. */
 const MARKS = ['Stripe', 'PayPal'];
 const POSSESSIVE = new RegExp(`\\b(${MARKS.join('|')})['’]s\\b`, 'g');
+const COMPOUND = new RegExp(`\\b(?:${MARKS.join('|')})-\\p{L}+|\\p{L}+-(?:${MARKS.join('|')})\\b`, 'gu');
 
 const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
 
@@ -46,6 +53,7 @@ function note(file, text, offset, found) {
 
 function scanWhole(file, text) {
   for (const match of text.matchAll(POSSESSIVE)) note(file, text, match.index, match[0]);
+  for (const match of text.matchAll(COMPOUND)) note(file, text, match.index, match[0]);
 }
 
 const STRING_KINDS = new Set([
@@ -79,8 +87,8 @@ for (const file of files) {
 }
 
 if (problems.length > 0) {
-  console.error(`check-mark-possessives: ${String(problems.length)} shipped string(s) write a provider's mark in the possessive.`);
-  console.error('Reword them ("the Stripe page", "the PayPal dashboard", "Stripe payment id"):');
+  console.error(`check-mark-possessives: ${String(problems.length)} shipped string(s) write a provider's mark in the possessive or joined into a compound.`);
+  console.error('Reword them ("the Stripe page", "the PayPal dashboard", "Stripe payment id"; "die Seite von Stripe", "siden hos Stripe"):');
   for (const problem of problems) console.error(`  ${problem}`);
   process.exit(1);
 }

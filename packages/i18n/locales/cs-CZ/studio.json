@@ -3963,7 +3963,17 @@
       "countryInvalid": "Zadejte dvoupísmenný kód, například DE.",
       "lines": "Zobrazit položky faktury na platební stránce",
       "providerBranding": "Zákazníci uvidí také název a logo nastavené ve vašem dashboardu Stripe, na stránce Stripe.",
-      "logoPending": "Logo nahráno. Uložte, aby se použilo na platební stránce."
+      "logoPending": "Logo nahráno. Uložte, aby se použilo na platební stránce.",
+      "where": "Kde zákazníci platí",
+      "whereStaff": "(vaše adresa pro personál)",
+      "whereCustomer": "(vaše adresa pro zákazníky)",
+      "whereNote": "Platební odkazy vždy používají adresu, kterou zde zvolíte.",
+      "whereNone": "Nejdřív nastavte veřejnou adresu tohoto serveru: platební odkazy potřebují adresu, na kterou se zákazníci dostanou.",
+      "previewTitle": "Náhled · faktura",
+      "previewFrame": "Náhled platební stránky",
+      "openPreview": "Otevřít úplný náhled",
+      "previewNote": "Jen pro zaměstnance. Používá smyšlenou platební službu a nepřevádí žádné peníze.",
+      "previewFailed": "Úplný náhled se nepodařilo otevřít. Zkuste to znovu."
     },
     "way": {
       "card": "Karty",
@@ -3971,6 +3981,20 @@
       "bankTransfer": "Bankovní převod",
       "cashOnDelivery": "Dobírka",
       "other": "Jiný ruční způsob platby"
+    },
+    "test": {
+      "title": "Odeslat testovací platbu",
+      "intro": "Otevře v nové kartě platební stránku smyšlené faktury na {amount}.",
+      "send": "Odeslat testovací platbu",
+      "waitingStripe": "Čeká se na platbu na platební stránce. Použijte testovací kartu Stripe {card}.",
+      "waitingPaypal": "Čeká se na platbu na platební stránce. Testovací platba potřebuje přihlášení kupujícího v sandboxu: Testing tools → Sandbox accounts na webu pro vývojáře PayPal.",
+      "again": "Znovu otevřít platební stránku",
+      "took": "{service}: přijato {amount} (Test)",
+      "webhook": "webhook dorazil",
+      "noWebhook": "žádný webhook nedorazil: platba byla nalezena dotazem",
+      "wouldRecord": "toto by se zaznamenalo: jedna platba ve výši {amount}.",
+      "wouldRecordWith": "toto by se zaznamenalo: jedna platba ve výši {amount}, {paidWith}.",
+      "nothingWritten": "Do vašich tabulek se nic nezapsalo."
     }
   }
 }

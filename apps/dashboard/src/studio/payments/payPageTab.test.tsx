@@ -8,7 +8,11 @@
  *  2. a PNG goes to the pay page's own logo route as raw bytes, and Save then
  *     names the file it answered;
  *  3. the server's own logo-type refusal reads as the same sentence;
- *  4. someone who may only view sees the settings and no control.
+ *  4. someone who may only view sees the settings and no control;
+ *  5. where customers pay is chosen from the server's own addresses, and
+ *     saved only when it changed;
+ *  6. the preview is the real pay page, told the form as it is typed, and
+ *     "Open a full preview" opens a test link in a new tab.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -34,6 +38,7 @@ interface Call {
 function stub(logo: { status: number; body: unknown } = { status: 201, body: { data: { fileId: 'file_logo1' } } }): Call[] {
   const calls: Call[] = [];
   let current = PAGE;
+  let address = { origin: 'https://pay.crumbandco.de', choices: ['https://admin.crumbandco.de', 'https://pay.crumbandco.de'], staffOrigin: 'https://admin.crumbandco.de' };
   vi.stubGlobal(
     'fetch',
     vi.fn((input: unknown, init?: RequestInit) => {
@@ -48,6 +53,14 @@ function stub(logo: { status: number; body: unknown } = { status: 201, body: { d
         return Promise.resolve(jsonResponse(200, { data: body }));
       }
       if (url.startsWith('/api/v1/payments/pay-page/logo')) return Promise.resolve(jsonResponse(logo.status, logo.body));
+      if (url === '/api/v1/payments/pay-address' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: address }));
+      if (url === '/api/v1/payments/pay-address' && method === 'PUT') {
+        address = { ...address, origin: (body as { origin: string }).origin };
+        return Promise.resolve(jsonResponse(200, { data: address }));
+      }
+      if (url === '/api/v1/payments/test-payments' && method === 'POST') {
+        return Promise.resolve(jsonResponse(200, { data: { rowKey: 'paytest_abc', label: 'TEST-ABCD', url: 'https://admin.crumbandco.de/pay/AAAAAAAAAAAAAAAAAAAAAA', amount: '1.00', currency: 'EUR' } }));
+      }
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'not stubbed' } }));
     }),
   );
@@ -139,5 +152,36 @@ describe('PayPageTab', () => {
     expect(screen.queryByTestId('payments-page-save')).toBeNull();
     expect(screen.queryByTestId('payments-page-logo-input')).toBeNull();
     expect(screen.getByRole('switch').hasAttribute('disabled') || screen.getByRole('switch').getAttribute('aria-disabled') === 'true').toBe(true);
+  });
+
+  it('chooses where customers pay from the server’s own addresses, and saves it only when it changed', async () => {
+    const { user, calls } = renderTab();
+    const group = await screen.findByTestId('payments-page-where');
+    expect(textOf(group)).toContain('https://admin.crumbandco.de (your staff address)');
+    expect(textOf(group)).toContain('https://pay.crumbandco.de (your customer address)');
+    await user.click(screen.getByTestId('payments-page-save'));
+    await waitFor(() => expect(textOf(screen.getByTestId('payments-page-status'))).toBe('Pay page saved'));
+    expect(calls.some((call) => call.url === '/api/v1/payments/pay-address' && call.method === 'PUT')).toBe(false);
+    await user.click(screen.getByRole('radio', { name: /admin\.crumbandco\.de/ }));
+    await user.click(screen.getByTestId('payments-page-save'));
+    await waitFor(() => expect(calls.some((call) => call.url === '/api/v1/payments/pay-address' && call.method === 'PUT')).toBe(true));
+    expect(calls.find((call) => call.url === '/api/v1/payments/pay-address' && call.method === 'PUT')?.body).toEqual({ origin: 'https://admin.crumbandco.de' });
+  });
+
+  it('shows the real pay page as the preview, tells it what is typed, and opens a full preview in a new tab', async () => {
+    const opened = { location: { href: '' }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(opened as unknown as Window);
+    const { user, calls } = renderTab();
+    const frame = (await screen.findByTitle('Pay page preview')) as HTMLIFrameElement;
+    expect(frame.getAttribute('src')).toBe('/pay/preview');
+    const posted = vi.fn();
+    Object.defineProperty(frame, 'contentWindow', { configurable: true, value: { postMessage: posted } });
+    await user.type(screen.getByTestId('payments-page-name'), '!');
+    await waitFor(() => expect(posted).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'adminium-pay-preview', shop: expect.objectContaining({ name: 'Crumb & Co!' }), showLines: true }), window.location.origin));
+    await user.click(screen.getByTestId('payments-page-full-preview'));
+    await waitFor(() => expect(opened.location.href).toBe('https://admin.crumbandco.de/pay/AAAAAAAAAAAAAAAAAAAAAA'));
+    expect(calls.find((call) => call.url === '/api/v1/payments/test-payments')?.body).toEqual({ service: 'demo' });
+    expect(open).toHaveBeenCalledWith('about:blank', '_blank');
+    open.mockRestore();
   });
 });

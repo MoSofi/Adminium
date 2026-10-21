@@ -24,7 +24,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { Check, Copy, CreditCard, Globe, KeyRound, ShieldAlert, Wallet } from 'lucide-react';
+import { ArrowRight, Check, CircleCheck, Copy, CreditCard, ExternalLink, FileText, Globe, KeyRound, ShieldAlert, TriangleAlert, Wallet } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -66,6 +66,8 @@ import {
   saveField,
   saveRefusalOf,
   setStopped,
+  startTestPayment,
+  testPaymentQuery,
   type ChecklistStep,
   type FieldView,
   type KnownProvider,
@@ -73,6 +75,7 @@ import {
   type MoneyAlarm,
   type PaymentMode,
   type Reachability,
+  type StartedTestPayment,
   type ReachabilityState,
   type SaveRefusal,
   type ServiceView,
@@ -604,7 +607,103 @@ function ModeSection({ service, mode, canManage }: { service: ServiceView; mode:
       {recheck.isError ? <Alert tone="danger" role="alert" title={errorText(recheck.error)} /> : null}
       <CheckLine service={service} mode={mode} view={view} />
       <WebhookCard service={service} mode={mode} view={view} canManage={canManage} />
+      {mode === 'test' && canManage && view.check?.ok === true ? <TestPaymentCard service={service} /> : null}
     </section>
+  );
+}
+
+// ─── Send a test payment ────────────────────────────────────────────────────
+
+function testAmount(amount: string, currency: string): string {
+  try {
+    const decimals = (amount.split('.')[1] ?? '').length;
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals, numberingSystem: 'latn' }).format(Number(amount));
+  } catch {
+    return `${currency} ${amount}`;
+  }
+}
+
+/** A pretend invoice of one unit, paid on the real pay page in a new tab, and the round trip shown here. */
+function TestPaymentCard({ service }: { service: ServiceView }) {
+  const provider = knownProvider(service.key);
+  const [started, setStarted] = useState<StartedTestPayment | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const trip = useQuery(testPaymentQuery(started?.rowKey ?? null));
+  const name = providerWord(provider, service.name);
+
+  async function send(): Promise<void> {
+    setFailed(null);
+    // Opened at once, so no pop-up blocker takes it for an unasked window.
+    const opened = window.open('about:blank', '_blank');
+    try {
+      const made = await startTestPayment(service.key);
+      setStarted(made);
+      if (opened === null) window.open(made.url, '_blank');
+      else opened.location.href = made.url;
+    } catch (error) {
+      opened?.close();
+      setFailed(errorText(error));
+    }
+  }
+
+  const data = trip.data;
+  const done = data?.recorded === true;
+  const amount = started === null ? testAmount('1.00', 'EUR') : testAmount(started.amount, started.currency);
+  return (
+    <div className="flex flex-col gap-3" data-testid={`payments-${service.key}-test-payment`}>
+      <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-border bg-surface p-4 shadow-sm">
+        <div className="min-w-[240px] max-w-full flex-1">
+          <h4 className="text-[14px] font-bold">{t('studio:payments.test.title', 'Send a test payment')}</h4>
+          <p className="mt-0.5 text-[12.5px] text-fg-muted">{t('studio:payments.test.intro', 'Opens the pay page for a pretend {amount} invoice in a new tab.', { amount })}</p>
+        </div>
+        <Button iconRight={<ExternalLink className="size-4" />} onClick={() => void send()} data-testid={`payments-${service.key}-test-send`}>
+          {t('studio:payments.test.send', 'Send a test payment')}
+        </Button>
+      </div>
+      {failed !== null ? <Alert tone="danger" role="alert" title={failed} /> : null}
+      {started !== null && !done ? (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <Spinner size="sm" />
+          <p className="min-w-[240px] flex-1 text-[13px]">
+            {provider === 'paypal'
+              ? t('studio:payments.test.waitingPaypal', 'Waiting for the payment on the pay page. A test payment needs a sandbox buyer login: Testing tools → Sandbox accounts on the PayPal developer site.')
+              : t('studio:payments.test.waitingStripe', 'Waiting for the payment on the pay page. Use the Stripe test card {card}.', { card: '4242 4242 4242 4242' })}
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => window.open(started.url, '_blank')}>
+            {t('studio:payments.test.again', 'Open the pay page again')}
+          </Button>
+        </div>
+      ) : null}
+      {data !== undefined && done ? (
+        <div role="status" className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-4 shadow-sm" data-testid={`payments-${service.key}-test-trip`}>
+          <ol className="flex flex-wrap items-stretch gap-2">
+            <li className="flex min-w-[170px] flex-1 items-start gap-2 rounded-md bg-pos-soft p-3 text-[13px]">
+              <CircleCheck className="mt-0.5 size-4 shrink-0 text-pos" aria-hidden="true" />
+              <span>{t('studio:payments.test.took', '{service} took {amount} (Test)', { service: name, amount: testAmount(data.taken?.amount ?? data.amount, data.taken?.currency ?? data.currency) })}</span>
+            </li>
+            <li aria-hidden="true" className="flex items-center text-fg-subtle">
+              <ArrowRight className="size-4 rtl:-scale-x-100" />
+            </li>
+            <li className={`flex min-w-[170px] flex-1 items-start gap-2 rounded-md p-3 text-[13px] ${data.webhookArrived ? 'bg-pos-soft' : 'bg-warn-soft'}`}>
+              {data.webhookArrived ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-pos" aria-hidden="true" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />}
+              <span>{data.webhookArrived ? t('studio:payments.test.webhook', 'the webhook arrived') : t('studio:payments.test.noWebhook', 'no webhook arrived: the payment was found by asking')}</span>
+            </li>
+            <li aria-hidden="true" className="flex items-center text-fg-subtle">
+              <ArrowRight className="size-4 rtl:-scale-x-100" />
+            </li>
+            <li className="flex min-w-[240px] flex-[1.6] items-start gap-2 rounded-md border border-dashed border-border-strong bg-surface-2 p-3 text-[13px]">
+              <FileText className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+              <span>
+                {data.paidWith === null
+                  ? t('studio:payments.test.wouldRecord', 'this is what would be recorded: one payment of {amount}.', { amount: testAmount(data.taken?.amount ?? data.amount, data.currency) })
+                  : t('studio:payments.test.wouldRecordWith', 'this is what would be recorded: one payment of {amount}, {paidWith}.', { amount: testAmount(data.taken?.amount ?? data.amount, data.currency), paidWith: data.paidWith })}
+              </span>
+            </li>
+          </ol>
+          <p className="text-[12.5px] font-semibold text-fg-muted">{t('studio:payments.test.nothingWritten', 'Nothing was written to your tables.')}</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

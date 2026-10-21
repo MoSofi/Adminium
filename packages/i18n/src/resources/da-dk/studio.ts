@@ -3698,7 +3698,7 @@ export default {
       "eventsRead": "Fange en betaling, hvis webhook gik tabt",
       "disputesRead": "Vise tvister",
       "methodsRead": "Se, hvilke betalingsmåder du har slået til",
-      "accountRead": "Vise, hvilken Stripe-konto nøglen hører til",
+      "accountRead": "Vise, hvilken konto hos Stripe nøglen hører til",
       "webhooksRead": "Tjekke din live-webhook",
       "heading": "Den adgang, nøglen skal have",
       "note": "Begge måder giver nøglen præcis dette. Lad alt andet stå på Ingen.",
@@ -3711,8 +3711,8 @@ export default {
         "step2": "Installér Stripe CLI",
         "step5": "Pak skabelonen ud, og åbn dens mappe",
         "step7": "Installér appen i dashboardet hos Stripe, og kopiér dens nøgle",
-        "title": "Med din egen Stripe-app (sådan anbefaler Stripe det)",
-        "desc": "Du uploader én gang en lille app til din egen Stripe-konto med kommandolinjeværktøjet fra Stripe. Den laver en nøgle med præcis adgangen nedenfor.",
+        "title": "Med din egen app i Stripe (sådan anbefaler Stripe det)",
+        "desc": "Du uploader én gang en lille app til din egen konto hos Stripe med kommandolinjeværktøjet fra Stripe. Den laver en nøgle med præcis adgangen nedenfor.",
         "note": "Upload én gang i din testkonto og én gang i din live-konto."
       },
       "hand": {
@@ -3817,7 +3817,7 @@ export default {
       "on": "Til",
       "off": "Fra",
       "tagHand": "Manuelt",
-      "followsCards": "Følger kort: Den kan ikke udelades fra en enkelt betaling alene. Slå den fra i Stripe-dashboardet.",
+      "followsCards": "Følger kort: Den kan ikke udelades fra en enkelt betaling alene. Slå den fra i dashboardet hos Stripe.",
       "noAccounts": "Ingen bankkonto endnu: Kunden får ikke vist noget at betale til.",
       "accounts": "Konti i {list}",
       "editDetails": "Rediger oplysninger",
@@ -3972,8 +3972,18 @@ export default {
       "countryHelp": "En kode på to bogstaver, som DE. Reglerne under Betalingsmåder bruger den, når kundens land ikke er kendt.",
       "countryInvalid": "Skriv en kode på to bogstaver, som DE.",
       "lines": "Vis fakturaens linjer på betalingssiden",
-      "providerBranding": "Kunderne ser også navnet og logoet, der er angivet i dit Stripe-dashboard, på Stripe-siden.",
-      "logoPending": "Logo uploadet. Gem for at bruge det på betalingssiden."
+      "providerBranding": "Kunderne ser også navnet og logoet, der er angivet i dit dashboard hos Stripe, på siden hos Stripe.",
+      "logoPending": "Logo uploadet. Gem for at bruge det på betalingssiden.",
+      "where": "Hvor kunderne betaler",
+      "whereStaff": "(din personaleadresse)",
+      "whereCustomer": "(din kundeadresse)",
+      "whereNote": "Betalingslinks bruger altid den adresse, du vælger her.",
+      "whereNone": "Angiv først denne servers offentlige adresse: Betalingslinks skal have en adresse, som kunderne kan nå.",
+      "previewTitle": "Forhåndsvisning · faktura",
+      "previewFrame": "Forhåndsvisning af betalingssiden",
+      "openPreview": "Åbn en fuld forhåndsvisning",
+      "previewNote": "Kun for personale. Den bruger en fiktiv betalingstjeneste og flytter ingen penge.",
+      "previewFailed": "Den fulde forhåndsvisning kunne ikke åbnes. Prøv igen."
     },
     "way": {
       "card": "Kort",
@@ -3981,6 +3991,20 @@ export default {
       "bankTransfer": "Bankoverførsel",
       "cashOnDelivery": "Efterkrav",
       "other": "En anden manuel betalingsmåde"
+    },
+    "test": {
+      "title": "Send en testbetaling",
+      "intro": "Åbner betalingssiden for en fiktiv faktura på {amount} i en ny fane.",
+      "send": "Send en testbetaling",
+      "waitingStripe": "Venter på betalingen på betalingssiden. Brug testkortet {card} fra Stripe.",
+      "waitingPaypal": "Venter på betalingen på betalingssiden. En testbetaling kræver et login til en sandbox-køber: Testing tools → Sandbox accounts på udviklerwebstedet hos PayPal.",
+      "again": "Åbn betalingssiden igen",
+      "took": "{service} modtog {amount} (Test)",
+      "webhook": "webhooken kom frem",
+      "noWebhook": "ingen webhook kom frem: Betalingen blev fundet ved at spørge efter den",
+      "wouldRecord": "dette ville blive registreret: én betaling på {amount}.",
+      "wouldRecordWith": "dette ville blive registreret: én betaling på {amount}, {paidWith}.",
+      "nothingWritten": "Der blev ikke skrevet noget i dine tabeller."
     }
   }
 } as const;

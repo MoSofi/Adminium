@@ -3973,7 +3973,17 @@ export default {
       "countryInvalid": "Write a two-letter code, such as DE.",
       "lines": "Show the invoice's lines on the pay page",
       "providerBranding": "Customers also see the name and logo set in your Stripe dashboard on the Stripe page.",
-      "logoPending": "Logo uploaded. Save to use it on the pay page."
+      "logoPending": "Logo uploaded. Save to use it on the pay page.",
+      "where": "Where customers pay",
+      "whereStaff": "(your staff address)",
+      "whereCustomer": "(your customer address)",
+      "whereNote": "Pay links always use the address you choose here.",
+      "whereNone": "Set this server's public address first: pay links need an address customers can reach.",
+      "previewTitle": "Preview · invoice",
+      "previewFrame": "Pay page preview",
+      "openPreview": "Open a full preview",
+      "previewNote": "Staff only. It uses a pretend payment service and moves no money.",
+      "previewFailed": "The full preview could not be opened. Try again."
     },
     "way": {
       "card": "Cards",
@@ -3981,6 +3991,20 @@ export default {
       "bankTransfer": "Bank transfer",
       "cashOnDelivery": "Cash on delivery",
       "other": "Another way to pay by hand"
+    },
+    "test": {
+      "title": "Send a test payment",
+      "intro": "Opens the pay page for a pretend {amount} invoice in a new tab.",
+      "send": "Send a test payment",
+      "waitingStripe": "Waiting for the payment on the pay page. Use the Stripe test card {card}.",
+      "waitingPaypal": "Waiting for the payment on the pay page. A test payment needs a sandbox buyer login: Testing tools → Sandbox accounts on the PayPal developer site.",
+      "again": "Open the pay page again",
+      "took": "{service} took {amount} (Test)",
+      "webhook": "the webhook arrived",
+      "noWebhook": "no webhook arrived: the payment was found by asking",
+      "wouldRecord": "this is what would be recorded: one payment of {amount}.",
+      "wouldRecordWith": "this is what would be recorded: one payment of {amount}, {paidWith}.",
+      "nothingWritten": "Nothing was written to your tables."
     }
   }
 } as const;

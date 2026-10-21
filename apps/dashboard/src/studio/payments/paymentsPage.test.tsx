@@ -11,7 +11,9 @@
  *  3. a saved key shows its hint, never a value, and the checklist counts;
  *  4. a Check that finds missing permissions names them; a refused key raises
  *     the alarm;
- *  5. someone who may only view sees all of it and no control.
+ *  5. someone who may only view sees all of it and no control;
+ *  6. "Send a test payment" opens the pay page in a new tab and shows the
+ *     round trip once the payment is kept.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -320,4 +322,42 @@ describe('PaymentsPage', () => {
     renderPage(setup({ services: [] }));
     expect(textOf(await screen.findByTestId('payments-no-services'))).toContain('No payment service is installed.');
   });
+
+  it('sends a test payment once the test key is checked, and shows the round trip', async () => {
+    const checked = mode({ check: { at: 1, ok: true, code: null, message: null, missing: [] } });
+    const data = setup({ services: [stripe({ test: checked })] });
+    let trip = { label: 'TEST-ABCD', service: 'payments-stripe', amount: '1.00', currency: 'EUR', state: 'open', taken: null as null | { amount: string; currency: string }, paidWith: null as string | null, webhookArrived: false, recorded: false };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/v1/payments/setup') return Promise.resolve(jsonResponse(200, { data }));
+        if (url === '/api/v1/payments/test-payments' && init?.method === 'POST') {
+          return Promise.resolve(jsonResponse(200, { data: { rowKey: 'paytest_abc', label: 'TEST-ABCD', url: 'https://admin.example.test/pay/AAAAAAAAAAAAAAAAAAAAAA', amount: '1.00', currency: 'EUR' } }));
+        }
+        if (url === '/api/v1/payments/test-payments/paytest_abc') return Promise.resolve(jsonResponse(200, { data: trip }));
+        return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'not stubbed' } }));
+      }),
+    );
+    const opened = { location: { href: '' }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(opened as unknown as Window);
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PageActionsProvider>
+          <PaymentsPage onOpenSettings={() => undefined} />
+        </PageActionsProvider>
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId('payments-payments-stripe-test-send'));
+    await waitFor(() => expect(opened.location.href).toBe('https://admin.example.test/pay/AAAAAAAAAAAAAAAAAAAAAA'));
+    expect(await screen.findByText(/Use the Stripe test card 4242 4242 4242 4242\./)).toBeTruthy();
+    trip = { ...trip, state: 'recorded', taken: { amount: '1.00', currency: 'EUR' }, paidWith: 'Visa ••4242', webhookArrived: true, recorded: true };
+    const shown = await screen.findByTestId('payments-payments-stripe-test-trip', {}, { timeout: 6000 });
+    expect(textOf(shown)).toContain('took €1.00 (Test)');
+    expect(textOf(shown)).toContain('the webhook arrived');
+    expect(textOf(shown)).toContain('this is what would be recorded: one payment of €1.00, Visa ••4242.');
+    expect(textOf(shown)).toContain('Nothing was written to your tables.');
+    open.mockRestore();
+  }, 15_000);
 });

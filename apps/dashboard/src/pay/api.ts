@@ -85,6 +85,26 @@ export async function fetchBack(nonce: string): Promise<PayPage> {
   return json(await fetch(`/pay/api/back/${encodeURIComponent(nonce)}`, { credentials: 'same-origin', headers }));
 }
 
+/** Staff only: the pay page settings as a customer would see them, on a made-up invoice. */
+export async function fetchPreview(): Promise<PayPage> {
+  return json(await fetch('/pay/api/preview', { credentials: 'same-origin', headers }));
+}
+
+/** What Studio sends the preview while the settings are being edited (not saved yet). */
+export interface PreviewEdit {
+  type: 'adminium-pay-preview';
+  shop: { name: string; email: string | null; phone: string | null };
+  /** The logo file to show: the saved one, one just uploaded, or none. */
+  logoFileId: string | null;
+  showLines: boolean;
+}
+
+export function isPreviewEdit(data: unknown): data is PreviewEdit {
+  if (typeof data !== 'object' || data === null) return false;
+  const edit = data as Partial<PreviewEdit>;
+  return edit.type === 'adminium-pay-preview' && typeof edit.shop?.name === 'string' && typeof edit.showLines === 'boolean';
+}
+
 export interface Challenge {
   id: string;
   salt: string;
