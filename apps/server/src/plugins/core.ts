@@ -313,6 +313,11 @@ export const RATE_BUCKETS = {
    * plugin counts them again per /64 and per key; this is the backstop.
    */
   'public-picture': { max: 1200, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The pay page: whoever holds a pay link, by network address. Reading the
+  // page is cheap; starting a checkout is capped harder here and again per
+  // link and per install in meta (`routes/pay`), where every process counts.
+  'pay-page': { max: 120, timeWindowMs: 60_000, keyBy: 'ip' },
+  'pay-checkout': { max: 20, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

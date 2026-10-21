@@ -24,7 +24,8 @@
  */
 import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export const PROOF_PURPOSES = ['write', 'claim'] as const;
+/** `pay`: pressing Pay on a pay link; the key a pay proof is bound to is the link's id. */
+export const PROOF_PURPOSES = ['write', 'claim', 'pay'] as const;
 export type ProofPurpose = (typeof PROOF_PURPOSES)[number];
 
 /** Leading zero bits a proof needs: about a second on a low-end phone. */

@@ -285,6 +285,11 @@ import { geoRoutes } from './routes/geo/index.js';
 import { paymentsRoutes } from './routes/payments/index.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
+import { paymentLinksRoutes } from './routes/payments/links.js';
+import { payRoutes } from './routes/pay/index.js';
+import { createCheckoutService } from './payments/checkout.js';
+import { paymentProviderFor } from './payments/providers.js';
+import { anyLiveOn, readyPaymentProviders } from './payments/ready.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -1488,7 +1493,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   );
   // Payments: the job that records a payment exactly once, and the
   // pickup that queues it again for any attempt a dead job left behind.
-  registerPaymentsRecordHandler(jobs.registry, { meta, sources: createPayableSources({ meta, manager }), writes: recordWrites, app, log: app.log });
+  const paymentSources = createPayableSources({ meta, manager });
+  registerPaymentsRecordHandler(jobs.registry, { meta, sources: paymentSources, writes: recordWrites, app, log: app.log });
+  // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
+  const paymentCheckout = createCheckoutService({
+    meta,
+    sources: paymentSources,
+    providerFor: (key, mode) =>
+      paymentProviderFor(
+        { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null, log: (message, fields) => app.log.warn(fields, message) },
+        key,
+        mode,
+      ),
+    enqueue: (input) => jobs.enqueue(input),
+  });
   jobs.scheduler.registerSchedule(
     PAYMENTS_RECORD_PICKUP_NAME,
     PAYMENTS_RECORD_PICKUP_CRON,
@@ -1967,6 +1985,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(paymentPayablesRoutes({ meta, manager }));
       await api.register(paymentWaysRoutes({ meta, manifests: appManifests, runtime: () => addOnRuntime }));
+      await api.register(
+        paymentLinksRoutes({
+          meta,
+          manager,
+          sources: paymentSources,
+          secret: env.ADMINIUM_SECRET,
+          networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+          desktop: env.ADMINIUM_RUNTIME === 'desktop',
+          trustProxy: env.ADMINIUM_TRUST_PROXY,
+          liveOn: () => anyLiveOn({ meta, manifests: appManifests, runtime: () => addOnRuntime }),
+        }),
+      );
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
@@ -2618,6 +2648,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * boot, because an operator who set the env var and got nothing needs to be
    * told why rather than left to guess.
    */
+  /*
+   * The pay page's API, for whoever holds a pay link. A sibling at the root,
+   * like the public namespace: `/pay/*` is served on the pay address (often a
+   * customer domain), and every route asks first whether customers can reach
+   * it at all.
+   */
+  await app.register(
+    payRoutes({
+      meta,
+      sources: paymentSources,
+      checkout: paymentCheckout,
+      readyProviders: async (mode) =>
+        (await readyPaymentProviders({ meta, manifests: appManifests, runtime: () => addOnRuntime })).filter((one) => one.mode === mode).map((one) => one.key),
+      secret: env.ADMINIUM_SECRET,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+
   const publicBlocked = publicApiRegistrationBlocked(env);
   if (publicBlocked === null) {
     await app.register(

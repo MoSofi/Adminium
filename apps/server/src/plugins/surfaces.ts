@@ -247,6 +247,9 @@ export const RESERVED_AUTH_PATHS = ['/login', '/otp', '/forgot', '/reset'] as co
 export function isHostReservedPath(path: string, side: SurfaceSide = 'staff'): boolean {
   if (path === '/api' || path.startsWith('/api/')) return true;
   if (path === '/apps' || path.startsWith('/apps/')) return true;
+  // The pay page and its assets: served by their own routes on every host,
+  // a customer one included (the pay address is preferably a customer domain).
+  if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
   // A CUSTOMER host serves no part of the dashboard: not its
   // sign-in pages, not its bundle, not its WebSocket. Those paths are refused
   // outright by the lockdown hook below rather than passed through.
@@ -267,6 +270,12 @@ const CUSTOMER_REFUSED_PATHS = [...RESERVED_AUTH_PATHS, '/assets', '/ws'] as con
 /** The anonymous public API — the one part of `/api` a customer host serves. */
 const PUBLIC_API_PREFIX = '/api/v1/public/';
 
+/** The pay page (`/pay/<token>`, its assets and its own API). Never `/p/`, which is the pages route. */
+export const PAY_PREFIX = '/pay';
+
+/** Where a payment service calls back. Public by nature: the provider signs what it sends. */
+export const PAYMENT_WEBHOOK_PREFIX = '/api/v1/payments/webhook/';
+
 /**
  * What a CUSTOMER-mapped host may serve beyond its own root-served surface:
  * the public API, and that app's own customer mount
@@ -276,6 +285,8 @@ const PUBLIC_API_PREFIX = '/api/v1/public/';
  */
 export function customerHostAllows(path: string, appKey: string): boolean {
   if (path.startsWith(PUBLIC_API_PREFIX)) return true;
+  if (path.startsWith(PAYMENT_WEBHOOK_PREFIX)) return true;
+  if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
   if (path === '/api' || path.startsWith('/api/')) return false;
   if (path === '/apps' || path.startsWith('/apps/')) {
     const own = parseSurfacePath(path);

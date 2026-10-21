@@ -17,8 +17,7 @@
  * invoice's lines. The logo is a raster image only: an SVG on a public page
  * is a script waiting to happen.
  */
-import { PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, type PaymentMode } from '@adminium/add-on-contracts';
-import { addOnManifestSchema } from '@adminium/manifest';
+import type { PaymentMode } from '@adminium/add-on-contracts';
 import {
   PAYABLE_KINDS,
   filesRepo,
@@ -35,10 +34,11 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { addOnHttpClientFor } from '../../add-ons/egress.js';
-import { providerByKey, type AddOnRuntimeState } from '../../add-ons/runtime.js';
+import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { paymentProviderFor } from '../../payments/providers.js';
+import { paymentAddOnKeys, readyPaymentProviders } from '../../payments/ready.js';
 import { emptyServiceState, serviceDocName, serviceStateSchema } from '../../payments/services.js';
 import { MANUAL_METHODS, MANUAL_SOURCE, waysFor } from '../../payments/ways.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -142,14 +142,8 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
     return (await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView));
   }
 
-  /** Installed payment add-ons, by key. */
   async function paymentKeys(): Promise<Set<string>> {
-    const keys = new Set<string>();
-    for (const installed of await manifests.list('add-on')) {
-      const parsed = addOnManifestSchema.safeParse(installed.document);
-      if (parsed.success && (parsed.data.addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) keys.add(parsed.data.key);
-    }
-    return keys;
+    return new Set(await paymentAddOnKeys({ manifests }));
   }
 
   /** The mode a service works in now: live once live payments are switched on. */
@@ -158,17 +152,8 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
     return state.liveOn ? 'live' : 'test';
   }
 
-  /** The providers that can take a checkout now: loaded, keyed and checked for their mode, not stopped. */
   async function readyProviders(): Promise<string[]> {
-    const runtime = deps.runtime();
-    const ready: string[] = [];
-    for (const key of await paymentKeys()) {
-      const state = (await docs.get(serviceDocName(key), serviceStateSchema)) ?? emptyServiceState();
-      const mode = state.liveOn ? state.live : state.test;
-      const loaded = runtime !== null && providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, key) !== null;
-      if (loaded && !state.stopped && mode.check?.ok === true) ready.push(key);
-    }
-    return ready;
+    return (await readyPaymentProviders({ meta, manifests, runtime: deps.runtime })).map((one) => one.key);
   }
 
   async function defaultPayPage(): Promise<PayPageSettings> {

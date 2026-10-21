@@ -25,7 +25,7 @@ import { appTablesRepo, publicKeysRepo, publicScopesRepo, connectionsRepo, setti
 import type { AdminiumServer } from '../src/app.js';
 import { discoverSurfaces, type HostedSurface } from '../src/cli/surfaces-root.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
-import { isHostReservedPath, RESERVED_AUTH_PATHS } from '../src/plugins/surfaces.js';
+import { customerHostAllows, isHostReservedPath, RESERVED_AUTH_PATHS } from '../src/plugins/surfaces.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import type { DomainMapping } from '../src/surfaces/settings.js';
 import { ADMIN_EMAIL, ADMIN_NAME, buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
@@ -125,6 +125,23 @@ describe('isHostReservedPath — the D4 set, walked', () => {
     for (const path of ['/', '/state', '/account', '/settings/team', '/p/invoices', '/loginx']) {
       expect(isHostReservedPath(path), path).toBe(false);
     }
+  });
+});
+
+describe('the pay page on a mapped host', () => {
+  it('keeps its own routes on staff and customer hosts alike', () => {
+    for (const side of ['staff', 'customer'] as const) {
+      expect(isHostReservedPath('/pay/abc123', side)).toBe(true);
+      expect(isHostReservedPath('/pay/assets/pay-1.js', side)).toBe(true);
+    }
+    // `/p/` is the pages route, never the pay page.
+    expect(isHostReservedPath('/payments', 'customer')).toBe(false);
+  });
+
+  it('lets a customer host serve the pay page and the payment webhook, and nothing else of the API', () => {
+    expect(customerHostAllows('/pay/abc123', 'clients')).toBe(true);
+    expect(customerHostAllows('/api/v1/payments/webhook/payments-stripe/live', 'clients')).toBe(true);
+    expect(customerHostAllows('/api/v1/payments/setup', 'clients')).toBe(false);
   });
 });
 
