@@ -3714,6 +3714,7 @@ export default {
         "step7": "Install the app in the Stripe dashboard and copy its key",
         "title": "With your own Stripe App (the way Stripe recommends)",
         "desc": "You upload a small app to your own Stripe account once, using the Stripe command-line tool. It makes a key with exactly the access below.",
+        "download": "Download the app template",
         "note": "Upload once in your test account and once in your live account."
       },
       "hand": {

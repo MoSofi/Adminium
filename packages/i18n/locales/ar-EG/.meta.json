@@ -28615,6 +28615,10 @@
     "status": "mt",
     "srcHash": "45993f55db18"
   },
+  "studio.payments.path.app.download": {
+    "status": "mt",
+    "srcHash": "9fee289e1f0f"
+  },
   "studio.payments.path.app.note": {
     "status": "mt",
     "srcHash": "0ea3e7e8cc69"

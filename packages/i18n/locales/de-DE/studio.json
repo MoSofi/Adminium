@@ -3704,6 +3704,7 @@
         "step7": "Die App im Dashboard von Stripe installieren und ihren Schlüssel kopieren",
         "title": "Mit Ihrer eigenen Stripe App (so empfiehlt es Stripe)",
         "desc": "Sie laden einmal eine kleine App in Ihr eigenes Konto bei Stripe hoch, mit dem Kommandozeilenwerkzeug von Stripe. Sie erstellt einen Schlüssel mit genau dem Zugriff unten.",
+        "download": "App-Vorlage herunterladen",
         "note": "Einmal in Ihrem Testkonto und einmal in Ihrem Live-Konto hochladen."
       },
       "hand": {

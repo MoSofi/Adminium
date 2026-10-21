@@ -3714,6 +3714,7 @@ export default {
         "step7": "在 Stripe 控制台中安裝該應用程式並複製它的金鑰",
         "title": "使用您自己的 Stripe App（Stripe 建議的方式）",
         "desc": "您只需用 Stripe 命令列工具把一個小應用程式上傳到您自己的 Stripe 帳戶一次。它會建立一個權限與下方完全一致的金鑰。",
+        "download": "下載應用程式範本",
         "note": "在測試帳戶上傳一次，在正式帳戶再上傳一次。"
       },
       "hand": {

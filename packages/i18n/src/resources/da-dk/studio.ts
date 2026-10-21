@@ -3714,6 +3714,7 @@ export default {
         "step7": "Installér appen i dashboardet hos Stripe, og kopiér dens nøgle",
         "title": "Med din egen app i Stripe (sådan anbefaler Stripe det)",
         "desc": "Du uploader én gang en lille app til din egen konto hos Stripe med kommandolinjeværktøjet fra Stripe. Den laver en nøgle med præcis adgangen nedenfor.",
+        "download": "Hent app-skabelonen",
         "note": "Upload én gang i din testkonto og én gang i din live-konto."
       },
       "hand": {

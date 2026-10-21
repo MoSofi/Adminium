@@ -3704,6 +3704,7 @@
         "step7": "Installer l’app dans le tableau de bord Stripe et copier sa clé",
         "title": "Avec votre propre app Stripe (la méthode recommandée par Stripe)",
         "desc": "Vous téléversez une fois une petite app dans votre propre compte Stripe, avec l’outil en ligne de commande Stripe. Elle crée une clé avec exactement les accès ci-dessous.",
+        "download": "Télécharger le modèle d’app",
         "note": "Téléversez une fois dans votre compte de test et une fois dans votre compte réel."
       },
       "hand": {

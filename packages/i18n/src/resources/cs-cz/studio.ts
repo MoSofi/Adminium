@@ -3714,6 +3714,7 @@ export default {
         "step7": "Nainstalovat aplikaci v nástěnce Stripe a zkopírovat její klíč",
         "title": "S vlastní aplikací Stripe App (tak to doporučuje Stripe)",
         "desc": "Jednou nahrajete malou aplikaci do svého účtu Stripe pomocí nástroje příkazové řádky Stripe. Vytvoří klíč přesně s přístupem uvedeným níže.",
+        "download": "Stáhnout šablonu aplikace",
         "note": "Nahrajte jednou do testovacího účtu a jednou do ostrého účtu."
       },
       "hand": {

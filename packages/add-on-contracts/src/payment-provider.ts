@@ -58,6 +58,15 @@ export const PAYMENT_PROVIDER_FACTORY = 'createPaymentProvider';
  */
 export const PAYMENT_WEBHOOK_EVENTS_EXPORT = 'webhookEvents';
 
+/**
+ * The name of an OPTIONAL export of the server half for a provider whose key is
+ * made by an app the shop uploads to its own account (Stripe's private app):
+ * `(input: { shopName: string; installId: string }) => { appId: string;
+ * appName: string; files: Record<string, string> }`. Studio's "Download the
+ * app template" calls it with a per-install id and zips the files it answers.
+ */
+export const PAYMENT_KEY_APP_EXPORT = 'keyAppTemplate';
+
 /** A key belongs to one mode; so does every checkout, event and refund made with it. */
 export const PAYMENT_MODES = ['test', 'live'] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];

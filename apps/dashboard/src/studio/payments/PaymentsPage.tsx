@@ -24,7 +24,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, Check, CircleCheck, Clock, Copy, CreditCard, Ellipsis, ExternalLink, FileText, Globe, KeyRound, RotateCcw, ShieldAlert, TriangleAlert, Unplug, Wallet } from 'lucide-react';
+import { ArrowRight, Check, CircleCheck, Clock, Copy, CreditCard, Download, Ellipsis, ExternalLink, FileText, Globe, KeyRound, RotateCcw, ShieldAlert, TriangleAlert, Unplug, Wallet } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -864,7 +864,23 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
         </ol>
       ) : null}
       {service.path === 'app' ? (
-        <p className="text-[12.5px] text-fg-muted">{t('studio:payments.path.app.note', 'Upload once in your test account and once in your live account.')}</p>
+        <>
+          {canManage ? (
+            <div>
+              {/* The zip is this install's own app: its id is made once and kept, so every download is the same app. */}
+              <Button
+                variant="secondary"
+                size="sm"
+                iconLeft={<Download className="size-4" />}
+                onClick={() => window.location.assign(`/api/v1/payments/services/${encodeURIComponent(service.key)}/key-app`)}
+                data-testid={`payments-${service.key}-key-app`}
+              >
+                {t('studio:payments.path.app.download', 'Download the app template')}
+              </Button>
+            </div>
+          ) : null}
+          <p className="text-[12.5px] text-fg-muted">{t('studio:payments.path.app.note', 'Upload once in your test account and once in your live account.')}</p>
+        </>
       ) : null}
       <div className="flex flex-col gap-1">
         <h4 className="text-[12.5px] font-bold">{t('studio:payments.access.heading', 'The access the key needs')}</h4>

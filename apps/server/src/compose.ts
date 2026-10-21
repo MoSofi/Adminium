@@ -304,6 +304,7 @@ import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
+import { keyAppRoutes } from './routes/payments/key-app.js';
 import { testPaymentsRoutes } from './routes/payments/test-payments.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
@@ -2068,6 +2069,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) }));
       await api.register(paymentActivityRoutes({ meta }));
+      // Download the app template a shop uploads to its own provider account to make its key.
+      await api.register(keyAppRoutes({ meta, runtime: () => addOnRuntime }));
       // Email a record's pay link to its customer, under the links' own rights.
       await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Send a test payment, and the pay page's full preview: a throwaway payable and a test link.

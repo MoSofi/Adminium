@@ -376,6 +376,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'DELETE /api/v1/payments/services/:key/modes/:mode/fields/:field': noRows('A payment service key, kept encrypted in meta.'),
   'POST /api/v1/payments/services/:key/modes/:mode/check': noRows('Asks the payment service about its key; nothing of a source table.'),
   'PUT /api/v1/payments/services/:key/path': noRows('A payment service setup choice, kept in meta.'),
+  'GET /api/v1/payments/services/:key/key-app': noRows('The app template a shop uploads to its own provider account; nothing of a source table.'),
   'PUT /api/v1/payments/services/:key/live': noRows('A payment service switch, kept in meta; ends test links and test checkouts.'),
   'POST /api/v1/payments/services/:key/disconnect': noRows('Stops a payment service or removes its keys, kept in meta.'),
   'PUT /api/v1/payments/services/:key/stopped': noRows('A payment service switch, kept in meta.'),
