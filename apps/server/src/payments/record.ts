@@ -37,7 +37,7 @@
 import { compareAmounts, decimalToMinor, sameAmount } from '@adminium/add-on-contracts';
 import { currencyScale } from '@adminium/manifest';
 import { isDuplicateKeyError, keptPaymentsRepo, paymentAttemptsRepo, type AttemptProblem, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { afterRecordWrite } from '../crud/after-record-write.js';
@@ -46,12 +46,13 @@ import { isUniqueViolation } from '../crud/decided-columns.js';
 import { pkLabel } from '../crud/records.js';
 import type { Row } from '../crud/mask.js';
 import type { WriteActor, WriteContext } from '../crud/write-context.js';
-import { createWriteService, type RecordWriteService } from '../crud/write-service.js';
+import { createWriteService } from '../crud/write-service.js';
 import { writeStores } from '../crud/write-stores.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { AppError } from '../errors.js';
 import type { JobRegistry } from '../jobs/registry.js';
-import { resolvePayable, rowKeyOf, type PayableSources, type ResolvedPayable } from './payables.js';
+import { resolvePayable, rowKeyOf, type ResolvedPayable } from './payables.js';
+import type { RecordDeps } from './record-deps.js';
 import { followRefundsOnRecord } from './refunds.js';
 
 export const PAYMENTS_RECORD_JOB = 'payments.record';
@@ -66,22 +67,7 @@ export const RECORD_PICKUP_AFTER_MS = 10 * 60 * 1000;
 export const PAYMENTS_RECORD_PICKUP_NAME = 'payments-record-pickup';
 export const PAYMENTS_RECORD_PICKUP_CRON = '*/5 * * * *';
 
-export interface RecordDeps {
-  meta: MetaDb;
-  sources: PayableSources;
-  writes?: RecordWriteService;
-  /** For the audit row and the automations a written payment sets off. */
-  app?: FastifyInstance;
-  now?: () => number;
-  log?: { warn: (fields: Record<string, unknown>, message: string) => void };
-  /**
-   * Called once per payment, by the one run that moved the attempt to
-   * `recorded` (the receipt email). A throw is logged, never raised.
-   */
-  onRecorded?: (attempt: PaymentAttempt) => Promise<unknown>;
-  /** Crash injection for tests: called between the steps named. */
-  faults?: { afterClaim?: () => Promise<void> | void; afterWrite?: () => Promise<void> | void };
-}
+export type { RecordDeps } from './record-deps.js';
 
 export type RecordOutcome =
   | { state: 'recorded'; key: string; already: boolean }

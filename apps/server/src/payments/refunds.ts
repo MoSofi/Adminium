@@ -104,7 +104,7 @@ import type { JobRegistry } from '../jobs/registry.js';
 import { noticeMoney, providerName, tellPaymentManagers, type NoticeDeps } from './notices.js';
 import { exactAmount, pkOfRowKey, resolvePayable, type PayableSources } from './payables.js';
 import type { ProviderLookup } from './providers.js';
-import type { RecordDeps } from './record.js';
+import type { RecordDeps } from './record-deps.js';
 
 export const PAYMENTS_REFUND_JOB = 'payments.refund';
 export const PAYMENTS_REFUND_MAX_ATTEMPTS = 20;
