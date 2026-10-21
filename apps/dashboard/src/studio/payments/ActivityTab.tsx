@@ -205,6 +205,13 @@ export function flagSentence(row: ActivityRow, services: readonly ServiceView[],
       return row.payable === null
         ? t('studio:payments.activity.flag.refundedThereNoRecord', 'Refunded in the {service} dashboard: {amount}. Recorded.', { service, amount })
         : t('studio:payments.activity.flag.refundedThere', 'Refunded in the {service} dashboard: {amount} on {record}. Recorded.', { service, amount, record });
+    case 'refund-record': {
+      const reason = row.flag.reason;
+      if (reason === 'RECORD_GONE') return t('studio:payments.activity.flag.refundRecordGone', 'Refunded {amount}, but the payment it refunds is no longer in {record}. Nothing was written.', { amount, record });
+      if (reason === 'MORE_THAN_PAID') return t('studio:payments.activity.flag.refundPastPaid', 'Refunds on {record} now stand above what was paid. The record shows what was paid as refunded, and no more.', { record });
+      if (reason === 'CURRENCY_DIFFERS') return t('studio:payments.activity.flag.refundOtherCurrency', 'Refunded {amount} at {service}, in another currency than {record} was paid in. Nothing was written to the record.', { amount, service, record });
+      return t('studio:payments.activity.flag.refundNotWritten', 'Refunded {amount}, but it could not be written to {record} yet. It is tried again by itself.', { amount, record });
+    }
     case 'payable-voided':
       return invoice
         ? t('studio:payments.activity.flag.voided', 'Paid after the invoice was voided: {record} · {amount}.', { record, amount })
@@ -236,6 +243,8 @@ function flagLook(row: ActivityRow): { icon: LucideIcon; tone: Tone } {
       return { icon: Scale, tone: 'warn' };
     case 'refunded-at-provider':
       return { icon: RotateCcw, tone: 'info' };
+    case 'refund-record':
+      return { icon: RotateCcw, tone: 'warn' };
     case 'payable-voided':
       return { icon: FileX, tone: 'danger' };
     case 'mode-mismatch':

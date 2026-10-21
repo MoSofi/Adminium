@@ -113704,6 +113704,7 @@
                                           "amount-differs",
                                           "payable-voided",
                                           "refunded-at-provider",
+                                          "refund-record",
                                           "mode-mismatch",
                                           "paid-twice",
                                           "waiting-long",

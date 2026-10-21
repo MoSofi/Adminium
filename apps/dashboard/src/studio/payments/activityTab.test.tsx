@@ -132,6 +132,18 @@ describe('ActivityTab', () => {
     expect(within(card).getAllByRole('button', { name: 'Mark as checked' })).toHaveLength(3);
   });
 
+  it('says why the record did not follow a refund, by what went wrong', async () => {
+    const refund = (id: string, reason: string) => ({ ...AT_STRIPE, id, refundSource: 'staff' as const, flag: { code: 'refund-record' as const, reason, message: null } });
+    stub({ open: [refund('rfd_1', 'NOT_WRITTEN'), refund('rfd_2', 'RECORD_GONE'), refund('rfd_3', 'MORE_THAN_PAID'), refund('rfd_4', 'CURRENCY_DIFFERS')], list: [] });
+    show();
+    const card = await screen.findByTestId('activity-needs-look');
+    await waitFor(() => expect(textOf(screen.getByTestId('activity-needs-look-count'))).toBe('4'));
+    expect(textOf(card)).toContain('Refunded €20.00, but it could not be written to INV-0042 yet. It is tried again by itself.');
+    expect(textOf(card)).toContain('Refunded €20.00, but the payment it refunds is no longer in INV-0042. Nothing was written.');
+    expect(textOf(card)).toContain('Refunds on INV-0042 now stand above what was paid. The record shows what was paid as refunded, and no more.');
+    expect(textOf(card)).toContain('Refunded €20.00 at Stripe, in another currency than INV-0042 was paid in. Nothing was written to the record.');
+  });
+
   it('asks for a note before marking money that may be owed back as checked, then keeps the row with who checked it', async () => {
     const calls = stub({ open: [NOT_RECORDED], list: [] });
     const user = show();

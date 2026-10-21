@@ -11,11 +11,11 @@ import { infiniteQueryOptions, queryOptions, useQuery } from '@tanstack/react-qu
 
 import { api, ApiError, csrfHeaders } from '../../app/api.js';
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found (the server refuses an empty note). */
-export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'mode-mismatch', 'paid-twice', 'record-changed']);
+export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'refund-record', 'mode-mismatch', 'paid-twice', 'record-changed']);
 
 export const STATE_GROUPS = ['started', 'paid', 'waiting', 'failed', 'expired', 'refunded', 'refundFailed', 'disputed'] as const;
 export type StateGroup = (typeof STATE_GROUPS)[number];

@@ -29715,6 +29715,22 @@
     "status": "mt",
     "srcHash": "c4aa73a74d72"
   },
+  "studio.payments.activity.flag.refundNotWritten": {
+    "status": "mt",
+    "srcHash": "b0aa44fa9099"
+  },
+  "studio.payments.activity.flag.refundOtherCurrency": {
+    "status": "mt",
+    "srcHash": "d82e6d625a18"
+  },
+  "studio.payments.activity.flag.refundPastPaid": {
+    "status": "mt",
+    "srcHash": "dedd64410903"
+  },
+  "studio.payments.activity.flag.refundRecordGone": {
+    "status": "mt",
+    "srcHash": "2736cf1d5323"
+  },
   "studio.payments.activity.flag.refundedThere": {
     "status": "mt",
     "srcHash": "6ce9ec1e3c77"

@@ -12,6 +12,9 @@
  *                          customer paid;
  *   - `refunded-at-provider` a refund made in the provider's own dashboard: it is
  *                          recorded, and someone should know;
+ *   - `refund-record`      the record did not follow a refund as it should (the
+ *                          write keeps failing, its payment row is gone, refunds
+ *                          stand above what was paid, another currency);
  *   - `mode-mismatch`      the provider reported a test payment for a live attempt
  *                          (or the reverse): not believed, not written;
  *   - `paid-twice`         a payment arrived while another for the same record
@@ -47,11 +50,11 @@ export interface PaymentActivityDeps {
   meta: MetaDb;
 }
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found. */
-export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'mode-mismatch', 'paid-twice', 'record-changed']);
+export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'refund-record', 'mode-mismatch', 'paid-twice', 'record-changed']);
 
 /** How long a payment may wait for the bank before it needs a look (a direct debit takes up to a week). */
 export const WAITING_LONG_MS = 14 * 86_400_000;
@@ -205,6 +208,12 @@ function attemptRow(attempt: PaymentAttempt, names: Names, now: number): RowView
   };
 }
 
+/** A refund's flag: what kept the record from following it first, then one made at the provider. */
+export function refundFlag(refund: RefundRow): RowView['flag'] {
+  if (refund.problemCode !== null) return { code: 'refund-record', reason: refund.problemCode, message: null };
+  return refund.source === 'provider' ? { code: 'refunded-at-provider', reason: null, message: null } : null;
+}
+
 function refundRow(refund: RefundRow, of: PaymentAttempt | null, names: Names): RowView {
   return {
     id: refund.id,
@@ -224,7 +233,7 @@ function refundRow(refund: RefundRow, of: PaymentAttempt | null, names: Names): 
     times: { started: refund.createdAt, settled: refund.settledAt, recorded: refund.appliedAt, updated: refund.updatedAt },
     refs: { attempt: refund.attemptId, checkout: null, payment: refund.paymentRef, refund: refund.providerRefundId },
     refundSource: refund.source,
-    flag: refund.source === 'provider' ? { code: 'refunded-at-provider', reason: null, message: null } : null,
+    flag: refundFlag(refund),
     check: checkView(refund.check, names),
     refund: null,
     dispute: null,
@@ -422,9 +431,11 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
         const by = requirePerson(request);
         const refund = await refunds.byId(request.params.id);
         if (refund === null) throw new NotFoundError('No such refund.');
-        if (refund.source !== 'provider') throw new ValidationFailedError('This refund needs no look.');
+        const flag = refundFlag(refund);
+        if (flag === null) throw new ValidationFailedError('This refund needs no look.');
+        if (NOTE_REQUIRED.has(flag.code) && (request.body.note ?? '') === '') throw new ValidationFailedError('Say what you checked.', { field: 'note' });
         if (!(await refunds.check(refund.id, by, request.body.note, app.rbac.now()))) throw new ConflictError('Someone marked this as checked already.');
-        await app.rbac.audit(request, { category: 'payments', action: 'payments.flag.checked', changes: { after: { refundId: refund.id, flag: 'refunded-at-provider', note: request.body.note } } });
+        await app.rbac.audit(request, { category: 'payments', action: 'payments.flag.checked', changes: { after: { refundId: refund.id, flag: flag.code, note: request.body.note } } });
         return reply.status(204).send();
       },
     );

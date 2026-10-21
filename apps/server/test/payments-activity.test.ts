@@ -203,6 +203,24 @@ describe('payments activity', () => {
     expect(row.flag).toMatchObject({ code: 'record-changed', reason: 'RECORD_CHANGED' });
   });
 
+  it('flags a refund the record did not follow, asks what was found, and lets it go once it lands', async () => {
+    const refunds = refundsRepo(meta);
+    const stuck = (await refunds.create({ attemptId: null, paymentId: null, provider: 'payments-stripe', mode: 'live', paymentRef: 'pi_8', amount: '10.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: 'k8', source: 'staff', requestedBy: null, state: 'succeeded', providerRefundId: 're_8' })).refund;
+    const gone = (await refunds.create({ attemptId: null, paymentId: null, provider: 'payments-stripe', mode: 'live', paymentRef: 'pi_9', amount: '10.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: 'k9', source: 'provider', requestedBy: null, state: 'succeeded', providerRefundId: 're_9' })).refund;
+    await refunds.setProblem(stuck.id, 'NOT_WRITTEN');
+    await refunds.setProblem(gone.id, 'RECORD_GONE');
+    const open = async () => (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows as { id: string; flag: { code: string; reason: string | null } | null }[];
+    expect((await open()).map((row) => [row.id, row.flag?.code, row.flag?.reason]).sort()).toEqual([[stuck.id, 'refund-record', 'NOT_WRITTEN'], [gone.id, 'refund-record', 'RECORD_GONE']].sort());
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(2);
+    // Written at last: no longer a look.
+    await refunds.setProblem(stuck.id, null, Date.now(), 'NOT_WRITTEN');
+    expect((await open()).map((row) => row.id)).toEqual([gone.id]);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/refunds/${gone.id}/check`, headers: as(owner), payload: { note: '' } })).statusCode).toBe(422);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/refunds/${gone.id}/check`, headers: as(owner), payload: { note: 'The payment row was deleted by hand; refunded in full.' } })).statusCode).toBe(204);
+    expect(await open()).toEqual([]);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/refunds/${stuck.id}/check`, headers: as(owner), payload: { note: 'x' } })).statusCode).toBe(422);
+  });
+
   it('narrows by state group, way to pay and days, and names the record a refund gave money back on', async () => {
     const paid = await attempt(['open', 'succeeded', 'recording', 'recorded'], { paidWith: { method: 'sepa_debit', label: 'SEPA ••3000', delayed: true } }, 'INV-0007');
     await attempt(['open', 'failed']);
