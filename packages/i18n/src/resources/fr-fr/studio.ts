@@ -4037,7 +4037,8 @@ export default {
         "failed": "N'a pas abouti",
         "expired": "Expiré",
         "refunded": "Remboursé",
-        "refundFailed": "Remboursement échoué"
+        "refundFailed": "Remboursement échoué",
+        "disputed": "Litige"
       },
       "service": {
         "demo": "Service de démonstration"
@@ -4062,7 +4063,8 @@ export default {
         "paidTwice": "Payé deux fois : un paiement pour {record} · {amount} est arrivé alors qu'un autre était en cours. Les deux sont enregistrés.",
         "waitingLong": "En attente de la banque depuis {days} jours : {record} · {amount}.",
         "waitingLongWay": "En attente de la banque depuis {days} jours : {record} · {amount} ({way}).",
-        "recordChanged": "Un paiement enregistré a changé : {record} · {amount} n'est plus enregistré comme avant."
+        "recordChanged": "Un paiement enregistré a changé : {record} · {amount} n'est plus enregistré comme avant.",
+        "disputed": "Litige : {record} · {amount}. Répondez-y dans le tableau de bord {service}."
       },
       "why": {
         "alreadyPaid": "La facture était déjà entièrement payée.",
@@ -4089,7 +4091,10 @@ export default {
         "paidAmount": "{service} indique : {amount} payé",
         "paid": "{service} indique : payé",
         "recorded": "Enregistré",
-        "notRecorded": "Non enregistré : à examiner"
+        "notRecorded": "Non enregistré : à examiner",
+        "disputed": "Litige ouvert par le titulaire de la carte",
+        "disputeAnswer": "Répondez-y dans le tableau de bord {service}",
+        "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}."
       },
       "checkedBy": "Vérifié par {name}",
       "someone": "quelqu'un",
@@ -4102,7 +4107,9 @@ export default {
         "copied": "Copié",
         "copyFailed": "Impossible de copier. Sélectionnez le texte et copiez-le.",
         "downloaded": "{file} téléchargé",
-        "exportFailed": "Impossible d'exporter. Réessayez."
+        "exportFailed": "Impossible d'exporter. Réessayez.",
+        "refundRequested": "Remboursement de {amount} demandé.",
+        "refundFailed": "Le remboursement de {amount} a échoué : {reason}"
       },
       "cancel": "Annuler",
       "noteRequired": "Note (obligatoire)",
@@ -4161,7 +4168,9 @@ export default {
       "emptyBody": "Quand des clients paient, les paiements apparaissent ici.",
       "older": "Charger des paiements plus anciens",
       "viewOnly": "Vous pouvez consulter les paiements. Demandez à une personne qui gère les paiements d'agir.",
-      "countLabel": "{count, plural, one {# à examiner} other {# à examiner}}"
+      "countLabel": "{count, plural, one {# à examiner} other {# à examiner}}",
+      "refundAmount": "Rembourser {amount}",
+      "refund": "Rembourser"
     },
     "live": {
       "ready": "La clé réelle fonctionne",

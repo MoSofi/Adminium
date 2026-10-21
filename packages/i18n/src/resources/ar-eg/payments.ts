@@ -50,8 +50,33 @@ export default {
       "recorded": "سُجّلت دفعة بقيمة {amount}.",
       "copyFailed": "أُنشئ رابط الدفع، لكن هذا المتصفح لم ينسخه: {url}",
       "failed": "لم ينجح ذلك: {message}",
-      "emailed": "رابط الدفع في طريقه إلى {to}."
-    }
+      "emailed": "رابط الدفع في طريقه إلى {to}.",
+      "refundRequested": "طُلب استرداد {amount}.",
+      "refundFailed": "فشل استرداد {amount}: {reason}"
+    },
+    "moreFor": "المزيد لـ {ref}",
+    "menu": {
+      "refund": "استرداد…"
+    },
+    "why": {
+      "pending": "هذه الدفعة ما زالت تنتظر البنك.",
+      "full": "استُردت هذه الدفعة بالكامل.",
+      "offline": "لا يمكن استرداد طريقة الدفع هذه عبر الإنترنت. أعد المبلغ للعميل بنفسك.",
+      "disputed": "على هذه الدفعة نزاع. رُدّ على النزاع أولًا في لوحة تحكم {service}.",
+      "notTaken": "لم يُحصَّل أي مبلغ لهذه الدفعة."
+    },
+    "disputed": "نزاع",
+    "disputeLine": "نزاع — رُدّ عليه في لوحة تحكم {service}",
+    "disputeNote": "إذا خُسر النزاع، يعود المبلغ إلى العميل. لا تتغير الفاتورة من تلقاء نفسها.",
+    "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
+    "refundRequested": "طُلب استرداد {amount}",
+    "refundWaitingCustomer": "استرداد {amount} ينتظر العميل",
+    "refundFailed": "فشل استرداد {amount}: {reason}. تواصل مع العميل وسجّل ما تتفقان عليه.",
+    "refundFailedPlain": "فشل استرداد {amount}. تواصل مع العميل وسجّل ما تتفقان عليه.",
+    "refundCancelled": "أُلغي استرداد {amount}.",
+    "refundedOnInline": "استُرد {amount} في {date}",
+    "refundedThere": "استرداد {amount} تم في لوحة تحكم {service} في {date} · مسجّل",
+    "needsLook": "يحتاج إلى مراجعة"
   },
   "record": {
     "title": "تسجيل دفعة",
@@ -97,7 +122,8 @@ export default {
       "voided": "تم الدفع عبر {provider} بعد الإلغاء: {label}",
       "mode": "تم الدفع عبر {provider} في الوضع الآخر، ولم يُعتمد: {label}",
       "twice": "تم الدفع مرتين عبر {provider}: {label}",
-      "missing": "الدفعة المسجَّلة لم تعد موجودة: {label}"
+      "missing": "الدفعة المسجَّلة لم تعد موجودة: {label}",
+      "refundedThere": "استُرد في لوحة تحكم {provider}: {amount} على {label}. مسجّل."
     },
     "key": {
       "title": "رفضت خدمة {provider} المفتاح",
@@ -130,7 +156,37 @@ export default {
     },
     "dispute": {
       "title": "فُتح نزاع",
-      "body": "{label} · الرد قبل {date}"
+      "body": "{label} · الرد قبل {date}",
+      "bodyNoDate": "{label} · رُدّ عليه في لوحة تحكم {provider}"
     }
+  },
+  "refund": {
+    "step1": "الخطوة 1 من 2",
+    "step2": "الخطوة 2 من 2",
+    "title": "استرداد دفعة",
+    "close": "إغلاق",
+    "amount": "المبلغ",
+    "full": "كامل",
+    "part": "جزء",
+    "upTo": "يمكن استرداد ما يصل إلى {amount}",
+    "reason": "السبب",
+    "reasons": {
+      "requested_by_customer": "بطلب من العميل",
+      "duplicate": "مكررة",
+      "fraudulent": "احتيالية",
+      "other": "سبب آخر"
+    },
+    "note": "ملاحظة",
+    "notePh": "اختياري",
+    "goesBack": "يعود إلى {paidWith}. عادةً خلال 5–10 أيام.",
+    "goesBackPlain": "يعود بالطريقة التي دُفع بها. عادةً خلال 5–10 أيام.",
+    "cancel": "إلغاء",
+    "continue": "متابعة",
+    "question": "استرداد {amount} إلى {paidWith}؟",
+    "questionPlain": "استرداد {amount}؟",
+    "cantUndo": "لا يمكن التراجع عن ذلك.",
+    "back": "رجوع",
+    "submit": "استرداد",
+    "failed": "لم يُطلب الاسترداد: {message}"
   }
 } as const;

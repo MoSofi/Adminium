@@ -50,8 +50,33 @@ export default {
       "recorded": "Betaling på {amount} registreret.",
       "copyFailed": "Betalingslinket er lavet, men denne browser ville ikke kopiere det: {url}",
       "failed": "Det virkede ikke: {message}",
-      "emailed": "Betalingslinket er på vej til {to}."
-    }
+      "emailed": "Betalingslinket er på vej til {to}.",
+      "refundRequested": "Refundering af {amount} anmodet.",
+      "refundFailed": "Refunderingen af {amount} mislykkedes: {reason}"
+    },
+    "moreFor": "Mere for {ref}",
+    "menu": {
+      "refund": "Refundér…"
+    },
+    "why": {
+      "pending": "Denne betaling venter stadig på banken.",
+      "full": "Denne betaling er refunderet fuldt ud.",
+      "offline": "Denne betalingsmåde kan ikke refunderes online. Refundér kunden selv.",
+      "disputed": "Der er gjort indsigelse mod denne betaling. Besvar først indsigelsen i {service}-dashboardet.",
+      "notTaken": "Der blev ikke trukket penge for denne betaling."
+    },
+    "disputed": "Indsigelse",
+    "disputeLine": "Indsigelse — besvar den i {service}-dashboardet",
+    "disputeNote": "Tabes indsigelsen, går pengene tilbage til kunden. Fakturaen ændres ikke af sig selv.",
+    "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
+    "refundRequested": "Refundering af {amount} anmodet",
+    "refundWaitingCustomer": "Refundering af {amount} venter på kunden",
+    "refundFailed": "Refunderingen af {amount} mislykkedes: {reason}. Kontakt kunden, og registrér det, I aftaler.",
+    "refundFailedPlain": "Refunderingen af {amount} mislykkedes. Kontakt kunden, og registrér det, I aftaler.",
+    "refundCancelled": "Refunderingen af {amount} blev annulleret.",
+    "refundedOnInline": "{amount} refunderet den {date}",
+    "refundedThere": "Refundering af {amount} foretaget i {service}-dashboardet den {date} · registreret",
+    "needsLook": "Skal tjekkes"
   },
   "record": {
     "title": "Registrér en betaling",
@@ -97,7 +122,8 @@ export default {
       "voided": "Betalt hos {provider} efter den blev annulleret: {label}",
       "mode": "Betalt hos {provider} i den anden tilstand, ikke godtaget: {label}",
       "twice": "Betalt to gange hos {provider}: {label}",
-      "missing": "Den registrerede betaling er der ikke længere: {label}"
+      "missing": "Den registrerede betaling er der ikke længere: {label}",
+      "refundedThere": "Refunderet i {provider}-dashboardet: {amount} på {label}. Registreret."
     },
     "key": {
       "title": "{provider} afviste nøglen",
@@ -130,7 +156,37 @@ export default {
     },
     "dispute": {
       "title": "Indsigelse åbnet",
-      "body": "{label} · svar senest {date}"
+      "body": "{label} · svar senest {date}",
+      "bodyNoDate": "{label} · besvar den i {provider}-dashboardet"
     }
+  },
+  "refund": {
+    "step1": "Trin 1 af 2",
+    "step2": "Trin 2 af 2",
+    "title": "Refundér en betaling",
+    "close": "Luk",
+    "amount": "Beløb",
+    "full": "Fuld",
+    "part": "Delvis",
+    "upTo": "Op til {amount} kan refunderes",
+    "reason": "Årsag",
+    "reasons": {
+      "requested_by_customer": "Kunden har bedt om det",
+      "duplicate": "Dublet",
+      "fraudulent": "Svindel",
+      "other": "Andet"
+    },
+    "note": "Note",
+    "notePh": "Valgfri",
+    "goesBack": "Går tilbage til {paidWith}. Normalt 5–10 dage.",
+    "goesBackPlain": "Går tilbage samme vej, som der blev betalt. Normalt 5–10 dage.",
+    "cancel": "Annullér",
+    "continue": "Fortsæt",
+    "question": "Refundér {amount} til {paidWith}?",
+    "questionPlain": "Refundér {amount}?",
+    "cantUndo": "Det kan ikke fortrydes.",
+    "back": "Tilbage",
+    "submit": "Refundér",
+    "failed": "Der blev ikke anmodet om refunderingen: {message}"
   }
 } as const;

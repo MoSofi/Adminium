@@ -40,8 +40,33 @@
       "recorded": "Payment of {amount} recorded.",
       "copyFailed": "The pay link is made, but this browser would not copy it: {url}",
       "failed": "That did not work: {message}",
-      "emailed": "The pay link is on its way to {to}."
-    }
+      "emailed": "The pay link is on its way to {to}.",
+      "refundRequested": "Refund of {amount} requested.",
+      "refundFailed": "The refund of {amount} failed: {reason}"
+    },
+    "moreFor": "More for {ref}",
+    "menu": {
+      "refund": "Refund…"
+    },
+    "why": {
+      "pending": "This payment is still waiting for the bank.",
+      "full": "This payment is fully refunded.",
+      "offline": "This way to pay cannot be refunded online. Refund the customer by hand.",
+      "disputed": "This payment is disputed. Answer the dispute in the {service} dashboard first.",
+      "notTaken": "No money was taken for this payment."
+    },
+    "disputed": "Disputed",
+    "disputeLine": "Disputed — answer it in the {service} dashboard",
+    "disputeNote": "If the dispute is lost, the money goes back to the customer. The invoice is not changed by itself.",
+    "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
+    "refundRequested": "Refund of {amount} requested",
+    "refundWaitingCustomer": "Refund of {amount} is waiting for the customer",
+    "refundFailed": "The refund of {amount} failed: {reason}. Contact the customer and record what you agree.",
+    "refundFailedPlain": "The refund of {amount} failed. Contact the customer and record what you agree.",
+    "refundCancelled": "The refund of {amount} was cancelled.",
+    "refundedOnInline": "refunded {amount} on {date}",
+    "refundedThere": "Refund of {amount} made in the {service} dashboard on {date} · recorded",
+    "needsLook": "Needs a look"
   },
   "record": {
     "title": "Record a payment",
@@ -87,7 +112,8 @@
       "voided": "Paid at {provider} after it was voided: {label}",
       "mode": "Paid at {provider} in the other mode, not believed: {label}",
       "twice": "Paid twice at {provider}: {label}",
-      "missing": "Its recorded payment is no longer there: {label}"
+      "missing": "Its recorded payment is no longer there: {label}",
+      "refundedThere": "Refunded in the {provider} dashboard: {amount} on {label}. Recorded."
     },
     "key": {
       "title": "{provider} refused the key",
@@ -120,7 +146,37 @@
     },
     "dispute": {
       "title": "Dispute opened",
-      "body": "{label} · answer by {date}"
+      "body": "{label} · answer by {date}",
+      "bodyNoDate": "{label} · answer it in the {provider} dashboard"
     }
+  },
+  "refund": {
+    "step1": "Step 1 of 2",
+    "step2": "Step 2 of 2",
+    "title": "Refund a payment",
+    "close": "Close",
+    "amount": "Amount",
+    "full": "Full",
+    "part": "Part",
+    "upTo": "Up to {amount} can be refunded",
+    "reason": "Reason",
+    "reasons": {
+      "requested_by_customer": "Requested by customer",
+      "duplicate": "Duplicate",
+      "fraudulent": "Fraudulent",
+      "other": "Other"
+    },
+    "note": "Note",
+    "notePh": "Optional",
+    "goesBack": "Goes back to {paidWith}. Usually 5–10 days.",
+    "goesBackPlain": "Goes back the way it was paid. Usually 5–10 days.",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "question": "Refund {amount} to {paidWith}?",
+    "questionPlain": "Refund {amount}?",
+    "cantUndo": "This can't be undone.",
+    "back": "Back",
+    "submit": "Refund",
+    "failed": "The refund was not asked: {message}"
   }
 }

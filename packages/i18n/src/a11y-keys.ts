@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3317 entries. */
+/** `namespace:key` — 3335 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1512,11 +1512,14 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'pay:ways.paypal',
   'pay:ways.stripe',
   'payments:panel.listLabel',
+  'payments:panel.moreFor',
   'payments:panel.toast.copied',
   'payments:panel.toast.copyFailed',
   'payments:panel.toast.emailed',
   'payments:panel.toast.failed',
   'payments:panel.toast.recorded',
+  'payments:panel.toast.refundFailed',
+  'payments:panel.toast.refundRequested',
   'payments:panel.toast.replaced',
   'payments:panel.toast.revoked',
   'payments:record.amount',
@@ -1528,6 +1531,19 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'payments:record.notePh',
   'payments:record.title',
   'payments:record.way',
+  'payments:refund.amount',
+  'payments:refund.cantUndo',
+  'payments:refund.close',
+  'payments:refund.failed',
+  'payments:refund.full',
+  'payments:refund.note',
+  'payments:refund.notePh',
+  'payments:refund.part',
+  'payments:refund.question',
+  'payments:refund.questionPlain',
+  'payments:refund.step1',
+  'payments:refund.step2',
+  'payments:refund.title',
   'project:page.failed.title',
   'project:page.missing.title',
   'project:table.empty',
@@ -2376,6 +2392,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.activity.toast.copyFailed',
   'studio:payments.activity.toast.downloaded',
   'studio:payments.activity.toast.exportFailed',
+  'studio:payments.activity.toast.refundFailed',
+  'studio:payments.activity.toast.refundRequested',
   'studio:payments.alarm.heading',
   'studio:payments.alarm.permission',
   'studio:payments.alarm.refused',

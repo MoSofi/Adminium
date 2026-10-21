@@ -50,8 +50,33 @@ export default {
       "recorded": "Zahlung über {amount} erfasst.",
       "copyFailed": "Der Zahlungslink ist erstellt, aber dieser Browser hat ihn nicht kopiert: {url}",
       "failed": "Das hat nicht geklappt: {message}",
-      "emailed": "Der Zahlungslink ist unterwegs an {to}."
-    }
+      "emailed": "Der Zahlungslink ist unterwegs an {to}.",
+      "refundRequested": "Erstattung von {amount} angefordert.",
+      "refundFailed": "Die Erstattung von {amount} ist fehlgeschlagen: {reason}"
+    },
+    "moreFor": "Mehr zu {ref}",
+    "menu": {
+      "refund": "Erstatten…"
+    },
+    "why": {
+      "pending": "Diese Zahlung wartet noch auf die Bank.",
+      "full": "Diese Zahlung ist vollständig erstattet.",
+      "offline": "Diese Zahlungsart lässt sich nicht online erstatten. Erstatten Sie dem Kunden den Betrag selbst.",
+      "disputed": "Gegen diese Zahlung läuft eine Rückbuchung. Beantworten Sie sie zuerst im Dashboard von {service}.",
+      "notTaken": "Für diese Zahlung wurde kein Geld eingezogen."
+    },
+    "disputed": "Rückbuchung",
+    "disputeLine": "Rückbuchung — beantworten Sie sie im Dashboard von {service}",
+    "disputeNote": "Geht die Rückbuchung verloren, bekommt der Kunde das Geld zurück. Die Rechnung ändert sich dadurch nicht von selbst.",
+    "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
+    "refundRequested": "Erstattung von {amount} angefordert",
+    "refundWaitingCustomer": "Erstattung von {amount} wartet auf den Kunden",
+    "refundFailed": "Die Erstattung von {amount} ist fehlgeschlagen: {reason}. Wenden Sie sich an den Kunden und erfassen Sie, was Sie vereinbaren.",
+    "refundFailedPlain": "Die Erstattung von {amount} ist fehlgeschlagen. Wenden Sie sich an den Kunden und erfassen Sie, was Sie vereinbaren.",
+    "refundCancelled": "Die Erstattung von {amount} wurde abgebrochen.",
+    "refundedOnInline": "{amount} erstattet am {date}",
+    "refundedThere": "Erstattung von {amount} im Dashboard von {service} am {date} · erfasst",
+    "needsLook": "Bitte prüfen"
   },
   "record": {
     "title": "Zahlung erfassen",
@@ -97,7 +122,8 @@ export default {
       "voided": "Bei {provider} bezahlt, nachdem es storniert wurde: {label}",
       "mode": "Bei {provider} im anderen Modus bezahlt, nicht anerkannt: {label}",
       "twice": "Zweimal bei {provider} bezahlt: {label}",
-      "missing": "Die verbuchte Zahlung ist nicht mehr da: {label}"
+      "missing": "Die verbuchte Zahlung ist nicht mehr da: {label}",
+      "refundedThere": "Im Dashboard von {provider} erstattet: {amount} für {label}. Erfasst."
     },
     "key": {
       "title": "{provider} hat den Schlüssel abgelehnt",
@@ -130,7 +156,37 @@ export default {
     },
     "dispute": {
       "title": "Rückbuchung eröffnet",
-      "body": "{label} · Antwort bis {date}"
+      "body": "{label} · Antwort bis {date}",
+      "bodyNoDate": "{label} · beantworten Sie sie im Dashboard von {provider}"
     }
+  },
+  "refund": {
+    "step1": "Schritt 1 von 2",
+    "step2": "Schritt 2 von 2",
+    "title": "Zahlung erstatten",
+    "close": "Schließen",
+    "amount": "Betrag",
+    "full": "Voll",
+    "part": "Teil",
+    "upTo": "Bis zu {amount} können erstattet werden",
+    "reason": "Grund",
+    "reasons": {
+      "requested_by_customer": "Auf Wunsch des Kunden",
+      "duplicate": "Doppelt",
+      "fraudulent": "Betrug",
+      "other": "Anderer Grund"
+    },
+    "note": "Notiz",
+    "notePh": "Optional",
+    "goesBack": "Geht zurück an {paidWith}. Meist 5–10 Tage.",
+    "goesBackPlain": "Geht auf dem Weg zurück, auf dem bezahlt wurde. Meist 5–10 Tage.",
+    "cancel": "Abbrechen",
+    "continue": "Weiter",
+    "question": "{amount} an {paidWith} erstatten?",
+    "questionPlain": "{amount} erstatten?",
+    "cantUndo": "Das lässt sich nicht rückgängig machen.",
+    "back": "Zurück",
+    "submit": "Erstatten",
+    "failed": "Die Erstattung wurde nicht angefordert: {message}"
   }
 } as const;

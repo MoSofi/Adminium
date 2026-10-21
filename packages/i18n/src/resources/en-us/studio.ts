@@ -4037,7 +4037,8 @@ export default {
         "failed": "Did not go through",
         "expired": "Expired",
         "refunded": "Refunded",
-        "refundFailed": "Refund failed"
+        "refundFailed": "Refund failed",
+        "disputed": "Disputed"
       },
       "service": {
         "demo": "Demo service"
@@ -4062,7 +4063,8 @@ export default {
         "paidTwice": "Paid twice: a payment for {record} · {amount} arrived while another was on its way. Both are recorded.",
         "waitingLong": "Waiting for the bank for {days} days: {record} · {amount}.",
         "waitingLongWay": "Waiting for the bank for {days} days: {record} · {amount} ({way}).",
-        "recordChanged": "A recorded payment changed: {record} · {amount} is no longer written down as it was."
+        "recordChanged": "A recorded payment changed: {record} · {amount} is no longer written down as it was.",
+        "disputed": "Disputed: {record} · {amount}. Answer it in the {service} dashboard."
       },
       "why": {
         "alreadyPaid": "The invoice was already paid in full.",
@@ -4089,7 +4091,10 @@ export default {
         "paidAmount": "{service} says paid {amount}",
         "paid": "{service} says paid",
         "recorded": "Recorded",
-        "notRecorded": "Not recorded: it needs a look"
+        "notRecorded": "Not recorded: it needs a look",
+        "disputed": "Dispute opened by the card holder",
+        "disputeAnswer": "Answer it in the {service} dashboard",
+        "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard."
       },
       "checkedBy": "Checked by {name}",
       "someone": "someone",
@@ -4102,7 +4107,9 @@ export default {
         "copied": "Copied",
         "copyFailed": "Could not copy. Select the text and copy it.",
         "downloaded": "Downloaded {file}",
-        "exportFailed": "Could not export. Try again."
+        "exportFailed": "Could not export. Try again.",
+        "refundRequested": "Refund of {amount} requested.",
+        "refundFailed": "The refund of {amount} failed: {reason}"
       },
       "cancel": "Cancel",
       "noteRequired": "Note (required)",
@@ -4161,7 +4168,9 @@ export default {
       "emptyBody": "When customers pay, they appear here.",
       "older": "Load older payments",
       "viewOnly": "You can view payments. Ask someone who manages payments to act.",
-      "countLabel": "{count, plural, one {# needs a look} other {# need a look}}"
+      "countLabel": "{count, plural, one {# needs a look} other {# need a look}}",
+      "refundAmount": "Refund {amount}",
+      "refund": "Refund"
     },
     "live": {
       "ready": "The live key works",

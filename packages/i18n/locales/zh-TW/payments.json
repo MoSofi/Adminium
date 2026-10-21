@@ -40,8 +40,33 @@
       "recorded": "已記錄 {amount} 的付款。",
       "copyFailed": "付款連結已建立，但此瀏覽器未能複製：{url}",
       "failed": "操作未成功：{message}",
-      "emailed": "付款連結正在寄往 {to}。"
-    }
+      "emailed": "付款連結正在寄往 {to}。",
+      "refundRequested": "已申請退款 {amount}。",
+      "refundFailed": "退款 {amount} 失敗：{reason}"
+    },
+    "moreFor": "{ref} 的更多操作",
+    "menu": {
+      "refund": "退款…"
+    },
+    "why": {
+      "pending": "這筆付款仍在等待銀行處理。",
+      "full": "這筆付款已全額退款。",
+      "offline": "這種付款方式無法線上退款。請自行退款給客戶。",
+      "disputed": "這筆付款有爭議。請先在 {service} 主控台中回覆爭議。",
+      "notTaken": "這筆付款沒有扣到款項。"
+    },
+    "disputed": "有爭議",
+    "disputeLine": "有爭議 — 請在 {service} 主控台中回覆",
+    "disputeNote": "若爭議敗訴，款項會退還給客戶。發票不會因此自動變更。",
+    "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
+    "refundRequested": "已申請退款 {amount}",
+    "refundWaitingCustomer": "退款 {amount} 正在等待客戶",
+    "refundFailed": "退款 {amount} 失敗：{reason}。請聯絡客戶，並記錄你們商定的結果。",
+    "refundFailedPlain": "退款 {amount} 失敗。請聯絡客戶，並記錄你們商定的結果。",
+    "refundCancelled": "退款 {amount} 已取消。",
+    "refundedOnInline": "已於 {date} 退款 {amount}",
+    "refundedThere": "已於 {date} 在 {service} 主控台中退款 {amount} · 已記錄",
+    "needsLook": "需要查看"
   },
   "record": {
     "title": "記錄一筆付款",
@@ -87,7 +112,8 @@
       "voided": "作廢後在 {provider} 付款：{label}",
       "mode": "在 {provider} 以另一種模式付款，未獲認可：{label}",
       "twice": "在 {provider} 付款了兩次：{label}",
-      "missing": "已記錄的付款已不存在：{label}"
+      "missing": "已記錄的付款已不存在：{label}",
+      "refundedThere": "已在 {provider} 主控台中退款：{label} 的 {amount}。已記錄。"
     },
     "key": {
       "title": "{provider} 拒絕了金鑰",
@@ -120,7 +146,37 @@
     },
     "dispute": {
       "title": "已提出爭議",
-      "body": "{label} · 請在 {date} 前回覆"
+      "body": "{label} · 請在 {date} 前回覆",
+      "bodyNoDate": "{label} · 請在 {provider} 主控台中回覆"
     }
+  },
+  "refund": {
+    "step1": "第 1 步，共 2 步",
+    "step2": "第 2 步，共 2 步",
+    "title": "退款",
+    "close": "關閉",
+    "amount": "金額",
+    "full": "全額",
+    "part": "部分",
+    "upTo": "最多可退款 {amount}",
+    "reason": "原因",
+    "reasons": {
+      "requested_by_customer": "客戶要求",
+      "duplicate": "重複付款",
+      "fraudulent": "詐欺",
+      "other": "其他"
+    },
+    "note": "備註",
+    "notePh": "選填",
+    "goesBack": "退回至 {paidWith}。通常需要 5–10 天。",
+    "goesBackPlain": "依原付款方式退回。通常需要 5–10 天。",
+    "cancel": "取消",
+    "continue": "繼續",
+    "question": "要退款 {amount} 至 {paidWith} 嗎？",
+    "questionPlain": "要退款 {amount} 嗎？",
+    "cantUndo": "此操作無法復原。",
+    "back": "返回",
+    "submit": "退款",
+    "failed": "未能申請退款：{message}"
   }
 }

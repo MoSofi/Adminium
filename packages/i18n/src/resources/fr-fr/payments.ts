@@ -50,8 +50,33 @@ export default {
       "recorded": "Paiement de {amount} enregistré.",
       "copyFailed": "Le lien de paiement est créé, mais ce navigateur ne l’a pas copié : {url}",
       "failed": "Cela n’a pas fonctionné : {message}",
-      "emailed": "Le lien de paiement est en route vers {to}."
-    }
+      "emailed": "Le lien de paiement est en route vers {to}.",
+      "refundRequested": "Remboursement de {amount} demandé.",
+      "refundFailed": "Le remboursement de {amount} a échoué : {reason}"
+    },
+    "moreFor": "Plus pour {ref}",
+    "menu": {
+      "refund": "Rembourser…"
+    },
+    "why": {
+      "pending": "Ce paiement attend encore la banque.",
+      "full": "Ce paiement est entièrement remboursé.",
+      "offline": "Ce moyen de paiement ne peut pas être remboursé en ligne. Remboursez le client vous-même.",
+      "disputed": "Ce paiement fait l’objet d’un litige. Répondez d’abord au litige dans le tableau de bord {service}.",
+      "notTaken": "Aucun argent n’a été prélevé pour ce paiement."
+    },
+    "disputed": "Litige",
+    "disputeLine": "Litige — répondez-y dans le tableau de bord {service}",
+    "disputeNote": "Si le litige est perdu, l’argent revient au client. La facture n’est pas modifiée d’elle-même.",
+    "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}.",
+    "refundRequested": "Remboursement de {amount} demandé",
+    "refundWaitingCustomer": "Le remboursement de {amount} attend le client",
+    "refundFailed": "Le remboursement de {amount} a échoué : {reason}. Contactez le client et enregistrez ce que vous convenez.",
+    "refundFailedPlain": "Le remboursement de {amount} a échoué. Contactez le client et enregistrez ce que vous convenez.",
+    "refundCancelled": "Le remboursement de {amount} a été annulé.",
+    "refundedOnInline": "{amount} remboursé le {date}",
+    "refundedThere": "Remboursement de {amount} fait dans le tableau de bord {service} le {date} · enregistré",
+    "needsLook": "À vérifier"
   },
   "record": {
     "title": "Enregistrer un paiement",
@@ -97,7 +122,8 @@ export default {
       "voided": "Payé sur {provider} après son annulation : {label}",
       "mode": "Payé sur {provider} dans l’autre mode, non retenu : {label}",
       "twice": "Payé deux fois sur {provider} : {label}",
-      "missing": "Le paiement enregistré n’y est plus : {label}"
+      "missing": "Le paiement enregistré n’y est plus : {label}",
+      "refundedThere": "Remboursé dans le tableau de bord {provider} : {amount} sur {label}. Enregistré."
     },
     "key": {
       "title": "{provider} a refusé la clé",
@@ -130,7 +156,37 @@ export default {
     },
     "dispute": {
       "title": "Litige ouvert",
-      "body": "{label} · réponse avant le {date}"
+      "body": "{label} · réponse avant le {date}",
+      "bodyNoDate": "{label} · répondez-y dans le tableau de bord {provider}"
     }
+  },
+  "refund": {
+    "step1": "Étape 1 sur 2",
+    "step2": "Étape 2 sur 2",
+    "title": "Rembourser un paiement",
+    "close": "Fermer",
+    "amount": "Montant",
+    "full": "Total",
+    "part": "Partiel",
+    "upTo": "Jusqu’à {amount} peuvent être remboursés",
+    "reason": "Motif",
+    "reasons": {
+      "requested_by_customer": "Demandé par le client",
+      "duplicate": "Doublon",
+      "fraudulent": "Frauduleux",
+      "other": "Autre"
+    },
+    "note": "Note",
+    "notePh": "Facultatif",
+    "goesBack": "Retourne vers {paidWith}. En général 5 à 10 jours.",
+    "goesBackPlain": "Retourne par le moyen de paiement utilisé. En général 5 à 10 jours.",
+    "cancel": "Annuler",
+    "continue": "Continuer",
+    "question": "Rembourser {amount} vers {paidWith} ?",
+    "questionPlain": "Rembourser {amount} ?",
+    "cantUndo": "Cette action est irréversible.",
+    "back": "Retour",
+    "submit": "Rembourser",
+    "failed": "Le remboursement n’a pas été demandé : {message}"
   }
 } as const;

@@ -4037,7 +4037,8 @@ export default {
         "failed": "Gik ikke igennem",
         "expired": "Udløbet",
         "refunded": "Refunderet",
-        "refundFailed": "Refundering mislykkedes"
+        "refundFailed": "Refundering mislykkedes",
+        "disputed": "Indsigelse"
       },
       "service": {
         "demo": "Demotjeneste"
@@ -4062,7 +4063,8 @@ export default {
         "paidTwice": "Betalt to gange: en betaling for {record} · {amount} kom, mens en anden var på vej. Begge er registreret.",
         "waitingLong": "Har ventet på banken i {days} dage: {record} · {amount}.",
         "waitingLongWay": "Har ventet på banken i {days} dage: {record} · {amount} ({way}).",
-        "recordChanged": "En registreret betaling er ændret: {record} · {amount} står ikke længere som før."
+        "recordChanged": "En registreret betaling er ændret: {record} · {amount} står ikke længere som før.",
+        "disputed": "Indsigelse: {record} · {amount}. Besvar den i {service}-dashboardet."
       },
       "why": {
         "alreadyPaid": "Fakturaen var allerede betalt fuldt ud.",
@@ -4089,7 +4091,10 @@ export default {
         "paidAmount": "{service} melder: {amount} betalt",
         "paid": "{service} melder: betalt",
         "recorded": "Registreret",
-        "notRecorded": "Ikke registreret: skal ses på"
+        "notRecorded": "Ikke registreret: skal ses på",
+        "disputed": "Kortholderen har gjort indsigelse",
+        "disputeAnswer": "Besvar den i {service}-dashboardet",
+        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet."
       },
       "checkedBy": "Tjekket af {name}",
       "someone": "nogen",
@@ -4102,7 +4107,9 @@ export default {
         "copied": "Kopieret",
         "copyFailed": "Kunne ikke kopiere. Markér teksten, og kopiér den.",
         "downloaded": "{file} hentet",
-        "exportFailed": "Kunne ikke eksportere. Prøv igen."
+        "exportFailed": "Kunne ikke eksportere. Prøv igen.",
+        "refundRequested": "Refundering af {amount} anmodet.",
+        "refundFailed": "Refunderingen af {amount} mislykkedes: {reason}"
       },
       "cancel": "Annuller",
       "noteRequired": "Note (påkrævet)",
@@ -4161,7 +4168,9 @@ export default {
       "emptyBody": "Når kunder betaler, vises det her.",
       "older": "Indlæs ældre betalinger",
       "viewOnly": "Du kan se betalinger. Bed en, der administrerer betalinger, om at handle.",
-      "countLabel": "{count, plural, one {# skal ses på} other {# skal ses på}}"
+      "countLabel": "{count, plural, one {# skal ses på} other {# skal ses på}}",
+      "refundAmount": "Refundér {amount}",
+      "refund": "Refundér"
     },
     "live": {
       "ready": "Live-nøglen virker",

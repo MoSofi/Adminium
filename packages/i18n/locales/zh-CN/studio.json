@@ -4027,7 +4027,8 @@
         "failed": "未成功",
         "expired": "已过期",
         "refunded": "已退款",
-        "refundFailed": "退款失败"
+        "refundFailed": "退款失败",
+        "disputed": "有争议"
       },
       "service": {
         "demo": "演示服务"
@@ -4052,7 +4053,8 @@
         "paidTwice": "重复付款：{record} · {amount} 的一笔付款到达时，另一笔付款正在处理中。两笔都已记录。",
         "waitingLong": "已等待银行确认 {days} 天：{record} · {amount}。",
         "waitingLongWay": "已等待银行确认 {days} 天：{record} · {amount}（{way}）。",
-        "recordChanged": "一笔已记录的付款发生了变化：{record} · {amount} 的记录已与之前不同。"
+        "recordChanged": "一笔已记录的付款发生了变化：{record} · {amount} 的记录已与之前不同。",
+        "disputed": "有争议：{record} · {amount}。请在 {service} 控制台中答复。"
       },
       "why": {
         "alreadyPaid": "该发票已全额付清。",
@@ -4079,7 +4081,10 @@
         "paidAmount": "{service} 显示：已付 {amount}",
         "paid": "{service} 显示：已付款",
         "recorded": "已记录",
-        "notRecorded": "未记录：需要查看"
+        "notRecorded": "未记录：需要查看",
+        "disputed": "持卡人发起了争议",
+        "disputeAnswer": "请在 {service} 控制台中答复",
+        "disputeClosed": "争议已结束。结果请在 {service} 控制台中查看。"
       },
       "checkedBy": "由 {name} 核查",
       "someone": "某人",
@@ -4092,7 +4097,9 @@
         "copied": "已复制",
         "copyFailed": "无法复制。请选中文字后复制。",
         "downloaded": "已下载 {file}",
-        "exportFailed": "无法导出。请重试。"
+        "exportFailed": "无法导出。请重试。",
+        "refundRequested": "已申请退款 {amount}。",
+        "refundFailed": "退款 {amount} 失败：{reason}"
       },
       "cancel": "取消",
       "noteRequired": "备注（必填）",
@@ -4151,7 +4158,9 @@
       "emptyBody": "客户付款后，会显示在这里。",
       "older": "加载更早的付款",
       "viewOnly": "您可以查看付款。如需操作，请联系管理付款的人员。",
-      "countLabel": "{count, plural, other {# 项需要查看}}"
+      "countLabel": "{count, plural, other {# 项需要查看}}",
+      "refundAmount": "退款 {amount}",
+      "refund": "退款"
     },
     "live": {
       "ready": "正式密钥可用",

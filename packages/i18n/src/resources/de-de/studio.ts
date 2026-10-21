@@ -4037,7 +4037,8 @@ export default {
         "failed": "Nicht durchgegangen",
         "expired": "Abgelaufen",
         "refunded": "Erstattet",
-        "refundFailed": "Erstattung fehlgeschlagen"
+        "refundFailed": "Erstattung fehlgeschlagen",
+        "disputed": "Rückbuchung"
       },
       "service": {
         "demo": "Demo-Dienst"
@@ -4062,7 +4063,8 @@ export default {
         "paidTwice": "Doppelt bezahlt: Eine Zahlung für {record} · {amount} kam an, während eine andere unterwegs war. Beide sind erfasst.",
         "waitingLong": "Wartet seit {days} Tagen auf die Bank: {record} · {amount}.",
         "waitingLongWay": "Wartet seit {days} Tagen auf die Bank: {record} · {amount} ({way}).",
-        "recordChanged": "Eine erfasste Zahlung hat sich geändert: {record} · {amount} ist nicht mehr so erfasst wie zuvor."
+        "recordChanged": "Eine erfasste Zahlung hat sich geändert: {record} · {amount} ist nicht mehr so erfasst wie zuvor.",
+        "disputed": "Rückbuchung: {record} · {amount}. Beantworten Sie sie im Dashboard von {service}."
       },
       "why": {
         "alreadyPaid": "Die Rechnung war bereits vollständig bezahlt.",
@@ -4089,7 +4091,10 @@ export default {
         "paidAmount": "{service} meldet: {amount} bezahlt",
         "paid": "{service} meldet: bezahlt",
         "recorded": "Erfasst",
-        "notRecorded": "Nicht erfasst: muss angesehen werden"
+        "notRecorded": "Nicht erfasst: muss angesehen werden",
+        "disputed": "Rückbuchung vom Karteninhaber eröffnet",
+        "disputeAnswer": "Beantworten Sie sie im Dashboard von {service}",
+        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}."
       },
       "checkedBy": "Geprüft von {name}",
       "someone": "jemandem",
@@ -4102,7 +4107,9 @@ export default {
         "copied": "Kopiert",
         "copyFailed": "Kopieren nicht möglich. Markieren Sie den Text und kopieren Sie ihn.",
         "downloaded": "{file} heruntergeladen",
-        "exportFailed": "Export nicht möglich. Versuchen Sie es erneut."
+        "exportFailed": "Export nicht möglich. Versuchen Sie es erneut.",
+        "refundRequested": "Erstattung von {amount} angefordert.",
+        "refundFailed": "Die Erstattung von {amount} ist fehlgeschlagen: {reason}"
       },
       "cancel": "Abbrechen",
       "noteRequired": "Notiz (erforderlich)",
@@ -4161,7 +4168,9 @@ export default {
       "emptyBody": "Wenn Kundinnen und Kunden bezahlen, erscheinen die Zahlungen hier.",
       "older": "Ältere Zahlungen laden",
       "viewOnly": "Sie können Zahlungen ansehen. Bitten Sie jemanden, der Zahlungen verwaltet, zu handeln.",
-      "countLabel": "{count, plural, one {# muss angesehen werden} other {# müssen angesehen werden}}"
+      "countLabel": "{count, plural, one {# muss angesehen werden} other {# müssen angesehen werden}}",
+      "refundAmount": "{amount} erstatten",
+      "refund": "Erstatten"
     },
     "live": {
       "ready": "Der Live-Schlüssel funktioniert",

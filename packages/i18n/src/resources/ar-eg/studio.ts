@@ -4037,7 +4037,8 @@ export default {
         "failed": "لم تتم",
         "expired": "انتهت صلاحيتها",
         "refunded": "تم ردّها",
-        "refundFailed": "تعذّر الرد"
+        "refundFailed": "تعذّر الرد",
+        "disputed": "نزاع"
       },
       "service": {
         "demo": "خدمة تجريبية"
@@ -4062,7 +4063,8 @@ export default {
         "paidTwice": "دُفعت مرتين: وصلت دفعة عن {record} · {amount} بينما كانت دفعة أخرى في الطريق. سُجِّلت الدفعتان.",
         "waitingLong": "بانتظار البنك منذ {days} يومًا: {record} · {amount}.",
         "waitingLongWay": "بانتظار البنك منذ {days} يومًا: {record} · {amount} ({way}).",
-        "recordChanged": "تغيّرت دفعة مسجّلة: لم تعد {record} · {amount} مسجّلة كما كانت."
+        "recordChanged": "تغيّرت دفعة مسجّلة: لم تعد {record} · {amount} مسجّلة كما كانت.",
+        "disputed": "نزاع: {record} · {amount}. رُدّ عليه في لوحة تحكم {service}."
       },
       "why": {
         "alreadyPaid": "كانت الفاتورة مدفوعة بالكامل.",
@@ -4089,7 +4091,10 @@ export default {
         "paidAmount": "تقول {service}: دُفع {amount}",
         "paid": "تقول {service}: مدفوعة",
         "recorded": "سُجِّلت",
-        "notRecorded": "لم تُسجَّل: تحتاج إلى نظرة"
+        "notRecorded": "لم تُسجَّل: تحتاج إلى نظرة",
+        "disputed": "فتح حامل البطاقة نزاعًا",
+        "disputeAnswer": "رُدّ عليه في لوحة تحكم {service}",
+        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}."
       },
       "checkedBy": "راجعها {name}",
       "someone": "شخص ما",
@@ -4102,7 +4107,9 @@ export default {
         "copied": "تم النسخ",
         "copyFailed": "تعذّر النسخ. حدّد النص وانسخه.",
         "downloaded": "تم تنزيل {file}",
-        "exportFailed": "تعذّر التصدير. أعد المحاولة."
+        "exportFailed": "تعذّر التصدير. أعد المحاولة.",
+        "refundRequested": "طُلب استرداد {amount}.",
+        "refundFailed": "فشل استرداد {amount}: {reason}"
       },
       "cancel": "إلغاء",
       "noteRequired": "ملاحظة (مطلوبة)",
@@ -4161,7 +4168,9 @@ export default {
       "emptyBody": "عندما يدفع العملاء، تظهر المدفوعات هنا.",
       "older": "تحميل مدفوعات أقدم",
       "viewOnly": "يمكنك عرض المدفوعات. اطلب من أحد مديري المدفوعات اتخاذ الإجراء.",
-      "countLabel": "تحتاج إلى نظرة: {count, plural, zero {#} one {#} two {#} few {#} many {#} other {#}}"
+      "countLabel": "تحتاج إلى نظرة: {count, plural, zero {#} one {#} two {#} few {#} many {#} other {#}}",
+      "refundAmount": "استرداد {amount}",
+      "refund": "استرداد"
     },
     "live": {
       "ready": "المفتاح المباشر يعمل",

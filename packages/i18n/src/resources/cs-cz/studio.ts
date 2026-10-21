@@ -4037,7 +4037,8 @@ export default {
         "failed": "Neprošlo",
         "expired": "Vypršelo",
         "refunded": "Vráceno",
-        "refundFailed": "Vrácení selhalo"
+        "refundFailed": "Vrácení selhalo",
+        "disputed": "Spor"
       },
       "service": {
         "demo": "Ukázková služba"
@@ -4062,7 +4063,8 @@ export default {
         "paidTwice": "Zaplaceno dvakrát: platba za {record} · {amount} přišla, když už byla na cestě jiná. Obě jsou zaznamenány.",
         "waitingLong": "Čeká na banku už {days} dní: {record} · {amount}.",
         "waitingLongWay": "Čeká na banku už {days} dní: {record} · {amount} ({way}).",
-        "recordChanged": "Zaznamenaná platba se změnila: {record} · {amount} už není zaznamenána jako předtím."
+        "recordChanged": "Zaznamenaná platba se změnila: {record} · {amount} už není zaznamenána jako předtím.",
+        "disputed": "Spor: {record} · {amount}. Odpovězte v ovládacím panelu {service}."
       },
       "why": {
         "alreadyPaid": "Faktura už byla zaplacena v plné výši.",
@@ -4089,7 +4091,10 @@ export default {
         "paidAmount": "Služba {service} hlásí: zaplaceno {amount}",
         "paid": "Služba {service} hlásí: zaplaceno",
         "recorded": "Zaznamenáno",
-        "notRecorded": "Nezaznamenáno: je potřeba se podívat"
+        "notRecorded": "Nezaznamenáno: je potřeba se podívat",
+        "disputed": "Držitel karty otevřel spor",
+        "disputeAnswer": "Odpovězte v ovládacím panelu {service}",
+        "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}."
       },
       "checkedBy": "Zkontroloval(a) {name}",
       "someone": "někdo",
@@ -4102,7 +4107,9 @@ export default {
         "copied": "Zkopírováno",
         "copyFailed": "Nelze zkopírovat. Označte text a zkopírujte ho.",
         "downloaded": "Staženo: {file}",
-        "exportFailed": "Export se nepodařil. Zkuste to znovu."
+        "exportFailed": "Export se nepodařil. Zkuste to znovu.",
+        "refundRequested": "Vrácení {amount} vyžádáno.",
+        "refundFailed": "Vrácení {amount} se nezdařilo: {reason}"
       },
       "cancel": "Zrušit",
       "noteRequired": "Poznámka (povinná)",
@@ -4161,7 +4168,9 @@ export default {
       "emptyBody": "Až zákazníci zaplatí, objeví se tady.",
       "older": "Načíst starší platby",
       "viewOnly": "Platby můžete prohlížet. Požádejte někoho, kdo platby spravuje, aby jednal.",
-      "countLabel": "K prohlédnutí: {count, plural, one {#} few {#} many {#} other {#}}"
+      "countLabel": "K prohlédnutí: {count, plural, one {#} few {#} many {#} other {#}}",
+      "refundAmount": "Vrátit {amount}",
+      "refund": "Vrátit"
     },
     "live": {
       "ready": "Ostrý klíč funguje",

@@ -50,8 +50,33 @@ export default {
       "recorded": "已记录 {amount} 的付款。",
       "copyFailed": "付款链接已创建，但此浏览器未能复制：{url}",
       "failed": "操作未成功：{message}",
-      "emailed": "付款链接正在发送至 {to}。"
-    }
+      "emailed": "付款链接正在发送至 {to}。",
+      "refundRequested": "已申请退款 {amount}。",
+      "refundFailed": "退款 {amount} 失败：{reason}"
+    },
+    "moreFor": "{ref} 的更多操作",
+    "menu": {
+      "refund": "退款…"
+    },
+    "why": {
+      "pending": "这笔付款仍在等待银行处理。",
+      "full": "这笔付款已全额退款。",
+      "offline": "这种付款方式无法在线退款。请自行向客户退款。",
+      "disputed": "这笔付款有争议。请先在 {service} 控制台中答复争议。",
+      "notTaken": "这笔付款没有扣到钱。"
+    },
+    "disputed": "有争议",
+    "disputeLine": "有争议 — 请在 {service} 控制台中答复",
+    "disputeNote": "如果争议败诉，款项会退还给客户。发票不会因此自动更改。",
+    "disputeClosed": "争议已结束。结果请在 {service} 控制台中查看。",
+    "refundRequested": "已申请退款 {amount}",
+    "refundWaitingCustomer": "退款 {amount} 正在等待客户",
+    "refundFailed": "退款 {amount} 失败：{reason}。请联系客户，并记录你们商定的结果。",
+    "refundFailedPlain": "退款 {amount} 失败。请联系客户，并记录你们商定的结果。",
+    "refundCancelled": "退款 {amount} 已取消。",
+    "refundedOnInline": "已于 {date} 退款 {amount}",
+    "refundedThere": "已于 {date} 在 {service} 控制台中退款 {amount} · 已记录",
+    "needsLook": "需要查看"
   },
   "record": {
     "title": "记录一笔付款",
@@ -97,7 +122,8 @@ export default {
       "voided": "作废后在 {provider} 付款：{label}",
       "mode": "在 {provider} 以另一种模式付款，未被认可：{label}",
       "twice": "在 {provider} 付款了两次：{label}",
-      "missing": "已记录的付款已不存在：{label}"
+      "missing": "已记录的付款已不存在：{label}",
+      "refundedThere": "已在 {provider} 控制台中退款：{label} 的 {amount}。已记录。"
     },
     "key": {
       "title": "{provider} 拒绝了密钥",
@@ -130,7 +156,37 @@ export default {
     },
     "dispute": {
       "title": "已发起争议",
-      "body": "{label} · 请在 {date} 前答复"
+      "body": "{label} · 请在 {date} 前答复",
+      "bodyNoDate": "{label} · 请在 {provider} 控制台中答复"
     }
+  },
+  "refund": {
+    "step1": "第 1 步，共 2 步",
+    "step2": "第 2 步，共 2 步",
+    "title": "退款",
+    "close": "关闭",
+    "amount": "金额",
+    "full": "全额",
+    "part": "部分",
+    "upTo": "最多可退款 {amount}",
+    "reason": "原因",
+    "reasons": {
+      "requested_by_customer": "客户要求",
+      "duplicate": "重复付款",
+      "fraudulent": "欺诈",
+      "other": "其他"
+    },
+    "note": "备注",
+    "notePh": "可选",
+    "goesBack": "退回至 {paidWith}。通常需要 5–10 天。",
+    "goesBackPlain": "按原付款方式退回。通常需要 5–10 天。",
+    "cancel": "取消",
+    "continue": "继续",
+    "question": "向 {paidWith} 退款 {amount}？",
+    "questionPlain": "退款 {amount}？",
+    "cantUndo": "此操作无法撤销。",
+    "back": "返回",
+    "submit": "退款",
+    "failed": "未能申请退款：{message}"
   }
 } as const;

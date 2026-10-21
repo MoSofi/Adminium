@@ -40,8 +40,33 @@
       "recorded": "Platba {amount} zaznamenána.",
       "copyFailed": "Platební odkaz je vytvořen, ale tento prohlížeč ho nezkopíroval: {url}",
       "failed": "To se nepovedlo: {message}",
-      "emailed": "Platební odkaz je na cestě na {to}."
-    }
+      "emailed": "Platební odkaz je na cestě na {to}.",
+      "refundRequested": "Vrácení {amount} vyžádáno.",
+      "refundFailed": "Vrácení {amount} se nezdařilo: {reason}"
+    },
+    "moreFor": "Další k {ref}",
+    "menu": {
+      "refund": "Vrátit peníze…"
+    },
+    "why": {
+      "pending": "Tato platba stále čeká na banku.",
+      "full": "Tato platba je vrácena celá.",
+      "offline": "Tento způsob platby nelze vrátit online. Vraťte zákazníkovi peníze sami.",
+      "disputed": "K této platbě je otevřen spor. Nejdřív na spor odpovězte v ovládacím panelu {service}.",
+      "notTaken": "Za tuto platbu nebyly strženy žádné peníze."
+    },
+    "disputed": "Spor",
+    "disputeLine": "Spor — odpovězte v ovládacím panelu {service}",
+    "disputeNote": "Pokud se spor prohraje, peníze se vrátí zákazníkovi. Faktura se tím sama nezmění.",
+    "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
+    "refundRequested": "Vrácení {amount} vyžádáno",
+    "refundWaitingCustomer": "Vrácení {amount} čeká na zákazníka",
+    "refundFailed": "Vrácení {amount} se nezdařilo: {reason}. Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
+    "refundFailedPlain": "Vrácení {amount} se nezdařilo. Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
+    "refundCancelled": "Vrácení {amount} bylo zrušeno.",
+    "refundedOnInline": "vráceno {amount} dne {date}",
+    "refundedThere": "Vrácení {amount} provedené v ovládacím panelu {service} dne {date} · zaznamenáno",
+    "needsLook": "Ke kontrole"
   },
   "record": {
     "title": "Zaznamenat platbu",
@@ -87,7 +112,8 @@
       "voided": "Zaplaceno přes {provider} až po zrušení: {label}",
       "mode": "Zaplaceno přes {provider} v jiném režimu, neuznáno: {label}",
       "twice": "Zaplaceno dvakrát přes {provider}: {label}",
-      "missing": "Zaznamenaná platba už tam není: {label}"
+      "missing": "Zaznamenaná platba už tam není: {label}",
+      "refundedThere": "Vráceno v ovládacím panelu {provider}: {amount} u {label}. Zaznamenáno."
     },
     "key": {
       "title": "Služba {provider} odmítla klíč",
@@ -120,7 +146,37 @@
     },
     "dispute": {
       "title": "Otevřen spor",
-      "body": "{label} · odpovězte do {date}"
+      "body": "{label} · odpovězte do {date}",
+      "bodyNoDate": "{label} · odpovězte v ovládacím panelu {provider}"
     }
+  },
+  "refund": {
+    "step1": "Krok 1 ze 2",
+    "step2": "Krok 2 ze 2",
+    "title": "Vrátit platbu",
+    "close": "Zavřít",
+    "amount": "Částka",
+    "full": "Celá",
+    "part": "Část",
+    "upTo": "Vrátit lze až {amount}",
+    "reason": "Důvod",
+    "reasons": {
+      "requested_by_customer": "Na žádost zákazníka",
+      "duplicate": "Duplicitní",
+      "fraudulent": "Podvodná",
+      "other": "Jiný"
+    },
+    "note": "Poznámka",
+    "notePh": "Nepovinné",
+    "goesBack": "Vrátí se na {paidWith}. Obvykle za 5–10 dní.",
+    "goesBackPlain": "Vrátí se stejnou cestou, jakou bylo zaplaceno. Obvykle za 5–10 dní.",
+    "cancel": "Zrušit",
+    "continue": "Pokračovat",
+    "question": "Vrátit {amount} na {paidWith}?",
+    "questionPlain": "Vrátit {amount}?",
+    "cantUndo": "Tento krok nelze vrátit.",
+    "back": "Zpět",
+    "submit": "Vrátit",
+    "failed": "Vrácení nebylo vyžádáno: {message}"
   }
 }
