@@ -156,6 +156,9 @@ export const EMAIL_CHANGED_TEMPLATE_KEY = 'email-changed';
 export const SIGN_IN_LINK_TEMPLATE_KEY = 'sign-in-link';
 /** The last email to a guest who deleted their details (`DELETE /public/account`). */
 export const DETAILS_DELETED_TEMPLATE_KEY = 'details-deleted';
+/** A pay link to a shop's customer, and the receipt for a payment the pay page took (`payments/emails.ts`). */
+export const PAYMENT_LINK_TEMPLATE_KEY = 'payment-link';
+export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 
 /**
  * Inline last resort for the `notification` key, used ONLY when no row exists
@@ -244,6 +247,11 @@ export interface EnqueueEmailInput {
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
   /** Where a reply goes (`Reply-To`); anything but one plain address is left out. */
   replyTo?: string | undefined;
+  /**
+   * A library image to head the message with in place of the workspace's
+   * mark (a shop's own logo on a pay email). Ignored when the file is gone.
+   */
+  markFileId?: string | undefined;
   /**
    * The rows each `email.rows` block lists, by the block's id, as the sender
    * read them (an order's tickets): each row's variables.
@@ -623,6 +631,10 @@ export async function enqueueEmail(
     prepared.attachments.push({ fileId: gone.fileId, filename: gone.fileId });
   }
   const generated = await resolveGeneratedAttachments(meta, row.attachments, vars, deps.logger);
+  if (input.markFileId !== undefined) {
+    const logo = await filesRepo(meta).findById(input.markFileId);
+    if (logo !== null && logo.deletedAt === null) prepared.render.mark = { kind: 'file', fileId: logo.id };
+  }
 
   const rendered = renderEmail({
     ...prepared.render,

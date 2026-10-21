@@ -135,6 +135,16 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * last email it receives — sent even when switched off (`always`).
    */
   'details-deleted',
+  /*
+   * A shop's customer and a pay link: the record's number, what is due and
+   * the button to the pay page. Sent by staff from the record's Payment panel.
+   */
+  'payment-link',
+  /*
+   * The receipt for a payment made on the pay page, sent once when the
+   * payment is written down, to the record's customer address.
+   */
+  'payment-receipt',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -175,6 +185,15 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
   'sign-in-link': ['appName', 'link', 'code', 'minutes'],
   // One of `keptLine` and `stoppedLine` holds a sentence (`detailsDeletedLines`), as above.
   'details-deleted': ['appName', 'name', 'keptLine', 'stoppedLine'],
+  /*
+   * `shop` is the shop's own name (the pay page settings), never the
+   * software's. `dueLine` and `contactLine` are whole sentences or nothing
+   * (`paymentEmailLines`), so a record with no due date or a shop with no
+   * contact drops the paragraph.
+   */
+  'payment-link': ['shop', 'number', 'amount', 'payUrl', 'expiresOn', 'dueLine', 'contactLine'],
+  // `balanceLine` says what is still due after this payment, or nothing.
+  'payment-receipt': ['shop', 'number', 'amount', 'paidOn', 'method', 'balanceLine', 'contactLine'],
 };
 
 /**
@@ -214,6 +233,14 @@ const VAR = {
   revisedLine: '{{revisedLine}}',
   keptLine: '{{keptLine}}',
   stoppedLine: '{{stoppedLine}}',
+  shop: '{{shop}}',
+  amount: '{{amount}}',
+  payUrl: '{{payUrl}}',
+  expiresOn: '{{expiresOn}}',
+  dueLine: '{{dueLine}}',
+  paidOn: '{{paidOn}}',
+  method: '{{method}}',
+  balanceLine: '{{balanceLine}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -663,6 +690,95 @@ function signInLinkTemplate(t: Translate): BuiltinEmailTemplate {
 }
 
 /**
+ * The sentences the two payment emails fill per send, in the recipient's
+ * language: each is a whole sentence or nothing, and the renderer drops a
+ * paragraph that fills to nothing. `due` and `left` arrive already written
+ * out (a date, an amount); `contact` is the shop's address and/or phone.
+ */
+export function paymentEmailLines(
+  t: Translate,
+  input: { due?: string | null; left?: string | null; number: string; contact: string | null },
+): { dueLine: string; balanceLine: string; contactLine: string } {
+  return {
+    dueLine: input.due === null || input.due === undefined || input.due === '' ? '' : t('email:paymentLink.due', { date: input.due, defaultValue: 'It is due on {date}.' }),
+    balanceLine:
+      input.left === null || input.left === undefined || input.left === ''
+        ? ''
+        : t('email:paymentReceipt.balance', { amount: input.left, number: input.number, defaultValue: '{amount} is still due on {number}.' }),
+    contactLine: input.contact === null || input.contact === '' ? '' : t('email:paymentLink.contact', { contact: input.contact, defaultValue: 'Questions? Write to {contact}.' }),
+  };
+}
+
+/**
+ * A pay link on its way to a shop's customer. The shop's name heads it (the
+ * brand), the number and the amount due say what it is for, and the button
+ * opens the pay page. Nothing about the customer is in it but the address it
+ * goes to: the same link may be forwarded.
+ */
+function paymentLinkTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'payment-link',
+    name: t('email:paymentLink.name', { defaultValue: 'Pay link' }),
+    subject: t('email:paymentLink.subject', { number: VAR.number, shop: VAR.shop, defaultValue: 'Your pay link for {number} from {shop}' }),
+    preheader: t('email:paymentLink.preheader', { amount: VAR.amount, defaultValue: '{amount} to pay online.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:paymentLink.heading', { number: VAR.number, defaultValue: 'Pay {number} online' })),
+      paragraph('intro', t('email:paymentLink.intro', { shop: VAR.shop, number: VAR.number, defaultValue: '{shop} sent you a link to pay {number} online.' })),
+      { block: 'email.box', id: 'amount', data: { label: t('email:paymentLink.amountLabel', { defaultValue: 'Amount due' }), value: VAR.amount } },
+      // Only when the record says when it is due: see `paymentEmailLines`.
+      paragraph('due', VAR.dueLine),
+      button(t('email:paymentLink.action', { defaultValue: 'Open the pay page' }), VAR.payUrl),
+      paragraph(
+        'notice',
+        t('email:paymentLink.notice', {
+          shop: VAR.shop,
+          expiresOn: VAR.expiresOn,
+          defaultValue: 'You pay on a secure page; {shop} never sees your card. The link works until {expiresOn}.',
+        }),
+      ),
+      paragraph('contact', VAR.contactLine),
+    ],
+    footer: linkFallback(t, VAR.payUrl),
+  };
+}
+
+/**
+ * The receipt for a payment the pay page took: sent once, when the payment
+ * is written down. Transactional, like the booking confirmation: the shop's
+ * name in the footer, never an unsubscribe line.
+ */
+function paymentReceiptTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'payment-receipt',
+    name: t('email:paymentReceipt.name', { defaultValue: 'Payment receipt' }),
+    subject: t('email:paymentReceipt.subject', { number: VAR.number, shop: VAR.shop, defaultValue: 'Receipt for {number} from {shop}' }),
+    preheader: t('email:paymentReceipt.preheader', { amount: VAR.amount, paidOn: VAR.paidOn, defaultValue: '{amount} paid on {paidOn}.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:paymentReceipt.heading', { defaultValue: 'Thank you for your payment' })),
+      paragraph('intro', t('email:paymentReceipt.intro', { shop: VAR.shop, number: VAR.number, defaultValue: '{shop} received your payment for {number}.' })),
+      { block: 'email.box', id: 'amount', data: { label: t('email:paymentReceipt.amountLabel', { defaultValue: 'Amount paid' }), value: VAR.amount } },
+      {
+        block: 'email.list',
+        id: 'details',
+        data: {
+          items: [
+            t('email:paymentReceipt.paidOn', { paidOn: VAR.paidOn, defaultValue: 'Paid on: {paidOn}' }),
+            t('email:paymentReceipt.method', { method: VAR.method, defaultValue: 'Paid with: {method}' }),
+          ],
+        },
+      },
+      // Only when part is still due: see `paymentEmailLines`.
+      paragraph('balance', VAR.balanceLine),
+      paragraph('notice', t('email:paymentReceipt.notice', { defaultValue: 'Keep this email for your records.' })),
+      paragraph('contact', VAR.contactLine),
+    ],
+    footer: t('email:paymentReceipt.footer', { shop: VAR.shop, defaultValue: '{shop}' }),
+  };
+}
+
+/**
  * Every built-in, rendered through one recipient-locale translator. Exported
  * for the seed and for tests that need the exact bytes without a database.
  */
@@ -677,6 +793,8 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     emailChangedTemplate(t),
     signInLinkTemplate(t),
     detailsDeletedTemplate(t),
+    paymentLinkTemplate(t),
+    paymentReceiptTemplate(t),
   ];
 }
 
