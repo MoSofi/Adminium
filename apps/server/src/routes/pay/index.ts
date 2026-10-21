@@ -203,7 +203,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
     app.get(
       '/pay/api/:token',
-      { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams, response: { 200: pageReply } } },
+      { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: tokenParams, response: { 200: pageReply } } },
       async (request, reply) => {
         noStore(reply);
         return page(request, request.params.token);
@@ -212,7 +212,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/pay/api/:token/challenge',
-      { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams, response: { 200: challengeReply } } },
+      { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: tokenParams, response: { 200: challengeReply } } },
       async (request, reply) => {
         noStore(reply);
         const link = await linkForToken(meta, request.params.token, now());
@@ -231,7 +231,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
           csrf: 'origin',
           audit: auditExempt('the attempt row it makes is the record; a customer is not an actor the audit log names'),
         },
-        schema: { params: tokenParams, body: checkoutBody, response: { 200: checkoutReply, 403: checkoutReply } },
+        schema: { hide: true, params: tokenParams, body: checkoutBody, response: { 200: checkoutReply, 403: checkoutReply } },
       },
       async (request, reply) => {
         noStore(reply);
@@ -273,7 +273,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/pay/api/back/:nonce',
-      { config: { rateLimitBucket: 'pay-page' }, schema: { params: nonceParams, response: { 200: pageReply } } },
+      { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: nonceParams, response: { 200: pageReply } } },
       async (request, reply): Promise<PageReply> => {
         noStore(reply);
         const { name, email, phone, hasLogo } = await shop();

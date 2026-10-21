@@ -155,6 +155,10 @@ const DESCRIPTIONS = {
   users: 'People in the workspace — invite, suspend, delete, assign roles',
   teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
   people: 'Names and ids of staff, for picking somebody (an owner, a hand-over)',
+  payments:
+    'Studio → Payments: connect a payment service with your own keys, choose the ways to pay and ' +
+    'their rules, mark tables payable, set the pay page and make pay links. Setup changes need ' +
+    'payments.manage and a signed-in person (never an API key); payments.view reads only.',
   'widget-data': 'The queries widgets run, singly and in batches',
   words:
     'What staff are told of the rows a screen shows, in an add-on\'s stock words — in, low or out for ' +
