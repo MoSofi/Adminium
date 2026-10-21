@@ -10,12 +10,15 @@
  * table is the record). What it does is `payments/webhook.ts`.
  */
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { receiveWebhook, type WebhookDeps } from '../../payments/webhook.js';
 
 /** The largest delivery accepted. Stripe's and PayPal's events are a few kilobytes. */
 export const WEBHOOK_BODY_LIMIT = 256 * 1024;
+
+const webhookParams = z.object({ provider: z.string().max(80), mode: z.string().max(8) });
 
 export function paymentWebhookRoutes(deps: WebhookDeps): FastifyPluginAsync {
   return async (app) => {
@@ -33,6 +36,8 @@ export function paymentWebhookRoutes(deps: WebhookDeps): FastifyPluginAsync {
           csrf: 'exempt',
           audit: auditExempt('a payment service calling back; the stored event is the record, and a bad signature is counted, not audited one row each'),
         },
+        // Typed for the boot check, kept out of the public spec: only a payment service calls it.
+        schema: { hide: true, params: webhookParams },
       },
       async (request, reply) => {
         const { provider, mode } = request.params;

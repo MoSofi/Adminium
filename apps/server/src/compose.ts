@@ -289,7 +289,12 @@ import { paymentLinksRoutes } from './routes/payments/links.js';
 import { payRoutes } from './routes/pay/index.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
-import { anyLiveOn, readyPaymentProviders } from './payments/ready.js';
+import { anyLiveOn, paymentAddOnKeys, readyPaymentProviders } from './payments/ready.js';
+import { PAYMENT_MODES, type PaymentMode } from '@adminium/add-on-contracts';
+import { registerPaymentsSettleHandler } from './payments/webhook.js';
+import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
+import { paymentWebhookRoutes } from './routes/payments/webhook.js';
+import { paymentActivityRoutes } from './routes/payments/activity.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -1496,17 +1501,33 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const paymentSources = createPayableSources({ meta, manager });
   registerPaymentsRecordHandler(jobs.registry, { meta, sources: paymentSources, writes: recordWrites, app, log: app.log });
   // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
+  const paymentProviderLookup = (key: string, mode: PaymentMode) =>
+    paymentProviderFor(
+      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null, log: (message, fields) => app.log.warn(fields, message) },
+      key,
+      mode,
+    );
   const paymentCheckout = createCheckoutService({
     meta,
     sources: paymentSources,
-    providerFor: (key, mode) =>
-      paymentProviderFor(
-        { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null, log: (message, fields) => app.log.warn(fields, message) },
-        key,
-        mode,
-      ),
+    providerFor: paymentProviderLookup,
     enqueue: (input) => jobs.enqueue(input),
   });
+  // What a webhook queues (settle), and the sweep that stands in for a webhook that never came.
+  registerPaymentsSettleHandler(jobs.registry, { meta, checkout: paymentCheckout });
+  registerPaymentsSweepHandler(jobs.registry, { meta, checkout: paymentCheckout, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) });
+  jobs.scheduler.registerSchedule(
+    PAYMENTS_SWEEP_PLAN_NAME,
+    PAYMENTS_SWEEP_PLAN_CRON,
+    async () => {
+      // Every installed service in both modes, stopped or not: an attempt opened before a stop or a
+      // switch to live still waits on its answer. A service and mode with nothing waiting is skipped.
+      const keys = await paymentAddOnKeys({ manifests: appManifests });
+      const queued = await planSweeps({ meta, enqueue: (input) => jobs.enqueue(input) }, keys.flatMap((key) => PAYMENT_MODES.map((mode) => ({ key, mode }))));
+      if (queued > 0) app.log.info({ queued }, 'payments: safety sweeps queued');
+    },
+    { jitterMs: 30_000 },
+  );
   jobs.scheduler.registerSchedule(
     PAYMENTS_RECORD_PICKUP_NAME,
     PAYMENTS_RECORD_PICKUP_CRON,
@@ -1983,6 +2004,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           trustProxy: env.ADMINIUM_TRUST_PROXY,
         }),
       );
+      // Where a payment service calls back: no session, the signature is the gate.
+      await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) }));
+      await api.register(paymentActivityRoutes({ meta }));
       await api.register(paymentPayablesRoutes({ meta, manager }));
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(

@@ -6,6 +6,7 @@
  */
 import BetterSqlite3 from 'better-sqlite3';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDemoPaymentBackend, type DemoPaymentBackend } from '@adminium/add-on-contracts';
@@ -44,6 +45,8 @@ describe('the payment webhook', () => {
     } as unknown as PayableSources;
     checkout = createCheckoutService({ meta, sources, providerFor, enqueue });
     app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
     await app.register(paymentWebhookRoutes({ meta, providerFor, enqueue }), { prefix: '/api/v1' });
     await app.ready();
   });

@@ -395,6 +395,12 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/payments/links': rows('visible', 'A pay link is made only for a row the maker reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/links/current': rows('visible', 'The current pay link of a row the asker reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/links/:id/revoke': rows('visible', 'A pay link is revoked only for a row the person reaches.'),
+  'POST /api/v1/payments/webhook/:provider/:mode': noRows('A payment service calling back; the event is kept in meta and settled by a job.'),
+  'GET /api/v1/payments/activity': noRows('Payment attempts and refunds, kept in meta; the record is named by its label only.'),
+  'GET /api/v1/payments/activity/count': noRows('A count of payment attempts and refunds that need a look, kept in meta.'),
+  'GET /api/v1/payments/activity.csv': noRows('Payment attempts and refunds, kept in meta; the record is named by its label only.'),
+  'POST /api/v1/payments/activity/attempts/:id/check': noRows('Marks a payment attempt kept in meta as checked.'),
+  'POST /api/v1/payments/activity/refunds/:id/check': noRows('Marks a refund kept in meta as checked.'),
   // --- /people
   'GET /api/v1/people': noRows('Names and ids of staff, to pick somebody.'),
   // --- /permissions
@@ -545,6 +551,8 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'app-outbox-send': rows('system', 'Sends the mail an app\'s outbox row asks for, as the system.'),
   'app-outbox-effect': rows('system', 'Writes what a sent or failed mail does to its row, as the system.'),
   'app.timed-moves': rows('system', 'Moves rows whose time has come, as the system.'),
+  'payments.settle': rows('system', 'Reads the record being paid again, as the system, before taking the money; the answer is kept in meta and recording it is the payments.record job.'),
+  'payments.sweep': rows('system', 'Settles, as the system, the attempts a missed webhook would have: the same reads as payments.settle.'),
   'payments.record': rows('system', 'Writes the payment a customer made into its record\'s payments, as the system, once the payment service confirmed it.'),
   'add-on-download': noRows('Fetches a package.'),
   'catalog-refresh': noRows('Refreshes the add-on catalogue.'),
