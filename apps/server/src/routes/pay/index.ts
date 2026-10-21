@@ -372,7 +372,8 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
           shopCountry: country,
           providers: await deps.readyProviders('live').then(async (live) => (live.length > 0 ? live : deps.readyProviders('test'))),
         });
-        return { state: 'ready', test: true, shop: shopView, payable: { ...sample, lines }, ways: ways.length > 0 ? ways : [{ source: 'demo', method: 'card', label: null, details: null }], processing: null, attempt: null };
+        // As a customer sees a live link: no test band.
+        return { state: 'ready', test: false, shop: shopView, payable: { ...sample, lines }, ways: ways.length > 0 ? ways : [{ source: 'demo', method: 'card', label: null, details: null }], processing: null, attempt: null };
       },
     );
 
