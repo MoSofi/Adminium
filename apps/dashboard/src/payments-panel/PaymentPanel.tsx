@@ -14,12 +14,12 @@
 import { useState, type ReactNode } from 'react';
 import { Badge, Button } from '@adminium/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Banknote, CircleCheck, CircleDot, Clock, CreditCard, FileText, Landmark, Link2, Package, Plus, Send, ServerOff, type LucideIcon } from 'lucide-react';
+import { Ban, Banknote, CircleCheck, CircleDot, Clock, CreditCard, FileText, Landmark, Link2, Mail, Package, Plus, Send, ServerOff, type LucideIcon } from 'lucide-react';
 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
-import { fetchCurrentLink, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelPayment, type PanelRecord, type PaymentPanelView } from './paymentPanelApi.js';
+import { emailLink, fetchCurrentLink, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelPayment, type PanelRecord, type PaymentPanelView } from './paymentPanelApi.js';
 import { decimalsOf, formatMoney, moreThan, shortDay } from './paymentText.js';
 import { readerLocale, usePaymentsMessages } from './paymentsMessages.js';
 import { RecordPaymentDialog } from './RecordPaymentDialog.js';
@@ -218,6 +218,19 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
     onError: failed,
   });
 
+  // Emails the current live link, or a new one when there is none (a test link opens for staff only).
+  const email = useMutation({
+    mutationFn: async () => {
+      const current = link !== null && link.mode === 'live' && link.expiresAt > Date.now() ? link : (await makeLink(view.payable)).link;
+      return emailLink(current.id);
+    },
+    onSuccess: async ({ to }) => {
+      toasts.push({ variant: 'success', title: t('payments:panel.toast.emailed', 'The pay link is on its way to {to}.', { to }) });
+      await refresh();
+    },
+    onError: failed,
+  });
+
   const revoke = useMutation({
     mutationFn: (id: string) => revokeLink(id),
     onSuccess: async () => {
@@ -304,6 +317,11 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
           {showCopy ? (
             <Button variant="secondary" iconLeft={<Link2 aria-hidden="true" />} loading={copy.isPending} onClick={() => copy.mutate()}>
               {t('payments:panel.copyLink', 'Copy pay link')}
+            </Button>
+          ) : null}
+          {showCopy ? (
+            <Button variant="secondary" iconLeft={<Mail aria-hidden="true" />} loading={email.isPending} onClick={() => email.mutate()}>
+              {t('payments:panel.emailLink', 'Email pay link')}
             </Button>
           ) : null}
           {view.mayRecord ? (

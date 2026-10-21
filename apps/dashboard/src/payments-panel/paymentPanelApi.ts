@@ -103,6 +103,11 @@ export async function makeLink(payable: PanelPayableRef): Promise<{ link: PayLin
   return (await api.post<{ data: { link: PayLink; replaced: boolean } }>('/api/v1/payments/links', payable)).data;
 }
 
+/** Emails a live pay link to the record's customer; answers where it went (queued, not yet delivered). */
+export async function emailLink(id: string): Promise<{ to: string }> {
+  return (await api.post<{ data: { queued: true; to: string } }>(`/api/v1/payments/links/${encodeURIComponent(id)}/email`)).data;
+}
+
 export async function revokeLink(id: string): Promise<void> {
   await api.post(`/api/v1/payments/links/${encodeURIComponent(id)}/revoke`);
 }

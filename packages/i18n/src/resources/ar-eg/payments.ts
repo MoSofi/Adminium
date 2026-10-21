@@ -14,6 +14,7 @@ export default {
     "paid": "المدفوع",
     "paidInFull": "مدفوعة بالكامل",
     "copyLink": "نسخ رابط الدفع",
+    "emailLink": "إرسال رابط الدفع بالبريد الإلكتروني",
     "record": "تسجيل دفعة",
     "revoke": "إلغاء",
     "test": "اختبار",
@@ -48,7 +49,8 @@ export default {
       "revoked": "أُلغي رابط الدفع. العنوان القديم لم يعد يعمل.",
       "recorded": "سُجّلت دفعة بقيمة {amount}.",
       "copyFailed": "أُنشئ رابط الدفع، لكن هذا المتصفح لم ينسخه: {url}",
-      "failed": "لم ينجح ذلك: {message}"
+      "failed": "لم ينجح ذلك: {message}",
+      "emailed": "رابط الدفع في طريقه إلى {to}."
     }
   },
   "record": {

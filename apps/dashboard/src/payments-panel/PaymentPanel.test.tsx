@@ -177,6 +177,16 @@ describe('the Payment panel', () => {
 });
 
 describe('the Record-a-payment dialog', () => {
+  it('emails a new live pay link to the record’s customer, and says it is on its way', async () => {
+    const user = userEvent.setup();
+    answers['/api/v1/payments/links'] = { data: { link: { id: 'plk_1', url: 'https://pay.crumbandco.de/pay/AAAAAAAAAAAAAAAAAAAAAA', mode: 'live', expiresAt: Date.now() + 86_400_000, createdAt: Date.now() }, replaced: false } };
+    answers['/api/v1/payments/links/plk_1/email'] = { data: { queued: true, to: 'lena@example.com' } };
+    await show(viewOf());
+    await user.click(screen.getByRole('button', { name: 'Email pay link' }));
+    expect(await screen.findByText('The pay link is on its way to lena@example.com.')).toBeTruthy();
+    expect(calls.some((call) => call.url.endsWith('/api/v1/payments/links/plk_1/email'))).toBe(true);
+  });
+
   it('starts on the amount due, asks for the card slip’s fields only for a card, and refuses what it must', async () => {
     const user = userEvent.setup();
     await show(viewOf());

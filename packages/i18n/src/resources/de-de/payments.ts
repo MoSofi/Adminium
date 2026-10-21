@@ -14,6 +14,7 @@ export default {
     "paid": "Bezahlt",
     "paidInFull": "Vollständig bezahlt",
     "copyLink": "Zahlungslink kopieren",
+    "emailLink": "Zahlungslink per E-Mail senden",
     "record": "Zahlung erfassen",
     "revoke": "Widerrufen",
     "test": "Test",
@@ -48,7 +49,8 @@ export default {
       "revoked": "Zahlungslink widerrufen. Die alte Adresse funktioniert nicht mehr.",
       "recorded": "Zahlung über {amount} erfasst.",
       "copyFailed": "Der Zahlungslink ist erstellt, aber dieser Browser hat ihn nicht kopiert: {url}",
-      "failed": "Das hat nicht geklappt: {message}"
+      "failed": "Das hat nicht geklappt: {message}",
+      "emailed": "Der Zahlungslink ist unterwegs an {to}."
     }
   },
   "record": {

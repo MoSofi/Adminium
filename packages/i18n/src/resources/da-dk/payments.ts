@@ -14,6 +14,7 @@ export default {
     "paid": "Betalt",
     "paidInFull": "Betalt fuldt ud",
     "copyLink": "Kopiér betalingslink",
+    "emailLink": "Send betalingslink på e-mail",
     "record": "Registrér en betaling",
     "revoke": "Tilbagekald",
     "test": "Test",
@@ -48,7 +49,8 @@ export default {
       "revoked": "Betalingslink tilbagekaldt. Den gamle adresse virker ikke længere.",
       "recorded": "Betaling på {amount} registreret.",
       "copyFailed": "Betalingslinket er lavet, men denne browser ville ikke kopiere det: {url}",
-      "failed": "Det virkede ikke: {message}"
+      "failed": "Det virkede ikke: {message}",
+      "emailed": "Betalingslinket er på vej til {to}."
     }
   },
   "record": {

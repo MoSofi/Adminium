@@ -18219,6 +18219,10 @@
     "status": "mt",
     "srcHash": "b26cbf49fa15"
   },
+  "payments.panel.emailLink": {
+    "status": "mt",
+    "srcHash": "3cf8172a7572"
+  },
   "payments.panel.linkLine": {
     "status": "mt",
     "srcHash": "b584b8c5184b"
@@ -18298,6 +18302,10 @@
   "payments.panel.toast.copyFailed": {
     "status": "mt",
     "srcHash": "b5ff09345b67"
+  },
+  "payments.panel.toast.emailed": {
+    "status": "mt",
+    "srcHash": "1a8a1084937c"
   },
   "payments.panel.toast.failed": {
     "status": "mt",

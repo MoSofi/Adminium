@@ -14,6 +14,7 @@ export default {
     "paid": "Paid",
     "paidInFull": "Paid in full",
     "copyLink": "Copy pay link",
+    "emailLink": "Email pay link",
     "record": "Record a payment",
     "revoke": "Revoke",
     "test": "Test",
@@ -48,7 +49,8 @@ export default {
       "revoked": "Pay link revoked. The old address no longer works.",
       "recorded": "Payment of {amount} recorded.",
       "copyFailed": "The pay link is made, but this browser would not copy it: {url}",
-      "failed": "That did not work: {message}"
+      "failed": "That did not work: {message}",
+      "emailed": "The pay link is on its way to {to}."
     }
   },
   "record": {

@@ -14,6 +14,7 @@ export default {
     "paid": "已付",
     "paidInFull": "已全額付清",
     "copyLink": "複製付款連結",
+    "emailLink": "以電子郵件傳送付款連結",
     "record": "記錄一筆付款",
     "revoke": "撤銷",
     "test": "測試",
@@ -48,7 +49,8 @@ export default {
       "revoked": "已撤銷付款連結。舊網址已失效。",
       "recorded": "已記錄 {amount} 的付款。",
       "copyFailed": "付款連結已建立，但此瀏覽器未能複製：{url}",
-      "failed": "操作未成功：{message}"
+      "failed": "操作未成功：{message}",
+      "emailed": "付款連結正在寄往 {to}。"
     }
   },
   "record": {

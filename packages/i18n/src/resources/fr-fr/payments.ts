@@ -14,6 +14,7 @@ export default {
     "paid": "Payé",
     "paidInFull": "Payé en totalité",
     "copyLink": "Copier le lien de paiement",
+    "emailLink": "Envoyer le lien de paiement par e-mail",
     "record": "Enregistrer un paiement",
     "revoke": "Révoquer",
     "test": "Test",
@@ -48,7 +49,8 @@ export default {
       "revoked": "Lien de paiement révoqué. L’ancienne adresse ne fonctionne plus.",
       "recorded": "Paiement de {amount} enregistré.",
       "copyFailed": "Le lien de paiement est créé, mais ce navigateur ne l’a pas copié : {url}",
-      "failed": "Cela n’a pas fonctionné : {message}"
+      "failed": "Cela n’a pas fonctionné : {message}",
+      "emailed": "Le lien de paiement est en route vers {to}."
     }
   },
   "record": {

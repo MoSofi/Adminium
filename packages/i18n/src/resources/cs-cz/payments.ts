@@ -14,6 +14,7 @@ export default {
     "paid": "Zaplaceno",
     "paidInFull": "Zaplaceno v plné výši",
     "copyLink": "Kopírovat platební odkaz",
+    "emailLink": "Poslat platební odkaz e-mailem",
     "record": "Zaznamenat platbu",
     "revoke": "Zrušit",
     "test": "Test",
@@ -48,7 +49,8 @@ export default {
       "revoked": "Platební odkaz zrušen. Stará adresa už nefunguje.",
       "recorded": "Platba {amount} zaznamenána.",
       "copyFailed": "Platební odkaz je vytvořen, ale tento prohlížeč ho nezkopíroval: {url}",
-      "failed": "To se nepovedlo: {message}"
+      "failed": "To se nepovedlo: {message}",
+      "emailed": "Platební odkaz je na cestě na {to}."
     }
   },
   "record": {
