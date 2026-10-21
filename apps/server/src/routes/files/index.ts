@@ -58,6 +58,7 @@ import { SpoolTooLargeError } from '../../files/spool.js';
 import { UnsupportedFileTypeError, type FileStore } from '../../files/store.js';
 import type { SniffTypeKey } from '../../files/sniff.js';
 import { mimesForKeys, SNIFF_TYPE_KEYS } from '../../files/sniff.js';
+import { PICTURE_MAX_BYTES } from '../../public-api/picture.js';
 import {
   fileIdParams,
   filesAttachBody,
@@ -143,6 +144,12 @@ export interface FilesRoutesDeps {
     /** The app's own `column.file` rule: a picture uploaded for it is kept without its camera notes. */
     ruled?: true | undefined;
   } | null>;
+  /**
+   * Whether a column is a picture every visitor sees (an entry's `pictures`):
+   * such a column takes no file larger than a picture served to visitors, so
+   * an upload or a copy for it is refused above that, saying why.
+   */
+  publicPicture?: (input: { connectionId: string; table: string; column: string }) => Promise<boolean>;
   /**
    * A table as the database knows it (`main.sign_offs`), for the name an
    * app's screen gives (`sign_offs`, from its side's config): the grant
@@ -343,6 +350,15 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
     destinationId: string | undefined;
     allowedTypes: SniffTypeKey[];
     clean: boolean;
+    /** A picture every visitor sees: `maxBytes` is at most a public picture's, and a refusal says so. */
+    publicPicture: boolean;
+  }
+
+  /** Why a file is too large for a column, in plain words: a picture visitors see says so. */
+  function tooLargeWords(limits: Pick<UploadLimits, 'maxBytes' | 'publicPicture'>, fallback: string): string {
+    if (!limits.publicPicture) return fallback;
+    const mib = Math.round((limits.maxBytes / (1024 * 1024)) * 10) / 10;
+    return `Customers see the pictures in this column, so a picture in it can be at most ${String(mib)} MB. Choose a smaller picture, or make this one smaller first.`;
   }
 
   /**
@@ -368,13 +384,23 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         ? null
         : await deps.pageAttachments({ connectionId, table });
     const limits = block ?? sidecar;
+    const maxBytes = Math.min(await settings.get('files.maxBytes'), limits?.maxBytes ?? Number.POSITIVE_INFINITY);
+    // A picture every visitor sees: no larger than the public route serves, whatever the column's own rule says.
+    // (Said as the reason only where it is the limit that holds: a workspace that takes less says its own.)
+    const publicPicture =
+      column !== undefined &&
+      table !== undefined &&
+      deps.publicPicture !== undefined &&
+      PICTURE_MAX_BYTES <= maxBytes &&
+      (await deps.publicPicture({ connectionId, table, column }));
     return {
       block,
       sidecar,
-      maxBytes: Math.min(await settings.get('files.maxBytes'), limits?.maxBytes ?? Number.POSITIVE_INFINITY),
+      maxBytes: publicPicture ? PICTURE_MAX_BYTES : maxBytes,
       destinationId: input.destinationId ?? limits?.destinationId,
       allowedTypes: await allowedTypesFor(limits?.accept),
       clean: block?.ruled === true,
+      publicPicture,
     };
   }
 
@@ -525,7 +551,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           }
         }
 
-        const { block, sidecar, maxBytes, destinationId, allowedTypes, clean } = await uploadLimits({
+        const { block, sidecar, maxBytes, destinationId, allowedTypes, clean, publicPicture } = await uploadLimits({
           connectionId,
           table,
           column,
@@ -582,8 +608,9 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           });
         } catch (error) {
           if (error instanceof SpoolTooLargeError) {
-            throw new AppError(413, 'FILE_TOO_LARGE', `That file is larger than the ${String(maxBytes)}-byte limit.`, {
+            throw new AppError(413, 'FILE_TOO_LARGE', tooLargeWords({ maxBytes, publicPicture }, `That file is larger than the ${String(maxBytes)}-byte limit.`), {
               maxBytes,
+              ...(publicPicture ? { publicPicture: true } : {}),
             });
           }
           if (error instanceof UnsupportedFileTypeError) {
@@ -661,6 +688,11 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         if (limits.block === null) {
           throw new ValidationFailedError(`The column ${column} does not hold files.`, { column: 'not-a-file-column' });
         }
+        const tooLarge = (): AppError =>
+          new AppError(422, 'TOO_LARGE', tooLargeWords(limits, `That file is larger than this column's ${String(limits.maxBytes)}-byte limit.`), {
+            maxBytes: limits.maxBytes,
+            ...(limits.publicPicture ? { publicPicture: true } : {}),
+          });
 
         // 2–4, answered alike when the answer is no.
         const missing = (): NotFoundError => new NotFoundError(`File ${request.params.id} not found.`);
@@ -677,7 +709,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           throw new AppError(422, 'TYPE_NOT_ACCEPTED', `This column does not take ${source.mime} files.`, { mime: source.mime });
         }
         if (source.sizeBytes > limits.maxBytes) {
-          throw new AppError(422, 'TOO_LARGE', `That file is larger than this column's ${String(limits.maxBytes)}-byte limit.`, { maxBytes: limits.maxBytes });
+          throw tooLarge();
         }
 
         let opened;
@@ -706,7 +738,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           });
         } catch (error) {
           if (error instanceof SpoolTooLargeError) {
-            throw new AppError(422, 'TOO_LARGE', `That file is larger than this column's ${String(limits.maxBytes)}-byte limit.`, { maxBytes: limits.maxBytes });
+            throw tooLarge();
           }
           if (error instanceof UnsupportedFileTypeError) {
             throw new AppError(422, 'TYPE_NOT_ACCEPTED', error.message, { ...(error.sniffedMime === undefined ? {} : { mime: error.sniffedMime }) });

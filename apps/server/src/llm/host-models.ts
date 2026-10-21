@@ -17,10 +17,10 @@
 import { AI_ENV_NAMES, type AiEnvName } from '../project/dotenv.js';
 
 /** The picture sources a project may have a key for. */
-export const PICTURE_KEY_NAMES = ['PEXELS_API_KEY', 'UNSPLASH_ACCESS_KEY'] as const;
+export const PICTURE_KEY_NAMES = ['PEXELS_API_KEY', 'UNSPLASH_ACCESS_KEY', 'PIXABAY_API_KEY'] as const;
 export type PictureKeyName = (typeof PICTURE_KEY_NAMES)[number];
 
-/** Every name a host keeps: the six of a model, the two of the picture sources. */
+/** Every name a host keeps: the six of a model, the three of the picture sources. */
 export const HOST_KEPT_NAMES: readonly (AiEnvName | PictureKeyName)[] = [...AI_ENV_NAMES, ...PICTURE_KEY_NAMES];
 export type HostKeptName = AiEnvName | PictureKeyName;
 export type HostKeptValues = Partial<Record<HostKeptName, string>>;

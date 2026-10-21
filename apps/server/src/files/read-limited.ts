@@ -8,7 +8,7 @@
  * record carries beside its columns (the attachments panel) stays theirs.
  */
 import type { FastifyRequest } from 'fastify';
-import { isId, type MetaDb, type StoredFile } from '@adminium/meta';
+import { isId, publicScopesRepo, type MetaDb, type StoredFile } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import { labelColumnFor } from '../crud/labels.js';
@@ -136,6 +136,42 @@ export async function ruledFileColumn(meta: MetaDb, input: { connectionId: strin
     return rule === undefined ? null : ruledBlock(rule);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Whether a column is a picture every visitor sees: one a customer scope of
+ * the connection lists under an entry's `pictures`. Such a column takes no
+ * file larger than a picture served to visitors (`PICTURE_MAX_BYTES`),
+ * whatever its own rule says, so a picture staff saved is one visitors see.
+ * Unsure (no schema, a document that does not read) is no: the column's own
+ * limits stand.
+ */
+export async function publicPictureColumn(meta: MetaDb, input: { connectionId: string; table: string; column: string }): Promise<boolean> {
+  try {
+    const scopes = (await publicScopesRepo(meta).listByConnection(input.connectionId)).filter((scope) => scope.side === 'customer');
+    if (scopes.length === 0) return false;
+    const view = await loadSnapshotView(meta, input.connectionId);
+    const idOf = (table: string): string => view.linkTable(table)?.id ?? table;
+    const target = idOf(input.table);
+    return scopes.some((scope) => {
+      let resources: unknown;
+      try {
+        resources = (JSON.parse(scope.document) as { resources?: unknown }).resources;
+      } catch {
+        return false;
+      }
+      if (!Array.isArray(resources)) return false;
+      return resources.some((resource: { table?: unknown; pictures?: unknown } | null) =>
+        resource !== null &&
+        typeof resource.table === 'string' &&
+        Array.isArray(resource.pictures) &&
+        resource.pictures.includes(input.column) &&
+        idOf(resource.table) === target,
+      );
+    });
+  } catch {
+    return false;
   }
 }
 

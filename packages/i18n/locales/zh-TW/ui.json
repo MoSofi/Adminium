@@ -1773,6 +1773,7 @@
         "noType": "此欄不接受 {type} 檔案。",
         "saved": "隨記錄一起儲存。",
         "tooLarge": "這張圖片超過此欄 {limit} 的上限。",
+        "tooLargePublic": "顧客會看到這些圖片，因此每張不能超過 {limit}。請選擇一張較小的圖片。",
         "refused": "你無法變更 {table}，因此無法為其新增圖片。",
         "choose": "選擇現有圖片…",
         "remove": "移除",

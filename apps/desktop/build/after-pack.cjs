@@ -117,9 +117,33 @@ function checkStarter(context) {
   console.log('  • the starter lockfile is in the archive');
 }
 
+/**
+ * What `before-pack.cjs` bundles into the server, each with what goes wrong
+ * without it. The app once shipped without all of them (0.3.31), with no error
+ * anywhere: no Milo, no skill pages, and a Style picker with one choice.
+ */
+const SERVER_BUNDLES = [
+  [['vocabulary', 'llm-allowlist.json'], 'the server would start with no AI side: no Milo and no /llm routes'],
+  [['samples', 'demo-seed.mjs'], 'adminium new --sample would have no sample database'],
+  [['skills', 'adminium', 'SKILL.md'], 'the Designer would run with no skill pages'],
+  [['skills', 'adminium-design', 'styles'], 'the Designer would offer no built-in styles'],
+];
+
+function checkServerBundles(context) {
+  const archive = join(resourcesDir(context), 'app.asar');
+  if (!existsSync(archive)) return;
+  const server = archiveHeader(archive).files?.node_modules?.files?.['@adminium']?.files?.server;
+  const missing = SERVER_BUNDLES.filter(([path]) => path.reduce((node, part) => node?.files?.[part], server) === undefined);
+  if (missing.length > 0) {
+    throw new Error(`after-pack: the server in the archive is missing ${missing.map(([path, why]) => `${path.join('/')} (${why})`).join('; ')}. before-pack.cjs bundles them.`);
+  }
+  console.log('  • the server’s AI allow-lists, sample seed and skills are in the archive');
+}
+
 exports.default = async function afterPack(context) {
   checkWorkspacePackages(context);
   checkStarter(context);
+  checkServerBundles(context);
   const from = realpathSync(join(context.packager.projectDir, 'node_modules', 'npm'));
   const to = join(resourcesDir(context), 'npm');
   rmSync(to, { recursive: true, force: true });

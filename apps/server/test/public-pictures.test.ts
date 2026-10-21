@@ -9,6 +9,11 @@
  * picture of a row anyone may read is one 404: a dish off the menu, a photo
  * replaced since, a file no picture column names (a neighbour's id is easy to
  * guess), one that is not an image by its bytes, one too big to unpack.
+ *
+ * A phone's photo as it comes (a few MB) is served. One larger than a picture
+ * visitors are served is refused where it is chosen — uploaded, or picked
+ * with "Choose existing…" — saying customers see it, so staff never save a
+ * picture that shows visitors nothing.
  */
 import { filesRepo, publicApiStateRepo, publicKeysRepo, publicScopesRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -16,10 +21,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { PUBLIC_PICTURE_MAX_BYTES } from '@adminium/manifest';
+
 import { cleanPicture } from '../src/public-api/picture.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
-import { jpeg, png, pngChunk } from './picture-images.js';
+import { jpeg, png } from './picture-images.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -32,18 +39,29 @@ function kitchen(): Record<string, unknown> {
         id,
         { ref: 'name', type: 'text', maxLength: 80 },
         { ref: 'image', type: 'text', maxLength: 400, nullable: true, semantic: 'image' },
+        // A picture column whose own rule takes more than a picture visitors are served: the app check warns, and the server holds it to the public size.
+        { ref: 'photo', type: 'text', nullable: true, semantic: 'image', rules: { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 25 * 1024 * 1024 } } },
         { ref: 'available', type: 'bool', default: true },
       ],
     },
   ]);
   manifest['key'] = 'kitchen';
+  // A picture column's file rule is read from 0.3.28 on.
+  manifest['compatibility'] = { ...(manifest['compatibility'] as Record<string, unknown> | undefined), minAdminiumVersion: '0.3.28' };
   (manifest['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'menu_items' };
   manifest['frontends'] = [
     { side: 'staff', kind: 'spa', entry: 'index.html' },
     { side: 'customer', kind: 'spa', entry: 'index.html' },
   ];
-  manifest['publicAccess'] = [{ table: 'menu_items', methods: ['GET'], select: ['id', 'name', 'image'], filters: [{ column: 'available', op: 'eq', value: true }], pictures: ['image'] }];
+  manifest['publicAccess'] = [{ table: 'menu_items', methods: ['GET'], select: ['id', 'name', 'image', 'photo'], filters: [{ column: 'available', op: 'eq', value: true }], pictures: ['image', 'photo'] }];
   return manifest;
+}
+
+/** A camera's JPEG of about `size` bytes: the test JPEG with its coded data grown (no 0xFF in it, so it stays one scan). */
+function phonePhoto(size: number): { bytes: Buffer; clean: Buffer } {
+  const photo = jpeg({ width: 4032, height: 3024 });
+  const grow = (bytes: Buffer) => Buffer.concat([bytes.subarray(0, bytes.length - 2), Buffer.alloc(size - photo.bytes.length, 0x5a), bytes.subarray(bytes.length - 2)]);
+  return { bytes: grow(photo.bytes), clean: grow(photo.clean) };
 }
 
 describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
@@ -58,20 +76,22 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     return `10.5.${String((ip >> 8) & 255)}.${String(ip & 255)}`;
   };
   /** A staff upload of an image for the menu's image column: the value a row keeps, and the file's id. */
-  const upload = async (bytes: Buffer, filename: string): Promise<{ ref: string; id: string }> => {
-    const res = await served.composed.app.inject({
+  const sendUpload = (bytes: Buffer, filename: string, column: string | null = 'image') =>
+    served.composed.app.inject({
       method: 'POST',
-      url: `/api/v1/files?${new URLSearchParams({ filename, connectionId: h.connectionId, table, column: 'image' }).toString()}`,
+      url: `/api/v1/files?${new URLSearchParams({ filename, connectionId: h.connectionId, ...(column === null ? {} : { table, column }) }).toString()}`,
       headers: { cookie, 'content-type': 'application/octet-stream' },
       payload: bytes,
     });
+  const upload = async (bytes: Buffer, filename: string, column: string | null = 'image'): Promise<{ ref: string; id: string }> => {
+    const res = await sendUpload(bytes, filename, column);
     expect(res.statusCode, res.body).toBe(201);
     const body = res.json() as { ref: string; data: { id: string } };
     return { ref: body.ref, id: body.data.id };
   };
   /** A dish written by staff: its photo is attached to it, as every write through Adminium attaches one. */
-  const dish = async (name: string, image: string | null, on = true): Promise<number> => {
-    const res = await served.composed.app.inject({ method: 'POST', url: `/api/v1/data/${h.connectionId}/${encodeURIComponent(table)}`, headers: { cookie }, payload: { values: { name, image, available: on } } });
+  const dish = async (name: string, image: string | null, on = true, more: Record<string, unknown> = {}): Promise<number> => {
+    const res = await served.composed.app.inject({ method: 'POST', url: `/api/v1/data/${h.connectionId}/${encodeURIComponent(table)}`, headers: { cookie }, payload: { values: { name, image, available: on, ...more } } });
     expect(res.statusCode, res.body).toBe(201);
     return Number((await h.rows(`select max(id) as id from ${h.real('menu_items')}`))[0]!['id']);
   };
@@ -80,8 +100,11 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     expect(res.statusCode, res.body).toBe(200);
   };
   /** An `<img>`'s request: no key, no session, no origin. */
-  const picture = (row: number, fileId: string, headers: Record<string, string> = {}, method: 'GET' | 'HEAD' = 'GET', address = fresh()) =>
-    served.composed.app.inject({ method, url: `${base}/kitchen_menu_items/${String(row)}/image/${fileId}`, remoteAddress: address, headers });
+  const picture = (row: number, fileId: string, headers: Record<string, string> = {}, method: 'GET' | 'HEAD' = 'GET', address = fresh(), column = 'image') =>
+    served.composed.app.inject({ method, url: `${base}/kitchen_menu_items/${String(row)}/${column}/${fileId}`, remoteAddress: address, headers });
+  /** "Choose existing…": a file the server copies for the record's column. */
+  const copy = (fileId: string, column: string) =>
+    served.composed.app.inject({ method: 'POST', url: `/api/v1/files/${fileId}/copy`, headers: { cookie }, payload: { connectionId: h.connectionId, table, column } });
 
   beforeAll(async () => {
     if (!available) return;
@@ -93,7 +116,7 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     cookie = sessionCookie((await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'chef@kitchen.dev', password: ADMIN_PASSWORD } })).headers['set-cookie']);
     const config = (await served.get('/config')).json() as { data: { pictures?: string; refs: Record<string, { pictures?: string[] }> } };
     expect(config.data.pictures).toBe(`/api/v1/public/pictures/${keyId}`);
-    expect(config.data.refs['kitchen_menu_items']?.pictures).toEqual(['image']);
+    expect(config.data.refs['kitchen_menu_items']?.pictures).toEqual(['image', 'photo']);
     base = config.data.pictures!;
     table = (await served.composed.app.inject({ method: 'GET', url: `/api/v1/public-endpoints?connectionId=${h.connectionId}`, headers: { cookie } })).json<{ sources: { id: string }[] }>().sources.find((s) => s.id.endsWith('kitchen_menu_items'))!.id;
   }, 180_000);
@@ -206,11 +229,59 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     // 9000 pixels wide.
     const wide = await upload(png({ width: 9000, height: 10 }).bytes, 'wide.png');
     expect((await picture(await dish('Wide', wide.ref), wide.id)).statusCode).toBe(404);
-    // More than 2 MiB.
-    const whole = png().bytes;
-    const big = Buffer.concat([whole.subarray(0, whole.length - 12), pngChunk('tEXt', Buffer.alloc(2 * 1024 * 1024, 65)), whole.subarray(whole.length - 12)]);
-    const heavy = await upload(big, 'big.png');
-    expect((await picture(await dish('Heavy', heavy.ref), heavy.id)).statusCode).toBe(404);
+    // More than a picture visitors are served (saved before the column was held to it): the file says so, and nothing is served.
+    const heavy = await upload(png({ fill: 60 }).bytes, 'big.png');
+    const heavyRow = await dish('Heavy', heavy.ref);
+    expect((await picture(heavyRow, heavy.id)).statusCode).toBe(200);
+    await h.meta.db.updateTable('adminium_files' as never).set({ sizeBytes: PUBLIC_PICTURE_MAX_BYTES + 1 } as never).where('id' as never, '=', heavy.id as never).execute();
+    const tooBig = await picture(heavyRow, heavy.id, { 'if-none-match': '"p2-x"' });
+    expect(tooBig.statusCode).toBe(404);
+    expect(tooBig.json()).toMatchObject({ error: { code: 'PUBLIC_REF_NOT_FOUND' } });
+  });
+
+  it.skipIf(!available)('serves a 2.3 MB phone photo staff saved on a dish, whole', { timeout: 60_000 }, async () => {
+    // As it came off the phone: 2.3 MB, 4032 × 3024, with the place it was taken.
+    const photo = phonePhoto(Math.round(2.3 * 1024 * 1024));
+    expect(photo.bytes.length).toBeGreaterThan(2 * 1024 * 1024);
+    const file = await upload(photo.bytes, 'IMG_4410.jpg', 'photo');
+    const row = await dish('Celebration cake', null, true, { photo: file.ref });
+    const res = await picture(row, file.id, {}, 'GET', fresh(), 'photo');
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.headers['content-type']).toBe('image/jpeg');
+    expect(res.headers['content-length']).toBe(String(photo.clean.length));
+    expect(res.rawPayload.equals(photo.clean)).toBe(true);
+    expect(res.body).not.toMatch(/GPS|Elm Row/);
+    // …and the same photo chosen from the Files page with "Choose existing…" for another dish.
+    const library = await upload(photo.bytes, 'IMG_4410.jpg', null);
+    const chosen = await copy(library.id, 'photo');
+    expect(chosen.statusCode, chosen.body).toBe(201);
+    const made = chosen.json<{ ref: string; data: { id: string } }>();
+    const other = await dish('Birthday cake', null, true, { photo: made.ref });
+    expect((await picture(other, made.data.id, {}, 'GET', fresh(), 'photo')).statusCode).toBe(200);
+  });
+
+  it.skipIf(!available)('refuses a picture larger than visitors are served where it is chosen, saying customers see it', { timeout: 60_000 }, async () => {
+    const huge = phonePhoto(PUBLIC_PICTURE_MAX_BYTES + 512 * 1024);
+    const said = { code: 'FILE_TOO_LARGE', details: { maxBytes: PUBLIC_PICTURE_MAX_BYTES, publicPicture: true } };
+    // Uploaded for the column: refused, though the column's own rule takes 25 MiB.
+    for (const column of ['photo', 'image']) {
+      const res = await sendUpload(huge.bytes, 'IMG_5000.jpg', column);
+      expect(res.statusCode, res.body).toBe(413);
+      expect(res.json()).toMatchObject({ error: said });
+      expect(res.json<{ error: { message: string } }>().error.message).toBe(
+        'Customers see the pictures in this column, so a picture in it can be at most 5 MB. Choose a smaller picture, or make this one smaller first.',
+      );
+    }
+    // Chosen with "Choose existing…" from the Files page, where any size is kept: refused the same.
+    const library = await upload(huge.bytes, 'IMG_5000.jpg', null);
+    const chosen = await copy(library.id, 'photo');
+    expect(chosen.statusCode, chosen.body).toBe(422);
+    expect(chosen.json()).toMatchObject({ error: { ...said, code: 'TOO_LARGE' } });
+    expect(chosen.json<{ error: { message: string } }>().error.message).toContain('Customers see the pictures in this column');
+    // Exactly the public size is a picture visitors see.
+    const fits = phonePhoto(PUBLIC_PICTURE_MAX_BYTES);
+    const kept = await upload(fits.bytes, 'IMG_5001.jpg', 'photo');
+    expect((await picture(await dish('Wedding cake', null, true, { photo: kept.ref }), kept.id, {}, 'GET', fresh(), 'photo')).statusCode).toBe(200);
   });
 
   it.skipIf(!available)('answers fifty browsers asking at once, cleaning the picture once', async () => {

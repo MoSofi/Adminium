@@ -286,6 +286,13 @@ export function takesPicturesOnly(accept: readonly string[]): boolean {
 /** The most a file column's `maxBytes` may say: 25 MiB. */
 export const FILE_COLUMN_MAX_BYTES = 25 * 1024 * 1024;
 
+/**
+ * The largest picture served to every visitor (an entry's `pictures`, through
+ * `GET /public/pictures`): 5 MiB. A picture column shown to visitors takes no
+ * larger file, so a picture staff could save is one visitors see.
+ */
+export const PUBLIC_PICTURE_MAX_BYTES = 5 * 1024 * 1024;
+
 /** The most files a json file column may hold. */
 export const FILE_COLUMN_MAX_COUNT = 20;
 

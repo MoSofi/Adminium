@@ -20,14 +20,14 @@ export const DEFAULT_BADGES: readonly SearchBadge[] = ['no-credit', 'host', 'cre
 
 export function badgeOf(code: LicenceCode): LicenceBadge {
   if (code === 'cc0' || code === 'pdm') return 'no-credit';
-  if (code === 'pexels' || code === 'unsplash') return 'host';
+  if (code === 'pexels' || code === 'unsplash' || code === 'pixabay') return 'host';
   if (code === 'by') return 'credit';
   if (code === 'by-sa') return 'credit-same';
   return code;
 }
 
 /** The source a host licence names. */
-const hostOf = (code: LicenceCode): string => (code === 'unsplash' ? 'Unsplash' : 'Pexels');
+const hostOf = (code: LicenceCode): string => (code === 'unsplash' ? 'Unsplash' : code === 'pixabay' ? 'Pixabay' : 'Pexels');
 
 /** The badge's own words: "{Source} licence" names who grants it. */
 export function badgeName(badge: LicenceBadge, source: string): string {

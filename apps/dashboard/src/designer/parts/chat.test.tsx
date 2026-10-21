@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { installTestI18n } from '../../i18n/testing.js';
 import type { StepRow } from '../build/turns.js';
-import { KeepSpotCard, NeedsCard, PictureLines, PictureNote, PicturesChip, PersonMessage, SavedChip, SpotsCard, StepsBlock, StyleChip } from './chat.js';
+import { KeepSpotCard, NeedsCard, PictureLines, PictureNote, PicturesButton, PicturesChip, PersonMessage, SavedChip, SpotsCard, StepsBlock, StyleChip } from './chat.js';
 
 let restore: () => void;
 beforeAll(() => {
@@ -144,8 +144,30 @@ describe('the spots card, the keep-it card and the lines', () => {
     fireEvent.click(button);
     expect(opened).toEqual([1]);
     cleanup();
-    render(<SpotsCard card={spots} chosen={['Hero', 'Team']} onChoose={() => undefined} />);
+    render(<SpotsCard card={spots} chosen={['Hero', 'Team']} onChoose={() => opened.push(2)} />);
     expect(screen.getByRole('group', { name: 'Choose the pictures' }).textContent).toContain('Pictures chosen: Hero and Team. Kitchen is still a placeholder.');
+    // A spot and the rows still wait: the way to the dialog stays on the card.
+    fireEvent.click(screen.getByRole('button', { name: 'Choose pictures…' }));
+    expect(opened).toEqual([1, 2]);
+    cleanup();
+    render(<SpotsCard card={{ ...spots, spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] }} chosen={['Hero']} onChoose={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Choose pictures…' })).toBeTruthy();
+    cleanup();
+    const { rows: _rows, ...noRows } = spots;
+    render(<SpotsCard card={{ ...noRows, spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] }} chosen={['Hero']} onChoose={() => undefined} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('names the top bar’s picture button with what is left to fill, and keeps it at none', () => {
+    const opened: number[] = [];
+    render(<PicturesButton toFill={6} onOpen={() => opened.push(1)} />);
+    const button = screen.getByRole('button', { name: 'Pictures: 6 to fill' });
+    expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+    fireEvent.click(button);
+    expect(opened).toEqual([1]);
+    cleanup();
+    render(<PicturesButton toFill={0} onOpen={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Pictures' }).textContent).toBe('Pictures');
   });
 
   it('keeps a picture on its screen or lets it go, and says which', () => {

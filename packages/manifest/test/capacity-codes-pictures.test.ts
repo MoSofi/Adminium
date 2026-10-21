@@ -16,7 +16,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { validateManifest } from '../src/index.js';
+import { PUBLIC_PICTURE_MAX_BYTES, validateManifest } from '../src/index.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 80, nullable = false) => ({ ref, type: 'text', maxLength, ...(nullable ? { nullable: true } : {}) });
@@ -509,4 +509,27 @@ describe('pictures anyone may see', () => {
       expect(issuesOf(changed(edit))).toContain(message);
     });
   }
+
+  // A picture visitors see is served up to 5 MiB: a column whose own rule takes more is advice, never a refusal.
+  const picturesRule = (maxBytes: number) => (doc: Doc) => {
+    column(doc, 'menu_items', 'image')['rules'] = { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes } };
+    const loose = doc as unknown as Loose;
+    loose['compatibility'] = { ...(loose['compatibility'] as Loose | undefined), minAdminiumVersion: '0.3.28' };
+  };
+  const warningsOf = (doc: unknown): string[] => validateManifest(doc).warnings.map((warning) => `${warning.path}: ${warning.message}`);
+
+  it('warns about a picture column that takes files larger than visitors are served', () => {
+    const doc = changed(picturesRule(10 * 1024 * 1024));
+    expect(issuesOf(doc)).toBe('');
+    expect(warningsOf(doc)).toContain(
+      'publicAccess.5.pictures: "menu_items.image" is a picture visitors see, and a picture they see is 5 MiB at most, but its file rule says 10 MiB: staff are refused a larger picture all the same, so lower its rules.file.maxBytes to 5242880',
+    );
+  });
+
+  it('says nothing of one that takes 5 MiB, what the Designer writes, or less', () => {
+    expect(PUBLIC_PICTURE_MAX_BYTES).toBe(5242880);
+    for (const maxBytes of [PUBLIC_PICTURE_MAX_BYTES, 2 * 1024 * 1024]) {
+      expect(warningsOf(changed(picturesRule(maxBytes))).filter((line) => line.includes('visitors see'))).toEqual([]);
+    }
+  });
 });

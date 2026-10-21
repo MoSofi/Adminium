@@ -315,8 +315,8 @@ export type PictureShape = 'wide' | 'tall' | 'square';
 /** What a design does with the page's pictures: leaves placeholders, or opens the picture dialog after it. */
 export type PicturesMode = 'placeholders' | 'choose';
 /** A licence's code, as the server reads it from the source: its badge is decided from it. */
-export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'own' | 'template';
-export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash';
+export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'pixabay' | 'own' | 'template';
+export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash' | 'Pixabay';
 
 /** What the picture dialog draws for an app (`GET …/pictures`). */
 export interface PicturesView {
@@ -334,7 +334,18 @@ export interface PicturesView {
   sources: { name: PictureSourceName; busy: number | null }[];
   /** `closed`: a page here may not be let load pictures from Unsplash. */
   unsplash: 'ok' | 'closed';
+  /** Which picture keys are kept, where the dialog may take one (the desktop app); null elsewhere. Never a key itself. */
+  keys?: PictureKeys | null;
   version: number | null;
+}
+/** The sources that take a key of the person's own. */
+export type KeyedPictureSource = 'Pexels' | 'Unsplash';
+export interface PictureKeys {
+  Pexels: boolean;
+  Unsplash: boolean;
+  keeping: 'key-store' | 'plain';
+  /** Where each source gives a key: said by the server, so the app's own pages name no outside address. */
+  pages: Readonly<Record<KeyedPictureSource, string>>;
 }
 /** A picture a search found, named by the server's own ids. */
 export interface FoundPicture {
@@ -349,8 +360,11 @@ export interface FoundPicture {
   shown?: true;
 }
 export type PictureSearchReply =
-  | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number }
+  /** `q`: the fewer words that found these, when the words asked for found none. */
+  | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number; q?: string }
   | { state: 'busy'; source: PictureSourceName; minutes: number }
+  /** The source turned down the key it was asked with. */
+  | { state: 'refused'; source: PictureSourceName }
   | { state: 'off' }
   | { state: 'failed' };
 export type PicturePinReply = { state: 'kept'; small: boolean; shown?: true } | { state: 'gone' } | { state: 'failed' };
@@ -745,6 +759,8 @@ export const designerApi = {
     api.get<PictureSearchReply>(
       `${BASE}/sessions/${id}/pictures/search?${new URLSearchParams({ q: input.q, source: input.source, ...(input.shape === undefined ? {} : { shape: input.shape }), ...(input.page === undefined ? {} : { page: String(input.page) }), ...(input.shelf === undefined ? {} : { shelf: input.shelf }) }).toString()}`,
     ),
+  /** Keep a Pexels or Unsplash key where the host keeps keys (the desktop app); `null` takes it away. */
+  keepPictureKey: (source: KeyedPictureSource, key: string | null) => api.put<{ keys: PictureKeys }>(`${BASE}/picture-keys`, { source, key }),
   pinPicture: (id: string, shelf: string, picture: string) => api.post<PicturePinReply>(`${BASE}/sessions/${id}/pictures/pin`, { shelf, picture }),
   applyPictures: (id: string, applyId: string, fills: readonly PictureFill[], mode?: PicturesMode) =>
     api.post<PicturesApplied>(`${BASE}/sessions/${id}/pictures/apply`, { id: applyId, fills, ...(mode === undefined ? {} : { mode }) }),

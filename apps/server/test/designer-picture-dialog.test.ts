@@ -8,13 +8,14 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
+import { setHostModels, stopHostModels, useHostModels } from '../src/llm/host-models.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { builtInStylesDir } from '../src/project/apps/design-skills.js';
@@ -94,6 +95,7 @@ afterEach(async () => {
   waits = false;
   failWrite = null;
   vi.unstubAllEnvs();
+  stopHostModels();
   await composed?.app.close();
   composed = undefined;
   await install?.close();
@@ -112,6 +114,7 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
   if (opts.keys !== false) {
     vi.stubEnv('PEXELS_API_KEY', 'pexels-key');
     vi.stubEnv('UNSPLASH_ACCESS_KEY', 'unsplash-key');
+    vi.stubEnv('PIXABAY_API_KEY', 'pixabay-key');
   }
   install = await makeInstall();
   const root = asProject(install.dir);
@@ -207,13 +210,112 @@ describe('searching for a picture', { timeout: 120_000 }, () => {
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Openverse' }))).body).toMatchObject({ state: 'ok' });
   });
 
+  it('searches Pixabay with its key, gives a search asked again within a day what was kept, and copies a chosen picture', async () => {
+    const client = await server();
+    const id = await client.session();
+    const view = await client.call('GET', `/api/v1/designer/sessions/${id}/pictures`);
+    expect((view.body['sources'] as { name: string }[]).map((source) => source.name)).toEqual(['Openverse', 'Pexels', 'Unsplash', 'Pixabay']);
+    const found = await client.call('GET', search(id, { q: 'lemon cake', source: 'Pixabay', shape: 'tall' }));
+    expect(found.body).toMatchObject({ state: 'ok', more: true, page: 1 });
+    expect(client.fake.seen.at(-1)).toBe('https://pixabay.com/api/?key=pixabay-key&q=lemon+cake&image_type=photo&safesearch=true&per_page=20&page=1&orientation=vertical');
+    const pictures = found.body['pictures'] as { id: string; source: string; licence: { code: string; name: string }; page: string; shown?: true }[];
+    expect(pictures).toHaveLength(5);
+    expect(pictures[0]).toMatchObject({ source: 'Pixabay', licence: { code: 'pixabay', name: 'Pixabay Content License' }, page: 'https://pixabay.com/photos/lemon-cake-1-0/' });
+    expect(pictures[0]?.shown).toBeUndefined();
+    // The key and Pixabay's own picture addresses never reach the page.
+    expect(JSON.stringify(found.body)).not.toContain('pixabay-key');
+    expect(JSON.stringify(found.body)).not.toContain('/get/');
+    const asked = client.fake.calls['pixabay.com'];
+    // Another session, the same search: what was kept, with ids of its own; Pixabay is not asked.
+    const other = await client.session();
+    const again = await client.call('GET', search(other, { q: 'lemon cake', source: 'Pixabay', shape: 'tall' }));
+    expect((again.body['pictures'] as { page: string }[]).map((picture) => picture.page)).toEqual(pictures.map((picture) => picture.page));
+    expect((again.body['pictures'] as { id: string }[])[0]?.id).not.toBe(pictures[0]?.id);
+    expect(client.fake.calls['pixabay.com']).toBe(asked);
+    // Its small copy is served by this server; a chosen picture is copied, the full one first.
+    const shelf = again.body['shelf'] as string;
+    const first = (again.body['pictures'] as { id: string }[])[0]?.id as string;
+    expect((await client.call('GET', `/api/v1/designer/sessions/${other}/picture-thumb/${shelf}/${first}`)).headers['content-type']).toBe('image/jpeg');
+    expect((await client.call('POST', `/api/v1/designer/sessions/${other}/pictures/pin`, { shelf, picture: first })).body).toEqual({ state: 'kept', small: false });
+    expect(client.fake.seen).toContain('https://pixabay.com/get/lemon-cake-1-0_1280.jpg');
+  });
+
   it('offers a source only with its key, and none where the server calls nothing outside', async () => {
     const client = await server({ keys: false });
     const id = await client.session();
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Pexels' }))).body).toEqual({ state: 'off' });
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Pixabay' }))).body).toEqual({ state: 'off' });
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Openverse' }))).body).toMatchObject({ state: 'ok' });
     // A source that is none of the three is no search at all.
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Nowhere' }))).status).toBe(422);
+  });
+});
+
+describe('the keys of Pexels and Unsplash, given in the dialog', { timeout: 120_000 }, () => {
+  it('are kept by the host that keeps keys, in use from the next search, and never in a reply or the audit log', async () => {
+    // As the desktop app is: it keeps the keys, and the project's server holds them in memory only.
+    const kept: Record<string, string | null>[] = [];
+    useHostModels({ keep: (values) => kept.push({ ...values }) });
+    setHostModels({ ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake' });
+    const client = await server({ keys: false });
+    const id = await client.session();
+    const view = async () => (await client.call('GET', `/api/v1/designer/sessions/${id}/pictures`)).body as { sources: { name: string }[]; keys: unknown };
+    expect(await view()).toMatchObject({ sources: [{ name: 'Openverse' }], keys: { Pexels: false, Unsplash: false, keeping: 'key-store', pages: { Pexels: 'https://www.pexels.com/api/', Unsplash: 'https://unsplash.com/developers' } } });
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Pexels' }))).body).toEqual({ state: 'off' });
+
+    const saved = await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Pexels', key: ' pexels-key-0001 ' });
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    expect(saved.body).toEqual({ keys: { Pexels: true, Unsplash: false, keeping: 'key-store', pages: { Pexels: 'https://www.pexels.com/api/', Unsplash: 'https://unsplash.com/developers' } } });
+    expect(kept).toEqual([{ PEXELS_API_KEY: 'pexels-key-0001' }]);
+    // No restart: the next read lists it, and the next search asks it with that key.
+    expect((await view()).sources.map((source) => source.name)).toEqual(['Openverse', 'Pexels']);
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Pexels' }))).body).toMatchObject({ state: 'ok' });
+    expect(JSON.stringify(await view())).not.toContain('pexels-key-0001');
+
+    expect((await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Unsplash', key: 'unsplash-key-0001' })).body).toMatchObject({ keys: { Unsplash: true } });
+    expect((await view()).sources.map((source) => source.name)).toEqual(['Openverse', 'Pexels', 'Unsplash']);
+
+    // Taken away: gone from the list at once.
+    expect((await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Pexels', key: null })).body).toEqual({ keys: { Pexels: false, Unsplash: true, keeping: 'key-store', pages: { Pexels: 'https://www.pexels.com/api/', Unsplash: 'https://unsplash.com/developers' } } });
+    expect(kept.at(-1)).toEqual({ PEXELS_API_KEY: null });
+    expect((await view()).sources.map((source) => source.name)).toEqual(['Openverse', 'Unsplash']);
+
+    // What is not a key, and a source that takes none, are refused before anything is kept.
+    for (const body of [{ source: 'Pexels', key: 'two words' }, { source: 'Pexels', key: 'short' }, { source: 'Openverse', key: 'openverse-key-1' }, { source: 'Pexels', key: 'pexels-key-0002', extra: 1 }]) {
+      expect((await client.call('PUT', '/api/v1/designer/picture-keys', body)).status, JSON.stringify(body)).toBe(422);
+    }
+    expect(kept).toHaveLength(3);
+
+    const audit = await client.meta.db.selectFrom('adminium_audit_log').select(['action', 'changes']).where('action', 'like', 'designer.picture-key.%').orderBy('id').execute();
+    expect(audit.map((row) => row.action)).toEqual(['designer.picture-key.saved', 'designer.picture-key.saved', 'designer.picture-key.removed']);
+    expect(JSON.stringify(audit)).not.toContain('key-0001');
+  });
+
+  it('are not taken where no host keeps them: a server reads its own environment', async () => {
+    const client = await server({ keys: false });
+    const id = await client.session();
+    expect((await client.call('GET', `/api/v1/designer/sessions/${id}/pictures`)).body).toMatchObject({ keys: null });
+    const refused = await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Pexels', key: 'pexels-key-0001' });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ error: { details: { reason: 'KEYS_NOT_KEPT_HERE' } } });
+    // Nothing is written to the project's file either.
+    const dotEnv = join(client.root, '.env');
+    expect(existsSync(dotEnv) ? readFileSync(dotEnv, 'utf8') : '').not.toContain('pexels-key-0001');
+  });
+
+  it('says a key the source refused as that, and a spent hour as no refusal', async () => {
+    const client = await server();
+    const id = await client.session();
+    client.fake.fail.pexels = { status: 401 };
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Pexels' }))).body).toEqual({ state: 'refused', source: 'Pexels' });
+    client.fake.fail.unsplash = { status: 403 };
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Unsplash' }))).body).toEqual({ state: 'refused', source: 'Unsplash' });
+    // Unsplash says a spent hour with a 403 and nothing left: that is not the key.
+    client.fake.fail.unsplash = { status: 403, headers: { 'x-ratelimit-remaining': '0' } };
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Unsplash' }))).body).toEqual({ state: 'failed' });
+    // Openverse is asked with no key: its 401 is a failure like any other.
+    client.fake.fail.openverse = { status: 401 };
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Openverse' }))).body).toEqual({ state: 'failed' });
   });
 });
 

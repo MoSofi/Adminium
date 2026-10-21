@@ -1783,6 +1783,7 @@ export default {
         "noType": "Tento sloupec nepřijímá soubory {type}.",
         "saved": "Uloží se se záznamem.",
         "tooLarge": "Obrázek je větší než limit tohoto sloupce {limit}.",
+        "tooLargePublic": "Tyto obrázky vidí zákazníci, takže každý může mít nejvýše {limit}. Vyberte menší obrázek.",
         "refused": "Tabulku {table} nemůžete měnit, takže do ní nemůžete přidat obrázek.",
         "choose": "Vybrat existující…",
         "remove": "Odebrat",

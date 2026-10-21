@@ -124,16 +124,16 @@ import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
-import { hostModels } from './llm/host-models.js';
+import { hostModels, type PictureKeyName } from './llm/host-models.js';
 import { gitProgram } from './project/programs.js';
 import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
-import { createPictureDialog } from './designer/picture-dialog.js';
+import { createPictureDialog, type PictureKeys } from './designer/picture-dialog.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
-import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
+import { createPictureShelf, downloadPicture, openverse, pexels, pixabay, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
@@ -270,7 +270,7 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
+import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, publicPictureColumn, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
@@ -536,7 +536,7 @@ export interface ComposeServerOptions {
    */
   figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /**
-   * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, and the
+   * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, Pixabay, and the
    * pictures they name), so a fake answers in their place. There is no setting for this either.
    */
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
@@ -2060,6 +2060,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // An app's own file column first (its rule, read fresh), then a page's block.
           columnFileBlock: async (input) => (await ruledFileColumn(meta, input)) ?? columnBlocks.forColumn(input),
           tableIdOf: (connectionId, table) => tableIdOf(meta, connectionId, table),
+          // A picture every visitor sees takes no file larger than one served to them.
+          publicPicture: (input) => publicPictureColumn(meta, input),
           // A file a record keeps in an app's own file column changes only with its record.
           heldByRecord: fileHeldCheck(meta, manager),
           // A file a record keeps in a secret column is copied by nobody; in a personal one, into no other table.
@@ -2502,8 +2504,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // A package's newest version, asked of the registry the project installs from; nothing is asked where this server calls nothing outside.
         const designerRegistry = createRegistry({ root, allowed: () => addOnCatalog.networkFeaturesAllowed() });
         const designerNeeds = createNeedsAsker({ root, version: APP_VERSION, newestVersion: designerRegistry, ...(pictureSites === undefined ? {} : { pictureSites }) });
-        // Free pictures for an app's pages, in the picture dialog: Openverse, Pexels and Unsplash with the project's own keys; none where this server calls nothing outside.
-        const pictureKey = (name: 'PEXELS_API_KEY' | 'UNSPLASH_ACCESS_KEY'): string => {
+        // Free pictures for an app's pages, in the picture dialog: Openverse, and Pexels, Unsplash and Pixabay with the project's own keys; none where this server calls nothing outside.
+        const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
           const host = hostModels();
           return (host !== null ? (host.read()[name] ?? '') : (process.env[name] ?? readDotEnv(root)?.[name] ?? '')).trim();
@@ -2513,13 +2515,28 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           if (!addOnCatalog.networkFeaturesAllowed()) return [];
           const pexelsKey = pictureKey('PEXELS_API_KEY');
           const unsplashKey = pictureKey('UNSPLASH_ACCESS_KEY');
-          return [openverse(pictureFetch), ...(pexelsKey === '' ? [] : [pexels(pexelsKey, pictureFetch)]), ...(unsplashKey === '' ? [] : [unsplash(unsplashKey, pictureFetch)])];
+          const pixabayKey = pictureKey('PIXABAY_API_KEY');
+          return [
+            openverse(pictureFetch),
+            ...(pexelsKey === '' ? [] : [pexels(pexelsKey, pictureFetch)]),
+            ...(unsplashKey === '' ? [] : [unsplash(unsplashKey, pictureFetch)]),
+            ...(pixabayKey === '' ? [] : [pixabay(pixabayKey, pictureFetch)]),
+          ];
         };
         // A search's results, kept per session; each source's small copies counted where the source counts them.
         let designerSearch: PictureSearch | null = null;
         const designerShelf = createPictureShelf({ fetcher: pictureFetch, mayFetch: (picture) => designerSearch?.mayFetchThumb(picture) ?? true });
         designerSearch = createPictureSearch({ sources: pictureSources, shelf: designerShelf });
-        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
+        // Where a host keeps the keys (the desktop app), the picture dialog takes them too: kept there, in use from the next search.
+        const pictureKeys: PictureKeys = {
+          state: () => {
+            const host = hostModels();
+            if (host === null || !addOnCatalog.networkFeaturesAllowed()) return null;
+            return { Pexels: pictureKey('PEXELS_API_KEY') !== '', Unsplash: pictureKey('UNSPLASH_ACCESS_KEY') !== '', keeping: host.keeping };
+          },
+          keep: (source, key) => hostModels()?.keep({ [source === 'Pexels' ? 'PEXELS_API_KEY' : 'UNSPLASH_ACCESS_KEY']: key }),
+        };
+        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, keys: pictureKeys, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
 
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });

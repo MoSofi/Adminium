@@ -1783,6 +1783,7 @@ export default {
         "noType": "Denne kolonne tager ikke {type}-filer.",
         "saved": "Gemmes med posten.",
         "tooLarge": "Billedet er større end kolonnens grænse på {limit}.",
+        "tooLargePublic": "Kunderne ser disse billeder, så hvert billede må højst fylde {limit}. Vælg et mindre billede.",
         "refused": "Du kan ikke ændre {table}, så du kan ikke tilføje et billede til den.",
         "choose": "Vælg eksisterende…",
         "remove": "Fjern",

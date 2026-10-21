@@ -20,7 +20,7 @@
  * select, three tiles a row, and the details replace the grid.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUpRight, ChevronDown, ChevronRight, ChevronUp, CircleAlert, CloudOff, Globe, Hourglass, ImageUp, Images, Info, LayoutTemplate, ListFilter, LoaderCircle, Replace, Search, SearchX, TriangleAlert, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronDown, ChevronRight, ChevronUp, CircleAlert, CloudOff, Globe, Hourglass, ImageUp, Images, Info, KeyRound, LayoutTemplate, ListFilter, LoaderCircle, Replace, Search, SearchX, TriangleAlert, Upload, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Modal, ModalHeader, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 import { PictureGrid, type GridAspect, type GridTile } from '@adminium/widgets';
@@ -30,6 +30,7 @@ import { t } from '../../../i18n/t.js';
 import { useAppToasts } from '../../../pages/toasts.js';
 import { designerApi, designerKeys, type FoundPicture, type LicenceCode, type PictureFill, type PictureShape, type PictureSourceName, type PicturesApplied, type PicturesMode, type PicturesView } from '../../api.js';
 import { badgeOf, DEFAULT_BADGES, LicenceBadgePill, licenceName, licenceSentence, type SearchBadge } from './licence.js';
+import { keysButtonLabel, PictureKeysPanel } from './pictureKeys.js';
 
 /** Under 640px the dialog is the whole screen. */
 const PHONE = '(max-width: 639px)';
@@ -90,6 +91,7 @@ type SearchState =
   | { state: 'loading' }
   | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number; q: string }
   | { state: 'busy'; source: PictureSourceName; minutes: number }
+  | { state: 'refused'; source: PictureSourceName }
   | { state: 'off' }
   | { state: 'failed' };
 
@@ -186,7 +188,10 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
   const sources = (data?.sources ?? []).filter((source) => !(source.name === 'Unsplash' && data?.unsplash === 'closed'));
   const unsplashClosed = data !== undefined && data.unsplash === 'closed' && data.sources.some((source) => source.name === 'Unsplash');
   const [source, setSource] = useState<PictureSourceName | null>(null);
-  const sourceNow: PictureSourceName | null = source ?? sources[0]?.name ?? null;
+  const sourceNow: PictureSourceName | null = (source !== null && sources.some((one) => one.name === source) ? source : null) ?? sources[0]?.name ?? null;
+  // Pexels' and Unsplash's keys, where the host keeps keys (the desktop app): null elsewhere.
+  const keys = data?.keys ?? null;
+  const [keysOpen, setKeysOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [shape, setShape] = useState<PictureShape>('wide');
   const [licences, setLicences] = useState<ReadonlySet<SearchBadge>>(() => new Set(DEFAULT_BADGES));
@@ -220,7 +225,9 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
         setFound(reply);
         return;
       }
-      setFound((before) => ({ state: 'ok', shelf: reply.shelf, more: reply.more, page: reply.page, q: words, pictures: input.page !== undefined && before.state === 'ok' ? [...before.pictures, ...reply.pictures] : reply.pictures }));
+      // The server dropped words to find any: the box says what was searched, and "More" goes on with it.
+      if (reply.q !== undefined) setQuery(reply.q);
+      setFound((before) => ({ state: 'ok', shelf: reply.shelf, more: reply.more, page: reply.page, q: reply.q ?? words, pictures: input.page !== undefined && before.state === 'ok' ? [...before.pictures, ...reply.pictures] : reply.pictures }));
     } catch {
       if (mine === asked.current) setFound({ state: 'failed' });
     }
@@ -376,9 +383,17 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
   const blocked = working || apply.isPending || (ready.length === 0 && !modeChanged);
 
   // ── closing ────────────────────────────────────────────────────────────────
+  const closeKeys = (): void => {
+    setKeysOpen(false);
+    focusSoon(`${ids}-keys-button`);
+  };
   const tryClose = (): void => {
     if (confirm) {
       setConfirm(false);
+      return;
+    }
+    if (keysOpen) {
+      closeKeys();
       return;
     }
     if (opened !== null) {
@@ -662,6 +677,25 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
                         : t('designer:pictureDialog.badge.creditSame', 'Credit + same licence')}
                 </label>
               ))}
+            {keys === null ? null : (
+              <button
+                id={`${ids}-keys-button`}
+                type="button"
+                aria-expanded={keysOpen}
+                onClick={() => {
+                  if (keysOpen) {
+                    closeKeys();
+                    return;
+                  }
+                  setKeysOpen(true);
+                  focusSoon(`${ids}-keys-heading`);
+                }}
+                className="ms-auto inline-flex items-center gap-1.5 text-body-sm font-bold text-accent hover:underline"
+              >
+                <KeyRound aria-hidden="true" className="size-3.5" />
+                {keysButtonLabel(keys)}
+              </button>
+            )}
           </div>
           {unsplashClosed ? (
             <div role="note" className="flex items-start gap-2 rounded-[10px] bg-surface-3 px-3 py-2 text-body-sm text-fg-muted">
@@ -669,12 +703,60 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
               <span>{t('designer:pictureDialog.unsplashClosed', 'Unsplash pictures can’t be used on this server.')}</span>
             </div>
           ) : null}
-          {found.state === 'loading'
+          {keysOpen && keys !== null ? (
+            <PictureKeysPanel
+              keys={keys}
+              headingId={`${ids}-keys-heading`}
+              onClose={closeKeys}
+              onSaved={async (keyed, added) => {
+                // The server takes a key at once: its sources, read again, have it (or no longer have it).
+                await queryClient.invalidateQueries({ queryKey: designerKeys.pictures(sessionId) });
+                const words = query.trim() === '' ? (target?.search ?? '') : query;
+                if (!added) {
+                  toasts.push({ variant: 'info', title: t('designer:pictureKeys.removed', '{source} is removed.', { source: keyed }) });
+                  if (sourceNow === keyed) {
+                    // Its results go with it: the first source left is searched instead.
+                    const next = sources.find((one) => one.name !== keyed)?.name ?? null;
+                    setSource(next);
+                    void search({ q: words, shape, source: next });
+                  }
+                  return;
+                }
+                setKeysOpen(false);
+                // A page here may not show Unsplash's pictures: the note under the licences says so, and it is not chosen.
+                if (keyed === 'Unsplash' && data.unsplash === 'closed') return;
+                toasts.push({ variant: 'success', title: t('designer:pictureKeys.ready', '{source} is in the Source list.', { source: keyed }) });
+                setSource(keyed);
+                focusSoon(`${ids}-keys-button`);
+                void search({ q: words, shape, source: keyed });
+              }}
+            />
+          ) : found.state === 'loading'
             ? loading
             : found.state === 'failed'
               ? message({ icon: <CloudOff className="size-[18px]" />, text: t('designer:pictureDialog.failed', 'Could not load these pictures.'), role: 'alert', actions: [{ label: t('designer:pictureDialog.retry', 'Try again'), onClick: () => void search({ q: query, shape, source: sourceNow }) }] })
               : found.state === 'busy'
                 ? message({ icon: <Hourglass className="size-[18px]" />, text: t('designer:pictureDialog.busy', '{source} is busy. Try again in {minutes, plural, one {# minute} other {# minutes}}.', { source: found.source, minutes: found.minutes }) })
+                : found.state === 'refused'
+                  ? message({
+                      icon: <KeyRound className="size-[18px]" />,
+                      text: t('designer:pictureDialog.refused', '{source} did not accept its key.', { source: found.source }),
+                      sub: keys === null ? t('designer:pictureDialog.refusedServer', 'Check the key this server is given for it.') : t('designer:pictureDialog.refusedHere', 'Check it, or paste a new one.'),
+                      role: 'alert',
+                      ...(keys === null
+                        ? {}
+                        : {
+                            actions: [
+                              {
+                                label: t('designer:pictureDialog.changeKey', 'Change the key'),
+                                onClick: () => {
+                                  setKeysOpen(true);
+                                  focusSoon(`${ids}-keys-heading`);
+                                },
+                              },
+                            ],
+                          }),
+                    })
                 : found.state === 'off'
                   ? message({ icon: <SearchX className="size-[18px]" />, text: t('designer:pictureDialog.off', 'Picture search is off on this server.') })
                   : found.state === 'ok' && found.pictures.length === 0
@@ -698,6 +780,12 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
                                 </button>
                               </div>
                             ) : null}
+                            {/* Where the results come from, whenever they are shown: Pixabay's and Pexels' rules ask for it. */}
+                            {sourceNow === null ? null : (
+                              <p data-part="results-from" className="m-0 text-center text-caption text-fg-subtle">
+                                {t('designer:pictureDialog.resultsFrom', 'Pictures from {source}', { source: sourceNow })}
+                              </p>
+                            )}
                           </>
                         )
                         : null}
@@ -968,7 +1056,7 @@ function DetailsPane({
           <div className="flex flex-wrap items-center gap-1.5 text-caption text-fg-subtle">
             {web ? <Globe aria-hidden="true" className="size-[13px]" /> : code === 'template' ? <LayoutTemplate aria-hidden="true" className="size-[13px]" /> : <Upload aria-hidden="true" className="size-[13px]" />}
             <span className="font-bold">{sourceName}</span>
-            {web && opened.picture.licence.code !== 'pexels' && opened.picture.licence.code !== 'unsplash' ? (
+            {web && badgeOf(opened.picture.licence.code) !== 'host' ? (
               <>
                 <span aria-hidden="true">·</span>
                 <span dir="ltr" className="font-mono font-semibold">

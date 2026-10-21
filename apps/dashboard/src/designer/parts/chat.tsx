@@ -1177,6 +1177,13 @@ export function SpotsCard({ card, chosen, onChoose }: { card: Extract<DesignerCa
             {left.length === 0 ? null : ` ${t('designer:spots.left', '{count, plural, one {{list} is still a placeholder.} other {{list} are still placeholders.}}', { count: left.length, list: listOf(left) })}`}
           </span>
         </p>
+        {/* Spots or rows still waiting: the way to them stays. */}
+        {left.length === 0 && rows === undefined ? null : (
+          <button type="button" aria-haspopup="dialog" onClick={onChoose} className={`${SECONDARY} self-start`}>
+            <Images aria-hidden="true" className="size-[15px]" />
+            {t('designer:spots.choose', 'Choose pictures…')}
+          </button>
+        )}
       </CardShell>
     );
   }
@@ -1389,6 +1396,45 @@ export function PicturesChip({ toFill, onOpen }: { toFill: number; onOpen: () =>
           {'· '}
           {withMono(t('designer:spots.toFill', '{count} to fill', { count: M1 }), [M1], [number(toFill)])}
         </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * The picture dialog's lasting way in, in the build page's top bar: there for
+ * as long as the app has picture spots or picture columns, whatever the chat
+ * shows. The chip above goes with the last reply, and a running turn hides it;
+ * this one stays, on every tab and at every width. It says how many pictures
+ * are still placeholders, and at none it still opens the dialog, to swap one.
+ */
+export function PicturesButton({ toFill, onOpen }: { toFill: number; onOpen: () => void }): ReactNode {
+  const label = toFill === 0 ? t('designer:spots.chip', 'Pictures') : t('designer:spots.openToFill', 'Pictures: {count} to fill', { count: number(toFill) });
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-label={label}
+      title={label}
+      onClick={onOpen}
+      data-part="pictures-button"
+      className="inline-flex h-[34px] min-w-[34px] shrink-0 items-center justify-center gap-[7px] whitespace-nowrap rounded-[10px] border border-border-strong bg-surface px-[9px] text-[13px] font-bold leading-[normal] text-fg hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent min-[900px]:px-[11px]"
+    >
+      <ImageIcon aria-hidden="true" className="size-[15px]" />
+      <span aria-hidden="true" className="hidden min-[900px]:inline">
+        {t('designer:spots.chip', 'Pictures')}
+      </span>
+      {toFill === 0 ? null : (
+        <>
+          {/* Narrow, the number alone; wide, the chip's own words. */}
+          <span aria-hidden="true" className="font-mono font-semibold min-[900px]:hidden">
+            {number(toFill)}
+          </span>
+          <span aria-hidden="true" className="hidden font-medium text-fg-subtle min-[900px]:inline">
+            {'· '}
+            {withMono(t('designer:spots.toFill', '{count} to fill', { count: M1 }), [M1], [number(toFill)])}
+          </span>
+        </>
       )}
     </button>
   );

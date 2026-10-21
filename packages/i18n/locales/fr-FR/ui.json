@@ -1773,6 +1773,7 @@
         "noType": "Cette colonne n’accepte pas les fichiers {type}.",
         "saved": "Enregistrée avec la fiche.",
         "tooLarge": "Cette image dépasse la limite de {limit} de cette colonne.",
+        "tooLargePublic": "Les clients voient ces images : chacune peut faire au plus {limit}. Choisissez une image plus petite.",
         "refused": "Vous ne pouvez pas modifier {table}, vous ne pouvez donc pas y ajouter d’image.",
         "choose": "Choisir une image existante…",
         "remove": "Retirer",

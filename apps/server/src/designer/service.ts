@@ -101,6 +101,8 @@ export type PicturesView = ReturnType<typeof picturesState> & {
   sources: { name: string; busy: number | null }[];
   /** Whether a page may be let load pictures from Unsplash here: `closed` where the server cannot allow a site. */
   unsplash: 'ok' | 'closed';
+  /** Which picture keys are kept, where the dialog may take one (the desktop app); `null` elsewhere. */
+  keys: { Pexels: boolean; Unsplash: boolean; keeping: 'key-store' | 'plain'; pages: { Pexels: string; Unsplash: string } } | null;
   /** The session's version now: an Apply's Undo goes back from it. */
   version: number | null;
 };
@@ -1277,6 +1279,7 @@ export function createDesigner(host: DesignerHost): Designer {
       return {
         ...state,
         sources: host.pictureDialog?.sources() ?? [],
+        keys: host.pictureDialog?.keys() ?? null,
         unsplash: host.pictureSites !== undefined && (host.pictureSites.covers(UNSPLASH_HOST) || host.pictureSites.closed() === null) ? 'ok' : 'closed',
         version: session.version,
       };

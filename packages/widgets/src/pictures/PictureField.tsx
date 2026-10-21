@@ -56,6 +56,8 @@ export class PictureCopyRefused extends Error {
     message?: string,
     /** The column's limit, for a picture too large for it. */
     readonly limit?: number,
+    /** The limit is a picture's every visitor sees: the column's pictures are shown to customers. */
+    readonly publicPicture?: boolean,
   ) {
     super(message ?? reason);
   }
@@ -76,7 +78,7 @@ export interface PictureFieldProps {
 
 type Notice =
   | { kind: 'saved' }
-  | { kind: 'large'; limit: number }
+  | { kind: 'large'; limit: number; publicPicture?: boolean }
   | { kind: 'refused' }
   | { kind: 'type'; type: string }
   | { kind: 'failed'; message: string };
@@ -189,7 +191,7 @@ async function copyAll(
             : error.reason === 'type'
               ? { kind: 'type', type: typeOf(item.mime) }
               : error.limit !== undefined
-                ? { kind: 'large', limit: error.limit }
+                ? { kind: 'large', limit: error.limit, ...(error.publicPicture === true ? { publicPicture: true } : {}) }
                 : { kind: 'failed', message: error.message };
         return { made, gone, refusal };
       }
@@ -197,6 +199,19 @@ async function copyAll(
     }
   }
   return { made, gone, refusal: null };
+}
+
+/**
+ * What an upload's failure says, as the field says it: a picture the server
+ * found too large (`FILE_TOO_LARGE`, naming its limit, and whether customers
+ * see the column's pictures) is the field's own line, in the reader's language.
+ */
+function uploadNotice(error: unknown): Notice {
+  const said = error as { code?: unknown; details?: { maxBytes?: unknown; publicPicture?: unknown } | undefined } | null;
+  if (said !== null && typeof said === 'object' && said.code === 'FILE_TOO_LARGE' && typeof said.details?.maxBytes === 'number') {
+    return { kind: 'large', limit: said.details.maxBytes, ...(said.details.publicPicture === true ? { publicPicture: true } : {}) };
+  }
+  return { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
 }
 
 function NoticeLine({ notice, column, maxBytes, tableLabel }: { notice: Notice; column: GridColumnSpec; maxBytes: number | undefined; tableLabel: string | undefined }): ReactNode {
@@ -211,7 +226,9 @@ function NoticeLine({ notice, column, maxBytes, tableLabel }: { notice: Notice; 
   }
   const text =
     notice.kind === 'large'
-      ? t('ui:templates.crud.picture.tooLarge', "That picture is larger than this column's {limit} limit.", { limit: formatBytes(notice.limit) })
+      ? notice.publicPicture === true
+        ? t('ui:templates.crud.picture.tooLargePublic', 'Customers see these pictures, so each can be at most {limit}. Choose a smaller picture.', { limit: formatBytes(notice.limit) })
+        : t('ui:templates.crud.picture.tooLarge', "That picture is larger than this column's {limit} limit.", { limit: formatBytes(notice.limit) })
       : notice.kind === 'refused'
         ? t('ui:templates.crud.picture.refused', "You can't change {table}, so you can't add a picture to it.", { table: tableLabel ?? column.label })
         : notice.kind === 'type'
@@ -269,7 +286,7 @@ function PictureOneField({ column, value, onChange, upload, choose, resolved, ma
       onChange(result.ref);
       setNotice({ kind: 'saved' });
     } catch (error) {
-      if (!abort.signal.aborted) setNotice({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+      if (!abort.signal.aborted) setNotice(uploadNotice(error));
     } finally {
       setUploading(null);
     }
@@ -489,7 +506,7 @@ function PictureListField({ column, value, onChange, upload, choose, resolvedByR
         added.push(result.ref);
         setMinted((current) => new Map(current).set(result.ref, result.file));
       } catch (error) {
-        if (!abort.signal.aborted) setNotice({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+        if (!abort.signal.aborted) setNotice(uploadNotice(error));
       } finally {
         setUploads((current) => current.filter((r) => r.abort !== abort));
       }

@@ -62,8 +62,9 @@ export function pictureChooser(input: PictureChooserInput): PictureChooser {
         if (error.status === 403) throw new PictureCopyRefused('forbidden', error.message);
         if (error.code === 'TYPE_NOT_ACCEPTED') throw new PictureCopyRefused('type', error.message);
         if (error.code === 'TOO_LARGE') {
-          const limit = (error.details as { maxBytes?: unknown } | undefined)?.maxBytes;
-          throw new PictureCopyRefused('size', error.message, typeof limit === 'number' ? limit : undefined);
+          const details = error.details as { maxBytes?: unknown; publicPicture?: unknown } | undefined;
+          const limit = details?.maxBytes;
+          throw new PictureCopyRefused('size', error.message, typeof limit === 'number' ? limit : undefined, details?.publicPicture === true);
         }
         throw error;
       }

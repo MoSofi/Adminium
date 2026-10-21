@@ -190,9 +190,13 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
       // The row the file was attached to, and no other: a column made to name another row's file shows nothing.
       file.entityTable !== table.id ||
       file.entityId !== pkLabel(table, pk) ||
-      !isPictureMime(file.mime) ||
-      file.sizeBytes > PICTURE_MAX_BYTES
+      !isPictureMime(file.mime)
     ) {
+      return none();
+    }
+    if (file.sizeBytes > PICTURE_MAX_BYTES) {
+      // Saved before its column was held to the public size (or through a door that is not a person's): said in the log, never to the visitor.
+      request.log.info({ fileId, sizeBytes: file.sizeBytes, maxBytes: PICTURE_MAX_BYTES }, 'a picture too large for the public was not served');
       return none();
     }
     const storage = deps.storage;

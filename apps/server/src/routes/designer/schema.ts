@@ -249,8 +249,9 @@ const designerFoundPicture = z.object({
   shown: z.literal(true).optional(),
 });
 export const designerPictureSearchReply = z.discriminatedUnion('state', [
-  z.object({ state: z.literal('ok'), shelf: z.string(), pictures: z.array(designerFoundPicture), more: z.boolean(), page: z.number().int() }),
+  z.object({ state: z.literal('ok'), shelf: z.string(), pictures: z.array(designerFoundPicture), more: z.boolean(), page: z.number().int(), q: z.string().optional() }),
   z.object({ state: z.literal('busy'), source: z.enum(SOURCE_NAMES), minutes: z.number().int() }),
+  z.object({ state: z.literal('refused'), source: z.enum(SOURCE_NAMES) }),
   z.object({ state: z.literal('off') }),
   z.object({ state: z.literal('failed') }),
 ]);
@@ -278,8 +279,22 @@ export const designerPicturesReply = z.object({
   legacy: z.number().int(),
   sources: z.array(z.object({ name: z.string(), busy: z.number().int().nullable() })),
   unsplash: z.enum(['ok', 'closed']),
+  /** Which picture keys are kept, where the dialog may take one (the desktop app); null elsewhere. Never a key itself. */
+  keys: z.object({ Pexels: z.boolean(), Unsplash: z.boolean(), keeping: z.enum(['key-store', 'plain']), pages: z.object({ Pexels: z.string(), Unsplash: z.string() }) }).nullable(),
   version: z.number().int().nullable(),
 });
+/** A picture source's key, given in the dialog: `null` takes it away. A key is letters, digits, `-` and `_`. */
+export const designerPictureKeyBody = z
+  .object({
+    source: z.enum(['Pexels', 'Unsplash']),
+    key: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_-]{8,200}$/)
+      .nullable(),
+  })
+  .strict();
+export const designerPictureKeyReply = z.object({ keys: z.object({ Pexels: z.boolean(), Unsplash: z.boolean(), keeping: z.enum(['key-store', 'plain']), pages: z.object({ Pexels: z.string(), Unsplash: z.string() }) }) });
 export const designerPictureFileQuery = z.object({ path: z.string().min(1).max(300) });
 const designerFillFrom = z.union([
   z.object({ shelf: designerShelfId, picture: designerPictureId }).strict(),

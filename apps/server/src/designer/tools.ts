@@ -25,7 +25,7 @@
  * server code is written, only after the person said yes in that turn. A bad
  * input is an answer the model can read and fix, never a crash of the turn.
  */
-import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, PICTURE_FILE_KINDS, validateManifest, type AddOnManifest } from '@adminium/manifest';
+import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, PICTURE_FILE_KINDS, PUBLIC_PICTURE_MAX_BYTES, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
@@ -258,6 +258,10 @@ function nearestIndex(skills: Skills, name: string): { skill: string; text: stri
 const NO_DIALOG: PictureDialog = {
   search: async () => ({ state: 'off' }),
   sources: () => [],
+  keys: () => null,
+  keepKey: () => {
+    throw new Error('Picture keys are not kept here.');
+  },
   pin: async () => ({ state: 'gone' }),
   picked: async () => null,
   chosen: async () => undefined,
@@ -283,7 +287,7 @@ export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boo
 1. ${first}${fromBoth} The brief says: who the page is for, the feeling in three words, the style and what you change in it, the sections of the first page in order, what the pictures show, the logo's idea.
 2. ${
     side === 'customer'
-      ? `Pictures: every picture of the page is a spot the person fills. Call add_spots ONCE with each picture the brief names (an "id" like "hero", a short "label" in the person's language, its "shape", "shows": what belongs there, "search": two to four words), then draw each with <Picture spot="hero" className="…" /> (import { Picture } from '@adminiumjs/adminium/side'), never an <img> of a picture file. For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } }), show it with pictureUrl, and a plain frame for a row with none.\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
+      ? `Pictures: every picture of the page is a spot the person fills. Call add_spots ONCE with each picture the brief names (an "id" like "hero", a short "label" in the person's language, its "shape", "shows": what belongs there, "search": two to four words), then draw each with <Picture spot="hero" className="…" /> (import { Picture } from '@adminiumjs/adminium/side'), never an <img> of a picture file. For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": ${String(PUBLIC_PICTURE_MAX_BYTES)} } } }), show it with pictureUrl, and a plain frame for a row with none.\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
       : ''
   }Read ${app}/${side}/src/App.tsx and write it again for this app's tables, keeping the way it loads, lists, sends and reports errors, and DESIGN it to the brief: ${side === 'customer' ? (opts.picture ? 'the sections of the person\'s picture, each one, in its order and laid out as the picture lays it out; nothing it does not show.' : 'a header with the logo and links, a first screen that says what the business is, what is on offer, why to trust it, the form, a footer.') : 'the work first: a plain header, the list or board staff work from, clear status marks.'}
 ${side === 'customer' ? '4' : '3'}. Write ${app}/${side}/src/design.css for every class of your own.${side === 'customer' ? ` Write the logo at exactly ${app}/assets/logo.svg (a simple mark with a viewBox and its colour written as a value, e.g. the accent's #rrggbb: a picture shown with <img> cannot read var(--…); no text, no script, no outside address) and show it in the header: in ${side}/src/App.tsx, import logo from '../../assets/logo.svg', then <img className="logo" src={logo} alt="" />.` : ''}
@@ -2213,7 +2217,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             // The table has no picture column: one is added here, rather than sending the model round for it.
             const added = table.columns.some((candidate) => candidate.ref === 'picture') ? null : addPictureColumn(join(dir, 'manifest', 'tables', `${table.ref}.json`));
             if (added === null && !addedColumns.includes(table.ref)) {
-              problems.push(`"${entry.label}": the table "${table.ref}" has no picture column. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } } to its columns, check_app, then call use_pictures again.`);
+              problems.push(`"${entry.label}": the table "${table.ref}" has no picture column. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": ${String(PUBLIC_PICTURE_MAX_BYTES)} } } } to its columns, check_app, then call use_pictures again.`);
               continue;
             }
             if (added !== null) addedColumns.push(table.ref);
@@ -2407,8 +2411,12 @@ export function keepSamplePictures(before: string, after: string): { text: strin
   };
 }
 
-/** The most a picture the Designer's picture column takes may weigh: 5 MiB, the cap on a picture attached in the chat. */
-const PICTURE_MAX_BYTES = 5 * 1024 * 1024;
+/**
+ * The most a picture the Designer's picture column takes may weigh: the most
+ * a picture visitors see may weigh, since its column is listed under
+ * `pictures` — a larger one staff saved would show visitors nothing.
+ */
+const PICTURE_MAX_BYTES = PUBLIC_PICTURE_MAX_BYTES;
 
 /**
  * Give a table's file a picture column, when it has none of that name: the
