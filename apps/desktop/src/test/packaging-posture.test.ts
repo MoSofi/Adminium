@@ -82,13 +82,19 @@ describe('the archive', () => {
     expect(hook).toContain('the carried npm is not whole');
   });
 
-  it('gets the server’s skills before it is made, and is stopped without them', () => {
-    // 0.3.31 shipped with no skills: the Designer had no skill pages and no styles.
+  it('gets everything the server’s npm prepack bundles but the dashboard before it is made, and is stopped without it', () => {
+    // 0.3.31 shipped with none of it: no Milo (no AI allow-lists), no skill pages and no styles.
     expect(builder).toMatch(/^beforePack: build\/before-pack\.cjs$/m);
-    expect(read('build/before-pack.cjs')).toContain("'bundle-skills.mjs'");
+    const before = read('build/before-pack.cjs');
+    const prepack = (JSON.parse(readFileSync(join(DESKTOP, '..', 'server', 'package.json'), 'utf8')) as { scripts: { prepack: string } }).scripts.prepack;
+    const bundlers = [...prepack.matchAll(/scripts\/(bundle-[a-z-]+\.mjs)/g)].map((match) => match[1]).filter((script) => script !== 'bundle-dashboard.mjs');
+    expect(bundlers).toEqual(['bundle-allowlists.mjs', 'bundle-samples.mjs', 'bundle-skills.mjs']);
+    for (const script of bundlers) expect(before).toContain(`'${String(script)}'`);
     const hook = read('build/after-pack.cjs');
-    expect(hook).toContain('checkSkills(context)');
-    expect(hook).toContain("['adminium', 'SKILL.md']");
-    expect(hook).toContain("['adminium-design', 'styles']");
+    expect(hook).toContain('checkServerBundles(context)');
+    expect(hook).toContain("['vocabulary', 'llm-allowlist.json']");
+    expect(hook).toContain("['samples', 'demo-seed.mjs']");
+    expect(hook).toContain("['skills', 'adminium', 'SKILL.md']");
+    expect(hook).toContain("['skills', 'adminium-design', 'styles']");
   });
 });
