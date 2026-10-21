@@ -569,6 +569,8 @@ export interface DesktopBootDeps {
    * The boot owns only WHEN this is called (step 5, after the config load that
    * carries the mode) and WHAT it wires to (the Help menu's "Check for updates…",
    * and — through the port's own closure — the ipc `updates` getter).
+   *
+   * A throw is taken as `null`: the launch goes on with no updater.
    */
   createUpdateManager: (input: { mode: UpdateMode }) => UpdateManager | null;
   /**
@@ -802,6 +804,20 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
    * update to download, or could not check. Without the dialogs port, the bare
    * check (an `available` still reaches the page's toaster).
    */
+  /**
+   * `deps.createUpdateManager`, where a throw means no updater for this launch
+   * (`null`, as `disabled` is) rather than a boot that stops. Building the updater
+   * can throw (electron-updater refuses a version that is not semver), and every
+   * caller sits in a promise nobody awaits: the throw left the window on Start,
+   * with no crash screen and nothing said. The Electron port logs the reason.
+   */
+  const makeUpdateManager = (mode: UpdateMode): UpdateManager | null => {
+    try {
+      return deps.createUpdateManager({ mode });
+    } catch {
+      return null;
+    }
+  };
   const checkFromMenu = (manager: UpdateManager): void => {
     if (deps.aboutDialogs === undefined) {
       void manager.checkForUpdates();
@@ -1296,7 +1312,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
               });
         // One made on Start ("Update Adminium") gives way to this boot's.
         updateManager?.dispose();
-        updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
+        updateManager = makeUpdateManager(loadedConfig.updates.mode);
         // A project's page is the project's own, with no `/about` of Adminium's to open: About is the native box.
         const projectCheck =
           updateManager === null
@@ -1547,7 +1563,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 // "Update Adminium", asked from a folder a newer one wrote: the app's own updater, made now if no
                 // boot has made one yet (Start has no server, and so had none).
                 updateApp: () => {
-                  updateManager ??= deps.createUpdateManager({ mode: (config ?? loaded.config).updates.mode });
+                  updateManager ??= makeUpdateManager((config ?? loaded.config).updates.mode);
                   if (updateManager === null) return false;
                   void updateManager.checkForUpdates();
                   return true;
@@ -1562,7 +1578,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 (config ?? loaded.config).updates.mode === 'disabled' || deps.updatesDisabledByEnv
                   ? undefined
                   : (): void => {
-                      updateManager ??= deps.createUpdateManager({ mode: (config ?? loaded.config).updates.mode });
+                      updateManager ??= makeUpdateManager((config ?? loaded.config).updates.mode);
                       if (updateManager !== null) checkFromMenu(updateManager);
                     };
               menuHandlers = withHandlers({ showLogs: () => void deps.showLogs() }, aboutBox(startCheck), startCheck);
@@ -1685,7 +1701,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         // schedules its own launch + daily checks; nothing here drives them.
         // One made on Start ("Update Adminium") gives way to this boot's.
         updateManager?.dispose();
-        updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
+        updateManager = makeUpdateManager(loadedConfig.updates.mode);
 
         // Assemble the menu's command handlers ONCE, here at step 5 — File's
         // backup/restore (coordinator), Help's Show Logs, and (when the updater
@@ -2519,6 +2535,46 @@ export function electronBootDeps(): DesktopBootDeps {
    */
   let updateManager: UpdateManager | null = null;
 
+  /** The Electron updater, made by `createUpdateManager` below (which logs a failure). */
+  const buildElectronUpdateManager = (mode: UpdateMode): UpdateManager | null => {
+    updateManager = buildUpdateManager({
+      // The env kill-switch is a `process.env` fact the Electron-free boot
+      // sequence must not read; resolve it HERE. `disabled` ⇒ `buildUpdateManager`
+      // returns null WITHOUT calling `getUpdater`, so electron-updater is never
+      // even `require`d and never touches the network (correctness rule).
+      mode: resolveUpdateMode(mode, process.env),
+      getUpdater: (): UpdaterPort => {
+        // Reading the `autoUpdater` export CONSTRUCTS the platform updater
+        // (warns it checks on construction in some configs), so this runs only
+        // for notify/manual, at most once — never in `disabled`, never in the
+        // vitest program that imports this module.
+        const updaterModule: unknown = requireFromMain('electron-updater');
+        return (updaterModule as { autoUpdater: unknown }).autoUpdater as UpdaterPort;
+      },
+      // The ONE notification pipeline. `emitUpdateEvent` is bound by
+      // `registerBridge` (boot step 2), which always runs before this
+      // (step 5).
+      emit: (event) => emitUpdateEvent(event),
+      canSelfUpdate: canSelfUpdate(process.platform, process.env),
+      log: mainLog,
+      // Chromium's network stack, NOT Node's. electron-updater fetches the
+      // channel file and the installer through `electron.net`, which honours
+      // the system/PAC proxy, proxy authentication and the OS trust store;
+      // Node's global `fetch` (undici) honours none of those. Resolving the
+      // release on undici while downloading it on Chromium would mean that on
+      // any managed machine — corporate proxy, TLS-intercepting middlebox —
+      // every check fails at the resolve step even though the download would
+      // have worked. `net.fetch` is `fetch`-shaped, so the port's type is
+      // unchanged and the unit suite keeps its plain-`fetch` default.
+      fetchImpl: (input, init) =>
+        (requireFromMain('electron') as typeof import('electron')).net.fetch(
+          input as string,
+          init,
+        ),
+    });
+    return updateManager;
+  };
+
   return {
     host: {
       argv: process.argv,
@@ -2561,42 +2617,13 @@ export function electronBootDeps(): DesktopBootDeps {
     // lazily-`require`d electron-updater, and the platform's self-replace
     // capability.
     createUpdateManager: ({ mode }) => {
-      updateManager = buildUpdateManager({
-        // The env kill-switch is a `process.env` fact the Electron-free boot
-        // sequence must not read; resolve it HERE. `disabled` ⇒ `buildUpdateManager`
-        // returns null WITHOUT calling `getUpdater`, so electron-updater is never
-        // even `require`d and never touches the network (correctness rule).
-        mode: resolveUpdateMode(mode, process.env),
-        getUpdater: (): UpdaterPort => {
-          // Reading the `autoUpdater` export CONSTRUCTS the platform updater
-          // (warns it checks on construction in some configs), so this runs only
-          // for notify/manual, at most once — never in `disabled`, never in the
-          // vitest program that imports this module.
-          const updaterModule: unknown = requireFromMain('electron-updater');
-          return (updaterModule as { autoUpdater: unknown }).autoUpdater as UpdaterPort;
-        },
-        // The ONE notification pipeline. `emitUpdateEvent` is bound by
-        // `registerBridge` (boot step 2), which always runs before this
-        // (step 5).
-        emit: (event) => emitUpdateEvent(event),
-        canSelfUpdate: canSelfUpdate(process.platform, process.env),
-        log: mainLog,
-        // Chromium's network stack, NOT Node's. electron-updater fetches the
-        // channel file and the installer through `electron.net`, which honours
-        // the system/PAC proxy, proxy authentication and the OS trust store;
-        // Node's global `fetch` (undici) honours none of those. Resolving the
-        // release on undici while downloading it on Chromium would mean that on
-        // any managed machine — corporate proxy, TLS-intercepting middlebox —
-        // every check fails at the resolve step even though the download would
-        // have worked. `net.fetch` is `fetch`-shaped, so the port's type is
-        // unchanged and the unit suite keeps its plain-`fetch` default.
-        fetchImpl: (input, init) =>
-          (requireFromMain('electron') as typeof import('electron')).net.fetch(
-            input as string,
-            init,
-          ),
-      });
-      return updateManager;
+      try {
+        return buildElectronUpdateManager(mode);
+      } catch (error) {
+        // The boot goes on without an updater (`makeUpdateManager`); this is where the reason is kept.
+        mainLog(`[updater] could not be made, so this launch has no updates: ${error instanceof Error ? error.message : String(error)}`);
+        throw error;
+      }
     },
     // The env kill-switch as a boot constant for the runtime snapshot. Reuses
     // `resolveUpdateMode`'s exact `ADMINIUM_DISABLE_UPDATES=1` rule (a
@@ -2939,15 +2966,28 @@ export const APP_NAME = 'Adminium';
  * back to the same place after it. A `productName` in `package.json` would have
  * moved them, and every person would have opened a first-run app.
  *
+ * The version is kept the same way. On Linux, an app still named "Electron"
+ * reports Electron's own version, and any other name reports only what
+ * `setVersion` set, else "0.0". A launch with no `package.json` of its own (the
+ * desktop e2e suite) set none, so after the rename electron-updater refused
+ * "0.0" and the boot stopped on Start.
+ *
+ * `setVersion` is the one Electron's own loader calls with `package.json`'s
+ * version; its typings leave it out, so it is optional here.
+ *
  * Runs before anything reads a path, and before the single-instance lock (which
  * lives in `userData`).
  */
-export function nameTheApp(target: Pick<Electron.App, 'getPath' | 'setPath' | 'setName'>): void {
+export function nameTheApp(
+  target: Pick<Electron.App, 'getPath' | 'setPath' | 'setName' | 'getVersion'> & { setVersion?: (version: string) => void },
+): void {
   const userData = target.getPath('userData');
   const logs = target.getPath('logs');
+  const version = target.getVersion();
   target.setName(APP_NAME);
   target.setPath('userData', userData);
   target.setPath('logs', logs);
+  target.setVersion?.(version);
 }
 
 if (isElectronMain()) {

@@ -1385,6 +1385,24 @@ describe('the updater is built at step 5 and wired to the menu + quit', () => {
     expect(h.menuHandlers()?.checkForUpdates).toBeUndefined();
   });
 
+  it('an updater that cannot be made leaves the launch without updates, and the app still opens', async () => {
+    // electron-updater throws while it is built when the version is not semver ("0.0" on Linux once the app
+    // is renamed with no version set). That throw used to stop the boot on Start, with nothing said.
+    const h = harness({ config: { updates: { mode: 'notify' } } });
+    const deps: DesktopBootDeps = {
+      ...h.deps,
+      createUpdateManager: () => {
+        throw new Error('App version is not a valid semver version: "0.0"');
+      },
+    };
+    await createDesktopApp(deps).start();
+    expect(h.calls).toContain('server.start');
+    expect(h.calls.at(-1)).toBe('loadApp');
+    expect(h.crashes).toEqual([]);
+    // As with updates off: the menu item is there, disabled.
+    expect(h.menuHandlers()?.checkForUpdates).toBeUndefined();
+  });
+
   it('disposes the updater on quit, so its 30 s / 24 h schedules cannot fire into a closing app', async () => {
     const h = harness({ config: { updates: { mode: 'notify' } } });
     await createDesktopApp(h.deps).start();
@@ -1863,6 +1881,20 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.h.menuHandlers()).toHaveProperty('checkForUpdates');
   });
 
+  it('a project opens too when the updater cannot be made', async () => {
+    const p = projectHarness();
+    const deps: DesktopBootDeps = {
+      ...p.deps,
+      createUpdateManager: () => {
+        throw new Error('no updater');
+      },
+    };
+    await createDesktopApp(deps).start();
+    expect(p.shown).toHaveLength(1);
+    expect(p.h.crashes).toEqual([]);
+    expect(p.h.menuHandlers()).not.toHaveProperty('checkForUpdates');
+  });
+
   it('a build with none of the optional folders and no updater still opens the project', async () => {
     const p = projectHarness();
     const bare: DesktopBootDeps = { ...p.deps, createUpdateManager: () => null };
@@ -2139,9 +2171,11 @@ describe('microphoneSwitchedOn', () => {
 });
 
 describe('nameTheApp', () => {
-  it('renames the app and keeps its folders where they were', () => {
-    // Electron derives both folders from the name: read before, put back after.
-    let name = '@adminium/desktop';
+  it('renames the app and keeps its folders and its version where they were', () => {
+    // Electron derives both folders from the name: read before, put back after. On Linux the version too: an app
+    // named "Electron" reports Electron's version, any other name only a set one, else "0.0".
+    let name = 'Electron';
+    let setVersion: string | null = null;
     const set: Record<string, string> = {};
     const calls: string[] = [];
     nameTheApp({
@@ -2154,9 +2188,15 @@ describe('nameTheApp', () => {
         calls.push('setName');
         name = next;
       },
+      getVersion: () => setVersion ?? (name === 'Electron' ? '39.2.0' : '0.0'),
+      setVersion: (next: string) => {
+        calls.push('setVersion');
+        setVersion = next;
+      },
     });
     expect(name).toBe('Adminium');
-    expect(set).toEqual({ userData: '/base/userData/@adminium/desktop', logs: '/base/logs/@adminium/desktop' });
-    expect(calls).toEqual(['setName', 'setPath:userData', 'setPath:logs']);
+    expect(set).toEqual({ userData: '/base/userData/Electron', logs: '/base/logs/Electron' });
+    expect(setVersion).toBe('39.2.0');
+    expect(calls).toEqual(['setName', 'setPath:userData', 'setPath:logs', 'setVersion']);
   });
 });
