@@ -1020,6 +1020,7 @@ export default {
     "choose": "Vælg billeder…",
     "chip": "Billeder",
     "toFill": "{count} at udfylde",
+    "openToFill": "Billeder: {count} at udfylde",
     "changedOnly": "Du ændrede {count, plural, one {{n} billede} other {{n} billeder}}: {list}.",
     "changed": "Du ændrede {count, plural, one {{n} billede} other {{n} billeder}}: {list}. Gemt som {version}.",
     "undone": "Fortrudt: tilbage til {version}.",

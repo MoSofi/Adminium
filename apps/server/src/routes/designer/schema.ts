@@ -249,7 +249,7 @@ const designerFoundPicture = z.object({
   shown: z.literal(true).optional(),
 });
 export const designerPictureSearchReply = z.discriminatedUnion('state', [
-  z.object({ state: z.literal('ok'), shelf: z.string(), pictures: z.array(designerFoundPicture), more: z.boolean(), page: z.number().int() }),
+  z.object({ state: z.literal('ok'), shelf: z.string(), pictures: z.array(designerFoundPicture), more: z.boolean(), page: z.number().int(), q: z.string().optional() }),
   z.object({ state: z.literal('busy'), source: z.enum(SOURCE_NAMES), minutes: z.number().int() }),
   z.object({ state: z.literal('off') }),
   z.object({ state: z.literal('failed') }),

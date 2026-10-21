@@ -1010,6 +1010,7 @@
     "choose": "Choisir des images…",
     "chip": "Images",
     "toFill": "{count} à remplir",
+    "openToFill": "Images : {count} à remplir",
     "changedOnly": "Vous avez changé {count, plural, one {{n} image} other {{n} images}} : {list}.",
     "changed": "Vous avez changé {count, plural, one {{n} image} other {{n} images}} : {list}. Enregistré sous {version}.",
     "undone": "Annulé : retour à {version}.",

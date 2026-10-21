@@ -1010,6 +1010,7 @@
     "choose": "اختر الصور…",
     "chip": "الصور",
     "toFill": "{count} بانتظار الملء",
+    "openToFill": "الصور: {count} بانتظار الملء",
     "changedOnly": "غيّرت {count, plural, zero {لا صور} one {صورة واحدة} two {صورتين} few {{n} صور} many {{n} صورة} other {{n} صورة}}: {list}.",
     "changed": "غيّرت {count, plural, zero {لا صور} one {صورة واحدة} two {صورتين} few {{n} صور} many {{n} صورة} other {{n} صورة}}: {list}. حُفظ باسم {version}.",
     "undone": "تم التراجع: عدنا إلى {version}.",

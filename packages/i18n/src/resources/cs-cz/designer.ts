@@ -1020,6 +1020,7 @@ export default {
     "choose": "Vybrat obrázky…",
     "chip": "Obrázky",
     "toFill": "{count} k vyplnění",
+    "openToFill": "Obrázky: {count} k vyplnění",
     "changedOnly": "Změnili jste {count, plural, one {{n} obrázek} few {{n} obrázky} many {{n} obrázku} other {{n} obrázků}}: {list}.",
     "changed": "Změnili jste {count, plural, one {{n} obrázek} few {{n} obrázky} many {{n} obrázku} other {{n} obrázků}}: {list}. Uloženo jako {version}.",
     "undone": "Vráceno zpět: návrat k {version}.",

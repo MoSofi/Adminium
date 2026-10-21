@@ -1010,6 +1010,7 @@
     "choose": "Bilder auswählen…",
     "chip": "Bilder",
     "toFill": "{count} zu füllen",
+    "openToFill": "Bilder: {count} zu füllen",
     "changedOnly": "Sie haben {count, plural, one {{n} Bild} other {{n} Bilder}} geändert: {list}.",
     "changed": "Sie haben {count, plural, one {{n} Bild} other {{n} Bilder}} geändert: {list}. Gespeichert als {version}.",
     "undone": "Rückgängig gemacht: zurück zu {version}.",

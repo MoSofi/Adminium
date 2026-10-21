@@ -193,6 +193,9 @@ beforeEach(() => {
       if (url === `/api/v1/designer/sessions/${ID}/turns`) return Promise.resolve(jsonResponse(202, { turn: 9 }));
       if (url === `/api/v1/designer/sessions/${ID}/stop`) return Promise.resolve(jsonResponse(200, { stopped: true }));
       if (url === `/api/v1/designer/sessions/${ID}/answers`) return Promise.resolve(jsonResponse(200, { answered: true }));
+      if (url.startsWith(`/api/v1/designer/sessions/${ID}/pictures/search`)) return Promise.resolve(jsonResponse(200, { state: 'ok', shelf: 'sh1', pictures: [{ id: 'p1', title: 'A cake on a stand', creator: 'Ana', source: 'Openverse', licence: { code: 'cc0', name: 'CC0 1.0' }, page: 'https://example.org/p1' }], more: false, page: 1 }));
+      if (url === `/api/v1/designer/sessions/${ID}/pictures/pin`) return Promise.resolve(jsonResponse(200, { state: 'kept', small: false }));
+      if (url === `/api/v1/designer/sessions/${ID}/pictures/apply`) return Promise.resolve(jsonResponse(200, { results: [{ target: 'spot:hero', state: 'applied' }], version: { n: 4, name: 'v4 · Pictures: Hero' }, applied: true, before: 3 }));
       if (url === `/api/v1/designer/sessions/${ID}/pictures`) return Promise.resolve(picturesView === null ? jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'none', requestId: 'r' } }) : jsonResponse(200, picturesView));
       if (url.includes('/restore')) return Promise.resolve(jsonResponse(200, { version: { n: 4, name: 'v4' }, applied: true }));
       if (url === '/api/v1/designer/models') {
@@ -828,9 +831,78 @@ describe('the build page', () => {
     await open();
     const card = await screen.findByRole('group', { name: 'Choose the pictures' });
     expect(card.textContent).toContain('1 spot on the page is waiting for a picture.');
-    const chip = await screen.findByRole('button', { name: /^Pictures/ });
+    const chip = await within(screen.getByRole('complementary', { name: 'Chat' })).findByRole('button', { name: /^Pictures/ });
     expect(chip.textContent).toBe('Pictures· 1 to fill');
+    // The top bar has the same way in.
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Pictures: 1 to fill' })).toBeTruthy();
     await userEvent.click(chip);
+    expect(await screen.findByRole('dialog', { name: 'Pictures' })).toBeTruthy();
+  });
+
+  it('keeps a way to the pictures in the top bar after one picture is applied, while a turn runs, and at none to fill', async () => {
+    const cakes = { table: 'cakes', label: 'Cake', column: 'picture', rows: [1, 2, 3, 4, 5, 6].map((row) => ({ row, label: `Cake ${String(row)}`, version: `r${String(row)}`, thumb: null as string | null })) };
+    let view: PicturesView = {
+      ownBuild: false,
+      spots: [{ id: 'hero', label: 'Front page picture', shape: 'wide', shows: 'a cake', search: 'homemade cake bakery', version: 'a1', thumb: null, alt: '', decorative: false, licence: null }],
+      tables: [cakes],
+      inApp: [],
+      mode: 'placeholders',
+      legacy: 0,
+      sources: [{ name: 'Openverse', busy: null }],
+      unsplash: 'ok',
+      version: 3,
+    };
+    picturesView = view;
+    const history = [
+      ev(1, { kind: 'turn-started', text: 'A bakery.' }),
+      ev(1, { kind: 'text', delta: 'I built the bakery.' }),
+      ev(1, { kind: 'version', n: 3, name: 'v3' }),
+      ev(1, { kind: 'pictures-note', note: 'still-empty', count: 1 }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }),
+    ];
+    stored = history;
+    await open();
+    const bar = screen.getByRole('banner');
+    await userEvent.click(await within(bar).findByRole('button', { name: 'Pictures: 7 to fill' }));
+    const grid = await screen.findByRole('listbox', { name: 'Pictures for Front page picture' });
+    fireEvent.click(within(grid).getAllByRole('option')[0] as HTMLElement);
+    fireEvent.click(await screen.findByRole('button', { name: 'Use for Front page picture' }));
+    // Apply: the server fills the spot, saves a version and says so outside any turn, as it does.
+    view = { ...view, spots: view.spots.map((spot) => ({ ...spot, thumb: '/thumb/hero.jpg', version: 'a2' })), version: 4 };
+    picturesView = view;
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(posted('/pictures/apply')).toHaveLength(1));
+    const applied = [
+      { ...ev(1, { kind: 'hold', what: 'pictures' }), by: 'person' as const },
+      { ...ev(1, { kind: 'version', n: 4, name: 'v4 · Pictures: Front page picture' }), by: 'person' as const },
+      { ...ev(1, { kind: 'pictures', names: ['Front page picture'], version: { n: 4, name: 'v4 · Pictures: Front page picture' } }), by: 'person' as const },
+      { ...ev(1, { kind: 'released', what: 'pictures' }), by: 'person' as const },
+    ];
+    stored = [...history, ...applied];
+    live(...applied);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Pictures' })).toBeNull());
+    await waitFor(() => expect(document.querySelector('[data-part="pictures-line"]')?.textContent).toBe('You changed 1 picture: Front page picture. Saved as v4.'));
+    // The six rows still wait: the top bar says so and opens the dialog again.
+    const after = await within(bar).findByRole('button', { name: 'Pictures: 6 to fill' });
+    await userEvent.click(after);
+    expect(await screen.findByRole('dialog', { name: 'Pictures' })).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Pictures' })).toBeNull());
+
+    // A turn runs: the chip under the last reply goes, the top bar's button stays.
+    const begun = ev(2, { kind: 'turn-started', text: 'Warmer colours.' });
+    stored = [...stored, begun];
+    live(begun);
+    const chat = screen.getByRole('complementary', { name: 'Chat' });
+    await waitFor(() => expect(within(chat).queryByRole('button', { name: /^Pictures/ })).toBeNull());
+    expect(within(bar).getByRole('button', { name: 'Pictures: 6 to fill' })).toBeTruthy();
+
+    // Every picture filled: still there, to swap one later.
+    const done = ev(2, { kind: 'turn-finished', outcome: 'done' });
+    stored = [...stored, done];
+    picturesView = { ...view, tables: [{ ...cakes, rows: cakes.rows.map((row) => ({ ...row, thumb: `/thumb/${String(row.row)}.jpg` })) }] };
+    live(done);
+    await userEvent.click(await within(bar).findByRole('button', { name: 'Pictures' }));
     expect(await screen.findByRole('dialog', { name: 'Pictures' })).toBeTruthy();
   });
 

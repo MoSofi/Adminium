@@ -13431,6 +13431,10 @@
     "status": "mt",
     "srcHash": "5fbe6b052c1c"
   },
+  "designer.spots.openToFill": {
+    "status": "mt",
+    "srcHash": "faaf59b6fa7c"
+  },
   "designer.spots.point": {
     "status": "mt",
     "srcHash": "a82172578ddb"

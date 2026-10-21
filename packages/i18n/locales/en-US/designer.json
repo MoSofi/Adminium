@@ -1010,6 +1010,7 @@
     "choose": "Choose pictures…",
     "chip": "Pictures",
     "toFill": "{count} to fill",
+    "openToFill": "Pictures: {count} to fill",
     "changedOnly": "You changed {count, plural, one {{n} picture} other {{n} pictures}}: {list}.",
     "changed": "You changed {count, plural, one {{n} picture} other {{n} pictures}}: {list}. Saved as {version}.",
     "undone": "Undone: back to {version}.",

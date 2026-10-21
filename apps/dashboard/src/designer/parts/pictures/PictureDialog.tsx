@@ -220,7 +220,9 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
         setFound(reply);
         return;
       }
-      setFound((before) => ({ state: 'ok', shelf: reply.shelf, more: reply.more, page: reply.page, q: words, pictures: input.page !== undefined && before.state === 'ok' ? [...before.pictures, ...reply.pictures] : reply.pictures }));
+      // The server dropped words to find any: the box says what was searched, and "More" goes on with it.
+      if (reply.q !== undefined) setQuery(reply.q);
+      setFound((before) => ({ state: 'ok', shelf: reply.shelf, more: reply.more, page: reply.page, q: reply.q ?? words, pictures: input.page !== undefined && before.state === 'ok' ? [...before.pictures, ...reply.pictures] : reply.pictures }));
     } catch {
       if (mine === asked.current) setFound({ state: 'failed' });
     }

@@ -349,7 +349,8 @@ export interface FoundPicture {
   shown?: true;
 }
 export type PictureSearchReply =
-  | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number }
+  /** `q`: the fewer words that found these, when the words asked for found none. */
+  | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number; q?: string }
   | { state: 'busy'; source: PictureSourceName; minutes: number }
   | { state: 'off' }
   | { state: 'failed' };

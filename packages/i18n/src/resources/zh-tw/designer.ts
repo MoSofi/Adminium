@@ -1020,6 +1020,7 @@ export default {
     "choose": "選擇圖片…",
     "chip": "圖片",
     "toFill": "待填入 {count} 個",
+    "openToFill": "圖片：待填入 {count} 個",
     "changedOnly": "你更換了 {count, plural, other {{n} 張圖片}}：{list}。",
     "changed": "你更換了 {count, plural, other {{n} 張圖片}}：{list}。已儲存為 {version}。",
     "undone": "已復原：回到 {version}。",

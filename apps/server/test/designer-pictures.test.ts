@@ -302,6 +302,35 @@ describe('what each source gives this server', () => {
     expect(ov.take('search').ok).toBe(true);
   });
 
+  it('asks again with one word fewer when a first page finds nothing, down to two words and at most twice, and says the words that found them', async () => {
+    const at = 1_000_000;
+    const asked: string[] = [];
+    // A source that matches every word: only the bakery's first three words find anything.
+    const source: PictureSource = {
+      name: 'Openverse',
+      search: async (q) => {
+        asked.push(q);
+        return { pictures: q.startsWith('homemade') && q.split(' ').length <= 3 ? found(2) : [], more: false };
+      },
+    };
+    const search = createPictureSearch({ sources: () => [source], shelf: createPictureShelf({ now: () => at }), now: () => at });
+    expect(await search.search('ds_a', { q: 'homemade cake bakery counter', source: 'Openverse' })).toMatchObject({ state: 'ok', q: 'homemade cake bakery', pictures: [{ id: 'pic_0' }, { id: 'pic_1' }] });
+    expect(asked).toEqual(['homemade cake bakery counter', 'homemade cake bakery']);
+    // Words that find pictures are kept as they are, and say nothing more.
+    expect(await search.search('ds_a', { q: 'homemade cake bakery', source: 'Openverse' })).not.toHaveProperty('q');
+    // Twice at most: five words become three, never fewer, and the words asked for stay.
+    asked.length = 0;
+    const none = await search.search('ds_a', { q: 'a b c d e f', source: 'Openverse' });
+    expect(asked).toEqual(['a b c d e f', 'a b c d e', 'a b c d']);
+    expect(none).toMatchObject({ state: 'ok', pictures: [] });
+    expect(none).not.toHaveProperty('q');
+    // Not below two words, and never on a later page.
+    asked.length = 0;
+    await search.search('ds_b', { q: 'x y', source: 'Openverse' });
+    await search.search('ds_b', { q: 'w x y z', source: 'Openverse', page: 2 });
+    expect(asked).toEqual(['x y', 'w x y z']);
+  });
+
   it('keeps a session to its own share, says when a source is off or failed, and puts “More” on the page it came from', async () => {
     const at = 1_000_000;
     const sources: PictureSource[] = [counting('Pexels', async () => ({ pictures: found(2), more: true })).source];

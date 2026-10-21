@@ -45,6 +45,8 @@ export const SOURCE_WINDOWS: Readonly<Record<SourceName, { search: readonly Budg
 export const PAUSE_WITHOUT_WORD_MS = 15 * MINUTE;
 /** A session's own searches a minute, across sources. */
 export const SESSION_SEARCHES_PER_MINUTE = 30;
+/** How many times a first page with nothing is asked again with one word fewer. */
+export const FEWER_WORDS_TRIES = 2;
 
 /** One source's budget on this server. */
 export interface SourceBudget {
@@ -144,7 +146,8 @@ export const publicPicture = (picture: FoundPicture): PublicPicture => ({
 });
 
 export type SearchAnswer =
-  | { state: 'ok'; shelf: string; pictures: PublicPicture[]; more: boolean; page: number }
+  /** `q`: the fewer words that found these, when the words asked for found none. */
+  | { state: 'ok'; shelf: string; pictures: PublicPicture[]; more: boolean; page: number; q?: string }
   /** The source is paused: its own limit, or this server's share of it, is spent until then. */
   | { state: 'busy'; source: SourceName; minutes: number }
   /** The source is not on this server (no key, or the server calls nothing outside). */
@@ -200,21 +203,39 @@ export function createPictureSearch(deps: {
       if (!took.ok) return { state: 'busy', source: source.name, minutes: minutes(took.until) };
       asked.set(sessionId, [...recent, at]);
       const page = input.page ?? 1;
-      let found: Awaited<ReturnType<PictureSource['search']>>;
-      try {
-        found = await source.search(words, { count: PICTURES_PER_PAGE, ...(input.shape === undefined ? {} : { shape: input.shape }), page, ...(signal === undefined ? {} : { signal }) });
-      } catch (error) {
-        if (error instanceof SafeFetchError && error.status === 429) {
-          const until = retryAt(error.headers, now());
-          budget(source.name).pause(until);
-          return { state: 'busy', source: source.name, minutes: minutes(until) };
+      const ask = async (q: string): Promise<Awaited<ReturnType<PictureSource['search']>> | SearchAnswer> => {
+        try {
+          const answer = await source.search(q, { count: PICTURES_PER_PAGE, ...(input.shape === undefined ? {} : { shape: input.shape }), page, ...(signal === undefined ? {} : { signal }) });
+          budget(source.name).seen(answer.rate);
+          return answer;
+        } catch (error) {
+          if (error instanceof SafeFetchError && error.status === 429) {
+            const until = retryAt(error.headers, now());
+            budget(source.name).pause(until);
+            return { state: 'busy', source: source.name, minutes: minutes(until) };
+          }
+          return { state: 'failed' };
         }
-        return { state: 'failed' };
+      };
+      let used = words;
+      let found = await ask(used);
+      if ('state' in found) return found;
+      /*
+       * A source matches every word, so a spot's long description ("homemade cake bakery counter") can find
+       * nothing where its first words find plenty. A first page with none is asked again without its last word,
+       * down to two words and at most twice, each a search of the allowance like any other.
+       */
+      for (let tries = 0; found.pictures.length === 0 && page === 1 && tries < FEWER_WORDS_TRIES; tries += 1) {
+        const fewer = used.split(' ').slice(0, -1);
+        if (fewer.length < 2 || !budget(source.name).take('search').ok) break;
+        const again = await ask(fewer.join(' '));
+        if ('state' in again) break;
+        used = fewer.join(' ');
+        found = again;
       }
-      budget(source.name).seen(found.rate);
       // "More" adds to the page of results it came from; a page that is gone starts a new one.
       const shelf = input.shelf !== undefined && deps.shelf.add(sessionId, input.shelf, found.pictures) ? input.shelf : deps.shelf.put(sessionId, found.pictures);
-      return { state: 'ok', shelf, pictures: found.pictures.map(publicPicture), more: found.more, page };
+      return { state: 'ok', shelf, pictures: found.pictures.map(publicPicture), more: found.more, page, ...(used === words || found.pictures.length === 0 ? {} : { q: used }) };
     },
   };
 }

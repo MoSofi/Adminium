@@ -46,11 +46,14 @@ let calls: { method: string; url: string; body?: unknown }[];
 let view: PicturesView;
 let results: FoundPicture[];
 let applied: PicturesApplied;
+/** The fewer words the server says found the pictures; none when the words asked for did. */
+let fewer: string | undefined;
 
 beforeEach(() => {
   calls = [];
   view = VIEW;
   results = [found('p1', 'by', 'Fried chicken on a board'), found('p2', 'by', 'Chicken and fries')];
+  fewer = undefined;
   applied = { results: [{ target: 'spot:hero', state: 'applied' }], version: { n: 5, name: 'v5 · Pictures: Hero' }, applied: true, before: 4 };
   vi.stubGlobal(
     'fetch',
@@ -58,7 +61,7 @@ beforeEach(() => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       calls.push({ method, url, ...(init?.body === undefined ? {} : { body: JSON.parse(String(init.body)) }) });
-      if (url.includes('/pictures/search')) return jsonResponse(200, { state: 'ok', shelf: 'sh1', pictures: results, more: false, page: 1 });
+      if (url.includes('/pictures/search')) return jsonResponse(200, { state: 'ok', shelf: 'sh1', pictures: results, more: true, page: Number(new URL(url, 'http://x').searchParams.get('page') ?? '1'), ...(fewer === undefined ? {} : { q: fewer }) });
       if (url.endsWith('/pictures/pin')) return jsonResponse(200, { state: 'kept', small: false });
       if (url.endsWith('/pictures/apply')) return jsonResponse(200, applied);
       if (url.endsWith('/pictures')) return jsonResponse(200, view);
@@ -121,6 +124,18 @@ describe('the picture dialog', () => {
     expect(within(changes).getByRole('textbox', { name: 'Describe the picture for people who cannot see it' })).toHaveProperty('value', 'Fried chicken on a board');
     await waitFor(() => expect(document.activeElement).toBe(within(grid).getAllByRole('option')[0]));
     await waitFor(() => expect(calls.some((call) => call.url.endsWith('/pictures/pin'))).toBe(true));
+  });
+
+  it('shows the fewer words the server found pictures with, and goes on with them for more', async () => {
+    fewer = 'fried';
+    open();
+    await screen.findByRole('listbox', { name: 'Pictures for Hero' });
+    expect(calls.find((call) => call.url.includes('/pictures/search'))?.url).toContain('q=fried+chicken');
+    await waitFor(() => expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('fried'));
+    fewer = undefined;
+    results = [found('p3', 'by', 'Fried rice')];
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    await waitFor(() => expect(calls.filter((call) => call.url.includes('/pictures/search')).at(-1)?.url).toMatch(/q=fried&.*page=2/));
   });
 
   it('applies each fill with its spot’s version, its words and the footer’s choice, once, and closes', async () => {

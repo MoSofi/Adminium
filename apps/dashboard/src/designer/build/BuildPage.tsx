@@ -49,6 +49,7 @@ import {
   AccessChangeCard,
   PictureLines,
   PictureNote,
+  PicturesButton,
   PicturesChip,
   SpotsCard,
   StepsBlock,
@@ -271,7 +272,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onError: fail(t('designer:versions.failed', 'The files could not be put back')),
   });
 
-  // The picture dialog: opened from the chip, the spots card or a spot of the preview, and given focus back to what opened it.
+  // The picture dialog: opened from the top bar, the chip, the spots card or a spot of the preview, and given focus back to what opened it.
   const [pictures, setPictures] = useState<{ open: boolean; spot: string | null; from: HTMLElement | null }>({ open: false, spot: null, from: null });
   const openPictures = (spot: string | null = null): void => setPictures({ open: true, spot, from: document.activeElement instanceof HTMLElement ? document.activeElement : null });
   // Read as soon as the session is: a session on an app that has spots may have no turn yet. One with no app yet has none to read.
@@ -339,7 +340,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   }
 
   const data = session.data;
-  // The pictures still to fill, for the chip; none for an app that builds its own screens, or one with no pictures at all.
+  // The pictures still to fill, for the top bar and the chip; none for an app that builds its own screens, or one with no pictures at all.
   const shown = picturesView.data;
   const picturesChip =
     shown === undefined || shown.ownBuild || (shown.spots.length === 0 && shown.tables.length === 0 && shown.legacy === 0)
@@ -629,6 +630,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
         }
         end={
           <>
+            {/* The picture dialog's way in that stays: the chip under the last reply goes while a turn runs, and with that reply. */}
+            {picturesChip === null ? null : <PicturesButton toFill={picturesChip} onOpen={() => openPictures()} />}
             {data === undefined ? null : (
               <SessionMenu
                 sessions={appSessions}

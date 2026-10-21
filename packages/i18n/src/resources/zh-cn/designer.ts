@@ -1020,6 +1020,7 @@ export default {
     "choose": "选择图片…",
     "chip": "图片",
     "toFill": "待填充 {count} 个",
+    "openToFill": "图片：待填充 {count} 个",
     "changedOnly": "你更换了 {count, plural, other {{n} 张图片}}：{list}。",
     "changed": "你更换了 {count, plural, other {{n} 张图片}}：{list}。已保存为 {version}。",
     "undone": "已撤销：回到 {version}。",
