@@ -186,6 +186,10 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Payments',
+              items: [{ label: 'Take payments', link: '/guides/payments/' }],
+            },
+            {
               label: 'Public API',
               items: [
                 { label: 'Endpoints and keys', link: '/guides/public-api/endpoints-and-keys/' },
@@ -296,6 +300,7 @@ export default defineConfig({
             { label: 'Where to put the meta store', link: '/self-hosting/meta-store/' },
             { label: 'Behind a reverse proxy', link: '/self-hosting/reverse-proxy/' },
             { label: 'An app surface on its own domain', link: '/self-hosting/app-domains/' },
+            { label: 'Payments on your server', link: '/self-hosting/payments/' },
             { label: 'Upgrading', link: '/self-hosting/upgrades/' },
             { label: 'Security hardening', link: '/self-hosting/security/' },
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },
