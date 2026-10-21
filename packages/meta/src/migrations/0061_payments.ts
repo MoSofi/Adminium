@@ -85,6 +85,13 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('checked_at', c.ts)
     .addColumn('checked_by', c.id)
     .addColumn('check_note', c.str(500))
+    // When the provider was last asked about it: the sweep asks the longest-unasked first.
+    .addColumn('looked_at', c.ts)
+    // A two-step provider's capture is retried under a new key after a decline (the old key would replay it).
+    .addColumn('capture_try', c.int, (col) => col.notNull().defaultTo(0))
+    // Declines seen through the provider's events, and how many of them the link's failure count holds.
+    .addColumn('fail_events', c.int, (col) => col.notNull().defaultTo(0))
+    .addColumn('fail_counted', c.int, (col) => col.notNull().defaultTo(0))
     .execute();
   await db.schema.createIndex('uq_adminium_payment_attempts_open_key').on(metaTable('payment_attempts')).columns(['open_key']).unique().execute();
   await db.schema
@@ -94,6 +101,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .unique()
     .execute();
   await db.schema.createIndex('ix_adminium_payment_attempts_state').on(metaTable('payment_attempts')).columns(['state', 'updated_at']).execute();
+  await db.schema.createIndex('ix_adminium_payment_attempts_waiting').on(metaTable('payment_attempts')).columns(['provider', 'mode', 'state', 'looked_at']).execute();
   await db.schema.createIndex('ix_adminium_payment_attempts_payment_ref').on(metaTable('payment_attempts')).columns(['payment_ref']).execute();
   await db.schema.createIndex('ix_adminium_payment_attempts_nonce').on(metaTable('payment_attempts')).columns(['nonce']).execute();
 

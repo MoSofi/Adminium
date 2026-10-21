@@ -11,7 +11,9 @@ import {
   amountLeft,
   connectionsRepo,
   keptPaymentsRepo,
+  openKeyOf,
   payableKeyOf,
+  payableNameOf,
   payableProfilesRepo,
   paymentAttemptsRepo,
   paymentCountersRepo,
@@ -62,9 +64,13 @@ describe('exact sums', () => {
     expect(amountLeft('50', '120.00')).toBeNull();
   });
 
-  it('keys a payable the same way whoever asks', () => {
-    expect(payableKeyOf(INVOICE)).toBe('conn_X:public.invoices:42');
-    expect(payableKeyOf(DOCUMENT)).toBe('document:idoc_1');
+  it('keys a payable the same way whoever asks, as a hash every engine compares exactly', () => {
+    expect(payableNameOf(INVOICE)).toBe('conn_X:public.invoices:42');
+    expect(payableNameOf(DOCUMENT)).toBe('document:idoc_1');
+    expect(payableKeyOf(INVOICE)).toMatch(/^pk1:[0-9a-f]{64}$/);
+    expect(payableKeyOf({ ...INVOICE })).toBe(payableKeyOf(INVOICE));
+    expect(payableKeyOf({ ...INVOICE, rowKey: 'ab' })).not.toBe(payableKeyOf({ ...INVOICE, rowKey: 'AB' }));
+    expect(openKeyOf(INVOICE, 'test')).not.toBe(openKeyOf(INVOICE, 'live'));
   });
 
   it('never lets an attempt move back into creating', () => {
@@ -170,6 +176,87 @@ for (const dialect of TEST_DIALECTS) {
       });
     });
 
+    describe('attempts, at the edges', () => {
+      it('keeps two rows whose keys differ only in case apart, on every engine', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const lower = await attempts.create(attempt({ ...INVOICE, rowKey: 'ab' }, { nonce: 'n-ab' }), T0);
+        const upper = await attempts.create(attempt({ ...INVOICE, rowKey: 'AB' }, { nonce: 'n-AB' }), T0);
+        expect(lower).not.toBeNull();
+        expect(upper).not.toBeNull();
+        expect((await attempts.openFor({ ...INVOICE, rowKey: 'AB' }))?.id).toBe(upper!.id);
+        expect((await attempts.forPayable({ ...INVOICE, rowKey: 'ab' })).map((one) => one.id)).toEqual([lower!.id]);
+        expect((await attempts.byNonce('n-ab'))?.id).toBe(lower!.id);
+        expect((await attempts.byNonce('N-AB'))).toBeNull();
+      });
+
+      it('holds a test slot and a live slot apart', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const test = await attempts.create(attempt(INVOICE, { mode: 'test' }), T0);
+        const live = await attempts.create(attempt(INVOICE, { mode: 'live', nonce: 'n-live' }), T0);
+        expect(live).not.toBeNull();
+        expect((await attempts.openFor(INVOICE, 'test'))?.id).toBe(test!.id);
+        expect((await attempts.openFor(INVOICE, 'live'))?.id).toBe(live!.id);
+        expect((await attempts.openFor(INVOICE))?.id).toBe(live!.id);
+      });
+
+      it('takes the slot back on a late success, and flags it when another attempt holds the slot', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const one = (await attempts.create(attempt(), T0))!;
+        await attempts.move(one.id, 'open', { providerRef: 'cs_l1' }, T0 + 1);
+        await attempts.move(one.id, 'failed', {}, T0 + 2);
+        expect(await attempts.openFor(INVOICE, 'test')).toBeNull();
+        expect(await attempts.move(one.id, 'succeeded', {}, T0 + 3)).toBe(true);
+        expect((await attempts.openFor(INVOICE, 'test'))?.id).toBe(one.id);
+
+        const two = (await attempts.create(attempt(DOCUMENT, { nonce: 'n-2' }), T0))!;
+        await attempts.move(two.id, 'open', { providerRef: 'cs_l2' }, T0 + 1);
+        await attempts.move(two.id, 'expired', {}, T0 + 2);
+        const three = (await attempts.create(attempt(DOCUMENT, { nonce: 'n-3' }), T0 + 3))!;
+        expect(await attempts.move(two.id, 'succeeded', {}, T0 + 4)).toBe(true);
+        const late = (await attempts.byId(two.id))!;
+        expect(late).toMatchObject({ state: 'succeeded', openKey: null, problem: { code: 'TWO_AT_ONCE' } });
+        expect(late.flaggedAt).toBe(T0 + 4);
+        expect((await attempts.openFor(DOCUMENT, 'test'))?.id).toBe(three.id);
+        expect((await attempts.needingLook()).map((a) => a.id)).toEqual([two.id]);
+        expect(await attempts.countNeedingLook()).toBe(1);
+      });
+
+      it('counts each decline once, through events or the move, under concurrency too', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const one = (await attempts.create(attempt(), T0))!;
+        expect(await attempts.countFailure(one.id, false)).toBe(1);
+        expect(await attempts.countFailure(one.id, false)).toBe(0);
+        expect(await attempts.countFailure(one.id, true)).toBe(0);
+        const added = await Promise.all([attempts.countFailure(one.id, true), attempts.countFailure(one.id, true)]);
+        expect(added.reduce((a, b) => a + b, 0)).toBe(2);
+        expect((await attempts.byId(one.id))).toMatchObject({ failEvents: 3, failCounted: 3 });
+      });
+
+      it('asks the longest-unasked first, by service and mode in the database, and lets stale creating attempts go', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const a = (await attempts.create(attempt(INVOICE, { nonce: 'w-a' }), T0))!;
+        const b = (await attempts.create(attempt(DOCUMENT, { nonce: 'w-b' }), T0))!;
+        await attempts.move(a.id, 'open', { providerRef: 'cs_wa' }, T0 + 1);
+        await attempts.move(b.id, 'open', { providerRef: 'cs_wb' }, T0 + 2);
+        await attempts.looked(a.id, T0 + 50);
+        expect((await attempts.waitingOn('demo', 'test', ['open'], T0 + 100)).map((one) => one.id)).toEqual([b.id, a.id]);
+        expect(await attempts.waitingOn('demo', 'live', ['open'], T0 + 100)).toEqual([]);
+        expect(await attempts.waitingOn('other', 'test', ['open'], T0 + 100)).toEqual([]);
+        expect(await attempts.countIn('demo', 'test', ['open'])).toBe(2);
+        const stuck = (await attempts.create(attempt({ ...INVOICE, rowKey: 'stuck' }, { nonce: 'w-s', provider: 'gone' }), T0))!;
+        expect(await attempts.abandonStale(T0 + 1, T0 + 10)).toBe(1);
+        expect((await attempts.byId(stuck.id))).toMatchObject({ state: 'abandoned', openKey: null });
+      });
+
+      it('moves a capture to its next try once', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const one = (await attempts.create(attempt(), T0))!;
+        expect(await attempts.nextCaptureTry(one.id, 0)).toBe(true);
+        expect(await attempts.nextCaptureTry(one.id, 0)).toBe(false);
+        expect((await attempts.byId(one.id))!.captureTry).toBe(1);
+      });
+    });
+
     describe('events', () => {
       it('stores an event once, re-drives the unprocessed, and sweeps the old', async () => {
         const events = paymentEventsRepo(meta());
@@ -182,20 +269,24 @@ for (const dialect of TEST_DIALECTS) {
           checkoutRef: 'cs_1',
           paymentRef: null,
           refundRef: null,
-          attemptId: null,
+          attemptId: 'pat_1',
           source: 'webhook' as const,
           body: { status: 'succeeded' },
         };
+        // About no attempt of ours: never work for the sweep.
+        await events.record({ ...input, eventId: 'evt_none', attemptId: null }, T0);
+        await events.record({ ...input, eventId: 'evt_live', mode: 'live' }, T0);
         const first = await events.record(input, T0);
         const again = await events.record({ ...input, source: 'sweep' }, T0 + 1);
         expect(first.fresh).toBe(true);
         expect(again.fresh).toBe(false);
         expect(again.event.id).toBe(first.event.id);
         expect(again.event.body).toEqual({ status: 'succeeded' });
-        expect((await events.unprocessed(T0 + 10)).map((e) => e.id)).toEqual([first.event.id]);
+        expect((await events.unprocessed(T0 + 10, 100, { provider: 'demo', mode: 'test' })).map((e) => e.id)).toEqual([first.event.id]);
+        expect((await events.unprocessed(T0 + 10)).map((e) => e.eventId).sort()).toEqual(['evt_1', 'evt_live']);
         expect(await events.markProcessed(first.event.id, T0 + 2)).toBe(true);
         expect(await events.markProcessed(first.event.id, T0 + 3)).toBe(false);
-        expect(await events.unprocessed(T0 + 10)).toEqual([]);
+        expect(await events.unprocessed(T0 + 10, 100, { provider: 'demo', mode: 'test' })).toEqual([]);
         expect(await events.gc(T0 + 40 * 86_400_000, 30)).toBe(1);
       });
     });

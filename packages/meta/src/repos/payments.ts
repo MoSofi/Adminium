@@ -31,6 +31,8 @@
  * here in exact decimal arithmetic, never by the database.
  */
 
+import { createHash } from 'node:crypto';
+
 import type { Insertable, Selectable } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
@@ -129,10 +131,29 @@ export interface PayableRef {
   rowKey: string;
 }
 
-/** `document:<id>` or `<connection>:<table>:<row>` — the one key a payable is counted under. */
-export function payableKeyOf(ref: PayableRef): string {
+/** `document:<id>` or `<connection>:<table>:<row>`: what a payable is, as text. */
+export function payableNameOf(ref: PayableRef): string {
   if (ref.kind === 'document') return `document:${ref.rowKey}`;
   return `${ref.connectionId ?? ''}:${ref.tableName ?? ''}:${ref.rowKey}`;
+}
+
+/**
+ * The one key a payable is counted under: a hash of its name. Hashed because
+ * a MySQL meta store compares text without regard to case, so two rows whose
+ * keys differ only in case (`ab` and `AB`) would share one open slot, one
+ * current link and one paid sum. A hash compares the same on every engine.
+ */
+export function payableKeyOf(ref: PayableRef): string {
+  return `pk1:${createHash('sha256').update(payableNameOf(ref), 'utf8').digest('hex')}`;
+}
+
+/**
+ * The open slot of a payable in one mode. Test payments are pretend money, so
+ * a staff member's test checkout never holds the payable against a customer
+ * paying for real (and the reverse).
+ */
+export function openKeyOf(ref: PayableRef, mode: 'test' | 'live'): string {
+  return mode === 'live' ? payableKeyOf(ref) : `${payableKeyOf(ref)}:test`;
 }
 
 // ─── Decimal sums (exact) ───────────────────────────────────────────────────
@@ -194,6 +215,12 @@ export interface PaymentAttempt {
   flaggedAt: number | null;
   /** "Mark as checked" in Activity. */
   check: AttemptCheck | null;
+  /** When the provider was last asked about it. */
+  lookedAt: number | null;
+  /** Which capture try a two-step provider's next capture is. */
+  captureTry: number;
+  failEvents: number;
+  failCounted: number;
 }
 
 export interface AttemptCheck {
@@ -270,8 +297,18 @@ function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAt
     recordedAt: row.recordedAt === null ? null : Number(row.recordedAt),
     flaggedAt: row.flaggedAt === null ? null : Number(row.flaggedAt),
     check: row.checkedAt === null ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
+    lookedAt: row.lookedAt === null || row.lookedAt === undefined ? null : Number(row.lookedAt),
+    captureTry: Number(row.captureTry ?? 0),
+    failEvents: Number(row.failEvents ?? 0),
+    failCounted: Number(row.failCounted ?? 0),
   };
 }
+
+/** Same row key, compared exactly (a MySQL meta store matched it without regard to case). */
+function samePayable(attempt: PaymentAttempt, ref: PayableRef): boolean {
+  return attempt.payable.kind === ref.kind && attempt.payable.rowKey === ref.rowKey && attempt.payable.connectionId === ref.connectionId && attempt.payable.tableName === ref.tableName;
+}
+
 
 function patchColumns(patch: AttemptPatch): Partial<Record<string, unknown>> {
   const out: Partial<Record<string, unknown>> = {};
@@ -305,7 +342,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         amount: input.amount,
         currency: input.currency,
         state: 'creating',
-        openKey: payableKeyOf(input.payable),
+        openKey: openKeyOf(input.payable, input.mode),
         linkId: input.linkId,
         nonce: input.nonce,
         providerRef: null,
@@ -325,6 +362,10 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         checkedAt: null,
         checkedBy: null,
         checkNote: null,
+        lookedAt: null,
+        captureTry: 0,
+        failEvents: 0,
+        failCounted: 0,
       };
       try {
         await db.insertInto('adminium_payment_attempts').values(row).execute();
@@ -340,41 +381,48 @@ export function paymentAttemptsRepo(meta: MetaDb) {
       return row === undefined ? null : decodeAttempt(row);
     },
 
-    /** The attempt holding a payable's open slot, if any. */
-    async openFor(payable: PayableRef): Promise<PaymentAttempt | null> {
-      const row = await db
-        .selectFrom('adminium_payment_attempts')
-        .selectAll()
-        .where('openKey', '=', payableKeyOf(payable))
-        .executeTakeFirst();
-      return row === undefined ? null : decodeAttempt(row);
+    /**
+     * The attempt holding a payable's open slot in a mode. With no mode, the
+     * live one, else the test one.
+     */
+    async openFor(payable: PayableRef, mode?: 'test' | 'live'): Promise<PaymentAttempt | null> {
+      const modes: ('test' | 'live')[] = mode === undefined ? ['live', 'test'] : [mode];
+      for (const one of modes) {
+        const row = await db.selectFrom('adminium_payment_attempts').selectAll().where('openKey', '=', openKeyOf(payable, one)).executeTakeFirst();
+        if (row !== undefined) return decodeAttempt(row);
+      }
+      return null;
     },
 
     async byProviderRef(provider: string, mode: string, providerRef: string): Promise<PaymentAttempt | null> {
-      const row = await db
+      const rows = await db
         .selectFrom('adminium_payment_attempts')
         .selectAll()
         .where('provider', '=', provider)
         .where('mode', '=', mode)
         .where('providerRef', '=', providerRef)
-        .executeTakeFirst();
+        .execute();
+      // Exact: a MySQL meta store matches text without regard to case.
+      const row = rows.find((one) => one.providerRef === providerRef);
       return row === undefined ? null : decodeAttempt(row);
     },
 
     async byPaymentRef(provider: string, mode: string, paymentRef: string): Promise<PaymentAttempt | null> {
-      const row = await db
+      const rows = await db
         .selectFrom('adminium_payment_attempts')
         .selectAll()
         .where('provider', '=', provider)
         .where('mode', '=', mode)
         .where('paymentRef', '=', paymentRef)
-        .executeTakeFirst();
+        .execute();
+      const row = rows.find((one) => one.paymentRef === paymentRef);
       return row === undefined ? null : decodeAttempt(row);
     },
 
     /** The attempt a return URL names. The nonce is unguessable; the caller still checks the link. */
     async byNonce(nonce: string): Promise<PaymentAttempt | null> {
-      const row = await db.selectFrom('adminium_payment_attempts').selectAll().where('nonce', '=', nonce).executeTakeFirst();
+      const rows = await db.selectFrom('adminium_payment_attempts').selectAll().where('nonce', '=', nonce).execute();
+      const row = rows.find((one) => one.nonce === nonce);
       return row === undefined ? null : decodeAttempt(row);
     },
 
@@ -391,7 +439,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
           : query.where('connectionId', '=', payable.connectionId);
       query = payable.tableName === null ? query.where('tableName', 'is', null) : query.where('tableName', '=', payable.tableName);
       const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(limit).execute();
-      return rows.map(decodeAttempt);
+      return rows.map(decodeAttempt).filter((one) => samePayable(one, payable));
     },
 
     /**
@@ -399,19 +447,120 @@ export function paymentAttemptsRepo(meta: MetaDb) {
      * compare-and-set. Returns false when the attempt was not in an allowed
      * state (somebody else moved it first). Leaving the open states frees the
      * payable's slot in the same statement.
+     *
+     * A success that comes back from a closed state (the provider took the
+     * money after Adminium let the payable go) takes the slot back, so no
+     * second checkout starts before it is written down. When another attempt
+     * holds the slot by then, the success still moves (taken money is never
+     * left unrecorded) and is flagged for a person: two payments may be on
+     * their way.
      */
     async move(id: string, to: AttemptState, patch: AttemptPatch = {}, at: number = Date.now()): Promise<boolean> {
       const from = ATTEMPT_MOVES[to];
       if (from.length === 0) throw new RangeError(`An attempt never moves to "${to}".`);
       const set: Record<string, unknown> = { ...patchColumns(patch), state: to, updatedAt: at };
       if (!OPEN_ATTEMPT_STATES.includes(to)) set['openKey'] = null;
+      const run = (values: Record<string, unknown>) =>
+        db.updateTable('adminium_payment_attempts').set(values).where('id', '=', id).where('state', 'in', [...from]).executeTakeFirst();
+      if (to === 'succeeded') {
+        const current = await db.selectFrom('adminium_payment_attempts').selectAll().where('id', '=', id).executeTakeFirst();
+        if (current === undefined || !(from as readonly string[]).includes(current.state)) return false;
+        if (current.openKey === null) {
+          const attempt = decodeAttempt(current);
+          try {
+            return affected((await run({ ...set, openKey: openKeyOf(attempt.payable, attempt.mode) })).numUpdatedRows) === 1;
+          } catch (error) {
+            if (!isDuplicateKeyError(error)) throw error;
+            const problem: AttemptProblem = { code: 'TWO_AT_ONCE', message: 'Another payment for the same record was on its way when this one arrived.' };
+            return affected((await run({ ...set, flaggedAt: at, problem: packJson(problem) })).numUpdatedRows) === 1;
+          }
+        }
+      }
+      return affected((await run(set)).numUpdatedRows) === 1;
+    },
+
+    /** The provider was asked about it now (whatever it answered). */
+    async looked(id: string, at: number = Date.now()): Promise<void> {
+      await db.updateTable('adminium_payment_attempts').set({ lookedAt: at }).where('id', '=', id).execute();
+    },
+
+    /** The next capture try gets a key of its own (a declined capture's key would replay the decline). */
+    async nextCaptureTry(id: string, seen: number): Promise<boolean> {
       const res = await db
         .updateTable('adminium_payment_attempts')
-        .set(set)
+        .set({ captureTry: seen + 1 })
         .where('id', '=', id)
-        .where('state', 'in', [...from])
+        .where('captureTry', '=', seen)
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Counts a decline the provider reported, once: through one of its events
+     * (`viaEvent`, each stored event is settled once) or by the attempt's own
+     * move to failed. Returns how many declines the link's failure count must
+     * gain now: `max(1, declines seen in events)` less what it already holds.
+     */
+    async countFailure(id: string, viaEvent: boolean): Promise<number> {
+      if (viaEvent) await db.updateTable('adminium_payment_attempts').set((eb) => ({ failEvents: eb('failEvents', '+', 1) })).where('id', '=', id).execute();
+      for (let round = 0; round < 3; round += 1) {
+        const row = await db.selectFrom('adminium_payment_attempts').select(['failEvents', 'failCounted']).where('id', '=', id).executeTakeFirst();
+        if (row === undefined) return 0;
+        const counted = Number(row.failCounted);
+        const wanted = Math.max(1, Number(row.failEvents));
+        if (wanted <= counted) return 0;
+        const res = await db
+          .updateTable('adminium_payment_attempts')
+          .set({ failCounted: wanted })
+          .where('id', '=', id)
+          .where('failCounted', '=', counted)
+          .executeTakeFirst();
+        if (affected(res.numUpdatedRows) === 1) return wanted - counted;
+      }
+      return 0;
+    },
+
+    /**
+     * Attempts of one service and mode in these states, the longest-unasked
+     * first, not asked since `before`: what the sweep looks up. Filtered and
+     * ordered in the database, so one busy service never hides another's.
+     */
+    async waitingOn(provider: string, mode: string, states: readonly AttemptState[], before: number, limit = 100, createdAfter?: number): Promise<PaymentAttempt[]> {
+      let query = db
+        .selectFrom('adminium_payment_attempts')
+        .selectAll()
+        .where('provider', '=', provider)
+        .where('mode', '=', mode)
+        .where('state', 'in', [...states])
+        .where('providerRef', 'is not', null)
+        .where((eb) => eb(eb.fn.coalesce('lookedAt', 'updatedAt'), '<', before));
+      if (createdAfter !== undefined) query = query.where('createdAt', '>', createdAfter);
+      const rows = await query.orderBy((eb) => eb.fn.coalesce('lookedAt', 'updatedAt'), 'asc').orderBy('id', 'asc').limit(limit).execute();
+      return rows.map(decodeAttempt);
+    },
+
+    /** How many attempts of one service and mode are in these states. */
+    async countIn(provider: string, mode: string, states: readonly AttemptState[]): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_payment_attempts')
+        .select((eb) => eb.fn.countAll<number>().as('n'))
+        .where('provider', '=', provider)
+        .where('mode', '=', mode)
+        .where('state', 'in', [...states])
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
+    /** Lets go of every attempt that never got a checkout (nobody holds its page), whatever its service. */
+    async abandonStale(before: number, at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_payment_attempts')
+        .set({ state: 'abandoned', openKey: null, updatedAt: at })
+        .where('state', '=', 'creating')
+        .where('providerRef', 'is', null)
+        .where('updatedAt', '<', before)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows);
     },
 
     /** Writes what was learned without a move (a ref read again, the taken amount). Guarded on the state. */
@@ -438,25 +587,55 @@ export function paymentAttemptsRepo(meta: MetaDb) {
     },
 
     /** Every attempt, newest first, for Activity: by mode and states when given. */
-    async list(filter: { mode?: 'test' | 'live'; states?: readonly AttemptState[]; provider?: string; before?: number; limit?: number } = {}): Promise<PaymentAttempt[]> {
+    async list(filter: { mode?: 'test' | 'live'; states?: readonly AttemptState[]; provider?: string; before?: number | { at: number; id: string }; limit?: number } = {}): Promise<PaymentAttempt[]> {
       let query = db.selectFrom('adminium_payment_attempts').selectAll();
       if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
       if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
       if (filter.states !== undefined && filter.states.length > 0) query = query.where('state', 'in', [...filter.states]);
-      if (filter.before !== undefined) query = query.where('createdAt', '<', filter.before);
+      const before = filter.before;
+      if (typeof before === 'number') query = query.where('createdAt', '<', before);
+      else if (before !== undefined) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
       const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 50).execute();
       return rows.map(decodeAttempt);
     },
 
+    /** Flags an attempt for a person's look (in any state), once. */
     async flag(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_payment_attempts')
         .set({ flaggedAt: at, updatedAt: at })
         .where('id', '=', id)
-        .where('state', '=', 'processing')
         .where('flaggedAt', 'is', null)
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Attempts that need a person's look and nobody checked yet (taken but not
+     * written down, or flagged), newest first, from a `(createdAt, id)` cursor.
+     */
+    async needingLook(filter: { mode?: 'test' | 'live'; provider?: string; before?: { at: number; id: string }; limit?: number } = {}): Promise<PaymentAttempt[]> {
+      let query = db
+        .selectFrom('adminium_payment_attempts')
+        .selectAll()
+        .where((eb) => eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]))
+        .where('checkedAt', 'is', null);
+      if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
+      if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
+      const before = filter.before;
+      if (before !== undefined) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
+      const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 50).execute();
+      return rows.map(decodeAttempt);
+    },
+
+    async countNeedingLook(): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_payment_attempts')
+        .select((eb) => eb.fn.countAll<number>().as('n'))
+        .where((eb) => eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]))
+        .where('checkedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
     },
 
     /** Attempts in these states not touched since `before`, oldest first: what the sweep picks up. */
@@ -568,16 +747,20 @@ export function paymentEventsRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
-    /** Events received before `before` and never processed: the sweep re-drives them. */
-    async unprocessed(before: number, limit = 100): Promise<PaymentEventRow[]> {
-      const rows = await db
+    /**
+     * Events about an attempt, received before `before` and never processed:
+     * the sweep re-drives them. By service and mode when given; an event about
+     * no attempt is never work here.
+     */
+    async unprocessed(before: number, limit = 100, scope?: { provider: string; mode: string }): Promise<PaymentEventRow[]> {
+      let query = db
         .selectFrom('adminium_payment_events')
         .selectAll()
         .where('processedAt', 'is', null)
-        .where('receivedAt', '<', before)
-        .orderBy('receivedAt', 'asc')
-        .limit(limit)
-        .execute();
+        .where('attemptId', 'is not', null)
+        .where('receivedAt', '<', before);
+      if (scope !== undefined) query = query.where('provider', '=', scope.provider).where('mode', '=', scope.mode);
+      const rows = await query.orderBy('receivedAt', 'asc').limit(limit).execute();
       return rows.map(decodeEvent);
     },
 
@@ -1004,12 +1187,27 @@ export function refundsRepo(meta: MetaDb) {
     },
 
     /** Refunds, newest first, for Activity. */
-    async list(filter: { mode?: 'test' | 'live'; before?: number; limit?: number } = {}): Promise<RefundRow[]> {
+    async list(filter: { mode?: 'test' | 'live'; provider?: string; before?: number | { at: number; id: string }; limit?: number; needingLook?: boolean } = {}): Promise<RefundRow[]> {
       let query = db.selectFrom('adminium_refunds').selectAll();
       if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
-      if (filter.before !== undefined) query = query.where('createdAt', '<', filter.before);
+      if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
+      // A refund made at the provider is shown to a person until they check it.
+      if (filter.needingLook === true) query = query.where('source', '=', 'provider').where('checkedAt', 'is', null);
+      const before = filter.before;
+      if (typeof before === 'number') query = query.where('createdAt', '<', before);
+      else if (before !== undefined) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
       const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 50).execute();
       return rows.map(decodeRefund);
+    },
+
+    async countNeedingLook(): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_refunds')
+        .select((eb) => eb.fn.countAll<number>().as('n'))
+        .where('source', '=', 'provider')
+        .where('checkedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
     },
 
     async markUndone(id: string, at: number = Date.now()): Promise<boolean> {

@@ -1561,6 +1561,13 @@ export interface AdminiumPaymentAttemptsTable {
   checkedAt: Ts | null;
   checkedBy: string | null;
   checkNote: string | null;
+  /** When the provider was last asked about it. */
+  lookedAt: Ts | null;
+  /** Which capture try a two-step provider's next capture is (its key changes after a decline). */
+  captureTry: ColumnType<number, number | undefined, number>;
+  /** Declines the provider's events reported; and how many the link's failure count already holds. */
+  failEvents: ColumnType<number, number | undefined, number>;
+  failCounted: ColumnType<number, number | undefined, number>;
 }
 
 /** A webhook, or a status change a poll found, unique per provider, mode and event id (0061). */
