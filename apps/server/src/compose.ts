@@ -287,10 +287,11 @@ import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { paymentLinksRoutes } from './routes/payments/links.js';
 import { payRoutes } from './routes/pay/index.js';
+import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
 import { anyLiveOn, paymentAddOnKeys, readyPaymentProviders } from './payments/ready.js';
-import { PAYMENT_MODES, type PaymentMode } from '@adminium/add-on-contracts';
+import { DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
@@ -1500,13 +1501,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // pickup that queues it again for any attempt a dead job left behind.
   const paymentSources = createPayableSources({ meta, manager });
   registerPaymentsRecordHandler(jobs.registry, { meta, sources: paymentSources, writes: recordWrites, app, log: app.log });
-  // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
-  const paymentProviderLookup = (key: string, mode: PaymentMode) =>
-    paymentProviderFor(
-      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null, log: (message, fields) => app.log.warn(fields, message) },
+  // ── The demo payment service ─────────────────────────────────────────────
+  // Pretend money in test mode, with no account: the staff preview and a test
+  // payment work on every install. Its hosted page is this server's own
+  // (`/pay/demo/<attempt>`), on the host the customer comes back to.
+  const paymentDemo = createDemoPaymentBackend({
+    pageUrl: (checkout) => `${checkout.successUrl === null ? DEMO_PAYMENT_ORIGIN : new URL(checkout.successUrl).origin}/pay/demo/${encodeURIComponent(checkout.attemptId)}`,
+  });
+  const paymentProviderLookup = async (key: string, mode: PaymentMode) => {
+    return paymentProviderFor(
+      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: paymentDemo, log: (message, fields) => app.log.warn(fields, message) },
       key,
       mode,
     );
+  };
+  // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
   const paymentCheckout = createCheckoutService({
     meta,
     sources: paymentSources,
@@ -2686,6 +2695,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       readyProviders: async (mode) =>
         (await readyPaymentProviders({ meta, manifests: appManifests, runtime: () => addOnRuntime })).filter((one) => one.mode === mode).map((one) => one.key),
       secret: env.ADMINIUM_SECRET,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+  // The pay page's HTML, its own files and the demo's hosted page, each with
+  // the pay page's own content policy (set last, in its own scope).
+  await app.register(
+    payPageRoutes({
+      meta,
+      storage,
+      demo: paymentDemo,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,

@@ -88,6 +88,8 @@ interface DemoCheckout {
   failureMessage: string | null;
   expiresAt: number;
   idempotencyKey: string;
+  /** Where the customer goes back to: the demo's page opens on the same host. */
+  successUrl: string | null;
 }
 
 interface DemoRefund {
@@ -116,7 +118,7 @@ export interface DemoPaymentBackendOptions {
   /** The clock, for "settles late" and signature times. Defaults to `Date.now`. */
   now?: () => number;
   /** Where the hosted page for a checkout lives. Defaults to the demo origin. */
-  pageUrl?: (checkout: { id: string; attemptId: string }) => string;
+  pageUrl?: (checkout: { id: string; attemptId: string; successUrl: string | null }) => string;
   /** How long a late payment or a refund takes to settle. Default 60 s. */
   settleAfterMs?: number;
   /** How long an open checkout lives. Default one hour, as the Stripe sessions Adminium makes. */
@@ -248,7 +250,7 @@ export function createDemoPaymentBackend(options: DemoPaymentBackendOptions = {}
       settledAt: checkout.settledAt,
       failureMessage: checkout.failureMessage,
       expiresAt: checkout.expiresAt,
-      url: pageUrl({ id: checkout.id, attemptId: checkout.attemptId }),
+      url: pageUrl({ id: checkout.id, attemptId: checkout.attemptId, successUrl: checkout.successUrl }),
     };
   }
 
@@ -311,6 +313,7 @@ export function createDemoPaymentBackend(options: DemoPaymentBackendOptions = {}
         failureMessage: null,
         expiresAt: now() + lifetime,
         idempotencyKey,
+        successUrl: typeof body['successUrl'] === 'string' ? body['successUrl'] : null,
       };
       checkouts.set(checkout.id, checkout);
       checkoutByKey.set(idempotencyKey, checkout.id);
@@ -587,6 +590,7 @@ export function createDemoPaymentProvider(context: PaymentProviderContext): Paym
           amount: input.payable.amount,
           currency: input.payable.currency,
           methods: input.methods,
+          successUrl: input.successUrl,
         },
         input.idempotencyKey,
       );

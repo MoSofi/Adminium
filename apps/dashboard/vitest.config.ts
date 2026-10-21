@@ -15,7 +15,10 @@ export default defineConfig({
     // stays importable even before the package's runtime deps land.
     alias: [
       { find: '@adminium/i18n/registry', replacement: i18nSrc('locales.ts') },
+      // One namespace's own bundle (the pay page and the desktop pages import them one by one).
+      { find: /^@adminium\/i18n\/resources\/([a-z-]+\/[A-Za-z]+)$/, replacement: `${i18nSrc('resources')}/$1.ts` },
       { find: '@adminium/i18n/resources', replacement: i18nSrc('resources/index.ts') },
+      { find: '@adminium/i18n/page', replacement: i18nSrc('page.ts') },
       { find: '@adminium/i18n/react', replacement: i18nSrc('react.tsx') },
       { find: '@adminium/i18n/format', replacement: i18nSrc('format/index.ts') },
       { find: '@adminium/i18n', replacement: i18nSrc('index.ts') },

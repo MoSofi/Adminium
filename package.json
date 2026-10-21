@@ -17,6 +17,7 @@
     "check-deps": "depcruise --config .dependency-cruiser.cjs apps packages",
     "check-offline-assets": "node scripts/check-offline-assets.mjs",
     "check-email-block-vocab": "node scripts/check-email-block-vocab.mjs",
+    "check-mark-possessives": "node scripts/check-mark-possessives.mjs",
     "check-invoice-money-fixture": "node scripts/check-invoice-money-fixture.mjs",
     "check-assistant-script": "node apps/e2e/scripts/fake-llm.mjs --self-test",
     "check-assistant-contexts": "node scripts/check-assistant-contexts.mjs --self-test && node scripts/check-assistant-contexts.mjs",

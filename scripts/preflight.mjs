@@ -87,6 +87,7 @@ const listOnly = argv.has('--list');
  */
 const STEPS = [
   { id: 'check-spdx', cmd: 'pnpm run check-spdx', why: 'every tracked source file declares AGPL-3.0-only', tier: 'quick' },
+  { id: 'check-mark-possessives', cmd: 'pnpm run check-mark-possessives', why: "no shipped string writes a payment provider's mark in the possessive", tier: 'quick' },
   {
     // In `quick` because it is a text scan over tracked files: 1.5 s, no build.
     // It has to run from the root and uncached — it reads every package, so a

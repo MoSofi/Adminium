@@ -114,6 +114,12 @@ jobs:
       - name: Check SPDX headers
         run: pnpm run check-spdx
 
+      # Payment providers' marks are never written in the possessive in a
+      # shipped string (their marks terms bar it): screens, emails, locale
+      # bundles, docs and skills. A text scan through TypeScript's scanner.
+      - name: Check no provider mark is written in the possessive
+        run: pnpm run check-mark-possessives
+
       # The work plan this repository was built from lives outside it, and the
       # house convention cited it bare: a document filename, a section, a
       # decision or a task id. To anyone outside the repo those are dead ends,

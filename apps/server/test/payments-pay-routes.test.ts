@@ -33,7 +33,7 @@ import { paymentProviderFor } from '../src/payments/providers.js';
 import { recordAttempt } from '../src/payments/record.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { solveProof } from '../src/public-api/proof.js';
-import { payRoutes } from '../src/routes/pay/index.js';
+import { paidSoFar, payRoutes } from '../src/routes/pay/index.js';
 import { paymentLinksRoutes } from '../src/routes/payments/links.js';
 import { TEST_SECRET } from './helpers.js';
 
@@ -45,6 +45,7 @@ describe('a pay link, end to end', () => {
   let backend: DemoPaymentBackend;
   let owner: User;
   let jobs: string[];
+  let locales: (string | null)[];
   const sources: PayableSources = {
     table: async () => null,
     readRow: async () => null,
@@ -52,7 +53,7 @@ describe('a pay link, end to end', () => {
     connectionCurrency: async () => null,
     profile: async () => null,
     keptPaid: (ref, currency) => keptPaymentsRepo(meta).paid(ref, currency, 'live'),
-    document: async (id) => (id === 'doc_inv0042' ? { status: 'sent', number: 'INV-0042', currency: 'EUR', totalMinor: 12000 } : null),
+    document: async (id) => (id === 'doc_inv0042' ? { status: 'sent', number: 'INV-0042', currency: 'EUR', totalMinor: 12000, due: '2026-11-02' } : null),
   };
   const staff = () => ({ 'x-test-user-id': owner.id, origin: PAY });
 
@@ -61,8 +62,10 @@ describe('a pay link, end to end', () => {
     await firstRun(meta);
     await paymentSettingsRepo(meta).set(PAY_ADDRESS_DOC, payAddressSchema, { origin: PAY });
     await paymentMethodsRepo(meta).put({ source: 'demo', method: 'card', label: null, enabled: true, rules: NO_RULES, details: null, position: 0 });
-    backend = createDemoPaymentBackend({ pageUrl: (checkout) => `${PAY}/pay/demo/${checkout.attemptId}` });
+    // As the server wires it: the demo's page opens on the host the customer comes back to.
+    backend = createDemoPaymentBackend({ pageUrl: (checkout) => `${new URL(checkout.successUrl ?? PAY).origin}/pay/demo/${checkout.attemptId}` });
     jobs = [];
+    locales = [];
     const users = usersRepo(meta);
     const superAdmin = await rolesRepo(meta).findBySlug('super-admin');
     owner = await users.create({ email: 'mara@adminium.test', name: 'Mara', status: 'active' });
@@ -92,7 +95,9 @@ describe('a pay link, end to end', () => {
     });
     await app.register(rbacPlugin, { meta });
     await app.register(async (api) => api.register(paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } }, sources, secret: TEST_SECRET, ...facts, liveOn: async () => false })), { prefix: '/api/v1' });
-    await app.register(payRoutes({ meta, sources, checkout, readyProviders: async (mode) => (mode === 'test' ? ['demo'] : []), secret: TEST_SECRET, ...facts }));
+    // Notes the language each checkout is started in.
+    const noting = { ...checkout, start: async (input: Parameters<typeof checkout.start>[0]) => (locales.push(input.locale), checkout.start(input)) };
+    await app.register(payRoutes({ meta, sources, checkout: noting, readyProviders: async (mode) => (mode === 'test' ? ['demo'] : []), secret: TEST_SECRET, ...facts }));
     await app.ready();
   });
 
@@ -126,25 +131,45 @@ describe('a pay link, end to end', () => {
     const { token } = await mint();
     expect((await app.inject({ method: 'GET', url: `/pay/api/${token}` })).json()).toMatchObject({ state: 'test-staff-only', payable: null });
     const page = (await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: staff() })).json();
-    expect(page).toMatchObject({ state: 'ready', test: true, payable: { label: 'INV-0042', currency: 'EUR', due: '120.00' } });
+    expect(page).toMatchObject({ state: 'ready', test: true, payable: { label: 'INV-0042', currency: 'EUR', due: '120.00', dueDate: '2026-11-02', alreadyPaid: null, lines: null } });
     expect(page.ways.map((one: { source: string; method: string }) => `${one.source}:${one.method}`)).toEqual(['demo:card']);
   });
 
   it('pays after the human check, and reads the result from the provider on the way back', async () => {
     const { token } = await mint();
     expect((await app.inject({ method: 'POST', url: `/pay/api/${token}/checkout`, headers: staff(), payload: { source: 'demo' } })).statusCode).toBe(403);
-    const started = await app.inject({ method: 'POST', url: `/pay/api/${token}/checkout`, headers: { ...staff(), 'x-adminium-proof': await proof(token) }, payload: { source: 'demo' } });
+    const started = await app.inject({ method: 'POST', url: `/pay/api/${token}/checkout`, headers: { ...staff(), 'x-adminium-proof': await proof(token) }, payload: { source: 'demo', locale: 'de-DE' } });
     expect(started.statusCode, started.payload).toBe(200);
-    expect(started.json().url.startsWith(`${PAY}/pay/demo/`)).toBe(true);
+    // The page's language is handed to the service's page.
+    expect(locales).toEqual(['de-DE']);
+    // A test payment comes back to the host the signed-in staff opened it on.
+    expect(started.json().url).toMatch(/^http:\/\/localhost(:80)?\/pay\/demo\//);
 
     const [attempt] = await paymentAttemptsRepo(meta).forPayable({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' });
     const before = (await app.inject({ method: 'GET', url: `/pay/api/back/${attempt!.nonce}`, headers: staff() })).json();
     expect(before.state).toBe('checking');
     await backend.pay(backend.checkoutForAttempt(attempt!.id)!.id, 'succeeds');
     const back = (await app.inject({ method: 'GET', url: `/pay/api/back/${attempt!.nonce}`, headers: staff() })).json();
-    expect(back).toMatchObject({ state: 'paid', test: true });
+    expect(back).toMatchObject({ state: 'paid', test: true, attempt: { provider: 'demo', amount: '120.00', currency: 'EUR', receiptSent: false } });
     expect(jobs).toEqual([attempt!.id]);
     expect(await recordAttempt({ meta, sources }, attempt!.id)).toMatchObject({ state: 'recorded' });
+  });
+
+  it('says a link has expired, and still tells a revoked link how its own payment went, without the record', async () => {
+    const { token, id } = await mint();
+    const started = await app.inject({ method: 'POST', url: `/pay/api/${token}/checkout`, headers: { ...staff(), 'x-adminium-proof': await proof(token) }, payload: { source: 'demo' } });
+    expect(started.statusCode, started.payload).toBe(200);
+    const [attempt] = await paymentAttemptsRepo(meta).forPayable({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' });
+    await backend.pay(backend.checkoutForAttempt(attempt!.id)!.id, 'succeeds');
+
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/links/${id}/revoke`, headers: staff() })).statusCode).toBe(204);
+    const back = (await app.inject({ method: 'GET', url: `/pay/api/back/${attempt!.nonce}`, headers: staff() })).json();
+    expect(back).toMatchObject({ state: 'paid', payable: null, attempt: { amount: '120.00', currency: 'EUR' } });
+
+    const fresh = await mint();
+    await meta.db.updateTable('adminium_payment_links').set({ expiresAt: 1 }).where('id', '=', fresh.id).execute();
+    const expired = (await app.inject({ method: 'GET', url: `/pay/api/${fresh.token}`, headers: staff() })).json();
+    expect(expired).toMatchObject({ state: 'expired', payable: null, ways: [] });
   });
 
   it('never spends one proof twice', async () => {
@@ -170,5 +195,16 @@ describe('a pay link, end to end', () => {
     const refused = await app.inject({ method: 'POST', url: '/api/v1/payments/links', headers: staff(), payload: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' } });
     expect(refused.statusCode).toBe(422);
     expect(refused.json().error.details).toEqual({ reason: 'private-network' });
+  });
+});
+
+describe('what the pay page says is already paid', () => {
+  it('is exact in the currency\'s own decimals, and says nothing when nothing or everything is paid', () => {
+    expect(paidSoFar({ total: '120.00', due: '70.00', currency: 'EUR' })).toBe('50.00');
+    expect(paidSoFar({ total: '0.30', due: '0.10', currency: 'EUR' })).toBe('0.20');
+    expect(paidSoFar({ total: '45.250', due: '45.000', currency: 'KWD' })).toBe('0.250');
+    expect(paidSoFar({ total: '12000', due: '2000', currency: 'JPY' })).toBe('10000');
+    expect(paidSoFar({ total: '120.00', due: '120.00', currency: 'EUR' })).toBeNull();
+    expect(paidSoFar({ total: '120.00', due: '0.00', currency: 'EUR' })).toBeNull();
   });
 });

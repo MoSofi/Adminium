@@ -1,0 +1,727 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The customer's pay page: plain CSS on the design tokens, no Tailwind.
+ *
+ * The page's own build serves this from `/pay/assets/` only, so it carries
+ * the tokens (colours, the orange accent, both themes) and the three fonts
+ * itself, and nothing of the dashboard's stylesheet. Logical properties
+ * throughout: the same rules lay the page out right to left in Arabic.
+ */
+@import "@adminium/tokens/tokens.css";
+@import "@adminium/tokens/accents.css";
+@import "@adminium/tokens/fonts.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+html[lang|="ar"] body {
+  font-family: "IBM Plex Sans Arabic", "Manrope", system-ui, sans-serif;
+}
+
+html[lang|="ar"] * {
+  letter-spacing: 0 !important;
+}
+
+#pay-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.pp-mono {
+  font-family: "JetBrains Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+}
+
+[dir="rtl"] .pp-flip {
+  transform: scaleX(-1);
+}
+
+.pp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.pp-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+@keyframes pp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pp-spin {
+  animation: pp-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-spin {
+    animation: none;
+  }
+}
+
+/* ── The page ─────────────────────────────────────────────────────────── */
+
+.pp-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  background: var(--bg);
+}
+
+.pp-test {
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-block-end: 1px solid var(--border);
+}
+
+.pp-header,
+.pp-footer {
+  background: var(--surface);
+}
+
+.pp-header {
+  border-block-end: 1px solid var(--border);
+}
+
+.pp-footer {
+  border-block-start: 1px solid var(--border);
+}
+
+.pp-header-inner,
+.pp-footer-inner {
+  max-width: 960px;
+  margin-inline: auto;
+  padding-inline: max(16px, 3cqi);
+}
+
+.pp-header-inner {
+  padding-block: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.pp-monogram,
+.pp-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex: 0 0 auto;
+}
+
+.pp-monogram {
+  background: var(--accent);
+  color: var(--accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.pp-logo {
+  object-fit: contain;
+  background: var(--surface);
+}
+
+.pp-shop {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pp-language-button {
+  margin-inline-start: auto;
+  height: 44px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.pp-menu {
+  position: absolute;
+  inset-block-start: calc(100% - 4px);
+  inset-inline-end: max(16px, 3cqi);
+  z-index: 5;
+  width: 208px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(20, 20, 35, 0.04), 0 12px 28px rgba(20, 20, 35, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pp-menu-item {
+  min-height: 40px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Manrope", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.pp-menu-item:hover,
+.pp-menu-item:focus-visible {
+  background: var(--surface-3);
+}
+
+.pp-menu-item > span {
+  flex: 1;
+}
+
+.pp-main {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  padding-inline: max(16px, 3cqi);
+  padding-block: max(20px, 3cqi);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px max(16px, 3cqi);
+  align-items: start;
+}
+
+.pp-main[data-solo] {
+  max-width: 600px;
+}
+
+.pp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pp-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pp-h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.pp-h1:focus {
+  outline: none;
+}
+
+.pp-h1:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.pp-h1 .pp-mono {
+  font-weight: 700;
+}
+
+.pp-h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.pp-h2:focus {
+  outline: none;
+}
+
+.pp-ways-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.pp-small {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.pp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-hero {
+  gap: 6px;
+}
+
+.pp-micro {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.pp-amount {
+  align-self: flex-start;
+  font-family: "JetBrains Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+  font-size: clamp(28px, 2.7cqi, 34px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.pp-figure {
+  font-family: "JetBrains Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.pp-lines {
+  gap: 8px;
+}
+
+.pp-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--border);
+}
+
+.pp-line > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-line > bdi {
+  font-family: "JetBrains Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── The status card ─────────────────────────────────────────────────── */
+
+.pp-status {
+  gap: 14px;
+}
+
+.pp-status[data-tone="positive"] {
+  --tone: var(--pos);
+  --tone-bg: var(--pos-soft);
+}
+
+.pp-status[data-tone="warning"] {
+  --tone: var(--warn);
+  --tone-bg: var(--warn-soft);
+}
+
+.pp-status[data-tone="danger"] {
+  --tone: var(--danger);
+  --tone-bg: var(--danger-soft);
+}
+
+.pp-status[data-tone="info"] {
+  --tone: var(--info);
+  --tone-bg: var(--info-soft);
+}
+
+.pp-status[data-tone="neutral"] {
+  --tone: var(--fg-muted);
+  --tone-bg: var(--surface-3);
+}
+
+.pp-status-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pp-tile {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.pp-status .pp-tile {
+  background: var(--tone-bg);
+  color: var(--tone);
+}
+
+.pp-status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-block-start: 7px;
+}
+
+.pp-status-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.pp-status-text p .pp-figure {
+  color: var(--fg);
+}
+
+.pp-button,
+.pp-button-secondary {
+  height: 48px;
+  width: 100%;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pp-button {
+  border: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.pp-button-secondary {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.pp-link {
+  align-self: flex-start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pp-contact {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: 6px;
+  border-block-start: 1px solid var(--border);
+}
+
+.pp-contact a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ── Ways to pay ─────────────────────────────────────────────────────── */
+
+.pp-ways {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pp-way {
+  min-height: 68px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.pp-way:hover {
+  border-color: var(--fg-subtle);
+}
+
+.pp-way[aria-disabled="true"] {
+  cursor: default;
+}
+
+.pp-way[data-dim] {
+  opacity: 0.5;
+}
+
+.pp-way .pp-tile {
+  background: var(--surface-3);
+  color: var(--fg-muted);
+}
+
+.pp-way-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: none;
+}
+
+.pp-way-primary:hover {
+  border-color: var(--accent);
+}
+
+.pp-way-primary .pp-tile {
+  background: color-mix(in srgb, var(--accent-fg) 16%, transparent);
+  color: var(--accent-fg);
+}
+
+.pp-way-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-way-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pp-way-sub {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.pp-way-primary .pp-way-sub {
+  color: inherit;
+}
+
+.pp-way-end {
+  color: var(--fg-subtle);
+  display: flex;
+}
+
+.pp-way-primary .pp-way-end {
+  color: inherit;
+}
+
+.pp-note {
+  margin: 0;
+  margin-block-start: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.pp-note > .pp-icon {
+  margin-block-start: 3px;
+  color: var(--pos);
+}
+
+/* ── Bank transfer ───────────────────────────────────────────────────── */
+
+.pp-bank {
+  gap: 12px;
+}
+
+.pp-bank-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pp-bank-head .pp-tile {
+  background: var(--surface-3);
+  color: var(--fg-muted);
+}
+
+.pp-bank-head .pp-h2 {
+  flex: 1;
+}
+
+.pp-text-button {
+  min-height: 44px;
+  padding-inline: 4px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pp-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+  border-block-start: 1px solid var(--border);
+}
+
+.pp-row-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-row-label {
+  font-size: 11.5px;
+  color: var(--fg-subtle);
+}
+
+.pp-row-value {
+  margin: 0;
+  font-family: "JetBrains Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.pp-copy {
+  height: 44px;
+  min-width: 44px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+
+.pp-footer-inner {
+  padding-block: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--fg-subtle);
+}
+
+/* ── The demo service's pretend page ─────────────────────────────────── */
+
+.pp-demo {
+  gap: 12px;
+}
+
+.pp-demo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

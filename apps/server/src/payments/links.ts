@@ -98,6 +98,24 @@ export async function linkForToken(meta: MetaDb, token: string, at: number = Dat
   return link;
 }
 
+/**
+ * What a token opens, for the pay page: the link, or why not. An expired link
+ * says so (its holder had it from the shop); unknown, revoked and replaced
+ * answer alike, so the page tells nobody which tokens ever existed.
+ */
+export async function linkStateForToken(meta: MetaDb, token: string, at: number = Date.now()): Promise<{ state: 'open'; link: PaymentLink } | { state: 'expired' } | { state: 'unknown' }> {
+  if (!looksLikeToken(token)) return { state: 'unknown' };
+  const link = await paymentLinksRepo(meta).byHash(linkTokenHash(token));
+  if (link === null || !link.current || link.revokedAt !== null) return { state: 'unknown' };
+  if (link.expiresAt <= at) return { state: 'expired' };
+  return { state: 'open', link };
+}
+
+/** Whether a link still opens: current, not revoked, not expired. */
+export function linkOpens(link: PaymentLink, at: number = Date.now()): boolean {
+  return link.current && link.revokedAt === null && link.expiresAt > at;
+}
+
 /** The pay address, normalised, or null when none is saved. */
 export async function payAddress(meta: MetaDb): Promise<string | null> {
   const saved = await paymentSettingsRepo(meta).get(PAY_ADDRESS_DOC, payAddressSchema);
