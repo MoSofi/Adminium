@@ -15,6 +15,7 @@ import { createSqliteMetaDb, firstRun, paymentAttemptsRepo, paymentCountersRepo,
 import { SettleUnanswered, createCheckoutService, type CheckoutService } from '../src/payments/checkout.js';
 import type { PayableSources, ResolvedPayable } from '../src/payments/payables.js';
 import { DEMO_CREDENTIALS, paymentProviderFor } from '../src/payments/providers.js';
+import { refundableOf, registerPaymentsRefundHandler, requestRefund, type RefundDeps } from '../src/payments/refunds.js';
 import { receiveWebhook, registerPaymentsSettleHandler, webhookDocName, webhookHealthSchema, type WebhookDeps } from '../src/payments/webhook.js';
 import type { JobRegistry } from '../src/jobs/registry.js';
 import { paymentWebhookRoutes } from '../src/routes/payments/webhook.js';
@@ -29,13 +30,14 @@ describe('the payment webhook', () => {
   let checkout: CheckoutService;
   let app: FastifyInstance;
   let settles: { attemptId: string; eventId?: string }[];
+  let providerFor: WebhookDeps['providerFor'];
 
   beforeEach(async () => {
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     backend = createDemoPaymentBackend({ pageUrl: (one) => `${PAY}/pay/demo/${one.attemptId}` });
     settles = [];
-    const providerFor: WebhookDeps['providerFor'] = (key, mode) =>
+    providerFor = (key, mode) =>
       paymentProviderFor({ runtime: () => null, manifests: { findByKey: async () => null, getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode);
     const enqueue: WebhookDeps['enqueue'] = async (job) => {
       if (job.kind === 'payments.settle') settles.push(job.payload as { attemptId: string; eventId?: string });
@@ -146,7 +148,7 @@ describe('the payment webhook', () => {
     expect(await paymentCountersRepo(meta).read('webhook-bad:demo:test')).toBe(1);
   });
 
-  it('keeps an event about a refund only as the record, and never as work', async () => {
+  it('queues the refund job for an event about a refund, and leaves the event open until it ran', async () => {
     await refundsRepo(meta).create({ attemptId: null, paymentId: null, paymentRef: 'pi_x', provider: 'demo', mode: 'test', amount: '5.00', currency: 'EUR', reason: 'requested_by_customer', note: null, idempotencyKey: 'rk_1', source: 'staff', requestedBy: null, providerRefundId: 're_1' });
     const lookup: WebhookDeps['providerFor'] = async (key, mode) => ({
       ok: true,
@@ -155,9 +157,57 @@ describe('the payment webhook', () => {
       redirectHosts: [],
       provider: { verifyWebhook: async () => ({ ok: true, eventId: 'evt_r', type: 'refund.updated', kind: 'refund', livemode: false, checkoutRef: null, paymentRef: null, refundRef: 're_1' }) } as unknown as PaymentProvider,
     });
-    const answer = await receiveWebhook({ meta, providerFor: lookup, enqueue: async () => undefined }, { provider: 'demo', mode: 'test', rawBody: '{}', headers: {} });
+    const queued: { kind: string; payload: Record<string, unknown> }[] = [];
+    const answer = await receiveWebhook({ meta, providerFor: lookup, enqueue: async (job) => void queued.push(job) }, { provider: 'demo', mode: 'test', rawBody: '{}', headers: {} });
     expect(answer).toEqual({ status: 200, matched: true });
-    expect(await paymentEventsRepo(meta).unprocessed(Date.now() + 1)).toEqual([]);
+    expect(queued).toMatchObject([{ kind: 'payments.refund', payload: { provider: 'demo', mode: 'test', refundRef: 're_1' } }]);
+    const [stored] = await meta.db.selectFrom('adminium_payment_events').select(['processedAt']).where('eventId', '=', 'evt_r').execute();
+    expect(stored?.processedAt).toBeNull();
+  });
+
+  it('refunds, and follows a dispute and a refund made in the dashboard, end to end through the demo service', async () => {
+    const { attemptId } = await paidAttempt();
+    expect(await checkout.settle(attemptId)).toMatchObject({ state: 'succeeded' });
+    const queued: Record<string, unknown>[] = [];
+    const enqueue: WebhookDeps['enqueue'] = async (job) => {
+      if (job.kind === 'payments.refund') queued.push(job.payload);
+    };
+    const deps: RefundDeps = { meta, sources: {} as PayableSources, providerFor, enqueue };
+    let job: ((payload: Record<string, unknown>) => Promise<unknown>) | null = null;
+    registerPaymentsRefundHandler({ registerJobHandler: (_kind: string, _schema: unknown, run: typeof job) => (job = run) } as unknown as JobRegistry, deps);
+    const deliver = async () => {
+      const delivery = await backend.deliveryFor(backend.events().at(-1)!.id, DEMO_CREDENTIALS.webhookSecret);
+      return receiveWebhook({ meta, providerFor, enqueue }, { provider: 'demo', mode: 'test', rawBody: delivery.rawBody, headers: delivery.headers });
+    };
+
+    // Asked in Adminium: on its way, then done when the demo settles it and says so.
+    const asked = await requestRefund(deps, { attemptId, amount: '20.00', reason: 'requested_by_customer', note: null, key: 'demo-refund-key-0001', requestedBy: null });
+    expect(asked).toMatchObject({ ok: true, fresh: true, refund: { state: 'pending', source: 'staff' } });
+    const refundRef = (asked as { refund: { providerRefundId: string } }).refund.providerRefundId;
+    await backend.settleNow(refundRef);
+    expect(await deliver()).toEqual({ status: 200, matched: true });
+    expect(queued.at(-1)).toMatchObject({ provider: 'demo', mode: 'test', refundRef });
+    expect(await job!(queued.at(-1)!)).toEqual({ state: 'succeeded' });
+
+    // Disputed: refunds are refused until it closes.
+    const paymentRef = (await paymentAttemptsRepo(meta).byId(attemptId))!.paymentRef!;
+    await backend.dispute(paymentRef);
+    await deliver();
+    expect((await paymentAttemptsRepo(meta).byId(attemptId))!.dispute).toMatchObject({ state: 'open' });
+    expect(await requestRefund(deps, { attemptId, amount: '1.00', reason: 'other', note: null, key: 'demo-refund-key-0002', requestedBy: null })).toMatchObject({ ok: false, refusal: { code: 'DISPUTED' } });
+    await backend.dispute(paymentRef, true);
+    await deliver();
+    expect((await paymentAttemptsRepo(meta).byId(attemptId))!.dispute).toMatchObject({ state: 'closed' });
+
+    // Refunded in the demo's own dashboard: recorded as made there, and it counts.
+    const there = await backend.refundAtProvider(paymentRef, '10.00');
+    await deliver();
+    expect(queued.at(-1)).toMatchObject({ refundRef: there });
+    expect(await job!(queued.at(-1)!)).toEqual({ state: 'succeeded' });
+    expect(await refundsRepo(meta).byProviderId('demo', 'test', there)).toMatchObject({ source: 'provider', amount: '10.00', attemptId });
+    expect(refundableOf((await paymentAttemptsRepo(meta).byId(attemptId))!)).toBe('90.00');
+    // Every event that was followed is no longer work.
+    expect((await paymentEventsRepo(meta).unprocessed(Date.now() + 1)).filter((one) => one.kind !== 'checkout')).toEqual([]);
   });
 
   it('fails the settle job and keeps its event as work when the provider cannot be asked', async () => {

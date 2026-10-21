@@ -32,11 +32,13 @@
  * last one is what "last event 2 minutes ago" reads.
  */
 import { PAYMENT_MODES, isProviderError, type PaymentMode } from '@adminium/add-on-contracts';
-import { isDuplicateKeyError, paymentAttemptsRepo, paymentCountersRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
+import { isDuplicateKeyError, type PaymentEventRow, paymentAttemptsRepo, paymentCountersRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
 import { z } from 'zod';
 
 import type { JobRegistry } from '../jobs/registry.js';
 import type { CheckoutService } from './checkout.js';
+import type { NoticeDeps } from './notices.js';
+import { disputeEvent, enqueueRefund } from './refunds.js';
 import type { ProviderLookup } from './providers.js';
 import { mutateServiceState } from './services.js';
 
@@ -45,6 +47,8 @@ export const PAYMENTS_SETTLE_MAX_ATTEMPTS = 20;
 
 export interface WebhookDeps {
   meta: MetaDb;
+  /** Who is told of a dispute. */
+  notices?: NoticeDeps;
   providerFor: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
   enqueue: (input: { kind: string; payload: Record<string, unknown>; dedupeKey: string; maxAttempts: number }) => Promise<unknown>;
   now?: () => number;
@@ -137,6 +141,8 @@ export async function receiveWebhook(
   if (event.checkoutRef !== null) attempt = await attempts.byProviderRef(input.provider, mode, event.checkoutRef);
   if (attempt === null && event.paymentRef !== null) attempt = await attempts.byPaymentRef(input.provider, mode, event.paymentRef);
   const refund = event.refundRef === null ? null : await refundsRepo(deps.meta).byProviderId(input.provider, mode, event.refundRef);
+  // A refund Adminium asked for names its payment.
+  if (attempt === null && refund?.attemptId != null) attempt = await attempts.byId(refund.attemptId);
   if (attempt === null && refund === null) return { status: 200, matched: false };
 
   let stored;
@@ -161,10 +167,34 @@ export async function receiveWebhook(
   } catch {
     return { status: 503 };
   }
-  if (stored.fresh && attempt !== null) await enqueueSettle(deps.enqueue, attempt.id, stored.event.id);
-  // About a refund only: kept as the record, and nothing here settles it, so it is never left as work.
-  if (stored.fresh && attempt === null) await paymentEventsRepo(deps.meta).markProcessed(stored.event.id, at);
+  if (stored.fresh) await followEvent({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.notices === undefined ? {} : { notices: deps.notices }), now }, stored.event, attempt, event.occurredAt);
   return { status: 200, matched: true };
+}
+
+/**
+ * What a stored event sets going: a refund event the refund job (which asks
+ * the provider); a dispute event marks its payment disputed (nothing to ask:
+ * the event is what there is); anything else the settle job. An event about
+ * nothing Adminium holds is marked handled, so it is never left as work.
+ */
+export async function followEvent(
+  deps: { meta: MetaDb; enqueue: WebhookDeps['enqueue']; notices?: NoticeDeps; now?: () => number },
+  event: Pick<PaymentEventRow, 'id' | 'provider' | 'mode' | 'kind' | 'type' | 'refundRef'>,
+  attempt: PaymentAttempt | null,
+  occurredAt: number,
+): Promise<boolean> {
+  const at = (deps.now ?? Date.now)();
+  if (event.kind === 'refund' && event.refundRef !== null) {
+    return enqueueRefund(deps.enqueue, { provider: event.provider, mode: event.mode as PaymentMode, refundRef: event.refundRef, eventId: event.id });
+  }
+  if (event.kind === 'dispute' && attempt !== null) {
+    await disputeEvent(deps, attempt, { type: event.type, occurredAt });
+    await paymentEventsRepo(deps.meta).markProcessed(event.id, at);
+    return true;
+  }
+  if (attempt !== null && event.kind !== 'dispute' && event.kind !== 'refund') return enqueueSettle(deps.enqueue, attempt.id, event.id);
+  await paymentEventsRepo(deps.meta).markProcessed(event.id, at);
+  return false;
 }
 
 const settlePayload = z.object({ attemptId: z.string().min(1), eventId: z.string().min(1).optional() });

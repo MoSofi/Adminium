@@ -30,14 +30,14 @@
  * the slow cadence only, and the setup page warns.
  */
 import { DEMO_PAYMENT_KEY, isProviderError, type PaymentMode } from '@adminium/add-on-contracts';
-import { paymentAttemptsRepo, paymentEventsRepo, paymentSettingsRepo, type MetaDb } from '@adminium/meta';
+import { paymentAttemptsRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import type { JobRegistry } from '../jobs/registry.js';
 import { MAX_CHECKOUT_LIFE_MS, type CheckoutService } from './checkout.js';
 import type { ProviderLookup } from './providers.js';
 import { serviceDocName, serviceStateSchema } from './services.js';
-import { enqueueSettle, type WebhookDeps } from './webhook.js';
+import { followEvent, type WebhookDeps } from './webhook.js';
 
 export const PAYMENTS_SWEEP_JOB = 'payments.sweep';
 export const PAYMENTS_SWEEP_PLAN_NAME = 'payments-sweep-plan';
@@ -135,9 +135,11 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
       result.reads += 1;
       if (isProviderError(answer)) break;
       for (const event of answer.events) {
+        const refund = event.refundRef === null ? null : await refundsRepo(deps.meta).byProviderId(key, mode, event.refundRef);
         const attempt =
           (event.checkoutRef === null ? null : await attempts.byProviderRef(key, mode, event.checkoutRef)) ??
-          (event.paymentRef === null ? null : await attempts.byPaymentRef(key, mode, event.paymentRef));
+          (event.paymentRef === null ? null : await attempts.byPaymentRef(key, mode, event.paymentRef)) ??
+          (refund?.attemptId == null ? null : await attempts.byId(refund.attemptId));
         if (attempt === null) continue;
         const stored = await events.record(
           { provider: key, mode, eventId: event.eventId, type: event.type, kind: event.kind, checkoutRef: event.checkoutRef, paymentRef: event.paymentRef, refundRef: event.refundRef, attemptId: attempt.id, source: 'sweep', body: null },
@@ -145,7 +147,7 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
         );
         if (!stored.fresh) continue;
         result.events += 1;
-        await enqueueSettle(deps.enqueue, attempt.id, stored.event.id);
+        await followEvent({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.now === undefined ? {} : { now: deps.now }) }, stored.event, attempt, event.occurredAt);
         // The webhook never brought this one: it is not reaching this server.
         state = { ...state, caughtAt: at };
       }
@@ -177,7 +179,8 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
   // 3. Stored events about this service's attempts that nobody processed.
   for (const event of await events.unprocessed(at - REDRIVE_AFTER_MS, 200, { provider: key, mode })) {
     if (event.attemptId === null) continue;
-    if (await enqueueSettle(deps.enqueue, event.attemptId, event.id)) result.redriven += 1;
+    const attempt = await attempts.byId(event.attemptId);
+    if (await followEvent({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.now === undefined ? {} : { now: deps.now }) }, event, attempt, event.receivedAt)) result.redriven += 1;
   }
 
   await docs.set(

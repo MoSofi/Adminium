@@ -307,6 +307,8 @@ import { createPayLinkFor } from './payments/pay-link-for.js';
 import { PAYMENTS_INTEGRITY_CRON, PAYMENTS_INTEGRITY_NAME, PAYMENTS_WATCH_CRON, PAYMENTS_WATCH_NAME, runPaymentIntegrity, runPaymentWatch } from './payments/watch.js';
 import { gcNoticeClaims } from './payments/notices.js';
 import { endPaymentsForRows } from './payments/going-live.js';
+import { pickUpRefunds, registerPaymentsRefundHandler } from './payments/refunds.js';
+import { paymentRefundRoutes } from './routes/payments/refunds.js';
 import { anyLiveOn, paymentAddOnKeys, readyInMode } from './payments/ready.js';
 import { DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
@@ -1613,8 +1615,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     serviceKeys: () => paymentAddOnKeys({ manifests: appManifests }),
     hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) },
   };
+  // Refunds: asked of the provider, followed into the record, and asked about again while on their way.
+  const paymentNotices = { meta, hub: paymentWatchDeps.hub };
+  const paymentRefundDeps = {
+    meta,
+    sources: paymentSources,
+    providerFor: paymentProviderLookup,
+    enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+    writes: recordWrites,
+    app,
+    log: app.log,
+    notices: paymentNotices,
+  };
+  registerPaymentsRefundHandler(jobs.registry, paymentRefundDeps);
   jobs.scheduler.registerSchedule(PAYMENTS_WATCH_NAME, PAYMENTS_WATCH_CRON, async () => {
     await runPaymentWatch(paymentWatchDeps);
+    const queued = await pickUpRefunds(paymentRefundDeps);
+    if (queued > 0) app.log.info({ queued }, 'payments: refunds asked about again');
   }, { jitterMs: 30_000 });
   jobs.scheduler.registerSchedule(PAYMENTS_INTEGRITY_NAME, PAYMENTS_INTEGRITY_CRON, async () => {
     await runPaymentIntegrity(paymentWatchDeps);
@@ -2101,7 +2118,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       // Where a payment service calls back: no session, the signature is the gate.
-      await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) }));
+      await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
+      // Refunding a payment: what the dialog shows, and the confirm step.
+      await api.register(paymentRefundRoutes(paymentRefundDeps));
       await api.register(paymentActivityRoutes({ meta }));
       // Download the app template a shop uploads to its own provider account to make its key.
       await api.register(keyAppRoutes({ meta, runtime: () => addOnRuntime }));

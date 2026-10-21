@@ -136,6 +136,8 @@ export type RecordInto =
       method: { column: string; values: Readonly<Record<string, string>> } | null;
       note: string | null;
       reference: string;
+      /** What has been refunded of each payment (the amount's unit), when the table keeps it; null when it does not. */
+      refunded: string | null;
       /** Columns the shape adds (currency, provider, recorded by). */
       shapeColumns: boolean;
     };
@@ -263,6 +265,8 @@ async function resolveShape(sources: PayableSources, ref: PayableRef, connection
     method: { column: 'method', values: SHAPE_METHODS },
     note: 'method_note',
     reference: 'payment_ref',
+    // `@2` keeps each payment's refunds; its `paid` sums what is left of each.
+    refunded: shape.version >= 2 ? 'refunded_amount' : null,
     shapeColumns: true,
   };
   if (total === null || due === null) {
@@ -342,6 +346,7 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
           method: mapping.payments.method,
           note: mapping.payments.note,
           reference: mapping.payments.reference,
+          refunded: mapping.payments.refunded ?? null,
           shapeColumns: false,
         };
 
