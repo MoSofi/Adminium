@@ -20223,6 +20223,10 @@
     "status": "mt",
     "srcHash": "dd6cabd51136"
   },
+  "payments.refund.lost": {
+    "status": "mt",
+    "srcHash": "5ceb3db90e78"
+  },
   "payments.refund.note": {
     "status": "mt",
     "srcHash": "2c924e308820"

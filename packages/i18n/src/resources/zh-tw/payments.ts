@@ -187,6 +187,7 @@ export default {
     "cantUndo": "此操作無法復原。",
     "back": "返回",
     "submit": "退款",
-    "failed": "未能申請退款：{message}"
+    "failed": "未能申請退款：{message}",
+    "lost": "沒有收到回覆。請再次點擊「退款」：這會請求同一筆退款，絕不會退第二次。"
   }
 } as const;

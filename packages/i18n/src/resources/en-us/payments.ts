@@ -187,6 +187,7 @@ export default {
     "cantUndo": "This can't be undone.",
     "back": "Back",
     "submit": "Refund",
-    "failed": "The refund was not asked: {message}"
+    "failed": "The refund was not asked: {message}",
+    "lost": "No answer came back. Press Refund again: it asks for the same refund, never a second one."
   }
 } as const;

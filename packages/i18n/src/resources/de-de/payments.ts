@@ -187,6 +187,7 @@ export default {
     "cantUndo": "Das lässt sich nicht rückgängig machen.",
     "back": "Zurück",
     "submit": "Erstatten",
-    "failed": "Die Erstattung wurde nicht angefordert: {message}"
+    "failed": "Die Erstattung wurde nicht angefordert: {message}",
+    "lost": "Es kam keine Antwort. Drücken Sie erneut auf Erstatten: Es wird dieselbe Erstattung angefragt, nie eine zweite."
   }
 } as const;

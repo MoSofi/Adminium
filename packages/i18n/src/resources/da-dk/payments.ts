@@ -187,6 +187,7 @@ export default {
     "cantUndo": "Det kan ikke fortrydes.",
     "back": "Tilbage",
     "submit": "Refundér",
-    "failed": "Der blev ikke anmodet om refunderingen: {message}"
+    "failed": "Der blev ikke anmodet om refunderingen: {message}",
+    "lost": "Der kom intet svar. Tryk på Refundér igen: Det beder om den samme refusion, aldrig en ny."
   }
 } as const;

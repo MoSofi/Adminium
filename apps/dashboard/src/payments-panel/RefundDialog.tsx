@@ -60,6 +60,8 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
   const [note, setNote] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const key = useRef<string | null>(null);
+  /** The amount the key was minted for: Back and Continue with the same amount keep it (the same refund). */
+  const keyFor = useRef<string | null>(null);
   const backRef = useRef<HTMLButtonElement | null>(null);
 
   const preview = useQuery({ queryKey: ['payment-refund', attemptId], queryFn: () => fetchRefundPreview(attemptId), enabled: open, staleTime: 0 });
@@ -75,6 +77,7 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
     setNote('');
     setProblem(null);
     key.current = null;
+    keyFor.current = null;
   }, [open]);
 
   // Step 2 asks a question: focus waits on Back, the safe answer.
@@ -101,11 +104,19 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
       onOpenChange(false);
     },
     onError: (error: unknown) => {
-      // Refused before anything moved (what is left changed, the key was for another amount): back to step 1, a new key.
-      key.current = null;
-      setStep(1);
-      setProblem(t('payments:refund.failed', 'The refund was not asked: {message}', { message: error instanceof ApiError ? error.message : String(error) }));
-      void preview.refetch();
+      // Refused by the server before anything moved (what is left changed, the key was for another amount):
+      // back to step 1, and a new key for a new confirmation.
+      if (error instanceof ApiError && (error.status === 409 || error.status === 422)) {
+        key.current = null;
+        keyFor.current = null;
+        setStep(1);
+        setProblem(t('payments:refund.failed', 'The refund was not asked: {message}', { message: error.message }));
+        void preview.refetch();
+        return;
+      }
+      // Anything else (the answer was lost, the server stumbled): the refund may have been asked. The key is
+      // kept and the dialog stays here, so pressing Refund again is the same refund, never a second one.
+      setProblem(t('payments:refund.lost', 'No answer came back. Press Refund again: it asks for the same refund, never a second one.'));
     },
   });
 
@@ -113,7 +124,11 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
     event.preventDefault();
     if (cannot) return;
     setProblem(null);
-    key.current = newPaymentKey();
+    // A key once minted for this amount stays: an answer may have been lost, and the same amount again is the same refund.
+    if (key.current === null || keyFor.current !== amount) {
+      key.current = newPaymentKey();
+      keyFor.current = amount;
+    }
     setStep(2);
   }
 
@@ -259,6 +274,11 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
             subtitle={t('payments:refund.cantUndo', "This can't be undone.")}
             closeLabel={t('payments:refund.close', 'Close')}
           />
+          {problem === null ? null : (
+            <div className="px-5 pb-3">
+              <Alert tone="danger" title={problem} />
+            </div>
+          )}
           <FormDialogFooter>
             <Button ref={backRef} type="button" variant="secondary" disabled={send.isPending} onClick={() => setStep(1)}>
               {t('payments:refund.back', 'Back')}

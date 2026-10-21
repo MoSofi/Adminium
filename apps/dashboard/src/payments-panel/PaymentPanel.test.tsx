@@ -249,6 +249,42 @@ describe('refunds and disputes on the Payment panel', () => {
     expect(String((sent[0]!.body as { key: string }).key)).toMatch(/^[0-9a-f]{32}$/);
   });
 
+  it('keeps the key when no answer comes back, and makes a new one only after the server refuses', async () => {
+    const user = userEvent.setup();
+    const envelope = (status: number, code: string, message: string) => new Response(JSON.stringify({ error: { code, message, requestId: 'req_1' } }), { status, headers: { 'content-type': 'application/json' } });
+    answers['/api/v1/payments/attempts/pat_1/refund'] = { data: { label: 'INV-0042', provider: 'payments-stripe', test: false, taken: '120.00', currency: 'EUR', refundable: '120.00', paidWith: 'Visa ••4242', refusal: null } };
+    answers['/api/v1/payments/refunds'] = envelope(502, 'BAD_GATEWAY', 'Bad gateway');
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, mayRefund: true, payments: [paymentOf(ONLINE)] }));
+    await user.click(screen.getByRole('button', { name: 'More for REC-0012' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Refund…' }));
+    const dialog = await screen.findByRole('dialog', { name: /Refund a payment/ });
+    await within(dialog).findByText('Up to €120.00 can be refunded');
+    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    const confirm = await screen.findByRole('dialog', { name: /Refund €120\.00 to Visa ••4242\?/ });
+    await user.click(within(confirm).getByRole('button', { name: 'Refund' }));
+    // Lost: still the question, in so many words, and the same key again.
+    expect(await within(confirm).findByText('No answer came back. Press Refund again: it asks for the same refund, never a second one.')).toBeTruthy();
+    answers['/api/v1/payments/refunds'] = envelope(504, 'GATEWAY_TIMEOUT', 'Timed out');
+    await user.click(within(confirm).getByRole('button', { name: 'Refund' }));
+    await waitFor(() => expect(calls.filter((call) => call.url.endsWith('/api/v1/payments/refunds'))).toHaveLength(2));
+    // Back and Continue with the same amount is still the same refund.
+    await user.click(within(confirm).getByRole('button', { name: 'Back' }));
+    await user.click(within(await screen.findByRole('dialog', { name: /Refund a payment/ })).getByRole('button', { name: 'Continue' }));
+    answers['/api/v1/payments/refunds'] = envelope(409, 'CONFLICT', 'Only €80.00 is left to refund.');
+    await user.click(within(await screen.findByRole('dialog', { name: /Refund €120\.00/ })).getByRole('button', { name: 'Refund' }));
+    // Refused: back on step 1 with the server's words, and the next confirmation mints a new key.
+    const again = await screen.findByRole('dialog', { name: /Refund a payment/ });
+    expect(await within(again).findByText('The refund was not asked: Only €80.00 is left to refund.')).toBeTruthy();
+    answers['/api/v1/payments/refunds'] = { data: { refund: { id: 'rf_1', attemptId: 'pat_1', amount: '120.00', currency: 'EUR', state: 'pending', source: 'staff', failureMessage: null, createdAt: Date.now(), settledAt: null }, fresh: true } };
+    await user.click(within(again).getByRole('button', { name: 'Continue' }));
+    await user.click(within(await screen.findByRole('dialog', { name: /Refund €120\.00/ })).getByRole('button', { name: 'Refund' }));
+    await waitFor(() => expect(calls.filter((call) => call.url.endsWith('/api/v1/payments/refunds'))).toHaveLength(4));
+    const keys = calls.filter((call) => call.url.endsWith('/api/v1/payments/refunds')).map((call) => (call.body as { key: string }).key);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).toBe(keys[0]);
+    expect(keys[3]).not.toBe(keys[0]);
+  });
+
   it('says each refund under its payment: asked, failed in the service’s words, made in its dashboard; a done one inline', async () => {
     const at = Date.UTC(2026, 9, 22);
     const refund = (patch: Partial<PanelRefund> & { id: string }): PanelRefund => ({ attemptId: 'pat_1', amount: '40.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: at, settledAt: at, ...patch, id: `rf_${patch.id}` });

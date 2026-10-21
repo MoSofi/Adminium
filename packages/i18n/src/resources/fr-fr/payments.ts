@@ -187,6 +187,7 @@ export default {
     "cantUndo": "Cette action est irréversible.",
     "back": "Retour",
     "submit": "Rembourser",
-    "failed": "Le remboursement n’a pas été demandé : {message}"
+    "failed": "Le remboursement n’a pas été demandé : {message}",
+    "lost": "Aucune réponse n’est revenue. Appuyez à nouveau sur Rembourser : c’est le même remboursement qui est demandé, jamais un second."
   }
 } as const;

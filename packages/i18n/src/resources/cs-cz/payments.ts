@@ -187,6 +187,7 @@ export default {
     "cantUndo": "Tento krok nelze vrátit.",
     "back": "Zpět",
     "submit": "Vrátit",
-    "failed": "Vrácení nebylo vyžádáno: {message}"
+    "failed": "Vrácení nebylo vyžádáno: {message}",
+    "lost": "Nepřišla žádná odpověď. Stiskněte znovu Vrátit: požádá o stejné vrácení, nikdy o druhé."
   }
 } as const;
