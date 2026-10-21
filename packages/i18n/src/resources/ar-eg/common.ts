@@ -162,7 +162,8 @@ export default {
     "help": "مركز المساعدة",
     "changelog": "ما الجديد",
     "signOut": "تسجيل الخروج",
-    "toggleSidebar": "إظهار/إخفاء الشريط الجانبي"
+    "toggleSidebar": "إظهار/إخفاء الشريط الجانبي",
+    "payments": "المدفوعات"
   },
   "palette": {
     "dialog": "لوحة الأوامر",

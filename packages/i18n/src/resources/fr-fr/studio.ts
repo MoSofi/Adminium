@@ -110,7 +110,8 @@ export default {
       "on": "activé",
       "title": "Installés",
       "uninstall": "Désinstaller",
-      "setUpInPayments": "Configurer dans Paiements"
+      "setUpInPayments": "Configurer dans Paiements",
+      "paymentsWho": "Une personne ayant l’autorisation « Configurer les paiements » le configure dans Paiements."
     },
     "job": {
       "body": "Récupération et vérification. Rien n’est installé sans votre accord.",
@@ -3805,7 +3806,7 @@ export default {
       "accountNumber": "Numéro de compte",
       "accountNumberHelp": "Seulement quand il n’y a pas d’IBAN.",
       "bic": "BIC",
-      "sortCode": "Sort code",
+      "sortCode": "Code de tri (Royaume-Uni)",
       "bank": "Banque",
       "bankShown": "Les clients qui paient en {currency} voient ces coordonnées sur la page de paiement.",
       "addAccount": "Ajouter le compte",
@@ -3971,7 +3972,8 @@ export default {
       "countryHelp": "Un code à deux lettres, comme DE. Les règles des Moyens de paiement l’utilisent quand le pays du client n’est pas connu.",
       "countryInvalid": "Saisissez un code à deux lettres, comme DE.",
       "lines": "Afficher les lignes de la facture sur la page de paiement",
-      "providerBranding": "Les clients voient aussi le nom et le logo définis dans votre tableau de bord Stripe, sur la page Stripe."
+      "providerBranding": "Les clients voient aussi le nom et le logo définis dans votre tableau de bord Stripe, sur la page Stripe.",
+      "logoPending": "Logo téléversé. Enregistrez pour l’utiliser sur la page de paiement."
     },
     "way": {
       "card": "Cartes",

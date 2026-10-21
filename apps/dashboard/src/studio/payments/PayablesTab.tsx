@@ -183,8 +183,8 @@ function methodKeyLabel(key: (typeof METHOD_KEYS)[number]): string {
 
 function ColumnSelect({ columns, value, onChange, label, id, testId, required, error }: { columns: SchemaColumn[]; value: string; onChange: (next: string) => void; label: string; id: string; testId?: string; required?: boolean; error?: string | null }) {
   return (
-    <FormField label={label} required={required} error={error ?? undefined}>
-      <Select id={id} value={value} onChange={(event) => onChange(event.target.value)} data-testid={testId}>
+    <FormField label={label} controlId={id} required={required} error={error ?? undefined}>
+      <Select value={value} onChange={(event) => onChange(event.target.value)} data-testid={testId}>
         <option value="">{t('studio:payments.payables.chooseColumn', 'Choose a column')}</option>
         {columns.map((column) => (
           <option key={column.name} value={column.name}>
@@ -242,7 +242,8 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
   // What each step needs before Next.
   const stepPaths: Record<number, string[]> = { 1: ['amount', 'currency', 'label', 'due', 'table'], 2: ['payments', 'status', 'due'], 3: ['pageFields', 'label', 'customerEmail', 'customerCountry'] };
   const stepBlocked = (at: number): boolean => {
-    if (!ready || check.isPending) return true;
+    // A check that failed has proved nothing: no step goes on from it.
+    if (!ready || check.isPending || check.isError) return true;
     if (at === 1 && needsUnit && mapping.amount.unit === null) return true;
     if (at === 2 && own !== null && (own.table === '' || own.link === '' || own.amount === '' || own.date === '' || own.method.column === '' || own.reference === '' || mapping.due === null)) return true;
     return issues.some((issue) => stepPaths[at]!.some((path) => issue.path === path || issue.path.startsWith(`${path}.`)));
@@ -349,6 +350,7 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
               {step === 2 ? (
                 <section className="flex flex-col gap-3" aria-label={steps[1]}>
                   <RadioGroup
+                    aria-label={steps[1]}
                     value={own === null ? 'kept' : 'table'}
                     onValueChange={(next) => set(next === 'table' ? { payments: OWN_START } : { payments: { kind: 'kept' }, due: null })}
                   >

@@ -33,6 +33,7 @@ interface Call {
 
 function stub(logo: { status: number; body: unknown } = { status: 201, body: { data: { fileId: 'file_logo1' } } }): Call[] {
   const calls: Call[] = [];
+  let current = PAGE;
   vi.stubGlobal(
     'fetch',
     vi.fn((input: unknown, init?: RequestInit) => {
@@ -41,8 +42,11 @@ function stub(logo: { status: number; body: unknown } = { status: 201, body: { d
       const type = new Headers(init?.headers).get('content-type');
       const body = init?.body === undefined ? undefined : init.body instanceof Blob ? init.body : (JSON.parse(String(init.body)) as unknown);
       calls.push({ method, url, body, type });
-      if (url === '/api/v1/payments/pay-page' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: PAGE }));
-      if (url === '/api/v1/payments/pay-page' && method === 'PUT') return Promise.resolve(jsonResponse(200, { data: body }));
+      if (url === '/api/v1/payments/pay-page' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: current }));
+      if (url === '/api/v1/payments/pay-page' && method === 'PUT') {
+        current = body as PayPageSettings;
+        return Promise.resolve(jsonResponse(200, { data: body }));
+      }
       if (url.startsWith('/api/v1/payments/pay-page/logo')) return Promise.resolve(jsonResponse(logo.status, logo.body));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'not stubbed' } }));
     }),
@@ -79,7 +83,8 @@ describe('PayPageTab', () => {
   it('uploads a PNG to the pay page logo route, then saves the file it named', async () => {
     const { user, calls } = renderTab();
     await user.upload(await screen.findByTestId('payments-page-logo-input'), png());
-    await waitFor(() => expect(textOf(screen.getByTestId('payments-page-logo-state'))).toBe('Logo uploaded'));
+    // Uploaded is not yet used: leaving the tab before Save would drop it.
+    await waitFor(() => expect(textOf(screen.getByTestId('payments-page-logo-state'))).toBe('Logo uploaded. Save to use it on the pay page.'));
     const upload = calls.find((call) => call.url.includes('/logo'));
     expect(upload?.method).toBe('POST');
     expect(upload?.url).toBe('/api/v1/payments/pay-page/logo?filename=crumb.png');
@@ -88,6 +93,28 @@ describe('PayPageTab', () => {
     await user.click(screen.getByTestId('payments-page-save'));
     await waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ ...PAGE, logoFileId: 'file_logo1' }));
     expect(textOf(await screen.findByTestId('payments-page-status'))).toBe('Pay page saved');
+    await waitFor(() => expect(textOf(screen.getByTestId('payments-page-logo-state'))).toBe('Logo uploaded'));
+  });
+
+  it('keeps the spaces a person types, and trims only what is saved', async () => {
+    const { user, calls } = renderTab();
+    const name = await screen.findByTestId('payments-page-name');
+    await user.clear(name);
+    await user.type(name, 'Crumb & Co Bakery ');
+    expect((name as HTMLInputElement).value).toBe('Crumb & Co Bakery ');
+    const phone = screen.getByRole('textbox', { name: 'Contact phone' });
+    await user.type(phone, '+49 30 1234 5678');
+    expect((phone as HTMLInputElement).value).toBe('+49 30 1234 5678');
+    await user.click(screen.getByTestId('payments-page-save'));
+    await waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({ shopName: 'Crumb & Co Bakery', contactPhone: '+49 30 1234 5678' }));
+  });
+
+  it('stops saying "saved" once something changes again', async () => {
+    const { user } = renderTab();
+    await user.click(await screen.findByTestId('payments-page-save'));
+    expect(textOf(await screen.findByTestId('payments-page-status'))).toBe('Pay page saved');
+    await user.type(screen.getByTestId('payments-page-name'), '!');
+    expect(textOf(screen.getByTestId('payments-page-status'))).toBe('');
   });
 
   it('words the server refusing what the bytes turned out to be', async () => {

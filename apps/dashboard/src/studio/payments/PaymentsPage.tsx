@@ -654,6 +654,7 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
         {stepLabel('path', knownProvider(service.key))}
       </h3>
       <RadioGroup
+        aria-labelledby={`path-${service.key}`}
         value={service.path ?? ''}
         disabled={!canManage || pick.isPending}
         onValueChange={(next) => {
@@ -671,6 +672,7 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
           description={t('studio:payments.path.hand.desc', 'Make a restricted key yourself with the access below. Stripe prefers the app, but this works too.')}
         />
       </RadioGroup>
+      {pick.isError ? <Alert tone="danger" role="alert" title={errorText(pick.error)} data-testid={`payments-${service.key}-path-error`} /> : null}
       {guide.length > 0 ? (
         <ol className="flex list-decimal flex-col gap-1 ps-5 text-[12.5px]" data-testid={`payments-${service.key}-guide`}>
           {guide.map((step) => (
@@ -759,6 +761,7 @@ function StopSwitch({ service, canManage }: { service: ServiceView; canManage: b
       <p className="text-[12.5px] text-fg-muted">
         {t('studio:payments.stop.desc', 'No new payments start. Adminium keeps the key to finish waiting payments and to give refunds.')}
       </p>
+      {toggle.isError && !confirming ? <Alert tone="danger" role="alert" title={errorText(toggle.error)} data-testid={`${id}-error`} /> : null}
       <Modal open={confirming} onOpenChange={(open) => (open ? null : setConfirming(false))}>
         <ModalHeader title={t('studio:payments.stop.confirmTitle', 'Stop new payments?')} closeLabel={t('studio:payments.close', 'Close')} />
         <ModalBody>
@@ -767,6 +770,7 @@ function StopSwitch({ service, canManage }: { service: ServiceView; canManage: b
               service: service.name,
             })}
           </p>
+          {toggle.isError ? <Alert tone="danger" role="alert" title={errorText(toggle.error)} /> : null}
         </ModalBody>
         <ModalFooter>
           <Button variant="ghost" onClick={() => setConfirming(false)}>
@@ -892,6 +896,26 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
     (one) => knownProvider(one.key) === 'paypal' && [one.test.check, one.live.check].some((check) => check?.ok === true),
   ) && (data?.services ?? []).some((one) => knownProvider(one.key) === 'stripe' && [one.test.check, one.live.check].some((check) => check?.ok === true));
 
+  // Every tab reads the setup first; while it is loading or has failed, each says so.
+  const loadState = (tab: string): ReactNode =>
+    setup.isPending ? (
+      <div className="flex justify-center p-10">
+        <Spinner size="md" />
+      </div>
+    ) : setup.isError ? (
+      <Alert
+        tone="danger"
+        role="alert"
+        data-testid={tab === 'setup' ? 'payments-load-error' : `payments-load-error-${tab}`}
+        title={t('studio:payments.loadFailed', 'Payments could not be loaded')}
+        body={
+          setup.error instanceof ApiError && setup.error.status === 403
+            ? t('studio:payments.forbidden', 'Seeing payments needs the “Set up payments” or the “See payment activity” permission.')
+            : errorText(setup.error)
+        }
+      />
+    ) : null;
+
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
@@ -906,24 +930,7 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
           <TabsTrigger value="page">{t('studio:payments.tab.page', 'Pay page')}</TabsTrigger>
         </TabsList>
         <TabsContent value="setup" className="flex flex-col gap-5 pt-4">
-          {setup.isPending ? (
-            <div className="flex justify-center p-10">
-              <Spinner size="md" />
-            </div>
-          ) : null}
-          {setup.isError ? (
-            <Alert
-              tone="danger"
-              role="alert"
-              data-testid="payments-load-error"
-              title={t('studio:payments.loadFailed', 'Payments could not be loaded')}
-              body={
-                setup.error instanceof ApiError && setup.error.status === 403
-                  ? t('studio:payments.forbidden', 'Seeing payments needs the “Set up payments” or the “See payment activity” permission.')
-                  : errorText(setup.error)
-              }
-            />
-          ) : null}
+          {loadState('setup')}
           {data !== undefined ? (
             <>
               {!data.canManage ? (
@@ -951,13 +958,13 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
           ) : null}
         </TabsContent>
         <TabsContent value="ways" className="pt-4">
-          {data !== undefined ? <WaysTab services={data.services} canManage={data.canManage} /> : null}
+          {data !== undefined ? <WaysTab services={data.services} canManage={data.canManage} /> : loadState('ways')}
         </TabsContent>
         <TabsContent value="payables" className="pt-4">
-          {data !== undefined ? <PayablesTab canManage={data.canManage} /> : null}
+          {data !== undefined ? <PayablesTab canManage={data.canManage} /> : loadState('payables')}
         </TabsContent>
         <TabsContent value="page" className="pt-4">
-          {data !== undefined ? <PayPageTab canManage={data.canManage} /> : null}
+          {data !== undefined ? <PayPageTab canManage={data.canManage} /> : loadState('page')}
         </TabsContent>
       </Tabs>
     </PageSurface>

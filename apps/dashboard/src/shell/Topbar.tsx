@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 import {
   ArrowLeft,
+  Banknote,
   Bell,
   CircleHelp,
   Database,
@@ -114,6 +115,13 @@ export interface TopbarProps {
    */
   onOpenStudio: () => void;
   onOpenStudioSettings: () => void;
+  /**
+   * `/studio/payments`, for someone who holds a payments key but is not an
+   * Admin (a bookkeeper's custom role). An Admin reaches it from Workspace
+   * settings, one door per destination; without this a payments-only role
+   * finds Payments by its address alone.
+   */
+  onOpenPayments?: () => void;
   /**
    * `/help` and `/changelog`. Both shipped with a route, a built page and NO
    * entry point anywhere — not the rail, not this menu, not the palette. They
@@ -217,6 +225,7 @@ export function Topbar({
   onOpenPreferences,
   onOpenStudio,
   onOpenStudioSettings,
+  onOpenPayments,
   onOpenHelp,
   onOpenChangelog,
 }: TopbarProps) {
@@ -402,6 +411,14 @@ export function Topbar({
                     destination instead of two paths to the same surface. */}
                 <DropdownMenuItem icon={<SlidersHorizontal />} onSelect={onOpenStudioSettings}>
                   {t('topbar.workspaceSettings', 'Workspace settings')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {!admin && onOpenPayments !== undefined && (holdsSystemAction(bootstrap, 'payments.manage') || holdsSystemAction(bootstrap, 'payments.view')) ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem icon={<Banknote />} onSelect={onOpenPayments} data-testid="topbar-payments">
+                  {t('topbar.payments', 'Payments')}
                 </DropdownMenuItem>
               </>
             ) : null}

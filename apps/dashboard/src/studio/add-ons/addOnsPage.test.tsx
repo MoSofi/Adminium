@@ -210,6 +210,7 @@ describe('AddOnsPage', () => {
 
   it('sends a payment service to Payments instead of offering the connect form', async () => {
     await renderPage({
+      respond: (_method, url) => (url.startsWith('/api/v1/bootstrap') ? { status: 200, body: { data: makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'], systemActions: ['manifests.manage', 'payments.manage'] }) } } : undefined),
       installed: [
         makeAddOn({
           key: 'payments-stripe',
@@ -226,6 +227,15 @@ describe('AddOnsPage', () => {
     expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
     fireEvent.click(button);
     expect(await screen.findByRole('tab', { name: 'Setup' })).toBeTruthy();
+  });
+
+  it('says who sets a payment service up, to someone without a payments key', async () => {
+    await renderPage({
+      respond: (_method, url) => (url.startsWith('/api/v1/bootstrap') ? { status: 200, body: { data: makeBootstrap({ nav: { groups: [] }, roles: ['admin'], systemActions: ['manifests.manage'] }) } } : undefined),
+      installed: [makeAddOn({ key: 'payments-stripe', name: 'Card payments', connected: false, provides: [{ contract: 'payment-provider', version: 1 }] })],
+    });
+    expect((await screen.findByTestId('add-on-payments-stripe-payments-who')).textContent).toBe('Someone with the “Set up payments” permission sets this up in Payments.');
+    expect(screen.queryByTestId('add-on-payments-stripe-payments')).toBeNull();
   });
 
   it('browses air-gapped, and says so instead of offering a broken action', async () => {

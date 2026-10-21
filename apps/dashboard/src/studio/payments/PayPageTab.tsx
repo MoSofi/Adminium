@@ -34,8 +34,17 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
   const [status, setStatus] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   useEffect(() => setPage(saved), [saved]);
+  // What was typed, spaces and all ("+49 30 …"); trimmed only in what is saved.
+  const text = (value: string | null) => (value === null || value.trim() === '' ? null : value.trim());
+  const body: PayPageSettings = { ...page, shopName: page.shopName.trim(), contactEmail: text(page.contactEmail), contactPhone: text(page.contactPhone), shopCountry: text(page.shopCountry) };
+  /** Any edit makes "saved" no longer true. */
+  const edit = (patch: Partial<PayPageSettings>) => {
+    setStatus(null);
+    setPage((current) => ({ ...current, ...patch }));
+  };
   const save = useMutation({
-    mutationFn: () => savePayPage(page),
+    mutationFn: () => savePayPage(body),
+    onMutate: () => setStatus(null),
     onSuccess: async () => {
       setStatus(t('studio:payments.page.saved', 'Pay page saved'));
       await client.invalidateQueries({ queryKey: PAYMENTS_PAY_PAGE_QUERY_KEY });
@@ -46,7 +55,7 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
       if (!(LOGO_TYPES as readonly string[]).includes(picked.type)) throw new Error('logo-type');
       return uploadPayPageLogo(picked);
     },
-    onSuccess: (id) => setPage((current) => ({ ...current, logoFileId: id })),
+    onSuccess: (id) => edit({ logoFileId: id }),
   });
   const uploadError =
     upload.error instanceof Error && upload.error.message === 'logo-type'
@@ -54,10 +63,11 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
       : upload.isError
         ? errorText(upload.error)
         : null;
-  const emailOk = page.contactEmail === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(page.contactEmail);
-  const countryOk = page.shopCountry === null || /^[A-Z]{2}$/.test(page.shopCountry);
-  const ok = page.shopName.trim() !== '' && emailOk && countryOk;
-  const blank = (value: string) => (value.trim() === '' ? null : value.trim());
+  const emailOk = body.contactEmail === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.contactEmail);
+  const countryOk = body.shopCountry === null || /^[A-Z]{2}$/.test(body.shopCountry);
+  const ok = body.shopName !== '' && emailOk && countryOk;
+  const blank = (value: string) => (value === '' ? null : value);
+  const logoPending = page.logoFileId !== null && page.logoFileId !== saved.logoFileId;
   const readOnly = !canManage;
 
   return (
@@ -71,7 +81,7 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
       </CardHeader>
       <CardBody className="flex max-w-[640px] flex-col gap-4">
         <FormField label={t('studio:payments.page.shopName', 'Shop name')} required error={page.shopName.trim() === '' ? t('studio:payments.page.shopNameNeeded', 'The pay page needs a name.') : undefined}>
-          <Input dir="auto" maxLength={120} readOnly={readOnly} value={page.shopName} onChange={(event) => setPage({ ...page, shopName: event.target.value })} data-testid="payments-page-name" />
+          <Input dir="auto" maxLength={120} readOnly={readOnly} value={page.shopName} onChange={(event) => edit({ shopName: event.target.value })} data-testid="payments-page-name" />
         </FormField>
         <div className="flex flex-col gap-2">
           <span className="text-[12.5px] font-semibold">{t('studio:payments.page.logo', 'Logo')}</span>
@@ -80,7 +90,11 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
               <ImageIcon className="size-5 text-fg-muted" />
             </span>
             <span className="text-[12.5px]" data-testid="payments-page-logo-state">
-              {page.logoFileId === null ? t('studio:payments.page.noLogo', 'No logo yet') : t('studio:payments.page.logoUploaded', 'Logo uploaded')}
+              {page.logoFileId === null
+                ? t('studio:payments.page.noLogo', 'No logo yet')
+                : logoPending
+                  ? t('studio:payments.page.logoPending', 'Logo uploaded. Save to use it on the pay page.')
+                  : t('studio:payments.page.logoUploaded', 'Logo uploaded')}
             </span>
             {canManage ? (
               <>
@@ -102,7 +116,7 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
                   {t('studio:payments.page.upload', 'Upload a logo')}
                 </Button>
                 {page.logoFileId !== null ? (
-                  <Button variant="ghost" size="sm" onClick={() => setPage({ ...page, logoFileId: null })}>
+                  <Button variant="ghost" size="sm" onClick={() => edit({ logoFileId: null })}>
                     {t('studio:payments.page.removeLogo', 'Remove the logo')}
                   </Button>
                 ) : null}
@@ -118,21 +132,21 @@ function PayPageForm({ saved, canManage }: { saved: PayPageSettings; canManage: 
         </div>
         <div className="flex flex-wrap gap-3">
           <FormField label={t('studio:payments.page.email', 'Contact email')} className="min-w-[200px] flex-1" error={emailOk ? undefined : t('studio:payments.page.emailInvalid', 'Write an address such as hello@example.com.')}>
-            <Input dir="ltr" type="email" readOnly={readOnly} value={page.contactEmail ?? ''} onChange={(event) => setPage({ ...page, contactEmail: blank(event.target.value) })} />
+            <Input dir="ltr" type="email" readOnly={readOnly} value={page.contactEmail ?? ''} onChange={(event) => edit({ contactEmail: blank(event.target.value) })} />
           </FormField>
           <FormField label={t('studio:payments.page.phone', 'Contact phone')} className="min-w-[200px] flex-1">
-            <Input dir="ltr" className="font-mono" type="tel" placeholder="+49" readOnly={readOnly} value={page.contactPhone ?? ''} onChange={(event) => setPage({ ...page, contactPhone: blank(event.target.value) })} />
+            <Input dir="ltr" className="font-mono" type="tel" placeholder="+49" readOnly={readOnly} value={page.contactPhone ?? ''} onChange={(event) => edit({ contactPhone: blank(event.target.value) })} />
           </FormField>
         </div>
         <FormField
           label={t('studio:payments.page.country', "The shop's country")}
-          helper={page.shopCountry !== null && countryOk ? countryName(page.shopCountry) : t('studio:payments.page.countryHelp', 'A two-letter code, such as DE. The rules on Ways to pay use it when a customer’s country is not known.')}
+          helper={body.shopCountry !== null && countryOk ? countryName(body.shopCountry) : t('studio:payments.page.countryHelp', 'A two-letter code, such as DE. The rules on Ways to pay use it when a customer’s country is not known.')}
           error={countryOk ? undefined : t('studio:payments.page.countryInvalid', 'Write a two-letter code, such as DE.')}
         >
-          <Input dir="ltr" className="w-24 font-mono uppercase" maxLength={2} readOnly={readOnly} value={page.shopCountry ?? ''} onChange={(event) => setPage({ ...page, shopCountry: blank(event.target.value.toUpperCase()) })} data-testid="payments-page-country" />
+          <Input dir="ltr" className="w-24 font-mono uppercase" maxLength={2} readOnly={readOnly} value={page.shopCountry ?? ''} onChange={(event) => edit({ shopCountry: blank(event.target.value.toUpperCase()) })} data-testid="payments-page-country" />
         </FormField>
         <div className="flex items-center gap-3">
-          <Switch id="payments-page-lines" checked={page.showLines} disabled={readOnly} onCheckedChange={(next) => setPage({ ...page, showLines: next })} />
+          <Switch id="payments-page-lines" checked={page.showLines} disabled={readOnly} onCheckedChange={(next) => edit({ showLines: next })} />
           <label htmlFor="payments-page-lines" className="text-[13px]">
             {t('studio:payments.page.lines', "Show the invoice's lines on the pay page")}
           </label>

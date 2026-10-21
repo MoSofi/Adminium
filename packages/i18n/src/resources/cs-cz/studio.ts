@@ -110,7 +110,8 @@ export default {
       "on": "on",
       "title": "Installed",
       "uninstall": "Uninstall",
-      "setUpInPayments": "Nastavit v Platbách"
+      "setUpInPayments": "Nastavit v Platbách",
+      "paymentsWho": "Nastaví ho v Platbách někdo s oprávněním „Nastavit platby“."
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -3805,7 +3806,7 @@ export default {
       "accountNumber": "Číslo účtu",
       "accountNumberHelp": "Jen když není IBAN.",
       "bic": "BIC",
-      "sortCode": "Sort code",
+      "sortCode": "Kód pobočky (Spojené království)",
       "bank": "Banka",
       "bankShown": "Zákazníci, kteří platí v {currency}, uvidí tyto údaje na platební stránce.",
       "addAccount": "Přidat účet",
@@ -3971,7 +3972,8 @@ export default {
       "countryHelp": "Dvoupísmenný kód, například DE. Pravidla v části Způsoby platby ho použijí, když není známa země zákazníka.",
       "countryInvalid": "Zadejte dvoupísmenný kód, například DE.",
       "lines": "Zobrazit položky faktury na platební stránce",
-      "providerBranding": "Zákazníci uvidí také název a logo nastavené ve vašem dashboardu Stripe, na stránce Stripe."
+      "providerBranding": "Zákazníci uvidí také název a logo nastavené ve vašem dashboardu Stripe, na stránce Stripe.",
+      "logoPending": "Logo nahráno. Uložte, aby se použilo na platební stránce."
     },
     "way": {
       "card": "Karty",

@@ -23,7 +23,8 @@ import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 
-import { PAYABLE_ISSUES, type PayableCheck, type PayablesList } from './paymentsApi.js';
+import { ApiError } from '../../app/api.js';
+import { PAYABLE_ISSUES, payableIssuesOf, type PayableCheck, type PayablesList } from './paymentsApi.js';
 import { issueSentence, PayablesTab } from './PayablesTab.js';
 
 const INVOICES = {
@@ -62,7 +63,7 @@ interface Call {
   body: unknown;
 }
 
-function stub(list: PayablesList, check: PayableCheck = CLEAN): Call[] {
+function stub(list: PayablesList, check: PayableCheck | { status: number; body: unknown } = CLEAN): Call[] {
   const calls: Call[] = [];
   vi.stubGlobal(
     'fetch',
@@ -71,7 +72,7 @@ function stub(list: PayablesList, check: PayableCheck = CLEAN): Call[] {
       const method = init?.method ?? 'GET';
       calls.push({ method, url, body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown) });
       if (url === '/api/v1/payments/payables' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: list }));
-      if (url === '/api/v1/payments/payables/check') return Promise.resolve(jsonResponse(200, { data: check }));
+      if (url === '/api/v1/payments/payables/check') return Promise.resolve('status' in check ? jsonResponse(check.status, check.body) : jsonResponse(200, { data: check }));
       if (url === '/api/v1/connections') return Promise.resolve(jsonResponse(200, { connections: [{ id: 'con_shop', name: 'Shop' }] }));
       if (url === '/api/v1/connections/con_shop/schema') return Promise.resolve(jsonResponse(200, { connectionId: 'con_shop', snapshotId: 's1', model: { tables: [INVOICES, PAYMENTS], enums: [] } }));
       if (method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }));
@@ -81,7 +82,7 @@ function stub(list: PayablesList, check: PayableCheck = CLEAN): Call[] {
   return calls;
 }
 
-function renderTab(list: PayablesList, opts: { canManage?: boolean; check?: PayableCheck } = {}) {
+function renderTab(list: PayablesList, opts: { canManage?: boolean; check?: PayableCheck | { status: number; body: unknown } } = {}) {
   const calls = stub(list, opts.check);
   render(
     <QueryClientProvider client={createQueryClient()}>
@@ -125,6 +126,32 @@ describe('PayablesTab', () => {
   it('asks for the unique column, and an unknown way-to-pay value, in plain words', () => {
     expect(issueSentence({ code: 'REFERENCE_NOT_UNIQUE', path: 'payments.reference', column: 'provider_ref' })).toBe('Choose the column that is unique for each payment.');
     expect(issueSentence({ code: 'METHOD_VALUE_UNKNOWN', path: 'payments.method.values', column: 'method' })).toBe('method has no such value. Choose one from its list for each way to pay.');
+  });
+
+  it('reads only its own issue codes out of a refusal, so a schema refusal reads as its message', () => {
+    const schemaRefusal = new ApiError(422, 'VALIDATION_FAILED', 'Body is not valid: mapping.amount.column is too short.', null, { issues: [{ path: 'mapping.amount.column', message: 'Too small', code: 'too_small' }] });
+    expect(payableIssuesOf(schemaRefusal)).toBeNull();
+    const mixed = new ApiError(422, 'VALIDATION_FAILED', 'x', null, { issues: [{ code: 'too_small', path: 'a', message: 'm' }, { code: 'NEEDS_UNIT', path: 'amount.unit', column: 'total_cents' }] });
+    expect(payableIssuesOf(mixed)).toEqual([{ code: 'NEEDS_UNIT', path: 'amount.unit', column: 'total_cents' }]);
+  });
+
+  it('labels every select of the wizard, and names its choice of where payments land', async () => {
+    const { user } = renderTab(EMPTY);
+    await openOnInvoices(user);
+    expect(screen.getByLabelText('Amount')).toBe(screen.getByTestId('payments-wizard-amount'));
+    expect(screen.getByLabelText('The number the customer knows it by').tagName).toBe('SELECT');
+    await user.click(within(await screen.findByTestId('payments-wizard-unit')).getByRole('radio', { name: /Cents/ }));
+    await waitFor(() => expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(false));
+    await user.click(screen.getByTestId('payments-wizard-next'));
+    expect(screen.getByRole('radiogroup', { name: 'How payments land' })).toBeTruthy();
+  });
+
+  it('goes no further while the check itself failed', async () => {
+    const { user } = renderTab(EMPTY, { check: { status: 500, body: { error: { code: 'INTERNAL', message: 'The schema could not be read.' } } } });
+    await openOnInvoices(user);
+    await user.click(within(await screen.findByTestId('payments-wizard-unit')).getByRole('radio', { name: /Cents/ }));
+    expect(await screen.findByText('The schema could not be read.')).toBeTruthy();
+    expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(true);
   });
 
   it('lists invoice-format tables as ready, and says what an old one lacks', async () => {

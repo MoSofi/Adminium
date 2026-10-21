@@ -110,7 +110,8 @@ export default {
       "on": "on",
       "title": "Installed",
       "uninstall": "Uninstall",
-      "setUpInPayments": "الإعداد في المدفوعات"
+      "setUpInPayments": "الإعداد في المدفوعات",
+      "paymentsWho": "يُعدّه في المدفوعات من لديه إذن «إعداد المدفوعات»."
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -3805,7 +3806,7 @@ export default {
       "accountNumber": "رقم الحساب",
       "accountNumberHelp": "فقط عندما لا يوجد IBAN.",
       "bic": "BIC",
-      "sortCode": "Sort code",
+      "sortCode": "رمز الفرع (المملكة المتحدة)",
       "bank": "البنك",
       "bankShown": "العملاء الذين يدفعون بـ {currency} يرون هذه البيانات على صفحة الدفع.",
       "addAccount": "أضف الحساب",
@@ -3971,7 +3972,8 @@ export default {
       "countryHelp": "رمز من حرفين، مثل DE. تستخدمه القواعد في طرق الدفع عندما لا تُعرف دولة العميل.",
       "countryInvalid": "اكتب رمزًا من حرفين، مثل DE.",
       "lines": "عرض بنود الفاتورة على صفحة الدفع",
-      "providerBranding": "يرى العملاء أيضًا الاسم والشعار المضبوطين في لوحة تحكم Stripe على صفحة Stripe."
+      "providerBranding": "يرى العملاء أيضًا الاسم والشعار المضبوطين في لوحة تحكم Stripe على صفحة Stripe.",
+      "logoPending": "رُفع الشعار. احفظ لاستخدامه على صفحة الدفع."
     },
     "way": {
       "card": "البطاقات",

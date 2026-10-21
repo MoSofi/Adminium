@@ -31,7 +31,7 @@
  * honest surface for that is the plan saying which tables are missing — not a
  * disabled button, and certainly not a "create them" action that would fail.
  */
-import { useMutation, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
@@ -54,6 +54,7 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
 import { SampleDataCard } from '../apps/SampleData.js';
@@ -682,6 +683,9 @@ export function AddOnsPage() {
   const [{ data: installed }, { data: catalog }] = useSuspenseQueries({
     queries: [addOnsQuery, addOnCatalogQuery],
   });
+  // Payments opens for either payments key; the button is offered to who it opens for.
+  const { data: bootstrap } = useQuery(bootstrapQuery());
+  const mayOpenPayments = bootstrap !== undefined && (holdsSystemAction(bootstrap, 'payments.manage') || holdsSystemAction(bootstrap, 'payments.view'));
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1088,7 +1092,7 @@ export function AddOnsPage() {
                   {/* A payment service is set up in Payments: a test and a live
                       set of keys, saved field by field and checked as they are
                       saved. The generic form below would refuse it anyway. */}
-                  {isPaymentAddOn(addOn) && (
+                  {isPaymentAddOn(addOn) && mayOpenPayments && (
                     <div>
                       <Button
                         size="sm"
@@ -1100,6 +1104,11 @@ export function AddOnsPage() {
                         {t('studio:addOns.installed.setUpInPayments', 'Set up in Payments')}
                       </Button>
                     </div>
+                  )}
+                  {isPaymentAddOn(addOn) && !mayOpenPayments && (
+                    <p className="text-[12.5px] text-fg-muted" data-testid={`add-on-${addOn.key}-payments-who`}>
+                      {t('studio:addOns.installed.paymentsWho', 'Someone with the “Set up payments” permission sets this up in Payments.')}
+                    </p>
                   )}
 
                   {!addOn.connected && !isPaymentAddOn(addOn) && (

@@ -162,7 +162,8 @@ export default {
     "help": "Hilfe-Center",
     "changelog": "Neuerungen",
     "signOut": "Abmelden",
-    "toggleSidebar": "Seitenleiste umschalten"
+    "toggleSidebar": "Seitenleiste umschalten",
+    "payments": "Zahlungen"
   },
   "palette": {
     "dialog": "Befehlspalette",

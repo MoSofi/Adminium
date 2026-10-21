@@ -162,7 +162,8 @@ export default {
     "help": "說明中心",
     "changelog": "新功能",
     "signOut": "登出",
-    "toggleSidebar": "切換側邊欄"
+    "toggleSidebar": "切換側邊欄",
+    "payments": "付款"
   },
   "palette": {
     "dialog": "命令面板",

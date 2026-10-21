@@ -16,7 +16,7 @@
  * so, and their rules are not offered.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Banknote, CreditCard, Eye, Landmark, Plus, Trash2, Wallet } from 'lucide-react';
 import {
   Alert,
@@ -164,16 +164,18 @@ function CustomerPreview({ refreshKey }: { refreshKey: string }) {
 function RulesDrawer({ way, onClose, onlyForChoices, shopCountry }: { way: WayView; onClose: () => void; onlyForChoices: { id: string; name: string }[]; shopCountry: string | null }) {
   const client = useQueryClient();
   const [rules, setRules] = useState<WayRules>(way.rules);
-  const decimal = (value: string | null) => value === null || /^\d+(\.\d+)?$/.test(value);
+  // The amounts as typed; trimmed only when saved.
+  const amount = (value: string | null) => (value === null || value.trim() === '' ? null : value.trim());
+  const decimal = (value: string | null) => amount(value) === null || /^\d+(\.\d+)?$/.test(amount(value)!);
   const save = useMutation({
-    mutationFn: () => saveWay(way.source, way.method, toInput(way, { rules })),
+    mutationFn: () => saveWay(way.source, way.method, toInput(way, { rules: { ...rules, min: amount(rules.min), max: amount(rules.max) } })),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: PAYMENTS_WAYS_QUERY_KEY });
       onClose();
     },
   });
   const ok = decimal(rules.min) && decimal(rules.max);
-  const blank = (value: string) => (value.trim() === '' ? null : value.trim());
+  const blank = (value: string) => (value === '' ? null : value);
   return (
     <Drawer open size="md" onOpenChange={(next) => (next || save.isPending ? null : onClose())}>
       <DrawerHeader
@@ -257,6 +259,12 @@ function RulesDrawer({ way, onClose, onlyForChoices, shopCountry }: { way: WayVi
 
 const EMPTY_ACCOUNT = (currency: string): BankAccount => ({ currency, holder: '', iban: null, accountNumber: null, bic: null, sortCode: null, bank: null });
 
+/** An account as it is saved: each field trimmed, an empty one left out. */
+function cleanAccount(account: BankAccount): BankAccount {
+  const text = (value: string | null) => (value === null || value.trim() === '' ? null : value.trim());
+  return { currency: account.currency, holder: account.holder.trim(), iban: text(account.iban), accountNumber: text(account.accountNumber), bic: text(account.bic), sortCode: text(account.sortCode), bank: text(account.bank) };
+}
+
 function BankDrawer({ way, onClose }: { way: WayView; onClose: () => void }) {
   const client = useQueryClient();
   const details = (way.details as ManualDetails | null) ?? {};
@@ -264,15 +272,16 @@ function BankDrawer({ way, onClose }: { way: WayView; onClose: () => void }) {
   const [note, setNote] = useState(details.note ?? '');
   const [adding, setAdding] = useState('');
   const save = useMutation({
-    mutationFn: () => saveWay(way.source, way.method, toInput(way, { details: { accounts, note: note.trim() === '' ? null : note.trim() } })),
+    mutationFn: () => saveWay(way.source, way.method, toInput(way, { details: { accounts: accounts.map(cleanAccount), note: note.trim() === '' ? null : note.trim() } })),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: PAYMENTS_WAYS_QUERY_KEY });
       onClose();
     },
   });
   const set = (index: number, patch: Partial<BankAccount>) => setAccounts(accounts.map((account, at) => (at === index ? { ...account, ...patch } : account)));
-  const blank = (value: string) => (value.trim() === '' ? null : value.trim());
-  const complete = accounts.every((account) => account.holder.trim() !== '' && (account.iban !== null || account.accountNumber !== null));
+  // What was typed, spaces and all ("DE89 3704 …", "Deutsche Bank"); trimmed only when saved.
+  const blank = (value: string) => (value === '' ? null : value);
+  const complete = accounts.every((account) => cleanAccount(account).holder !== '' && (cleanAccount(account).iban !== null || cleanAccount(account).accountNumber !== null));
   return (
     <Drawer open size="md" onOpenChange={(next) => (next || save.isPending ? null : onClose())}>
       <DrawerHeader icon={<Landmark />} title={t('studio:payments.ways.bankTitle', 'Bank transfer')} subtitle={t('studio:payments.ways.bankKicker', 'Settings · By hand')} closeLabel={t('studio:payments.close', 'Close')} data-testid="payments-ways-bank" />
@@ -433,26 +442,19 @@ function WayRow({
 function ServiceGroup({ service, ways, canManage, rowProps }: { service: ServiceView; ways: WayView[]; canManage: boolean; rowProps: (way: WayView, index: number, list: WayView[]) => Parameters<typeof WayRow>[0] }) {
   const client = useQueryClient();
   const name = providerName(service);
-  const [asking, setAsking] = useState(false);
-  const methods = useQuery({ ...providerMethodsQuery(service.key), enabled: asking });
+  // One click asks the service which ways its account has switched on, then adds the missing ones.
   const add = useMutation({
     mutationFn: async () => {
+      const methods = await client.fetchQuery({ ...providerMethodsQuery(service.key), staleTime: 0 });
       const have = new Set(ways.map((one) => one.method));
       let position = ways.length;
-      for (const method of methods.data?.methods ?? []) {
+      for (const method of methods.methods) {
         if (have.has(method.id)) continue;
         await saveWay(service.key, method.id, { enabled: true, rules: NO_RULES, label: null, details: null, position: (position += 1) });
       }
     },
-    onSuccess: async () => {
-      setAsking(false);
-      await client.invalidateQueries({ queryKey: PAYMENTS_WAYS_QUERY_KEY });
-    },
+    onSettled: async () => client.invalidateQueries({ queryKey: PAYMENTS_WAYS_QUERY_KEY }),
   });
-  // Once the service has said which ways its account switched on, add the missing ones.
-  useEffect(() => {
-    if (asking && methods.data !== undefined && !add.isPending && !add.isSuccess) add.mutate();
-  }, [asking, methods.data, add]);
   return (
     <Card data-testid={`payments-ways-group-${service.key}`}>
       <CardHeader className="flex flex-wrap items-center gap-3">
@@ -467,13 +469,13 @@ function ServiceGroup({ service, ways, canManage, rowProps }: { service: Service
           </p>
         </div>
         {canManage ? (
-          <Button variant="secondary" size="sm" iconLeft={<Plus className="size-4" />} disabled={asking} onClick={() => setAsking(true)}>
+          <Button variant="secondary" size="sm" iconLeft={<Plus className="size-4" />} disabled={add.isPending} onClick={() => add.mutate()}>
             {t('studio:payments.ways.addFromProvider', 'Add the ways {provider} has switched on', { provider: name })}
           </Button>
         ) : null}
       </CardHeader>
       <CardBody>
-        {methods.isError ? <Alert tone="danger" role="alert" title={errorText(methods.error)} /> : null}
+        {add.isError ? <Alert tone="danger" role="alert" title={errorText(add.error)} data-testid={`payments-ways-group-${service.key}-error`} /> : null}
         {ways.length === 0 ? (
           <p className="text-[13px] text-fg-muted">{t('studio:payments.ways.noneFromProvider', 'No way to pay from {provider} is listed yet.', { provider: name })}</p>
         ) : (

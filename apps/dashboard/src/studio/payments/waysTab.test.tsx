@@ -34,7 +34,14 @@ interface Call {
   body: unknown;
 }
 
-function stub(ways: WayView[], offered: WayOffer[] = []): Call[] {
+interface Overrides {
+  /** Answers `/payments/services/<key>/methods`. */
+  methods?: () => { status: number; body: unknown };
+  /** Answers a PUT of one way. */
+  put?: () => { status: number; body: unknown };
+}
+
+function stub(ways: WayView[], offered: WayOffer[] = [], overrides: Overrides = {}): Call[] {
   const calls: Call[] = [];
   vi.stubGlobal(
     'fetch',
@@ -46,6 +53,14 @@ function stub(ways: WayView[], offered: WayOffer[] = []): Call[] {
       if (url === '/api/v1/payments/ways/preview') return Promise.resolve(jsonResponse(200, { data: offered }));
       if (url === '/api/v1/payments/payables') return Promise.resolve(jsonResponse(200, { data: { profiles: [], shapes: [] } }));
       if (url === '/api/v1/payments/pay-page') return Promise.resolve(jsonResponse(200, { data: { shopName: 'Crumb & Co', logoFileId: null, contactEmail: null, contactPhone: null, shopCountry: 'DE', showLines: true } }));
+      if (url.endsWith('/methods') && overrides.methods !== undefined) {
+        const answer = overrides.methods();
+        return Promise.resolve(jsonResponse(answer.status, answer.body));
+      }
+      if (method === 'PUT' && overrides.put !== undefined) {
+        const answer = overrides.put();
+        return Promise.resolve(jsonResponse(answer.status, answer.body));
+      }
       if (method === 'PUT') return Promise.resolve(jsonResponse(200, { data: JSON.parse(String(init?.body)) as unknown }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'not stubbed' } }));
     }),
@@ -53,8 +68,8 @@ function stub(ways: WayView[], offered: WayOffer[] = []): Call[] {
   return calls;
 }
 
-function renderTab(ways: WayView[], opts: { services?: ServiceView[]; canManage?: boolean; offered?: WayOffer[] } = {}) {
-  const calls = stub(ways, opts.offered);
+function renderTab(ways: WayView[], opts: { services?: ServiceView[]; canManage?: boolean; offered?: WayOffer[]; overrides?: Overrides } = {}) {
+  const calls = stub(ways, opts.offered, opts.overrides);
   render(
     <QueryClientProvider client={createQueryClient()}>
       <WaysTab services={opts.services ?? [STRIPE]} canManage={opts.canManage ?? true} />
@@ -116,6 +131,57 @@ describe('WaysTab', () => {
         accounts: [{ currency: 'EUR', holder: 'Crumb & Co GmbH', iban: 'DE89370400440532013000', accountNumber: null, bic: null, sortCode: null, bank: null }],
         note: null,
       });
+    });
+  });
+
+  it('adds the ways Stripe switched on once per click, and shows a refused save instead of retrying it', async () => {
+    const methods = { status: 200, body: { data: { mode: 'test', methods: [{ id: 'card', name: 'Cards', enabled: true }, { id: 'klarna', name: 'Klarna', enabled: true }] } } };
+    let refuse = true;
+    const { user, calls } = renderTab([way({ source: 'payments-stripe', method: 'card' })], {
+      overrides: {
+        methods: () => methods,
+        put: () => (refuse ? { status: 409, body: { error: { code: 'CONFLICT', message: 'Klarna is not switched on in this Stripe account.' } } } : { status: 200, body: { data: {} } }),
+      },
+    });
+    const button = await screen.findByRole('button', { name: 'Add the ways Stripe has switched on' });
+    await user.click(button);
+    expect(textOf(await screen.findByTestId('payments-ways-group-payments-stripe-error'))).toContain('Klarna is not switched on in this Stripe account.');
+    // Let a stray effect fire if there were one: the failed save is not sent again.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const puts = () => calls.filter((call) => call.method === 'PUT' && call.url === '/api/v1/payments/ways/payments-stripe/klarna');
+    expect(puts()).toHaveLength(1);
+    // The button works again, and asks the service again.
+    refuse = false;
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    await user.click(button);
+    await waitFor(() => expect(puts()).toHaveLength(2));
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    await user.click(button);
+    await waitFor(() => expect(calls.filter((call) => call.url.endsWith('/payments-stripe/methods'))).toHaveLength(3));
+  });
+
+  it('frees the button and says why when the service could not be asked', async () => {
+    const { user } = renderTab([], { overrides: { methods: () => ({ status: 502, body: { error: { code: 'PROVIDER_FAILED', message: 'Stripe did not answer.' } } }) } });
+    const button = await screen.findByRole('button', { name: 'Add the ways Stripe has switched on' });
+    await user.click(button);
+    expect(textOf(await screen.findByTestId('payments-ways-group-payments-stripe-error'))).toContain('Stripe did not answer.');
+    expect(button.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('keeps the spaces typed in bank details, and trims only the ends when saving', async () => {
+    const { user, calls } = renderTab([way({ source: 'manual', method: 'bank-transfer', details: { accounts: [{ currency: 'EUR', holder: 'Crumb & Co GmbH', iban: null, accountNumber: null, bic: null, sortCode: null, bank: null }], note: null } })]);
+    await user.click(within(await screen.findByTestId('payments-way-manual-bank-transfer')).getByRole('button', { name: 'Edit details' }));
+    const account = await screen.findByTestId('payments-ways-bank-EUR');
+    const iban = within(account).getByLabelText('IBAN');
+    await user.type(iban, 'DE89 3704 0044 0532 0130 00 ');
+    expect((iban as HTMLInputElement).value).toBe('DE89 3704 0044 0532 0130 00 ');
+    const bank = within(account).getByLabelText('Bank');
+    await user.type(bank, 'Deutsche Bank');
+    expect((bank as HTMLInputElement).value).toBe('Deutsche Bank');
+    await user.click(screen.getByTestId('payments-ways-bank-save'));
+    await waitFor(() => {
+      const put = calls.find((call) => call.method === 'PUT' && call.url === '/api/v1/payments/ways/manual/bank-transfer');
+      expect((put?.body as { details: { accounts: unknown[] } } | undefined)?.details.accounts[0]).toMatchObject({ iban: 'DE89 3704 0044 0532 0130 00', bank: 'Deutsche Bank' });
     });
   });
 

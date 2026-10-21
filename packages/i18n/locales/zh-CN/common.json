@@ -152,7 +152,8 @@
     "help": "帮助中心",
     "changelog": "新功能",
     "signOut": "退出登录",
-    "toggleSidebar": "切换侧边栏"
+    "toggleSidebar": "切换侧边栏",
+    "payments": "付款"
   },
   "palette": {
     "dialog": "命令面板",

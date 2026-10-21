@@ -382,11 +382,20 @@ export async function stopPayable(id: string): Promise<void> {
   await api.delete(`/api/v1/payments/payables/${encodeURIComponent(id)}`);
 }
 
-/** The issues a refused save came back with (`details.issues`), or null. */
+/**
+ * The mapping issues a refused save came back with (`details.issues`), or
+ * null. A request the schema refused also carries `details.issues`, in its
+ * own shape (`{ path, message, code: 'too_small' }`): only issues with a code
+ * of ours count, so that refusal reads as its message instead.
+ */
 export function payableIssuesOf(error: unknown): PayableIssue[] | null {
   if (!(error instanceof ApiError)) return null;
   const issues = (error.details as { issues?: unknown } | null | undefined)?.issues;
-  return Array.isArray(issues) ? (issues as PayableIssue[]) : null;
+  if (!Array.isArray(issues)) return null;
+  const ours = issues.filter(
+    (issue): issue is PayableIssue => typeof issue === 'object' && issue !== null && (PAYABLE_ISSUES as readonly unknown[]).includes((issue as { code?: unknown }).code) && typeof (issue as { path?: unknown }).path === 'string',
+  );
+  return ours.length === 0 ? null : ours.map((issue) => ({ code: issue.code, path: issue.path, column: typeof issue.column === 'string' ? issue.column : null }));
 }
 
 // ─── Pay page ───────────────────────────────────────────────────────────────

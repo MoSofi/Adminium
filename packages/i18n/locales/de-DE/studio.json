@@ -100,7 +100,8 @@
       "on": "an",
       "title": "Installiert",
       "uninstall": "Deinstallieren",
-      "setUpInPayments": "In Zahlungen einrichten"
+      "setUpInPayments": "In Zahlungen einrichten",
+      "paymentsWho": "Eingerichtet wird das in Zahlungen, von jemandem mit der Berechtigung „Zahlungen einrichten“."
     },
     "job": {
       "body": "Wird geladen und geprüft. Installiert wird erst auf Ihr Wort.",
@@ -3961,7 +3962,8 @@
       "countryHelp": "Ein zweistelliger Code wie DE. Die Regeln unter „Zahlungsarten“ nutzen ihn, wenn das Land der Kundschaft unbekannt ist.",
       "countryInvalid": "Geben Sie einen zweistelligen Code wie DE ein.",
       "lines": "Die Rechnungspositionen auf der Zahlungsseite zeigen",
-      "providerBranding": "Die Kundschaft sieht auch den Namen und das Logo, die im Dashboard von Stripe eingestellt sind, auf der Seite von Stripe."
+      "providerBranding": "Die Kundschaft sieht auch den Namen und das Logo, die im Dashboard von Stripe eingestellt sind, auf der Seite von Stripe.",
+      "logoPending": "Logo hochgeladen. Speichern Sie, um es auf der Zahlungsseite zu verwenden."
     },
     "way": {
       "card": "Karten",

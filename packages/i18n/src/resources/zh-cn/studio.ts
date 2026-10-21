@@ -110,7 +110,8 @@ export default {
       "on": "on",
       "title": "Installed",
       "uninstall": "Uninstall",
-      "setUpInPayments": "在“付款”中设置"
+      "setUpInPayments": "在“付款”中设置",
+      "paymentsWho": "由拥有“设置付款”权限的人在“付款”中设置。"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -3805,7 +3806,7 @@ export default {
       "accountNumber": "账号",
       "accountNumberHelp": "仅在没有 IBAN 时填写。",
       "bic": "BIC",
-      "sortCode": "Sort code",
+      "sortCode": "分行代码（英国）",
       "bank": "银行",
       "bankShown": "以 {currency} 付款的客户会在付款页面看到这些信息。",
       "addAccount": "添加账户",
@@ -3971,7 +3972,8 @@ export default {
       "countryHelp": "两个字母的代码，例如 DE。不知道客户所在国家时，“付款方式”中的规则会使用它。",
       "countryInvalid": "请输入两个字母的代码，例如 DE。",
       "lines": "在付款页面上显示发票明细",
-      "providerBranding": "在 Stripe 页面上，客户还会看到您在 Stripe 控制台中设置的名称和徽标。"
+      "providerBranding": "在 Stripe 页面上，客户还会看到您在 Stripe 控制台中设置的名称和徽标。",
+      "logoPending": "徽标已上传。保存后才会在付款页面上使用。"
     },
     "way": {
       "card": "银行卡",

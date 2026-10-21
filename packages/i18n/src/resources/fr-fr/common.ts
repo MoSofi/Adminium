@@ -162,7 +162,8 @@ export default {
     "help": "Centre d’aide",
     "changelog": "Nouveautés",
     "signOut": "Se déconnecter",
-    "toggleSidebar": "Afficher/masquer la barre latérale"
+    "toggleSidebar": "Afficher/masquer la barre latérale",
+    "payments": "Paiements"
   },
   "palette": {
     "dialog": "Palette de commandes",

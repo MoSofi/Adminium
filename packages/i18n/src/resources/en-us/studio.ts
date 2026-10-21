@@ -110,7 +110,8 @@ export default {
       "on": "on",
       "title": "Installed",
       "uninstall": "Uninstall",
-      "setUpInPayments": "Set up in Payments"
+      "setUpInPayments": "Set up in Payments",
+      "paymentsWho": "Someone with the “Set up payments” permission sets this up in Payments."
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -3971,7 +3972,8 @@ export default {
       "countryHelp": "A two-letter code, such as DE. The rules on Ways to pay use it when a customer’s country is not known.",
       "countryInvalid": "Write a two-letter code, such as DE.",
       "lines": "Show the invoice's lines on the pay page",
-      "providerBranding": "Customers also see the name and logo set in your Stripe dashboard on the Stripe page."
+      "providerBranding": "Customers also see the name and logo set in your Stripe dashboard on the Stripe page.",
+      "logoPending": "Logo uploaded. Save to use it on the pay page."
     },
     "way": {
       "card": "Cards",

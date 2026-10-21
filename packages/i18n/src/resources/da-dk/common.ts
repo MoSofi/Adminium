@@ -162,7 +162,8 @@ export default {
     "help": "Hjælpecenter",
     "changelog": "Nyheder",
     "signOut": "Log ud",
-    "toggleSidebar": "Slå sidepanelet til/fra"
+    "toggleSidebar": "Slå sidepanelet til/fra",
+    "payments": "Betalinger"
   },
   "palette": {
     "dialog": "Kommandopalet",

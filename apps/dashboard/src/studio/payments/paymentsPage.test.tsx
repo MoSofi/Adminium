@@ -279,6 +279,43 @@ describe('PaymentsPage', () => {
     expect(textOf(await screen.findByTestId('payments-payments-stripe-test-mode-mismatch'))).toBe('This key is for live payments, and this field is for the test key.');
   });
 
+  it('names the choice of how the key is made, and says when choosing it was refused', async () => {
+    const { user } = renderPage(setup(), { status: 409, body: { error: { code: 'CONFLICT', message: 'The path could not be saved.' } } });
+    const group = await screen.findByRole('radiogroup', { name: /Stripe key/ });
+    await user.click(within(group).getByRole('radio', { name: /By hand in the Stripe dashboard/ }));
+    expect(textOf(await screen.findByTestId('payments-payments-stripe-path-error'))).toContain('The path could not be saved.');
+  });
+
+  it('says in the dialog when stopping new payments was refused', async () => {
+    const { user } = renderPage(setup(), { status: 409, body: { error: { code: 'CONFLICT', message: 'Payments could not be stopped.' } } });
+    await user.click(await screen.findByRole('switch', { name: 'Stop new payments' }));
+    await user.click(screen.getByRole('button', { name: 'Stop new payments' }));
+    expect(within(await screen.findByRole('dialog')).getByRole('alert').textContent).toContain('Payments could not be stopped.');
+  });
+
+  it('says on the card when taking payments again was refused', async () => {
+    const { user } = renderPage(setup({ services: [stripe({ stopped: true })] }), { status: 409, body: { error: { code: 'CONFLICT', message: 'Payments could not be started again.' } } });
+    await user.click(await screen.findByRole('switch', { name: 'Stop new payments' }));
+    expect(textOf(await screen.findByTestId('payments-payments-stripe-stop-error'))).toContain('Payments could not be started again.');
+  });
+
+  it('says on every tab when the setup could not be read', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(jsonResponse(500, { error: { code: 'INTERNAL', message: 'The database is not answering.' } }))));
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PageActionsProvider>
+          <PaymentsPage onOpenSettings={() => undefined} />
+        </PageActionsProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByTestId('payments-load-error')).toBeTruthy();
+    const user = userEvent.setup();
+    for (const [tab, id] of [['Ways to pay', 'ways'], ['What can be paid', 'payables'], ['Pay page', 'page']] as const) {
+      await user.click(screen.getByRole('tab', { name: tab }));
+      expect(textOf(await screen.findByTestId(`payments-load-error-${id}`))).toContain('The database is not answering.');
+    }
+  });
+
   it('says when no payment service is installed', async () => {
     renderPage(setup({ services: [] }));
     expect(textOf(await screen.findByTestId('payments-no-services'))).toContain('No payment service is installed.');

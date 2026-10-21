@@ -162,7 +162,8 @@ export default {
     "help": "Help centre",
     "changelog": "What’s new",
     "signOut": "Sign out",
-    "toggleSidebar": "Toggle sidebar"
+    "toggleSidebar": "Toggle sidebar",
+    "payments": "Payments"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",

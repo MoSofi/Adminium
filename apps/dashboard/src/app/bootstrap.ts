@@ -387,10 +387,15 @@ export type SystemAction =
  * control whose only possible outcome is a 403.
  *
  * A reply without the list (a fixture predating the field) falls back to the
- * old role test: Admin and Super Admin were offered every admin surface.
+ * old role test: Admin and Super Admin were offered every admin surface. The
+ * payments keys never come from that guess: they move money, the Admin role
+ * is not seeded with them, and a server that sends no list has no payments.
  */
+const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view']);
+
 export function holdsSystemAction(bootstrap: BootstrapData, action: SystemAction): boolean {
   if (bootstrap.systemActions === undefined) {
+    if (NEVER_GUESSED.has(action)) return false;
     return bootstrap.roles.some((role) => role === 'admin' || role === 'super-admin');
   }
   return bootstrap.systemActions.includes(action);

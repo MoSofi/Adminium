@@ -54,8 +54,9 @@ function stubFetch() {
   );
 }
 
-function renderTopbar(roles: string[]) {
+function renderTopbar(roles: string[], systemActions?: string[]) {
   stubFetch();
+  const onOpenPayments = vi.fn();
   const onOpenStudio = vi.fn();
   const onOpenStudioSettings = vi.fn();
   const onOpenHelp = vi.fn();
@@ -66,7 +67,7 @@ function renderTopbar(roles: string[]) {
         <TooltipProvider>
           <ShortcutsProvider>
             <Topbar
-              bootstrap={makeBootstrap({ roles })}
+              bootstrap={makeBootstrap({ roles, ...(systemActions === undefined ? {} : { systemActions }) })}
               title="Customers"
               onOpenPalette={() => {}}
               onToggleSidebar={() => {}}
@@ -77,6 +78,7 @@ function renderTopbar(roles: string[]) {
               onOpenPreferences={() => {}}
               onOpenStudio={onOpenStudio}
               onOpenStudioSettings={onOpenStudioSettings}
+              onOpenPayments={onOpenPayments}
               onOpenHelp={onOpenHelp}
               onOpenChangelog={onOpenChangelog}
             />
@@ -85,7 +87,7 @@ function renderTopbar(roles: string[]) {
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  return { onOpenStudio, onOpenStudioSettings, onOpenHelp, onOpenChangelog };
+  return { onOpenStudio, onOpenStudioSettings, onOpenPayments, onOpenHelp, onOpenChangelog };
 }
 
 afterEach(() => {
@@ -113,6 +115,31 @@ describe('avatar menu Studio section', () => {
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(await screen.findByRole('menuitem', { name: 'Workspace settings' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Pages' })).toBeNull();
+  });
+
+  it('gives a payments-only role its way into Payments', async () => {
+    const user = userEvent.setup();
+    const { onOpenPayments } = renderTopbar(['bookkeeper'], ['payments.view']);
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Payments' }));
+    expect(onOpenPayments).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).toBeNull();
+  });
+
+  it('keeps Payments out of an admin menu — Workspace settings owns that door', async () => {
+    const user = userEvent.setup();
+    renderTopbar(['admin'], ['connections.manage', 'settings.manage', 'payments.manage']);
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(await screen.findByRole('menuitem', { name: 'Workspace settings' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Payments' })).toBeNull();
+  });
+
+  it('offers no Payments to a role without a payments key', async () => {
+    const user = userEvent.setup();
+    renderTopbar(['viewer'], []);
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(await screen.findByRole('menuitem', { name: 'Profile' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Payments' })).toBeNull();
   });
 
   it('hides the section from roles StudioGuard would reject', async () => {

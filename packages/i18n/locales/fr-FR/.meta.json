@@ -8831,6 +8831,10 @@
     "srcHash": "dc258532adba",
     "status": "mt"
   },
+  "common.topbar.payments": {
+    "status": "mt",
+    "srcHash": "44357ae55a21"
+  },
   "common.topbar.preferences": {
     "srcHash": "9dfd349ebee5",
     "status": "mt"
@@ -19787,6 +19791,10 @@
     "status": "mt",
     "srcHash": "db3d405b1067"
   },
+  "studio.addOns.installed.paymentsWho": {
+    "status": "mt",
+    "srcHash": "1f9e94bfff5d"
+  },
   "studio.addOns.installed.setUpInPayments": {
     "status": "mt",
     "srcHash": "8c6f3aa1aa0d"
@@ -27095,6 +27103,10 @@
     "status": "mt",
     "srcHash": "1cb0172790ab"
   },
+  "studio.payments.page.logoPending": {
+    "status": "mt",
+    "srcHash": "f49b322ca212"
+  },
   "studio.payments.page.logoType": {
     "status": "mt",
     "srcHash": "ee1224ceac8e"
@@ -28212,7 +28224,7 @@
     "srcHash": "fd9f565ccadf"
   },
   "studio.payments.ways.sortCode": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "aa8631b04306"
   },
   "studio.payments.ways.tagHand": {

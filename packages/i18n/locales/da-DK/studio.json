@@ -100,7 +100,8 @@
       "on": "on",
       "title": "Installed",
       "uninstall": "Uninstall",
-      "setUpInPayments": "Opsæt under Betalinger"
+      "setUpInPayments": "Opsæt under Betalinger",
+      "paymentsWho": "En med tilladelsen »Opsæt betalinger« sætter det op under Betalinger."
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -3795,7 +3796,7 @@
       "accountNumber": "Kontonummer",
       "accountNumberHelp": "Kun hvor der ikke er et IBAN.",
       "bic": "BIC",
-      "sortCode": "Sort code",
+      "sortCode": "Bankkode (Storbritannien)",
       "bank": "Bank",
       "bankShown": "Kunder, der betaler i {currency}, ser disse oplysninger på betalingssiden.",
       "addAccount": "Tilføj kontoen",
@@ -3961,7 +3962,8 @@
       "countryHelp": "En kode på to bogstaver, som DE. Reglerne under Betalingsmåder bruger den, når kundens land ikke er kendt.",
       "countryInvalid": "Skriv en kode på to bogstaver, som DE.",
       "lines": "Vis fakturaens linjer på betalingssiden",
-      "providerBranding": "Kunderne ser også navnet og logoet, der er angivet i dit Stripe-dashboard, på Stripe-siden."
+      "providerBranding": "Kunderne ser også navnet og logoet, der er angivet i dit Stripe-dashboard, på Stripe-siden.",
+      "logoPending": "Logo uploadet. Gem for at bruge det på betalingssiden."
     },
     "way": {
       "card": "Kort",

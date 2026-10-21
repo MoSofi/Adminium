@@ -162,7 +162,8 @@ export default {
     "help": "Centrum nápovědy",
     "changelog": "Novinky",
     "signOut": "Odhlásit se",
-    "toggleSidebar": "Přepnout postranní panel"
+    "toggleSidebar": "Přepnout postranní panel",
+    "payments": "Platby"
   },
   "palette": {
     "dialog": "Paleta příkazů",
