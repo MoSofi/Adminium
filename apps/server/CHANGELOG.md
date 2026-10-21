@@ -1,5 +1,57 @@
 # @adminium/server
 
+## 0.3.31
+
+### Patch Changes
+
+- ab2293f: Packing the server from a checkout inside a dot folder (such as `.claude/worktrees/…`) now copies the Designer's skills into the package. Before, the copy step dropped every file because the checkout's own path held a dot folder, yet it still reported success, so such a package shipped with no `skills/`. The step now also fails if the copy holds no `adminium/SKILL.md`.
+- 2922278: Adminium Designer's pictures are spots you fill. Each picture on an app's pages is a named spot (Hero, Team) drawn by `<Picture spot="…" />` from `@adminiumjs/adminium/side`: an empty one is a grey frame with its name, and in the preview it carries "Choose a picture". The picture dialog (the Pictures chip under the reply, the "Choose the pictures" card, or a click on a spot while pointing) lists the page's spots and each table's sample rows, and fills them from a search of Openverse (and Pexels or Unsplash where the server has their keys), from an upload, or from a picture already in the app. Each search result shows its licence as a badge with what it asks; "Credit + same licence" is hidden until you ask for it. Apply writes the pictures with their credits, saves a version, and can be undone; no turn and no model is used. Credits are drawn at the foot of the page that shows them.
+  
+  The Designer no longer searches for pictures itself (`find_pictures` is gone): it names spots (`add_spots`), puts a picture you attached in one (`fill_spot`), and the first card of a new app asks whether pictures stay placeholders or you choose them after each design. A turn that would take a picture you placed off its screen asks first. An app made before spots keeps its pictures, and "Make them swappable" turns them into spots in one turn.
+  
+  Fixed: adding an app's sample rows again no longer stops on a row you changed whose key the sample file names; that row is left as yours.
+- c031ab5: Adminium Designer reads Figma. The composer's paperclip is now an Attach menu: files from your computer, or From Figma…. Paste a link to a frame, and the Designer gets two files with your message: a picture of the frame and its design document (sizes, gaps, padding, colours, fonts, corners, components and the pictures' shapes), which it builds the screens from. During a turn it can read one part of the frame in more detail (`read_figma`, at most three Figma reads a turn).
+  
+  Each person connects their own Figma personal access token (one that can read their user details, file content and file metadata), in the From Figma… dialog. It is checked with Figma before it is kept, kept encrypted on the server under a key of its own, and used only for that person's imports; the Security page shows it and can change or remove it. A token kept under an earlier `ADMINIUM_SECRET` shows as not connected, so it is asked for again. Every read Figma counts is said where you see it, a frame imported again is read from the copy the server kept until the file changes, and after Figma says a seat's monthly reads are used up the Designer stops reading until the date Figma gave. Under `adminium design`, `ADMINIUM_FIGMA_TOKEN` in the process's environment stands in for the project owner's token. Figma is off where network features are off. New migration `0061_user_figma_token`.
+  
+  The Designer's window budget now counts the tool definitions sent with every request, so a long session on a small window (Ollama) is trimmed to what really fits.
+- 1247c3d: Adminium Designer builds an app from a site template. Before anything is written it reads the template (its repeated blocks and their fields, its forms, a cart, the features it shows and the links that lead nowhere) and asks one plan on a card, **Your template, as an app**: **Review the plan…** opens a sheet with what becomes a table, what each form does, what the template shows and whether Adminium does it (for each thing it does not: Build, Replace or Leave out, Replace picked where there is one, never Build), the links to fill, and what is added to the project (the screens' packages and the template's Google fonts). **Build this** builds only what was approved; text in **Anything to change?** sends the plan back as **Send my changes**. The answer is kept in `apps/<key>/template-plan.json` with the template's sha256, so a later session or a build stopped by a limit goes on without asking again, and a different template asks for a new plan.
+  
+  Then the template's stylesheets, pictures and fonts are copied into the side's `src/site/` (comments, other sites' addresses and missing files taken out), each page becomes a screen at its own address with its markup as it was, its pictures become spots filled with the template's own pictures (swappable in the picture dialog), and the side follows its template: none of Adminium's own look and no Tailwind. In a session that holds a template or a Figma design, **Check this before it goes live** asks before the app lets strangers do more than before, or a page calls an address outside Adminium, and only for what the approved plan does not cover. A model that reads too little at once for a template (Ollama, most OpenAI-compatible servers) is told so before it starts. `use_pictures` takes a template's own picture for a sample row by its path.
+- 97786f8: A project can keep site templates in `site-templates/<name>/`. The Designer's home offers them ("There is a site template in this project: harbor-bakery." with "Start from it"), and the Attach menu lists them under "A site template in this project", beside a new "A folder…" item for picking a template's folder. The server reads such a folder without following links and judges it as it judges a zip.
+  
+  `adminium design` in a folder that holds a site template, and the Desktop app's "Make a new project here" on one, make the new project inside it and copy the template into its `site-templates/`, through the same checks; the folder's own files are not changed. A folder that is not a template (too many files, or refused) still gets its project, and the Designer says why the template was not copied. `adminium new` takes `--site-template <folder>` for this.
+  
+  Fixed: a site template put with a first message on the Designer's home now goes with it (it was left behind when no other file was attached).
+- 1978cef: The Designer takes a page (.html) or a stylesheet (.css) of a site template as an attachment. The chip
+  says "page" or "stylesheet". The model is told only how large it is and how many files it names; it
+  reads the text with `read_attachment`, 12,000 characters at a time, each part marked as the template's
+  data and never as instructions. A minified file is read as a summary. Neither is ever served back to a
+  browser.
+- 51c49f9: The Designer takes a whole site template: drop a `.zip` (or a folder, which the page packs into one) on the message box. It goes up at once; the chip shows the template's pages and files, and a "left out" list says why each file was not kept (PHP, videos, a link…). Send waits for the upload. A second template asks before it replaces the first. The server reads the zip with its own strict reader and refuses a zip that could be read two ways, a zip locked with a password, names that clash or that Windows cannot hold, and anything past the limits (25 MB packed, 1,000 entries, 300 files and 24 MB kept), each in one sentence naming the file. The model is told only the template's counts and reads its files with `read_attachment`, as data. A file can now be taken off a message before it is sent; one that went with a message stays. One person's Designer files are capped at 500 MB across sessions.
+- 74f260e: A column can now hold a **Picture**. In the page editor each column says what it holds — Text, Picture or File — in one choice, and a Picture column's field in the New and Edit dialogs shows the picture with Upload, Choose existing… and Remove. **Choose existing…** picks a picture another record of the table shows or, for someone who can open the Files page, one uploaded there; the record always gets its own copy (`POST /api/v1/files/{id}/copy`), so deleting either never touches the other. The switch that drew initials beside a value now shows the row's picture where the page has a Picture column (still initials on a link column). A record's Files tab counts and lists every file the record holds that the reader may read, and a file one of its columns names has no Delete there. On the Files page, "Not attached" is now "Not used yet", and a new "Uploaded here" shortcut lists the page's own uploads.
+  
+  Saving a record through a page's file column now names only a file the person uploaded (or copied) that no record holds yet; another person's pending upload, or a file another record or the Files page holds, is refused. A save made from a form whose page settings changed meanwhile is refused with a message, so a picture uploaded into a column that no longer holds files is not lost. An app manifest's picture column is an image column with a file rule that takes pictures only: its sample rows may give it one of the bundle's pictures. The form designer's "Segmented" layout now says it shows a file list, not an attachment list.
+- 7d98d68: When an automation's Update field step clears a file column, the file it held now goes to the trash, as it does when a person clears it. Before, the file stayed attached to the record for ever, never shown and never cleaned up. A file a rule's write names is still taken by no record.
+- 348173e: "Start with an app" in Adminium Designer now shows each app's real screenshot instead of a placeholder, with a link to the app's demo on adminium.dev (or to its page there when it has no demo). The server fetches the screenshot from adminium.dev, keeps it, and serves it to the page. It does this only while the online app list is on, and it fetches only addresses on adminium.dev under `/shots/` or `/covers/`. If a picture cannot be loaded, the card falls back to the app's icon.
+- 975b787: When a move of one row moves a linked row too and that row's file column is cleared or replaced, the file it held now goes to the trash, as it does when a person clears it. Before, it stayed attached to the record for ever, never shown and never cleaned up. A file such a write names is taken by no record.
+- c619a53: When a timed move's values clear or replace a file column, the file the row held now goes to the trash, as it does when a person clears it. Before, it stayed attached to the record for ever, never shown and never cleaned up.
+- Updated dependencies [1247c3d]
+- Updated dependencies [275b353]
+- Updated dependencies [c90ce75]
+- Updated dependencies [74f260e]
+- Updated dependencies [348173e]
+  - @adminium/i18n@0.3.31
+  - @adminium/meta@0.3.31
+  - @adminium/llm@0.3.31
+  - @adminium/manifest@0.3.31
+  - @adminium/engine@0.3.31
+  - @adminium/adapter-mysql@0.3.31
+  - @adminium/adapter-postgres@0.3.31
+  - @adminium/adapter-sqlite@0.3.31
+  - @adminium/schema-import@0.3.31
+  - @adminium/add-on-contracts@0.3.31
+
 ## 0.3.30
 
 ### Patch Changes

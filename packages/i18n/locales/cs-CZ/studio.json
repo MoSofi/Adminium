@@ -1256,7 +1256,7 @@
       "column": {
         "adoptHint": "Tato tabulka už tento sloupec má, takže se nic nevytváří — použije se tak, jak je.",
         "bound": "Soubory jsou uloženy ve sloupci {column} této tabulky.",
-        "boundHint": "Pozdější vypnutí příloh odpojí jen tuto stránku. Sloupec a soubory v něm zůstanou nedotčené.",
+        "boundHint": "Pozdější vypnutí tuto stránku odpojí. Sloupec ani soubory v něm se nezmění.",
         "confirm": "Spustit",
         "create": "Vytvořit sloupec",
         "createHint": "Adminium přidá do této tabulky jeden textový sloupec. Přesný příkaz uvidíte dřív, než se cokoli spustí.",
@@ -1274,7 +1274,7 @@
       "destinationHint": "Ponechte výchozí, pokud soubory této tabulky nepatří jinam.",
       "destinationIsDefault": "{name} (výchozí)",
       "destinationLocal": "Disk tohoto serveru",
-      "enable": "Povolit přílohy u záznamů této tabulky",
+      "enable": "Každý záznam si může uchovávat seznam souborů",
       "enableHint": "Soubory se propojují na straně Adminia, takže tato tabulka nepotřebuje nový sloupec — funguje to i na připojení jen pro čtení a na tabulce, kterou raději neměníte.",
       "enableHintColumn": "Soubory se ukládají do jednoho sloupce této tabulky, takže se objeví v dialozích Nový a Upravit i u každého záznamu.",
       "enableHintSidecar": "Soubory se místo toho propojí na straně Adminia. Objeví se na stránce každého záznamu, ne v dialogu Nový.",
@@ -1291,7 +1291,8 @@
       "type": {
         "office": "Dokumenty Office",
         "text": "Prostý text"
-      }
+      },
+      "pictureHint": "Pro vlastní obrázek položky nastavte v části Sloupce sloupec na Obrázek."
     },
     "columns": {
       "addFromLinked": "Z propojených tabulek",
@@ -1304,8 +1305,8 @@
       "addSearch": "Hledat sloupce…",
       "addTitle": "Přidat sloupec",
       "addVia": "přes {column}",
-      "avatar": "Avatar",
-      "avatarToggle": "Zobrazit monogram vedle {name}",
+      "avatar": "Iniciály",
+      "avatarToggle": "Zobrazit iniciály vedle {name}",
       "countBadge": "Počet",
       "dragHandle": "Přesunout {name}",
       "empty": "Zatím žádné sloupce — přidejte je níže.",
@@ -1356,7 +1357,8 @@
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "Pouze obrázky. Zrušte zaškrtnutí druhů, které má tento sloupec odmítat."
       },
       "fold": {
         "avg": "Průměr",
@@ -1386,7 +1388,25 @@
       "remove": "Odebrat {name}",
       "schemaUnavailable": "Sloupce databáze se nepodařilo načíst, takže zde nelze sloupce přidat.",
       "shown": "Zobrazeno",
-      "toggle": "Zobrazit {name} v tabulce"
+      "toggle": "Zobrazit {name} v tabulce",
+      "avatarPicture": {
+        "name": "Obrázek vedle názvu",
+        "it": "Obrázek vedle",
+        "toggle": "Zobrazit obrázek řádku vedle {column}, nebo jeho iniciály",
+        "none": "Zatím žádný sloupec neobsahuje obrázek, proto se zobrazí iniciály.",
+        "from": "Obrázek ze sloupce"
+      },
+      "holds": {
+        "label": "Obsahuje",
+        "name": "Co obsahuje {name}",
+        "text": "Text",
+        "picture": "Obrázek",
+        "file": "Soubor",
+        "app": "Tento sloupec nastavuje aplikace {app}: obsahuje {kind, select, picture {obrázky} other {soubory}} do velikosti {size}. Zde ho nelze změnit.",
+        "appUnnamed": "Tento sloupec nastavuje aplikace: obsahuje {kind, select, picture {obrázky} other {soubory}} do velikosti {size}. Zde ho nelze změnit.",
+        "toText": "Již uložené hodnoty ve sloupci zůstanou. Formulář je zobrazí jako text.",
+        "hint": "Tento sloupec zřejmě obsahuje odkazy na obrázky. Nastavte ho na Obrázek, abyste zde mohli obrázky nahrávat nebo vybírat. Odkazy, které už obsahuje, zůstanou."
+      }
     },
     "create": {
       "failed": "Stránku se nepodařilo vytvořit",
@@ -1438,7 +1458,7 @@
     },
     "editor": {
       "appearance": "Vzhled",
-      "attachments": "Přílohy",
+      "attachments": "Soubory u každého záznamu",
       "columns": "Sloupce",
       "contentInvalid": "Konfiguraci této stránky nelze přečíst",
       "contentInvalidBody": "Pochází z novější verze, nebo je poškozená. Vygenerujte stránku znovu, nebo ji smažte.",
@@ -1649,7 +1669,7 @@
           "title": "Sekce"
         },
         "segmented": {
-          "body": "Segmentovaná priorita, dlouhý popis, seznam příloh, přiřazená osoba.",
+          "body": "Segmentovaná priorita, dlouhý popis, seznam souborů, přiřazená osoba.",
           "title": "Segmenty a soubory"
         },
         "split": {
@@ -2704,7 +2724,7 @@
       "export": "Soubory z exportů dat",
       "import": "Nahrané soubory CSV a jejich chybové reporty",
       "schema": "Importované soubory schématu",
-      "upload": "Soubory přiložené k záznamům"
+      "upload": "Soubory uložené u záznamů"
     },
     "list": {
       "subtitle": "Nové soubory míří do výchozího cíle. Stávající soubory zůstávají tam, kde jsou, dokud je nepřesunete.",

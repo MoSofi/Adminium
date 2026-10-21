@@ -1115,22 +1115,6 @@
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Fichier",
-      "fileNewDatabase": "Nouvelle base de données locale…",
-      "fileOpenSqlite": "Ouvrir un fichier SQLite…",
-      "fileBackupNow": "Sauvegarder maintenant…",
-      "fileRestore": "Restaurer depuis une sauvegarde…",
-      "edit": "Édition",
-      "view": "Affichage",
-      "window": "Fenêtre",
-      "help": "Aide",
-      "helpDocs": "Documentation Adminium",
-      "helpShortcuts": "Raccourcis clavier",
-      "helpLogs": "Afficher les journaux",
-      "helpCheckForUpdates": "Rechercher des mises à jour…",
-      "helpAbout": "À propos d’Adminium"
-    },
     "settings": {
       "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail.",
       "title": "Paramètres du bureau"
@@ -1680,6 +1664,24 @@
       "secretHelper": "Collez le lien de configuration dans votre application d’authentification, ou saisissez la clé à la main.",
       "secret": "Clé de configuration",
       "title": "Authentification à deux facteurs"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Non connecté. Connectez Figma depuis le menu Joindre du Designer, Depuis Figma…",
+      "connectedAs": "Connecté à Figma en tant que {handle}",
+      "kept": "Conservé chiffré sur ce serveur, pour vous seul. Seuls vos propres imports l’utilisent.",
+      "environment": "Le jeton Figma défini dans l'environnement de ce projet est utilisé.",
+      "changeToken": "Changer de jeton",
+      "disconnect": "Déconnecter",
+      "newToken": "Nouveau jeton",
+      "saveToken": "Enregistrer le jeton",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "refused": "Figma n’a pas accepté ce jeton. Vérifiez-le et collez-le à nouveau.",
+      "off": "Figma est désactivé sur ce serveur : les fonctions réseau sont coupées.",
+      "unreachable": "Figma n’a pas répondu. Réessayez dans un instant.",
+      "disconnectTitle": "Déconnecter Figma ?",
+      "disconnectBody": "Vos imports déjà dans le Designer restent."
     }
   },
   "team": {

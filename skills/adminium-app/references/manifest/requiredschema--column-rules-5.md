@@ -16,10 +16,20 @@
   picture, one cleaned as it was uploaded for a file column. A file named twice in one row is refused,
   and so is a list longer than `maxCount`. Only a person names a new file, through a form, a bulk edit
   or a record's button: an import, a rule, project code, sample data and the public API name none (they
-  may keep or empty what the column holds). An undo puts back what was. A refusal is `422`
+  may keep or empty what the column holds), but for a picture column's sample pictures (below). An undo puts back what was. A refusal is `422`
   `VALIDATION_FAILED`, the field's code `file-not-here`, `file-type`, `file-too-large` or
   `too-many-files`; whose a file is, whether it exists and which record holds it are all said alike, as
   `file-not-here`.
+- **A picture column.** A `text` column with `"semantic": "image"` and a `file` rule whose `accept`
+  names only `png`, `jpeg`, `webp` and `gif` holds one picture: a public entry may show it to every
+  visitor ([`pictures`](https://docs.adminium.dev/reference/manifest/#pictures)), and a sample row may give it one of the bundle's pictures,
+  `{ "@asset": "<label>" }`, which the sample adds as that row's own file. An image column whose file
+  rule takes any other kind is refused. An image column with no `file` rule holds links, as before.
+
+  ```json
+  { "ref": "photo", "type": "text", "nullable": true, "semantic": "image",
+    "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } }
+  ```
 - **The record holds it.** Once named, the file is read with its record, by whoever reads the record
   and reaches its row, through every column their role shows. It is changed only through the record:
   taking it off, renaming it, throwing it away or hanging it on another record by the file routes is
@@ -80,7 +90,3 @@ how many lines a kitchen ticket has.
   "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
                          "unlessSet": "refunded_at" } } }
 ```
-
-A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
-column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
-for a sum.

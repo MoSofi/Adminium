@@ -15,6 +15,7 @@
  * socket.
  */
 
+import type { SafeFetchOptions } from '../net/safe-fetch.js';
 import { spawnSync } from 'node:child_process';
 import { resolve, win32 } from 'node:path';
 
@@ -272,6 +273,10 @@ export interface StartServerOptions {
   designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer (`ComposeServerOptions.designer`). */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
   /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
   shared?: { port: number; ownerToken?: string } | undefined;
+  /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
+  figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** Tests only, and only in-process: how the picture sources are reached (`ComposeServerOptions.pictureSeams`). No flag or variable sets it. */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
@@ -323,6 +328,8 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     ...(opts.project === undefined ? {} : { project: opts.project }),
     ...(opts.designer === undefined ? {} : { designer: opts.designer }),
     ...(opts.shared === undefined ? {} : { shared: opts.shared }),
+    ...(opts.figmaSeams === undefined ? {} : { figmaSeams: opts.figmaSeams }),
+    ...(opts.pictureSeams === undefined ? {} : { pictureSeams: opts.pictureSeams }),
   });
   // Falling through on a missed override is the resolver's contract (the
   // implicit candidates degrade the same way), but a path the operator WROTE

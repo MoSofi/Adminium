@@ -162,12 +162,66 @@ export type SpendMark = 'turn-tokens' | 'session-tokens';
 export interface DesignerAttachment {
   id: string;
   label: string;
-  kind: 'image' | 'csv' | 'font' | 'doc';
+  kind: 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css' | 'site';
   mediaType: string;
   bytes: number;
   rows?: number;
   columns?: string[];
+  /** A site template's pages and files kept, and what was left out (the first of them) with how many there were. */
+  pages?: number;
+  files?: number;
+  leftOut?: SiteLeftOut[];
+  leftOutCount?: number;
 }
+
+/** One change the access card asks about, as the server names it; the page words it. */
+export type AccessChangeView =
+  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns' | 'read-all' | 'no-check' | 'hidden-rows'; table: string; columns?: string[] }
+  | { kind: 'role'; role: string; isNew: boolean }
+  | { kind: 'call'; screen: string };
+
+/** The project's site templates (`GET /designer/site-templates`): names only, and why a folder was not copied in. */
+export interface SiteTemplates {
+  templates: { name: string; usable: boolean }[];
+  more: number;
+  note: { name: string; why: string } | null;
+}
+
+/** Why a site template's file was left out, as the server names it. */
+export type LeftOutReason = 'php' | 'video' | 'sound' | 'scss' | 'map' | 'zip' | 'source' | 'build-file' | 'build-folder' | 'hidden' | 'link' | 'not-file' | 'kind' | 'not-picture' | 'not-font' | 'svg-runs' | 'not-svg' | 'not-text';
+export interface SiteLeftOut {
+  file: string;
+  reason: LeftOutReason;
+}
+
+/** A person's Figma connection (`GET /designer/figma`): never the token. */
+export interface FigmaStatus {
+  connected: boolean;
+  /** `mine`: kept on this server for them; `environment`: the project's own token, under `adminium design`. */
+  source: 'mine' | 'environment' | null;
+  handle: string | null;
+  /** False when this server calls nothing outside itself. */
+  network: boolean;
+  /** False where what this server keeps of a frame does not outlive the next deploy. */
+  lasting: boolean;
+}
+
+/** A frame imported from Figma and kept on the server until the message it goes with is sent. */
+export interface FigmaImport {
+  importId: string;
+  outlineName: string;
+  pictureName: string;
+  width: number;
+  height: number;
+  /** Reads Figma counted: 0 when it came from the copy this server kept. */
+  reads: number;
+}
+
+/** Why Figma could not be read (`details.figma` of a refusal), as the server lists it. */
+export type FigmaRefusal =
+  | { kind: 'network-off' | 'token' | 'no-access' | 'no-frame' | 'render-failed' | 'too-large' | 'document-too-large' | 'unreachable' | 'not-connected' }
+  | { kind: 'limit'; type: 'low' | 'high'; retryAfterSeconds: number | null }
+  | { kind: 'paused'; until: number; dated: boolean };
 
 export type DesignerCard =
   | {
@@ -181,8 +235,16 @@ export type DesignerCard =
       style?: StyleChoice[];
       more?: string[];
     }
-  /** Everything a step needs from outside the project, on one card: a checkbox each. */
-  | { id: string; type: 'needs'; items: NeedItem[] }
+  /** Everything a step needs from outside the project, on one card: a checkbox each. `pictures`: what a design does with the page's pictures, asked once per app. */
+  | { id: string; type: 'needs'; items: NeedItem[]; pictures?: { preselect: PicturesMode } }
+  /** The spots a design made, waiting for their pictures: opens the picture dialog. Waits for no answer: an Apply is its answer. */
+  | { id: string; type: 'spots'; spots: { id: string; label: string; shape: PictureShape }[]; rows?: { table: string; count: number } }
+  /** A turn took a picture the person placed off its screen: keep it there, or let it go. */
+  | { id: string; type: 'keep-spot'; spot: string; label: string; screen: string }
+  /** In a session of outside words: what the app would newly let strangers do, or its pages reach. Asked before it goes live. */
+  | { id: string; type: 'access-change'; changes: AccessChangeView[]; /** Changes past those listed that the same answer is for. */ more?: number; planned: boolean }
+  /** The plan for building an app from a site template, asked once before anything is written. */
+  | ({ id: string } & TemplatePlanView)
   /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */
   | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[]; /** A site some of these are shown from, never copied. */ site?: string }
   /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */
@@ -203,6 +265,110 @@ export type NeedItem =
   | { id: string; kind: 'package'; name: string; version: string; role: NeedRole; why?: string }
   | { id: string; kind: 'font'; family: string; name: string; version: string; use: 'heading' | 'body' | 'other'; why?: string }
   | { id: string; kind: 'picture-site'; host: string; why?: string };
+
+/**
+ * What the template plan card shows. Every word in it is the template's or the model's, cleaned by the
+ * server: it is drawn as text, never as markup.
+ */
+export interface TemplatePlanView {
+  type: 'template-plan';
+  site: { attachment: string; name: string; pages: number; files: number };
+  tables: {
+    table: string;
+    label: string;
+    columns: { column: string; label: string }[];
+    /** The pages that show it. */
+    shownOn: string[];
+    /** Sample rows from the template's own blocks; of those, how many repeat another; how many it did not have. */
+    fromTemplate: number;
+    filler: number;
+    madeUp: number;
+    block?: string;
+    publicRead: string[];
+    addOn?: string;
+    addOnInfo?: { key: string; name: string; installed: boolean };
+  }[];
+  forms: { form: string; label: string; table: string; tableLabel: string; writable: string[]; lines?: string; linesWritable?: string[]; perHour: number | null }[];
+  /** What the template shows: what works as it is, what an add-on does, what is not available and how it is handled. */
+  report: { id: string; label: string; where: string; status: 'works' | 'add-on' | 'not-available'; addOn?: string; build?: string; buildServerCode: boolean; replace?: string; leave?: string }[];
+  /** Links that lead nowhere. */
+  links: { id: string; label: string }[];
+  /** Not shown: kept as approved. */
+  roles: { role: string; tables: string[] }[];
+  added: NeedItem[];
+}
+
+/** How a thing the template shows and Adminium does not have is handled. */
+export type PlanChoice = 'build' | 'replace' | 'leave';
+
+/** The answer to the template plan card. With `changes`, nothing is approved: the Designer makes a new plan from them. */
+export interface TemplatePlanAnswer {
+  tables: string[];
+  decisions: Record<string, PlanChoice>;
+  links: Record<string, string>;
+  takeOutEmpty: boolean;
+  added: string[];
+  changes?: string;
+}
+
+export type PictureShape = 'wide' | 'tall' | 'square';
+/** What a design does with the page's pictures: leaves placeholders, or opens the picture dialog after it. */
+export type PicturesMode = 'placeholders' | 'choose';
+/** A licence's code, as the server reads it from the source: its badge is decided from it. */
+export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'own' | 'template';
+export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash';
+
+/** What the picture dialog draws for an app (`GET …/pictures`). */
+export interface PicturesView {
+  /** The app builds its own screens: its pictures are in its own files, and the dialog does not open. */
+  ownBuild: boolean;
+  spots: { id: string; label: string; shape: PictureShape; shows: string; search: string; version: string; thumb: string | null; alt: string; decorative: boolean; licence: { code: LicenceCode; name: string; title: string; creator: string } | null }[];
+  tables: { table: string; label: string; column: string; rows: { row: number; label: string; version: string; thumb: string | null }[] }[];
+  /** Pictures already in the app, to use again: a file of `assets/pictures/`, or a picture attached in this session. */
+  inApp: { key: string; name: string; thumb: string; licence: LicenceCode }[];
+  /** What a design does with the page's pictures; null for an app whose look was kept before styles, which keeps no choice. */
+  mode: PicturesMode | null;
+  /** Pictures the app's screens import themselves (made before spots). */
+  legacy: number;
+  /** The sources this server can search, each with the minutes it is busy for. */
+  sources: { name: PictureSourceName; busy: number | null }[];
+  /** `closed`: a page here may not be let load pictures from Unsplash. */
+  unsplash: 'ok' | 'closed';
+  version: number | null;
+}
+/** A picture a search found, named by the server's own ids. */
+export interface FoundPicture {
+  id: string;
+  title: string;
+  creator: string;
+  source: string;
+  licence: { code: LicenceCode; name: string };
+  /** The picture's own page. */
+  page: string;
+  /** Shown from its source's site, never copied. */
+  shown?: true;
+}
+export type PictureSearchReply =
+  | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number }
+  | { state: 'busy'; source: PictureSourceName; minutes: number }
+  | { state: 'off' }
+  | { state: 'failed' };
+export type PicturePinReply = { state: 'kept'; small: boolean; shown?: true } | { state: 'gone' } | { state: 'failed' };
+export type PictureFillFrom = { shelf: string; picture: string } | { attachment: string } | { file: string } | { placeholder: true };
+export interface PictureFill {
+  spot?: string;
+  row?: { table: string; row: number };
+  version: string;
+  from: PictureFillFrom;
+  alt?: string;
+  decorative?: boolean;
+}
+export interface PicturesApplied {
+  results: { target: string; state: 'applied' | 'conflict' | 'gone'; small?: true }[];
+  version: { n: number; name: string } | null;
+  applied: boolean;
+  before: number | null;
+}
 
 export interface PictureGroup {
   id: string;
@@ -238,6 +404,8 @@ export interface AppLook {
   origin: 'built-in' | 'project' | 'earlier';
   accent?: string;
   swatch?: Swatch;
+  /** What a design does with the page's pictures. */
+  pictures?: PicturesMode;
 }
 
 /** The four looks of before styles: an older session's card still names them. */
@@ -258,6 +426,9 @@ export type StepFacts = {
   outcome?: 'added' | 'declined' | 'refused' | 'failed';
   ended?: 'stopped' | 'error' | 'miss';
   look?: string;
+  /** A Figma read that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
+  until?: number;
+  dated?: boolean;
 };
 
 /** One element of the previewed page, as the person pointed at it: what the screen said of it. */
@@ -282,7 +453,7 @@ export interface DesignerPicked {
 }
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[]; picked?: DesignerPicked }
+  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows' | 'pages' | 'files'>[]; picked?: DesignerPicked }
   | { kind: 'text'; delta: string }
   | ({ kind: 'step'; id: string; tool: string; label: string; state: 'running' | 'done' | 'failed'; ms?: number; detail?: string } & StepFacts)
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
@@ -303,10 +474,16 @@ export type DesignerEventBody =
   | { kind: 'hold'; what: FolderHold }
   | { kind: 'released'; what: FolderHold }
   /** The Designer was shown the page after a build. */
-  | { kind: 'sight'; side: string; path: string };
+  | { kind: 'sight'; side: string; path: string }
+  /** Pictures put in their spots from the picture dialog, with no turn: what changed, and the version it was saved as. */
+  | { kind: 'pictures'; names: string[]; version: { n: number; name: string } | null }
+  /** The pictures' Undo: back to this version. */
+  | { kind: 'pictures-undone'; to: number }
+  /** The server's word on the page's pictures as a turn ends. */
+  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number };
 
 /** What a person can do from a page that takes the app's folder for a moment. */
-export type FolderHold = 'save' | 'style' | 'restore' | 'start';
+export type FolderHold = 'save' | 'style' | 'restore' | 'start' | 'pictures';
 
 /** `by: 'person'`: caused from a page, outside any turn. It carries the last turn's number and belongs to none. */
 export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
@@ -385,9 +562,12 @@ export const designerKeys = {
   models: ['designer', 'models'] as const,
   styles: ['designer', 'styles'] as const,
   session: (id: string) => ['designer', 'session', id] as const,
+  figma: ['designer', 'figma'] as const,
   versions: (id: string) => ['designer', 'versions', id] as const,
   architecture: (id: string) => ['designer', 'architecture', id] as const,
   files: (id: string) => ['designer', 'files', id] as const,
+  pictures: (id: string) => ['designer', 'pictures', id] as const,
+  siteTemplates: ['designer', 'site-templates'] as const,
 };
 
 /** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
@@ -446,7 +626,86 @@ async function uploadAttachment(sessionId: string, file: Blob & { name?: string 
   return (body as { attachment: DesignerAttachment }).attachment;
 }
 
+/**
+ * A site template, as a zip: sent the moment it is dropped, with how far it has gone. `replace` is the
+ * site the person said this one replaces. A refusal throws the server's words; a session that already
+ * holds a site answers 409 with that site in its details.
+ */
+function uploadSite(sessionId: string, zip: Blob, filename: string, opts: { replace?: string; onProgress?: (fraction: number) => void; signal?: AbortSignal } = {}): Promise<DesignerAttachment> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', `${BASE}/sessions/${sessionId}/attachments/site?filename=${encodeURIComponent(filename)}${opts.replace === undefined ? '' : `&replace=${opts.replace}`}`);
+    request.withCredentials = true;
+    request.setRequestHeader('accept', 'application/json');
+    request.setRequestHeader('content-type', 'application/octet-stream');
+    for (const [name, value] of Object.entries(csrfHeaders())) request.setRequestHeader(name, value);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) opts.onProgress?.(event.loaded / event.total);
+    };
+    const abort = (): void => request.abort();
+    opts.signal?.addEventListener('abort', abort, { once: true });
+    request.onabort = () => reject(new DOMException('The upload was cancelled.', 'AbortError'));
+    request.onerror = () => reject(new ApiError(0, 'NETWORK', 'The site could not be sent. Check the connection and drop it again.', null));
+    request.onload = () => {
+      opts.signal?.removeEventListener('abort', abort);
+      let body: unknown = null;
+      try {
+        body = JSON.parse(request.responseText) as unknown;
+      } catch {
+        // Said below.
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve((body as { attachment: DesignerAttachment }).attachment);
+        return;
+      }
+      const envelope = (body ?? {}) as { error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } };
+      reject(
+        new ApiError(
+          request.status,
+          typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+          request.status === 413 ? `${filename} is over 25 MB.` : typeof envelope.error?.message === 'string' ? envelope.error.message : `The site could not be attached (${String(request.status)}).`,
+          typeof envelope.error?.requestId === 'string' ? envelope.error.requestId : null,
+          envelope.error?.details,
+        ),
+      );
+    };
+    request.send(zip);
+  });
+}
+
+/** One half of a Figma import, sent with a message: the server copies its own bytes in, so no body goes up. */
+async function uploadFigma(sessionId: string, importId: string, part: 'picture' | 'outline'): Promise<DesignerAttachment> {
+  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=figma&figma=${encodeURIComponent(importId)}&figma_part=${part}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', ...csrfHeaders() },
+  });
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    // Said below.
+  }
+  if (!response.ok) {
+    const envelope = (body ?? {}) as { error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } };
+    throw new ApiError(
+      response.status,
+      typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+      typeof envelope.error?.message === 'string' ? envelope.error.message : `The file could not be attached (${String(response.status)}).`,
+      typeof envelope.error?.requestId === 'string' ? envelope.error.requestId : null,
+      envelope.error?.details,
+    );
+  }
+  return (body as { attachment: DesignerAttachment }).attachment;
+}
+
 export const designerApi = {
+  figma: () => api.get<FigmaStatus>(`${BASE}/figma`),
+  /** Checked with Figma before it is kept; a token Figma refuses is not kept. */
+  saveFigmaToken: (token: string) => api.put<FigmaStatus>(`${BASE}/figma`, { token }),
+  removeFigma: () => api.delete<FigmaStatus>(`${BASE}/figma`),
+  importFigma: (link: string) => api.post<FigmaImport>(`${BASE}/figma/import`, { link }),
+  uploadFigma,
   state: () => api.get<DesignerState>(`${BASE}/state`),
   yourApps: () => api.get<{ apps: YourApp[] }>(`${BASE}/sessions`),
   catalog: () => api.get<{ state: 'ok' | 'off' | 'unreachable'; apps: CatalogApp[] }>(`${BASE}/apps`),
@@ -471,8 +730,25 @@ export const designerApi = {
   /** What the preview saw of the app's screen, for the turn that built it. */
   sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
+  uploadSite,
+  siteTemplates: () => api.get<SiteTemplates>(`${BASE}/site-templates`),
+  clearTemplateNote: () => api.delete<void>(`${BASE}/site-templates/note`),
+  /** A site template of the project, taken into a session by its name: the server finds and reads the folder. */
+  siteFromProject: (id: string, name: string, replace?: string) =>
+    api.post<{ attachment: DesignerAttachment }>(`${BASE}/sessions/${id}/attachments/site-from-project`, { name, ...(replace === undefined ? {} : { replace }) }).then((reply) => reply.attachment),
+  /** A file taken off a message before it is sent. */
+  removeAttachment: (id: string, attachment: string) => api.delete<void>(`${BASE}/sessions/${id}/attachments/${attachment}`),
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
   pictureThumbUrl: (id: string, shelf: string, picture: string) => `${BASE}/sessions/${id}/picture-thumb/${shelf}/${picture}`,
+  pictures: (id: string) => api.get<PicturesView>(`${BASE}/sessions/${id}/pictures`),
+  searchPictures: (id: string, input: { q: string; source: PictureSourceName; shape?: PictureShape; page?: number; shelf?: string }) =>
+    api.get<PictureSearchReply>(
+      `${BASE}/sessions/${id}/pictures/search?${new URLSearchParams({ q: input.q, source: input.source, ...(input.shape === undefined ? {} : { shape: input.shape }), ...(input.page === undefined ? {} : { page: String(input.page) }), ...(input.shelf === undefined ? {} : { shelf: input.shelf }) }).toString()}`,
+    ),
+  pinPicture: (id: string, shelf: string, picture: string) => api.post<PicturePinReply>(`${BASE}/sessions/${id}/pictures/pin`, { shelf, picture }),
+  applyPictures: (id: string, applyId: string, fills: readonly PictureFill[], mode?: PicturesMode) =>
+    api.post<PicturesApplied>(`${BASE}/sessions/${id}/pictures/apply`, { id: applyId, fills, ...(mode === undefined ? {} : { mode }) }),
+  undoPictures: (id: string, from: number, to: number) => api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/pictures/undo`, { from, to }),
   readsImages: (connectionId: string, model: string) => api.post<{ readsImages: boolean | null }>(`${BASE}/models/reads-images`, { connectionId, model }),
   stop: (id: string) => api.post<{ stopped: boolean }>(`${BASE}/sessions/${id}/stop`, {}),
   answer: (id: string, cardId: string, value: unknown) => api.post<{ answered: true }>(`${BASE}/sessions/${id}/answers`, { cardId, value }),
@@ -504,6 +780,7 @@ export const designerApi = {
 };
 
 export const designerStateQuery = () => queryOptions({ queryKey: designerKeys.state, queryFn: designerApi.state });
+export const figmaQuery = () => queryOptions({ queryKey: designerKeys.figma, queryFn: designerApi.figma, staleTime: 30_000, retry: false });
 export const yourAppsQuery = () => queryOptions({ queryKey: designerKeys.apps, queryFn: designerApi.yourApps });
 export const catalogQuery = () => queryOptions({ queryKey: designerKeys.catalog, queryFn: designerApi.catalog, staleTime: 5 * 60_000, retry: false });
 export const modelsQuery = () => queryOptions({ queryKey: designerKeys.models, queryFn: designerApi.models, staleTime: 30_000 });

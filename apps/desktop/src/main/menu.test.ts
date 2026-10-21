@@ -22,6 +22,7 @@ import {
   collectRoles,
   menuTranslator,
   type BuildAppMenuOptions,
+  type MenuHandlers,
   type MenuLabelKey,
 } from './menu.js';
 
@@ -243,9 +244,36 @@ describe('the Help menu', () => {
 
   it('carries \'s remaining Help items', () => {
     const labels = menu(template(), EN_US_MENU_LABELS.help).map((item) => item.label);
-    for (const key of ['help.shortcuts', 'help.logs', 'help.checkForUpdates'] as const) {
+    for (const key of ['help.shortcuts', 'help.logs'] as const) {
       expect(labels).toContain(EN_US_MENU_LABELS[key]);
     }
+  });
+
+  it('puts Check for Updates under About on mac, and in Help elsewhere', () => {
+    const mac = template({ platform: 'darwin' });
+    expect(menu(mac, EN_US_MENU_LABELS.help).map((i) => i.label)).not.toContain(
+      EN_US_MENU_LABELS['help.checkForUpdates'],
+    );
+    const appMenu = mac[0]?.submenu;
+    expect(Array.isArray(appMenu) ? appMenu.slice(0, 2).map((i) => i.label) : []).toEqual([
+      EN_US_MENU_LABELS['help.about'],
+      EN_US_MENU_LABELS['help.checkForUpdates'],
+    ]);
+
+    for (const platform of ['win32', 'linux'] as const) {
+      expect(menu(template({ platform }), EN_US_MENU_LABELS.help).map((i) => i.label)).toContain(
+        EN_US_MENU_LABELS['help.checkForUpdates'],
+      );
+    }
+  });
+
+  it('enables About and Check for Updates only when they are wired', () => {
+    const appMenu = (handlers: MenuHandlers) => {
+      const submenu = template({ platform: 'darwin', handlers })[0]?.submenu;
+      return Array.isArray(submenu) ? submenu.slice(0, 2).map((i) => i.enabled) : [];
+    };
+    expect(appMenu({})).toEqual([false, false]);
+    expect(appMenu({ about: () => {}, checkForUpdates: () => {} })).toEqual([true, true]);
   });
 
   it('gives the Shortcuts Panel no accelerator', () => {

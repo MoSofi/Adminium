@@ -17,10 +17,10 @@
 | `references/guides/building-a-side--text-in-other-languages.md` | Text in other languages | 481 |
 | `references/guides/from-a-template--overview.md` | A website template as a working app | 1487 |
 | `references/guides/from-a-template--before-anything-the-licence-and-the-inventory.md` | Before anything: the licence and the inventory | 1663 |
-| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 4035 |
-| `references/guides/from-a-template--the-side-s-folder.md` | The side's folder | 1612 |
+| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 5125 |
+| `references/guides/from-a-template--the-side-s-folder.md` | The side's folder | 2628 |
 | `references/guides/from-a-template--pages-become-addresses.md` | Pages become addresses | 3285 |
-| `references/guides/from-a-template--the-stylesheets.md` | The stylesheets | 1622 |
+| `references/guides/from-a-template--the-stylesheets.md` | The stylesheets | 1760 |
 | `references/guides/from-a-template--scripts-become-react.md` | Scripts become React | 1871 |
 | `references/guides/from-a-template--repeated-content-becomes-tables.md` | Repeated content becomes tables | 2012 |
 | `references/guides/from-a-template--forms-become-limited-public-creates.md` | Forms become limited public creates | 1228 |
@@ -61,7 +61,7 @@
 | `references/guides/identity-and-own-links--refusals.md` | Refusals | 1644 |
 | `references/guides/identity-and-own-links--upgrading.md` | Upgrading | 329 |
 | `references/guides/public-pictures--overview.md` | Pictures on public pages | 526 |
-| `references/guides/public-pictures--declaring-them.md` | Declaring them | 1547 |
+| `references/guides/public-pictures--declaring-them.md` | Declaring them | 1880 |
 | `references/guides/public-pictures--what-a-page-puts-in-img-src.md` | What a page puts in `<img src>` | 1475 |
 | `references/guides/public-pictures--when-a-picture-is-served.md` | When a picture is served | 1448 |
 | `references/guides/public-pictures--cleaned-once-and-kept.md` | Cleaned once, and kept | 1547 |

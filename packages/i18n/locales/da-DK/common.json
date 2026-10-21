@@ -1115,22 +1115,6 @@
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Fil",
-      "fileNewDatabase": "Ny lokal database…",
-      "fileOpenSqlite": "Åbn SQLite-fil…",
-      "fileBackupNow": "Sikkerhedskopiér nu…",
-      "fileRestore": "Gendan fra sikkerhedskopi…",
-      "edit": "Rediger",
-      "view": "Vis",
-      "window": "Vindue",
-      "help": "Hjælp",
-      "helpDocs": "Adminium-dokumentation",
-      "helpShortcuts": "Tastaturgenveje",
-      "helpLogs": "Vis logfiler",
-      "helpCheckForUpdates": "Søg efter opdateringer…",
-      "helpAbout": "Om Adminium"
-    },
     "settings": {
       "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace.",
       "title": "Skrivebordsindstillinger"
@@ -1680,6 +1664,24 @@
       "secretHelper": "Indsæt opsætningslinket i din godkendelsesapp, eller skriv nøglen ind i hånden.",
       "secret": "Opsætningsnøgle",
       "title": "Tofaktorgodkendelse"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Ikke forbundet. Forbind Figma fra Designerens menu Vedhæft, Fra Figma…",
+      "connectedAs": "Forbundet til Figma som {handle}",
+      "kept": "Gemt krypteret på denne server kun til dig. Kun dine egne importer bruger det.",
+      "environment": "Bruger Figma-tokenet fra dette projekts miljø.",
+      "changeToken": "Skift token",
+      "disconnect": "Afbryd",
+      "newToken": "Nyt token",
+      "saveToken": "Gem token",
+      "cancel": "Annullér",
+      "close": "Luk",
+      "refused": "Figma godkendte ikke dette token. Tjek det, og indsæt det igen.",
+      "off": "Figma er slået fra på denne server: netværksfunktioner er slået fra.",
+      "unreachable": "Figma svarede ikke. Prøv igen om lidt.",
+      "disconnectTitle": "Afbryd Figma?",
+      "disconnectBody": "Dine importer, der allerede er i Designer, bliver."
     }
   },
   "team": {

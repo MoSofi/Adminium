@@ -8,6 +8,13 @@
  * answers it); the Designer only shows it where the person is looking.
  */
 import type { NeedItem } from './needs.js';
+import { planAnswerFor, type TemplatePlanAnswer, type TemplatePlanRequest } from './site/template-plan.js';
+
+/** A change to who may do what, as the "Check this before it goes live" card words it. */
+export type ChangeView =
+  | { kind: 'access'; verb: 'read' | 'add' | 'change' | 'read-columns' | 'write-columns' | 'read-all' | 'no-check' | 'hidden-rows'; table: string; columns?: string[] }
+  | { kind: 'role'; role: string; isNew: boolean }
+  | { kind: 'call'; screen: string };
 
 export type DesignerCard =
   | {
@@ -20,6 +27,11 @@ export type DesignerCard =
        */
       type: 'needs';
       items: NeedItem[];
+      /**
+       * Asked once per app, in its own section under the ticks, while the app has made no choice: what a design does
+       * with the page's pictures. `preselect` is what the card starts on (placeholders, unless the person said otherwise).
+       */
+      pictures?: { preselect: 'placeholders' | 'choose' };
     }
   | {
       id: string;
@@ -86,6 +98,40 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /**
+       * The spots a design made, waiting for their pictures: shown as a turn ends when the person chose to pick
+       * pictures after each design. It waits for no answer (the turn is over): the picture dialog's Apply is its answer.
+       */
+      type: 'spots';
+      spots: { id: string; label: string; shape: 'wide' | 'tall' | 'square' }[];
+      /** A table's sample rows that wait for a picture too: the table as the person reads it, and how many. */
+      rows?: { table: string; count: number };
+    }
+  | {
+      id: string;
+      /** A turn took a picture the person placed off the screen it was on: keep it there, or let it go. Every word is the server's. */
+      type: 'keep-spot';
+      spot: string;
+      label: string;
+      screen: string;
+    }
+  | {
+      id: string;
+      /**
+       * In a session that holds words from outside (a site template, a Figma frame): what the app would
+       * let strangers do, or its pages reach, that the person did not approve. Every word is the server's.
+       */
+      type: 'access-change';
+      changes: ChangeView[];
+      /** How many more changes the same answer is for, past those listed. */
+      more?: number;
+      /** The person approved a template plan: what is asked is what was not on it. */
+      planned: boolean;
+    }
+  /** The plan for building from a site template, asked before anything is written (see `site/template-plan.ts`). */
+  | ({ id: string } & TemplatePlanRequest)
+  | {
+      id: string;
       type: 'removal';
       appKey: string;
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
@@ -98,12 +144,16 @@ export type CardRequest = DesignerCard extends infer Card ? (Card extends Design
 export type CardAnswer =
   | { type: 'question'; text: string }
   | { type: 'package'; accept: boolean }
-  /** The ids of the items ticked; none is "do without all of it". */
-  | { type: 'needs'; accept: string[] }
+  /** The ids of the items ticked; none is "do without all of it". With the pictures section, what the person chose there. */
+  | { type: 'needs'; accept: string[]; pictures?: 'placeholders' | 'choose' }
   /** The ids of the pictures ticked. */
   | { type: 'pictures'; accept: string[] }
   | { type: 'add-on'; accept: boolean }
   | { type: 'rows'; accept: boolean }
+  /** Yes: keep the picture on its screen. */
+  | { type: 'keep-spot'; accept: boolean }
+  | { type: 'access-change'; accept: boolean }
+  | TemplatePlanAnswer
   | { type: 'removal'; accept: boolean };
 
 /** A card's answer, checked against the card it is for; null when it does not fit. */
@@ -117,12 +167,18 @@ export function answerFor(card: DesignerCard, value: unknown): CardAnswer | null
     if (!Array.isArray(given['accept'])) return null;
     // Only what the card offered: an id it does not have is nobody's yes.
     const offered = new Set(card.items.map((item) => item.id));
-    return { type: 'needs', accept: [...new Set(given['accept'].filter((id): id is string => typeof id === 'string' && offered.has(id)))] };
+    const accept = [...new Set(given['accept'].filter((id): id is string => typeof id === 'string' && offered.has(id)))];
+    // The pictures choice only on a card that asked it; one that is not a choice there is the card's own start.
+    if (card.pictures === undefined) return { type: 'needs', accept };
+    return { type: 'needs', accept, pictures: given['pictures'] === 'choose' || given['pictures'] === 'placeholders' ? given['pictures'] : card.pictures.preselect };
   }
   if (card.type === 'pictures') {
     if (!Array.isArray(given['accept'])) return null;
     const offered = new Set(card.groups.flatMap((group) => group.pictures.map((picture) => picture.id)));
     return { type: 'pictures', accept: [...new Set(given['accept'].filter((id): id is string => typeof id === 'string' && offered.has(id)))] };
   }
+  // The spots card is answered by an Apply of the picture dialog, never on the card.
+  if (card.type === 'spots') return null;
+  if (card.type === 'template-plan') return planAnswerFor(card, value);
   return typeof given['accept'] === 'boolean' ? { type: card.type, accept: given['accept'] } : null;
 }

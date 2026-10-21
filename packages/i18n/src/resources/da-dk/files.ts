@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Denne fil kunne ikke flyttes til papirkurven"
   },
   "title": "Filer",
-  "subtitle": "Alt, hvad der er uploadet gennem dette arbejdsområde, og hvor dets bytes er gemt.",
+  "subtitle": "Alle filer i dette arbejdsområde: dem på poster og i biblioteket. Og hvor hver enkelt opbevares.",
   "search": "Søg efter filnavn",
   "trash": {
     "notice": {
@@ -33,7 +33,8 @@ export default {
       "body": "Ryd søgningen, eller vælg en anden genvej i sidepanelet."
     },
     "title": "Ingen filer endnu",
-    "body": "Filer lander her, når nogen vedhæfter en til en post eller udfylder et filfelt."
+    "body": "Filer havner her, når nogen føjer en til en post eller udfylder et filfelt.",
+    "library": "Intet er uploadet her endnu."
   },
   "loadMore": "Indlæs flere filer",
   "usage": {
@@ -51,22 +52,25 @@ export default {
   },
   "preset": {
     "all": "Alle filer",
-    "unattached": "Ikke vedhæftet",
+    "unattached": "Ikke brugt endnu",
     "trash": "Papirkurv",
-    "recent": "Seneste"
+    "recent": "Seneste",
+    "unattachedHelp": "Uploads, som ingen post tog. De flyttes til papirkurven efter {hours} timer.",
+    "library": "Uploadet her"
   },
   "column": {
     "name": "Fil",
     "size": "Størrelse",
-    "attachedTo": "Vedhæftet til",
+    "attachedTo": "På post",
     "destination": "Destination",
     "added": "Tilføjet",
     "actions": "Handlinger"
   },
   "row": {
-    "unattached": "Ikke vedhæftet",
+    "unattached": "Ikke brugt endnu",
     "localDestination": "Denne servers disk",
-    "noRecord": "Ikke knyttet til en post"
+    "noRecord": "Ikke på en post",
+    "uploadedHere": "Uploadet her"
   },
   "action": {
     "restore": "Gendan",
@@ -78,10 +82,10 @@ export default {
     "none": "Ingen",
     "subtitle": "{size} · {type}",
     "destination": "Destination",
-    "attachedTo": "Vedhæftet til",
+    "attachedTo": "På post",
     "uploadedBy": "Uploadet af",
     "added": "Tilføjet",
-    "attachedAt": "Vedhæftet",
+    "attachedAt": "I brug siden",
     "trashedAt": "Flyttet til papirkurven",
     "id": "Fil-id",
     "checksum": "Checksum",
@@ -107,7 +111,7 @@ export default {
     "cancelOne": "Annullér {name}",
     "removeOne": "Fjern {name}",
     "complete": "Upload fuldført",
-    "completeBody": "Filerne er nu i dette arbejdsområde og kan knyttes til en post senere.",
+    "completeBody": "Filerne er i biblioteket nu. Føj en til en post med Vælg eksisterende… i dens felt. Posten får sin egen kopi.",
     "send": "{count, plural, one {Upload # fil} other {Upload # filer}}",
     "done": "Færdig",
     "failed": "Mislykkedes",

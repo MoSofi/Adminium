@@ -22,7 +22,7 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font' | 'doc'; rows?: number }[]; /** The element of the preview the message is about. */ picked?: Picked }
+  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css' | 'site'; rows?: number; pages?: number; files?: number }[]; /** The element of the preview the message is about. */ picked?: Picked }
   | { kind: 'text'; delta: string }
   | {
       kind: 'step';
@@ -43,6 +43,9 @@ export type DesignerEventBody =
       look?: string;
       /** How a failed step ended: stopped by the person, an error in the tool, or a miss (a file or reference that is not there, which the model is told how to find). */
       ended?: 'stopped' | 'error' | 'miss';
+      /** A read of Figma that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
+      until?: number;
+      dated?: boolean;
     }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
   | { kind: 'spend'; which: SpendMark; mark: number; used: number }
@@ -64,10 +67,19 @@ export type DesignerEventBody =
   | { kind: 'sight'; side: 'staff' | 'customer'; path: string }
   /** The app's folder is being written with no turn behind it (a hand save, a style change, going back), and then no longer. */
   | { kind: 'hold'; what: HoldKind }
-  | { kind: 'released'; what: HoldKind };
+  | { kind: 'released'; what: HoldKind }
+  /** Pictures put in their spots from the picture dialog, with no turn: their names, and the version they were saved as. */
+  | { kind: 'pictures'; names: string[]; version: { n: number; name: string } | null }
+  /** The pictures' Undo: the app's files are as they were in this version again. */
+  | { kind: 'pictures-undone'; to: number }
+  /**
+   * The server's word on the app's pictures as a turn ends: the spots it added are placeholders (the person chose
+   * nothing yet), or some are still empty. Said in the page's language, from the counts.
+   */
+  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number };
 
-/** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app. */
-export type HoldKind = 'save' | 'style' | 'restore' | 'start';
+/** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
+export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';
 
 /**
  * `turn` is the turn an event belongs to. An event with `by: 'person'` belongs to none: a person did it from the page

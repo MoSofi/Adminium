@@ -1125,22 +1125,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "ملف",
-      "fileNewDatabase": "قاعدة بيانات محلية جديدة…",
-      "fileOpenSqlite": "فتح ملف SQLite…",
-      "fileBackupNow": "النسخ الاحتياطي الآن…",
-      "fileRestore": "الاستعادة من نسخة احتياطية…",
-      "edit": "تحرير",
-      "view": "عرض",
-      "window": "نافذة",
-      "help": "مساعدة",
-      "helpDocs": "مستندات Adminium",
-      "helpShortcuts": "اختصارات لوحة المفاتيح",
-      "helpLogs": "عرض السجلات",
-      "helpCheckForUpdates": "التحقق من وجود تحديثات…",
-      "helpAbout": "حول Adminium"
-    },
     "settings": {
       "explainer": "تنطبق هذه الإعدادات على تطبيق Adminium على هذا الكمبيوتر فقط، وتُحفَظ على هذا الجهاز لا في مساحة العمل.",
       "title": "إعدادات سطح المكتب"
@@ -1690,6 +1674,24 @@ export default {
       "secretHelper": "الصق رابط الإعداد في تطبيق المصادقة، أو اكتب المفتاح يدويًا.",
       "secret": "مفتاح الإعداد",
       "title": "المصادقة الثنائية"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "غير متصل. اتصل بـ Figma من قائمة «إرفاق» في المصمم، «من Figma…».",
+      "connectedAs": "متصل بـ Figma باسم {handle}",
+      "kept": "محفوظ مشفّرًا على هذا الخادم لك وحدك. لا تستخدمه إلا عمليات الاستيراد الخاصة بك.",
+      "environment": "يُستخدم رمز Figma المضبوط في بيئة هذا المشروع.",
+      "changeToken": "تغيير الرمز",
+      "disconnect": "قطع الاتصال",
+      "newToken": "رمز جديد",
+      "saveToken": "حفظ الرمز",
+      "cancel": "إلغاء",
+      "close": "إغلاق",
+      "refused": "لم يقبل Figma هذا الرمز. تحقق منه والصقه مرة أخرى.",
+      "off": "Figma متوقف على هذا الخادم: ميزات الشبكة معطّلة.",
+      "unreachable": "لم يرد Figma. حاول مرة أخرى بعد قليل.",
+      "disconnectTitle": "قطع الاتصال بـ Figma؟",
+      "disconnectBody": "ستبقى عمليات الاستيراد الموجودة بالفعل في المصمم."
     }
   },
   "team": {

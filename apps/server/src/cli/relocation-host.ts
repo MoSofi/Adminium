@@ -27,6 +27,7 @@
  * The data is safe in the new store and a plain `adminium start` will pick it up.
  */
 
+import type { SafeFetchOptions } from '../net/safe-fetch.js';
 import { retireSqliteStore, type MetaRelocation, type OnMetaRelocated } from '../meta/relocate.js';
 import type { Env } from '../config/env.js';
 import type { ProjectServerOptions } from '../project/service.js';
@@ -61,6 +62,10 @@ export interface CreateRelocationHostOptions {
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
   designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer (`ComposeServerOptions.designer`). */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
+  figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** Tests only, and only in-process: how the picture sources are reached (`ComposeServerOptions.pictureSeams`). No flag or variable sets it. */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
   shared?: { port: number; ownerToken?: string } | undefined;
   /** Test seam: defaults to `process.exit`. */
@@ -94,6 +99,8 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
       ...(opts.project === undefined ? {} : { project: opts.project }),
       ...(opts.designer === undefined ? {} : { designer: opts.designer }),
       ...(opts.shared === undefined ? {} : { shared: opts.shared }),
+      ...(opts.figmaSeams === undefined ? {} : { figmaSeams: opts.figmaSeams }),
+      ...(opts.pictureSeams === undefined ? {} : { pictureSeams: opts.pictureSeams }),
     });
     setShutdownTarget(server.app);
     return server;

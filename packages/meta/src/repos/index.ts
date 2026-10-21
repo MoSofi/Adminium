@@ -55,3 +55,4 @@ export * from './automation-spells.js';
 export * from './notification-schedules.js';
 export * from './payments.js';
 export * from './payment-setup.js';
+export * from './figma-tokens.js';

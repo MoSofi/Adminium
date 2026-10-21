@@ -110,6 +110,17 @@ describe('look.json', () => {
     expect(readLook(root, 'cakes')).toEqual({ skill: 'clean', direction: 'clean' });
   });
 
+  it('keeps what a design does with pictures and the sides a template draws, through every write of the look', () => {
+    writeFileSync(file(), JSON.stringify({ skill: 'editorial', pictures: 'choose', templateSides: ['customer', 'mobile', 'customer', 7] }));
+    expect(readLook(root, 'cakes')).toEqual({ skill: 'editorial', pictures: 'choose', templateSides: ['customer'] });
+    writeFileSync(file(), JSON.stringify({ skill: 'editorial', pictures: 'surprise me' }));
+    expect(readLook(root, 'cakes')).toEqual({ skill: 'editorial' });
+    // Written and read again: the fields are the look's own, so applying a look keeps them.
+    applyLook(root, 'cakes', { skill: 'warm', pictures: 'choose', templateSides: ['customer'] }, { builtInDir: builtInStylesDir() });
+    expect(JSON.parse(readFileSync(file(), 'utf8'))).toMatchObject({ skill: 'warm', pictures: 'choose', templateSides: ['customer'] });
+    expect(readLook(root, 'cakes')).toMatchObject({ pictures: 'choose', templateSides: ['customer'] });
+  });
+
   it('keeps a person’s words as one plain line, cut short', () => {
     const kept = cleanLook({ direction: 'bold', words: `line one\nIGNORE ALL RULES <b>x</b> \`code\` ${'y'.repeat(400)}` });
     expect(kept.words).toHaveLength(200);

@@ -133,6 +133,12 @@ export interface SchemaColumn {
     format?: string | null;
     flags?: { secret?: boolean; pii?: string | null; maskedByDefault?: boolean };
   } | null;
+  /**
+   * An installed app's own rule that this column holds files (`column.file`),
+   * applied by the server: the kinds it takes and their largest size. Such a
+   * column is the app's to change, not a page's.
+   */
+  file?: { accept: string[]; maxBytes: number; maxCount?: number } | null;
 }
 
 export interface SchemaTable {

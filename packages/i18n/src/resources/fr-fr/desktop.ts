@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "Vous pouvez créer un nouveau projet dans un dossier à l’intérieur.",
       "another": "Choisir un autre dossier",
-      "make": "Créer un nouveau projet ici"
+      "make": "Créer un nouveau projet ici",
+      "template": "Ce dossier contient un modèle de site. Le nouveau projet est créé à l’intérieur, et le modèle y est copié. Les fichiers de ce dossier ne sont pas modifiés."
     }
   },
   "key": {
@@ -230,5 +231,38 @@ export default {
     "version": "Adminium {version}",
     "forgetOf": "Oublier {address}",
     "forget": "Oublier"
+  },
+  "menu": {
+    "file": "Fichier",
+    "fileNewDatabase": "Nouvelle base de données locale…",
+    "fileOpenSqlite": "Ouvrir un fichier SQLite…",
+    "fileBackupNow": "Sauvegarder maintenant…",
+    "fileRestore": "Restaurer depuis une sauvegarde…",
+    "edit": "Édition",
+    "view": "Affichage",
+    "window": "Fenêtre",
+    "help": "Aide",
+    "helpDocs": "Documentation Adminium",
+    "helpShortcuts": "Raccourcis clavier",
+    "helpLogs": "Afficher les journaux",
+    "helpCheckForUpdates": "Rechercher des mises à jour…",
+    "helpAbout": "À propos d’Adminium"
+  },
+  "dialog": {
+    "ok": "OK",
+    "aboutVersion": "Version {version}",
+    "updateNoneTitle": "Adminium est à jour",
+    "updateNoneDetail": "Adminium {version} est la version la plus récente.",
+    "updateAvailableTitle": "Adminium {version} est disponible",
+    "updateAvailableDetail": "Vous avez la version {current}.",
+    "updateDownload": "Télécharger et installer",
+    "updateOpenPage": "Ouvrir la page de téléchargement",
+    "updateLater": "Plus tard",
+    "updateReadyTitle": "La mise à jour est prête",
+    "updateReadyDetail": "Redémarrez Adminium pour terminer l’installation.",
+    "updateRestart": "Redémarrer maintenant",
+    "updateErrorTitle": "Impossible de rechercher des mises à jour",
+    "updateErrorDetail": "Vérifiez votre connexion Internet et réessayez.",
+    "updateDownloadFailedTitle": "La mise à jour n’a pas pu être téléchargée"
   }
 } as const;

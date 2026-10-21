@@ -7,7 +7,7 @@
  * as seen. Nothing here decides anything: main does, each time it is asked.
  */
 import { useT } from '@adminium/i18n/react';
-import { AppWindow, Check, CircleAlert, FolderSearch, Globe, Info, KeyRound, Package, RefreshCw, UsersRound, type LucideIcon } from 'lucide-react';
+import { AppWindow, Check, CircleAlert, FolderSearch, Globe, Info, KeyRound, LayoutTemplate, Package, RefreshCw, UsersRound, type LucideIcon } from 'lucide-react';
 import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import type { DesktopFolderAccounts, DesktopFoundRow, DesktopOpenProjectResult } from '../../../preload/api.js';
@@ -15,7 +15,7 @@ import type { DesktopFolderAccounts, DesktopFoundRow, DesktopOpenProjectResult }
 type T = ReturnType<typeof useT>;
 
 /** The answers of `openProject` that are a screen of their own. */
-export type OpeningStep = Extract<DesktopOpenProjectResult, { status: 'running' | 'needs-newer' | 'key-missing' | 'other-manager' | 'older-engine' | 'found' | 'accounts' }> | { readonly status: 'not-a-project'; readonly path: string; readonly displayPath: string };
+export type OpeningStep = Extract<DesktopOpenProjectResult, { status: 'running' | 'needs-newer' | 'key-missing' | 'other-manager' | 'older-engine' | 'found' | 'accounts' }> | { readonly status: 'not-a-project'; readonly path: string; readonly displayPath: string; readonly template?: boolean };
 
 export type KeyAnswer = 'env' | 'fresh' | 'new';
 
@@ -157,6 +157,12 @@ function NotAProject({ step, actions }: { step: Extract<OpeningStep, { status: '
         <div className="flex flex-col gap-1">
           <span className="text-[14px] font-bold">{t('desktop:start.open.notAProject', 'This folder is not an Adminium project.')}</span>
           <span className="text-[13px] leading-[1.55] text-fg-muted">{t('desktop:opening.notAProject.line', 'You can make a new project in a folder inside it.')}</span>
+          {step.template === true ? (
+            <span className="mt-1 flex items-start gap-2 text-[13px] leading-normal text-fg" data-part="holds-template">
+              <LayoutTemplate aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
+              <span className="text-pretty">{t('desktop:opening.notAProject.template', 'This folder holds a site template. The new project is made inside it, and the template is copied in. This folder’s own files are not changed.')}</span>
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="mt-[30px] flex justify-end gap-2.5">

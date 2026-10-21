@@ -71,7 +71,7 @@ function cards(): Card[] {
       title: t('studio:pages.form.gallery.segmented.title', 'Segmented and files'),
       description: t(
         'studio:pages.form.gallery.segmented.body',
-        'Segmented priority, long description, attachment list, assignee.',
+        'Segmented priority, long description, file list, assignee.',
       ),
       note: 'segmented · files · 580px',
     },

@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Diese Datei konnte nicht in den Papierkorb verschoben werden"
   },
   "title": "Dateien",
-  "subtitle": "Alles, was über diesen Workspace hochgeladen wurde, und wo die Bytes gespeichert sind.",
+  "subtitle": "Jede Datei in diesem Arbeitsbereich: die an Datensätzen und die in der Bibliothek. Und wo jede liegt.",
   "search": "Nach Dateiname suchen",
   "trash": {
     "notice": {
@@ -33,7 +33,8 @@ export default {
       "body": "Leeren Sie die Suche oder wählen Sie einen anderen Schnellzugriff aus der Leiste."
     },
     "title": "Noch keine Dateien",
-    "body": "Dateien landen hier, sobald jemand eine an einen Datensatz anhängt oder ein Dateifeld ausfüllt."
+    "body": "Dateien landen hier, wenn jemand eine zu einem Datensatz hinzufügt oder ein Dateifeld ausfüllt.",
+    "library": "Hier wurde noch nichts hochgeladen."
   },
   "loadMore": "Weitere Dateien laden",
   "usage": {
@@ -51,22 +52,25 @@ export default {
   },
   "preset": {
     "all": "Alle Dateien",
-    "unattached": "Nicht angehängt",
+    "unattached": "Noch nicht verwendet",
     "trash": "Papierkorb",
-    "recent": "Zuletzt"
+    "recent": "Zuletzt",
+    "unattachedHelp": "Hochgeladene Dateien, die kein Datensatz übernommen hat. Sie kommen nach {hours} Stunden in den Papierkorb.",
+    "library": "Hier hochgeladen"
   },
   "column": {
     "name": "Datei",
     "size": "Größe",
-    "attachedTo": "Angehängt an",
+    "attachedTo": "Am Datensatz",
     "destination": "Speicherziel",
     "added": "Hinzugefügt",
     "actions": "Aktionen"
   },
   "row": {
-    "unattached": "Nicht angehängt",
+    "unattached": "Noch nicht verwendet",
     "localDestination": "Die Festplatte dieses Servers",
-    "noRecord": "Keinem Datensatz zugeordnet"
+    "noRecord": "An keinem Datensatz",
+    "uploadedHere": "Hier hochgeladen"
   },
   "action": {
     "restore": "Wiederherstellen",
@@ -78,10 +82,10 @@ export default {
     "none": "Keine",
     "subtitle": "{size} · {type}",
     "destination": "Speicherziel",
-    "attachedTo": "Angehängt an",
+    "attachedTo": "Am Datensatz",
     "uploadedBy": "Hochgeladen von",
     "added": "Hinzugefügt",
-    "attachedAt": "Angehängt",
+    "attachedAt": "In Verwendung seit",
     "trashedAt": "In den Papierkorb verschoben",
     "id": "Datei-ID",
     "checksum": "Prüfsumme",
@@ -107,7 +111,7 @@ export default {
     "cancelOne": "{name} abbrechen",
     "removeOne": "{name} entfernen",
     "complete": "Hochladen abgeschlossen",
-    "completeBody": "Diese Dateien sind jetzt in diesem Arbeitsbereich und können später einem Datensatz zugeordnet werden.",
+    "completeBody": "Diese Dateien sind jetzt in der Bibliothek. Fügen Sie eine über „Vorhandenes wählen…“ im Feld eines Datensatzes hinzu. Der Datensatz erhält eine eigene Kopie.",
     "send": "{count, plural, one {# Datei hochladen} other {# Dateien hochladen}}",
     "done": "Fertig",
     "failed": "Fehlgeschlagen",

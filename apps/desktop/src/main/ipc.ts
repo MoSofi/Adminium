@@ -50,6 +50,7 @@ import type {
   DesktopBundledTextKind,
   DesktopConfigPatch,
   DesktopDiagnostics,
+  DesktopDialogLabelKey,
   DesktopMenuLabels,
   DesktopProjectInfo,
   DesktopRuntimeInfo,
@@ -183,7 +184,8 @@ const setDataDirSchema = z.strictObject({
  * renderer (see `main/menu.ts`'s header for why the shell cannot resolve them
  * itself).
  *
- * A `strictObject` requiring all 14 keys, because {@link DesktopMenuLabels} is a
+ * A `strictObject` requiring the 14 menu keys (the dialog keys below are
+ * optional, see there), because {@link DesktopMenuLabels} is a
  * full `Record` and the dashboard's resolver is typed to send every one — a
  * partial arrival is a bug in the sender, not a supported shape, and this is the
  * untrusted boundary. The keys are stated once here and pinned to the contract
@@ -208,6 +210,24 @@ const menuLabelsSchema = z.strictObject({
   'help.logs': menuLabelSchema,
   'help.checkForUpdates': menuLabelSchema,
   'help.about': menuLabelSchema,
+  // The About box and the menu's update check. Optional: a project's page may
+  // come from an older Adminium that never sends them, and refusing its whole
+  // push would leave the menu in English. The shell's en-US fills the gaps.
+  'dialog.ok': menuLabelSchema.optional(),
+  'dialog.version': menuLabelSchema.optional(),
+  'update.none.title': menuLabelSchema.optional(),
+  'update.none.detail': menuLabelSchema.optional(),
+  'update.available.title': menuLabelSchema.optional(),
+  'update.available.detail': menuLabelSchema.optional(),
+  'update.download': menuLabelSchema.optional(),
+  'update.openPage': menuLabelSchema.optional(),
+  'update.later': menuLabelSchema.optional(),
+  'update.ready.title': menuLabelSchema.optional(),
+  'update.ready.detail': menuLabelSchema.optional(),
+  'update.restart': menuLabelSchema.optional(),
+  'update.error.title': menuLabelSchema.optional(),
+  'update.error.detail': menuLabelSchema.optional(),
+  'update.downloadFailed.title': menuLabelSchema.optional(),
 });
 
 const stopWordSchema = z.string().min(1).max(300);
@@ -354,7 +374,15 @@ export type _SecretStorageMatches = Assert<Mutual<DesktopRuntimeInfo['secretStor
  * boundary the SPA cannot see, leaving the native menu in English forever.
  */
 export type _MenuLabelsMatchSchema = Assert<
-  Mutual<DesktopMenuLabels, z.infer<typeof menuLabelsSchema>>
+  Mutual<DesktopMenuLabels, { [K in keyof PushedMenuLabels]-?: NonNullable<PushedMenuLabels[K]> }>
+>;
+
+/** What a push may carry: every menu key, and the dialog keys an older page leaves out. */
+export type PushedMenuLabels = z.infer<typeof menuLabelsSchema>;
+
+/** The dialog keys are exactly the optional ones. */
+export type _DialogKeysAreOptional = Assert<
+  Mutual<DesktopDialogLabelKey, { [K in keyof PushedMenuLabels]-?: undefined extends PushedMenuLabels[K] ? K : never }[keyof PushedMenuLabels]>
 >;
 
 // ─── Ports ───────────────────────────────────────────────────────────────────
@@ -486,7 +514,7 @@ export interface RegisterIpcHandlersOptions {
    * with the locale already chosen. This file's job is unchanged — parse the
    * push, hand it over, wrap the answer.
    */
-  setMenuLabels: (labels: DesktopMenuLabels) => void;
+  setMenuLabels: (labels: PushedMenuLabels) => void;
   /**
    * The diagnostic blob's "dataDir size". A port because only the main
    * process can walk the data directory — the renderer has no filesystem

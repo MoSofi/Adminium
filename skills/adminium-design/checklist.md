@@ -16,8 +16,8 @@ The short form of `SKILL.md`. Hold every screen people see to it.
   cheap. Align everything to one grid.
 - **Colour and type**: only the theme's values. The accent for the main action and a few marks.
   One band in another colour gives a page rhythm. Two fonts: the theme's heading and body.
-- **Pictures**: a page about food, rooms, people or things shows them. Get them with
-  find_pictures, or the person's own (attached, and put in the app with use_pictures); never
+- **Pictures**: a page about food, rooms, people or things shows them. Each is a spot
+  (add_spots) the person fills; their own attached picture goes in with fill_spot; never
   another site's address on your own.
   Every picture a fixed shape, and alt text.
 - **Icons**: from the icon set, one size. Never an emoji as an icon.

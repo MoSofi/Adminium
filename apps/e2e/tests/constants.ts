@@ -89,6 +89,9 @@ export const PUBLIC_API_ADMIN_PASSWORD = 'adminium-e2e-password';
  *   settings    the workspace settings screen: light itself, but it runs after
  *               the template specs, where the shared minute is spent (a 429 on
  *               its first request, sqlite).
+ *   pictures    a picture column chosen from the Files page and from another
+ *               record: a page made and edited in Studio, two records, uploads
+ *               and copies, and the Files page, in one file.
  *   kit         the kit parts on an app's own screen: about 260 calls in its
  *               one minute (seeded deals, places and companies, a staff page
  *               per test), so on the shared admin it met a 429 wherever the
@@ -103,6 +106,7 @@ export const OWN_PRINCIPALS = {
   voice: { email: 'e2e-voice@adminium.local', name: 'E2E Voice Admin' },
   kit: { email: 'e2e-kit-parts@adminium.local', name: 'E2E Kit Parts Admin' },
   settings: { email: 'e2e-settings@adminium.local', name: 'E2E Settings Admin' },
+  pictures: { email: 'e2e-pictures@adminium.local', name: 'E2E Pictures Admin' },
 } as const;
 export type OwnPrincipal = keyof typeof OWN_PRINCIPALS;
 export const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';

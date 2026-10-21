@@ -69,6 +69,18 @@ export interface AdminiumUsersTable {
   status: string;
   totpSecretEncrypted: string | null;
   totpEnabled: BoolColumn;
+  /**
+   * A person's own Figma token, encrypted under its own purpose key (0061). Read only by `figmaTokenOf`,
+   * never into `User`. Left out of an insert: a person starts with none, and a store migrated to an
+   * older wave (a migration's own test) has no such columns.
+   */
+  figmaTokenEncrypted: ColumnType<string | null, string | null | undefined, string | null>;
+  figmaHandle: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Whose Figma account the token is: the Figma user `/v1/me` named. */
+  figmaUserId: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Epoch ms until which the Designer's own Figma reads are paused for this Figma user; dated when Figma said when. */
+  figmaPausedUntil: ColumnType<Ts | null, Ts | null | undefined, Ts | null>;
+  figmaPauseDated: ColumnType<boolean | 0 | 1, boolean | 0 | 1 | undefined, boolean | 0 | 1>;
   /** JSON array of argon2id hashes. */
   recoveryCodes: JsonColumn | null;
   /** Soft ref → adminium_files (created in a later wave; no FK). */
@@ -1520,10 +1532,10 @@ export interface AdminiumAssistantTurnsTable {
 }
 
 // ---------------------------------------------------------------------------
-// wave 0061 — payments
+// wave 0062 — payments
 // ---------------------------------------------------------------------------
 
-/** One try to pay one payable at one provider. Moves only by compare-and-set (0061). */
+/** One try to pay one payable at one provider. Moves only by compare-and-set (0062). */
 export interface AdminiumPaymentAttemptsTable {
   /** PK, and the idempotency key every provider call for this attempt carries. */
   id: Id;
@@ -1570,7 +1582,7 @@ export interface AdminiumPaymentAttemptsTable {
   failCounted: ColumnType<number, number | undefined, number>;
 }
 
-/** A webhook, or a status change a poll found, unique per provider, mode and event id (0061). */
+/** A webhook, or a status change a poll found, unique per provider, mode and event id (0062). */
 export interface AdminiumPaymentEventsTable {
   id: Id;
   provider: string;
@@ -1588,7 +1600,7 @@ export interface AdminiumPaymentEventsTable {
   processedAt: Ts | null;
 }
 
-/** A payment Adminium keeps itself; `attemptId` unique so recording is insert-first (0061). */
+/** A payment Adminium keeps itself; `attemptId` unique so recording is insert-first (0062). */
 export interface AdminiumPaymentsTable {
   id: Id;
   payableKind: string;
@@ -1618,7 +1630,7 @@ export interface AdminiumPaymentsTable {
   createdAt: Ts;
 }
 
-/** A refund, its idempotency key minted at the confirm step (0061). */
+/** A refund, its idempotency key minted at the confirm step (0062). */
 export interface AdminiumRefundsTable {
   id: Id;
   attemptId: Id | null;
@@ -1646,7 +1658,7 @@ export interface AdminiumRefundsTable {
   checkNote: string | null;
 }
 
-/** A pay link: its token hashed and sealed, one current per payable (0061). */
+/** A pay link: its token hashed and sealed, one current per payable (0062). */
 export interface AdminiumPaymentLinksTable {
   id: Id;
   tokenHash: string;
@@ -1664,7 +1676,7 @@ export interface AdminiumPaymentLinksTable {
   createdAt: Ts;
 }
 
-/** A table an admin marked payable, and how (0061). */
+/** A table an admin marked payable, and how (0062). */
 export interface AdminiumPayableProfilesTable {
   id: Id;
   connectionId: Id;
@@ -1677,7 +1689,7 @@ export interface AdminiumPayableProfilesTable {
   updatedAt: Ts;
 }
 
-/** A way to pay and its per-market rules (0061). */
+/** A way to pay and its per-market rules (0062). */
 export interface AdminiumPaymentMethodsTable {
   id: Id;
   source: string;
@@ -1691,14 +1703,14 @@ export interface AdminiumPaymentMethodsTable {
   updatedAt: Ts;
 }
 
-/** Small payment documents under a name: the pay page, the address, cursors, read counts, health (0061). */
+/** Small payment documents under a name: the pay page, the address, cursors, read counts, health (0062). */
 export interface AdminiumPaymentSettingsTable {
   name: string;
   value: JsonColumn;
   updatedAt: Ts;
 }
 
-/** Card-testing caps: hits per bucket per hour window (0061). */
+/** Card-testing caps: hits per bucket per hour window (0062). */
 export interface AdminiumPaymentCountersTable {
   bucket: string;
   windowStart: Ts;

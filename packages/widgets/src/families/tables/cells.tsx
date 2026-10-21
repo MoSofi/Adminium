@@ -58,6 +58,12 @@ export interface CellContext {
   files?: ReadonlyMap<string, ResolvedFile | null> | undefined;
   /** Above this, an image column shows its chip instead of a preview (D24). */
   thumbnailMaxBytes?: number | undefined;
+  /**
+   * The page's picture columns, in order (a `file` block that takes pictures
+   * only): the avatar beside a value of this table's own shows the row's
+   * picture from the first, or from the one the column names (`avatarFrom`).
+   */
+  pictureColumns?: readonly string[] | undefined;
 }
 
 /** What the host's resolve call hands back for one stored reference. */
@@ -366,12 +372,23 @@ export function CellValue({
   if (masked || value === null || value === undefined || String(value).trim() === '') {
     return content;
   }
+  // The row's own picture, when the page has a picture column; its initials when it has none, or the picture fails.
+  const src = rowPicture(column, row, context);
   return (
     <span data-part="cell-avatar" className="inline-flex min-w-0 items-center gap-1.5">
-      <Avatar name={String(value)} size="xs" />
+      <Avatar name={String(value)} size="xs" {...(src === undefined ? {} : { src })} />
       {content}
     </span>
   );
+}
+
+/** The same-origin picture a row's picture column names for an avatar beside one of its own values; undefined when there is none to draw. */
+function rowPicture(column: GridColumnSpec, row: GridRow, context: CellContext): string | undefined {
+  const from = column.avatarFrom ?? context.pictureColumns?.[0];
+  if (from === undefined || from === column.name || (column.avatarFrom !== undefined && context.pictureColumns !== undefined && !context.pictureColumns.includes(from))) return undefined;
+  const ref = parseRefList(row[from])[0];
+  const file = ref === undefined ? undefined : context.files?.get(ref);
+  return file === undefined || file === null || !file.mime.startsWith('image/') ? undefined : file.contentPath;
 }
 
 /**

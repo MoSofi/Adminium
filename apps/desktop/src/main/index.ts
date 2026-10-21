@@ -48,7 +48,6 @@ import type {
   DesktopBundledTextKind,
   DesktopConfigPatch,
   DesktopDiagnostics,
-  DesktopMenuLabels,
   DesktopPlatform,
   DesktopUpdateEvent,
   SetDataDirOptions,
@@ -88,8 +87,9 @@ import {
   type ProbeResult,
 } from './lan.js';
 import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
+import { createAboutDialogs, type AboutDialogs } from './about.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
-import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type ProjectExporting, type ProjectSharing } from './ipc.js';
+import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type ProjectExporting, type ProjectSharing, type PushedMenuLabels } from './ipc.js';
 import { fetchGit, findGit, gitDownloadFor, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
 import { createFolderFacts, createInstallPackages, createMakeProject, createUpdateProject, runToEnd, type MakeProjectDeps } from './make-project.js';
@@ -115,6 +115,7 @@ import {
 import {
   canSelfUpdate,
   createUpdateManager as buildUpdateManager,
+  RELEASES_URL,
   resolveUpdateMode,
   type UpdateManager,
   type UpdaterPort,
@@ -414,7 +415,7 @@ export interface DesktopBridgeContext {
    * like the other ports here, so `main/ipc.ts`'s `setMenuLabels` handler
    * routes a push straight to it.
    */
-  setMenuLabels: (labels: DesktopMenuLabels) => void;
+  setMenuLabels: (labels: PushedMenuLabels) => void;
   /** The first screens' service while Start is what the window holds; `null` otherwise. */
   start?: (() => StartService | null) | undefined;
   /** The project the window holds (`info` is `null` in the classic workspace), and the way out of it. */
@@ -540,6 +541,12 @@ export interface DesktopBootDeps {
    * carrying the same handlers and a fresh `t`.
    */
   installMenu: (opts: { handlers: MenuHandlers; t: MenuTranslate }) => void;
+  /**
+   * The native About box and the menu's update check, answered in a dialog
+   * (`about.ts`). Optional so the boot suite can leave it out: About is then
+   * disabled where it has no page to open, and a menu check runs silently.
+   */
+  aboutDialogs?: AboutDialogs | undefined;
   /**
    * File → "Restore from backup…" — `openFile({ kind: 'backup' })`.
    *
@@ -785,10 +792,34 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
    * would still be safe — the empty `menuHandlers` gives a titles-only menu that
    * step 5 immediately supersedes.
    */
-  let menuLabels: DesktopMenuLabels | null = null;
+  let menuLabels: PushedMenuLabels | null = null;
   let menuHandlers: MenuHandlers = {};
   const rebuildMenu = (): void => {
     deps.installMenu({ handlers: menuHandlers, t: menuTranslator(menuLabels) });
+  };
+  /**
+   * "Check for Updates…" from the menu: answered in a dialog — up to date, an
+   * update to download, or could not check. Without the dialogs port, the bare
+   * check (an `available` still reaches the page's toaster).
+   */
+  const checkFromMenu = (manager: UpdateManager): void => {
+    if (deps.aboutDialogs === undefined) {
+      void manager.checkForUpdates();
+      return;
+    }
+    void deps.aboutDialogs.checkForUpdates({ t: menuTranslator(menuLabels), manager });
+  };
+  /** `base` plus About and Check for Updates, each only when there is one: an absent handler is a disabled item. */
+  const withHandlers = (base: MenuHandlers, about: (() => void) | undefined, check: (() => void) | undefined): MenuHandlers => ({
+    ...base,
+    ...(about === undefined ? {} : { about }),
+    ...(check === undefined ? {} : { checkForUpdates: check }),
+  });
+  /** The native About box, with its "Check for Updates…" button when `check` is given. `undefined` (a disabled item) without the port. */
+  const aboutBox = (check: (() => void) | undefined): (() => void) | undefined => {
+    const dialogs = deps.aboutDialogs;
+    if (dialogs === undefined) return undefined;
+    return () => void dialogs.about({ t: menuTranslator(menuLabels), check });
   };
 
   /**
@@ -1266,10 +1297,14 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         // One made on Start ("Update Adminium") gives way to this boot's.
         updateManager?.dispose();
         updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
-        menuHandlers = {
-          showLogs: () => void deps.showLogs(),
-          ...(updateManager === null ? {} : { checkForUpdates: (): void => void updateManager?.checkForUpdates() }),
-        };
+        // A project's page is the project's own, with no `/about` of Adminium's to open: About is the native box.
+        const projectCheck =
+          updateManager === null
+            ? undefined
+            : (): void => {
+                if (updateManager !== null) checkFromMenu(updateManager);
+              };
+        menuHandlers = withHandlers({ showLogs: () => void deps.showLogs() }, aboutBox(projectCheck), projectCheck);
         rebuildMenu();
 
         const show = (ready: { host: string; port: number }): Promise<void> => {
@@ -1521,7 +1556,16 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
               });
               startOpen = true;
               // Ours from the first window on: without this, Start sits under Electron's default menu until a
-              // project's step 5. The commands have no handlers yet, so they are shown and cannot be chosen.
+              // project's step 5. The File commands have no handlers here, so they are shown and cannot be chosen.
+              // About and Check for Updates work: the updater is made on the first check, as "Update Adminium" does.
+              const startCheck =
+                (config ?? loaded.config).updates.mode === 'disabled' || deps.updatesDisabledByEnv
+                  ? undefined
+                  : (): void => {
+                      updateManager ??= deps.createUpdateManager({ mode: (config ?? loaded.config).updates.mode });
+                      if (updateManager !== null) checkFromMenu(updateManager);
+                    };
+              menuHandlers = withHandlers({ showLogs: () => void deps.showLogs() }, aboutBox(startCheck), startCheck);
               rebuildMenu();
               void windows.showStart?.();
             });
@@ -1682,11 +1726,15 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           // ONLY check path; in `notify` it supplements the scheduled ones. `null`
           // (disabled) leaves the item disabled via `menu.ts`'s unwired-handler
           // rule. An `available` result surfaces through the ONE notification
-          // pipeline (`onUpdateEvent`); a `none`/`error` result is the SPA button's
-          // to render (About / Settings), not this native item's.
+          // pipeline (`onUpdateEvent`); every result, `none`/`error` included, is
+          // also answered in a native dialog (`about.ts`), since the person asked.
           ...(updateManager === null
             ? {}
-            : { checkForUpdates: (): void => void updateManager?.checkForUpdates() }),
+            : {
+                checkForUpdates: (): void => {
+                  if (updateManager !== null) checkFromMenu(updateManager);
+                },
+              }),
         };
         rebuildMenu();
 
@@ -2640,6 +2688,23 @@ export function electronBootDeps(): DesktopBootDeps {
         t,
       });
     },
+    aboutDialogs: createAboutDialogs({
+      ask: async (options) => {
+        const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+        const result = parent === null ? await dialog.showMessageBox(options) : await dialog.showMessageBox(parent, options);
+        return result.response;
+      },
+      openExternal: (url) => void shell.openExternal(url),
+      releasesUrl: RELEASES_URL,
+      versions: {
+        app: app.getVersion(),
+        electron: process.versions.electron ?? '',
+        chrome: process.versions.chrome ?? '',
+        node: process.versions.node,
+      },
+      canSelfUpdate: canSelfUpdate(process.platform, process.env),
+      log: mainLog,
+    }),
     createBootToken: generateBootToken,
     // The collision pre-flight, on a real socket. Not `probeBindable`
     // directly: the port's signature is `(host, port)` and `probeBindable`'s
@@ -2860,6 +2925,32 @@ export function isElectronMain(): boolean {
   return process.versions.electron !== undefined && process.type === 'browser';
 }
 
+/** The name the menu, the Dock and the dialogs show. */
+export const APP_NAME = 'Adminium';
+
+/**
+ * Call the app "Adminium" — without moving where it keeps things.
+ *
+ * Electron takes its name from `package.json`, whose `name` is
+ * `@adminium/desktop`; that is what "Hide …" and "Quit …" in the mac app menu
+ * showed. The name also decides the folders: `userData` (config.json with the
+ * secret, the data, the window state) and `logs`. Every install so far keeps
+ * them under `@adminium/desktop`, so both are read BEFORE the rename and set
+ * back to the same place after it. A `productName` in `package.json` would have
+ * moved them, and every person would have opened a first-run app.
+ *
+ * Runs before anything reads a path, and before the single-instance lock (which
+ * lives in `userData`).
+ */
+export function nameTheApp(target: Pick<Electron.App, 'getPath' | 'setPath' | 'setName'>): void {
+  const userData = target.getPath('userData');
+  const logs = target.getPath('logs');
+  target.setName(APP_NAME);
+  target.setPath('userData', userData);
+  target.setPath('logs', logs);
+}
+
 if (isElectronMain()) {
+  nameTheApp(app);
   void createDesktopApp(electronBootDeps()).start();
 }

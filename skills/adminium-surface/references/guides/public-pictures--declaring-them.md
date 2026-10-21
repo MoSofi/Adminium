@@ -3,10 +3,13 @@
 # Pictures on public pages: Declaring them
 
 A picture lives in an **image column**: a text column with `"semantic": "image"`, which holds the
-file Adminium keeps for it.
+file Adminium keeps for it. Give it a file rule that takes pictures only, and it is a **picture
+column**: staff upload or choose its picture in the dashboard, and a sample row may give it one of
+the bundle's pictures (`{ "@asset": "<label>" }`).
 
 ```json
-{ "ref": "poster", "type": "text", "maxLength": 400, "nullable": true, "semantic": "image" }
+{ "ref": "poster", "type": "text", "nullable": true, "semantic": "image",
+  "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } }
 ```
 
 A read-only entry of the guests' key names its image columns in `pictures`:
@@ -23,7 +26,7 @@ The validator refuses `pictures` unless all of these hold:
 | The entry | Only reads rows: `methods` is `["GET"]`, and it is not an availability entry. |
 | The entry | Is for every visitor: no `claim`, `claimedBy` or `visibleWith`. A signed-in person's own files are `files` ([Files and documents](https://docs.adminium.dev/guides/apps/public-access/#files-and-documents)). |
 | `key` | The app's `customer` key. |
-| Each column | Text with `semantic: "image"`. |
+| Each column | Text with `semantic: "image"`; a file rule beside it takes pictures only. |
 | Each column | In `select`, when the entry has one. |
 | Each column | Not written by the entry (`writable` or `defaults`). |
 | Each column | Not in the entry's `files`. |

@@ -1266,7 +1266,7 @@ export default {
       "column": {
         "adoptHint": "Diese Tabelle hat die Spalte bereits, es wird also nichts angelegt — sie wird so verwendet, wie sie ist.",
         "bound": "Dateien liegen in der Spalte {column} dieser Tabelle.",
-        "boundHint": "Wenn Sie Anhänge später abschalten, wird nur diese Seite gelöst. Die Spalte und ihre Dateien bleiben unangetastet.",
+        "boundHint": "Wenn Sie dies später ausschalten, wird die Seite gelöst. Die Spalte und die Dateien darin bleiben unverändert.",
         "confirm": "Ausführen",
         "create": "Spalte anlegen",
         "createHint": "Adminium fügt dieser Tabelle eine Textspalte hinzu. Sie sehen die genaue Anweisung, bevor etwas läuft.",
@@ -1284,7 +1284,7 @@ export default {
       "destinationHint": "Belassen Sie dies beim Standard, es sei denn, die Dateien dieser Tabelle gehören woandershin.",
       "destinationIsDefault": "{name} (Standard)",
       "destinationLocal": "Die Festplatte dieses Servers",
-      "enable": "Anhänge an den Datensätzen dieser Tabelle erlauben",
+      "enable": "Jeder Datensatz kann eine Liste von Dateien behalten",
       "enableHint": "Dateien werden auf Adminiums Seite verknüpft, diese Tabelle braucht also keine neue Spalte — es funktioniert auf einer schreibgeschützten Verbindung und auf einer Tabelle, die Sie lieber nicht ändern möchten.",
       "enableHintColumn": "Dateien liegen in einer Spalte dieser Tabelle und erscheinen deshalb sowohl in den Dialogen „Neu“ und „Bearbeiten“ als auch bei jedem Datensatz.",
       "enableHintSidecar": "Dateien werden stattdessen auf Adminium-Seite verknüpft. Sie erscheinen auf der Seite jedes Datensatzes, nicht im Dialog „Neu“.",
@@ -1301,7 +1301,8 @@ export default {
       "type": {
         "office": "Office-Dokumente",
         "text": "Reiner Text"
-      }
+      },
+      "pictureHint": "Für das eigene Bild des Eintrags stellen Sie unter Spalten eine Spalte auf Bild."
     },
     "columns": {
       "addFromLinked": "Aus verknüpften Tabellen",
@@ -1314,8 +1315,8 @@ export default {
       "addSearch": "Spalten durchsuchen…",
       "addTitle": "Spalte hinzufügen",
       "addVia": "über {column}",
-      "avatar": "Avatar",
-      "avatarToggle": "Monogramm neben {name} anzeigen",
+      "avatar": "Initialen",
+      "avatarToggle": "Initialen neben {name} anzeigen",
       "countBadge": "Anzahl",
       "dragHandle": "{name} verschieben",
       "empty": "Noch keine Spalten — fügen Sie unten welche hinzu.",
@@ -1366,7 +1367,8 @@ export default {
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "Nur Bilder. Entfernen Sie den Haken bei den Arten, die diese Spalte ablehnen soll."
       },
       "fold": {
         "avg": "Durchschnitt",
@@ -1396,7 +1398,25 @@ export default {
       "remove": "{name} entfernen",
       "schemaUnavailable": "Die Datenbankspalten konnten nicht geladen werden, daher lassen sich hier keine Spalten hinzufügen.",
       "shown": "Sichtbar",
-      "toggle": "{name} in der Tabelle anzeigen"
+      "toggle": "{name} in der Tabelle anzeigen",
+      "avatarPicture": {
+        "name": "Bild neben dem Namen",
+        "it": "Bild daneben",
+        "toggle": "Bild der Zeile neben {column} anzeigen, sonst ihre Initialen",
+        "none": "Noch keine Spalte enthält ein Bild, daher werden Initialen gezeigt.",
+        "from": "Bild aus"
+      },
+      "holds": {
+        "label": "Enthält",
+        "name": "Was {name} enthält",
+        "text": "Text",
+        "picture": "Bild",
+        "file": "Datei",
+        "app": "Die App {app} legt diese Spalte fest: Sie enthält {kind, select, picture {Bilder} other {Dateien}} bis {size}. Sie kann hier nicht geändert werden.",
+        "appUnnamed": "Eine App legt diese Spalte fest: Sie enthält {kind, select, picture {Bilder} other {Dateien}} bis {size}. Sie kann hier nicht geändert werden.",
+        "toText": "Bereits gespeicherte Werte bleiben in der Spalte. Das Formular zeigt sie als Text.",
+        "hint": "Diese Spalte scheint Links zu Bildern zu enthalten. Stellen Sie sie auf Bild, um hier Bilder hochzuladen oder zu wählen. Vorhandene Links bleiben."
+      }
     },
     "create": {
       "failed": "Die Seite konnte nicht erstellt werden",
@@ -1448,7 +1468,7 @@ export default {
     },
     "editor": {
       "appearance": "Darstellung",
-      "attachments": "Anhänge",
+      "attachments": "Dateien an jedem Datensatz",
       "columns": "Spalten",
       "contentInvalid": "Die Konfiguration dieser Seite ist nicht lesbar",
       "contentInvalidBody": "Sie stammt aus einer neueren Version oder ist fehlerhaft. Erzeugen Sie die Seite neu oder löschen Sie sie.",
@@ -1659,7 +1679,7 @@ export default {
           "title": "Abschnitte"
         },
         "segmented": {
-          "body": "Segmentierte Priorität, lange Beschreibung, Anhangsliste, zuständige Person.",
+          "body": "Segmentierte Priorität, lange Beschreibung, Dateiliste, zuständige Person.",
           "title": "Segmente und Dateien"
         },
         "split": {
@@ -2714,7 +2734,7 @@ export default {
       "export": "Dateien aus Datenexporten",
       "import": "Hochgeladene CSV-Dateien und ihre Fehlerberichte",
       "schema": "Importierte Schemadateien",
-      "upload": "An Datensätze angehängte Dateien"
+      "upload": "Dateien bei Datensätzen"
     },
     "list": {
       "subtitle": "Neue Dateien gehen an das Standard-Speicherziel. Vorhandene Dateien bleiben, wo sie sind, bis Sie sie verschieben.",

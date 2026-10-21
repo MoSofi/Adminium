@@ -245,6 +245,12 @@ const columnFactSchema = z.object({
  */
 export const pageReply = z.object({
   data: z.unknown(),
+  /**
+   * The stored document's revision as read: a save from this page's form that
+   * names a file it just uploaded carries it, and is refused when the page's
+   * settings moved on since (`PAGE_CHANGED`).
+   */
+  revision: z.number().int().optional(),
   /** Whether the caller holds `page:<id>:edit` — the dashboard builder routes
    *  edits to the shared default (true) vs. a personal override (false). */
   canEditLayout: z.boolean(),

@@ -7,6 +7,7 @@
  * back what a terminal never needed: a way to stop the server and know when it
  * has stopped, and a way to ask what it is in the middle of.
  */
+import type { SafeFetchOptions } from '../net/safe-fetch.js';
 import { realpathSync } from 'node:fs';
 
 import { findProject } from '../project/locate.js';
@@ -16,6 +17,10 @@ import { nodeIo, type CliIo } from './io.js';
 import { defaultCliDeps, type CliDeps } from './runtime.js';
 
 export interface StartProjectOptions {
+  /** Tests only, and only in-process: how Figma's API is reached (`ComposeServerOptions.figmaSeams`). No flag or variable sets it. */
+  figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** Tests only, and only in-process: how the picture sources are reached (`ComposeServerOptions.pictureSeams`). No flag or variable sets it. */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** The project's folder. It must hold the project itself: a parent's project is never used. */
   root: string;
   port: number;
@@ -132,7 +137,7 @@ export async function startProject(opts: StartProjectOptions): Promise<StartedPr
   const io = opts.io ?? nodeIo();
   return startUp(
     { io, deps },
-    { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse, ...(opts.mode === 'serve' && opts.shared === true ? { shared: opts.ownerOnThisComputer === true && opts.token !== undefined ? { ownerToken: opts.token } : {} } : {}) },
+    { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse, ...(opts.figmaSeams === undefined ? {} : { figmaSeams: opts.figmaSeams }), ...(opts.pictureSeams === undefined ? {} : { pictureSeams: opts.pictureSeams }), ...(opts.mode === 'serve' && opts.shared === true ? { shared: opts.ownerOnThisComputer === true && opts.token !== undefined ? { ownerToken: opts.token } : {} } : {}) },
     opts.mode === 'design' ? (opts.design ?? localOwnerStart(io, opts.token ?? null, undefined, { thisComputer: opts.ownerOnThisComputer === true })) : undefined,
   );
 }

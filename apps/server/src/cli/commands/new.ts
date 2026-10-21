@@ -20,9 +20,10 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join, parse as parsePath, resolve } from 'node:path';
+import { basename, join, parse as parsePath, relative, resolve, sep } from 'node:path';
 
 import { parseDsn } from '../../connections/dsn.js';
+import { copyTemplateInto, pageAtTop, SITE_TEMPLATES_DIR, snapshotTemplate, templateNameOf, writeTemplateNote } from '../../designer/site/folder.js';
 import { adoptConnections, expandFolder, holdsInstance, importInstance, writeConfig } from '../../project/adopt.js';
 import { addToDotEnv, readDotEnv } from '../../project/dotenv.js';
 import { diskFileStore } from '../../project/file-store.js';
@@ -211,6 +212,11 @@ export const newCommand: Command = {
       describe: 'Adminium to install: a version, or a tarball path',
       defaultDescription: `${APP_VERSION}, this version`,
     },
+    'site-template': {
+      type: 'string',
+      placeholder: '<folder>',
+      describe: "When this folder holds a site template (a page at its top), copy it into the project's site-templates/ (the folder itself is not changed)",
+    },
   },
 
   async run({ io, deps, argv }) {
@@ -269,6 +275,25 @@ export const newCommand: Command = {
     }
     const specFlag = stringFlag(values.adminium);
     const spec = specFlag === undefined ? APP_VERSION : adminiumSpec(specFlag, cwd);
+
+    // A site template the project is made in: its entries are read now, before the project's own folder exists
+    // inside it, so the copy never meets the project it goes into. The template's folder is never written to.
+    const templateFlag = stringFlag(values['site-template']);
+    let template: { label: string; name: string; snapshot: Awaited<ReturnType<typeof snapshotTemplate>> } | null = null;
+    if (templateFlag !== undefined) {
+      if (here) throw new CliUsageError('--site-template makes the project in a folder of its own; give that folder a name.', newCommand.name);
+      const from = resolve(cwd, templateFlag);
+      const inside = relative(from, root);
+      const label = basename(from);
+      // A folder with no page at its top holds no template: nothing to copy, and nothing to say.
+      if (await pageAtTop(from)) {
+        try {
+          template = { label, name: templateNameOf(label), snapshot: await snapshotTemplate(from, inside.startsWith('..') ? '' : (inside.split(sep)[0] ?? '')) };
+        } catch {
+          throw new CliUsageError(`--site-template: ${templateFlag} is not a folder that can be read.`, newCommand.name);
+        }
+      }
+    }
 
     if (here && !isEmptyFolder(root) && !yes) {
       if (!io.isInteractive) {
@@ -410,6 +435,16 @@ export const newCommand: Command = {
     if (env.length > 0) io.out(`  Wrote:       ${env.join(', ')}`);
     if (result.skipped.length > 0) io.out(`  Left alone:  ${result.skipped.join(', ')}`);
     for (const note of result.notes) io.out(`  ${note}`);
+    if (template !== null) {
+      const copied = await copyTemplateInto(template.label, template.snapshot, root, template.name);
+      if (copied.copied) {
+        io.out(`  Copied the site template in ${template.label} into ${SITE_TEMPLATES_DIR}/${template.name}/ (${String(copied.pages)} ${copied.pages === 1 ? 'page' : 'pages'}, ${String(copied.files)} ${copied.files === 1 ? 'file' : 'files'}). ${template.label}'s own files were not changed.`);
+      } else {
+        io.out(`  ${template.label} was not copied in as a site template: ${copied.why}`);
+        // Said again on the Designer's home, where the Desktop app's person sees it.
+        await writeTemplateNote(root, { name: template.label, why: copied.why });
+      }
+    }
     io.out('');
     io.out('Next:');
     if (!here) io.out(`  cd ${nameArg}`);

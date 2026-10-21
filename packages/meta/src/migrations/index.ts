@@ -82,7 +82,8 @@ import { up as up0057 } from './0057_teams.js';
 import { up as up0058 } from './0058_app_modules.js';
 import { up as up0059 } from './0059_spells_and_quiet_hours.js';
 import { up as up0060 } from './0060_notification_switches.js';
-import { up as up0061 } from './0061_payments.js';
+import { up as up0061 } from './0061_user_figma_token.js';
+import { up as up0062 } from './0062_payments.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -152,5 +153,6 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0058_app_modules', up: up0058 },
   { name: '0059_spells_and_quiet_hours', up: up0059 },
   { name: '0060_notification_switches', up: up0060 },
-  { name: '0061_payments', up: up0061 },
+  { name: '0061_user_figma_token', up: up0061 },
+  { name: '0062_payments', up: up0062 },
 ];

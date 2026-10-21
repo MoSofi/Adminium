@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "你可以在其中的資料夾裡建立新專案。",
       "another": "選擇其他資料夾",
-      "make": "在此處建立新專案"
+      "make": "在此處建立新專案",
+      "template": "此資料夾包含網站範本。新專案會建在其中，範本會被複製進去。此資料夾本身的檔案不會變更。"
     }
   },
   "key": {
@@ -230,5 +231,38 @@ export default {
     "version": "Adminium {version}",
     "forgetOf": "忘記 {address}",
     "forget": "忘記"
+  },
+  "menu": {
+    "file": "檔案",
+    "fileNewDatabase": "新增本機資料庫…",
+    "fileOpenSqlite": "開啟 SQLite 檔案…",
+    "fileBackupNow": "立即備份…",
+    "fileRestore": "從備份還原…",
+    "edit": "編輯",
+    "view": "檢視",
+    "window": "視窗",
+    "help": "說明",
+    "helpDocs": "Adminium 文件",
+    "helpShortcuts": "鍵盤快速鍵",
+    "helpLogs": "顯示日誌",
+    "helpCheckForUpdates": "檢查更新…",
+    "helpAbout": "關於 Adminium"
+  },
+  "dialog": {
+    "ok": "好",
+    "aboutVersion": "版本 {version}",
+    "updateNoneTitle": "已是最新版本",
+    "updateNoneDetail": "Adminium {version} 是最新版本。",
+    "updateAvailableTitle": "Adminium {version} 已推出",
+    "updateAvailableDetail": "目前版本為 {current}。",
+    "updateDownload": "下載並安裝",
+    "updateOpenPage": "開啟下載頁面",
+    "updateLater": "稍後",
+    "updateReadyTitle": "更新已準備就緒",
+    "updateReadyDetail": "重新啟動 Adminium 以完成安裝。",
+    "updateRestart": "立即重新啟動",
+    "updateErrorTitle": "無法檢查更新",
+    "updateErrorDetail": "請檢查網路連線後再試一次。",
+    "updateDownloadFailedTitle": "無法下載更新"
   }
 } as const;

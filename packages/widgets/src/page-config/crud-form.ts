@@ -28,6 +28,8 @@
  */
 import { z } from 'zod';
 
+import { isPictureBlock } from './picture-kinds.js';
+
 // ---------------------------------------------------------------------------
 // The control catalog (Appendix C)
 // ---------------------------------------------------------------------------
@@ -70,6 +72,8 @@ export const FORM_CONTROLS = [
   'image',
   'avatar',
   'attachments',
+  /** A column that holds a picture: its file block takes PNG, JPEG, WebP or GIF and nothing else. */
+  'picture',
   'json',
   'readonly',
   /**
@@ -371,7 +375,7 @@ function hasChoices(column: FormColumnShape): boolean {
 export function controlFor(column: FormColumnShape): FormControl {
   if (column.readOnly === true) return 'readonly';
   if (column.fk !== undefined && column.fk !== null) return 'reference';
-  if (column.file !== undefined && column.file !== null) return 'attachments';
+  if (column.file !== undefined && column.file !== null) return isPictureBlock(column.file) ? 'picture' : 'attachments';
   if (column.list === true) return 'chips';
   if (hasChoices(column)) {
     const count = optionCount(column);
@@ -438,7 +442,7 @@ export function controlFor(column: FormColumnShape): FormControl {
 export function legalControls(column: FormColumnShape): FormControl[] {
   if (column.readOnly === true) return ['readonly'];
   if (column.fk !== undefined && column.fk !== null) return ['reference', 'choice-cards', 'select'];
-  if (column.file !== undefined && column.file !== null) return ['attachments', 'image', 'avatar'];
+  if (column.file !== undefined && column.file !== null) return isPictureBlock(column.file) ? ['picture', 'attachments', 'image', 'avatar'] : ['attachments', 'image', 'avatar'];
   if (column.list === true) return ['chips', 'check-row'];
 
   const textual = column.logicalType === 'text' || column.logicalType === 'varchar';
@@ -525,6 +529,7 @@ const FULL_WIDTH: ReadonlySet<FormControl> = new Set([
   'toggle-row',
   'attachments',
   'image',
+  'picture',
   'reference-chips',
 ]);
 

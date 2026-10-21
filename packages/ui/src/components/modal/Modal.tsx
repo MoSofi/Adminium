@@ -29,6 +29,8 @@ export interface ModalProps extends ComponentPropsWithRef<typeof DialogPrimitive
   className?: string | undefined;
   /** Extra classes for the scrim overlay. */
   overlayClassName?: string | undefined;
+  /** `alertdialog` for a question that interrupts (a confirm): read out at once by a screen reader. */
+  role?: 'dialog' | 'alertdialog' | undefined;
   children?: ReactNode;
 }
 
@@ -39,7 +41,7 @@ export interface ModalProps extends ComponentPropsWithRef<typeof DialogPrimitive
  * `ModalHeader` / `ModalBody` / `ModalFooter`. Pass `modal={false}` +
  * `defaultOpen` in VRT stories to render inline.
  */
-export function Modal({ size = 'md', className, overlayClassName, children, ...rootProps }: ModalProps) {
+export function Modal({ size = 'md', className, overlayClassName, role, children, ...rootProps }: ModalProps) {
   // ModalTrigger children must render as direct Root children — the Portal/Content
   // subtree is unmounted while the dialog is closed, so a trigger placed inside it
   // would never appear.
@@ -58,6 +60,7 @@ export function Modal({ size = 'md', className, overlayClassName, children, ...r
           )}
         />
         <DialogPrimitive.Content
+          {...(role === undefined ? {} : { role })}
           className={cn(
             // inset-0 + m-auto + h-fit centers without transforms — RTL-safe.
             'fixed inset-0 z-50 m-auto flex h-fit max-h-[85vh] w-[calc(100%-32px)] flex-col',

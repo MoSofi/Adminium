@@ -129,7 +129,8 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect === 'mysql') {
         const columns = await textColumns(m);
-        expect(columns).toHaveLength(34);
+        // The 34 0047 converted, and 0061's Figma token, made `longtext` from the start.
+        expect(columns).toHaveLength(35);
         expect(columns.filter((c) => c.type !== 'longtext')).toEqual([]);
       }
     });
@@ -145,10 +146,10 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect !== 'mysql') {
         const before = await allColumnTypes(m);
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_payments']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments']);
         // Nothing of 0047's here; 0048 adds a key's peak, two columns of its own, and 0049 a table of its own.
         expect(
-          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_(payment_attempts|payment_events|payments|refunds|payment_links|payable_profiles|payment_methods|payment_settings|payment_counters)\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:/.test(column)),
+          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:|^adminium_users\.figma_|^adminium_(payment_attempts|payment_events|payments|refunds|payment_links|payable_profiles|payment_methods|payment_settings|payment_counters)\./.test(column)),
         ).toEqual(before);
       } else {
         const before = await textColumns(m);
@@ -167,9 +168,11 @@ for (const dialect of TEST_DIALECTS) {
           publicEndpointsRepo(m).create({ connectionId, ref: 'refused', origin: 'custom', definition: BIG }, T0),
         ).rejects.toThrow(/Data too long/);
 
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_payments']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments']);
         const after = await textColumns(m);
-        expect(after).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
+        // 0061's Figma token is a column of its own, `longtext` from the start.
+        expect(after.filter((c) => !(c.table === 'adminium_users' && c.column === 'figma_token_encrypted'))).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
+        expect(after.find((c) => c.table === 'adminium_users' && c.column === 'figma_token_encrypted')?.type).toBe('longtext');
       }
 
       expect((await publicEndpointsRepo(m).findById(endpoint.id))?.definition).toBe(kept);

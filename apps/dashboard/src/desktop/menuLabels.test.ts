@@ -11,6 +11,9 @@
 import type { AdminiumDesktopApi, DesktopMenuLabels } from '@adminium/desktop/api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createI18n, loadLocaleBundle } from '@adminium/i18n';
+
+import { setI18nInstance } from '../i18n/t.js';
 import { pushDesktopMenuLabels, pushDesktopStopWords, resolveMenuLabels, resolveStopWords } from './menuLabels.js';
 
 /** The key set `DesktopMenuLabels` requires — the shell rejects any subset. */
@@ -29,6 +32,22 @@ const MENU_KEYS = [
   'help.logs',
   'help.checkForUpdates',
   'help.about',
+  // The native About box and the menu's update check.
+  'dialog.ok',
+  'dialog.version',
+  'update.none.title',
+  'update.none.detail',
+  'update.available.title',
+  'update.available.detail',
+  'update.download',
+  'update.openPage',
+  'update.later',
+  'update.ready.title',
+  'update.ready.detail',
+  'update.restart',
+  'update.error.title',
+  'update.error.detail',
+  'update.downloadFailed.title',
 ].sort();
 
 afterEach(() => {
@@ -40,8 +59,8 @@ describe('resolveMenuLabels', () => {
   it('resolves every menu key through the translator', () => {
     const labels = resolveMenuLabels((key, fallback) => `${key}|${fallback}`);
     expect(Object.keys(labels).sort()).toEqual(MENU_KEYS);
-    expect(labels.file).toBe('desktop.menu.file|File');
-    expect(labels['help.about']).toBe('desktop.menu.helpAbout|About Adminium');
+    expect(labels.file).toBe('desktop:menu.file|File');
+    expect(labels['help.about']).toBe('desktop:menu.helpAbout|About Adminium');
   });
 
   it('degrades to the en-US default when a key has no bundle (t returns fallback)', () => {
@@ -51,6 +70,29 @@ describe('resolveMenuLabels', () => {
     expect(labels.file).toBe('File');
     expect(labels['file.newDatabase']).toBe('New local database…');
     expect(labels['help.checkForUpdates']).toBe('Check for Updates…');
+    // The shell fills the placeholders, so they cross as written.
+    expect(labels['update.available.title']).toBe('Adminium {version} is available');
+  });
+});
+
+describe('the words in another language', () => {
+  afterEach(() => {
+    setI18nInstance(null);
+  });
+
+  it('come from the desktop namespace, with the placeholders kept for the shell', async () => {
+    const warn = vi.spyOn(console, 'warn');
+    setI18nInstance(await createI18n({ locale: 'de_DE', loadBundle: loadLocaleBundle }));
+    const setMenuLabels = vi.fn<AdminiumDesktopApi['setMenuLabels']>(() => Promise.resolve());
+    (window as unknown as { adminiumDesktop: Partial<AdminiumDesktopApi> }).adminiumDesktop = { setMenuLabels };
+
+    pushDesktopMenuLabels();
+    await vi.waitFor(() => expect(setMenuLabels).toHaveBeenCalledTimes(1));
+    const pushed = setMenuLabels.mock.calls[0]?.[0] as DesktopMenuLabels;
+    expect(pushed.file).toBe('Datei');
+    expect(pushed['update.none.detail']).toBe('Adminium {version} ist die neueste Version.');
+    expect(pushed['update.available.detail']).toBe('Installiert ist Version {current}.');
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('ICU'));
   });
 });
 
@@ -60,18 +102,18 @@ describe('pushDesktopMenuLabels', () => {
     expect(() => pushDesktopMenuLabels()).not.toThrow();
   });
 
-  it('pushes a full label set to the shell when the bridge is present', () => {
+  it('pushes a full label set to the shell when the bridge is present', async () => {
     const setMenuLabels = vi.fn<AdminiumDesktopApi['setMenuLabels']>(() => Promise.resolve());
     (window as unknown as { adminiumDesktop: Partial<AdminiumDesktopApi> }).adminiumDesktop = {
       setMenuLabels,
     };
 
     pushDesktopMenuLabels();
+    await vi.waitFor(() => expect(setMenuLabels).toHaveBeenCalledTimes(1));
 
-    expect(setMenuLabels).toHaveBeenCalledTimes(1);
     const pushed = setMenuLabels.mock.calls[0]?.[0] as DesktopMenuLabels;
-    // All 14 keys, each a non-empty string — the shell's strictObject would
-    // reject anything less, leaving the native menu in English.
+    // Every key, each a non-empty string — the shell's strictObject would
+    // reject a missing menu key, leaving the native menu in English.
     expect(Object.keys(pushed).sort()).toEqual(MENU_KEYS);
     for (const value of Object.values(pushed)) expect(value).toBeTruthy();
   });

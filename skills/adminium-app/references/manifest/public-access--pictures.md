@@ -11,7 +11,7 @@ photo on the menu, a room type's picture.
 { "table": "menu_items", "methods": ["GET"], "select": ["id", "name", "price", "photo"], "pictures": ["photo"] }
 ```
 
-Each is a `text` column with `semantic: "image"`, in `select`, never writable, never personal or
+Each is a `text` column with `semantic: "image"` (a picture column's `file` rule beside it, or none), in `select`, never writable, never personal or
 kept from readers, and not one of the entry's `files`. The entry only reads rows, on the app's
 `customer` key. A picture is served at `GET /api/v1/public/pictures/…` only for the row it is
 attached to, cleaned once and kept beside its file. See

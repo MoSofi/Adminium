@@ -20,6 +20,7 @@ import {
   auditEntityKeyOf,
   optionListsRepo,
   overridesRepo,
+  pagesRepo,
   publicChallengesRepo,
   publicEndpointsRepo,
   snapshotsRepo,
@@ -3219,6 +3220,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: dataTableParams, body: recordCreateBody, response: { 200: recordMutationReply, 201: recordMutationReply } } },
       async (request, reply) => {
         const ctx = await contextFor(request, 'create');
+        await assertPageUnchanged(request.body.page);
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
         // What the caller chose for the new row, before a rule or the retry key adds to it; each value of a repeat too.
@@ -3675,7 +3677,23 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * few its form asked for, already read (`values`), and the role's limit is
      * asked about `judged` — what the caller chose, not what a move sets for itself.
      */
+    /**
+     * A save made from a page's form, when the page's settings moved since the
+     * form opened, is refused: what the form drew (a picture field) may not be
+     * what the page holds now (a text column), and a picture saved into a
+     * column that keeps no files is never taken by its record. The form keeps
+     * what the person did, reads the page again, and they save again.
+     */
+    async function assertPageUnchanged(page: { id: string; revision: number } | undefined): Promise<void> {
+      if (page === undefined) return;
+      const stored = await pagesRepo(deps.meta).findById(page.id);
+      if (stored !== null && stored.revision !== page.revision) {
+        throw new ConflictError("This page's settings changed. Save again.", 'PAGE_CHANGED', { revision: stored.revision });
+      }
+    }
+
     async function changeRecord(request: FastifyRequest, ctx: DataContext, recordId: string, body: RecordChange, own?: { values: Row; judged: Row; handOver?: true }) {
+      await assertPageUnchanged(body.page);
       const pk = parseRecordId(ctx.table, recordId);
       // An edit form sends only what changed, so an edit of links or line
       // items alone — or of nothing — arrives with no values at all.

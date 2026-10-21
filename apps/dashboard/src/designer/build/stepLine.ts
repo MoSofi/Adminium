@@ -15,6 +15,12 @@ const S = { subject: SUBJECT };
 export function stepLine(row: StepRow): string {
   const running = row.state === 'running';
   if (row.state === 'failed' && row.ended === 'stopped') return t('designer:step.stopped', 'Stopped');
+  if (row.tool === 'read_figma') {
+    // The reads it cost are said after the line, in its own weight (`stepCost`).
+    if (row.state === 'failed' || row.state === 'missed') return t('designer:step.figmaNot', 'Did not read Figma');
+    if (running) return t('designer:step.figmaReading', 'Reading {subject} from Figma', S);
+    return (row.count ?? 0) === 0 ? t('designer:step.figmaSaved', 'Read {subject} from the saved copy', S) : t('designer:step.figmaRead', 'Read {subject} from Figma', S);
+  }
   if (row.state === 'missed') return row.subject === undefined ? t('designer:step.missedPlain', 'Looked for something that is not there') : t('designer:step.missed', 'Looked for {subject} — not there', S);
   if (row.state === 'failed' && row.subject !== undefined) {
     // A file step that failed says so: "Wrote x" in red reads as if it had been written.
@@ -70,6 +76,16 @@ export function stepLine(row: StepRow): string {
     case 'use_pictures':
       if (running) return t('designer:step.ownPicturesAdding', 'Adding your pictures');
       return row.outcome === 'added' ? t('designer:step.ownPicturesAdded', 'Your pictures added: {count}', { count: row.count ?? 0 }) : t('designer:step.ownPicturesFailed', 'Your pictures were not added');
+    case 'add_spots':
+      if (running) return t('designer:step.spotsNaming', 'Making picture spots');
+      return row.outcome === 'added' ? t('designer:step.spotsNamed', '{count, plural, one {# picture spot made} other {# picture spots made}}', { count: row.count ?? 0 }) : t('designer:step.spotsFailed', 'No picture spots made');
+    case 'use_site':
+      if (running) return t('designer:step.siteBuilding', 'Building the screens from {subject}', S);
+      return row.state === 'failed' || row.outcome === 'refused' ? t('designer:step.siteFailed', 'Did not build from the template') : t('designer:step.siteBuilt', 'Built {count, plural, one {# screen} other {# screens}} from {subject}', { count: row.count ?? 0, ...S });
+    case 'fill_spot':
+      if (running) return t('designer:step.spotFilling', 'Putting your picture in {subject}', S);
+      return row.outcome === 'added' ? t('designer:step.spotFilled', 'Your picture is in {subject}', S) : t('designer:step.spotFillFailed', 'Your picture was not put in {subject}', S);
+    // A session from before spots replays its own searches.
     case 'find_pictures':
       if (running) return t('designer:step.picturesLooking', 'Looking for pictures');
       switch (row.outcome) {
@@ -176,4 +192,19 @@ export function shortSubject(subject: string): string {
 export function secondsOf(ms: number): string {
   const s = ms / 1000;
   return s < 10 ? s.toFixed(1) : String(Math.round(s));
+}
+
+/** What a step cost that a person pays for, said after its line: the Figma reads a read_figma spent. Null when nothing. */
+export function stepCost(row: StepRow): string | null {
+  if (row.tool !== 'read_figma' || row.state !== 'done' || (row.count ?? 0) === 0) return null;
+  return t('designer:step.figmaCost', ' ({count, plural, one {# Figma read} other {# Figma reads}})', { count: row.count ?? 0 });
+}
+
+/** The line under a turn whose Figma reads were paused: until when, and what the Designer does meanwhile. Null when none was. */
+export function figmaPausedLine(rows: readonly StepRow[], locale?: string): string | null {
+  const paused = rows.find((row) => row.tool === 'read_figma' && (row.until !== undefined || row.dated === false));
+  if (paused === undefined) return null;
+  if (paused.dated === false || paused.until === undefined) return t('designer:step.figmaPausedMonth', 'Figma reads are paused for you until next month. The Designer works from the design document you imported.');
+  const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(paused.until));
+  return t('designer:step.figmaPaused', 'Figma reads are paused for you until {date}. The Designer works from the design document you imported.', { date });
 }

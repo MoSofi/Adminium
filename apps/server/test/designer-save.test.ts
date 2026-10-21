@@ -297,7 +297,7 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     expect(groups.map((group) => group.key)).toEqual(['customer', 'dashboard', 'settings']);
     expect(groups[0]?.files.map((file) => file.label)).toEqual(expect.arrayContaining(['customer/App.tsx', 'customer/design.css']));
     expect(groups[1]?.files.map((file) => file.label)).toEqual(['dashboard/pages/items.json', 'dashboard/pages/requests.json']);
-    expect(groups[2]?.files.map((file) => file.label)).toEqual(['design.md', 'look.json', 'app.json']);
+    expect(groups[2]?.files.map((file) => file.label)).toEqual(['design.md', 'look.json', 'pictures/spots.json', 'app.json']);
     expect({ busy, version }).toEqual({ busy: null, version: 2 });
     for (const never of ['theme.css', 'fonts.css', 'main.tsx', 'app.css']) expect([...all.keys()], never).not.toContain(`${APP}/customer/src/${never}`);
 
@@ -638,6 +638,41 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     // The same style with another accent is no change of style: no `style` event.
     await save(client, id, { [LOOK]: '{ "skill": "warm", "accent": "#225588" }' });
     expect((await eventsOf(client, id)).filter((event) => event.kind === 'style')).toHaveLength(2);
+  });
+
+  it('keeps what a design does with pictures through a saved look.json and a change of style from the page', async () => {
+    const { client, id } = await withApp({ side: true });
+    const LOOK = `${APP}/look.json`;
+    const saved = await save(client, id, { [LOOK]: JSON.stringify({ ...(JSON.parse(disk(LOOK)) as object), pictures: 'choose' }) });
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    expect(JSON.parse(disk(LOOK))).toMatchObject({ pictures: 'choose' });
+    const styled = await client.call('POST', `/api/v1/designer/sessions/${id}/look`, { skill: 'warm' });
+    expect(styled.status, JSON.stringify(styled.body)).toBe(200);
+    expect(JSON.parse(disk(LOOK))).toMatchObject({ skill: 'warm', pictures: 'choose' });
+    expect(styled.body['look']).toMatchObject({ skill: 'warm', pictures: 'choose' });
+  });
+
+  it('lists the picture spots once there are any, and reads a saved spots.json as the server does: a spot that would not draw is refused', async () => {
+    const { client, id } = await withApp({ side: true });
+    const SPOTS = `${APP}/assets/pictures/spots.json`;
+    // A side starts with no spots, in a file of its own.
+    expect(disk(SPOTS)).toBe('{}\n');
+    const before = disk(SPOTS);
+    for (const [name, content, said] of [
+      ['a file that leaves the folder', '{ "hero": { "label": "Hero", "shape": "wide", "file": "../../../../.env" } }', 'not a picture in assets/pictures/'],
+      ['a file that is not there', '{ "hero": { "label": "Hero", "shape": "wide", "file": "gone.png" } }', 'not a picture of this app'],
+      ['a spot with no shape', '{ "hero": { "label": "Hero" } }', 'needs a "label" and a "shape"'],
+      ['not JSON', '{ "hero": ', 'not valid JSON'],
+    ] as const) {
+      const res = await save(client, id, { [BRIEF]: '# With bad spots\n', [SPOTS]: content });
+      expect([res.status, reason(res), details(res)['path']], name).toEqual([422, 'SPOTS', SPOTS]);
+      expect(String(details(res)['message']), name).toContain(said);
+      expect(disk(SPOTS), name).toBe(before);
+    }
+    // A good one is written as it was sent (the server's own reading of it is the build's).
+    const good = await save(client, id, { [SPOTS]: '{ "hero": { "label": "Hero", "shape": "wide", "file": null, "alt": "The shop" } }\n' });
+    expect(good.status, JSON.stringify(good.body)).toBe(200);
+    expect(JSON.parse(disk(SPOTS))).toMatchObject({ hero: { alt: 'The shop' } });
   });
 
   it('lets a saved app.json change what the app is called and nothing else, and keeps a file’s own line ends', async () => {

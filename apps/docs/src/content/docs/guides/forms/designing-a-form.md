@@ -18,7 +18,7 @@ Turning one off gives back the plain form with nothing lost.
 | **Quick create** | One title field and a row of small pills. Few fields, filled fast. |
 | **Wizard** | A long form nobody can face at once. One section per step, with Back and Continue. |
 | **Choice cards** | A record whose first question is "which kind?" |
-| **Segmented and files** | A short choice, a long description and attachments. |
+| **Segmented and files** | A short choice, a long description and a list of files. |
 | **Multi-entry** | Adding several of something at once — addresses, invitations. |
 | **Upload and chips** | A picture, some tags and a toggle. |
 

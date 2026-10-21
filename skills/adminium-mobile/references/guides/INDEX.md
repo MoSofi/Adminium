@@ -46,7 +46,7 @@
 | `references/guides/identity-and-own-links--refusals.md` | Refusals | 1644 |
 | `references/guides/identity-and-own-links--upgrading.md` | Upgrading | 329 |
 | `references/guides/public-pictures--overview.md` | Pictures on public pages | 526 |
-| `references/guides/public-pictures--declaring-them.md` | Declaring them | 1547 |
+| `references/guides/public-pictures--declaring-them.md` | Declaring them | 1880 |
 | `references/guides/public-pictures--what-a-page-puts-in-img-src.md` | What a page puts in `<img src>` | 1475 |
 | `references/guides/public-pictures--when-a-picture-is-served.md` | When a picture is served | 1448 |
 | `references/guides/public-pictures--cleaned-once-and-kept.md` | Cleaned once, and kept | 1547 |

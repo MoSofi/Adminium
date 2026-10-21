@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The payments repos (migration 0061): attempts, events, the payments
+ * The payments repos (migration 0062): attempts, events, the payments
  * Adminium keeps itself, and refunds — the rows money depends on.
  *
  * ─── Every move is a compare-and-set ───────────────────────────────────────
@@ -27,7 +27,7 @@
  * index, so recording is insert-first: `kept.insert` returns null when the
  * attempt is already recorded, and the caller reads that row instead.
  *
- * Money is decimal TEXT throughout (0061's header says why); sums are made
+ * Money is decimal TEXT throughout (0062's header says why); sums are made
  * here in exact decimal arithmetic, never by the database.
  */
 

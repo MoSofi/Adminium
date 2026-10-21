@@ -227,7 +227,7 @@ export function StartScreen({ initial, onBuild, onConnect, onMakeIn, say }: { in
       if (result.status === 'missing') {
         setStep(null);
         say(t('desktop:start.recent.gone', 'This folder was moved or deleted'), 'error');
-      } else if (result.status === 'not-a-project') setStep({ status: 'not-a-project', path, displayPath: shownPaths.current.get(path) ?? path });
+      } else if (result.status === 'not-a-project') setStep({ status: 'not-a-project', path, displayPath: shownPaths.current.get(path) ?? path, ...(result.template === true ? { template: true } : {}) });
       else if (result.status === 'needs-packages') {
         setStep(null);
         setPackages({ path: result.path, displayPath: result.displayPath, land, since: null, failure: null });

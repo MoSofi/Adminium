@@ -287,6 +287,10 @@ const ALLOWED_HOSTS = [
     why: 'JSON Schema dialect identifiers ($schema) emitted by Zod. Identifiers, same as above',
   },
   {
+    test: /^www\.figma\.com$/,
+    why: 'the placeholder of the Designer\'s "From Figma…" link field, showing the shape of a link to paste. Text in an input, never requested: the server reads Figma, the window does not',
+  },
+  {
     test: /^docs\.adminium\.dev$/,
     why: 'the docs site. Docs links open the SYSTEM BROWSER via shell.openExternal — the app never embeds remote content',
   },
@@ -413,6 +417,10 @@ const ALLOWED_HOSTS = [
     test: /^…$/,
     why: 'the ellipsis placeholder in the link-list widget\'s URL input ("https://…"), translated into all 8 locales. An input placeholder — the string is rendered as a hint, and the ellipsis is not a hostname anything could resolve',
   },
+  {
+    test: /^$|^\[\^$/,
+    why: 'not an address: a bare scheme where a typed address is checked or shown as a hint (the Designer\'s template plan asks for a link that starts with "https://"), and the start of a pattern that tests for one (`https:\\/\\/[^…]`). No host follows, so nothing can be asked for',
+  },
 ];
 
 /**
@@ -436,6 +444,10 @@ const PROJECT_REACHES = [
   {
     test: /^(api|images|www)\.pexels\.com$|^(api\.)?unsplash\.com$|^api\.openverse\.org$|^\$\{unsplash_host\}$/,
     when: 'the Designer looks for pictures for a project\'s screens: only a site the person allowed, with their own key where the site needs one; the licence pages are links',
+  },
+  {
+    test: /^api\.figma\.com$/,
+    when: 'the person imports a frame from Figma in the Designer, or the Designer reads a part of one in their turn: with their own token, and only while network features are on',
   },
   {
     test: /^localhost:\$\{string$/,

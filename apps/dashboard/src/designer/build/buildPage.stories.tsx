@@ -67,6 +67,7 @@ function previewOf(sides: readonly PreviewSide[], side: PreviewSide, seenAs: rea
     openTab: noop,
     canOpenTab: true,
     canPick: true,
+    hasSpots: false,
     picking: false,
     setPicking: () => undefined,
     canShoot: true,

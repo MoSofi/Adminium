@@ -1115,22 +1115,6 @@
     }
   },
   "desktop": {
-    "menu": {
-      "file": "文件",
-      "fileNewDatabase": "新建本地数据库…",
-      "fileOpenSqlite": "打开 SQLite 文件…",
-      "fileBackupNow": "立即备份…",
-      "fileRestore": "从备份恢复…",
-      "edit": "编辑",
-      "view": "视图",
-      "window": "窗口",
-      "help": "帮助",
-      "helpDocs": "Adminium 文档",
-      "helpShortcuts": "键盘快捷键",
-      "helpLogs": "显示日志",
-      "helpCheckForUpdates": "检查更新…",
-      "helpAbout": "关于 Adminium"
-    },
     "settings": {
       "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。",
       "title": "桌面设置"
@@ -1680,6 +1664,24 @@
       "secretHelper": "把设置链接粘贴到你的验证器应用中，或者手动输入密钥。",
       "secret": "设置密钥",
       "title": "双重验证"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "未连接。请在设计器的“附加”菜单中选择“从 Figma…”来连接 Figma。",
+      "connectedAs": "已作为 {handle} 连接到 Figma",
+      "kept": "仅为你加密保存在此服务器上。只有你自己的导入会使用它。",
+      "environment": "正在使用此项目环境中设置的 Figma 令牌。",
+      "changeToken": "更换令牌",
+      "disconnect": "断开连接",
+      "newToken": "新令牌",
+      "saveToken": "保存令牌",
+      "cancel": "取消",
+      "close": "关闭",
+      "refused": "Figma 未接受此令牌。请检查后重新粘贴。",
+      "off": "此服务器已关闭 Figma：网络功能已关闭。",
+      "unreachable": "Figma 没有响应。请稍后重试。",
+      "disconnectTitle": "断开 Figma 连接？",
+      "disconnectBody": "已在设计器中的导入内容会保留。"
     }
   },
   "team": {

@@ -12,7 +12,7 @@
  * as one, sits where a picture's address goes (`src=`, `url(`, a key named
  * for one), or is on a site that serves nothing else.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { appDir, appPath, SIDES } from './read-app.js';
@@ -40,8 +40,10 @@ function files(root: string, key: string): { file: string; text: string }[] {
     if (!existsSync(folder) || out.length >= 80) return;
     for (const entry of readdirSync(folder, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.isSymbolicLink()) continue;
+      // A side's copy of its site template: use_site took the other sites' addresses out of it, and a host found only there is never proposed.
+      if (entry.isDirectory() && entry.name === 'site' && /^(staff|customer)\/src$/.test(rel)) continue;
       if (entry.isDirectory()) walk(join(folder, entry.name), `${rel}/${entry.name}`);
-      else if (entry.isFile() && /\.(?:tsx?|jsx?|mjs|css|html|json)$/.test(entry.name) && out.length < 80) {
+      else if (entry.isFile() && /\.(?:tsx?|jsx?|mjs|css|html|json)$/.test(entry.name) && out.length < 80 && statSync(join(folder, entry.name)).size <= 256 * 1024) {
         const text = readFileSync(join(folder, entry.name), 'utf8');
         // An address quoted in a comment is not one the page loads. JSON has no comments, and its values hold `//`.
         out.push({ file: appPath(key, `${rel}/${entry.name}`), text: entry.name.endsWith('.json') ? text : code(text) });

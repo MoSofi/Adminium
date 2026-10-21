@@ -123,7 +123,8 @@ export default {
     "notAProject": {
       "line": "Sie können in einem Ordner darin ein neues Projekt anlegen.",
       "another": "Anderen Ordner wählen",
-      "make": "Hier ein neues Projekt anlegen"
+      "make": "Hier ein neues Projekt anlegen",
+      "template": "Dieser Ordner enthält eine Website-Vorlage. Das neue Projekt wird darin angelegt, und die Vorlage wird hineinkopiert. Die eigenen Dateien dieses Ordners werden nicht geändert."
     }
   },
   "key": {
@@ -230,5 +231,38 @@ export default {
     "version": "Adminium {version}",
     "forgetOf": "{address} vergessen",
     "forget": "Vergessen"
+  },
+  "menu": {
+    "file": "Datei",
+    "fileNewDatabase": "Neue lokale Datenbank…",
+    "fileOpenSqlite": "SQLite-Datei öffnen…",
+    "fileBackupNow": "Jetzt sichern…",
+    "fileRestore": "Aus Sicherung wiederherstellen…",
+    "edit": "Bearbeiten",
+    "view": "Ansicht",
+    "window": "Fenster",
+    "help": "Hilfe",
+    "helpDocs": "Adminium-Dokumentation",
+    "helpShortcuts": "Tastaturkürzel",
+    "helpLogs": "Protokolle anzeigen",
+    "helpCheckForUpdates": "Nach Updates suchen…",
+    "helpAbout": "Über Adminium"
+  },
+  "dialog": {
+    "ok": "OK",
+    "aboutVersion": "Version {version}",
+    "updateNoneTitle": "Adminium ist aktuell",
+    "updateNoneDetail": "Adminium {version} ist die neueste Version.",
+    "updateAvailableTitle": "Adminium {version} ist verfügbar",
+    "updateAvailableDetail": "Installiert ist Version {current}.",
+    "updateDownload": "Laden und installieren",
+    "updateOpenPage": "Download-Seite öffnen",
+    "updateLater": "Später",
+    "updateReadyTitle": "Das Update ist bereit",
+    "updateReadyDetail": "Starte Adminium neu, um die Installation abzuschließen.",
+    "updateRestart": "Jetzt neu starten",
+    "updateErrorTitle": "Updates konnten nicht geprüft werden",
+    "updateErrorDetail": "Prüfe die Internetverbindung und versuche es erneut.",
+    "updateDownloadFailedTitle": "Das Update konnte nicht geladen werden"
   }
 } as const;

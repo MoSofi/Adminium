@@ -19,6 +19,7 @@ import { APPS_DIR, type AppSide } from '../project/apps/read-app.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
 import { runChild } from './child.js';
 import { ICONS_PACKAGE, isKnownNeed, needName, planNeeds, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, withoutLine, type NeedItem, type Wanted } from './needs.js';
+import type { CardAnswer } from './cards.js';
 import type { PictureSites, ToolContext } from './tool-types.js';
 
 /** How long a package install may run. */
@@ -46,7 +47,14 @@ export interface NeedsOutcome {
   said: string;
 }
 
-export type NeedsAsker = (ctx: Pick<ToolContext, 'ask' | 'signal' | 'handle'>, appKey: string, wanted: readonly Wanted[]) => Promise<NeedsOutcome>;
+/**
+ * Ask for what is wanted, and add what is ticked. With `answer`, the person already answered on another card (a site
+ * template's plan lists the same items): no card is shown, and the ids in it are what they ticked.
+ */
+export type NeedsAsker = ((ctx: Pick<ToolContext, 'ask' | 'signal' | 'handle'>, appKey: string, wanted: readonly Wanted[], opts?: { answer?: readonly string[] }) => Promise<NeedsOutcome>) & {
+  /** What a card would offer for `wanted` now, with no card shown and nothing added. */
+  preview(wanted: readonly Wanted[], signal?: AbortSignal): Promise<NeedItem[]>;
+};
 
 /** Add packages to the project, exact versions, no install scripts. */
 export function installer(root: string): NonNullable<NeedsDeps['install']> {
@@ -81,7 +89,23 @@ export function screenWants(root: string, appKey: string, opts: { side: AppSide;
     { kind: 'package', name: ICONS_PACKAGE },
     // The made parts' helpers are of use only with Tailwind: an app that does without it is not asked for them.
     ...(without.has(TAILWIND_PACKAGE) ? [] : UI_HELPER_PACKAGES.map((name) => ({ kind: 'package' as const, name }))),
-    ...(opts.look === null ? [] : missingFonts(root, opts.look, opts.stylesDir === undefined ? undefined : { builtInDir: opts.stylesDir }).map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }))),
+    ...(opts.look === null ? [] : missingFonts(root, opts.look, { key: appKey, ...(opts.stylesDir === undefined ? {} : { builtInDir: opts.stylesDir }) }).map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }))),
+  ];
+  return wants.filter((want) => !without.has(want.kind === 'package' ? want.name : want.kind === 'font' ? want.family : want.host));
+}
+
+/**
+ * What a side that follows a site template needs: what its screens are built with, and the template's own fonts from
+ * Google's catalogue (it loaded them from Google; the app carries them). No Tailwind, no icon set, no helpers: the
+ * template's stylesheets are its look. What the app said it does without is taken out.
+ */
+export function templateWants(look: Look | null, opts: { side: AppSide; fonts: readonly string[] }): Wanted[] {
+  const without = new Set(look?.without ?? []);
+  const wants: Wanted[] = [
+    { kind: 'package', name: 'react' },
+    { kind: 'package', name: 'react-dom' },
+    ...(opts.side === 'customer' ? [{ kind: 'package' as const, name: PUBLIC_CLIENT_PACKAGE }] : []),
+    ...opts.fonts.map((family) => ({ kind: 'font' as const, family, use: 'other' as const })),
   ];
   return wants.filter((want) => !without.has(want.kind === 'package' ? want.name : want.kind === 'font' ? want.family : want.host));
 }
@@ -91,20 +115,22 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
   const places = deps.stylesDir === undefined ? undefined : { builtInDir: deps.stylesDir };
   /** What a person left out, by app and turn: asked once a turn, and a no is kept. */
   const leftOut = new Map<string, Set<string>>();
-  return async (ctx, appKey, wanted) => {
-    const plan = await planNeeds(
+  const planFor = (wanted: readonly Wanted[], signal: AbortSignal | undefined): ReturnType<typeof planNeeds> =>
+    planNeeds(
       {
         root: deps.root,
         version: deps.version,
         newest: (name) => {
           if (deps.newestVersion === undefined) throw new Error('no registry here');
-          return deps.newestVersion(name, ctx.signal);
+          return deps.newestVersion(name, signal);
         },
         covers: (host) => deps.pictureSites?.covers(host) ?? false,
         sitesClosed: () => (deps.pictureSites === undefined ? 'This server cannot allow a picture site from here.' : deps.pictureSites.closed()),
       },
       wanted,
     );
+  const ask = async (ctx: Pick<ToolContext, 'ask' | 'signal' | 'handle'>, appKey: string, wanted: readonly Wanted[], opts: { answer?: readonly string[] } = {}): Promise<NeedsOutcome> => {
+    const plan = await planFor(wanted, ctx.signal);
     const lines: string[] = [];
     if (plan.already.length > 0) lines.push(`Already in the project: ${plan.already.join(', ')}.`);
     for (const refusal of plan.refused) lines.push(refusal.why);
@@ -115,8 +141,14 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
     plan.items = plan.items.filter((item) => !before.has(item.id));
     if (plan.items.length === 0) return { asked: false, added: [], left: again, failed: null, said: lines.join('\n') || 'Nothing was asked for.' };
 
-    const answer = await ctx.ask({ type: 'needs', items: plan.items });
+    // What a design does with the page's pictures, asked once per app with the first card that is due (never a card of its own).
+    // A template app is never asked: its pictures came with it, as filled spots.
+    const kept = readLook(deps.root, appKey);
+    const askPictures = opts.answer === undefined && kept !== null && kept.direction === undefined && kept.pictures === undefined && (kept.templateSides ?? []).length === 0;
+    const answer: CardAnswer = opts.answer !== undefined ? { type: 'needs', accept: [...opts.answer] } : await ctx.ask({ type: 'needs', items: plan.items, ...(askPictures ? { pictures: { preselect: 'placeholders' as const } } : {}) });
     const ticked = new Set(answer.type === 'needs' ? answer.accept : []);
+    // An answer that says nothing of it keeps what the card started on.
+    const pictures = answer.type !== 'needs' || !askPictures ? undefined : (answer.pictures ?? 'placeholders');
     const added = plan.items.filter((item) => ticked.has(item.id));
     const left = plan.items.filter((item) => !ticked.has(item.id));
     leftOut.set(turnKey, new Set([...before, ...left.map((item) => item.id)]));
@@ -140,13 +172,16 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
       for (const item of left) if (isKnownNeed(item)) without.add(item.kind === 'font' ? item.family : needName(item));
       for (const item of added) without.delete(item.kind === 'font' ? item.family : needName(item));
       const { without: _before, ...rest } = look;
+      const chosen = pictures === undefined ? rest : { ...rest, pictures };
       // A look kept before styles names no font and carries no package: its sides are left exactly as they are, edits of a person's included.
-      if (look.direction === undefined) applyLook(deps.root, appKey, without.size === 0 ? rest : { ...rest, without: [...without].sort() }, places);
+      if (look.direction === undefined) applyLook(deps.root, appKey, without.size === 0 ? chosen : { ...chosen, without: [...without].sort() }, places);
     }
+    if (pictures !== undefined) lines.push(pictures === 'choose' ? 'Pictures: the person chooses them. Draw each as a spot (add_spots); after the design a card opens the picture dialog for them.' : 'Pictures: placeholders for now. Draw each as a spot (add_spots); the person fills them later.');
 
     if (failed !== null) lines.push(`These could not be added:\n${failed}`);
     else if (added.length > 0) lines.push(`Added: ${added.map(needName).join(', ')}.`);
     if (left.length > 0) lines.push(`The person left these out. Do not ask for them again; do without:\n${left.map((item) => `- ${withoutLine(item)}`).join('\n')}`);
     return { asked: true, added: failed === null ? added : added.filter((item) => item.kind === 'picture-site'), left, failed, said: lines.join('\n') };
   };
+  return Object.assign(ask, { preview: async (wanted: readonly Wanted[], signal?: AbortSignal) => (await planFor(wanted, signal)).items });
 }

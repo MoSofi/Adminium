@@ -96,7 +96,19 @@ The usual ones in a shop template:
 Ask it all in one message, and build only what the person approved: a choice made after the build
 means building something twice (a card form, then a bank transfer in its place), or throwing it
 away. Keep the answers in the app's brief, `apps/<key>/design.md`, under "From a template", so a
-later session does not ask again or undo them. When the site works, say in a short summary what was
+later session does not ask again or undo them.
+
+In Adminium Designer this is one card, asked before anything of the template is written. `use_site`
+first returns what the server found in the template (its repeated blocks with their fields, its forms,
+a cart, the features and the links to nowhere), and then takes the plan. The person reviews it in one
+sheet (**Review the plan…**): what becomes a table, what the forms do, what the template shows with
+**Build**, **Replace** or **Leave out** for each thing not available (Replace is picked where there is
+one, never Build), the links to fill, and what is added to the project. The answer is kept in
+`apps/<key>/template-plan.json` with the template's sha256, and the system prompt says what it
+approved, so a later session neither asks again nor undoes it, and a different template asks again.
+Then, in a session that holds a template, the server asks **Check this before it goes live** only for
+what lets strangers do more, or a page call an outside address, beyond what the plan approved. On a
+model that reads too little at once for a template, `use_site` refuses before the plan. When the site works, say in a short summary what was
 built, what was replaced and what was left out, and which sample rows are filler.
 
 ## The side's folder
@@ -107,20 +119,31 @@ still finds its file:
 
 ```
 apps/shop/customer/src/
-├── main.tsx            imports the template's stylesheets, in the order the pages linked them
+├── main.tsx            draws App; the build loads the stylesheets itself
 ├── App.tsx             one page per address
 ├── parts/              the header, the footer and the repeated blocks, shared by the pages
 ├── pages/              one file per template page
-└── site/               the template's own files: css/, images/, fonts/
+├── site/               the template's own files (css/, images/, fonts/), and index.css,
+│                       which imports its stylesheets in the order the pages linked them
+├── theme.css           the theme's colour variables only, for the parts the app adds
+└── design.css          your fixes, loaded after the template's stylesheets
 ```
 
-Take the starter's look out of the side: delete `theme.css`, `app.css`, `fonts.css` and
-`design.css`. The build then brings no stylesheet of Adminium's, and the design notes that
-`adminium app check` gives about a styled screen (classes, colours, fonts) are not given for this
-side: they would ask the template to change. Do not pick a style for it, and do not add Tailwind to
-a project for it: Tailwind's reset and its classes of the same name as the template's (`collapse`,
-`container`) change the template's look. When the project already has Tailwind, say so to the
-person before going on.
+Mark the side as one that follows its template: list it under `templateSides` in the app's
+`look.json`. The build then loads `theme.css`, `site/index.css` and `design.css`, in that order, so
+a fix in `design.css` still wins and a `main.tsx` written again cannot lose the look. It loads none of
+Adminium's own look (take `app.css`, `fonts.css` and `style.css` off the side, and their imports out
+of `main.tsx`), and it gives the side no Tailwind, even in a project that has it: Tailwind's reset
+and its classes of the same name as the template's (`collapse`, `container`) change the template's
+look. The style menu then changes only the colour variables, and the notes `adminium app check`
+gives about colours, fonts and inline styles are not given for this side: they would ask the
+template to change.
+
+In Adminium Designer, `use_site` does all of this: it copies the template's files with the changes
+below, writes `site/index.css`, makes each page a screen file in `pages/` with its markup as it was,
+and makes each of its content pictures a picture spot, filled with the template's own file, that the
+person can swap later. A picture in a repeated block (a product card) becomes a table's picture
+instead (see [below](#repeated-content-becomes-tables)); the logo stays a picture of the page.
 
 The template's scripts are not copied in (see [below](#scripts-become-react)). Files no page uses
 (SCSS sources, a build tool's settings) stay out.
@@ -175,25 +198,27 @@ say. A link whose target is plain (a "Shop now" button to the shop page) is link
 
 ## The stylesheets
 
-`main.tsx` imports the template's stylesheets in the order the pages linked them. They are kept as
-the template wrote them, with three changes, each written as a comment where it was made:
+`site/index.css` imports the template's stylesheets in the order the pages linked them. They are kept
+as the template wrote them, with four changes, listed in a comment at the top of each:
 
+- **Comments out.** A licence comment (`/*! … */`) stays.
+- **Extensions in lower case**, in the file's name and in every reference to it.
+- **A `url()` to a file the template lacks** is set to `none`.
 - **Nothing from another host.** A served screen loads no stylesheet, font or script from another
   address ([what a served screen may not load](/guides/apps/building-a-side/#what-a-served-screen-may-not-load)).
   A `@import` of Google Fonts or a `url(https://…)` would only fail. Take it out, and bring what it
   loaded as a package.
 - **Fonts as packages.** A Google font is installed as its `@fontsource` package
   (`@fontsource/inter`), one import per weight the stylesheet uses, before the template's
-  stylesheet. In Adminium Designer the font is asked for with `request_package`.
+  stylesheet. In Adminium Designer the template's Google fonts are on the plan, under "Added to the
+  project", and `site/index.css` imports each ticked one first. Another font is asked for with
+  `request_package`.
 - **A CSS library from a CDN as a package.** Font Awesome's `<link>` to cdnjs becomes
   `@fortawesome/fontawesome-free`, imported from `main.tsx`.
 
 What the build takes from a stylesheet: pictures (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`,
-`.svg`, `.ico`) and fonts as `.woff` and `.woff2`, by lower-case names. A stylesheet that names a
-`.ttf`, `.otf` or `.eot` font fails the build. Font Awesome 6's stylesheet names `.ttf` files beside
-its `.woff2` ones; version 7 ships `.woff2` only and builds. Use a version whose files the build
-takes, or a stylesheet of your own that names only the `.woff2` files, and check the icons still
-show.
+`.svg`, `.ico`) and fonts as `.woff`, `.woff2`, `.ttf`, `.otf` and `.eot`, by lower-case names. An
+icon font's stylesheet (Font Awesome 6's) names `.ttf` files beside its `.woff2` ones, and builds.
 
 ## Scripts become React
 

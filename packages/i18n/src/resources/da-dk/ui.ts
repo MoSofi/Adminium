@@ -1260,9 +1260,9 @@ export default {
         "emptyBody": "Filer, du uploader, viser deres fremdrift her."
       },
       "attachmentList": {
-        "description": "Filer vedhæftet en post, med typeikoner, størrelser og handlinger til download eller sletning.",
-        "emptyTitle": "Ingen vedhæftede filer",
-        "emptyBody": "Filer vedhæftet denne post vises her."
+        "description": "Filer, der opbevares med en post, med typeikoner, størrelser og handlinger til at downloade eller slette.",
+        "emptyTitle": "Ingen filer",
+        "emptyBody": "Filer, der opbevares med denne post, vises her."
       },
       "imageBoard": {
         "description": "Et moodboard-gitter af billedpladser med billedtekster, til tabeller med billed-URL'er.",
@@ -1706,7 +1706,7 @@ export default {
         "cancel": "Annullér upload",
         "replace": "Erstat",
         "remove": "Fjern fil",
-        "choose": "Vælg en fil",
+        "choose": "Upload",
         "add": "Tilføj filer",
         "removeNamed": "Fjern {name}",
         "capReached": "Denne post accepterer højst {count, plural, one {# fil} other {# filer}}."
@@ -1773,6 +1773,51 @@ export default {
         "now": "nu",
         "daysAgo": "{count, plural, one {i dag − # dag} other {i dag − # dage}}",
         "daysAhead": "{count, plural, one {i dag + # dag} other {i dag + # dage}}"
+      },
+      "picture": {
+        "allKinds": "PNG, JPEG, WebP eller GIF",
+        "kinds": "{kinds}.",
+        "hint": "{kinds}, højst {size}.",
+        "listKinds": "{count, plural, one {Højst # billede.} other {Højst # billeder.}} {kinds}.",
+        "listHint": "{count, plural, one {Højst # billede.} other {Højst # billeder.}} {kinds}, højst {size} hver.",
+        "noType": "Denne kolonne tager ikke {type}-filer.",
+        "saved": "Gemmes med posten.",
+        "tooLarge": "Billedet er større end kolonnens grænse på {limit}.",
+        "refused": "Du kan ikke ændre {table}, så du kan ikke tilføje et billede til den.",
+        "choose": "Vælg eksisterende…",
+        "remove": "Fjern",
+        "removeFrom": "Fjern billedet fra {column}",
+        "removeNamed": "Fjern {file} fra {column}",
+        "empty": "Intet billede endnu",
+        "gone": "Dette billede er ikke længere tilgængeligt.",
+        "link": "Et billede på et andet websted. Dette dashboard viser ikke billeder fra {host}.",
+        "add": "Tilføj"
+      },
+      "pageChanged": "Sidens indstillinger er ændret. Dit billede er bevaret; gem igen.",
+      "picker": {
+        "title": "Vælg et billede",
+        "for": "Til {column}",
+        "tabs": "Hvor billederne kommer fra",
+        "usedIn": "Brugt i {page}",
+        "filesPage": "Fra siden Filer",
+        "search": "Søg efter filnavn",
+        "grid": "Billeder",
+        "copy": "Posten får sin egen kopi.",
+        "tileRecord": "Billede til {record}, {file}",
+        "tileFile": "{file}, {size}",
+        "addCount": "{count, plural, one {Tilføj # billede} other {Tilføj # billeder}}",
+        "more": "{count, plural, one {# mere kan tilføjes} other {# mere kan tilføjes}}",
+        "upTo": "Op til {count} kan tilføjes",
+        "capLine": "Det er det meste, posten tager. Fjern et for at vælge et andet.",
+        "emptyUsed": "Ingen anden post i {page} har et billede endnu.",
+        "emptyFiles": "Ingen billeder på siden Filer endnu. Upload et her eller på siden Filer.",
+        "noMatch": "Intet filnavn matcher »{q}«.",
+        "loading": "Indlæser billeder",
+        "failed": "Billederne kunne ikke indlæses.",
+        "retry": "Prøv igen",
+        "gone": "Det billede er ikke længere tilgængeligt.",
+        "cancel": "Annuller",
+        "close": "Luk"
       }
     },
     "queue": {
@@ -2089,10 +2134,14 @@ export default {
       "attachmentsTab": "Filer",
       "attachments": {
         "emptyTitle": "Ingen filer endnu",
-        "emptyBody": "Filer knyttet til denne post vises her.",
-        "loading": "Indlæser vedhæftninger",
+        "emptyBody": "Filer, der opbevares med denne post, vises her.",
+        "loading": "Indlæser filer",
         "removed": "{name} blev flyttet til papirkurven.",
-        "tooLarge": "Filen er større, end dette arbejdsområde tillader."
+        "tooLarge": "Filen er større, end dette arbejdsområde tillader.",
+        "lead": "Filer, der opbevares med denne post.",
+        "allFiles": "Alle filer er på siden Filer",
+        "inColumn": "I {column}",
+        "inColumnHelp": "Skift den i postens felt {column}."
       }
     },
     "pageRecord": {

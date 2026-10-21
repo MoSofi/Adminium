@@ -325,6 +325,41 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
     expect(css.split('h1{')).toHaveLength(2);
   });
 
+  it('loads a side that follows its site template as theme, template, design.css, with none of Adminium’s look, and its .ttf, .otf and .eot fonts', async () => {
+    put('apps/repairs/look.json', JSON.stringify({ skill: 'clean', templateSides: ['staff'] }));
+    put('apps/repairs/staff/src/main.tsx', MAIN.replace("import './app.css';\n", ''));
+    put('apps/repairs/staff/src/theme.css', ':root { --accent: #a04e26; }\n');
+    put('apps/repairs/staff/src/style.css', '.of-the-style { margin: 0; }\n');
+    put('apps/repairs/staff/src/fonts.css', '.of-the-fonts { margin: 0; }\n');
+    put('apps/repairs/staff/src/design.css', '.mine { color: var(--accent); }\n');
+    put('apps/repairs/staff/src/site/index.css', '@import "./css/site.css";\n');
+    put('apps/repairs/staff/src/site/css/site.css', '@font-face { font-family: Icons; src: url(../fonts/icons.ttf), url(../fonts/icons.otf), url(../fonts/icons.eot); }\n.hero { color: #123456; }\n');
+    for (const ext of ['ttf', 'otf', 'eot']) put(`apps/repairs/staff/src/site/fonts/icons.${ext}`, `font ${ext}`);
+    const built = await build();
+    const css = cssOf(built.dir);
+    const at = (text: string): number => css.indexOf(text);
+    expect(at('--accent')).toBeGreaterThanOrEqual(0);
+    expect(at('--accent')).toBeLessThan(at('.hero'));
+    expect(at('.hero')).toBeLessThan(at('.mine'));
+    expect(css).not.toContain('of-the-style');
+    expect(css).not.toContain('of-the-fonts');
+    expect(readdirSync(join(built.dir, 'assets')).filter((name) => /^icons-.*\.(ttf|otf|eot)$/.test(name))).toHaveLength(3);
+  });
+
+  it('puts a side’s template copy back in order before it builds, after a swap a crash stopped', async () => {
+    put('apps/repairs/look.json', JSON.stringify({ skill: 'clean', templateSides: ['staff'] }));
+    put('apps/repairs/staff/src/main.tsx', MAIN.replace("import './app.css';\n", ''));
+    put('apps/repairs/staff/src/theme.css', ':root { --accent: #a04e26; }\n');
+    // Moved aside, never moved back: the last good copy.
+    put('apps/repairs/staff/src/.site-aside/index.css', '.kept-copy { margin: 0; }\n');
+    put('apps/repairs/staff/src/.site-new/index.css', '.half-copy { margin: 0; }\n');
+    const css = cssOf((await build()).dir);
+    expect(css).toContain('kept-copy');
+    expect(css).not.toContain('half-copy');
+    expect(existsSync(join(root, 'apps/repairs/staff/src/site/index.css'))).toBe(true);
+    expect(existsSync(join(root, 'apps/repairs/staff/src/.site-aside'))).toBe(false);
+  });
+
   it('refuses an import that leaves the app’s folder, by a path, by a link or by a name mapped onto the project', async () => {
     put('secret.json', '{"key":"do-not-ship"}');
     put('.adminium/keys.json', '{"key":"do-not-ship"}');
@@ -381,6 +416,47 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
   });
 });
 
+describe.skipIf(!ready)('picture spots in a side', () => {
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+
+  it('copies a spot’s picture beside the page, hands Picture its address and credit, and draws nothing from outside assets/pictures/', async () => {
+    // A side module that shows what the build handed `Picture`.
+    put('side-module.ts', "declare const __ADMINIUM_SPOTS__: unknown;\nexport const greeting: string = `SPOTS=${JSON.stringify(__ADMINIUM_SPOTS__)}`;\n");
+    mkdirSync(join(root, 'apps', 'repairs', 'assets', 'pictures'), { recursive: true });
+    writeFileSync(join(root, 'apps', 'repairs', 'assets', 'pictures', 'hero.png'), PNG);
+    writeFileSync(join(root, '.env'), 'SECRET=1\n');
+    put(
+      'apps/repairs/assets/pictures/spots.json',
+      JSON.stringify({
+        hero: { label: 'Hero', shape: 'wide', file: 'hero.png', alt: 'The shop', decorative: false },
+        out: { label: 'Out', shape: 'wide', file: '../../../../.env' },
+        sky: { label: 'Sky', shape: 'tall', file: 'https://images.unsplash.com/photo-1?w=1080' },
+        fake: { label: 'Fake', shape: 'tall', file: 'https://images.unsplash.com.evil.example/x' },
+        team: { label: 'Team', shape: 'square', file: null },
+      }),
+    );
+    put('apps/repairs/assets/pictures/CREDITS.json', JSON.stringify([{ file: 'assets/pictures/hero.png', title: 'Shop', creator: 'Ana', creatorUrl: '', licence: 'CC BY 2.0', licenceUrl: '', source: 'Openverse', page: '', licenceCode: 'by' }]));
+    // Built for a developer, so the bundle is read as it is written.
+    const built = await build({ dev: true });
+    const js = readdirSync(join(built.dir, 'assets')).find((name) => name.endsWith('.js')) ?? '';
+    const bundle = readFileSync(join(built.dir, 'assets', js), 'utf8');
+    // esbuild writes an object it is given to define as one variable of its own.
+    const literal = /define_ADMINIUM_SPOTS_default = (\{[\s\S]*?\});\n/.exec(bundle)?.[1] ?? 'null';
+    const spots = new Function(`return (${literal});`)() as Record<string, { src: string | null; credit?: unknown }> | null;
+    const copied = readdirSync(join(built.dir, 'assets')).filter((name) => name.startsWith('spot-'));
+    expect(copied).toEqual([expect.stringMatching(/^spot-hero-[0-9a-f]{8}\.png$/)]);
+    expect(readFileSync(join(built.dir, 'assets', copied[0] as string))).toEqual(PNG);
+    expect(spots).toMatchObject({
+      hero: { src: `/apps/repairs/staff/assets/${copied[0] as string}`, alt: 'The shop', credit: { title: 'Shop', creator: 'Ana', licence: 'CC BY 2.0' } },
+      out: { src: null },
+      sky: { src: 'https://images.unsplash.com/photo-1?w=1080' },
+      fake: { src: null },
+      team: { src: null },
+    });
+    expect(bundle).not.toContain('SECRET');
+  });
+});
+
 describe.skipIf(!ready || tailwindFolder() === null)('Tailwind in a side', () => {
   const cssOf = (dir: string): string => readFileSync(join(dir, 'assets', readdirSync(join(dir, 'assets')).find((name) => name.endsWith('.css')) ?? ''), 'utf8');
   const withTailwind = (): void => {
@@ -402,6 +478,17 @@ describe.skipIf(!ready || tailwindFolder() === null)('Tailwind in a side', () =>
     symlinkSync(tailwindFolder() as string, join(root, 'node_modules', 'tailwindcss'), 'dir');
     expect(projectTailwind(root)).toBeNull();
     expect(cssOf((await build()).dir)).not.toContain('md\\:p-8');
+  });
+
+  it('gives a side that follows its site template no Tailwind, even in a project that has it', async () => {
+    withTailwind();
+    put('apps/repairs/look.json', JSON.stringify({ skill: 'clean', templateSides: ['staff'] }));
+    put('apps/repairs/staff/src/main.tsx', SCREEN);
+    put('apps/repairs/staff/src/site/index.css', '.collapse { visibility: visible; }\n');
+    const css = cssOf((await build()).dir);
+    expect(css).not.toContain('md\\:p-8');
+    expect(css).not.toContain('tailwindcss');
+    expect(css).toContain('.collapse{visibility:visible}');
   });
 
   it('compiles the classes a screen uses, with the theme’s names, and puts the made parts under them', async () => {

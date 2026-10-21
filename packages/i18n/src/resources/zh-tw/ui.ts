@@ -1260,9 +1260,9 @@ export default {
         "emptyBody": "您上傳的檔案將在此顯示進度。"
       },
       "attachmentList": {
-        "description": "附加至記錄的檔案，附類型圖示、大小以及下載或刪除動作。",
-        "emptyTitle": "沒有附件",
-        "emptyBody": "附加至此記錄的檔案將顯示於此。"
+        "description": "隨記錄保存的檔案，附類型圖示、大小以及下載或刪除操作。",
+        "emptyTitle": "沒有檔案",
+        "emptyBody": "隨此記錄保存的檔案會顯示在這裡。"
       },
       "imageBoard": {
         "description": "附說明文字的圖片格線靈感板，適用於含圖片 URL 的資料表。",
@@ -1706,7 +1706,7 @@ export default {
         "cancel": "取消上傳",
         "replace": "取代",
         "remove": "移除檔案",
-        "choose": "選擇檔案",
+        "choose": "上傳",
         "add": "新增檔案",
         "removeNamed": "移除 {name}",
         "capReached": "此記錄最多接受 {count, plural, other {# 個檔案}}。"
@@ -1773,6 +1773,51 @@ export default {
         "now": "現在",
         "daysAgo": "{count, plural, other {# 天前}}",
         "daysAhead": "{count, plural, other {# 天後}}"
+      },
+      "picture": {
+        "allKinds": "PNG、JPEG、WebP 或 GIF",
+        "kinds": "{kinds}。",
+        "hint": "{kinds}，不超過 {size}。",
+        "listKinds": "{count, plural, other {最多 # 張圖片。}}{kinds}。",
+        "listHint": "{count, plural, other {最多 # 張圖片。}}{kinds}，每張不超過 {size}。",
+        "noType": "此欄不接受 {type} 檔案。",
+        "saved": "隨記錄一起儲存。",
+        "tooLarge": "這張圖片超過此欄 {limit} 的上限。",
+        "refused": "你無法變更 {table}，因此無法為其新增圖片。",
+        "choose": "選擇現有圖片…",
+        "remove": "移除",
+        "removeFrom": "從{column}中移除圖片",
+        "removeNamed": "從{column}中移除 {file}",
+        "empty": "還沒有圖片",
+        "gone": "這張圖片已無法使用。",
+        "link": "這是其他網站上的圖片。此控制台不顯示來自 {host} 的圖片。",
+        "add": "新增"
+      },
+      "pageChanged": "此頁面的設定已變更。你的圖片已保留，請再次儲存。",
+      "picker": {
+        "title": "選擇圖片",
+        "for": "用於{column}",
+        "tabs": "圖片來源",
+        "usedIn": "{page}中使用的",
+        "filesPage": "來自「檔案」頁面",
+        "search": "依檔名搜尋",
+        "grid": "圖片",
+        "copy": "記錄會得到一份自己的副本。",
+        "tileRecord": "{record}的圖片，{file}",
+        "tileFile": "{file}，{size}",
+        "addCount": "{count, plural, other {新增 # 張圖片}}",
+        "more": "{count, plural, other {還可新增 # 張}}",
+        "upTo": "最多可新增 {count} 張",
+        "capLine": "這已是此記錄可容納的上限。移除一張後才能再選。",
+        "emptyUsed": "{page}中還沒有其他記錄有圖片。",
+        "emptyFiles": "「檔案」頁面上還沒有圖片。可以在這裡上傳，或在「檔案」頁面上傳。",
+        "noMatch": "沒有與「{q}」相符的檔名。",
+        "loading": "正在載入圖片",
+        "failed": "無法載入這些圖片。",
+        "retry": "重試",
+        "gone": "那張圖片已無法使用。",
+        "cancel": "取消",
+        "close": "關閉"
       }
     },
     "queue": {
@@ -2089,10 +2134,14 @@ export default {
       "attachmentsTab": "檔案",
       "attachments": {
         "emptyTitle": "尚無檔案",
-        "emptyBody": "附加到此記錄的檔案會顯示在這裡。",
-        "loading": "正在載入附件",
+        "emptyBody": "隨此記錄保存的檔案會顯示在這裡。",
+        "loading": "正在載入檔案",
         "removed": "{name} 已移至回收桶。",
-        "tooLarge": "該檔案超過此工作區允許的大小。"
+        "tooLarge": "該檔案超過此工作區允許的大小。",
+        "lead": "隨此記錄保存的檔案。",
+        "allFiles": "所有檔案都在「檔案」頁面",
+        "inColumn": "在{column}中",
+        "inColumnHelp": "請在記錄的{column}欄位中變更。"
       }
     },
     "pageRecord": {

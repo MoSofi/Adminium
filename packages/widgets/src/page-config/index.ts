@@ -128,6 +128,7 @@ export {
 // A `multiple` file column's stored value. The renderer's half of the
 // grammar `apps/server/src/files/refs.ts` owns; change the two together.
 export { formatRefList, parseRefList } from './file-refs.js';
+export { PICTURE_KINDS, PICTURE_KIND_MIMES, PICTURE_KIND_NAMES, isPictureBlock, isPictureKind, pictureKindOf, type PictureKind } from './picture-kinds.js';
 export {
   COLUMN_DISPLAY_KINDS,
   GRID_LOGICAL_TYPES,

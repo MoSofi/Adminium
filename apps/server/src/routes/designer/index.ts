@@ -34,7 +34,16 @@ import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/re
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { auditExempt } from '../../audit/coverage.js';
-import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
+import { clearTemplateNote, listSiteTemplates, readTemplateNote, SITE_TEMPLATES_DIR, walkFolder } from '../../designer/site/folder.js';
+import { judgeSite, SiteRefusal, type SiteEntry } from '../../designer/site/judge.js';
+import { readZipDirectory, readZipEntry, ZIP_MAX_BYTES, ZipRefusal } from '../../designer/site/zip.js';
+import { FigmaError } from '../../designer/figma/client.js';
+import type { FigmaImports } from '../../designer/figma/imports.js';
+import type { FigmaReader } from '../../designer/figma/service.js';
+import { readPictureFile } from '../../designer/spots.js';
+import { plainWords } from '../../designer/untrusted.js';
+import { figmaFailure, importNames } from './figma.js';
 import { addDesignSkill, removeDesignSkill, SKILL_UPLOAD_MAX_BYTES, SkillUploadError } from '../../designer/skill-upload.js';
 import {
   designerAnswerBody,
@@ -54,6 +63,10 @@ import {
   designerAttachmentParams,
   designerAttachmentQuery,
   designerAttachmentReply,
+  designerSiteQuery,
+  designerSiteFromProjectBody,
+  designerSiteTemplatesReply,
+  designerNothingReply,
   designerReadsImagesBody,
   designerReadsImagesReply,
   designerPreviewBody,
@@ -72,6 +85,15 @@ import {
   designerLookBody,
   designerLookReply,
   designerPictureThumbParams,
+  designerPicturePinBody,
+  designerPictureFileQuery,
+  designerPicturesApplyBody,
+  designerPicturesApplyReply,
+  designerPicturesReply,
+  designerPicturesUndoBody,
+  designerPicturePinReply,
+  designerPictureSearchQuery,
+  designerPictureSearchReply,
   designerStyleAddedReply,
   designerStyleParams,
   designerStyleRemovedReply,
@@ -133,16 +155,30 @@ export interface DesignerRoutesDeps {
   owner?: { needsPassword(userId: string | null): Promise<boolean>; set(input: { email: string; password: string }, by: Actor): Promise<string> } | undefined;
   /** What people attach to a message. */
   attachments: Attachments;
+  /** Frames imported from Figma and not sent yet, and reading one again: an upload names one by its id. */
+  figma?: { imports: FigmaImports; reader: FigmaReader } | undefined;
   /** A row in the audit log, for what the routes themselves change (a style added or removed). */
   audit?: (action: string, actor: Actor, detail: Record<string, unknown>) => Promise<void>;
   /** The pictures a card is showing, to serve each one's small copy. Absent where the Designer looks for none. */
   pictures?: import('../../designer/pictures.js').PictureShelf;
+  /** The picture dialog: searching a source, and keeping what the person picks. */
+  pictureDialog?: import('../../designer/picture-dialog.js').PictureDialog;
   /** How an app fits together, from what the engine applied. */
   architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
 
 /** The largest file a message takes (a CSV), and a little for the request around it. */
 const ATTACHMENT_BODY_LIMIT = ATTACHMENT_MAX_CSV_BYTES + 64 * 1024;
+/** A site template's zip, and a little for the request around it. */
+const SITE_BODY_LIMIT = ZIP_MAX_BYTES + 64 * 1024;
+
+/** How each kind the page may fetch back is served: a picture inline, the rest as a download. */
+const SERVED: Record<'image' | 'csv' | 'font' | 'doc', { type: string; ext: string }> = {
+  image: { type: 'image/png', ext: 'png' },
+  csv: { type: 'text/csv; charset=utf-8', ext: 'csv' },
+  font: { type: 'font/woff2', ext: 'woff2' },
+  doc: { type: 'text/plain; charset=utf-8', ext: 'md' },
+};
 
 /** An attachment as the page is told of it: never its hash, never where it is kept. */
 const publicAttachment = (entry: Attachment) => ({
@@ -153,7 +189,11 @@ const publicAttachment = (entry: Attachment) => ({
   bytes: entry.bytes,
   ...(entry.rows === undefined ? {} : { rows: entry.rows }),
   ...(entry.columns === undefined ? {} : { columns: entry.columns }),
+  ...(entry.kind === 'site' ? { pages: entry.pages ?? 0, files: entry.files ?? 0, leftOut: entry.leftOut ?? [], leftOutCount: entry.leftOutCount ?? 0 } : {}),
 });
+
+/** A site's name: the zip's, without `.zip`, or the folder's the page packed. */
+const siteName = (filename: string): string => labelOf(filename).replace(/\.zip$/i, '') || 'site';
 
 /** How long the adminium.dev list is kept. */
 const CATALOG_CACHE_MS = 60 * 60 * 1000;
@@ -382,6 +422,37 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request, reply) => {
         const session = store.read(request.params.id);
+        // A frame imported from Figma: the server's own bytes, stamped with where they came from. Nothing in the request is the file.
+        if (request.query.figma !== undefined) {
+          const part = request.query.figma_part;
+          if (deps.figma === undefined || part === undefined) throw new ValidationFailedError('Say which half of the Figma import this is: its picture or its design document.', { reason: 'ATTACHMENT' });
+          const userId = request.user?.id ?? '';
+          const found = deps.figma.imports.find(userId, request.query.figma);
+          if (found === null) throw new NotFoundError('That Figma import is no longer here. Import the frame again.');
+          let done = found.held;
+          if (done === null) {
+            try {
+              done = await deps.figma.reader.importFrame(userId, found.link, { by: 'person' });
+            } catch (error) {
+              if (error instanceof FigmaError) throw figmaFailure(error);
+              throw error;
+            }
+          }
+          const names = importNames(done.frame);
+          const stamp = { fileKey: done.fileKey, nodeId: done.nodeId, version: done.version, frame: plainWords(done.frame, 200) };
+          const imported = done;
+          try {
+            const made = await withSessionLock(session.id, () =>
+              part === 'picture'
+                ? deps.attachments.add(session.id, { filename: names.pictureName, bytes: imported.picture, imported: { source: 'figma', figma: stamp, label: names.pictureName }, ...(userId === '' ? {} : { by: userId }) })
+                : deps.attachments.add(session.id, { filename: names.outlineName, bytes: Buffer.from(imported.outline, 'utf8'), imported: { source: 'figma', figma: { ...stamp, short: imported.short }, label: names.outlineName }, ...(userId === '' ? {} : { by: userId }) }),
+            );
+            return await reply.code(201).send({ attachment: publicAttachment(made) });
+          } catch (error) {
+            if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
+            throw error;
+          }
+        }
         if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the file itself as the request body.', { reason: 'ATTACHMENT' });
         try {
           // A picture's colours, as the page read them: thousandths of the picture each.
@@ -391,12 +462,16 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
             .map((entry) => ({ hex: `#${entry.slice(0, 6)}`, share: Math.min(1, Number(entry.slice(7)) / 1000) }));
           const { part_of: whole, part, parts } = request.query;
           if ((whole === undefined) !== (part === undefined) || (whole === undefined) !== (parts === undefined)) throw new ValidationFailedError('A part of a picture names its picture, which part it is and how many there are.', { reason: 'ATTACHMENT' });
-          const made = deps.attachments.add(session.id, {
-            filename: request.query.filename,
-            bytes: request.body,
-            ...(palette.length === 0 ? {} : { palette }),
-            ...(whole === undefined || part === undefined || parts === undefined ? {} : { partOf: { id: whole, part, parts } }),
-          });
+          const bytes = request.body;
+          const made = await withSessionLock(session.id, () =>
+            deps.attachments.add(session.id, {
+              filename: request.query.filename,
+              bytes,
+              ...(palette.length === 0 ? {} : { palette }),
+              ...(whole === undefined || part === undefined || parts === undefined ? {} : { partOf: { id: whole, part, parts } }),
+              ...(request.user?.id === undefined ? {} : { by: request.user.id }),
+            }),
+          );
           return await reply.code(201).send({ attachment: publicAttachment(made) });
         } catch (error) {
           if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
@@ -413,14 +488,142 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const session = store.read(request.params.id);
         const entry = deps.attachments.find(session.id, request.params.attachment);
         const bytes = entry === null ? null : deps.attachments.read(session.id, entry.id);
-        if (entry === null || bytes === null) throw new NotFoundError('There is no such file in this session.');
+        // A template's page or stylesheet is never served back: a model reads it as data, and a browser never gets it to draw.
+        if (entry === null || bytes === null || entry.kind === 'html' || entry.kind === 'css' || entry.kind === 'site') throw new NotFoundError('There is no such file in this session.');
+        const served = SERVED[entry.kind];
         return reply
-          .header('content-type', entry.kind === 'image' ? entry.mediaType : entry.kind === 'font' ? 'font/woff2' : entry.kind === 'doc' ? 'text/plain; charset=utf-8' : 'text/csv; charset=utf-8')
+          .header('content-type', entry.kind === 'image' ? entry.mediaType : served.type)
           .header('x-content-type-options', 'nosniff')
           .header('content-security-policy', "default-src 'none'; sandbox")
           .header('cache-control', 'private, max-age=3600')
-          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${entry.kind === 'font' ? 'woff2' : entry.kind === 'doc' ? 'md' : 'csv'}"`)
+          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${served.ext}"`)
           .send(bytes);
+      },
+    );
+
+    /**
+     * Takes a site into a session, whichever way it came: one at a time per session (the lock is held
+     * from the first byte read to the last written), the same site again is the one already here, and
+     * a session that holds another is answered 409 with it until the person says to replace it.
+     */
+    const takeSite = (
+      sessionId: string,
+      label: string,
+      name: string,
+      replace: string | undefined,
+      by: string | undefined,
+      entries: () => Promise<SiteEntry[]>,
+    ): Promise<{ attachment: Attachment; again: boolean }> =>
+      withSessionLock(sessionId, async () => {
+        const before = deps.attachments.list(sessionId).find((entry) => entry.kind === 'site');
+        try {
+          const judged = await judgeSite(label, await entries());
+          if (before !== undefined && before.sha256 === judged.sha256) return { attachment: before, again: true };
+          if (before !== undefined && replace !== before.id) {
+            throw new ConflictError(`This replaces ${before.label}. What was already built from it stays.`, 'CONFLICT', { reason: 'SITE_REPLACES', site: { id: before.id, label: before.label } });
+          }
+          const made = deps.attachments.addSite(sessionId, { label: name, judged, ...(by === undefined ? {} : { by }) });
+          // The site it replaces leaves the session now; its folder goes once no turn is reading it.
+          if (before !== undefined && !made.again) {
+            deps.attachments.remove(sessionId, before.id);
+            if (runner.active()?.sessionId !== sessionId) deps.attachments.sweep(sessionId);
+          }
+          return made;
+        } catch (error) {
+          if (error instanceof ZipRefusal || error instanceof SiteRefusal || error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
+          throw error;
+        }
+      });
+
+    /*
+     * A site template, as a zip: the person's own dropped one, or a folder the page packed. Sent the
+     * moment it is dropped, judged whole (`site/judge.ts`) by its own zip reader (`site/zip.ts`), and
+     * kept as one attachment. One site arrives at a time per session: the session's lock is held from
+     * the first byte read to the last written. A session holds one site; one that holds another is
+     * answered 409 with that site, until the person says to replace it. The same site again is the
+     * one already here.
+     */
+    app.post(
+      '/designer/sessions/:id/attachments/site',
+      {
+        onRequest: app.requireAuth,
+        preHandler: guard,
+        bodyLimit: SITE_BODY_LIMIT,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('a site template attached to a Designer session changes nothing by itself; the turn that builds from it is audited') },
+        schema: { params: designerSessionParams, querystring: designerSiteQuery, response: { 200: designerAttachmentReply, 201: designerAttachmentReply } },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        if (!Buffer.isBuffer(request.body)) throw new ValidationFailedError('Send the zip itself as the request body.', { reason: 'ATTACHMENT' });
+        const zip = request.body;
+        const label = labelOf(request.query.filename);
+        const done = await takeSite(session.id, label, siteName(request.query.filename), request.query.replace, request.user?.id, async () =>
+          readZipDirectory(zip, label).map((entry) => ({ path: entry.name, size: entry.size, type: entry.type, read: () => readZipEntry(zip, entry, label) })),
+        );
+        return reply.code(done.again ? 200 : 201).send({ attachment: publicAttachment(done.attachment) });
+      },
+    );
+
+    // The project's site templates, by name, and why one was not copied in when the project was made.
+    app.get('/designer/site-templates', { preHandler: guard, config: RATE, schema: { response: { 200: designerSiteTemplatesReply } } }, async () => ({
+      ...(await listSiteTemplates(deps.root)),
+      note: await readTemplateNote(deps.root),
+    }));
+    app.delete(
+      '/designer/site-templates/note',
+      { preHandler: guard, config: { ...RATE, audit: auditExempt('a line the Designer said once is put away; nothing changes') }, schema: { response: { 204: designerNothingReply } } },
+      async (_request, reply) => {
+        await clearTemplateNote(deps.root);
+        return reply.code(204).send(null);
+      },
+    );
+
+    /*
+     * A site template in the project's `site-templates/`: the page names one the listing gave, never a
+     * path. The server finds the folder itself, walks it without following a link, and takes it as a
+     * dropped zip is taken: the same judge, the same lock, the same question before a second site.
+     */
+    app.post(
+      '/designer/sessions/:id/attachments/site-from-project',
+      {
+        preHandler: guard,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('a site template attached to a Designer session changes nothing by itself; the turn that builds from it is audited') },
+        schema: { params: designerSessionParams, body: designerSiteFromProjectBody, response: { 200: designerAttachmentReply, 201: designerAttachmentReply } },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        const { name } = request.body;
+        const listed = (await listSiteTemplates(deps.root)).templates.find((entry) => entry.name === name);
+        if (listed === undefined) throw new NotFoundError(`There is no site template named ${name} in this project.`);
+        if (!listed.usable) throw new ValidationFailedError(`${name}: rename this folder to use it (letters, digits, space, . _ -)`, { reason: 'SITE_NAME' });
+        const folder = join(deps.root, SITE_TEMPLATES_DIR, name);
+        const done = await takeSite(session.id, name, name, request.body.replace, request.user?.id, async () => {
+          const walked = await walkFolder(folder);
+          if (walked.stopped !== null) throw new SiteRefusal('SITE_LIMIT', walked.stopped === 'too-many' ? `${name} has more than 1,000 files and folders.` : `${name} took too long to read.`);
+          return walked.entries;
+        });
+        return reply.code(done.again ? 200 : 201).send({ attachment: publicAttachment(done.attachment) });
+      },
+    );
+
+    // A file taken off a message before it is sent (a site's folder whole, once no turn reads it). A file that went with a message stays.
+    app.delete(
+      '/designer/sessions/:id/attachments/:attachment',
+      {
+        preHandler: guard,
+        config: { rateLimitBucket: 'designer-files', audit: auditExempt('taking a file off a Designer message before it is sent changes nothing') },
+        schema: { params: designerAttachmentParams },
+      },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        await withSessionLock(session.id, () => {
+          const entry = deps.attachments.find(session.id, request.params.attachment);
+          if (entry === null || entry.partOf !== undefined) throw new NotFoundError('There is no such file in this session.');
+          if (entry.sent === true) throw new ConflictError('That file went with a message, so it stays in the session.', 'CONFLICT', { reason: 'SENT' });
+          deps.attachments.remove(session.id, entry.id);
+          if (runner.active()?.sessionId !== session.id) deps.attachments.sweep(session.id);
+        });
+        return reply.code(204).send();
       },
     );
 
@@ -439,6 +642,92 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           .header('cache-control', 'private, max-age=3600')
           .header('content-disposition', 'inline')
           .send(thumb.bytes);
+      },
+    );
+
+    // What the picture dialog draws: the app's spots, its tables' sample rows, the pictures already in it.
+    app.get(
+      '/designer/sessions/:id/pictures',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerPicturesReply } } },
+      async (request) => designer.picturesOf(request.params.id),
+    );
+
+    // A picture of the app's, for the dialog's own tiles: a spot's picture or a sample row's, and nothing else of the folder.
+    app.get(
+      '/designer/sessions/:id/pictures/file',
+      { preHandler: guard, config: { rateLimitBucket: 'designer-files' as const }, schema: { params: designerSessionParams, querystring: designerPictureFileQuery } },
+      async (request, reply) => {
+        const session = store.read(request.params.id);
+        const path = request.query.path;
+        const under = path.startsWith('assets/pictures/') ? 'assets/pictures' : path.startsWith('seeds/pictures/') ? 'seeds/pictures' : null;
+        const picture = under === null ? null : readPictureFile(deps.root, session.appKey, path.slice(under.length + 1), under);
+        if (picture === null) throw new NotFoundError('There is no such picture in this app.');
+        return reply
+          .header('content-type', picture.mime)
+          .header('x-content-type-options', 'nosniff')
+          .header('content-security-policy', "default-src 'none'; sandbox")
+          .header('cache-control', 'private, max-age=60')
+          .header('content-disposition', 'inline')
+          .send(picture.bytes);
+      },
+    );
+
+    // Apply: the spots and sample rows filled, with no turn. Saved as a version, said in the chat.
+    app.post(
+      '/designer/sessions/:id/pictures/apply',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits an Apply itself, with what it changed and the version it saved') },
+        schema: { params: designerSessionParams, body: designerPicturesApplyBody, response: { 200: designerPicturesApplyReply } },
+      },
+      async (request) => {
+        const fills = request.body.fills.map((fill) => ({
+          ...(fill.spot === undefined ? {} : { spot: fill.spot }),
+          ...(fill.row === undefined ? {} : { row: fill.row }),
+          version: fill.version,
+          from: fill.from,
+          ...(fill.alt === undefined ? {} : { alt: fill.alt }),
+          ...(fill.decorative === undefined ? {} : { decorative: fill.decorative }),
+        }));
+        return designer.applyPictures(request.params.id, { id: request.body.id, fills, ...(request.body.mode === undefined ? {} : { mode: request.body.mode }) }, actorOf(request));
+      },
+    );
+
+    // An Apply's Undo: back to the version before it.
+    app.post(
+      '/designer/sessions/:id/pictures/undo',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('going back is audited by the Designer as a version restored') },
+        schema: { params: designerSessionParams, body: designerPicturesUndoBody, response: { 200: designerRestoreReply } },
+      },
+      async (request) => designer.undoPictures(request.params.id, request.body, actorOf(request)),
+    );
+
+    // The picture dialog's search, one source at a time. Each source's allowance is this server's, kept by the search itself.
+    app.get(
+      '/designer/sessions/:id/pictures/search',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, querystring: designerPictureSearchQuery, response: { 200: designerPictureSearchReply } } },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (deps.pictureDialog === undefined) return { state: 'off' as const };
+        const { q, source, shape, page, shelf } = request.query;
+        return deps.pictureDialog.search(session.id, { q, source, ...(shape === undefined ? {} : { shape }), ...(page === undefined ? {} : { page }), ...(shelf === undefined ? {} : { shelf }) });
+      },
+    );
+
+    // A picture put in "what changes": kept for the session, and its bytes fetched now, outside any hold of the app's folder.
+    app.post(
+      '/designer/sessions/:id/pictures/pin',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('a picked picture is kept for the session only: nothing of the app changes until Apply, which is audited') },
+        schema: { params: designerSessionParams, body: designerPicturePinBody, response: { 200: designerPicturePinReply } },
+      },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (deps.pictureDialog === undefined) return { state: 'gone' as const };
+        return deps.pictureDialog.pin(session.id, request.body.shelf, request.body.picture);
       },
     );
 

@@ -9,6 +9,10 @@
 import { RUN_EFFORTS } from '@adminium/llm';
 import { z } from 'zod';
 
+import { LICENCE_CODES } from '../../designer/licences.js';
+import { PICTURE_PAGES_MAX, PICTURE_SHAPES, SOURCE_NAMES } from '../../designer/pictures.js';
+import { LEFT_OUT_REASONS, type LeftOutReason } from '../../designer/site/judge.js';
+
 const target = z.enum(['auto', 'dashboard', 'web', 'mobile']);
 
 export const designerSession = z.object({
@@ -29,7 +33,7 @@ export const designerSession = z.object({
 });
 
 /** A card as the page draws it. Its fields depend on its type. */
-export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'needs', 'pictures', 'add-on', 'rows', 'removal']) }).passthrough();
+export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'needs', 'pictures', 'add-on', 'rows', 'removal', 'spots', 'keep-spot', 'template-plan', 'access-change']) }).passthrough();
 
 /** An event as the page reads it. Its fields depend on its kind. */
 export const designerEvent = z.object({ seq: z.number().int(), turn: z.number().int(), at: z.number(), kind: z.string() }).passthrough();
@@ -86,7 +90,7 @@ export const designerSessionCreateBody = z.object({
 const styleKey = z.string().regex(/^[a-z][a-z0-9-]{1,39}$/);
 const swatch = z.object({ bg: z.string(), text: z.string(), accent: z.string() });
 /** A look as the page is told it. `earlier`: kept before styles, drawn as it was until a style is picked. */
-const publicLook = z.object({ skill: z.string(), title: z.string(), origin: z.enum(['built-in', 'project', 'earlier']), accent: z.string().optional(), swatch: swatch.optional() });
+const publicLook = z.object({ skill: z.string(), title: z.string(), origin: z.enum(['built-in', 'project', 'earlier']), accent: z.string().optional(), swatch: swatch.optional(), pictures: z.enum(['placeholders', 'choose']).optional() });
 
 export const designerSessionReply = z.object({
   session: designerSession,
@@ -176,11 +180,35 @@ export const designerSightReply = z.object({ kept: z.boolean() });
 export const designerAttachment = z.object({
   id: z.string(),
   label: z.string(),
-  kind: z.enum(['image', 'csv', 'font', 'doc']),
+  kind: z.enum(['image', 'csv', 'font', 'doc', 'html', 'css', 'site']),
   mediaType: z.string(),
   bytes: z.number().int(),
   rows: z.number().int().optional(),
   columns: z.array(z.string()).optional(),
+  /** A site template's pages and files kept, and what was left out (the first of them) with how many there were. */
+  pages: z.number().int().optional(),
+  files: z.number().int().optional(),
+  leftOut: z.array(z.object({ file: z.string(), reason: z.enum(Object.keys(LEFT_OUT_REASONS) as [LeftOutReason, ...LeftOutReason[]]) })).optional(),
+  leftOutCount: z.number().int().optional(),
+});
+/** A reply with no body. */
+export const designerNothingReply = z.null();
+export const designerSiteFromProjectBody = z.object({
+  /** A name the listing gave: never a path. */
+  name: z.string().min(1).max(120),
+  replace: z.string().regex(/^att_[0-9a-f]{20}$/).optional(),
+});
+export const designerSiteTemplatesReply = z.object({
+  templates: z.array(z.object({ name: z.string(), usable: z.boolean() })),
+  more: z.number().int(),
+  /** Why the folder the project was made in was not copied in as a site template; said once. */
+  note: z.object({ name: z.string(), why: z.string() }).nullable(),
+});
+export const designerSiteQuery = z.object({
+  /** The zip's name, or the folder's the page packed: the site is called by it. */
+  filename: z.string().min(1).max(300),
+  /** The site this one replaces, as the person said after being asked: without it, a session that holds a site keeps it. */
+  replace: z.string().regex(/^att_[0-9a-f]{20}$/).optional(),
 });
 export const designerAttachmentQuery = z.object({
   filename: z.string().min(1).max(300),
@@ -193,10 +221,104 @@ export const designerAttachmentQuery = z.object({
     .string()
     .regex(/^[0-9a-f]{6}:\d{1,4}(,[0-9a-f]{6}:\d{1,4}){0,15}$/)
     .optional(),
+  /** A frame the person imported from Figma (`POST /designer/figma/import`): the server copies in its own bytes, and no body is sent. */
+  figma: z.string().regex(/^imp_[0-9a-f]{24}$/).optional(),
+  /** Which half of that import: its picture or its design document. */
+  figma_part: z.enum(['picture', 'outline']).optional(),
 });
 export const designerAttachmentParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), attachment: z.string().regex(/^att_[0-9a-f]{20}$/) });
 export const designerPictureThumbParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), shelf: z.string().regex(/^shelf_[0-9a-f]{16}$/), picture: z.string().regex(/^pic_[0-9a-f]{12}$/) });
 export const designerAttachmentReply = z.object({ attachment: designerAttachment });
+
+const designerShelfId = z.string().regex(/^shelf_[0-9a-f]{16}$/);
+const designerPictureId = z.string().regex(/^pic_[0-9a-f]{12}$/);
+export const designerPictureSearchQuery = z.object({
+  q: z.string().max(200),
+  source: z.enum(SOURCE_NAMES),
+  shape: z.enum(PICTURE_SHAPES).optional(),
+  page: z.coerce.number().int().min(1).max(PICTURE_PAGES_MAX).optional(),
+  shelf: designerShelfId.optional(),
+});
+const designerFoundPicture = z.object({
+  id: z.string(),
+  title: z.string(),
+  creator: z.string(),
+  source: z.string(),
+  licence: z.object({ code: z.enum(LICENCE_CODES), name: z.string() }),
+  page: z.string(),
+  shown: z.literal(true).optional(),
+});
+export const designerPictureSearchReply = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('ok'), shelf: z.string(), pictures: z.array(designerFoundPicture), more: z.boolean(), page: z.number().int() }),
+  z.object({ state: z.literal('busy'), source: z.enum(SOURCE_NAMES), minutes: z.number().int() }),
+  z.object({ state: z.literal('off') }),
+  z.object({ state: z.literal('failed') }),
+]);
+const designerLicenceCode = z.enum(LICENCE_CODES);
+export const designerPicturesReply = z.object({
+  ownBuild: z.boolean(),
+  spots: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      shape: z.enum(PICTURE_SHAPES),
+      shows: z.string(),
+      search: z.string(),
+      version: z.string(),
+      thumb: z.string().nullable(),
+      alt: z.string(),
+      decorative: z.boolean(),
+      licence: z.object({ code: designerLicenceCode, name: z.string(), title: z.string(), creator: z.string() }).nullable(),
+    }),
+  ),
+  tables: z.array(z.object({ table: z.string(), label: z.string(), column: z.string(), rows: z.array(z.object({ row: z.number().int(), label: z.string(), version: z.string(), thumb: z.string().nullable() })) })),
+  inApp: z.array(z.object({ key: z.string(), name: z.string(), thumb: z.string(), licence: designerLicenceCode })),
+  /** Null for an app whose look was kept before styles: it keeps no choice, and the dialog asks none. */
+  mode: z.enum(['placeholders', 'choose']).nullable(),
+  legacy: z.number().int(),
+  sources: z.array(z.object({ name: z.string(), busy: z.number().int().nullable() })),
+  unsplash: z.enum(['ok', 'closed']),
+  version: z.number().int().nullable(),
+});
+export const designerPictureFileQuery = z.object({ path: z.string().min(1).max(300) });
+const designerFillFrom = z.union([
+  z.object({ shelf: designerShelfId, picture: designerPictureId }).strict(),
+  z.object({ attachment: z.string().regex(/^att_[0-9a-f]{20}$/) }).strict(),
+  z.object({ file: z.string().min(1).max(200) }).strict(),
+  z.object({ placeholder: z.literal(true) }).strict(),
+]);
+export const designerPicturesApplyBody = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  fills: z
+    .array(
+      z
+        .object({
+          spot: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
+          row: z.object({ table: z.string().min(1).max(200), row: z.number().int().min(1).max(10_000) }).optional(),
+          version: z.string().regex(/^[0-9a-f]{16}$/),
+          from: designerFillFrom,
+          alt: z.string().max(1000).optional(),
+          decorative: z.boolean().optional(),
+        })
+        .refine((fill) => (fill.spot === undefined) !== (fill.row === undefined), { message: 'Each fill names a spot or a row, not both.' }),
+    )
+    .max(60),
+  /** What a design does with the page's pictures from now on, chosen in the dialog's footer: saved with this Apply. */
+  mode: z.enum(['placeholders', 'choose']).optional(),
+}).refine((body) => body.fills.length > 0 || body.mode !== undefined, { message: 'An Apply changes a picture, or what a design does with pictures.' });
+export const designerPicturesApplyReply = z.object({
+  results: z.array(z.object({ target: z.string(), state: z.enum(['applied', 'conflict', 'gone']), small: z.literal(true).optional() })),
+  version: z.object({ n: z.number().int(), name: z.string() }).nullable(),
+  applied: z.boolean(),
+  before: z.number().int().nullable(),
+});
+export const designerPicturesUndoBody = z.object({ from: z.number().int().min(1), to: z.number().int().min(0) });
+export const designerPicturePinBody = z.object({ shelf: designerShelfId, picture: designerPictureId });
+export const designerPicturePinReply = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('kept'), small: z.boolean(), shown: z.literal(true).optional() }),
+  z.object({ state: z.literal('gone') }),
+  z.object({ state: z.literal('failed') }),
+]);
 export const designerReadsImagesBody = z.object({ connectionId: z.string().min(1).max(200), model: z.string().min(1).max(200) });
 export const designerReadsImagesReply = z.object({ readsImages: z.boolean().nullable() });
 export const designerTurnReply = z.object({ turn: z.number().int() });
@@ -217,7 +339,7 @@ export const designerRestoreReply = z.object({
 });
 
 /** What has the app's folder: a turn, or something a person does from the page. */
-const designerBusy = z.enum(['turn', 'save', 'style', 'restore', 'start']);
+const designerBusy = z.enum(['turn', 'save', 'style', 'restore', 'start', 'pictures']);
 const designerFileHash = z.string().regex(/^[0-9a-f]{64}$/);
 /** A file's path in the project. Held against the server's own list, as a string; its shape is not what lets it in. */
 const designerFilePath = z.string().min(1).max(300);
@@ -472,3 +594,26 @@ export const designerPhoneReply = z.object({
 });
 
 export const designerPhoneOpenBody = z.object({ address: z.string().min(7).max(15) }).strict();
+
+/** A person's Figma connection, as their dialog and their Security page show it: never the token. */
+export const designerFigmaReply = z.object({
+  connected: z.boolean(),
+  /** `mine`: kept here for them; `environment`: the project's own token, under `adminium design`. */
+  source: z.enum(['mine', 'environment']).nullable(),
+  handle: z.string().nullable(),
+  /** False when this server calls nothing outside itself (`ADMINIUM_NETWORK_FEATURES` off). */
+  network: z.boolean(),
+  /** False where what is kept of a frame does not outlive the next deploy. */
+  lasting: z.boolean(),
+});
+export const designerFigmaTokenBody = z.object({ token: z.string().trim().min(1).max(500) });
+export const designerFigmaImportBody = z.object({ link: z.string().trim().min(1).max(2048) });
+export const designerFigmaImportReply = z.object({
+  importId: z.string(),
+  outlineName: z.string(),
+  pictureName: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  /** Reads Figma counted for this import: 0 when it came from the copy this server kept. */
+  reads: z.number().int(),
+});

@@ -409,6 +409,13 @@ export const gridColumnSpecSchema = z.object({
    * place it was least wanted.
    */
   avatar: z.boolean().optional(),
+  /**
+   * Which picture column the avatar shows, on a page with more than one
+   * (a column whose file block takes pictures only). Absent: the page's one
+   * picture column, or initials when it has none. Never read on an FK column:
+   * a chip that names another record never shows this record's picture.
+   */
+  avatarFrom: z.string().min(1).optional(),
   /** JetBrains Mono value treatment (ids, amounts, emails). */
   mono: z.boolean().default(false),
   align: z.enum(['start', 'end']).optional(),

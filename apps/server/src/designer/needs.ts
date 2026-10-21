@@ -222,7 +222,7 @@ export const isKnownNeed = (item: NeedItem): boolean => item.kind === 'font' || 
 /** What the model is told to do in place of something the person left out. */
 export function withoutLine(item: NeedItem): string {
   if (item.kind === 'font') return `${item.family}: the system's own font stands in. Change nothing for it.`;
-  if (item.kind === 'picture-site') return `pictures from ${item.host}: take them out, or find pictures with find_pictures.`;
+  if (item.kind === 'picture-site') return `pictures from ${item.host}: take them out, or make each a spot with add_spots, which the person fills.`;
   if (item.role === 'tailwind') return 'Tailwind: style with the made parts of app.css and your own rules in design.css. Use no Tailwind class.';
   if (item.role === 'icons') return `${item.name}: draw each icon as a small inline SVG. Never an emoji.`;
   if (item.role === 'ui') return `${item.name}: write the parts you need as plain components with classes of design.css.`;

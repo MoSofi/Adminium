@@ -24,7 +24,7 @@ that server are kept and flagged, so you can
 | `ADMINIUM_SECRET` | Required. It derives the key encrypting every stored connection string and API key. Generate it once per server (`openssl rand -hex 32`) and **never change it**. |
 | `DATABASE_URL` | Whatever `adminium.config.ts` reads for each database — `DATABASE_URL` for `main`, plus one variable per other key. |
 | A durable data folder **or** a meta store | Adminium's own tables go to `/data/meta.db` in the image unless you set `ADMINIUM_META_URL` to a PostgreSQL or MySQL database. On a host with no disk, the managed database is the only durable option. |
-| Somewhere for files | Uploads, attachments, exports and the branding logo are written under the data folder unless `ADMINIUM_STORAGE_URL` points at an S3-compatible bucket or WebDAV server. [Where your files are stored](/guides/files/storage-destinations/). |
+| Somewhere for files | Files kept with records, exports and the branding logo are written under the data folder unless `ADMINIUM_STORAGE_URL` points at an S3-compatible bucket or WebDAV server. [Where your files are stored](/guides/files/storage-destinations/). |
 | One instance | Keep the service at a single replica: a disk belongs to one machine, and live updates are shared inside one process. |
 
 The image listens on `PORT` (4600 by default) as the `node` user, answers

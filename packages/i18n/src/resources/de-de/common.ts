@@ -1125,22 +1125,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Datei",
-      "fileNewDatabase": "Neue lokale Datenbank…",
-      "fileOpenSqlite": "SQLite-Datei öffnen…",
-      "fileBackupNow": "Jetzt sichern…",
-      "fileRestore": "Aus Sicherung wiederherstellen…",
-      "edit": "Bearbeiten",
-      "view": "Ansicht",
-      "window": "Fenster",
-      "help": "Hilfe",
-      "helpDocs": "Adminium-Dokumentation",
-      "helpShortcuts": "Tastaturkürzel",
-      "helpLogs": "Protokolle anzeigen",
-      "helpCheckForUpdates": "Nach Updates suchen…",
-      "helpAbout": "Über Adminium"
-    },
     "settings": {
       "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace.",
       "title": "Desktop-Einstellungen"
@@ -1690,6 +1674,24 @@ export default {
       "secretHelper": "Fügen Sie den Einrichtungslink in Ihre Authenticator-App ein oder tippen Sie den Schlüssel von Hand ein.",
       "secret": "Einrichtungsschlüssel",
       "title": "Zwei-Faktor-Authentifizierung"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Nicht verbunden. Verbinde Figma im Designer über das Menü „Anhängen“, „Aus Figma…“.",
+      "connectedAs": "Mit Figma verbunden als {handle}",
+      "kept": "Verschlüsselt auf diesem Server nur für dich gespeichert. Nur deine eigenen Importe verwenden es.",
+      "environment": "Es wird das Figma-Token aus der Umgebung dieses Projekts verwendet.",
+      "changeToken": "Token ändern",
+      "disconnect": "Trennen",
+      "newToken": "Neues Token",
+      "saveToken": "Token speichern",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "refused": "Figma hat dieses Token nicht akzeptiert. Prüfe es und füge es erneut ein.",
+      "off": "Figma ist auf diesem Server aus: Netzwerkfunktionen sind ausgeschaltet.",
+      "unreachable": "Figma hat nicht geantwortet. Versuche es gleich noch einmal.",
+      "disconnectTitle": "Figma trennen?",
+      "disconnectBody": "Deine Importe, die schon im Designer sind, bleiben."
     }
   },
   "team": {

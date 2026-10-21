@@ -8,7 +8,7 @@
  * made. The model never applies anything itself; it writes files, and this
  * decides what becomes of them.
  */
-import type { Attachment, Attachments } from './attachments.js';
+import { withSessionLock, type Attachment, type Attachments } from './attachments.js';
 import { PHONE_SIDE, hasPhoneCode } from '../project/apps/phone.js';
 import { phoneNow } from '../project/apps/phone-build.js';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -36,6 +36,12 @@ import { findProject } from '../project/locate.js';
 import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
 import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, searchText, withLineEnds, FILES_SAVED_MAX, SEARCH_FILE_HITS_MAX, SEARCH_HITS_MAX, type FileGroup, type SearchHit, type SearchOptions } from './files.js';
 import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
+import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
+import type { PictureDialog } from './picture-dialog.js';
+import { UNSPLASH_HOST } from './pictures.js';
+import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
+import { currentSnapshot, outsideChanges, pageTables, readApplied, withApproved, writeApplied } from './outside-check.js';
+import { readTemplatePlan } from './site/template-plan.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -64,6 +70,8 @@ export interface DesignerHost {
   log: (message: string, error?: unknown) => void;
   /** What people attach to a message. */
   attachments?: Attachments;
+  /** The most tokens a request to a session's model may carry. */
+  windowOf?: (session: DesignerSession) => Promise<number>;
   /** The tools and what the model is told; given by the parts that build them. */
   tools?: (session: DesignerSession) => DesignerTool[];
   prompt?: (session: DesignerSession, messages: import('@adminium/llm').RunMessage[], opts?: import('./prompt.js').PromptOpts) => Promise<{ system: string; messages: import('@adminium/llm').RunMessage[] }>;
@@ -83,6 +91,26 @@ export interface DesignerHost {
   findsPictures?: () => boolean;
   /** Take an app's sample rows out and add them again, as its files now have them (with pictures they did not have). */
   reseedSample?: (appKey: string) => Promise<void>;
+  /** The picture dialog's searches and picks. Absent where the Designer looks for no pictures. */
+  pictureDialog?: PictureDialog;
+}
+
+/** What the picture dialog draws: the app's spots and rows, where pictures may come from, and the mode. */
+export type PicturesView = ReturnType<typeof picturesState> & {
+  /** The sources this server can search, each with the minutes it is busy for. */
+  sources: { name: string; busy: number | null }[];
+  /** Whether a page may be let load pictures from Unsplash here: `closed` where the server cannot allow a site. */
+  unsplash: 'ok' | 'closed';
+  /** The session's version now: an Apply's Undo goes back from it. */
+  version: number | null;
+};
+
+export interface PicturesApplied {
+  results: FillResult[];
+  version: { n: number; name: string } | null;
+  applied: boolean;
+  /** The version before this Apply: Undo goes back to it. */
+  before: number | null;
 }
 
 export interface CreateSessionInput {
@@ -156,6 +184,16 @@ export interface Designer {
    * are stood in for by the system's until the next message, which asks for them.
    */
   setLook(sessionId: string, look: { skill: string; accent?: string | undefined }, by: Actor): Promise<{ look: PublicLook; version: { n: number; name: string } | null; applied: boolean }>;
+  /** What the picture dialog draws for a session's app: its spots, its tables' sample rows, the pictures already in it. */
+  picturesOf(sessionId: string): PicturesView;
+  /**
+   * Fill spots and sample rows from the picture dialog, with no turn. The pictures are fetched first, outside the
+   * hold; then each is checked against the version it was opened at, written whole, built, applied and saved as a
+   * version. A repeat of one Apply (the same `id`) gets the first one's answer.
+   */
+  applyPictures(sessionId: string, input: { id: string; fills: readonly Fill[]; mode?: 'placeholders' | 'choose' }, by: Actor): Promise<PicturesApplied>;
+  /** An Apply's Undo: back to the version before it, while the app is still at the version it saved. */
+  undoPictures(sessionId: string, input: { from: number; to: number }, by: Actor): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
   /**
    * Build the folder's apps and apply them, with no turn behind it: what the
    * check, the build or the apply says is wrong with `key`, or nothing.
@@ -191,9 +229,10 @@ export interface PublicLook {
   origin: 'built-in' | 'project' | 'earlier';
   accent?: string;
   swatch?: { bg: string; text: string; accent: string };
+  /** What a design does with the page's pictures: the mode the picture dialog's footer shows. */
+  pictures?: 'placeholders' | 'choose';
 }
 
-/** The picture columns of tables customers read, no sample row of which has a picture. */
 export function emptyPictureColumns(root: string, appKey: string, manifest: unknown): { table: string; column: string }[] {
   const app = manifest as { kind?: string; publicAccess?: { table?: string; methods?: string[] }[]; requiredSchema?: { tables?: { ref: string; columns: { ref: string; type: string; semantic?: string }[] }[] } } | null;
   if (app === null || app.kind !== 'app') return [];
@@ -372,6 +411,7 @@ export function createDesigner(host: DesignerHost): Designer {
       origin: look.direction !== undefined ? 'earlier' : (resolved.skill?.origin ?? 'project'),
       ...(look.accent === undefined ? {} : { accent: look.accent }),
       ...(theme === null ? {} : { swatch: { bg: theme.light.bg, text: theme.light.text, accent: theme.light.accent } }),
+      pictures: look.pictures ?? 'placeholders',
     };
   };
 
@@ -394,7 +434,7 @@ export function createDesigner(host: DesignerHost): Designer {
   /** Public access the last apply left as it was: the screens are refused what the manifest grants until it is settled. */
   const accessWarnings = new Map<string, string[]>();
 
-  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string } = {}): Promise<PipelineResult> {
+  async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string; saved?: readonly string[] } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
     const key = session.appKey;
 
@@ -404,6 +444,22 @@ export function createDesigner(host: DesignerHost): Designer {
     const errors = check.findings.filter((finding) => finding.level === 'error');
     events.emit(turn, { kind: 'check', ok: errors.length === 0, findings });
     if (errors.length > 0) return { ok: false, version: null };
+
+    // In a turn: a picture the person placed is never taken off its screen without their word.
+    if (opts.askRemovals !== false) {
+      const kept = await keptSpots(session, handle);
+      if (kept !== null) {
+        events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'pictures', message: kept });
+        return { ok: false, version: null };
+      }
+    }
+    // In a session that holds words from outside: what strangers could now do, asked before it goes live. Outside a turn
+    // (a restore, a hand save, a style or a picture applied) nothing can be asked, so it is refused until it is answered.
+    const outside = await outsideAllowed(session, handle, opts.askRemovals !== false, opts.saved);
+    if (outside !== null) {
+      events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'access', message: outside });
+      return { ok: false, version: null };
+    }
 
     // Told to stop (Stop, a cap, a shutdown): nothing more is built or applied.
     if (handle.signal.aborted) return { ok: false, version: null };
@@ -451,6 +507,8 @@ export function createDesigner(host: DesignerHost): Designer {
       }
     }
 
+    // What the app allows now is what the next apply in a session of outside words is compared with.
+    writeApplied(host.root, key, currentSnapshot(host.root, key));
     // An apply that changes nothing says nothing about its pages: what the last real one said still holds.
     if (result?.state === 'installed' || result?.state === 'applied') {
       pageWarnings.set(key, result.pageWarnings ?? []);
@@ -521,14 +579,20 @@ export function createDesigner(host: DesignerHost): Designer {
       const reads = sight.picture !== null && host.attachments !== undefined && (await host.connections.readsImages(session.connectionId as ConnectionId, session.model).catch(() => null)) === true;
       let image: { ref: string; mediaType: string; name: string } | undefined;
       if (reads && sight.picture !== null && host.attachments !== undefined) {
-        // The last picture of the page gives way to this one: found by its name, so one kept before a restart goes too.
-        for (const old of host.attachments.list(session.id)) if (SIGHT_FILE.test(old.label)) host.attachments.remove(session.id, old.id);
-        try {
-          const kept = host.attachments.add(session.id, { filename: `the ${sight.side} page as it shows.jpg`, bytes: sight.picture });
-          image = { ref: kept.id, mediaType: kept.mediaType, name: kept.label };
-        } catch {
-          // The session holds as many files as it may: the measured lines go without the picture.
-        }
+        const files = host.attachments;
+        const picture = sight.picture;
+        // One writer of the session's files at a time: a site being judged writes them too.
+        image = await withSessionLock(session.id, () => {
+          // The last picture of the page gives way to this one: found by its name, so one kept before a restart goes too.
+          for (const old of files.list(session.id)) if (SIGHT_FILE.test(old.label)) files.remove(session.id, old.id);
+          try {
+            const kept = files.add(session.id, { filename: `the ${sight.side} page as it shows.jpg`, bytes: picture });
+            return { ref: kept.id, mediaType: kept.mediaType, name: kept.label };
+          } catch {
+            // The session holds as many files as it may: the measured lines go without the picture.
+            return undefined;
+          }
+        });
       }
       // The pictures the person attached go with it again (the two newest): a page is held to the design only by a model that sees both at once.
       const designs =
@@ -550,6 +614,7 @@ export function createDesigner(host: DesignerHost): Designer {
       return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS, ...(effort === undefined ? {} : { effort }) };
     },
     ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
+    ...(host.windowOf === undefined ? {} : { windowOf: host.windowOf }),
     tools: (session) => host.tools?.(session) ?? [],
     prompt: async (session, messages, opts) => host.prompt?.(session, messages, opts) ?? { system: 'You are Adminium Designer.', messages },
     pipeline: (session, handle) => pipeline(session, handle),
@@ -606,7 +671,7 @@ export function createDesigner(host: DesignerHost): Designer {
     },
     // The design, held last: a class nothing styles, an emoji for an icon, no logo, no brief.
     design: async (session) => {
-      // The person brings the pictures, or asked for empty frames: a page without one is then as asked, and nothing is looked for.
+      // The person brings the pictures, or asked for no pictures: a page without one is then as asked.
       // (Only what the person wrote, the first message of each turn: never the engine's own notes to the model.)
       const opened = new Set<number>();
       const wrote: string[] = [];
@@ -621,7 +686,7 @@ export function createDesigner(host: DesignerHost): Designer {
           builtInDir: stylesDir,
           fresh: session.createdApp && session.version === null,
           icons: listedPackages(host.root).has(ICONS_PACKAGE),
-          ...(host.findsPictures?.() === true && !ownPictures ? { emptyPictureColumns: emptyPictureColumns(host.root, session.appKey, checkApp(host.root, session.appKey, { version: host.version }).manifest) } : {}),
+          asksForPictures: !ownPictures,
         })
       ).map((issue) => issue.line);
       // Asked for a look, and a dashboard page was written in this turn: those are Adminium's own.
@@ -639,6 +704,8 @@ export function createDesigner(host: DesignerHost): Designer {
     // changed from the page still waits for are asked for, on one card.
     opening: async (session, handle) => {
       const key = session.appKey;
+      // Where the person's pictures are as the turn begins: a turn that takes one off is asked about it.
+      spotsAtStart.set(session.id, { turn: handle.turn, screens: spotScreens(host.root, key), answers: new Map() });
       if (hasOwnBuild(host.root, key)) return;
       const look = lookOf(key);
       if (look === null) return;
@@ -647,10 +714,25 @@ export function createDesigner(host: DesignerHost): Designer {
         if (existsSync(join(host.root, APPS_DIR, key, side, 'src', 'theme.css')) && !existsSync(file)) writeFileSync(file, DESIGN_CSS_START);
       }
       if (host.needs === undefined || look.direction !== undefined) return;
-      const wants = missingFonts(host.root, look, places)
+      const wants = missingFonts(host.root, look, { ...places, key })
         .filter((font) => !(look.without ?? []).includes(font.family))
         .map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }));
       if (wants.length > 0) await host.needs({ ask: handle.ask, signal: handle.signal, handle }, key, wants);
+    },
+    // The app's picture spots, as a turn that applied ends: the card that opens the dialog, or a line about what is still empty.
+    afterApplied: (session, { turn, tools }) => {
+      const key = session.appKey;
+      if (hasOwnBuild(host.root, key)) return [];
+      const empty = readSpots(host.root, key).filter((spot) => spot.file === null);
+      const mode = readLook(host.root, key)?.pictures;
+      if (tools.has('add_spots') && mode === 'choose') {
+        const rows = emptyPictureRows(host.root, key, host.version);
+        if (empty.length === 0 && rows === null) return [];
+        return [{ kind: 'card', card: { id: `spots-${String(turn)}`, type: 'spots', spots: empty.map((spot) => ({ id: spot.id, label: spot.label, shape: spot.shape })), ...(rows === null ? {} : { rows }) } }];
+      }
+      if (empty.length === 0) return [];
+      // No choice was asked (no needs card was due): placeholders, said once with the turn that made them.
+      return [{ kind: 'pictures-note', note: tools.has('add_spots') && mode === undefined ? 'placeholders' : 'still-empty', count: empty.length }];
     },
     // What the person is told when the turn ends and a file they attached is still in no table: the model said nothing of it, so the Designer does.
     closing: (session) =>
@@ -686,6 +768,165 @@ export function createDesigner(host: DesignerHost): Designer {
     return walk(dir, '').every((file) => ['manifest/app.json', 'manifest/roles.json', 'README.md', 'tests/app.test.mjs', '.DS_Store'].includes(file));
   };
   const needsName = (session: DesignerSession): boolean => session.createdApp && session.named !== true && session.version === null && stillBare(session.appKey);
+
+  async function restore(sessionId: string, n: number, opts: { record: boolean; by: Actor }): Promise<{ version: { n: number; name: string } | null; applied: boolean }> {
+    const session = store.read(sessionId);
+    // The folder is taken before anything is awaited: a turn, a save or a style change cannot begin under this.
+    const hold = runner.hold('restore', session.id);
+    try {
+      if (host.versions == null || !(await host.versions.available())) {
+        throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
+      }
+      hold.announce();
+      await host.seam?.('held', 'restore');
+      const version = await host.versions.restore(session, n, { record: opts.record });
+      // The files are a version's again: none of them is the person's own edit any more.
+      store.update(session.id, { ...(version === null ? {} : { version: version.n }), ...((session.handEdits ?? []).length === 0 ? {} : { handEdits: [] }) });
+      const handle = outsideATurn(store.read(session.id), opts.by, hold.signal);
+      if (version !== null) handle.events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
+      // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
+      const applied = await pipeline(store.read(session.id), handle, { version: false, askRemovals: false });
+      await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
+      return { version, applied: applied.ok };
+    } finally {
+      hold.release();
+    }
+  }
+
+  /** Which screens drew each spot as the session's turn began, and what the person said of a filled one a turn took off: by session. */
+  const spotsAtStart = new Map<string, { turn: number; screens: Map<string, SpotScreen[]>; answers: Map<string, boolean> }>();
+
+  /**
+   * A picture the person placed stays where they placed it: a filled spot that a turn took off every screen it was on,
+   * or moved to another, is not applied silently. The person is asked, once a turn for each; "Keep it there" stops the
+   * apply with what to put back. Null when nothing stands in the way.
+   */
+  async function keptSpots(session: DesignerSession, handle: TurnHandle): Promise<string | null> {
+    const start = spotsAtStart.get(session.id);
+    if (start === undefined || start.turn !== handle.turn) return null;
+    const now = spotScreens(host.root, session.appKey);
+    const lines: string[] = [];
+    for (const spot of readSpots(host.root, session.appKey)) {
+      const before = start.screens.get(spot.id) ?? [];
+      if (spot.file === null || before.length === 0) continue;
+      const after = now.get(spot.id) ?? [];
+      if (after.some((one) => before.some((was) => was.file === one.file))) continue;
+      const was = before[0] as SpotScreen;
+      let keep = start.answers.get(spot.id);
+      if (keep === undefined) {
+        const answer = await handle.ask({ type: 'keep-spot', spot: spot.id, label: spot.label, screen: was.screen });
+        keep = answer.type === 'keep-spot' && answer.accept;
+        start.answers.set(spot.id, keep);
+      }
+      if (keep) lines.push(`The person wants their picture "${spot.label}" kept on ${was.screen}: put <Picture spot="${spot.id}" /> back in ${was.file} where it was, then apply_app again.`);
+    }
+    return lines.length === 0 ? null : lines.join('\n');
+  }
+
+  /** What the person said of each outside change, by session, for the turn they said it in. */
+  const outsideAnswers = new Map<string, { turn: number; answers: Map<string, boolean> }>();
+
+  /**
+   * In a session that holds words from outside (a site template, a Figma frame), what the app would
+   * newly let strangers do, or its pages reach, is asked before it goes live: once a turn for each.
+   * Null when nothing stands in the way; else what the model is to take out.
+   */
+  /** Whether a session or its app holds words from outside: a site template or a Figma design attached, or an app built from a template. */
+  const holdsOutsideWords = (session: DesignerSession): boolean => {
+    const files = host.attachments?.list(session.id) ?? [];
+    if (files.some((entry) => entry.kind === 'site' || entry.kind === 'html' || entry.kind === 'css' || entry.source === 'figma')) return true;
+    return readTemplatePlan(host.root, session.appKey) !== null || (readLook(host.root, session.appKey)?.templateSides ?? []).length > 0;
+  };
+
+  /** Changes said in a line for the model: the first twelve, and how many more. */
+  const changeLines = (changes: readonly { line: string }[]): string => `${changes.slice(0, 12).map((change) => change.line).join('; ')}${changes.length > 12 ? `; and ${String(changes.length - 12)} more` : ''}`;
+
+  /**
+   * In a session that holds words from outside (a site template, a Figma frame), what the app would
+   * newly let strangers do, or its pages reach, is asked before it goes live: once a turn for each.
+   * Outside a turn nothing can be asked, so a change not yet allowed keeps the app from being applied.
+   * Null when nothing stands in the way; else what is to be taken out.
+   */
+  async function outsideAllowed(session: DesignerSession, handle: TurnHandle, canAsk: boolean, saved: readonly string[] = []): Promise<string | null> {
+    if (!holdsOutsideWords(session)) return null;
+    const key = session.appKey;
+    // What the person approved on the template's plan is not asked again: only what goes beyond it.
+    const plan = readTemplatePlan(host.root, key);
+    const now = currentSnapshot(host.root, key);
+    const changes = outsideChanges(host.root, key, withApproved(readApplied(host.root, key), now, plan?.approved, pageTables(host.root, key)), now);
+    if (changes.length === 0) return null;
+    let held = outsideAnswers.get(session.id);
+    if (canAsk && (held === undefined || held.turn !== handle.turn)) {
+      held = { turn: handle.turn, answers: new Map() };
+      outsideAnswers.set(session.id, held);
+    }
+    const answers = held?.answers ?? new Map<string, boolean>();
+    // A screen the person saved by hand that calls an outside address is theirs: their own save is their yes. (access.json and
+    // roles.json are never saved by hand here: they need the Designer's card.)
+    const theirs = (id: string): boolean => id.startsWith('call:') && saved.some((path) => path === id.slice(5) || path.endsWith(`/${id.slice(5)}`));
+    const pending = changes.filter((change) => !(canAsk ? false : theirs(change.id)));
+    const unasked = pending.filter((change) => !answers.has(change.id));
+    if (unasked.length > 0) {
+      if (!canAsk) return `Not applied: the app would let strangers do more than the person allowed (${changeLines(unasked)}). Nothing of it is live: the Designer asks about it in its next turn.`;
+      // One answer for all of them: the card lists twelve and says how many more.
+      const answer = await handle.ask({ type: 'access-change', changes: unasked.slice(0, 12).map((change) => change.view), ...(unasked.length > 12 ? { more: unasked.length - 12 } : {}), planned: plan !== null });
+      const yes = answer.type === 'access-change' && answer.accept;
+      for (const change of unasked) answers.set(change.id, yes);
+    }
+    const refused = pending.filter((change) => answers.get(change.id) === false);
+    if (refused.length === 0) return null;
+    return canAsk
+      ? `The person did not allow this: ${changeLines(refused)}. Build without it (take it out of access.json, roles.json or the page's code), then apply_app again. Do not ask for it again in this turn.`
+      : `Not applied: the person did not allow this, and it is still in the app's files: ${changeLines(refused)}. Ask the Designer to take it out.`;
+  }
+
+  /** Apply that is running or done, by session and the page's own id for it. */
+  const appliedPictures = new Map<string, Map<string, Promise<PicturesApplied>>>();
+
+  async function applyPicturesNow(session: DesignerSession, fills: readonly Fill[], by: Actor, mode?: 'placeholders' | 'choose'): Promise<PicturesApplied> {
+    const key = session.appKey;
+    if (hasOwnBuild(host.root, key)) throw new ConflictError('This app builds its own screens: its pictures are in its own files.', 'CONFLICT', { reason: 'OWN_BUILD' });
+    if (host.pictureDialog === undefined) throw new ConflictError('This Designer fills no picture spots.', 'CONFLICT', { reason: 'NO_PICTURES' });
+    // While a turn runs, nothing is fetched for an Apply that would only wait: "Wait for the Designer to finish, then apply."
+    const busy = runner.busy();
+    if (busy !== null) throw new ConflictError('The app is being changed. Try again in a moment.', 'CONFLICT', { reason: busy.kind === 'turn' ? 'TURN_RUNNING' : 'DESIGNER_BUSY', busy: busy.kind });
+    // 1. Every picture in hand first, outside the hold.
+    const { ready, gone } = await prepareFills(fills, { root: host.root, key, sessionId: session.id, dialog: host.pictureDialog, ...(host.attachments === undefined ? {} : { attachments: host.attachments }) });
+    // 2. Then the folder, and the writes in their order.
+    const hold = runner.hold('pictures', session.id);
+    try {
+      hold.announce();
+      await host.seam?.('held', 'pictures');
+      const before = store.read(session.id).version;
+      const written = await writeFills(ready, {
+        root: host.root,
+        key,
+        version: host.version,
+        by,
+        ...(host.pictureSites === undefined ? {} : { pictureSites: host.pictureSites }),
+        seam: (step, detail) => host.seam?.(step, detail),
+      });
+      const byTarget = new Map([...written.results, ...gone].map((result) => [result.target, result]));
+      const results = fills.map((fill) => byTarget.get(targetOf(fill)) ?? { target: targetOf(fill), state: 'gone' as const });
+      // The choice of the dialog's footer: kept with the look, and saved with these pictures.
+      // An app made with no look kept goes by the one its sides are drawn with: keeping the choice writes it down.
+      const look = mode === undefined ? null : lookInUse(host.root, key, DEFAULT_LOOK);
+      const modeChanged = look !== null && look.direction === undefined && look.pictures !== mode;
+      if (modeChanged && mode !== undefined) applyLook(host.root, key, { ...look, pictures: mode }, places);
+      if (!results.some((result) => result.state === 'applied') && !modeChanged) return { results, version: null, applied: false, before };
+      // A sample row took a new picture: the installed sample rows nobody changed are added again with it.
+      if (written.rows) reseeds.add(key);
+      const handle = outsideATurn(store.read(session.id), by, hold.signal);
+      const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: written.names.length === 0 ? `Pictures: ${mode === 'choose' ? 'chosen after each design' : 'placeholders after each design'}` : `Pictures: ${written.names.join(', ')}` });
+      if (written.names.length > 0) handle.events.emit(session.turns, { kind: 'pictures', names: written.names, version: verdict.version });
+      // Unsplash is told once, after the write, and never again: a count is not worth a second call.
+      for (const picture of written.chosen) void host.pictureDialog.chosen(picture);
+      await host.audit('designer.pictures.applied', by, { sessionId: session.id, appKey: key, changed: written.names, version: verdict.version?.n ?? null, applied: verdict.ok });
+      return { results, version: verdict.version, applied: verdict.ok, before };
+    } finally {
+      hold.release();
+    }
+  }
 
   return {
     store,
@@ -768,29 +1009,7 @@ export function createDesigner(host: DesignerHost): Designer {
       await host.audit('designer.session.created', by, { sessionId: session.id, appKey, createdApp });
       return session;
     },
-    async restore(sessionId, n, opts) {
-      const session = store.read(sessionId);
-      // The folder is taken before anything is awaited: a turn, a save or a style change cannot begin under this.
-      const hold = runner.hold('restore', session.id);
-      try {
-        if (host.versions == null || !(await host.versions.available())) {
-          throw new ConflictError('Versions are off: git is not on this machine.', 'CONFLICT', { reason: 'VERSIONS_OFF' });
-        }
-        hold.announce();
-        await host.seam?.('held', 'restore');
-        const version = await host.versions.restore(session, n, { record: opts.record });
-        // The files are a version's again: none of them is the person's own edit any more.
-        store.update(session.id, { ...(version === null ? {} : { version: version.n }), ...((session.handEdits ?? []).length === 0 ? {} : { handEdits: [] }) });
-        const handle = outsideATurn(store.read(session.id), opts.by, hold.signal);
-        if (version !== null) handle.events.emit(session.turns, { kind: 'version', n: version.n, name: version.name });
-        // Applied as a save is: a removal that would lose data waits in Studio, and in the next turn.
-        const applied = await pipeline(store.read(session.id), handle, { version: false, askRemovals: false });
-        await host.audit('designer.version.restored', opts.by, { sessionId, appKey: session.appKey, to: n, recorded: version?.n ?? null });
-        return { version, applied: applied.ok };
-      } finally {
-        hold.release();
-      }
-    },
+    restore,
     async listFiles(sessionId) {
       const session = store.read(sessionId);
       return { groups: groupFiles(await editable(session.appKey)), busy: runner.busy()?.kind ?? null, version: session.version };
@@ -879,6 +1098,11 @@ export function createDesigner(host: DesignerHost): Designer {
             const problem = appJsonProblem(old.toString('utf8'), content);
             if (problem !== null) throw new ValidationFailedError(problem.message, { reason: 'APP_JSON', path: file.path, ...(problem.field === null ? {} : { field: problem.field }) });
           }
+          // The picture spots, read as the server reads them: a spot that would not draw is said now, not at the build.
+          if (file.path === `${APPS_DIR}/${key}/${SPOTS_FILE}`) {
+            const problem = spotsFileProblem(host.root, key, content);
+            if (problem !== null) throw new ValidationFailedError(problem, { reason: 'SPOTS', path: file.path, message: problem });
+          }
           before.set(file.path, old);
           next.set(file.path, content);
         }
@@ -906,7 +1130,7 @@ export function createDesigner(host: DesignerHost): Designer {
             // A look kept before styles has a direction and no style: it is read as it always was.
             refuse('look.json names a style: "skill", with the key of one of the styles.');
           }
-          look = cleanLook({ skill: given['skill'], direction: given['direction'], accent: given['accent'], words: given['words'], theme: given['theme'], without: given['without'], ownFonts: given['ownFonts'] });
+          look = cleanLook({ skill: given['skill'], direction: given['direction'], accent: given['accent'], words: given['words'], theme: given['theme'], without: given['without'], ownFonts: given['ownFonts'], pictures: given['pictures'], templateSides: given['templateSides'] });
           try {
             sideLookFiles(host.root, look, places);
           } catch (error) {
@@ -961,10 +1185,10 @@ export function createDesigner(host: DesignerHost): Designer {
         });
         if (look !== null && look.skill !== styleBefore) {
           const resolved = resolveLook(host.root, look, places);
-          const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+          const fonts = missingFonts(host.root, look, { ...places, key: session.appKey }).map((font) => font.family);
           handle.events.emit(session.turns, { kind: 'style', skill: look.skill, title: resolved.title, ...(fonts.length === 0 ? {} : { fonts }) });
         }
-        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, label: saveLabel(paths.map((path) => listed.get(path)?.label ?? path)) });
+        const verdict = await pipeline(store.read(session.id), handle, { askRemovals: false, saved: paths, label: saveLabel(paths.map((path) => listed.get(path)?.label ?? path)) });
         const after = new Map((await editable(key)).map((file) => [file.path, file.hash]));
         const result: SaveResult = {
           applied: verdict.ok,
@@ -1017,10 +1241,10 @@ export function createDesigner(host: DesignerHost): Designer {
         await host.seam?.('held', 'style');
         const before = readLook(host.root, session.appKey);
         // A font file of the person's own stays in use across a change of style.
-        const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before) });
+        const look = cleanLook({ skill: skill.key, accent: input.accent, words: before?.words, without: before?.without, ownFonts: before?.ownFonts, theme: ownFontPatch(before), pictures: before?.pictures, templateSides: before?.templateSides });
         applyLook(host.root, session.appKey, look, places);
         const handle = outsideATurn(store.read(session.id), by, hold.signal);
-        const fonts = missingFonts(host.root, look, places).map((font) => font.family);
+        const fonts = missingFonts(host.root, look, { ...places, key: session.appKey }).map((font) => font.family);
         handle.events.emit(session.turns, { kind: 'style', skill: skill.key, title: skill.title, ...(fonts.length === 0 ? {} : { fonts }) });
         const applied = await pipeline(store.read(session.id), handle, { askRemovals: false });
         await host.audit('designer.look.changed', by, { sessionId, appKey: session.appKey, style: look.skill });
@@ -1039,6 +1263,44 @@ export function createDesigner(host: DesignerHost): Designer {
       const result = (await apps.reconcile()).find((candidate) => candidate.key === key);
       const applied = result !== undefined && (result.state === 'installed' || result.state === 'applied' || result.state === 'unchanged');
       return applied ? [] : [`It was not applied${result?.stage === undefined ? '' : ` (${result.stage})`}: ${result?.message ?? 'the server did not say why.'}`];
+    },
+    picturesOf(sessionId) {
+      const session = store.read(sessionId);
+      const base = `/api/v1/designer/sessions/${session.id}`;
+      const state = picturesState(host.root, session.appKey, {
+        sessionId: session.id,
+        version: host.version,
+        ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
+        fileUrl: (path) => `${base}/pictures/file?path=${encodeURIComponent(path)}`,
+        attachmentUrl: (id) => `${base}/attachments/${id}`,
+      });
+      return {
+        ...state,
+        sources: host.pictureDialog?.sources() ?? [],
+        unsplash: host.pictureSites !== undefined && (host.pictureSites.covers(UNSPLASH_HOST) || host.pictureSites.closed() === null) ? 'ok' : 'closed',
+        version: session.version,
+      };
+    },
+    applyPictures(sessionId, input, by) {
+      const session = store.read(sessionId);
+      // The same Apply sent again (a page that timed out and asked again) gets the first one's answer.
+      const kept = appliedPictures.get(session.id) ?? new Map<string, Promise<PicturesApplied>>();
+      appliedPictures.set(session.id, kept);
+      const first = kept.get(input.id);
+      if (first !== undefined) return first;
+      const work = applyPicturesNow(session, input.fills, by, input.mode);
+      kept.set(input.id, work);
+      while (kept.size > APPLY_IDS_KEPT) kept.delete(kept.keys().next().value as string);
+      // A refusal is not an answer to keep: the next try is a try of its own.
+      work.catch(() => kept.delete(input.id));
+      return work;
+    },
+    async undoPictures(sessionId, input, by) {
+      const session = store.read(sessionId);
+      if (session.version !== input.from) throw new ConflictError('The app changed since these pictures were applied. Go back from the versions instead.', 'CONFLICT', { reason: 'PICTURES_CHANGED' });
+      const back = await restore(session.id, input.to, { record: true, by });
+      personLog(runner.events(session.id)).emit(store.read(session.id).turns, { kind: 'pictures-undone', to: input.to });
+      return back;
     },
     shutdown: () => runner.shutdown(),
   };

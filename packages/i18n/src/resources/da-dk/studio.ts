@@ -1266,7 +1266,7 @@ export default {
       "column": {
         "adoptHint": "Denne tabel har allerede kolonnen, så der oprettes ikke noget — den bruges, som den er.",
         "bound": "Filer gemmes i denne tabels {column}-kolonne.",
-        "boundHint": "Slår du vedhæftninger fra senere, frakobles kun denne side. Kolonnen og filerne i den røres ikke.",
+        "boundHint": "Slår du dette fra senere, frakobles siden. Kolonnen og filerne i den bliver, som de er.",
         "confirm": "Kør den",
         "create": "Opret kolonnen",
         "createHint": "Adminium tilføjer én tekstkolonne til denne tabel. Du ser den præcise sætning, før noget kører.",
@@ -1284,7 +1284,7 @@ export default {
       "destinationHint": "Lad den stå på standarden, medmindre denne tabels filer hører hjemme et andet sted.",
       "destinationIsDefault": "{name} (standarden)",
       "destinationLocal": "Denne servers disk",
-      "enable": "Tillad vedhæftede filer på denne tabels poster",
+      "enable": "Lad hver post opbevare en liste over filer",
       "enableHint": "Filerne knyttes til på Adminiums side, så denne tabel behøver ingen ny kolonne — det virker på en skrivebeskyttet forbindelse og på en tabel, du helst ikke vil ændre.",
       "enableHintColumn": "Filer gemmes i én kolonne på denne tabel, så de vises både i dialogerne Ny og Rediger og på hver post.",
       "enableHintSidecar": "Filer kobles i stedet på Adminiums side. De vises på hver posts side, ikke i dialogen Ny.",
@@ -1301,7 +1301,8 @@ export default {
       "type": {
         "office": "Office-dokumenter",
         "text": "Almindelig tekst"
-      }
+      },
+      "pictureHint": "Til elementets eget billede skal du sætte en kolonne til Billede under Kolonner."
     },
     "columns": {
       "addFromLinked": "Fra linkede tabeller",
@@ -1314,8 +1315,8 @@ export default {
       "addSearch": "Søg i kolonner…",
       "addTitle": "Tilføj en kolonne",
       "addVia": "via {column}",
-      "avatar": "Avatar",
-      "avatarToggle": "Vis et monogram ved siden af {name}",
+      "avatar": "Initialer",
+      "avatarToggle": "Vis initialer ved siden af {name}",
       "countBadge": "Antal",
       "dragHandle": "Flyt {name}",
       "empty": "Ingen kolonner endnu — tilføj dem nedenfor.",
@@ -1366,7 +1367,8 @@ export default {
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "Kun billeder. Fjern fluebenet ved de typer, kolonnen skal afvise."
       },
       "fold": {
         "avg": "Gennemsnit",
@@ -1396,7 +1398,25 @@ export default {
       "remove": "Fjern {name}",
       "schemaUnavailable": "Databasens kolonner kunne ikke hentes, så kolonner kan ikke tilføjes her.",
       "shown": "Vist",
-      "toggle": "Vis {name} i tabellen"
+      "toggle": "Vis {name} i tabellen",
+      "avatarPicture": {
+        "name": "Billede ved siden af navnet",
+        "it": "Billede ved siden af",
+        "toggle": "Vis rækkens billede ved siden af {column}, eller dens initialer",
+        "none": "Ingen kolonne indeholder et billede endnu, så initialerne vises.",
+        "from": "Billede fra"
+      },
+      "holds": {
+        "label": "Indeholder",
+        "name": "Hvad {name} indeholder",
+        "text": "Tekst",
+        "picture": "Billede",
+        "file": "Fil",
+        "app": "Appen {app} bestemmer denne kolonne: den indeholder {kind, select, picture {billeder} other {filer}} på op til {size}. Den kan ikke ændres her.",
+        "appUnnamed": "En app bestemmer denne kolonne: den indeholder {kind, select, picture {billeder} other {filer}} på op til {size}. Den kan ikke ændres her.",
+        "toText": "Værdier, der allerede er gemt, bliver i kolonnen. Formularen viser dem som tekst.",
+        "hint": "Denne kolonne ser ud til at indeholde links til billeder. Sæt den til Billede for at uploade eller vælge billeder her. Links, der allerede er i den, bliver."
+      }
     },
     "create": {
       "failed": "Siden kunne ikke oprettes",
@@ -1448,7 +1468,7 @@ export default {
     },
     "editor": {
       "appearance": "Udseende",
-      "attachments": "Vedhæftede filer",
+      "attachments": "Filer på hver post",
       "columns": "Kolonner",
       "contentInvalid": "Denne sides konfiguration kan ikke læses",
       "contentInvalidBody": "Den er skrevet af en nyere version, eller den er ugyldig. Generer siden igen, eller slet den.",
@@ -1659,7 +1679,7 @@ export default {
           "title": "Sektioner"
         },
         "segmented": {
-          "body": "Segmenteret prioritet, lang beskrivelse, vedhæftningsliste, ansvarlig.",
+          "body": "Segmenteret prioritet, lang beskrivelse, filliste, ansvarlig.",
           "title": "Segmenter og filer"
         },
         "split": {
@@ -2714,7 +2734,7 @@ export default {
       "export": "Filer fra dataeksporter",
       "import": "Uploadede CSV-filer og deres fejlrapporter",
       "schema": "Importerede skemafiler",
-      "upload": "Filer vedhæftet poster"
+      "upload": "Filer, der opbevares med poster"
     },
     "list": {
       "subtitle": "Nye filer havner i standarddestinationen. Eksisterende filer bliver, hvor de er, indtil du flytter dem.",

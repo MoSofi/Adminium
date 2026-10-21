@@ -1047,6 +1047,6 @@ describe('media chrome localization (ui:widgets.media.*)', () => {
 
     cleanup();
     render(<AttachmentList items={[]} />);
-    expect(screen.getByText('No attachments')).toBeTruthy();
+    expect(screen.getByText('No files')).toBeTruthy();
   });
 });

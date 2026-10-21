@@ -20,8 +20,8 @@
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7240 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7767 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 6472 |
-| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7226 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 6987 |
+| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7801 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7192 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7727 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 6620 |
 | `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 5692 |
@@ -84,7 +84,7 @@
 | `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |
 | `references/manifest/public-access--limits-on-a-guest-s-change.md` | Public access — Limits on a guest's change | 1325 |
 | `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1923 |
-| `references/manifest/public-access--pictures.md` | Public access — Pictures | 871 |
+| `references/manifest/public-access--pictures.md` | Public access — Pictures | 923 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |

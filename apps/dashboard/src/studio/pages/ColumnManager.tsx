@@ -43,7 +43,7 @@
  */
 
 import { useId, useMemo, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
   KeyboardSensor,
@@ -76,10 +76,13 @@ import {
   FormField,
   IconButton,
   Input,
+  SegmentedControl,
   Select,
   Switch,
 } from '@adminium/ui';
-import { ArrowLeft, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, GripVertical, Info, Lightbulb, Lock, Plus, Trash2 } from 'lucide-react';
+import { isPictureBlock, PICTURE_KINDS } from '@adminium/widgets/page-config';
+import { appSectionsOf, bootstrapQuery } from '../../app/bootstrap.js';
 
 import { destinationsQuery } from '../storage/storageApi.js';
 import { t } from '../../i18n/t.js';
@@ -209,6 +212,9 @@ const FILE_TYPE_KEYS = [
 ] as const;
 type FileTypeKey = (typeof FILE_TYPE_KEYS)[number];
 
+/** What a column holds, as the Holds control says it. */
+type Holds = 'text' | 'picture' | 'file';
+
 /**
  * Chip labels. Most are format names that are the same word everywhere, but
  * they still go through `t()`: two of them ("Office documents", "Plain text")
@@ -313,6 +319,8 @@ export interface StoredColumn {
   fk?: { table: string; column: string; display?: string };
   /** Monogram beside the value. Absent means the column's default (see below). */
   avatar?: boolean;
+  /** The picture column the avatar shows, on a page with two or more. */
+  avatarFrom?: string;
   lookup?: { path: string[]; select: string };
   reverse?: { table: string; fkColumn: string; agg: string };
   /** Points at a measure or field in `config.derived`. */
@@ -462,6 +470,15 @@ export function ColumnManager({
     () => new Map((table?.columns ?? []).map((column) => [column.name, column] as const)),
     [table],
   );
+  /** The page's picture columns (a file block that takes pictures only): what an avatar beside a value can show. */
+  const pictureColumns = useMemo(() => columns.filter((column) => isPictureBlock(column.file)), [columns]);
+  /** The installed app whose table this page shows, by its own name: an app's file column is its to change. */
+  const bootstrap = useQueryClient().getQueryData(bootstrapQuery().queryKey);
+  const appName = useMemo(() => {
+    if (bootstrap === undefined || source.table === null) return null;
+    const names = new Set([source.table, table?.id, table?.name].filter((name): name is string => name !== undefined && name !== null));
+    return appSectionsOf(bootstrap).find((section) => section.kind !== 'add-on' && section.groups.some((group) => group.items.some((item) => item.sourceTable != null && names.has(item.sourceTable))))?.label ?? null;
+  }, [bootstrap, source.table, table]);
   const addable = useMemo(
     () => (table === null ? [] : addableColumns(table, presentNames)),
     [table, presentNames],
@@ -670,6 +687,8 @@ export function ColumnManager({
                   key={column.name}
                   column={column}
                   schemaColumn={schemaColumns.get(column.name)}
+                  pictureColumns={pictureColumns}
+                  appName={appName}
                   onPatch={(change) => patch(index, change)}
                   onFileChange={(file) => patchFile(index, file)}
                   onRemove={() => setDraft(columns.filter((_, i) => i !== index))}
@@ -742,6 +761,8 @@ export function ColumnManager({
 function SortableColumnRow({
   column,
   schemaColumn,
+  pictureColumns,
+  appName,
   onPatch,
   onFileChange,
   onRemove,
@@ -749,6 +770,10 @@ function SortableColumnRow({
   column: StoredColumn;
   /** The database column behind this row, absent for a projection. */
   schemaColumn: SchemaColumn | undefined;
+  /** The page's picture columns, for the avatar's note and its "Picture from". */
+  pictureColumns: readonly StoredColumn[];
+  /** The installed app whose table this is, by its name; null when none is known. */
+  appName: string | null;
   onPatch: (change: Partial<StoredColumn>) => void;
   onFileChange: (file: StoredFile | undefined) => void;
   onRemove: () => void;
@@ -773,6 +798,60 @@ function SortableColumnRow({
   const offersFile =
     column.file !== undefined ||
     (!isProjection && FILE_CAPABLE_TYPES.has(column.logicalType ?? 'text'));
+
+  /*
+   * WHAT THE COLUMN HOLDS: Text, Picture or File, one choice. Picture is a file
+   * block that takes pictures only; any other block is File; no block is Text.
+   * Only this control changes it: unticking a kind under Picture never turns
+   * the column into a File column by itself (the last kind cannot be unticked).
+   *
+   * A column an installed app's own rule makes a file column is the app's:
+   * shown, read out with its reason, and not changed here.
+   */
+  const ruled = schemaColumn?.file ?? null;
+  /** What the person chose here: the kinds they then tick never move it (a File column left with PNG alone stays File). */
+  const [chosen, setChosen] = useState<Holds | null>(null);
+  const stored: Holds = column.file === undefined ? 'text' : isPictureBlock(column.file) ? 'picture' : 'file';
+  const holds: Holds =
+    ruled !== null
+      ? ruled.accept.every((kind) => (PICTURE_KINDS as readonly string[]).includes(kind))
+        ? 'picture'
+        : 'file'
+      : chosen !== null && (chosen === 'text') === (column.file === undefined)
+        ? chosen
+        : stored;
+  /** What the column held before it was set to Text here: its values stay, and the line says so. */
+  const [left, setLeft] = useState<Holds | null>(null);
+  const changeHolds = (next: Holds): void => {
+    if (next === holds) return;
+    setChosen(next);
+    setLeft(next === 'text' && holds !== 'text' ? holds : null);
+    if (next === 'text') {
+      onFileChange(undefined);
+      return;
+    }
+    // Picture ↔ File keeps where the files go, how large, and how many; only the kinds change.
+    const kept: StoredFile = column.file === undefined ? { ref: 'url', inline: true } : { ...column.file };
+    if (next === 'picture') {
+      onFileChange(compactFile({ ...kept, ref: readRefShape(kept.ref), inline: true, accept: [...PICTURE_KINDS] }));
+    } else {
+      const { accept: _accept, ...rest } = kept;
+      void _accept;
+      onFileChange(compactFile({ ...rest, ref: readRefShape(rest.ref) }));
+    }
+  };
+  const avatarOn = column.fk !== undefined ? column.avatar !== false : column.avatar === true;
+  const ownPicture = holds !== 'picture' && column.fk === undefined && avatarOn;
+  const notes: ('text' | 'hint' | 'none')[] = [];
+  if (holds === 'text' && left !== null) notes.push('text');
+  if (holds === 'text' && column.semantic === 'image-url') notes.push('hint');
+  if (ownPicture && pictureColumns.length === 0) notes.push('none');
+  const pictureFrom = ownPicture && pictureColumns.length >= 2;
+  const appNoteId = useId();
+  const textNoteId = useId();
+  const hintNoteId = useId();
+  // The control's own reason, when it has one: the app's sentence, the Text line, or the links hint.
+  const holdsNote = ruled !== null ? appNoteId : notes.includes('text') ? textNoteId : notes.includes('hint') ? hintNoteId : null;
 
   return (
     <li
@@ -839,7 +918,9 @@ function SortableColumnRow({
             <Badge tone="warn">{t('studio:pages.columns.masked', 'Masked')}</Badge>
           ) : null}
           {column.file !== undefined ? (
-            <Badge tone="info">{t('studio:pages.columns.file.badge', 'File')}</Badge>
+            <Badge tone="info">
+              {holds === 'picture' ? t('studio:pages.columns.holds.picture', 'Picture') : t('studio:pages.columns.file.badge', 'File')}
+            </Badge>
           ) : null}
         </div>
 
@@ -907,64 +988,129 @@ function SortableColumnRow({
             />
           </label>
 
-          <label className="flex items-center gap-2">
-            <span className="text-body-sm text-fg-muted">
-              {t('studio:pages.columns.avatar', 'Avatar')}
-            </span>
-            <Switch
-              // The stored flag is tri-state, so "unset" reads differently per
-              // column kind: an FK chip has always drawn a monogram and keeps
-              // doing so, everything else has never drawn one. Both write an
-              // explicit boolean, which is why the switch is never ambiguous
-              // once touched.
-              checked={column.fk !== undefined ? column.avatar !== false : column.avatar === true}
-              aria-label={fmt(
-                t('studio:pages.columns.avatarToggle', 'Show a monogram beside {name}'),
-                { name: column.name },
-              )}
-              onCheckedChange={(checked) => onPatch({ avatar: checked })}
-              data-testid={`studio-pages-avatar-${column.name}`}
-            />
-          </label>
+          {offersFile || ruled !== null ? (
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="text-body-sm text-fg-muted">
+                {t('studio:pages.columns.holds.label', 'Holds')}
+              </span>
+              <SegmentedControl
+                aria-label={fmt(t('studio:pages.columns.holds.name', 'What {name} holds'), { name: column.name })}
+                {...(holdsNote === null ? {} : { 'aria-describedby': holdsNote })}
+                // An app's own rule decides it: shown, reachable, said why, and not changed here.
+                {...(ruled === null ? {} : { 'aria-disabled': true })}
+                className={ruled === null ? '' : 'opacity-70'}
+                value={holds}
+                onValueChange={(next) => {
+                  if (ruled === null) changeHolds(next as Holds);
+                }}
+                options={[
+                  { value: 'text', label: t('studio:pages.columns.holds.text', 'Text') },
+                  { value: 'picture', label: t('studio:pages.columns.holds.picture', 'Picture') },
+                  { value: 'file', label: t('studio:pages.columns.holds.file', 'File') },
+                ]}
+                data-testid={`studio-pages-holds-${column.name}`}
+              />
+              {ruled === null ? null : <Lock className="size-3.5 text-fg-subtle" aria-hidden="true" />}
+            </div>
+          ) : null}
 
-          {offersFile ? (
+          {holds === 'picture' ? null : (
             <label className="flex items-center gap-2">
               <span className="text-body-sm text-fg-muted">
-                {t('studio:pages.columns.file.switch', 'File')}
+                {column.fk !== undefined
+                  ? t('studio:pages.columns.avatar', 'Initials')
+                  : column.isDisplay === true
+                    ? t('studio:pages.columns.avatarPicture.name', 'Picture beside the name')
+                    : t('studio:pages.columns.avatarPicture.it', 'Picture beside it')}
               </span>
               <Switch
-                checked={column.file !== undefined}
-                aria-label={fmt(
-                  t('studio:pages.columns.file.switchToggle', '{name} stores a file'),
-                  { name: column.name },
-                )}
-                // ON writes the default shape plus `inline`: every other
-                // field of the block means "whatever the workspace says" by
-                // being absent. `inline` is the exception — an image column is
-                // expected to show its picture, so a new block starts with it
-                // on and the operator switches it off. Absent still reads as
-                // off, so blocks stored before this keep what they showed.
-                onCheckedChange={(checked) =>
-                  onFileChange(checked ? { ref: 'url', inline: true } : undefined)
+                // The stored flag is tri-state, so "unset" reads differently per
+                // column kind: an FK chip has always drawn a monogram and keeps
+                // doing so, everything else has never drawn one. Both write an
+                // explicit boolean, which is why the switch is never ambiguous
+                // once touched.
+                checked={avatarOn}
+                aria-label={
+                  column.fk !== undefined
+                    ? fmt(t('studio:pages.columns.avatarToggle', 'Show initials beside {name}'), { name: column.name })
+                    : fmt(t('studio:pages.columns.avatarPicture.toggle', "Show the row's picture beside {column}, or its initials"), { column: column.name })
                 }
-                data-testid={`studio-pages-file-${column.name}`}
+                onCheckedChange={(checked) => onPatch({ avatar: checked })}
+                data-testid={`studio-pages-avatar-${column.name}`}
               />
             </label>
-          ) : null}
+          )}
         </div>
+
+        {notes.length === 0 && !pictureFrom && ruled === null ? null : (
+          <div className="mt-1.5 flex flex-col gap-2">
+            {ruled !== null ? (
+              <p id={appNoteId} className="m-0 flex gap-2 rounded-md bg-surface-3 px-3 py-2 text-body-sm font-semibold text-fg-muted" data-testid={`studio-pages-holds-app-${column.name}`}>
+                <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  {appName === null
+                    ? t('studio:pages.columns.holds.appUnnamed', 'An app sets this column: it holds {kind, select, picture {pictures} other {files}} up to {size}. It cannot be changed here.', { kind: holds, size: sizeOf(ruled.maxBytes) })
+                    : t('studio:pages.columns.holds.app', 'The {app} app sets this column: it holds {kind, select, picture {pictures} other {files}} up to {size}. It cannot be changed here.', { app: appName, kind: holds, size: sizeOf(ruled.maxBytes) })}
+                </span>
+              </p>
+            ) : null}
+            {notes.includes('text') ? (
+              <p id={textNoteId} className="m-0 flex gap-1.5 text-body-sm text-fg-muted" data-testid={`studio-pages-holds-text-${column.name}`}>
+                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>{t('studio:pages.columns.holds.toText', 'Values already stored stay in the column. The form shows them as text.')}</span>
+              </p>
+            ) : null}
+            {notes.includes('hint') ? (
+              <p id={hintNoteId} className="m-0 flex gap-2 rounded-md bg-info-soft px-3 py-2 text-body-sm font-semibold text-info" data-testid={`studio-pages-holds-hint-${column.name}`}>
+                <Lightbulb className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>{t('studio:pages.columns.holds.hint', 'This column looks like it holds links to pictures. Set it to Picture to upload or choose pictures here. Links already in it stay.')}</span>
+              </p>
+            ) : null}
+            {notes.includes('none') ? (
+              <p className="m-0 flex gap-1.5 text-body-sm text-fg-muted" data-testid={`studio-pages-avatar-none-${column.name}`}>
+                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>{t('studio:pages.columns.avatarPicture.none', 'No column holds a picture yet, so initials show.')}</span>
+              </p>
+            ) : null}
+            {pictureFrom ? (
+              <label className="flex items-center gap-2.5 text-body-sm font-semibold text-fg-muted">
+                {t('studio:pages.columns.avatarPicture.from', 'Picture from')}
+                <Select
+                  className="w-auto"
+                  value={column.avatarFrom ?? pictureColumns[0]?.name ?? ''}
+                  onChange={(event) => onPatch({ avatarFrom: event.target.value })}
+                  data-testid={`studio-pages-avatar-from-${column.name}`}
+                >
+                  {pictureColumns.map((picture) => (
+                    <option key={picture.name} value={picture.name}>
+                      {picture.label ?? picture.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            ) : null}
+          </div>
+        )}
       </div>
 
-      {/* The full row width: the block's two-column grid needs it. */}
-      {column.file === undefined ? null : (
+      {/* The full row width: the block's two-column grid needs it. An app's own rule is not a page's to edit. */}
+      {column.file === undefined || ruled !== null ? null : (
         <ColumnFileSection
           columnName={column.name}
           file={column.file}
+          picture={holds === 'picture'}
           maxLength={schemaColumn?.maxLength ?? null}
           onChange={onFileChange}
         />
       )}
     </li>
   );
+}
+
+/** Bytes as the editor says them: whole megabytes where it can. */
+function sizeOf(bytes: number): string {
+  const mb = bytes / BYTES_PER_MB;
+  return mb >= 1 ? `${String(Math.round(mb * 10) / 10)} MB` : `${String(Math.round(bytes / 1024))} KB`;
 }
 
 /**
@@ -984,11 +1130,14 @@ function SortableColumnRow({
 function ColumnFileSection({
   columnName,
   file,
+  picture,
   maxLength,
   onChange,
 }: {
   columnName: string;
   file: StoredFile;
+  /** A picture column: its kinds are the four pictures, and the last one ticked stays. */
+  picture: boolean;
   /** The database column's declared width; null when unbounded or unknown. */
   maxLength: number | null;
   onChange: (next: StoredFile) => void;
@@ -1127,15 +1276,25 @@ function ColumnFileSection({
           multiple
           aria-labelledby={acceptLabelId}
           value={file.accept ?? []}
-          options={FILE_TYPE_KEYS.map((key) => ({ value: key, label: FILE_TYPE_LABELS[key]() }))}
-          onValueChange={(next) => onChange(compactFile({ ...current, accept: next }))}
+          options={(picture ? PICTURE_KINDS : FILE_TYPE_KEYS).map((key) => ({
+            value: key,
+            label: FILE_TYPE_LABELS[key](),
+            // The one picture kind still ticked stays: none at all would make it a File column.
+            ...(picture && (file.accept ?? []).length === 1 && file.accept?.[0] === key ? { disabled: true } : {}),
+          }))}
+          onValueChange={(next) => {
+            if (picture && next.length === 0) return;
+            onChange(compactFile({ ...current, accept: next }));
+          }}
           data-testid={`studio-pages-file-accept-${columnName}`}
         />
         <p className="text-caption text-fg-subtle">
-          {t(
-            'studio:pages.columns.file.acceptHelp',
-            'Leave every type off to accept whatever this workspace accepts. Choosing types can only narrow that list — a column can never accept a type the workspace refuses.',
-          )}
+          {picture
+            ? t('studio:pages.columns.file.acceptPictures', 'Pictures only. Untick the kinds this column should refuse.')
+            : t(
+                'studio:pages.columns.file.acceptHelp',
+                'Leave every type off to accept whatever this workspace accepts. Choosing types can only narrow that list — a column can never accept a type the workspace refuses.',
+              )}
         </p>
       </div>
 

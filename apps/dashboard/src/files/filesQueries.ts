@@ -37,7 +37,7 @@ import { getI18nInstance } from '../i18n/t.js';
 import type { FileDto } from './api.js';
 
 /** Mirrors the route's `state` enum. `live` is the server's default. */
-export type FilesState = 'live' | 'trash' | 'unattached';
+export type FilesState = 'live' | 'trash' | 'unattached' | 'library';
 
 /**
  * How "this server's disk" is named on the wire.
@@ -165,7 +165,11 @@ export interface StorageUsageEntry {
 export function filesUsageQuery() {
   return queryOptions({
     queryKey: FILES_USAGE_QUERY_KEY,
-    queryFn: async () => (await api.get<{ data: StorageUsageEntry[] }>('/api/v1/files/usage')).data,
+    queryFn: async () => {
+      const reply = await api.get<{ data: StorageUsageEntry[]; unattachedHours?: number }>('/api/v1/files/usage');
+      // How long an upload no record took is kept: the "Not used yet" view says it.
+      return { entries: reply.data, unattachedHours: reply.unattachedHours ?? null };
+    },
   });
 }
 

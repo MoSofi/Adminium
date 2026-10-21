@@ -8,6 +8,8 @@ import type { ReactNode } from 'react';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { ResolvedFile } from '../../families/tables/cells.js';
 import { formatRefList, parseRefList } from '../../page-config/file-refs.js';
+import { PictureField, type PictureChooser } from '../../pictures/PictureField.js';
+import type { FileFieldUpload } from './file-upload.js';
 
 /**
  * The `file` field kind's editor.
@@ -33,15 +35,7 @@ import { formatRefList, parseRefList } from '../../page-config/file-refs.js';
  * input the column had before — visible, editable, honest.
  */
 
-export interface FileFieldUpload {
-  /** Uploads and resolves to the value to store in the column. */
-  (input: {
-    file: File;
-    column: string;
-    signal: AbortSignal;
-    onProgress: (fraction: number) => void;
-  }): Promise<{ ref: string; file: ResolvedFile }>;
-}
+export type { FileFieldUpload } from './file-upload.js';
 
 export interface FileFieldProps {
   column: GridColumnSpec;
@@ -66,6 +60,14 @@ export interface FileFieldProps {
    * what a list names. Ignored in single mode.
    */
   resolvedByRef?: ReadonlyMap<string, ResolvedFile | null> | undefined;
+  /**
+   * `picture`: the column holds a picture, and the field shows it with
+   * "Upload", "Choose existing…" and "Remove" (`pictures/PictureField.tsx`).
+   * Absent or `file`: the field a file column has always had.
+   */
+  variant?: 'picture' | 'file' | undefined;
+  /** Choosing a picture the workspace already has (the picture variant only). */
+  choose?: PictureChooser | undefined;
 }
 
 type State =
@@ -152,6 +154,21 @@ export function FileField(props: FileFieldProps): ReactNode {
   // with a flag: the list has no "Replace", its picker is `multiple`, and its
   // value is an array. Splitting at the dispatch keeps the single-value path
   // byte-identical to what 37 shipped.
+  if (props.variant === 'picture') {
+    return (
+      <PictureField
+        column={column}
+        value={value}
+        onChange={onChange}
+        upload={upload}
+        {...(props.choose === undefined ? {} : { choose: props.choose })}
+        {...(props.resolved === undefined ? {} : { resolved: props.resolved })}
+        {...(props.resolvedByRef === undefined ? {} : { resolvedByRef: props.resolvedByRef })}
+        {...(props.maxBytes === undefined ? {} : { maxBytes: props.maxBytes })}
+        {...(inputId === undefined ? {} : { inputId })}
+      />
+    );
+  }
   if (column.file?.multiple === true) return <FileListField {...props} upload={upload} />;
   return <FileUploadField {...props} upload={upload} />;
 }

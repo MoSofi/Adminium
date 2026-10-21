@@ -12,16 +12,21 @@ import {
   AddOnCard,
   DesignerMessage,
   FailedNote,
+  KeepSpotCard,
   LimitNote,
   NeedsCard,
   NotAppliedNote,
   PackageCard,
   PersonMessage,
+  PictureLines,
+  PictureNote,
+  PicturesChip,
   QuestionCard,
   RemovalCard,
   RowsCard,
   SavedChip,
   SpendNotice,
+  SpotsCard,
   StepsBlock,
   StoppedNote,
   StyleChip,
@@ -133,6 +138,36 @@ export const DesignCards = {
       <StyleChip title="Warm table" fontsLater />
     </div>
   ),
+};
+
+/** The page's pictures in the chat: the needs card's own choice, the spots card and its answered form, the keep-it card and its two answers, the chip, the Apply and Undo lines, the note at a reply's end. */
+export const PictureCards = {
+  tags: ['vrt'],
+  render: () => {
+    const spots = { id: 'sp1', type: 'spots' as const, spots: [{ id: 'hero', label: 'Hero', shape: 'wide' as const }, { id: 'team', label: 'Team', shape: 'wide' as const }, { id: 'kitchen', label: 'Kitchen', shape: 'square' as const }], rows: { table: 'Dishes', count: 8 } };
+    const keep = { id: 'k1', type: 'keep-spot' as const, spot: 'hero', label: 'Hero', screen: 'Home' };
+    return (
+      <div className="flex w-[420px] flex-col gap-4 bg-surface p-5">
+        <NeedsCard card={{ id: 'n4', type: 'needs', items: NEEDS.slice(0, 2), pictures: { preselect: 'placeholders' } }} answered={false} busy={false} onSend={noop} />
+        <NeedsCard card={{ id: 'n5', type: 'needs', items: NEEDS.slice(0, 2), pictures: { preselect: 'placeholders' } }} answered accepted={[NEEDS[0]?.id ?? '']} answeredPictures="choose" busy={false} onSend={noop} />
+        <SpotsCard card={spots} chosen={[]} onChoose={noop} />
+        <SpotsCard card={spots} chosen={['Hero', 'Team']} onChoose={noop} />
+        <KeepSpotCard card={keep} answered={false} busy={false} onKeep={noop} onLetGo={noop} />
+        <KeepSpotCard card={keep} answered kept busy={false} onKeep={noop} onLetGo={noop} />
+        <KeepSpotCard card={keep} answered kept={false} busy={false} onKeep={noop} onLetGo={noop} />
+        <DesignerMessage text="The home page has a hero, a team section and a kitchen picture now." streaming={false}>
+          <PictureNote lines={[{ kind: 'note', note: 'placeholders', count: 3 }]} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <SavedChip name="v13" />
+            <PicturesChip toFill={3} onOpen={noop} />
+            <PicturesChip toFill={0} onOpen={noop} />
+          </div>
+        </DesignerMessage>
+        <PictureLines lines={[{ kind: 'applied', names: ['Hero', 'Team'], version: { n: 14, name: 'v14 · Pictures: Hero, Team' } }, { kind: 'undone', to: 13 }]} />
+        <PictureNote lines={[{ kind: 'note', note: 'still-empty', count: 3 }]} />
+      </div>
+    );
+  },
 };
 
 export const Endings = {

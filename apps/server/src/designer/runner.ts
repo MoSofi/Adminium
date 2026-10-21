@@ -30,7 +30,8 @@
  * A card (a question, a package, data that would be lost) pauses the turn
  * until it is answered. Stop answers every waiting card with "stopped".
  */
-import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
+import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, withSessionLock, type Attachment, type Attachments } from './attachments.js';
+import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 import { cleanPicked, pickedNote } from './picked.js';
 import { requestTokens, type PromptOpts } from './prompt.js';
 import { randomBytes } from 'node:crypto';
@@ -48,7 +49,7 @@ import {
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
-import type { DesignerEvent, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
+import type { DesignerEvent, DesignerEventBody, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
 import type { Actor, DesignerTool, ToolContext, TurnHandle } from './tool-types.js';
@@ -116,6 +117,8 @@ export interface RunnerDeps {
   opening?(session: DesignerSession, turn: TurnHandle): Promise<void>;
   /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
   closing?(session: DesignerSession): string[];
+  /** What the server says after a turn that applied, in its own words and the page's language (the app's picture spots): events, never the model's text. */
+  afterApplied?(session: DesignerSession, turn: { turn: number; tools: ReadonlySet<string> }): DesignerEventBody[];
   /** How long to wait before asking a provider again after it failed in passing; one entry per try. */
   retryWaitsMs?: readonly number[];
   /** The engine's last word: check, build, apply, and save a version. Emits its own events. */
@@ -123,6 +126,8 @@ export interface RunnerDeps {
   limits(): Promise<DesignerLimits>;
   /** What people attach to a message: pictures and CSV files, kept in the session's folder. */
   attachments?: Attachments;
+  /** The most tokens a request to the session's model may carry: a Figma import goes as its short form below a floor. */
+  windowOf?(session: DesignerSession): Promise<number>;
   /** Send an event to the pages watching this session. */
   publish(event: DesignerEvent & { sessionId: string }): void;
   /** Record a turn's start and end. */
@@ -227,7 +232,7 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_s
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
 export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
 /** The tools that change, check or apply the app. */
-const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'find_pictures', 'use_pictures']);
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'add_spots', 'fill_spot', 'use_pictures', 'use_site']);
 const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
 
 /** Wait, unless the turn is stopped first. */
@@ -433,6 +438,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let lookedAfter = 0;
     /** Whether this turn changed, checked or applied anything: only then is it held to the check. */
     let acted = false;
+    /** The tools that did their work in this turn, by name. */
+    const doneTools = new Set<string>();
     const waits = deps.retryWaitsMs ?? RETRY_WAITS_MS;
     let limit: { which: LimitKind; value: number } | null = null;
     const warned = new Set<SpendMark>();
@@ -462,10 +469,12 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // The latest turn a picture came with: one attached again (a retry of its turn) is that turn's, not an old one.
         for (const entry of entries) for (const block of entry.message.content) if (block.type === 'image' && block.ref !== undefined) pictureTurns.set(block.ref, entry.turn);
         const opening = entries.find((entry) => entry.turn === turn && entry.message.role === 'user')?.message.content.find((block) => block.type === 'text');
+        const sent = tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }));
         const request = await deps.prompt(session, transcript, {
           turn,
           pictureTurns,
           pictures: !blind.has(session.id),
+          tools: sent,
           ...(opening?.type === 'text' ? { said: opening.text } : {}),
         });
         const carriesPictures = request.messages.some((message) => message.content.some((block) => block.type === 'image' && block.data.length > 0));
@@ -477,7 +486,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             result = await runner.run({
               system: request.system,
               messages: request.messages,
-              tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
+              tools: sent,
               model: session.model,
               maxTokens: room,
               ...(effort === undefined ? {} : { effort }),
@@ -644,6 +653,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
 
         const malformed = new Map(result.malformed.map((entry) => [entry.id, entry]));
         const results: RunBlock[] = [];
+        /** Pictures the steps read: they join the results, each named in words before it. */
+        const pictures: NonNullable<Awaited<ReturnType<DesignerTool['run']>>['picture']>[] = [];
         for (const call of calls) {
           if (signal.aborted) break;
           const bad = malformed.get(call.id);
@@ -659,7 +670,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           if (ACTING.has(tool.name)) acted = true;
           const stepId = `${String(turn)}.${String(steps)}.${call.id}`;
           const started = now();
-          const subject = stepSubject(call.input);
+          const subject = safeLabel(() => tool.subject?.(call.input, context)?.slice(0, 200) ?? '', '') || stepSubject(call.input);
           const about = subject === undefined ? {} : { subject };
           log.emit(turn, { kind: 'step', id: stepId, tool: tool.name, label: safeLabel(() => tool.running(call.input), tool.name), state: 'running', ...about });
           try {
@@ -672,12 +683,15 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               state: done.isError === true ? 'failed' : 'done',
               ms: now() - started,
               ...about,
+              ...(done.subject === undefined ? {} : { subject: done.subject.slice(0, 200) }),
               ...(done.facts ?? {}),
               ...(done.isError === true ? { ended: done.miss === true ? ('miss' as const) : ('error' as const) } : {}),
               // A failure says why on the page too: the first line of what the model was told.
               ...(done.detail !== undefined ? { detail: done.detail } : done.isError === true && done.miss !== true ? { detail: whyOf(done.content) } : {}),
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
+            if (done.isError !== true) doneTools.add(tool.name);
+            if (done.picture !== undefined) pictures.push(done.picture);
             if (done.isError !== true && (call.name === 'apply_app' || call.name === 'build_sides')) {
               // build_sides and then apply_app is one build, made twice: the preview opens the page again after the
               // first, and what the page then says of itself is older than the second. Counting from the second
@@ -706,7 +720,18 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             results.push({ type: 'tool_result', callId: call.id, isError: true, content: `The tool failed: ${message}` });
           }
         }
-        if (results.length > 0) deps.store.appendMessage(session.id, turn, { role: 'user', content: results });
+        if (results.length > 0) {
+          deps.store.appendMessage(session.id, turn, {
+            role: 'user',
+            content: [
+              ...results,
+              ...pictures.flatMap((picture) => [
+                { type: 'text' as const, text: `\nThe picture read_figma read of ${JSON.stringify(picture.name.slice(0, 120))}:` },
+                { type: 'image' as const, mediaType: picture.mediaType, data: '', ref: picture.ref, name: picture.name },
+              ]),
+            ],
+          });
+        }
         if (signal.aborted) throw new TurnStoppedError();
 
         // A model that sends only calls that cannot be read is not going to start making sense.
@@ -728,6 +753,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // Stop during the last build ends that build: said as a stop, not as a build that failed.
         if (!verdict.ok && signal.aborted) throw new TurnStoppedError();
         if (!verdict.ok && outcome === 'done') outcome = 'not-applied';
+        if (verdict.ok) for (const body of deps.afterApplied?.(deps.store.read(session.id), { turn, tools: doneTools }) ?? []) log.emit(turn, body);
       }
     } catch (error) {
       if (error instanceof TurnStoppedError || signal.aborted) {
@@ -776,6 +802,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       const attached = ids.map((id) => deps.attachments?.find(sessionId, id) ?? null);
       if (attached.some((entry) => entry === null)) throw new ValidationFailedError('One of the attached files is not in this session. Attach it again.', { reason: 'TURN_ATTACHMENTS' });
       const files = attached.filter((entry): entry is Attachment => entry !== null);
+      // What no index names any more (the folder of a site that was replaced) goes now: no turn is reading it.
+      deps.attachments?.sweep(sessionId);
       // The element the person pointed at: said by a page a model wrote, so held to its shape before a word of it is passed on.
       const picked = input.picked === undefined ? null : cleanPicked(input.picked);
       if (input.picked !== undefined && picked === null) throw new ValidationFailedError('The element you picked could not be read. Pick it again.', { reason: 'TURN_PICKED' });
@@ -786,12 +814,18 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       // The folder was kept for this turn: it has it now.
       input.claim?.release();
       try {
+        // Files that go with a message stay in the session from now on; written as every writer of its files writes, one at a time.
+        const attachments = deps.attachments;
+        if (ids.length > 0 && attachments !== undefined) await withSessionLock(sessionId, () => attachments.markSent(sessionId, ids));
         if (session.turns > 0) await deps.beforeLaterTurn?.(session).catch((error: unknown) => deps.log?.('could not record the folder before a later turn', error));
         const updated = deps.store.update(sessionId, { turns: turn });
         // What the person saved by hand since the Designer last finished: named, so it reads each again before it writes it.
         const edited = (session.handEdits ?? []).filter(plainPath).slice(0, HAND_EDITS_MAX);
         // The person's words first and alone; what the server says about a file is a block of its own; a picture is a reference, never its bytes.
-        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids);
+        const window = files.some((file) => file.source === 'figma') ? await deps.windowOf?.(session).catch(() => undefined) : undefined;
+        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids, window === undefined ? {} : { window });
+        // A model with a small window gets a Figma frame's short form, and not its picture: both would leave no room to talk.
+        const sent = files.filter((file) => file.kind === 'image' && !(file.source === 'figma' && window !== undefined && window < FIGMA_LONG_FORM_WINDOW));
         deps.store.appendMessage(sessionId, turn, {
           role: 'user',
           content: [
@@ -806,13 +840,15 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
                     text: `\n\n(Since your last turn the person changed these files by hand: ${JSON.stringify(edited)}. Read each one again before you change it, and keep what they changed unless this message asks otherwise.)`,
                   },
                 ]),
-            ...files.filter((file) => file.kind === 'image').flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
+            ...sent.flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
           ],
         });
         events(sessionId).emit(turn, {
           kind: 'turn-started',
           text,
-          ...(files.length === 0 ? {} : { attachments: files.map((file) => ({ id: file.id, label: file.label, kind: file.kind, ...(file.rows === undefined ? {} : { rows: file.rows }) })) }),
+          ...(files.length === 0
+            ? {}
+            : { attachments: files.map((file) => ({ id: file.id, label: file.label, kind: file.kind, ...(file.rows === undefined ? {} : { rows: file.rows }), ...(file.kind === 'site' ? { pages: file.pages ?? 0, files: file.files ?? 0 } : {}) })) }),
           ...(picked === null ? {} : { picked }),
         });
         await deps.audit?.('designer.turn.started', updated, { turn, by: input.by.label });

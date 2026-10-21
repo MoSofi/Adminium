@@ -21,6 +21,8 @@ const config: StorybookConfig = {
     '../../../apps/dashboard/src/assistant/**/*.stories.tsx',
     // What the assistant drafts on Automations: its card is the builder's own preview.
     '../../../apps/dashboard/src/automations/**/*.stories.tsx',
+    // A person's own pages: the Security page's Figma card, in the states its connection draws.
+    '../../../apps/dashboard/src/account/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

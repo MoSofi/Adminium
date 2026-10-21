@@ -155,6 +155,8 @@ export class ConflictError extends AppError {
       | 'FILE_HELD'
       // A plain column the writer saw (`seen`) holds another value now.
       | 'ROW_CHANGED'
+      // The page a form was drawn from changed its settings since the form opened.
+      | 'PAGE_CHANGED'
       | 'UNIQUE_VIOLATION'
       | 'FK_VIOLATION'
       // The booking guard: the slot has no room for this row, or another

@@ -33,7 +33,7 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
+import { ASSISTANT_INPUT_TOKEN_LIMIT, llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
 import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   documentProfilesRepo,
@@ -131,7 +131,9 @@ import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
-import { createPictureShelf, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
+import { createPictureDialog } from './designer/picture-dialog.js';
+import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
+import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
@@ -248,7 +250,14 @@ import { bridgeRoutes } from './routes/bridge/index.js';
 import { metaRoutes } from './routes/meta/index.js';
 import { setupStoreRoutes } from './routes/setup/store.js';
 import { createSetupService } from './setup/service.js';
-import { appRoleNames, needsPassword, setLocalOwnerCredentials } from './auth/local-owner.js';
+import { appRoleNames, needsPassword, ownerOnThisComputer, setLocalOwnerCredentials } from './auth/local-owner.js';
+import { cacheOutlivesDeploys, createFigmaCache, machineFacts } from './designer/figma/cache.js';
+import { createFigmaClient } from './designer/figma/client.js';
+import { createFigmaImports } from './designer/figma/imports.js';
+import { createFigmaReader } from './designer/figma/service.js';
+import { createFigmaTokens } from './designer/figma/tokens.js';
+import { safeFetch, type SafeFetchOptions } from './net/safe-fetch.js';
+import { figmaRoutes } from './routes/designer/figma.js';
 import { hashPassword } from './auth/passwords.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
@@ -261,7 +270,7 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { fileHeldCheck, fileRecordCheck, hiddenFileCheck, ruledFileColumn, tableIdOf } from './files/read-limited.js';
+import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
@@ -519,6 +528,16 @@ export interface ComposeServerOptions {
   designerSeam?: ((step: 'held' | 'write', detail?: string) => void | Promise<void>) | undefined;
   /** For tests: how long such a piece of work may hold the project folder before it is told to stop. */
   designerHoldCapMs?: number | undefined;
+  /**
+   * For tests only: how Figma's API is reached (the safe fetch's own `resolve` and `connect`), so a
+   * fake answers in its place. There is no setting for this: a server always calls api.figma.com.
+   */
+  figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /**
+   * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, and the
+   * pictures they name), so a fake answers in their place. There is no setting for this either.
+   */
+  pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -1088,7 +1107,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A message never stops the row it is about from being removed, where the app writes to people about removals.
     releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
-    files: createFileColumnJudge({ meta, bytesOf: storedBytes(storage) }),
+    // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
+    files: createFileColumnJudge({
+      meta,
+      bytesOf: storedBytes(storage),
+      pageColumns: async (connectionId, table) => new Set((await columnBlocks.forTable(connectionId, table)).byColumn.keys()),
+      publicBases: () => destinationResolver.publicBases(),
+    }),
   });
   /*
    * AN APP'S EMAILS. The producers queue rows in an installed app's outbox
@@ -2016,6 +2041,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           tableIdOf: (connectionId, table) => tableIdOf(meta, connectionId, table),
           // A file a record keeps in an app's own file column changes only with its record.
           heldByRecord: fileHeldCheck(meta, manager),
+          // A file a record keeps in a secret column is copied by nobody; in a personal one, into no other table.
+          privateFile: privateFileCheck(meta, manager),
+          // A "used in" list asks for a column the caller's role reads, and names each record as their grid does.
+          columnReadable: columnReadCheck(meta),
+          recordLabels: recordLabelsOf(meta, manager),
           // The sidecar half: `config.attachments` narrows the allowlist, the
           // cap and the destination for an upload that names no column, and
           // enforces the per-record count.
@@ -2411,6 +2441,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         });
         // What people attach to a message, and loading an attached CSV's rows: the dashboard's own Import, for one of the app's tables.
         const designerAttachments = createAttachments(root);
+        // A site being staged when the server stopped: older than an hour, it is taken away.
+        designerAttachments.sweepStaging();
         const designerRows = createRowLoader({
           meta,
           manager,
@@ -2447,31 +2479,47 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // A package's newest version, asked of the registry the project installs from; nothing is asked where this server calls nothing outside.
         const designerRegistry = createRegistry({ root, allowed: () => addOnCatalog.networkFeaturesAllowed() });
         const designerNeeds = createNeedsAsker({ root, version: APP_VERSION, newestVersion: designerRegistry, ...(pictureSites === undefined ? {} : { pictureSites }) });
-        // Free pictures for an app's pages: Pexels with the project's own key, else Openverse; none where this server calls nothing outside.
-        const designerShelf = createPictureShelf();
-        const pictureSource = (): PictureSource | null => {
-          if (!addOnCatalog.networkFeaturesAllowed()) return null;
+        // Free pictures for an app's pages, in the picture dialog: Openverse, Pexels and Unsplash with the project's own keys; none where this server calls nothing outside.
+        const pictureKey = (name: 'PEXELS_API_KEY' | 'UNSPLASH_ACCESS_KEY'): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
           const host = hostModels();
-          const key = (host !== null ? (host.read().PEXELS_API_KEY ?? '') : (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '')).trim();
-          return key === '' ? openverse() : pexels(key);
+          return (host !== null ? (host.read()[name] ?? '') : (process.env[name] ?? readDotEnv(root)?.[name] ?? '')).trim();
         };
-        // Unsplash, with the project's own key: for a page's pictures, shown from Unsplash's own site as its rules ask. Pexels, whose pictures are copied, comes first.
-        const shownPictureSource = (): PictureSource | null => {
-          if (!addOnCatalog.networkFeaturesAllowed()) return null;
-          const host = hostModels();
-          const env = host !== null ? host.read() : readDotEnv(root);
-          const own = host !== null ? {} : process.env;
-          if ((own['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
-          const key = (own['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
-          return key === '' ? null : unsplash(key);
+        const pictureFetch = (url: string, fetchOpts: SafeFetchOptions) => safeFetch(url, { ...fetchOpts, ...(opts.pictureSeams ?? {}) });
+        const pictureSources = (): PictureSource[] => {
+          if (!addOnCatalog.networkFeaturesAllowed()) return [];
+          const pexelsKey = pictureKey('PEXELS_API_KEY');
+          const unsplashKey = pictureKey('UNSPLASH_ACCESS_KEY');
+          return [openverse(pictureFetch), ...(pexelsKey === '' ? [] : [pexels(pexelsKey, pictureFetch)]), ...(unsplashKey === '' ? [] : [unsplash(unsplashKey, pictureFetch)])];
         };
+        // A search's results, kept per session; each source's small copies counted where the source counts them.
+        let designerSearch: PictureSearch | null = null;
+        const designerShelf = createPictureShelf({ fetcher: pictureFetch, mayFetch: (picture) => designerSearch?.mayFetchThumb(picture) ?? true });
+        designerSearch = createPictureSearch({ sources: pictureSources, shelf: designerShelf });
+        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
+
+        // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
+        const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
+        const figmaCache = createFigmaCache(root);
+        // The project's own token stands in for its owner's under `adminium design` only, read from the process's environment (never the project's .env).
+        const figmaEnvToken = (process.env['ADMINIUM_FIGMA_TOKEN'] ?? '').trim();
+        const figmaTokens = createFigmaTokens({
+          meta,
+          secret: env.ADMINIUM_SECRET,
+          ...(designerOpts.mode === 'local' && figmaEnvToken !== '' ? { environment: { token: figmaEnvToken, ownerId: async () => (await ownerOnThisComputer(meta))?.id ?? null } } : {}),
+        });
+        const figmaReader = createFigmaReader({ client: figmaClient, cache: figmaCache, tokens: figmaTokens });
+        const figmaImports = createFigmaImports();
+        // Set where it is not obeyed: said on the Designer's Home with the others.
+        const figmaIgnored = (designerOpts.mode !== 'local' && figmaEnvToken !== '') || readDotEnv(root)?.['ADMINIUM_FIGMA_TOKEN'] !== undefined ? ['ADMINIUM_FIGMA_TOKEN'] : [];
+        if (designerOpts.mode !== 'local' && figmaEnvToken !== '') app.log.warn('ADMINIUM_FIGMA_TOKEN is used only by `adminium design`: on a server each person connects their own Figma token.');
         designer = createDesigner({
           root,
           version: APP_VERSION,
           meta,
           needs: designerNeeds,
-          findsPictures: () => pictureSource() !== null,
+          findsPictures: () => pictureSources().length > 0,
+          pictureDialog,
           ...(opts.designerSeam === undefined ? {} : { seam: opts.designerSeam }),
           ...(opts.designerHoldCapMs === undefined ? {} : { holdCapMs: opts.designerHoldCapMs }),
           reseedSample: async (key) => {
@@ -2532,6 +2580,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             needsName: (session) => designer?.needsName(session) === true,
           }),
           attachments: designerAttachments,
+          windowOf: async (session) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(session.connectionId))?.provider ?? 'openai-compatible'],
           tools: (session) =>
             createDesignerTools(
               {
@@ -2555,10 +2604,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 rowLoader: designerRows,
                 ...(pictureSites === undefined ? {} : { pictureSites }),
                 newestVersion: designerRegistry,
-                pictures: { source: pictureSource, shown: shownPictureSource, shelf: designerShelf, reseed: (key) => designer?.reseedAfterApply(key) },
+                pictures: { reseed: (key) => designer?.reseedAfterApply(key) },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
+                figma: { reader: figmaReader, cache: figmaCache, windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'] },
+                windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'],
               },
               session.appKey,
+              session.id,
             ),
         });
         await api.register(
@@ -2567,9 +2619,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             versions: designerVersions,
             connections: aiConnections,
             mode: designerOpts.mode,
-            ignoredEnv: opts.designer?.ignoredEnv ?? [],
+            ignoredEnv: [...(opts.designer?.ignoredEnv ?? []), ...figmaIgnored],
             attachments: designerAttachments,
+            figma: { imports: figmaImports, reader: figmaReader },
             pictures: designerShelf,
+            pictureDialog,
             audit: designerAudit,
             ...(live === null ? {} : { live }),
             root,
@@ -2643,6 +2697,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 },
                 appKey,
               ),
+          }),
+        );
+        await api.register(
+          figmaRoutes({
+            tokens: figmaTokens,
+            client: figmaClient,
+            reader: figmaReader,
+            imports: figmaImports,
+            network: () => addOnCatalog.networkFeaturesAllowed(),
+            lasting: cacheOutlivesDeploys(figmaCache.dir, machineFacts),
+            ...(live === null ? {} : { live }),
           }),
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.

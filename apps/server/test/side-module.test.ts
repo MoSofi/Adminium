@@ -1005,6 +1005,32 @@ describe('pointing at a part of the page', () => {
     expect(p.added.map((made) => [made.tag, made.removed])).toEqual([['div', true], ['div', false], ['style', true]]);
   });
 
+  it('takes a click inside a picture spot as the spot, and says which spot and where it is drawn', async () => {
+    const customer = await bundled('repairs', 'customer');
+    const p = page();
+    customer.pickForFrame(p.target, true);
+    p.tell({ type: 'adminium:host:pick', on: true });
+    const spot = el('div', { className: 'hero-media', attrs: { 'data-picture-spot': 'hero' }, getBoundingClientRect: () => ({ left: 32.4, top: 120.6, width: 1376, height: 480 }) });
+    // The cross inside the wireframe is what the pointer is over: the spot is what was meant.
+    const cross = el('svg', { closest: (selector: string) => (selector === '[data-picture-spot]' ? spot : null) });
+    p.heard.get('mousemove')?.(p.event({ type: 'mousemove', target: cross }));
+    // The outline's tag names the spot, not the tag under the pointer.
+    expect((p.added[1] as unknown as { textContent: string }).textContent).toBe('hero');
+    p.heard.get('click')?.(p.event({ type: 'click', target: cross }));
+    expect(p.posted).toEqual([
+      {
+        type: 'adminium:side-picked',
+        app: 'repairs',
+        side: 'customer',
+        path: '/menu',
+        page: 1280,
+        element: { part: 'div hero-media', text: '', label: '', within: [], nth: 1, of: 1, width: 1376, height: 480 },
+        spot: 'hero',
+        box: { x: 32, y: 121, width: 1376, height: 480 },
+      },
+    ]);
+  });
+
   it('draws the part the framing page asks for, says it back under the asking’s number, and says so when it cannot', async () => {
     const customer = await bundled('repairs', 'customer');
     const p = page();
@@ -1078,5 +1104,114 @@ describe('pointing at a part of the page', () => {
     p.heard.get('keydown')?.(p.event({ type: 'keydown', key: 'Escape' }));
     expect(p.heard.size).toBe(0);
     expect(p.posted).toEqual([{ type: 'adminium:side-pick-ended', app: 'repairs', side: 'customer' }]);
+  });
+});
+
+describe('a picture in its spot', () => {
+  const SPOTS = {
+    hero: { label: 'Hero', shape: 'wide', src: '/apps/cafe/customer/assets/spot-hero-1.jpg', alt: 'A long table set for dinner', decorative: false, credit: { title: 'Board', creator: 'Maya Lind', creatorUrl: 'https://x.example/maya', licence: 'CC BY 2.0', licenceUrl: 'https://creativecommons.org/licenses/by/2.0/', page: 'https://x.example/board' } },
+    team: { label: 'Team', shape: 'square', src: null, alt: '', decorative: false },
+    plain: { label: 'Plain', shape: 'tall', src: '/a.jpg', alt: 'Words nobody hears', decorative: true },
+    bad: { label: 'Bad', shape: 'wide', src: 'javascript:alert(1)', alt: '', decorative: false },
+    elsewhere: { label: 'Elsewhere', shape: 'wide', src: '//tracker.example/p.png', alt: '', decorative: false },
+  };
+
+  /** The module as a build with these spots made it; `preview` puts it in the Designer's frame. */
+  async function built(preview: boolean) {
+    const defined = globalThis as Record<string, unknown>;
+    defined['__ADMINIUM_APP_KEY__'] = 'cafe';
+    defined['__ADMINIUM_SIDE__'] = 'customer';
+    defined['__ADMINIUM_DEV__'] = preview;
+    defined['__ADMINIUM_SPOTS__'] = SPOTS;
+    const posted: unknown[] = [];
+    if (preview) defined['window'] = { parent: { postMessage: (message: unknown) => void posted.push(message) }, addEventListener: () => undefined, location: { pathname: '/apps/cafe/customer/' } };
+    vi.resetModules();
+    try {
+      return { side: await import('../src/side/index.js'), posted };
+    } finally {
+      for (const name of ['__ADMINIUM_APP_KEY__', '__ADMINIUM_SIDE__', '__ADMINIUM_DEV__', '__ADMINIUM_SPOTS__']) delete defined[name];
+    }
+  }
+  type Drawn = { type: string; props: Record<string, unknown> & { children?: unknown } };
+  const kids = (el: Drawn): Drawn[] => (Array.isArray(el.props.children) ? el.props.children : [el.props.children]).filter((child): child is Drawn => child !== null && typeof child === 'object');
+  const words = (el: Drawn): string[] => kids(el).flatMap((child) => (typeof child.props.children === 'string' ? [child.props.children] : words(child)));
+
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>)['window'];
+    hooks.on = false;
+    hooks.set = false;
+    hooks.cleanups.splice(0).forEach((cleanup) => cleanup());
+  });
+
+  it('draws a filled spot as its picture, cut to the spot’s shape, with the person’s words as its alt', async () => {
+    const { side } = await built(false);
+    hooks.on = true;
+    const hero = side.Picture({ spot: 'hero', className: 'hero-media' }) as unknown as Drawn;
+    expect(hero.type).toBe('img');
+    expect(hero.props).toMatchObject({ 'data-picture-spot': 'hero', src: '/apps/cafe/customer/assets/spot-hero-1.jpg', alt: 'A long table set for dinner', className: 'hero-media', style: { aspectRatio: '16 / 9', objectFit: 'cover', width: '100%' } });
+    hooks.set = false;
+    // Decorative: drawn, and said to nobody.
+    expect((side.Picture({ spot: 'plain' }) as unknown as Drawn).props).toMatchObject({ alt: '', style: { aspectRatio: '3 / 4' } });
+  });
+
+  it('draws a spot with no picture, in a built app, as a box with a cross that says nothing and is hidden from screen readers', async () => {
+    const { side } = await built(false);
+    hooks.on = true;
+    const team = side.Picture({ spot: 'team' }) as unknown as Drawn;
+    expect(team.type).toBe('div');
+    expect(team.props).toMatchObject({ 'data-picture-spot': 'team', 'aria-hidden': 'true', style: { aspectRatio: '1 / 1', background: 'var(--surface, #f4f4f4)' } });
+    expect(kids(team).map((child) => child.type)).toEqual(['svg']);
+    expect(kids(kids(team)[0] as Drawn).map((line) => line.props['stroke'])).toEqual(['var(--line, #d9d9d9)', 'var(--line, #d9d9d9)']);
+    expect(words(team)).toEqual([]);
+    // An address that is not this server's or an https one is no picture.
+    hooks.set = false;
+    expect((side.Picture({ spot: 'bad' }) as unknown as Drawn).type).toBe('div');
+    // Nor is one that starts like this server's own path and names another site.
+    expect((side.Picture({ spot: 'elsewhere' }) as unknown as Drawn).type).toBe('div');
+    // A spot the build does not know is a wireframe too, never an error on the page.
+    hooks.set = false;
+    expect((side.Picture({ spot: 'nowhere' }) as unknown as Drawn).props).toMatchObject({ 'data-picture-spot': 'nowhere', 'aria-hidden': 'true' });
+  });
+
+  it('falls back to the wireframe when its picture does not load', async () => {
+    const { side } = await built(false);
+    hooks.on = true;
+    const hero = side.Picture({ spot: 'hero' }) as unknown as Drawn;
+    (hero.props['onError'] as () => void)();
+    const after = side.Picture({ spot: 'hero' }) as unknown as Drawn;
+    expect(after.type).toBe('div');
+    expect(after.props).toMatchObject({ 'data-picture-spot': 'hero', 'aria-hidden': 'true' });
+  });
+
+  it('in the Designer’s preview, says the spot’s name and shape and “Choose a picture”, which opens the dialog on it', async () => {
+    const { side, posted } = await built(true);
+    hooks.on = true;
+    const team = side.Picture({ spot: 'team' }) as unknown as Drawn;
+    expect(team.props['aria-hidden']).toBeUndefined();
+    const button = kids(team).find((child) => child.type === 'button') as Drawn;
+    expect(words(button)).toEqual(['Team · square', 'Choose a picture']);
+    (button.props['onClick'] as () => void)();
+    expect(posted).toContainEqual({ type: 'adminium:side-spot', app: 'cafe', side: 'customer', spot: 'team' });
+  });
+
+  it('gives the credits of the pictures it shows, by their links, and none once they are gone', async () => {
+    const { side } = await built(false);
+    hooks.on = true;
+    side.Picture({ spot: 'hero' });
+    expect(side.creditsLine()).toEqual([
+      { text: 'Picture credits: ' },
+      { text: 'Board', href: 'https://x.example/board' },
+      { text: ' by ' },
+      { text: 'Maya Lind', href: 'https://x.example/maya' },
+      { text: ', ' },
+      { text: 'CC BY 2.0', href: 'https://creativecommons.org/licenses/by/2.0/' },
+      { text: '.' },
+    ]);
+    hooks.cleanups.splice(0).forEach((cleanup) => cleanup());
+    expect(side.creditsLine()).toEqual([]);
+    // A spot with no credit (the person's own picture) asks for none.
+    hooks.set = false;
+    side.Picture({ spot: 'plain' });
+    expect(side.creditsLine()).toEqual([]);
   });
 });

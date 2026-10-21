@@ -5129,6 +5129,117 @@ for (const [dialect, available] of legs) {
       for (const id of receipts) expect((await filesRepo(h.meta).findById(id))?.deletedAt).not.toBeNull();
     }, 90_000);
 
+    it('takes a sample row’s new picture from the Designer when the sample is added again: rows nobody changed come back with it, a changed row stays the person’s', async () => {
+      const h = (open = await harness(dialect));
+      const first = '5a3b1e00-0000-4000-8000-000000000001';
+      const second = '5a3b1e00-0000-4000-8000-000000000002';
+      const tenders = {
+        ref: 'tenders',
+        columns: [
+          { ref: 'id', type: 'uuid', role: 'pk' },
+          { ref: 'amount', type: 'money' },
+          { ref: 'receipt', type: 'text', maxLength: 40, nullable: true },
+        ],
+      };
+      const stageWith = async (version: string, bundle: unknown, files: Record<string, string>): Promise<void> =>
+        stageManifest(h, { ...MANIFEST, version, requiredSchema: { prefixed: true, tables: [TABLES[0], tenders] }, sampleData: { file: 'seeds/pos.sample.json' } }, { 'seeds/pos.sample.json': JSON.stringify(bundle), ...files });
+      const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
+      await stageWith(
+        '1.0.0',
+        { format: 'adminium.sample/1', app: 'pos', assets: { 'picture-tenders-1': { file: 'seeds/pictures/tenders-1-aaaaaaaa.webp', sha256: sha('first picture') } }, tables: [{ ref: 'tenders', rows: [{ id: first, amount: '4.50', receipt: { '@asset': 'picture-tenders-1' } }, { id: second, amount: '3', receipt: null }] }] },
+        { 'seeds/pictures/tenders-1-aaaaaaaa.webp': 'first picture' },
+      );
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const user = { locale: 'en-US', userId: null, userLabel: 'test' };
+      await service.add((await findSampleApp(h.meta, 'pos'))!, user);
+      const before = String((await h.rows(`SELECT receipt FROM pos_tenders WHERE id = '${first}'`))[0]?.receipt);
+      // The person changed the first row: it is theirs now.
+      await h.run(`UPDATE pos_tenders SET amount = 9 WHERE id = '${first}'`);
+
+      // From the picture dialog, both rows got a new picture: each its own file, the sample file written again.
+      await stageWith(
+        '1.0.1',
+        {
+          format: 'adminium.sample/1',
+          app: 'pos',
+          assets: {
+            'picture-tenders-1': { file: 'seeds/pictures/tenders-1-bbbbbbbb.webp', sha256: sha('new first') },
+            'picture-tenders-2': { file: 'seeds/pictures/tenders-2-cccccccc.webp', sha256: sha('new second') },
+          },
+          tables: [{ ref: 'tenders', rows: [{ id: first, amount: '4.50', receipt: { '@asset': 'picture-tenders-1' } }, { id: second, amount: '3', receipt: { '@asset': 'picture-tenders-2' } }] }],
+        },
+        { 'seeds/pictures/tenders-1-bbbbbbbb.webp': 'new first', 'seeds/pictures/tenders-2-cccccccc.webp': 'new second' },
+      );
+      expect((await post(h, '/apps/install', { version: '1.0.1' })).statusCode).toBe(200);
+      // What the Designer does after such an Apply: the sample out, keeping what the person changed, and in again.
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      expect(await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' })).toMatchObject({ removed: 1, kept: 1 });
+      await service.add(app, user);
+      const rows = await h.rows(`SELECT id, amount, receipt FROM pos_tenders ORDER BY id`);
+      const byId = new Map(rows.map((row) => [String(row.id).toLowerCase(), row]));
+      // The second row came back with its new picture, a file of its own attached to it.
+      const secondFile = await h.meta.db.selectFrom('adminium_files').select(['sha256', 'entityId', 'deletedAt']).where('id', '=', String(byId.get(second)?.receipt)).executeTakeFirstOrThrow();
+      expect([secondFile.sha256, String(secondFile.entityId).toLowerCase(), secondFile.deletedAt]).toEqual([sha('new second'), second, null]);
+      // The person's row kept its own picture: nothing of theirs was replaced.
+      expect(Number(byId.get(first)?.amount)).toBe(9);
+      expect(String(byId.get(first)?.receipt)).toBe(before);
+    }, 90_000);
+
+    it('puts the bundle’s own pictures in a picture column the app’s file rule keeps, each row its own', async () => {
+      const h = (open = await harness(dialect));
+      const image = 'a receipt';
+      const bundle = {
+        format: 'adminium.sample/1',
+        app: 'pos',
+        assets: { 'img:receipt': { file: 'seeds/images/receipt.webp', sha256: createHash('sha256').update(image).digest('hex') } },
+        tables: [
+          {
+            ref: 'tenders',
+            rows: [
+              { id: '5a3b1e00-0000-4000-8000-000000000001', amount: '4.50', receipt: { '@asset': 'img:receipt' } },
+              { id: '5a3b1e00-0000-4000-8000-000000000002', amount: '3', receipt: { '@asset': 'img:receipt' } },
+            ],
+          },
+        ],
+      };
+      await stageManifest(
+        h,
+        {
+          ...MANIFEST,
+          compatibility: { minAdminiumVersion: APP_VERSION },
+          requiredSchema: {
+            prefixed: true,
+            tables: [
+              TABLES[0],
+              {
+                ref: 'tenders',
+                columns: [
+                  { ref: 'id', type: 'uuid', role: 'pk' },
+                  { ref: 'amount', type: 'money' },
+                  // A picture column: an image, and a file the app's own rule keeps.
+                  { ref: 'receipt', type: 'text', maxLength: 40, nullable: true, semantic: 'image', rules: { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 64 * 1024 } } },
+                ],
+              },
+            ],
+          },
+          sampleData: { file: 'seeds/pos.sample.json' },
+        },
+        { 'seeds/pos.sample.json': JSON.stringify(bundle), 'seeds/images/receipt.webp': image },
+      );
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test' });
+      const rows = await h.rows('SELECT id, receipt FROM pos_tenders ORDER BY id');
+      expect(new Set(rows.map((row) => String(row.receipt))).size).toBe(2);
+      for (const row of rows) {
+        const file = await h.meta.db.selectFrom('adminium_files').select(['entityId', 'attachedAt']).where('id', '=', String(row.receipt)).executeTakeFirstOrThrow();
+        expect(String(file.entityId).toLowerCase()).toBe(String(row.id).toLowerCase());
+      }
+    }, 90_000);
+
     /*
      * Two tables that point at each other. Every FK used to be created inline,
      * which SQLite accepts and Postgres and MySQL refuse ("relation pos_tickets

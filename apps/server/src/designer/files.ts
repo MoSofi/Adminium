@@ -28,6 +28,7 @@ import { hasOwnBuild } from '../project/apps/own-build.js';
 import { PHONE_SIDE } from '../project/apps/phone.js';
 import { APPS_DIR, MANIFEST_PARTS_DIR } from '../project/apps/read-app.js';
 import { createJail, MAX_WRITE_BYTES, type Jail } from './jail.js';
+import { SPOTS_FILE } from './spots.js';
 import { noCardRefusal } from './write-guard.js';
 
 /** Every part of a listed path: letters, digits and a few marks a file name is written with. */
@@ -118,6 +119,8 @@ function candidates(root: string, appKey: string, opts: { look: boolean }): Cand
   const fixed: Candidate[] = [
     { path: `${app}/design.md`, label: 'design.md', group: 'settings', note: 'brief' },
     ...(opts.look ? [{ path: `${app}/look.json`, label: 'look.json', group: 'settings' as const }] : []),
+    // The picture spots: the person's to read and change, here as in the picture dialog. Listed only once there are any.
+    { path: `${app}/${SPOTS_FILE}`, label: 'pictures/spots.json', group: 'settings' },
     { path: `${app}/${MANIFEST_PARTS_DIR}/app.json`, label: 'app.json', group: 'settings' },
   ];
   let pages: string[] = [];

@@ -14,6 +14,10 @@ import {
   FileSpreadsheet,
   ArrowDown,
   Image as ImageIcon,
+  ImageMinus,
+  Images,
+  Minus,
+  Undo2,
   Plug,
   Shapes,
   Type,
@@ -23,7 +27,9 @@ import {
   Copy,
   ChevronDown,
   CircleSlash2,
+  CirclePause,
   CircleAlert,
+  Info,
   CircleStop,
   CircleX,
   Gauge,
@@ -37,13 +43,18 @@ import {
   RotateCcw,
   RotateCw,
   TriangleAlert,
+  Ban,
+  Globe,
+  ShieldAlert,
+  UserPlus,
+  UsersRound,
 } from 'lucide-react';
 import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { designerApi, LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type NeedItem, type SpendMark, type StyleChoice } from '../api.js';
-import { SUBJECT, secondsOf, shortSubject, stepLine } from '../build/stepLine.js';
-import type { StepRow } from '../build/turns.js';
+import { LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type NeedItem, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
+import { figmaPausedLine, SUBJECT, secondsOf, shortSubject, stepCost, stepLine } from '../build/stepLine.js';
+import type { PictureLine, StepRow } from '../build/turns.js';
 import { versionName } from '../build/versionName.js';
 import { lookLine, lookName, LookSwatch, StyleSwatch } from './look.js';
 import { Markdown } from './markdown.js';
@@ -162,7 +173,40 @@ export function DesignerMessage({ text, streaming, children }: { text: string; s
 function StepLine({ row }: { row: StepRow }): ReactNode {
   const line = stepLine(row);
   const subject = row.subject === undefined ? '' : shortSubject(row.subject);
-  return <>{withMono(line, [SUBJECT], [subject])}</>;
+  const cost = stepCost(row);
+  // What the step cost the person (Figma reads), in the row's quiet weight, its number in mono.
+  const count = String(row.count ?? '');
+  const at = cost === null ? -1 : cost.indexOf(count);
+  return (
+    <>
+      {withMono(line, [SUBJECT], [subject])}
+      {cost === null ? null : (
+        <span className="font-medium text-fg-muted">
+          {at < 0 ? (
+            cost
+          ) : (
+            <>
+              {cost.slice(0, at)}
+              <span className="font-mono">{count}</span>
+              {cost.slice(at + count.length)}
+            </>
+          )}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** Under a turn whose Figma reads were paused: until when, and that the Designer works from what was imported. */
+export function FigmaPausedLine({ rows }: { rows: readonly StepRow[] }): ReactNode {
+  const line = figmaPausedLine(rows, getI18nInstance()?.language);
+  if (line === null) return null;
+  return (
+    <p className="m-0 flex items-start gap-2 text-[12.5px] leading-normal text-fg-muted">
+      <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
+      <span>{line}</span>
+    </p>
+  );
 }
 
 export function StepsBlock({
@@ -220,6 +264,8 @@ export function StepsBlock({
                       <LoaderCircle className="size-[13px] animate-spin" />
                     ) : row.state === 'failed' ? (
                       <CircleX className="size-[13px]" />
+                    ) : row.state === 'missed' && row.tool === 'read_figma' ? (
+                      <CirclePause className="size-[13px]" />
                     ) : row.state === 'missed' ? (
                       <CircleSlash2 className="size-[13px]" />
                     ) : row.tool === 'sight' ? (
@@ -232,6 +278,7 @@ export function StepsBlock({
                     <StepLine row={row} />
                     {row.state === 'running' ? <span className="sr-only"> {t('designer:steps.running', '(running)')}</span> : null}
                     {row.state === 'failed' ? <span className="sr-only"> {t('designer:steps.failedMark', '(failed)')}</span> : null}
+                    {row.state === 'missed' && row.tool === 'read_figma' ? <span className="sr-only"> {t('designer:steps.skippedMark', '(skipped)')}</span> : null}
                   </span>
                   {row.ms === null || row.state === 'running' ? null : (
                     <span className="shrink-0 font-mono text-[11px] text-fg-subtle">{t('designer:steps.seconds', '{seconds} s', { seconds: secondsOf(row.ms) })}</span>
@@ -287,7 +334,7 @@ export function StyleChip({ title, fontsLater }: { title: string; fontsLater: bo
   );
 }
 
-function CardShell({
+export function CardShell({
   tone = 'plain',
   icon,
   title,
@@ -485,7 +532,7 @@ function StyleQuestion({
 }
 
 /** What a thing on the needs card is, in the page's words: the server sends what it is, never a sentence. */
-function needLine(item: NeedItem): string {
+export function needLine(item: NeedItem): string {
   if (item.kind === 'picture-site') return t('designer:needs.site', 'Pictures from {host} — shown straight from that site', { host: item.host });
   if (item.kind === 'font') {
     if (item.use === 'heading') return t('designer:needs.fontHeading', '{family} — a typeface, for headings', { family: item.family });
@@ -515,7 +562,7 @@ function needShort(item: NeedItem): string {
   return item.role === 'tailwind' ? 'Tailwind CSS' : item.name;
 }
 
-function NeedIcon({ item }: { item: NeedItem }): ReactNode {
+export function NeedIcon({ item }: { item: NeedItem }): ReactNode {
   const cls = 'mt-[2px] size-3.5 shrink-0 text-fg-subtle';
   if (item.kind === 'picture-site') return <ImageIcon aria-hidden="true" className={cls} />;
   if (item.kind === 'font') return <Type aria-hidden="true" className={cls} />;
@@ -526,7 +573,7 @@ function NeedIcon({ item }: { item: NeedItem }): ReactNode {
 }
 
 /** Whether Adminium itself knows the thing: those are offered ticked. A name only the Designer vouches for is not. */
-const knownNeed = (item: NeedItem): boolean => item.kind !== 'package' || item.role !== 'other';
+export const knownNeed = (item: NeedItem): boolean => item.kind !== 'package' || item.role !== 'other';
 
 /**
  * Everything a step needs from outside the project, on one card: a checkbox
@@ -538,6 +585,7 @@ export function NeedsCard({
   answered,
   closed = false,
   accepted,
+  answeredPictures,
   busy,
   onSend,
 }: {
@@ -547,10 +595,13 @@ export function NeedsCard({
   closed?: boolean;
   /** The ids ticked, once answered. */
   accepted?: readonly string[] | undefined;
+  /** The pictures choice, once answered (on a card that asked it). */
+  answeredPictures?: PicturesMode | undefined;
   busy: boolean;
-  onSend: (ids: string[]) => void;
+  onSend: (ids: string[], pictures?: PicturesMode) => void;
 }): ReactNode {
   const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set(card.items.filter(knownNeed).map((item) => item.id)));
+  const [pictures, setPictures] = useState<PicturesMode | undefined>(card.pictures?.preselect);
   const group = useId();
   const known = card.items.filter(knownNeed);
   const unknown = card.items.filter((item) => !knownNeed(item));
@@ -598,7 +649,7 @@ export function NeedsCard({
       <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={title}>
         {!answered ? (
           <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</p>
-        ) : added.length === 0 ? (
+        ) : card.items.length === 0 ? null : added.length === 0 ? (
           <p className="m-0 text-[12.5px] font-semibold text-fg-muted">{t('designer:needs.none', 'You chose to add nothing.')}</p>
         ) : (
           <div className="flex flex-col gap-1 text-[12.5px] text-fg-muted">
@@ -612,9 +663,16 @@ export function NeedsCard({
             )}
           </div>
         )}
+        {answered && answeredPictures !== undefined ? (
+          <p className="m-0 flex items-start gap-2 text-[12.5px] text-fg-muted">
+            <ImageIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
+            {answeredPictures === 'choose' ? t('designer:needs.picturesChoose', 'Pictures: you choose.') : t('designer:needs.picturesPlaceholders', 'Pictures: placeholders.')}
+          </p>
+        ) : null}
       </CardShell>
     );
   }
+  const picturesTitle = `${group}-pictures`;
   return (
     <CardShell cardId={card.id} icon={<Package className="size-[15px]" />} title={title}>
       {known.length === 0 ? null : (
@@ -632,8 +690,30 @@ export function NeedsCard({
           <ul className="m-0 flex list-none flex-col gap-2 p-0">{unknown.map(row)}</ul>
         </div>
       )}
+      {card.pictures === undefined ? null : (
+        // Its own choice, outside the ticks: "Select all" and the Send label never touch it.
+        <div role="radiogroup" aria-labelledby={picturesTitle} className="-mx-3.5 flex flex-col gap-0.5 border-t border-border bg-surface-2 px-3.5 pb-2 pt-3">
+          <div id={picturesTitle} className="pb-1 text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle">
+            {t('designer:needs.picturesTitle', 'Pictures on the pages')}
+          </div>
+          {(
+            [
+              ['placeholders', t('designer:needs.placeholdersLabel', 'Placeholders for now'), t('designer:needs.placeholdersHelp', 'Grey frames with each picture’s name. You fill them any time from Pictures.')],
+              ['choose', t('designer:needs.chooseLabel', 'Let me choose them now'), t('designer:needs.chooseHelp', 'After the design, a card opens the picture chooser with each spot’s words already typed.')],
+            ] as const
+          ).map(([value, label, help]) => (
+            <label key={value} className="flex cursor-pointer items-start gap-2.5 py-1.5">
+              <input type="radio" name={picturesTitle} value={value} checked={pictures === value} disabled={busy} onChange={() => setPictures(value)} className="mt-0.5 size-[18px] shrink-0 accent-[var(--color-accent)]" />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[13px] font-bold text-fg">{label}</span>
+                <span className="text-pretty text-[12.5px] leading-normal text-fg-muted">{help}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${card.items.length === 0 ? 'invisible' : ''}`}>
           <button type="button" disabled={busy} onClick={() => setTicked(new Set(card.items.map((item) => item.id)))} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
             {t('designer:needs.selectAll', 'Select all')}
           </button>
@@ -641,9 +721,10 @@ export function NeedsCard({
             {t('designer:needs.deselectAll', 'Deselect all')}
           </button>
         </div>
-        <button type="button" disabled={busy} onClick={() => onSend(card.items.filter((item) => ticked.has(item.id)).map((item) => item.id))} className={PRIMARY}>
+        <button type="button" disabled={busy} onClick={() => onSend(card.items.filter((item) => ticked.has(item.id)).map((item) => item.id), pictures)} className={PRIMARY}>
           {busy ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-          {busy ? t('designer:needs.adding', 'Adding…') : ticked.size === 0 ? t('designer:needs.sendNone', 'Send — add nothing') : t('designer:needs.send', 'Send')}
+          {/* The label counts the ticks only: the pictures choice is not something added. */}
+          {busy ? t('designer:needs.adding', 'Adding…') : ticked.size === 0 && card.items.length > 0 ? t('designer:needs.sendNone', 'Send — add nothing') : t('designer:needs.send', 'Send')}
         </button>
       </div>
     </CardShell>
@@ -1035,118 +1116,322 @@ export function NotAppliedNote({ message }: { message: string }): ReactNode {
   );
 }
 
-const PICTURE_SHAPE: Record<'wide' | 'tall' | 'square', string> = { wide: 'aspect-[16/10]', tall: 'aspect-[4/5]', square: 'aspect-square' };
+/**
+ * A card of pictures the Designer found, from a session made before picture
+ * spots: drawn as it was answered, never asked again (nothing finds pictures
+ * in a turn now; the picture dialog fills spots).
+ */
+export function PicturesCard({ card, answered, accepted }: { card: Extract<DesignerCard, { type: 'pictures' }>; answered: boolean; accepted?: readonly string[] | undefined }): ReactNode {
+  const count = (accepted ?? []).length;
+  return (
+    <CardShell cardId={card.id} icon={<ImageIcon className="size-[15px]" />} title={t('designer:pictures.title', 'Pictures for the page. Use them?')}>
+      <p className="m-0 text-[12.5px] font-semibold text-fg-muted">
+        {!answered
+          ? t('designer:card.noAnswer', 'No answer was given.')
+          : count === 0
+            ? t('designer:pictures.noneChosen', 'You chose none. The Designer will draw tiles instead.')
+            : t('designer:pictures.added', 'Pictures added: {count}. Their credits are kept with them.', { count })}
+      </p>
+    </CardShell>
+  );
+}
+
+/** A spot's empty frame, in its shape: hatched, with the picture icon. */
+function SpotFrame({ shape }: { shape: PictureShape }): ReactNode {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex items-center justify-center rounded-[6px] border border-border-strong bg-[repeating-linear-gradient(135deg,var(--color-surface-3)_0_6px,var(--color-surface-2)_6px_12px)] text-fg-subtle ${shape === 'wide' ? 'aspect-video w-[92px]' : shape === 'square' ? 'aspect-square w-[52px]' : 'aspect-[3/4] w-[52px]'}`}
+    >
+      <ImageIcon className="size-[15px]" />
+    </span>
+  );
+}
+
+/** "Hero, Team" in the page's language. */
+export function listOf(names: readonly string[]): string {
+  try {
+    return new Intl.ListFormat(getI18nInstance()?.language ?? 'en-US', { style: 'long', type: 'conjunction' }).format(names);
+  } catch {
+    return names.join(', ');
+  }
+}
 
 /**
- * Free pictures the Designer found, in groups by what each is for: a
- * checkbox on each, all ticked at first, "None of these" per group, and the
- * same footer as the needs card. A picture is shown from this server.
+ * The spots a design made, waiting for their pictures (the person chose to
+ * choose them): one button opens the picture dialog. An Apply is its answer;
+ * once pictures are chosen it says which, and which are still placeholders.
  */
-export function PicturesCard({
-  card,
-  sessionId,
-  answered,
-  closed = false,
-  accepted,
-  busy,
-  onSend,
-}: {
-  card: Extract<DesignerCard, { type: 'pictures' }>;
-  sessionId: string;
-  answered: boolean;
-  /** The turn ended without an answer. */
-  closed?: boolean;
-  accepted?: readonly string[] | undefined;
-  busy: boolean;
-  onSend: (ids: string[]) => void;
-}): ReactNode {
-  const all = card.groups.flatMap((group) => group.pictures.map((picture) => picture.id));
-  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set(all));
-  const title = t('designer:pictures.title', 'Pictures for the page. Use them?');
-  const icon = <ImageIcon className="size-[15px]" />;
-  if (answered || closed) {
-    const count = (accepted ?? []).length;
+export function SpotsCard({ card, chosen, onChoose }: { card: Extract<DesignerCard, { type: 'spots' }>; chosen: readonly string[]; onChoose: () => void }): ReactNode {
+  const title = t('designer:spots.title', 'Choose the pictures');
+  const count = card.spots.length;
+  const rows = card.rows;
+  if (chosen.length > 0) {
+    const left = card.spots.filter((spot) => !chosen.includes(spot.label)).map((spot) => spot.label);
     return (
-      <CardShell cardId={card.id} icon={icon} title={title}>
-        <p className="m-0 text-[12.5px] font-semibold text-fg-muted">
-          {!answered
-            ? t('designer:card.noAnswer', 'No answer was given.')
-            : count === 0
-              ? t('designer:pictures.noneChosen', 'You chose none. The Designer will draw tiles instead.')
-              : t('designer:pictures.added', 'Pictures added: {count}. Their credits are kept with them.', { count })}
+      <CardShell cardId={card.id} icon={<Images className="size-[15px]" />} title={title}>
+        <p className="m-0 flex items-start gap-2 text-[12.5px] leading-normal text-fg">
+          <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+          <span dir="auto">
+            {t('designer:spots.chosen', 'Pictures chosen: {list}.', { list: listOf(chosen) })}
+            {left.length === 0 ? null : ` ${t('designer:spots.left', '{count, plural, one {{list} is still a placeholder.} other {{list} are still placeholders.}}', { count: left.length, list: listOf(left) })}`}
+          </span>
         </p>
       </CardShell>
     );
   }
-  const set = (ids: readonly string[], on: boolean): void => {
-    setTicked((before) => {
-      const next = new Set(before);
-      for (const id of ids) {
-        if (on) next.add(id);
-        else next.delete(id);
-      }
-      return next;
-    });
-  };
+  const table = rows === undefined ? '' : rows.table.toLocaleLowerCase(getI18nInstance()?.language ?? 'en-US');
+  const sentence =
+    rows === undefined
+      ? t('designer:spots.lead', '{count, plural, one {# spot on the page is waiting for a picture.} other {# spots on the page are waiting for pictures.}}', { count })
+      : count === 0
+        ? t('designer:spots.leadRows', '{rows} {table} are waiting for pictures.', { rows: M1, table })
+        : t('designer:spots.leadBoth', '{count, plural, one {# spot on the page} other {# spots on the page}} and {rows} {table} are waiting for pictures.', { count, rows: M1, table });
   return (
-    <CardShell cardId={card.id} icon={icon} title={title}>
-      <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
-        {t('designer:pictures.lead', 'Free pictures the Designer found. Tick the ones to use: they are copied into your app, with their credits.')}
-      </p>
-      {card.site === undefined ? null : (
-        <p className="m-0 text-[12.5px] leading-normal text-fg-muted">
-          {t('designer:pictures.shownFrom', 'Some of these are shown straight from {site}, not copied. That site then sees each visit to a page that shows them.', { site: card.site })}
-        </p>
+    <CardShell cardId={card.id} icon={<Images className="size-[15px]" />} title={title}>
+      <p className="m-0 text-pretty text-[12.5px] leading-normal text-fg-muted">{withMono(sentence, [M1], [number(rows?.count ?? 0)])}</p>
+      {count === 0 ? null : (
+        <ul aria-label={t('designer:spots.list', 'Spots on the page')} className="m-0 flex list-none flex-wrap items-end gap-2 p-0">
+          {card.spots.map((spot) => (
+            <li key={spot.id} className="flex flex-col gap-[5px]">
+              <SpotFrame shape={spot.shape} />
+              <span className="max-w-[92px] truncate text-[11.5px] font-bold text-fg-muted">{spot.label}</span>
+            </li>
+          ))}
+        </ul>
       )}
-      {card.groups.map((group) => (
-        <div key={group.id} role="group" aria-label={group.label} className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <span dir="auto" className="text-[12px] font-bold text-fg">
-              {group.label}
+      <button type="button" aria-haspopup="dialog" onClick={onChoose} className={`${PRIMARY} self-start`}>
+        <Images aria-hidden="true" className="size-[15px]" />
+        {t('designer:spots.choose', 'Choose pictures…')}
+      </button>
+    </CardShell>
+  );
+}
+
+/** A turn took a picture the person placed off the screen it was on: keep it there, or let it go. */
+export function KeepSpotCard({
+  card,
+  answered,
+  closed = false,
+  kept,
+  busy,
+  onKeep,
+  onLetGo,
+}: {
+  card: Extract<DesignerCard, { type: 'keep-spot' }>;
+  answered: boolean;
+  closed?: boolean;
+  kept?: boolean | undefined;
+  busy: boolean;
+  onKeep: () => void;
+  onLetGo: () => void;
+}): ReactNode {
+  const label = <span className="font-bold text-fg">{card.label}</span>;
+  if (answered || closed) {
+    return (
+      <div role="group" aria-label={t('designer:keepSpot.answered', 'Keep the picture, answered')} data-card-id={card.id} tabIndex={-1} className="flex items-start gap-2 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-[12.5px] leading-normal outline-none">
+        {!answered ? (
+          <span className="font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</span>
+        ) : kept === true ? (
+          <>
+            <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+            <span dir="auto">{t('designer:keepSpot.kept', 'Kept {spot} on {screen}.', { spot: card.label, screen: card.screen })}</span>
+          </>
+        ) : (
+          <>
+            <Minus aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
+            <span dir="auto" className="text-fg-muted">
+              {t('designer:keepSpot.gone', '{spot} is off {screen}.', { spot: card.label, screen: card.screen })}
             </span>
-            <button type="button" disabled={busy} onClick={() => set(group.pictures.map((picture) => picture.id), false)} className="shrink-0 text-[11.5px] font-bold text-accent hover:underline disabled:opacity-50">
-              {t('designer:pictures.noneOfThese', 'None of these')}
-            </button>
-          </div>
-          <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3">
-            {group.pictures.map((picture) => {
-              const on = ticked.has(picture.id);
-              return (
-                <li key={picture.id}>
-                  <label className={`relative flex cursor-pointer flex-col gap-1 rounded-lg border p-1 ${on ? 'border-accent ring-1 ring-accent' : 'border-border-strong opacity-60'}`}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      disabled={busy}
-                      onChange={() => set([picture.id], !on)}
-                      aria-label={t('designer:pictures.use', 'Use the picture “{title}” by {creator}', { title: picture.title, creator: picture.creator })}
-                      className="absolute start-2 top-2 size-4 accent-[var(--color-accent)]"
-                    />
-                    <img src={designerApi.pictureThumbUrl(sessionId, card.shelf, picture.id)} alt="" loading="lazy" className={`w-full rounded-md bg-surface-3 object-cover ${PICTURE_SHAPE[group.shape]}`} />
-                    <span dir="auto" className="truncate px-0.5 text-[11px] text-fg-subtle">
-                      {t('designer:pictures.by', '{creator} · {licence}', { creator: picture.creator, licence: picture.licence })}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <button type="button" disabled={busy} onClick={() => set(all, true)} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
-            {t('designer:needs.selectAll', 'Select all')}
-          </button>
-          <button type="button" disabled={busy} onClick={() => set(all, false)} className="text-[12.5px] font-bold text-accent hover:underline disabled:opacity-50">
-            {t('designer:needs.deselectAll', 'Deselect all')}
-          </button>
-        </div>
-        <button type="button" disabled={busy} onClick={() => onSend(all.filter((id) => ticked.has(id)))} className={PRIMARY}>
-          {busy ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-          {busy ? t('designer:pictures.copying', 'Copying…') : ticked.size === 0 ? t('designer:pictures.sendNone', 'Send — use none') : t('designer:needs.send', 'Send')}
+          </>
+        )}
+      </div>
+    );
+  }
+  const sentence = t('designer:keepSpot.ask', 'The Designer took your picture {spot} off {screen}. Keep it there?', { spot: M1, screen: card.screen });
+  const [before = '', after = ''] = sentence.split(M1);
+  return (
+    <CardShell cardId={card.id} icon={<ImageMinus className="size-[15px] text-warn" />} title={<span className="font-normal">{[before, label, after]}</span>}>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" disabled={busy} onClick={onKeep} className={PRIMARY}>
+          {t('designer:keepSpot.keep', 'Keep it on {screen}', { screen: card.screen })}
+        </button>
+        <button type="button" disabled={busy} onClick={onLetGo} className={SECONDARY}>
+          {t('designer:keepSpot.letGo', 'Let it go')}
         </button>
       </div>
     </CardShell>
   );
+}
+
+/** One change the access card asks about, in the person's words: what could happen, or once allowed, what can. */
+export function accessChangeLine(change: AccessChangeView, allowed: boolean): string {
+  if (change.kind === 'call') return allowed ? t('designer:access.callAllowed', 'the {screen} page can call an address outside Adminium', { screen: change.screen }) : t('designer:access.call', 'the {screen} page calls an address outside Adminium', { screen: change.screen });
+  if (change.kind === 'role') {
+    if (change.isNew) return allowed ? t('designer:access.newRoleAllowed', 'a new role, {role}, can sign in and use the app', { role: change.role }) : t('designer:access.newRole', 'a new role, {role}, could sign in and use the app', { role: change.role });
+    return allowed ? t('designer:access.roleAllowed', 'the role {role} can do more than before', { role: change.role }) : t('designer:access.role', 'the role {role} could do more than before', { role: change.role });
+  }
+  const table = change.table;
+  // Up to forty: the first four are named, the rest counted.
+  const named = change.columns ?? [];
+  const columns = named.length <= 4 ? named.join(', ') : t('designer:access.columnsMore', '{columns} and {count, plural, one {# more} other {# more}}', { columns: named.slice(0, 4).join(', '), count: named.length - 4 });
+  switch (change.verb) {
+    case 'add':
+      return allowed ? t('designer:access.addAllowed', 'strangers can add rows to {table}', { table }) : t('designer:access.add', 'strangers could add rows to {table}', { table });
+    case 'change':
+      return allowed ? t('designer:access.changeAllowed', 'strangers can change rows of {table}', { table }) : t('designer:access.change', 'strangers could change rows of {table}', { table });
+    case 'read-columns':
+      return allowed ? t('designer:access.readColumnsAllowed', 'strangers can read {columns} of {table}', { columns, table }) : t('designer:access.readColumns', 'strangers could read {columns} of {table}', { columns, table });
+    case 'read-all':
+      return allowed ? t('designer:access.readAllAllowed', 'strangers can read every column of {table}', { table }) : t('designer:access.readAll', 'strangers could read every column of {table}', { table });
+    case 'no-check':
+      return allowed ? t('designer:access.noCheckAllowed', 'strangers can add rows to {table} with no check that a person sent them', { table }) : t('designer:access.noCheck', 'strangers could add rows to {table} with no check that a person sent them', { table });
+    case 'hidden-rows':
+      return allowed ? t('designer:access.hiddenRowsAllowed', 'strangers can reach rows of {table} that were kept from them', { table }) : t('designer:access.hiddenRows', 'strangers could reach rows of {table} that were kept from them', { table });
+    case 'write-columns':
+      return allowed ? t('designer:access.writeColumnsAllowed', 'strangers can write {columns} of {table}', { columns, table }) : t('designer:access.writeColumns', 'strangers could write {columns} of {table}', { columns, table });
+    default:
+      return allowed ? t('designer:access.readAllowed', 'strangers can read {table}', { table }) : t('designer:access.read', 'strangers could read {table}', { table });
+  }
+}
+
+/** Before it goes live, in a session of outside words: what the app would newly allow, each said in the person's words. */
+export function AccessChangeCard({
+  card,
+  answered,
+  closed = false,
+  allowed,
+  busy,
+  onAllow,
+  onRefuse,
+}: {
+  card: Extract<DesignerCard, { type: 'access-change' }>;
+  answered: boolean;
+  closed?: boolean;
+  allowed?: boolean | undefined;
+  busy: boolean;
+  onAllow: () => void;
+  onRefuse: () => void;
+}): ReactNode {
+  const more = card.more ?? 0;
+  if (answered || closed) {
+    return (
+      <div role="group" aria-label={t('designer:access.answeredLabel', 'Check before it goes live, answered')} data-card-id={card.id} tabIndex={-1} className="flex flex-col gap-1 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-[12.5px] leading-normal outline-none">
+        <span className="text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle">{t('designer:access.answeredMark', 'Answered')}</span>
+        {!answered ? (
+          <span className="font-semibold text-fg-muted">{t('designer:card.noAnswer', 'No answer was given.')}</span>
+        ) : allowed === true ? (
+          <>
+            {card.changes.map((change, index) => (
+              <span key={index} className="flex items-start gap-2">
+                <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+                <span dir="auto">{t('designer:access.allowed', 'Allowed: {change}.', { change: accessChangeLine(change, true) })}</span>
+              </span>
+            ))}
+            {more === 0 ? null : (
+              <span className="flex items-start gap-2">
+                <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-pos" />
+                <span>{t('designer:access.moreAllowed', 'Also allowed: {count, plural, one {# more change} other {# more changes}} like these.', { count: more })}</span>
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="flex items-start gap-2 text-fg-muted">
+            <Ban aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
+            <span>{t('designer:access.notAllowed', 'Not allowed. The Designer will build without it.')}</span>
+          </span>
+        )}
+      </div>
+    );
+  }
+  return (
+    <CardShell cardId={card.id} icon={<ShieldAlert className="size-[15px] text-warn" />} title={t('designer:access.title', 'Check this before it goes live')}>
+      <p className="m-0 text-[12.5px] leading-normal text-fg-muted">{card.planned ? t('designer:access.lead', 'This was not on the plan you approved:') : t('designer:access.leadNoPlan', 'This needs your yes first:')}</p>
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {card.changes.map((change, index) => {
+          const Mark = change.kind === 'call' ? Globe : change.kind === 'role' ? UsersRound : UserPlus;
+          return (
+            <li key={index} className="flex items-start gap-2 text-[12.5px] leading-normal text-fg">
+              <Mark aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-muted" />
+              <span dir="auto">{accessChangeLine(change, false)}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {/* Past the listed ones: the same answer covers them. */}
+      {more === 0 ? null : <p className="m-0 text-[12.5px] leading-normal text-fg-muted">{t('designer:access.more', 'And {count, plural, one {# more change} other {# more changes}} like these.', { count: more })}</p>}
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" disabled={busy} onClick={onAllow} className={SECONDARY}>
+          {t('designer:access.allow', 'Allow it')}
+        </button>
+        <button type="button" disabled={busy} onClick={onRefuse} className={SECONDARY}>
+          {t('designer:access.refuse', 'Do not allow it')}
+        </button>
+      </div>
+    </CardShell>
+  );
+}
+
+/** The way to the picture dialog, in the saved row: how many pictures are still placeholders. */
+export function PicturesChip({ toFill, onOpen }: { toFill: number; onOpen: () => void }): ReactNode {
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      onClick={onOpen}
+      data-part="pictures-chip"
+      className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-surface pe-[9px] ps-2 text-xs font-bold text-fg-muted hover:border-border-strong hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    >
+      <ImageIcon aria-hidden="true" className="size-[13px]" />
+      <span>{t('designer:spots.chip', 'Pictures')}</span>
+      {toFill === 0 ? null : (
+        <span className="font-medium text-fg-subtle">
+          {'· '}
+          {withMono(t('designer:spots.toFill', '{count} to fill', { count: M1 }), [M1], [number(toFill)])}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** What happened to the pictures under a reply: an Apply of the dialog, or its Undo. */
+export function PictureLines({ lines }: { lines: readonly PictureLine[] }): ReactNode {
+  const shown = lines.filter((line) => line.kind !== 'note');
+  if (shown.length === 0) return null;
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      {shown.map((line, index) => (
+        <div key={index} data-part="pictures-line" className="flex items-start gap-1.5 rounded-[10px] bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold leading-normal text-fg-muted">
+          {line.kind === 'applied' ? <ImageIcon aria-hidden="true" className="mt-0.5 size-3 shrink-0" /> : <Undo2 aria-hidden="true" className="mt-0.5 size-3 shrink-0" />}
+          <span dir="auto">
+            {line.kind === 'applied'
+              ? line.version === null
+                ? withMono(t('designer:spots.changedOnly', 'You changed {count, plural, one {{n} picture} other {{n} pictures}}: {list}.', { count: line.names.length, n: M1, list: listOf(line.names) }), [M1], [number(line.names.length)])
+                : withMono(t('designer:spots.changed', 'You changed {count, plural, one {{n} picture} other {{n} pictures}}: {list}. Saved as {version}.', { count: line.names.length, n: M1, list: listOf(line.names), version: M2 }), [M1, M2], [number(line.names.length), versionNumber(line.version.name)])
+              : line.kind === 'undone'
+                ? withMono(t('designer:spots.undone', 'Undone: back to {version}.', { version: M1 }), [M1], [`v${String(line.to)}`])
+                : null}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The server's word on the pictures as the turn ended, as the last paragraph of the reply. */
+export function PictureNote({ lines }: { lines: readonly PictureLine[] }): ReactNode {
+  const note = lines.findLast((line): line is Extract<PictureLine, { kind: 'note' }> => line.kind === 'note');
+  if (note === undefined) return null;
+  return (
+    <p data-part="pictures-note" className="m-0 text-pretty text-[13px] leading-normal text-fg">
+      {note.note === 'placeholders'
+        ? t('designer:spots.notePlaceholders', 'The pictures are placeholders. Choose pictures from Pictures under this message.')
+        : withMono(t('designer:spots.noteEmpty', '{count, plural, one {{n} picture is still a placeholder. Visitors see an empty frame until you fill it.} other {{n} pictures are still placeholders. Visitors see empty frames until you fill them.}}', { count: note.count, n: M1 }), [M1], [number(note.count)])}
+    </p>
+  );
+}
+
+/** "v14" of "v14 · Pictures: Hero, Team". */
+function versionNumber(name: string): string {
+  return /^v\d+/.exec(name)?.[0] ?? versionName(name);
 }

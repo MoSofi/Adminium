@@ -27,6 +27,7 @@ function fileProps(props: ControlProps) {
       ? {}
       : { maxBytes: props.column.file?.maxBytes ?? props.maxFileBytes }),
     ...(props.id === undefined ? {} : { inputId: props.id }),
+    ...(props.choose === undefined ? {} : { choose: props.choose }),
   };
 }
 
@@ -66,6 +67,15 @@ export function AttachmentsControl(props: ControlProps) {
       {caption === null ? null : <p className="text-[11.5px] text-fg-subtle">{caption}</p>}
     </div>
   );
+}
+
+/**
+ * A picture column's field: the picture itself, "Upload", "Choose existing…"
+ * and "Remove" (`pictures/PictureField.tsx`). Its own words under it say the
+ * kinds and the size it takes.
+ */
+export function PictureControl(props: ControlProps) {
+  return <FileField {...fileProps(props)} variant="picture" />;
 }
 
 /** A square preview for an image column (comp 233–236). */

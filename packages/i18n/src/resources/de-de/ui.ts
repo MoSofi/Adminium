@@ -1260,9 +1260,9 @@ export default {
         "emptyBody": "Hochgeladene Dateien zeigen hier ihren Fortschritt."
       },
       "attachmentList": {
-        "description": "An einen Datensatz angehängte Dateien, mit Typsymbolen, Größen sowie Aktionen zum Herunterladen oder Löschen.",
-        "emptyTitle": "Keine Anhänge",
-        "emptyBody": "An diesen Datensatz angehängte Dateien erscheinen hier."
+        "description": "Dateien, die bei einem Datensatz liegen, mit Typsymbolen, Größen und Aktionen zum Herunterladen oder Löschen.",
+        "emptyTitle": "Keine Dateien",
+        "emptyBody": "Hier erscheinen die Dateien, die bei diesem Datensatz liegen."
       },
       "imageBoard": {
         "description": "Ein Moodboard-Raster aus Bildplätzen mit Bildunterschriften, für Tabellen mit Bild-URLs.",
@@ -1706,7 +1706,7 @@ export default {
         "cancel": "Hochladen abbrechen",
         "replace": "Ersetzen",
         "remove": "Datei entfernen",
-        "choose": "Datei auswählen",
+        "choose": "Hochladen",
         "add": "Dateien hinzufügen",
         "removeNamed": "{name} entfernen",
         "capReached": "Dieser Datensatz akzeptiert höchstens {count, plural, one {# Datei} other {# Dateien}}."
@@ -1773,6 +1773,51 @@ export default {
         "now": "jetzt",
         "daysAgo": "{count, plural, one {heute − # Tag} other {heute − # Tage}}",
         "daysAhead": "{count, plural, one {heute + # Tag} other {heute + # Tage}}"
+      },
+      "picture": {
+        "allKinds": "PNG, JPEG, WebP oder GIF",
+        "kinds": "{kinds}.",
+        "hint": "{kinds}, bis {size}.",
+        "listKinds": "{count, plural, one {Bis zu # Bild.} other {Bis zu # Bilder.}} {kinds}.",
+        "listHint": "{count, plural, one {Bis zu # Bild.} other {Bis zu # Bilder.}} {kinds}, je bis {size}.",
+        "noType": "Diese Spalte nimmt keine {type}-Dateien an.",
+        "saved": "Wird mit dem Datensatz gespeichert.",
+        "tooLarge": "Das Bild ist größer als das Limit dieser Spalte von {limit}.",
+        "refused": "Sie dürfen {table} nicht ändern und können daher kein Bild hinzufügen.",
+        "choose": "Vorhandenes wählen…",
+        "remove": "Entfernen",
+        "removeFrom": "Bild aus {column} entfernen",
+        "removeNamed": "{file} aus {column} entfernen",
+        "empty": "Noch kein Bild",
+        "gone": "Dieses Bild ist nicht mehr verfügbar.",
+        "link": "Ein Bild auf einer anderen Website. Dieses Dashboard zeigt keine Bilder von {host}.",
+        "add": "Hinzufügen"
+      },
+      "pageChanged": "Die Einstellungen dieser Seite haben sich geändert. Ihr Bild bleibt erhalten; speichern Sie erneut.",
+      "picker": {
+        "title": "Bild wählen",
+        "for": "Für {column}",
+        "tabs": "Woher die Bilder kommen",
+        "usedIn": "Verwendet in {page}",
+        "filesPage": "Von der Seite Dateien",
+        "search": "Nach Dateinamen suchen",
+        "grid": "Bilder",
+        "copy": "Der Datensatz erhält eine eigene Kopie.",
+        "tileRecord": "Bild von {record}, {file}",
+        "tileFile": "{file}, {size}",
+        "addCount": "{count, plural, one {# Bild hinzufügen} other {# Bilder hinzufügen}}",
+        "more": "{count, plural, one {# weiteres kann hinzugefügt werden} other {# weitere können hinzugefügt werden}}",
+        "upTo": "Bis zu {count} können hinzugefügt werden",
+        "capLine": "Mehr nimmt dieser Datensatz nicht auf. Entfernen Sie eines, um ein anderes zu wählen.",
+        "emptyUsed": "Noch kein anderer Datensatz in {page} hat ein Bild.",
+        "emptyFiles": "Noch keine Bilder auf der Seite Dateien. Laden Sie eines hier oder auf der Seite Dateien hoch.",
+        "noMatch": "Kein Dateiname passt zu „{q}“.",
+        "loading": "Bilder werden geladen",
+        "failed": "Diese Bilder konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "gone": "Dieses Bild ist nicht mehr verfügbar.",
+        "cancel": "Abbrechen",
+        "close": "Schließen"
       }
     },
     "queue": {
@@ -2089,10 +2134,14 @@ export default {
       "attachmentsTab": "Dateien",
       "attachments": {
         "emptyTitle": "Noch keine Dateien",
-        "emptyBody": "An diesen Datensatz angehängte Dateien erscheinen hier.",
-        "loading": "Anhänge werden geladen",
+        "emptyBody": "Hier erscheinen die Dateien, die bei diesem Datensatz liegen.",
+        "loading": "Dateien werden geladen",
         "removed": "{name} wurde in den Papierkorb verschoben.",
-        "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt."
+        "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt.",
+        "lead": "Dateien, die bei diesem Datensatz liegen.",
+        "allFiles": "Alle Dateien sind auf der Seite Dateien",
+        "inColumn": "In {column}",
+        "inColumnHelp": "Ändern Sie sie im Feld {column} des Datensatzes."
       }
     },
     "pageRecord": {

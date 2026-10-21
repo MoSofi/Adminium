@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { parseCrudDerived, type CrudDerivedConfig } from '@adminium/engine/config';
 
+import { bootstrapQuery } from '../../app/bootstrap.js';
 import { createQueryClient } from '../../app/query.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import { ColumnManager, parseStoredColumns, type StoredColumn } from './ColumnManager.js';
@@ -259,6 +260,11 @@ async function saveAndCount(
   await waitFor(() => {
     expect(calls.filter((call) => call.method === 'PATCH').length).toBe(expected);
   });
+}
+
+/** Set what a column holds, by the Holds control's option. */
+async function chooseHolds(user: ReturnType<typeof userEvent.setup>, column: string, option: 'Text' | 'Picture' | 'File'): Promise<void> {
+  await user.click(within(await screen.findByTestId(`studio-pages-holds-${column}`)).getByRole('radio', { name: option }));
 }
 
 async function openBrowser(user: ReturnType<typeof userEvent.setup>) {
@@ -746,9 +752,9 @@ describe('ColumnManager — the File section', () => {
     // A varchar and a text column can; a decimal, an integer and an FK id
     // cannot, and a control nobody can use on most rows of most pages is
     // noise rather than affordance.
-    expect(await screen.findByTestId('studio-pages-file-title')).toBeTruthy();
-    expect(screen.queryByTestId('studio-pages-file-amount')).toBeNull();
-    expect(screen.queryByTestId('studio-pages-file-client_id')).toBeNull();
+    expect(await screen.findByTestId('studio-pages-holds-title')).toBeTruthy();
+    expect(screen.queryByTestId('studio-pages-holds-amount')).toBeNull();
+    expect(screen.queryByTestId('studio-pages-holds-client_id')).toBeNull();
   });
 
   it('always shows a stored block, whatever the column type now says', async () => {
@@ -757,11 +763,11 @@ describe('ColumnManager — the File section', () => {
     renderManager({
       columns: [{ name: 'amount', label: 'Amount', logicalType: 'decimal', file: { ref: 'id' } }],
     });
-    expect(await screen.findByTestId('studio-pages-file-amount')).toBeTruthy();
+    expect(await screen.findByTestId('studio-pages-holds-amount')).toBeTruthy();
     expect(screen.getByTestId('studio-pages-file-block-amount')).toBeTruthy();
-    expect(screen.getByTestId('studio-pages-file-amount').getAttribute('aria-checked')).toBe('true');
+    expect(within(screen.getByTestId('studio-pages-holds-amount')).getByRole('radio', { name: 'File' }).getAttribute('aria-checked')).toBe('true');
     // Two "File"s on the row: the badge beside the column name, which reads at
-    // a glance like Masked/Linked/Count do, and the switch's own label.
+    // a glance like Masked/Linked/Count do, and the Holds control's own option.
     expect(screen.getAllByText('File')).toHaveLength(2);
   });
 
@@ -769,7 +775,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     await saveAndCount(user, calls, 1);
     // The shape plus `inline`: every other field of the block means
     // "whatever the workspace says" by being absent, but a new file column
@@ -778,7 +784,7 @@ describe('ColumnManager — the File section', () => {
     expect(Object.keys(savedColumns(calls)[0]?.['file'] as object)).toEqual(['ref', 'inline']);
     expect((screen.getByTestId('studio-pages-file-inline-title') as HTMLElement).getAttribute('aria-checked')).toBe('true');
 
-    await user.click(screen.getByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'Text');
     await saveAndCount(user, calls, 2);
     // Not `file: undefined` — no `file` key at all, and the whole array is the
     // array that was stored. This is D14: the block is opt-in, so a page that
@@ -791,7 +797,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     renderManager({ columns: [{ name: 'pdf_url', label: 'PDF', logicalType: 'varchar' }] });
 
-    await user.click(await screen.findByTestId('studio-pages-file-pdf_url'));
+    await chooseHolds(user, 'pdf_url', 'File');
     const select = await screen.findByTestId('studio-pages-file-ref-pdf_url');
     const options = optionsOf(select);
 
@@ -819,7 +825,7 @@ describe('ColumnManager — the File section', () => {
     // `title` is an unbounded varchar in the fixture — the editor cannot prove
     // a refusal, and guessing one would block a legitimate choice.
     renderManager();
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     for (const option of optionsOf(await screen.findByTestId('studio-pages-file-ref-title'))) {
       expect(option.disabled).toBe(false);
     }
@@ -829,7 +835,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     const chips = screen.getByTestId('studio-pages-file-accept-title');
     await user.click(within(chips).getByRole('button', { name: 'PDF' }));
     await user.click(within(chips).getByRole('button', { name: 'PNG' }));
@@ -856,7 +862,7 @@ describe('ColumnManager — the File section', () => {
       },
     });
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     const picker = await screen.findByTestId('studio-pages-file-destination-title');
     await waitFor(() => {
       expect(optionsOf(picker).some((option) => option.value === 'dest_1')).toBe(true);
@@ -879,7 +885,7 @@ describe('ColumnManager — the File section', () => {
     // nothing here for them to fix, so there is nothing to tell them.
     const { calls } = renderManager({}, FORBIDDEN_DESTINATIONS);
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     const picker = await screen.findByTestId('studio-pages-file-destination-title');
     await waitFor(() => {
       expect(calls.some((call) => call.path.includes('/storage/destinations'))).toBe(true);
@@ -916,7 +922,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     await user.type(screen.getByTestId('studio-pages-file-max-title'), '5');
     // The block starts shown in the table; switched off, `inline` is absent
     // rather than `false`.
@@ -937,7 +943,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     await saveAndCount(user, calls, 1);
     expect(savedColumns(calls).slice(1)).toEqual(config.columns.slice(1));
   });
@@ -948,7 +954,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     await saveAndCount(user, calls, 1);
     expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true, multiple: true });
@@ -964,7 +970,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     // A single-value column already holds at most one file, so the cap would
     // be a control that changes nothing.
     expect(screen.queryByTestId('studio-pages-file-max-count-title')).toBeNull();
@@ -985,7 +991,7 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     // `columnFileSchema` caps this at 500 and `gridColumnSpecSchema` is
     // `.strict()`, so an out-of-range value makes the WHOLE column spec
@@ -999,12 +1005,160 @@ describe('ColumnManager — the File section', () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
-    await user.click(await screen.findByTestId('studio-pages-file-title'));
+    await chooseHolds(user, 'title', 'File');
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     await user.type(screen.getByTestId('studio-pages-file-max-count-title'), '2');
     await saveAndCount(user, calls, 1);
     // The property behind the literals above: a spec this editor writes and
     // the renderer then refuses would be lost in silence on the next read.
     expect(gridColumnSpecSchema.safeParse(savedColumns(calls)[0]).success).toBe(true);
+  });
+});
+
+/**
+ * What a column holds, as ONE choice (Text · Picture · File), and the words
+ * around it: what a change does to the values already stored, the hint on a
+ * column of picture links, a column an app's own rule keeps, and the picture
+ * beside a value.
+ */
+describe('ColumnManager — what a column holds', () => {
+  const PICTURES = ['png', 'jpeg', 'webp', 'gif'];
+  const holdsOf = (column: string) => screen.getByTestId(`studio-pages-holds-${column}`);
+  const checked = (column: string) => within(holdsOf(column)).getAllByRole('radio').find((radio) => radio.getAttribute('aria-checked') === 'true')?.textContent;
+
+  it('Picture writes a block that takes the four pictures, shown in the table; its kinds are pictures only and the last stays ticked', async () => {
+    const user = userEvent.setup();
+    const { calls } = renderManager();
+    await chooseHolds(user, 'title', 'Picture');
+    await saveAndCount(user, calls, 1);
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', accept: PICTURES, inline: true });
+    expect(screen.getByText('Pictures only. Untick the kinds this column should refuse.')).toBeTruthy();
+    const chips = screen.getByTestId('studio-pages-file-accept-title');
+    expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['PNG', 'JPEG', 'WebP', 'GIF']);
+    for (const name of ['JPEG', 'WebP', 'GIF']) await user.click(within(chips).getByRole('button', { name }));
+    // PNG alone is left, and stays: Holds never turns to File by itself.
+    expect((within(chips).getByRole('button', { name: 'PNG' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(checked('title')).toBe('Picture');
+    // Picture ↔ File keeps the rest of the block; File takes whatever the workspace takes.
+    await chooseHolds(user, 'title', 'File');
+    await saveAndCount(user, calls, 2);
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true });
+  });
+
+  it('reads a stored block back: pictures only is Picture, a block with no kinds stays File', async () => {
+    renderManager({
+      columns: [
+        { name: 'title', label: 'Title', logicalType: 'varchar', file: { ref: 'url', inline: true, accept: PICTURES } },
+        { name: 'pdf_url', label: 'Logo', logicalType: 'varchar', semantic: 'image-url', file: { ref: 'url', inline: true } },
+      ],
+    });
+    await screen.findByTestId('studio-pages-holds-title');
+    expect(checked('title')).toBe('Picture');
+    expect(checked('pdf_url')).toBe('File');
+  });
+
+  it('Picture → Text keeps the values and says so; the picture-links hint shows only while a column holds Text', async () => {
+    const user = userEvent.setup();
+    const { calls } = renderManager({
+      columns: [
+        { name: 'title', label: 'Title', logicalType: 'varchar', file: { ref: 'url', inline: true, accept: PICTURES } },
+        { name: 'pdf_url', label: 'Photo links', logicalType: 'varchar', semantic: 'image-url' },
+      ],
+    });
+    expect(await screen.findByTestId('studio-pages-holds-hint-pdf_url')).toHaveProperty('textContent', 'This column looks like it holds links to pictures. Set it to Picture to upload or choose pictures here. Links already in it stay.');
+    expect(screen.queryByTestId('studio-pages-holds-text-title')).toBeNull();
+    await chooseHolds(user, 'title', 'Text');
+    expect(screen.getByTestId('studio-pages-holds-text-title')).toHaveProperty('textContent', 'Values already stored stay in the column. The form shows them as text.');
+    expect(holdsOf('title').getAttribute('aria-describedby')).toBe(screen.getByTestId('studio-pages-holds-text-title').id);
+    await saveAndCount(user, calls, 1);
+    expect(savedColumns(calls)[0]).not.toHaveProperty('file');
+    await chooseHolds(user, 'pdf_url', 'Picture');
+    expect(screen.queryByTestId('studio-pages-holds-hint-pdf_url')).toBeNull();
+  });
+
+  it('the picture beside a value: by the column’s kind, never on a Picture column, and saying where it comes from', async () => {
+    const user = userEvent.setup();
+    const { calls } = renderManager({
+      columns: [
+        { name: 'title', label: 'Title', logicalType: 'varchar', isDisplay: true, avatar: true },
+        { name: 'amount', label: 'Amount', logicalType: 'decimal' },
+        { name: 'client_id', label: 'Client', logicalType: 'integer', fk: { table: 'main.clients', column: 'client_id' } },
+      ],
+    });
+    const label = (column: string) => screen.getByTestId(`studio-pages-avatar-${column}`).closest('label')?.textContent;
+    await screen.findByTestId('studio-pages-avatar-title');
+    expect(label('title')).toBe('Picture beside the name');
+    expect(label('amount')).toBe('Picture beside it');
+    expect(label('client_id')).toBe('Initials');
+    expect(screen.getByTestId('studio-pages-avatar-title').getAttribute('aria-label')).toBe("Show the row's picture beside title, or its initials");
+    expect(screen.getByTestId('studio-pages-avatar-client_id').getAttribute('aria-label')).toBe('Show initials beside client_id');
+    // No picture column yet.
+    expect(screen.getByTestId('studio-pages-avatar-none-title').textContent).toBe('No column holds a picture yet, so initials show.');
+    // A Picture column is not offered one, and the note goes.
+    await chooseHolds(user, 'title', 'Picture');
+    expect(screen.queryByTestId('studio-pages-avatar-title')).toBeNull();
+    await chooseHolds(user, 'title', 'Text');
+    expect(screen.queryByTestId('studio-pages-avatar-none-title')).not.toBeNull();
+    void calls;
+  });
+
+  it('with two picture columns, asks which one the picture comes from', async () => {
+    const user = userEvent.setup();
+    const { calls } = renderManager({
+      columns: [
+        { name: 'title', label: 'Title', logicalType: 'varchar', isDisplay: true, avatar: true },
+        { name: 'pdf_url', label: 'Photo', logicalType: 'varchar', file: { ref: 'url', accept: PICTURES } },
+        { name: 'cover', label: 'Cover', logicalType: 'varchar', file: { ref: 'url', accept: PICTURES } },
+      ],
+    });
+    const from = await screen.findByTestId('studio-pages-avatar-from-title');
+    expect([...from.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Photo', 'Cover']);
+    await user.selectOptions(from, 'cover');
+    await saveAndCount(user, calls, 1);
+    expect(savedColumns(calls)[0]).toMatchObject({ name: 'title', avatarFrom: 'cover' });
+  });
+
+  it('a column an app’s own rule keeps: shown, reachable, said why, never changed here, and no block', async () => {
+    const user = userEvent.setup();
+    const ruled = structuredClone(schemaReply);
+    const invoices = ruled.model.tables.find((table) => table.id === 'main.invoices')!;
+    (invoices.columns.find((column) => column.name === 'pdf_url') as Record<string, unknown>)['file'] = { accept: ['png'], maxBytes: 2 * 1_048_576 };
+    const calls = stubFetch(ruled, NO_DESTINATIONS);
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <Harness config={{ columns: [{ name: 'pdf_url', label: 'Logo', logicalType: 'varchar' }], pageSize: 50 }} />
+      </QueryClientProvider>,
+    );
+    const group = await screen.findByTestId('studio-pages-holds-pdf_url');
+    await waitFor(() => expect(checked('pdf_url')).toBe('Picture'));
+    expect(group.getAttribute('aria-disabled')).toBe('true');
+    const note = screen.getByTestId('studio-pages-holds-app-pdf_url');
+    expect(note.textContent).toBe('An app sets this column: it holds pictures up to 2 MB. It cannot be changed here.');
+    expect(group.getAttribute('aria-describedby')).toBe(note.id);
+    // Reachable by keyboard (not `disabled`), and a choice changes nothing.
+    const file = within(group).getByRole('radio', { name: 'File' }) as HTMLButtonElement;
+    expect(file.disabled).toBe(false);
+    await user.click(file);
+    expect(checked('pdf_url')).toBe('Picture');
+    expect(screen.queryByTestId('studio-pages-file-block-pdf_url')).toBeNull();
+    expect(screen.queryByTestId('studio-pages-avatar-pdf_url')).toBeNull();
+    void calls;
+  });
+
+  it('names the app whose table it is', async () => {
+    const ruled = structuredClone(schemaReply);
+    const invoices = ruled.model.tables.find((table) => table.id === 'main.invoices')!;
+    (invoices.columns.find((column) => column.name === 'pdf_url') as Record<string, unknown>)['file'] = { accept: ['png', 'pdf'], maxBytes: 10 * 1_048_576 };
+    stubFetch(ruled, NO_DESTINATIONS);
+    const client = createQueryClient();
+    client.setQueryData(bootstrapQuery().queryKey, {
+      appSections: [{ appKey: 'juniper', label: 'Juniper Kitchen', version: '1.0.0', groups: [{ key: 'g', label: null, items: [{ sourceTable: 'main.invoices' }] }], staff: null }],
+    } as never);
+    render(
+      <QueryClientProvider client={client}>
+        <Harness config={{ columns: [{ name: 'pdf_url', label: 'Logo', logicalType: 'varchar' }], pageSize: 50 }} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('studio-pages-holds-app-pdf_url').textContent).toBe('The Juniper Kitchen app sets this column: it holds files up to 10 MB. It cannot be changed here.'));
   });
 });

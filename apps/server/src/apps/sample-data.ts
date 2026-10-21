@@ -1667,6 +1667,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
         hops: 0,
         actor: { kind: 'user', id: opts.userId, label: opts.userLabel },
         request: null,
+        // A picture column the app's own rule makes a file column takes the pictures added above, and no other file.
+        minted: sampleFileIds,
       };
       const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
       const counts: Record<string, number> = {};
@@ -1948,6 +1950,17 @@ export function createSampleDataService(deps: SampleDataDeps) {
               const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
               if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect) && !isPart(view, resolved, current)) {
                 await takeBack(keptEntry, current, table.ref, resolved, label);
+                done += 1;
+                continue;
+              }
+              /*
+               * The operator changed it, and the sample names its very key: their row stands for the sample's, which
+               * is left out (it could only clash), and the rows after it point at theirs, as a row only for an empty
+               * table does. Adding the sample again after a removal that kept it would otherwise stop at that key.
+               */
+              if (current !== undefined && resolved.primaryKey.some((column) => values[column] !== undefined && values[column] !== null)) {
+                const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+                if (label !== null) labels.set(label, resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : key);
                 done += 1;
                 continue;
               }

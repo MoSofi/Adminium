@@ -1125,22 +1125,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Soubor",
-      "fileNewDatabase": "Nová místní databáze…",
-      "fileOpenSqlite": "Otevřít soubor SQLite…",
-      "fileBackupNow": "Zálohovat nyní…",
-      "fileRestore": "Obnovit ze zálohy…",
-      "edit": "Úpravy",
-      "view": "Zobrazení",
-      "window": "Okno",
-      "help": "Nápověda",
-      "helpDocs": "Dokumentace Adminium",
-      "helpShortcuts": "Klávesové zkratky",
-      "helpLogs": "Zobrazit protokoly",
-      "helpCheckForUpdates": "Zkontrolovat aktualizace…",
-      "helpAbout": "O aplikaci Adminium"
-    },
     "settings": {
       "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne ve vašem pracovním prostoru.",
       "title": "Nastavení aplikace"
@@ -1690,6 +1674,24 @@ export default {
       "secretHelper": "Vložte nastavovací odkaz do své ověřovací aplikace, nebo klíč zadejte ručně.",
       "secret": "Nastavovací klíč",
       "title": "Dvoufázové ověření"
+    },
+    "figma": {
+      "title": "Figma",
+      "none": "Nepřipojeno. Figmu připojíte v Designeru v nabídce Připojit, Z Figmy…",
+      "connectedAs": "Připojeno k Figmě jako {handle}",
+      "kept": "Uložen šifrovaně na tomto serveru jen pro vás. Používají ho jen vaše vlastní importy.",
+      "environment": "Používá se token Figmy nastavený v prostředí tohoto projektu.",
+      "changeToken": "Změnit token",
+      "disconnect": "Odpojit",
+      "newToken": "Nový token",
+      "saveToken": "Uložit token",
+      "cancel": "Zrušit",
+      "close": "Zavřít",
+      "refused": "Figma tento token nepřijala. Zkontrolujte ho a vložte znovu.",
+      "off": "Figma je na tomto serveru vypnutá: síťové funkce jsou vypnuté.",
+      "unreachable": "Figma neodpověděla. Zkuste to za chvíli znovu.",
+      "disconnectTitle": "Odpojit Figmu?",
+      "disconnectBody": "Vaše importy, které už jsou v Designeru, zůstanou."
     }
   },
   "team": {

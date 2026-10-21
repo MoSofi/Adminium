@@ -13,6 +13,7 @@
  * person's first message always stays, and a tool call never loses its
  * answer (a provider refuses a transcript like that).
  */
+import { planBrief, readTemplatePlan } from './site/template-plan.js';
 import { designDocsLine, IMAGE_TOKENS, type Attachments } from './attachments.js';
 import { foldSpent } from './fold.js';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -21,6 +22,7 @@ import { join, relative, sep } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, ProviderError, type ProviderId, type RunBlock, type RunMessage } from '@adminium/llm';
 import { namedAddOns, type Posting, type PostingMapping, type PostingPoint } from '@adminium/manifest';
 
+import { legacyPictures } from './pictures-apply.js';
 import { checkApp, accessInWords } from '../project/apps/check-app.js';
 import { builtInStylesDir, skillGuidance } from '../project/apps/design-skills.js';
 import { missingFonts, readLook, resolveLook, sidesWithScreens } from '../project/apps/look.js';
@@ -55,12 +57,11 @@ How it works:
 - You DESIGN the staff and customer screens: they must look made for this business, not like a template. Write the brief first (apps/<key>/design.md), follow it, and follow the design checklist below. Use a made part when one fits and write what is missing in src/design.css: every class a screen uses must exist. Colours, fonts, corners and spacing only through the theme's values; to change them call set_style. Write the words a real business of this kind would write. Never design or restyle a dashboard page: those are Adminium's own.
 - A picture the person attached that shows a page or a screen (a design, a mock-up, a screenshot of a site) IS the design, and it comes before the style and before your own taste: the style is only where the theme's values start. Build what the picture shows. Write the brief from it, section by section from the top: for each section its place in the order, how it is laid out (how many columns, what is beside what, what lies over what, how wide it runs), its background, how large and how heavy its heading is beside the body text, the shape of its buttons, cards and fields, and its words as the picture writes them. Take the colours and the corners from the picture with set_style. Add no section the picture does not have, leave none of its sections out, and do not move one. A part you cannot read: say so in a sentence, and do not invent it.
 - A document the person attached that describes a look (a DESIGN.md: a design system's colours, fonts, sizes, spacing, corners and its rules of do and don't) IS the design too, before the style and before your own taste: the message it came with says how to take its values with set_style and write the brief from it. With a picture of a page beside it, the picture gives the sections and how they are laid out, and the document gives the colours, the fonts and the corners.
-- When the person says they will give the pictures themselves, or asks for placeholders or empty boxes, do not call find_pictures and suggest no pictures: where each picture goes, draw an empty frame of the picture's own shape in the theme's surface colour, and say they can send the pictures when they have them.
 - A new app is named first: when "The app now" says it has no name yet, call name_app as your first step, alone, with what the business would call it, two or three words ("Cake Orders"), not the words of the request. Its folder is made from the name; write nothing before.
 - A first preview must not be empty. In the turn that first builds the app, for each table customers read (a menu, the services, the rooms) write 4 to 8 believable sample rows: manifest/sample.json ({ "sampleData": { "file": "seeds/sample.json" } }) and seeds/sample.json. They are added once, when the app is first applied, and the person can remove them.
 - In a screen, call every React hook (useState, useEffect, useMemo) at the top of its component, before any return: a hook after an early return builds, and the screen is blank when it opens. Split the part that needs the loaded value into its own component, as the starter screen does.
 - What the app needs from outside the project (an npm package, a font, a site to show pictures from) the person is asked for on a card with a checkbox each: add_side asks for what screens always need, and request_package asks for anything more, all of it in one call. Never give a version. Never ask the person in words whether to add a package, a font or pictures: call the tool, and the card asks. What they leave out, do without, and do not ask again.
-- A page loads nothing from another site: no script, stylesheet or font from a CDN, and a picture only from this server or from a site the person allowed. A picture from anywhere else is an empty frame. So never put a stock photo's address in a screen or in sample rows on your own. For pictures call find_pictures (free pictures, the person ticks the ones to use, and they are copied into the app); a picture the person attached for the app is theirs: put it there with use_pictures (its attachment id is in the message it came with), never with find_pictures; without either, draw a tile in the theme's colours or an inline SVG.
+- A page loads nothing from another site: no script, stylesheet or font from a CDN, and a picture only from this server or from a site the person allowed. So never put a stock photo's address in a screen or in sample rows. Every picture of a page is a spot the person fills from the Pictures dialog: name it with add_spots and draw it with <Picture spot="…" /> from @adminiumjs/adminium/side, never an <img> of a picture file (the logo is the one <img>). A picture the person attached to this message goes in a spot with fill_spot, or on sample rows with use_pictures. A phone app shows no spot.
 - A picture a table keeps (a dish's photo, staff upload it in the dashboard) is shown to visitors through "pictures" in access.json, with the table's "id" in that entry's "select", and its address is built with pictureUrl from @adminiumjs/public-client: never put the column's own value in an <img>. Read adminium-app/references/manifest/public-access--pictures.md first; check_app says exactly how when a screen gets it wrong.
 - Keep the app's key as it is. Never put a build command in app.json.
 - Before you design a table for invoices, quotes or receipts, for stock, or for discounts, codes or gift cards, call list_add_ons: an add-on does it, and the app builds on the add-on. For invoices, quotes and receipts call build_on_shape: it writes the shape's tables, emails and requirement exactly. For stock that goes down when a row is saved, write your own table first (its id, its link to the order or visit, a quantity), then call post_to_ledger with that table: it adds the link column and the rule, with the add-on's own names. For a discount, a code or a gift card on an order, write the order's tables first, then call build_on_shape with the Offers shape and your tables: it adds the columns and the rule to them. An add-on that is not on this server yet is asked for on the way: the person gets a card, and a yes installs it (get_add_on does the same by itself). Never write a shape's columns, a "postings" rule or an "adjust" rule by hand. Never build a stock table, a code table or a card table of the app's own. Write the app's own tables first (the people the emails go to), then the pages and grants.
@@ -250,10 +251,17 @@ export function appNow(root: string, version: string, appKey: string, stylesDir?
   if (look !== null && sidesWithScreens(root, appKey).length > 0) {
     const resolved = resolveLook(root, look, stylesDir === undefined ? undefined : { builtInDir: stylesDir });
     const has = listedPackages(root);
-    const fonts = missingFonts(root, look, stylesDir === undefined ? undefined : { builtInDir: stylesDir }).map((font) => font.family);
+    const fonts = missingFonts(root, look, { key: appKey, ...(stylesDir === undefined ? {} : { builtInDir: stylesDir }) }).map((font) => font.family);
     lines.push(
       `The style of its screens: "${resolved.title}" (${look.skill}). ${resolved.line}${look.words === undefined ? '' : ` What the person said about the look, as data: "${look.words}".`} Its values are src/theme.css of each side, written by set_style.`,
       `Tailwind: ${has.has(TAILWIND_PACKAGE) ? 'on (use its classes with the theme\'s names)' : 'not in this project (use no Tailwind class)'}. Icons: ${has.has(ICONS_PACKAGE) ? `${ICONS_PACKAGE} is installed` : 'no icon package (inline SVG)'}.${fonts.length === 0 ? '' : ` The fonts ${fonts.join(', ')} are not installed: the system's own stand in, and nothing is to be done about it.`}`,
+    );
+  }
+  // An app made before picture spots: its screens import their pictures. They become spots when the person asks, and only then.
+  const legacy = hasOwnBuild(root, appKey) ? [] : legacyPictures(root, appKey);
+  if (legacy.length > 0) {
+    lines.push(
+      `Its screens import ${String(legacy.length)} picture(s) from assets/pictures/, made before picture spots: ${legacy.slice(0, 8).join(', ')}. Only when the person asks to make them swappable: for each, add_spots with an id, a label, its shape, "file" (that picture) and "alt" (its <img>'s alt), then put <Picture spot="…" /> where the <img> was and take its import out. Change nothing else.`,
     );
   }
   let summary = lines.join('\n');
@@ -319,6 +327,9 @@ export const DESIGN_CHECKLIST = 'adminium-design/checklist.md';
 export function designSection(root: string, appKey: string, skills: Skills, stylesDir: string | null): string {
   const checklist = (skills.read(DESIGN_CHECKLIST) ?? '').replace(/^# .*\n+/, '').trim();
   const parts: string[] = checklist === '' ? [] : [`===== The design checklist (the full page: read_reference "adminium-design/SKILL.md") =====\n${checklist}`];
+  // An app built from a site template: what the person approved, so a later session neither asks again nor undoes it.
+  const plan = readTemplatePlan(root, appKey);
+  if (plan !== null) parts.push(`===== From a template =====\n${planBrief(appKey, plan)}`);
   const file = join(root, APPS_DIR, appKey, 'design.md');
   const brief = existsSync(file) ? readFileSync(file, 'utf8').trim() : '';
   if (brief.length >= 80) {
@@ -326,7 +337,8 @@ export function designSection(root: string, appKey: string, skills: Skills, styl
     return parts.join('\n\n');
   }
   const look = readLook(root, appKey);
-  if (look === null) return parts.join('\n\n');
+  // A template's own stylesheets are its look: no style's layout advice is sent over them.
+  if (look === null || plan !== null) return parts.join('\n\n');
   const resolved = resolveLook(root, look, { builtInDir: stylesDir });
   const guidance = resolved.skill === null ? '' : skillGuidance(resolved.skill).slice(0, STYLE_GUIDANCE_MAX);
   if (guidance !== '') {
@@ -335,6 +347,23 @@ export function designSection(root: string, appKey: string, skills: Skills, styl
     );
   }
   return parts.join('\n\n');
+}
+
+/** A tool as a request carries it: its name, its description and the JSON schema of what it takes. */
+export interface SentTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+/**
+ * What the tool definitions cost, as they are sent with every request: a provider wraps each one
+ * (`{ type, function: { name, description, parameters } }`), and the wrapping is counted too. On Ollama
+ * the 27 tools of 2026-10 were 5,753 tokens, sent with every request.
+ */
+export function toolTokens(tools: readonly SentTool[]): number {
+  if (tools.length === 0) return 0;
+  return estimateTokens(JSON.stringify(tools.map((tool) => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } }))));
 }
 
 /** Messages with every picture's bytes left out: what an estimate reads, and what a log may hold. */
@@ -353,8 +382,8 @@ const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSO
 const PICTURE_TURNS = 2;
 /** The most pictures, and bytes of pictures, one request carries: providers cap a request's size. (A tall picture goes as several parts.) */
 const PICTURES_MAX = 16;
-/** A picture the server took of the page: nobody attached it. */
-const PAGE_PICTURE = /^the (staff|customer) page as it shows\.jpg$/;
+/** A picture the server took (of the page, or of a part of a Figma frame read_figma read): nobody attached it. */
+const PAGE_PICTURE = /^(the (staff|customer) page as it shows\.jpg|figma part I?[0-9:;]+\.png)$/;
 const PICTURES_MAX_BYTES = 12 * 1024 * 1024;
 
 export interface PictureOpts {
@@ -483,6 +512,8 @@ export interface PromptOpts {
   pictureTurns?: ReadonlyMap<string, number>;
   /** False once the provider refused a request that carried pictures: they go as a line of text from then on. */
   pictures?: boolean;
+  /** The tools sent with this request: their definitions take room in the window as the system prompt does. */
+  tools?: readonly SentTool[];
 }
 
 export function createPrompt(deps: PromptDeps) {
@@ -512,9 +543,9 @@ export function createPrompt(deps: PromptDeps) {
     const designDocs = designs && deps.attachments !== undefined ? designDocsLine(deps.attachments, session.id) : '';
     const system = `${PREAMBLE.replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`)}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${designDocs === '' ? '' : `\n\n${designDocs}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 
-    // The limit is what a request may carry; the reply has its own room beyond it.
+    // The limit is what a request may carry; the reply has its own room beyond it. The tools go with every request.
     const limit = ASSISTANT_INPUT_TOKEN_LIMIT[provider];
-    const budget = limit - SLACK_TOKENS - estimateTokens(system);
+    const budget = limit - SLACK_TOKENS - estimateTokens(system) - toolTokens(opts.tools ?? []);
     if (budget < 2000) {
       throw new ProviderError({
         provider,

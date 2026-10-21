@@ -44,6 +44,8 @@ export interface FileDto {
   entity: { connectionId: string; table: string; recordId: string } | null;
   /** Same-origin path. Never a destination's public URL — the CSP blocks it. */
   contentPath: string;
+  /** What the record holding it is called, as this reader's grid names it: on a "used in" list only. */
+  recordLabel?: string | undefined;
 }
 
 export interface UploadFileInput {
@@ -145,7 +147,9 @@ export function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {
       cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          resolve(JSON.parse(xhr.responseText) as UploadFileResult);
+          const result = JSON.parse(xhr.responseText) as UploadFileResult;
+          rememberMinted(result.ref);
+          resolve(result);
         } catch {
           reject(new ApiError(xhr.status, 'INTERNAL', 'The upload reply was not readable.', null));
         }
@@ -226,4 +230,66 @@ export async function deleteFile(fileId: string): Promise<FileDto> {
 /** Put a trashed file back — the panel's Undo. No token machinery (D12). */
 export async function restoreFile(fileId: string): Promise<FileDto> {
   return (await api.post<{ data: FileDto }>(`/api/v1/files/${encodeURIComponent(fileId)}/restore`)).data;
+}
+
+/**
+ * The values this tab minted for a column (an upload's or a copy's reference):
+ * a save that names one carries the page's revision, so a form opened before
+ * the page stopped holding files there is refused rather than leaving the
+ * file to the sweep.
+ */
+const minted = new Set<string>();
+
+/** Whether a stored value names a file this tab uploaded or copied for a column. */
+export function namesMintedFile(value: unknown): boolean {
+  if (typeof value !== 'string' || value === '') return false;
+  if (minted.has(value)) return true;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('[')) return false;
+  try {
+    const list = JSON.parse(trimmed) as unknown;
+    return Array.isArray(list) && list.some((entry) => typeof entry === 'string' && minted.has(entry));
+  } catch {
+    return false;
+  }
+}
+
+/** Remember a value an upload or a copy minted. */
+export function rememberMinted(ref: string | undefined): void {
+  if (ref !== undefined && ref !== '') minted.add(ref);
+}
+
+/**
+ * The record's own copy of a file, made for a column (`POST /files/:id/copy`):
+ * a new upload of the caller's, unclaimed until a save names it, and the value
+ * to store in the column's own shape. The server makes the value; the
+ * dashboard never builds one.
+ */
+export async function copyFile(input: { fileId: string; connectionId: string; table: string; column: string }): Promise<{ data: FileDto; ref: string }> {
+  const reply = await api.post<{ data: FileDto; ref: string }>(`/api/v1/files/${encodeURIComponent(input.fileId)}/copy`, {
+    connectionId: input.connectionId,
+    table: input.table,
+    column: input.column,
+  });
+  rememberMinted(reply.ref);
+  return reply;
+}
+
+/** The pictures a table's records hold in a column, each one this reader may read (`usedInTable`/`usedInColumn`). */
+export async function listUsedIn(input: { connectionId: string; table: string; column: string; q?: string | undefined; labelColumn?: string | undefined }): Promise<FileDto[]> {
+  const query = new URLSearchParams({ connectionId: input.connectionId, usedInTable: input.table, usedInColumn: input.column, limit: '200' });
+  // The column the page names its records by: a tile says whose picture it is in the grid's own words.
+  if (input.labelColumn !== undefined) query.set('usedInLabel', input.labelColumn);
+  if (input.q !== undefined && input.q !== '') query.set('q', input.q);
+  const reply = await api.get<{ data: FileDto[] }>(`/api/v1/files?${query.toString()}`);
+  return reply.data;
+}
+
+/** The Files page's own uploads (`state=library`): everyone's for a file manager, else the reader's own. */
+export async function listLibrary(input: { connectionId: string; q?: string | undefined; accept?: readonly string[] | undefined }): Promise<FileDto[]> {
+  const query = new URLSearchParams({ connectionId: input.connectionId, state: 'library', limit: '200' });
+  if (input.q !== undefined && input.q !== '') query.set('q', input.q);
+  if (input.accept !== undefined && input.accept.length > 0) query.set('accept', input.accept.join(','));
+  const reply = await api.get<{ data: FileDto[] }>(`/api/v1/files?${query.toString()}`);
+  return reply.data;
 }
