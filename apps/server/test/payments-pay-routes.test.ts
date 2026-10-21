@@ -228,6 +228,11 @@ describe('a pay link, end to end', () => {
     expect(page).toMatchObject({ state: 'shop-checks', ways: [] });
   });
 
+  it('shows the pay page preview to staff only', async () => {
+    expect((await app.inject({ method: 'GET', url: '/pay/api/preview' })).json()).toMatchObject({ state: 'unknown', payable: null, ways: [] });
+    expect((await app.inject({ method: 'GET', url: '/pay/api/preview', headers: staff() })).json()).toMatchObject({ state: 'ready', test: false, payable: { label: 'INV-0042' } });
+  });
+
   it('never spends one proof twice', async () => {
     const { token } = await mint();
     const header = await proof(token);

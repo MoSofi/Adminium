@@ -112,6 +112,22 @@ describe('the pay page routes', () => {
     expect(answer.headers['content-security-policy']).toBeDefined();
   });
 
+  it('lets only the staff preview be framed, by this server itself', async () => {
+    await start(true);
+    const preview = await app.inject({ method: 'GET', url: '/pay/preview', headers: { host: 'pay.crumbandco.test' } });
+    expect(preview.headers['content-security-policy']).toContain("frame-ancestors 'self'");
+    for (const url of ['/pay/AAAAAAAAAAAAAAAAAAAAAA', '/pay/preview/x', '/pay/previewx', '/pay/back/abcdefghijklmnop']) {
+      const answer = await app.inject({ method: 'GET', url, headers: { host: 'pay.crumbandco.test' } });
+      expect(String(answer.headers['content-security-policy']), url).not.toContain("frame-ancestors 'self'");
+    }
+  });
+
+  it('shows the preview\'s logo to nobody without a payments right', async () => {
+    await start(true);
+    expect((await app.inject({ method: 'GET', url: '/pay/api/preview/logo' })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: '/pay/api/preview/logo?file=fil_anything' })).statusCode).toBe(404);
+  });
+
   it('drives the demo service for nobody without the right to manage payments', async () => {
     await start(true);
     expect((await app.inject({ method: 'GET', url: '/pay/api/demo/att_1' })).statusCode).toBe(404);
