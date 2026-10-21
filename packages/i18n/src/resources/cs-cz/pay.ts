@@ -166,5 +166,7 @@ export default {
   },
   "noscript": {
     "title": "Tato stránka potřebuje k online platbě JavaScript."
-  }
+  },
+  "shopFallback": "obchod",
+  "shopFallbackStart": "Obchod"
 } as const;

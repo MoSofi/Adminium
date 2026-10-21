@@ -76,7 +76,8 @@ export default {
     "refundCancelled": "أُلغي استرداد {amount}.",
     "refundedOnInline": "استُرد {amount} في {date}",
     "refundedThere": "استرداد {amount} تم في لوحة تحكم {service} في {date} · مسجّل",
-    "needsLook": "يحتاج إلى مراجعة"
+    "needsLook": "يحتاج إلى مراجعة",
+    "demoService": "الخدمة التجريبية"
   },
   "record": {
     "title": "تسجيل دفعة",

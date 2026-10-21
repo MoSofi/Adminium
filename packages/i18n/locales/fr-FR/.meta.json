@@ -19623,6 +19623,14 @@
     "status": "mt",
     "srcHash": "eebb381e21bf"
   },
+  "pay.shopFallback": {
+    "status": "mt",
+    "srcHash": "66d3d1475ca0"
+  },
+  "pay.shopFallbackStart": {
+    "status": "mt",
+    "srcHash": "95c5e0b83f0e"
+  },
   "pay.testBand": {
     "status": "mt",
     "srcHash": "666999802412"
@@ -19882,6 +19890,10 @@
   "payments.panel.copyLink": {
     "status": "mt",
     "srcHash": "b26cbf49fa15"
+  },
+  "payments.panel.demoService": {
+    "status": "mt",
+    "srcHash": "06194c597be9"
   },
   "payments.panel.disputeClosed": {
     "status": "mt",

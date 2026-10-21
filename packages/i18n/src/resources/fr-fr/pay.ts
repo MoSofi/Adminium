@@ -166,5 +166,7 @@ export default {
   },
   "noscript": {
     "title": "Cette page a besoin de JavaScript pour payer en ligne."
-  }
+  },
+  "shopFallback": "la boutique",
+  "shopFallbackStart": "La boutique"
 } as const;

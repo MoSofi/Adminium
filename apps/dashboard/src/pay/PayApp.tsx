@@ -223,6 +223,9 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
 
   const shop = page?.shop ?? { name: '', email: null, phone: null, hasLogo: false };
   const payable = page?.payable ?? null;
+  // A shop that gave no name (and has no pay address to go by) is "the shop" in every sentence.
+  const shopWord = shop.name.trim() === '' ? t('pay:shopFallback', 'the shop') : shop.name;
+  const shopWordStart = shop.name.trim() === '' ? t('pay:shopFallbackStart', 'The shop') : shop.name;
   const amount = payable === null ? '' : money(payable.due, payable.currency, tag);
   const providerSource = phase.kind === 'redirecting' || phase.kind === 'getting-ready' ? phase.source : (page?.attempt?.provider ?? null);
   const kind = providerKind(providerSource);
@@ -306,7 +309,7 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
       case 'paid': {
         if (route.kind === 'link' || page.attempt === null) return { tone: 'positive', icon: CircleCheck, title: t('pay:paid.already', 'This is paid. Thank you.'), paras: [] };
         const paid = money(page.attempt.amount, payable?.currency ?? 'EUR', tag);
-        const receipt = page.attempt.receiptSent ? t('pay:paid.receiptSent', 'A receipt is on its way to your email.') : t('pay:paid.receiptAsk', 'Ask {shop} if you need a receipt.', { shop: shop.name });
+        const receipt = page.attempt.receiptSent ? t('pay:paid.receiptSent', 'A receipt is on its way to your email.') : t('pay:paid.receiptAsk', 'Ask {shop} if you need a receipt.', { shop: shopWord });
         return { tone: 'positive', icon: CircleCheck, title: t('pay:paid.title', 'Thank you. Your payment of {amount} arrived.', { amount: paid }), paras: [receipt] };
       }
       case 'processing': {
@@ -337,25 +340,25 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
         return { tone: 'neutral', icon: Info, title, paras, ...(tryAgain === null ? {} : { action: tryAgain }) };
       }
       case 'nothing-due':
-        return contactWith(Info, t('pay:nothingDue.title', 'There is nothing to pay here yet.'), t('pay:nothingDue.body', 'Please contact {shop}.', { shop: shop.name }));
+        return contactWith(Info, t('pay:nothingDue.title', 'There is nothing to pay here yet.'), t('pay:nothingDue.body', 'Please contact {shop}.', { shop: shopWord }));
       case 'voided':
-        return contactWith(Ban, t('pay:voided.title', 'This can no longer be paid here.'), t('pay:voided.body', 'Please contact {shop}.', { shop: shop.name }));
+        return contactWith(Ban, t('pay:voided.title', 'This can no longer be paid here.'), t('pay:voided.body', 'Please contact {shop}.', { shop: shopWord }));
       case 'expired':
-        return contactWith(Hourglass, t('pay:expired.title', 'This pay link has expired.'), t('pay:expired.body', 'Ask {shop} for a new one.', { shop: shop.name }), 'warning');
+        return contactWith(Hourglass, t('pay:expired.title', 'This pay link has expired.'), t('pay:expired.body', 'Ask {shop} for a new one.', { shop: shopWord }), 'warning');
       case 'test-ended':
-        return contactWith(FlaskConical, t('pay:testEnded.title', 'This was a test link.'), t('pay:testEnded.body', '{shop} now takes real payments. Ask them for the link to pay.', { shop: shop.name }));
+        return contactWith(FlaskConical, t('pay:testEnded.title', 'This was a test link.'), t('pay:testEnded.body', '{shop} now takes real payments. Ask them for the link to pay.', { shop: shopWordStart }));
       case 'unknown':
-        return contactWith(Link2Off, t('pay:unknown.title', "This link doesn't work."), t('pay:unknown.body', 'Ask {shop} for a new one.', { shop: shop.name }));
+        return contactWith(Link2Off, t('pay:unknown.title', "This link doesn't work."), t('pay:unknown.body', 'Ask {shop} for a new one.', { shop: shopWord }));
       case 'locked': {
         const bank = page.ways.some((way) => way.method === 'bank-transfer');
         return { tone: 'warning', icon: TriangleAlert, title: t('pay:locked.title', 'Too many payment tries on this link.'), paras: [bank ? t('pay:locked.bodyBank', 'Please try again in an hour, or pay by bank transfer.') : t('pay:locked.body', 'Please try again in an hour.')], contact: !bank };
       }
       case 'no-ways':
-        return contactWith(Info, t('pay:noWays.title', 'There is no way to pay this amount online here.'), t('pay:noWays.body', 'Please contact {shop}.', { shop: shop.name }));
+        return contactWith(Info, t('pay:noWays.title', 'There is no way to pay this amount online here.'), t('pay:noWays.body', 'Please contact {shop}.', { shop: shopWord }));
       case 'unavailable':
-        return contactWith(Store, t('pay:unavailable.title', '{shop} cannot take payments online right now.', { shop: shop.name }), t('pay:unavailable.body', 'Please contact them.'));
+        return contactWith(Store, t('pay:unavailable.title', '{shop} cannot take payments online right now.', { shop: shopWordStart }), t('pay:unavailable.body', 'Please contact them.'));
       case 'test-staff-only':
-        return contactWith(FlaskConical, t('pay:testStaffOnly.title', 'This test link opens only for the staff of {shop}.', { shop: shop.name }), t('pay:testStaffOnly.body', 'Sign in to the dashboard in this browser, then open the link again.'), 'warning');
+        return contactWith(FlaskConical, t('pay:testStaffOnly.title', 'This test link opens only for the staff of {shop}.', { shop: shopWord }), t('pay:testStaffOnly.body', 'Sign in to the dashboard in this browser, then open the link again.'), 'warning');
     }
   }
 
@@ -552,7 +555,7 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
             <img className="pp-logo" src={`/pay/api/${encodeURIComponent(route.token)}/logo`} alt="" />
           ) : shop.hasLogo && route.kind === 'preview' ? (
             <img className="pp-logo" src={`/pay/api/preview/logo${previewLogo === null ? '' : `?file=${encodeURIComponent(previewLogo)}`}`} alt="" />
-          ) : (
+          ) : monogram(shop.name) === '' ? null : (
             <span className="pp-monogram" aria-hidden="true" dir="ltr">
               {monogram(shop.name)}
             </span>
@@ -718,7 +721,7 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
                   <span>{t('pay:bank.otherWays', 'Other ways to pay')}</span>
                 </button>
               </div>
-              {accounts.length === 0 ? <p className="pp-small">{t('pay:bank.noAccount', 'Ask {shop} for its bank details for this currency.', { shop: shop.name })}</p> : null}
+              {accounts.length === 0 ? <p className="pp-small">{t('pay:bank.noAccount', 'Ask {shop} for its bank details for this currency.', { shop: shopWord })}</p> : null}
               {accounts.map((account, index) => (
                 <dl key={index} className="pp-rows">
                   {bankRows(account).map((row) => (

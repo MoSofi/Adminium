@@ -66,7 +66,8 @@
     "refundCancelled": "Le remboursement de {amount} a été annulé.",
     "refundedOnInline": "{amount} remboursé le {date}",
     "refundedThere": "Remboursement de {amount} fait dans le tableau de bord {service} le {date} · enregistré",
-    "needsLook": "À vérifier"
+    "needsLook": "À vérifier",
+    "demoService": "le service de démonstration"
   },
   "record": {
     "title": "Enregistrer un paiement",

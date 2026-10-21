@@ -187,6 +187,13 @@ describe('the pay page', () => {
     expect(amount.textContent).not.toMatch(/[٠-٩]/);
   });
 
+  it('calls a shop with no name "the shop", and draws no empty tile', async () => {
+    answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'paid', shop: { ...SHOP, name: '' }, ways: [], attempt: { provider: 'demo', amount: '0.39', at: 1, receiptSent: false } });
+    await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });
+    expect(await screen.findByText('Ask the shop if you need a receipt.')).toBeTruthy();
+    expect(document.querySelector('.pp-monogram')).toBeNull();
+  });
+
   it('draws a two-letter tile for a shop with no logo', () => {
     expect(monogram('Crumb & Co.')).toBe('C&');
     expect(monogram('  9 Lives Bakery')).toBe('9L');

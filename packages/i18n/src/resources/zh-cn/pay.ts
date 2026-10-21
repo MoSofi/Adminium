@@ -166,5 +166,7 @@ export default {
   },
   "noscript": {
     "title": "此页面需要 JavaScript 才能在线付款。"
-  }
+  },
+  "shopFallback": "商家",
+  "shopFallbackStart": "商家"
 } as const;

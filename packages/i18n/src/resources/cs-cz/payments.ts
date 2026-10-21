@@ -76,7 +76,8 @@ export default {
     "refundCancelled": "Vrácení {amount} bylo zrušeno.",
     "refundedOnInline": "vráceno {amount} dne {date}",
     "refundedThere": "Vrácení {amount} provedené v ovládacím panelu {service} dne {date} · zaznamenáno",
-    "needsLook": "Ke kontrole"
+    "needsLook": "Ke kontrole",
+    "demoService": "ukázková služba"
   },
   "record": {
     "title": "Zaznamenat platbu",

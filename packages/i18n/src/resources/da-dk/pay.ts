@@ -166,5 +166,7 @@ export default {
   },
   "noscript": {
     "title": "Denne side kræver JavaScript for at betale online."
-  }
+  },
+  "shopFallback": "butikken",
+  "shopFallbackStart": "Butikken"
 } as const;

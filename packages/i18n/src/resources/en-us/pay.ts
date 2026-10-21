@@ -166,5 +166,7 @@ export default {
   },
   "noscript": {
     "title": "This page needs JavaScript to pay online."
-  }
+  },
+  "shopFallback": "the shop",
+  "shopFallbackStart": "The shop"
 } as const;

@@ -66,7 +66,8 @@
     "refundCancelled": "退款 {amount} 已取消。",
     "refundedOnInline": "已於 {date} 退款 {amount}",
     "refundedThere": "已於 {date} 在 {service} 主控台中退款 {amount} · 已記錄",
-    "needsLook": "需要查看"
+    "needsLook": "需要查看",
+    "demoService": "示範服務"
   },
   "record": {
     "title": "記錄一筆付款",

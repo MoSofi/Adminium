@@ -166,5 +166,7 @@ export default {
   },
   "noscript": {
     "title": "Diese Seite braucht JavaScript, um online zu bezahlen."
-  }
+  },
+  "shopFallback": "den Shop",
+  "shopFallbackStart": "Der Shop"
 } as const;
