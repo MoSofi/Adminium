@@ -18,7 +18,7 @@ import { planSweeps, runSweep, sweepDocName, sweepDue, sweepStateSchema, type Sw
 
 const PAY = 'https://pay.crumbandco.test';
 const REF = { kind: 'document' as const, connectionId: null, tableName: null, rowKey: 'doc_inv0042' };
-const payable: ResolvedPayable = { ref: REF, label: 'INV-0042', currency: 'EUR', total: '120.00', due: '120.00', refusal: null, manualOnly: false, customerEmail: null, customerCountry: null, status: null, recordInto: { kind: 'kept' } };
+const payable: ResolvedPayable = { ref: REF, label: 'INV-0042', dueDate: null, currency: 'EUR', total: '120.00', due: '120.00', refusal: null, manualOnly: false, customerEmail: null, customerCountry: null, status: null, recordInto: { kind: 'kept' } };
 const MIN = 60_000;
 
 describe('the safety sweep', () => {

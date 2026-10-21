@@ -145,6 +145,8 @@ export interface ResolvedPayable {
   total: string;
   /** What is due now. */
   due: string;
+  /** When it is due (`YYYY-MM-DD`), when the record says so plainly. */
+  dueDate: string | null;
   /** Null when it can take an online payment now. */
   refusal: PayableRefusal | null;
   /** True when manual payments are possible even though online ones are not (a `@1` table). */
@@ -168,7 +170,15 @@ export interface PayableSources {
   /** What Adminium keeps as paid on a payable, live payments only. */
   keptPaid(ref: PayableRef, currency: string): Promise<string>;
   /** A designer invoice's money, as stored. */
-  document(id: string): Promise<{ status: string; number: string; currency: string | null; totalMinor: number | null } | null>;
+  document(id: string): Promise<{ status: string; number: string; currency: string | null; totalMinor: number | null; due?: string | null } | null>;
+}
+
+/** A calendar day as `YYYY-MM-DD`, from a date column or a date the designer typed; anything else is no date. */
+export function calendarDay(value: unknown): string | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  if (typeof value !== 'string') return null;
+  const day = /^(\d{4}-\d{2}-\d{2})(?:$|[T ])/.exec(value.trim())?.[1] ?? null;
+  return day !== null && !Number.isNaN(Date.parse(`${day}T00:00:00Z`)) ? day : null;
 }
 
 function refused(code: PayableRefusalCode, message: string): PayableRefusal {
@@ -195,6 +205,7 @@ async function resolveShape(sources: PayableSources, ref: PayableRef, connection
   const base = {
     ref,
     label,
+    dueDate: calendarDay(row['due_on']),
     customerEmail: null,
     customerCountry: null,
     status: null,
@@ -264,7 +275,7 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
   if (row === null) return null;
   const mapping = profile.mapping;
   const label = mapping?.label === null || mapping === null ? ref.rowKey : String(row[mapping.label] ?? ref.rowKey);
-  const base = { ref, label, manualOnly: false, customerEmail: null as string | null, customerCountry: null as string | null };
+  const base = { ref, label, dueDate: null, manualOnly: false, customerEmail: null as string | null, customerCountry: null as string | null };
   if (mapping === null || !profile.enabled) {
     return {
       ...base,
@@ -331,7 +342,7 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
 async function resolveDocument(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
   const document = await sources.document(ref.rowKey);
   if (document === null) return null;
-  const base = { ref, label: document.number || ref.rowKey, manualOnly: false, customerEmail: null, customerCountry: null, status: null, recordInto: { kind: 'kept' as const } };
+  const base = { ref, label: document.number || ref.rowKey, dueDate: calendarDay(document.due ?? null), manualOnly: false, customerEmail: null, customerCountry: null, status: null, recordInto: { kind: 'kept' as const } };
   // The designer stores a currency SYMBOL; a payment needs the ISO code, which the invoice@2 work adds.
   if (document.currency === null || !ISO.test(document.currency)) {
     return { ...base, currency: '', total: '0', due: '0', refusal: refused('NO_CURRENCY', 'Choose the invoice currency first.') };
@@ -420,6 +431,7 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
         number: document.number ?? '',
         currency: code,
         totalMinor: typeof summary['totalMinor'] === 'number' ? summary['totalMinor'] : null,
+        due: typeof body['due'] === 'string' ? body['due'] : null,
       };
     },
   };

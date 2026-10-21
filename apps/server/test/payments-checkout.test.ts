@@ -19,7 +19,7 @@ const PAY = 'https://pay.crumbandco.test';
 const REF = { kind: 'document' as const, connectionId: null, tableName: null, rowKey: 'doc_inv0042' };
 
 function payable(due = '120.00'): ResolvedPayable {
-  return { ref: REF, label: 'INV-0042', currency: 'EUR', total: '120.00', due, refusal: null, manualOnly: false, customerEmail: null, customerCountry: 'DE', status: null, recordInto: { kind: 'kept' } };
+  return { ref: REF, label: 'INV-0042', dueDate: null, currency: 'EUR', total: '120.00', due, refusal: null, manualOnly: false, customerEmail: null, customerCountry: 'DE', status: null, recordInto: { kind: 'kept' } };
 }
 
 describe('starting and settling a checkout', () => {
