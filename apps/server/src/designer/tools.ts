@@ -258,6 +258,10 @@ function nearestIndex(skills: Skills, name: string): { skill: string; text: stri
 const NO_DIALOG: PictureDialog = {
   search: async () => ({ state: 'off' }),
   sources: () => [],
+  keys: () => null,
+  keepKey: () => {
+    throw new Error('Picture keys are not kept here.');
+  },
   pin: async () => ({ state: 'gone' }),
   picked: async () => null,
   chosen: async () => undefined,

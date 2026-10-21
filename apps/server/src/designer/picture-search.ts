@@ -150,6 +150,8 @@ export type SearchAnswer =
   | { state: 'ok'; shelf: string; pictures: PublicPicture[]; more: boolean; page: number; q?: string }
   /** The source is paused: its own limit, or this server's share of it, is spent until then. */
   | { state: 'busy'; source: SourceName; minutes: number }
+  /** The source turned down this server's key for it (a wrong key, or one taken back): the dialog asks for another. */
+  | { state: 'refused'; source: SourceName }
   /** The source is not on this server (no key, or the server calls nothing outside). */
   | { state: 'off' }
   /** The source could not be asked, or its answer did not read. */
@@ -164,6 +166,13 @@ export interface PictureSearch {
   /** The source of this name, for an Apply to tell it a picture was chosen. */
   source(name: string): PictureSource | null;
 }
+
+/**
+ * A source saying no to the key itself: 401, or a 403 that is not its limit spent (Unsplash answers a spent hour with a
+ * 403 and `x-ratelimit-remaining: 0`, which is a wait, not a wrong key). Openverse is asked with no key: its no is
+ * a failure like any other.
+ */
+const refusedKey = (error: SafeFetchError): boolean => error.status === 401 || (error.status === 403 && error.headers?.['x-ratelimit-remaining'] !== '0');
 
 export function createPictureSearch(deps: {
   /** The sources this server has now: none where it calls nothing outside. */
@@ -214,6 +223,7 @@ export function createPictureSearch(deps: {
             budget(source.name).pause(until);
             return { state: 'busy', source: source.name, minutes: minutes(until) };
           }
+          if (error instanceof SafeFetchError && source.name !== 'Openverse' && refusedKey(error)) return { state: 'refused', source: source.name };
           return { state: 'failed' };
         }
       };

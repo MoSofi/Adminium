@@ -201,8 +201,8 @@ added again with it. A picture you attach to a message can be put in a spot by t
 | Source | When |
 |---|---|
 | [Openverse](https://openverse.org) | By default. Pictures under licences that allow use and change for any purpose; no key. **Credit + same licence** (CC BY-SA) is hidden until you ask for it |
-| [Pexels](https://www.pexels.com) | When your project's `.env` has `PEXELS_API_KEY` |
-| [Unsplash](https://unsplash.com) | When your project's `.env` has `UNSPLASH_ACCESS_KEY`. For a page's spots only |
+| [Pexels](https://www.pexels.com) | When your project's `.env` has `PEXELS_API_KEY` (in the desktop app: its key, pasted in the dialog) |
+| [Unsplash](https://unsplash.com) | When your project's `.env` has `UNSPLASH_ACCESS_KEY` (in the desktop app: its key, pasted in the dialog). For a page's spots only |
 
 Unsplash's rules ask that its pictures be shown from Unsplash's own address and never copied. So a
 picture you apply from Unsplash is not copied into your app: the page loads it from

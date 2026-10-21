@@ -128,7 +128,7 @@ import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
-import { createPictureDialog } from './designer/picture-dialog.js';
+import { createPictureDialog, type PictureKeys } from './designer/picture-dialog.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
 import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
@@ -2323,7 +2323,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         let designerSearch: PictureSearch | null = null;
         const designerShelf = createPictureShelf({ fetcher: pictureFetch, mayFetch: (picture) => designerSearch?.mayFetchThumb(picture) ?? true });
         designerSearch = createPictureSearch({ sources: pictureSources, shelf: designerShelf });
-        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
+        // Where a host keeps the keys (the desktop app), the picture dialog takes them too: kept there, in use from the next search.
+        const pictureKeys: PictureKeys = {
+          state: () => {
+            const host = hostModels();
+            if (host === null || !addOnCatalog.networkFeaturesAllowed()) return null;
+            return { Pexels: pictureKey('PEXELS_API_KEY') !== '', Unsplash: pictureKey('UNSPLASH_ACCESS_KEY') !== '', keeping: host.keeping };
+          },
+          keep: (source, key) => hostModels()?.keep({ [source === 'Pexels' ? 'PEXELS_API_KEY' : 'UNSPLASH_ACCESS_KEY']: key }),
+        };
+        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, keys: pictureKeys, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
 
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });

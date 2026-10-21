@@ -372,7 +372,7 @@ describe('after the plan', () => {
     const hero = state().spots.find((spot) => spot.id === 'a-sofa-by-the-window');
     expect(hero?.licence?.code).toBe('template');
     const mine = attachments.add(session.id, { filename: 'my-sofa.png', bytes: png(1200, 800, 'mine') });
-    const dialog = { search: async () => ({ state: 'off' as const }), sources: () => [], pin: async () => ({ state: 'gone' as const }), picked: async () => null, chosen: async () => undefined };
+    const dialog = { search: async () => ({ state: 'off' as const }), sources: () => [], keys: () => null, keepKey: () => undefined, pin: async () => ({ state: 'gone' as const }), picked: async () => null, chosen: async () => undefined };
     const { ready } = await prepareFills([{ spot: 'a-sofa-by-the-window', version: hero?.version ?? '', from: { attachment: mine.id }, alt: 'My sofa' }], { root, key: 'repairs', sessionId: session.id, dialog, attachments });
     const written = await writeFills(ready, { root, key: 'repairs', version: APP_VERSION, by: { id: null, label: 'x' } });
     expect(written.results[0]?.state).toBe('applied');

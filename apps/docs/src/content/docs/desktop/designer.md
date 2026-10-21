@@ -51,6 +51,13 @@ If a project's `.env` names a model (it was made on a terminal, or by an older
 version of the app), the app does not use that line and says so. A terminal
 still reads it.
 
+The picture dialog's keys are kept the same way. Openverse needs none; to search
+[Pexels](https://www.pexels.com/api/) or [Unsplash](https://unsplash.com/developers)
+too, get a free key there and paste it under **Add Pexels or Unsplash** in the
+picture dialog. The source is in the **Source** list at once. A Pexels key gets
+200 searches an hour; an Unsplash demo key gets 50, and Unsplash's pictures are
+shown from its own site, never copied into your app.
+
 ## Versions
 
 After every change the Designer keeps a version, so you can go back. It uses

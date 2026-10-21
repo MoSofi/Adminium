@@ -11,6 +11,9 @@
  *  4. "Credit + same licence" is hidden at first, and says so when it hides everything found.
  *  5. While a turn runs, Apply waits and says why; search off says where else to look; an app
  *     made before spots offers "Make them swappable".
+ *  6. Where the app keeps keys, Pexels and Unsplash are added from the dialog: a key saved puts the
+ *     source in the Source list and searches it, with no restart; a key a source refuses is said, and
+ *     changed or taken away from there. Elsewhere, nothing offers a key.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -48,10 +51,13 @@ let results: FoundPicture[];
 let applied: PicturesApplied;
 /** The fewer words the server says found the pictures; none when the words asked for did. */
 let fewer: string | undefined;
+/** What a search answers when not `ok`. */
+let searchReply: unknown;
 
 beforeEach(() => {
   calls = [];
   view = VIEW;
+  searchReply = null;
   results = [found('p1', 'by', 'Fried chicken on a board'), found('p2', 'by', 'Chicken and fries')];
   fewer = undefined;
   applied = { results: [{ target: 'spot:hero', state: 'applied' }], version: { n: 5, name: 'v5 · Pictures: Hero' }, applied: true, before: 4 };
@@ -61,7 +67,16 @@ beforeEach(() => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       calls.push({ method, url, ...(init?.body === undefined ? {} : { body: JSON.parse(String(init.body)) }) });
-      if (url.includes('/pictures/search')) return jsonResponse(200, { state: 'ok', shelf: 'sh1', pictures: results, more: true, page: Number(new URL(url, 'http://x').searchParams.get('page') ?? '1'), ...(fewer === undefined ? {} : { q: fewer }) });
+      if (url.includes('/pictures/search')) return jsonResponse(200, searchReply ?? { state: 'ok', shelf: 'sh1', pictures: results, more: true, page: Number(new URL(url, 'http://x').searchParams.get('page') ?? '1'), ...(fewer === undefined ? {} : { q: fewer }) });
+      if (url.endsWith('/designer/picture-keys')) {
+        // As the server does: the key is kept at once, and the next read of the pictures has the source (or not).
+        const { source, key } = JSON.parse(String(init?.body)) as { source: 'Pexels' | 'Unsplash'; key: string | null };
+        if (key !== null && key.includes(' ')) return jsonResponse(422, { error: { code: 'VALIDATION_FAILED', message: 'Invalid' } });
+        const keys = { ...(view.keys ?? { Pexels: false, Unsplash: false, keeping: 'key-store' as const }), [source]: key !== null };
+        const names = (['Openverse', 'Pexels', 'Unsplash'] as const).filter((name) => name === 'Openverse' || keys[name]);
+        view = { ...view, keys, sources: names.map((name) => ({ name, busy: null })) };
+        return jsonResponse(200, { keys });
+      }
       if (url.endsWith('/pictures/pin')) return jsonResponse(200, { state: 'kept', small: false });
       if (url.endsWith('/pictures/apply')) return jsonResponse(200, applied);
       if (url.endsWith('/pictures')) return jsonResponse(200, view);
@@ -200,5 +215,84 @@ describe('the picture dialog', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Make them swappable' }));
     await act(async () => undefined);
     expect(idle.swapped).toEqual([1]);
+  });
+});
+
+describe('the keys of Pexels and Unsplash', () => {
+  const KEYS = { Pexels: false, Unsplash: false, keeping: 'key-store' as const };
+
+  it('adds a source from its key: the source is listed and searched at once, with no restart', async () => {
+    view = { ...VIEW, keys: KEYS };
+    open();
+    await screen.findByRole('listbox', { name: 'Pictures for Hero' });
+    const button = screen.getByRole('button', { name: 'Add Pexels or Unsplash' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(button);
+    const panel = await screen.findByRole('region', { name: 'Pexels and Unsplash' });
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Pexels and Unsplash'));
+    // Each source's terms, in a line, and where to get a key.
+    expect(within(panel).getByText('A demo key gets 50 searches an hour. Its pictures are shown from Unsplash’s own site, never copied into your app.')).toBeTruthy();
+    expect(within(panel).getByText(/^A free key gets 200 searches an hour/)).toBeTruthy();
+    expect(within(panel).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['https://www.pexels.com/api/', 'https://unsplash.com/developers']);
+    expect(within(panel).getByText(/encrypted by/)).toBeTruthy();
+
+    const save = within(panel).getAllByRole('button', { name: 'Save the key' })[0] as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(within(panel).getByLabelText('Pexels API key'), { target: { value: '  pexels-key-0001  ' } });
+    fireEvent.click(save);
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Pexels and Unsplash' })).toBeNull());
+    expect(calls.find((call) => call.url.endsWith('/designer/picture-keys'))).toMatchObject({ method: 'PUT', body: { source: 'Pexels', key: 'pexels-key-0001' } });
+    // The pictures are read again: Pexels is in the list, chosen, and searched with the spot's words.
+    const select = screen.getByRole('combobox', { name: 'Source' }) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe('Pexels'));
+    expect([...select.options].map((option) => option.value)).toEqual(['Openverse', 'Pexels']);
+    await waitFor(() => expect(calls.filter((call) => call.url.includes('/pictures/search')).at(-1)?.url).toContain('source=Pexels'));
+    expect(calls.filter((call) => call.url.includes('/pictures/search')).at(-1)?.url).toContain('q=fried+chicken');
+    expect(await screen.findByText('Pexels is in the Source list.')).toBeTruthy();
+    // One left to add.
+    expect(screen.getByRole('button', { name: 'Add Unsplash' })).toBeTruthy();
+  });
+
+  it('says a key that is not one, and keeps the panel open', async () => {
+    view = { ...VIEW, keys: KEYS };
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: 'Add Pexels or Unsplash' }));
+    const panel = await screen.findByRole('region', { name: 'Pexels and Unsplash' });
+    fireEvent.change(within(panel).getByLabelText('Unsplash access key'), { target: { value: 'two words' } });
+    fireEvent.click(within(panel).getAllByRole('button', { name: 'Save the key' })[1] as HTMLElement);
+    const said = 'This is not a key: a key is letters, digits, - and _, with no spaces.';
+    await waitFor(() => expect(within(panel).getAllByRole('alert').map((alert) => alert.textContent)).toEqual(['', said]));
+    expect(within(panel).getByLabelText('Unsplash access key').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('region', { name: 'Pexels and Unsplash' })).toBeTruthy();
+  });
+
+  it('says a key the source refused, opens the keys from there, and takes a key away', async () => {
+    view = { ...VIEW, keys: { ...KEYS, Pexels: true }, sources: [{ name: 'Pexels', busy: null }, { name: 'Openverse', busy: null }] };
+    searchReply = { state: 'refused', source: 'Pexels' };
+    open();
+    expect(await screen.findByText('Pexels did not accept its key.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Change the key' }));
+    const panel = await screen.findByRole('region', { name: 'Pexels and Unsplash' });
+    expect(within(panel).getByText('Added')).toBeTruthy();
+    expect(within(panel).getByText('A key is saved. Paste a new one to replace it.')).toBeTruthy();
+    searchReply = null;
+    fireEvent.click(within(panel).getByRole('button', { name: 'Remove the key' }));
+    await waitFor(() => expect(calls.find((call) => call.url.endsWith('/designer/picture-keys'))?.body).toEqual({ source: 'Pexels', key: null }));
+    // Gone from the list, and the source left is searched instead.
+    await waitFor(() => expect([...(screen.getByRole('combobox', { name: 'Source' }) as HTMLSelectElement).options].map((option) => option.value)).toEqual(['Openverse']));
+    await waitFor(() => expect(calls.filter((call) => call.url.includes('/pictures/search')).at(-1)?.url).toContain('source=Openverse'));
+    // Escape closes the keys first, and the dialog stays.
+    fireEvent.keyDown(dialog(), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Pexels and Unsplash' })).toBeNull());
+    expect(dialog()).toBeTruthy();
+  });
+
+  it('offers no key where the app does not keep them, and says a refused key is the server’s', async () => {
+    searchReply = { state: 'refused', source: 'Openverse' };
+    open();
+    expect(await screen.findByText('Openverse did not accept its key.')).toBeTruthy();
+    expect(screen.getByText('Check the key this server is given for it.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Change the key' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Pexels or Unsplash' })).toBeNull();
   });
 });

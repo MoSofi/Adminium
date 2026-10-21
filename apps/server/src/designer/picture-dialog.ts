@@ -39,10 +39,28 @@ export type PinAnswer =
   /** Its bytes could not be had: no file of it is a picture that fits. */
   | { state: 'failed' };
 
+/** The sources that take a key of the person's own. */
+export const KEYED_SOURCES = ['Pexels', 'Unsplash'] as const;
+export type KeyedSource = (typeof KEYED_SOURCES)[number];
+
+/**
+ * The keys of Pexels and Unsplash, where the dialog may take them: only where
+ * a host keeps keys (the desktop app, in the system's key store, one set for
+ * every project). A server reads them from its environment and its `.env`,
+ * which a page does not write.
+ */
+export interface PictureKeys {
+  /** Which keys are kept and how; `null` where no key can be given here. A key itself never leaves the server. */
+  state(): { Pexels: boolean; Unsplash: boolean; keeping: 'key-store' | 'plain' } | null;
+  /** Keep a key (`null` takes it away). In use from the next search: the server is not started again. */
+  keep(source: KeyedSource, key: string | null): void;
+}
+
 export interface PictureDialogDeps {
   root: string;
   search: PictureSearch;
   shelf: PictureShelf;
+  keys?: PictureKeys;
   download?: typeof downloadPicture;
   now?: () => number;
 }
@@ -50,6 +68,9 @@ export interface PictureDialogDeps {
 export interface PictureDialog {
   search: PictureSearch['search'];
   sources: PictureSearch['sources'];
+  keys: PictureKeys['state'];
+  /** Keep or take away a source's key. Throws where no key can be given here. */
+  keepKey: PictureKeys['keep'];
   /** Keep a picture the person put in "what changes", and fetch its bytes now. */
   pin(sessionId: string, shelf: string, picture: string, signal?: AbortSignal): Promise<PinAnswer>;
   /** A pinned picture and its bytes (none for one shown from its source's site); null when it is gone. */
@@ -110,6 +131,11 @@ export function createPictureDialog(deps: PictureDialogDeps): PictureDialog {
   return {
     search: (sessionId, input, signal): Promise<SearchAnswer> => deps.search.search(sessionId, input, signal),
     sources: () => deps.search.sources(),
+    keys: () => deps.keys?.state() ?? null,
+    keepKey: (source, key) => {
+      if (deps.keys === undefined || deps.keys.state() === null) throw new Error('Picture keys are not kept here.');
+      deps.keys.keep(source, key);
+    },
     async chosen(picture) {
       try {
         await deps.search.source(picture.source)?.chosen?.(picture);

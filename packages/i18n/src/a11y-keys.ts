@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3120 entries. */
+/** `namespace:key` — 3128 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1007,6 +1007,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:pictureDialog.added',
   'designer:pictureDialog.applyFailed',
   'designer:pictureDialog.ask',
+  'designer:pictureDialog.changeKey',
   'designer:pictureDialog.chooseAgain',
   'designer:pictureDialog.close',
   'designer:pictureDialog.closeDetails',
@@ -1025,6 +1026,13 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:pictureDialog.title',
   'designer:pictureDialog.wait',
   'designer:pictureDialog.words',
+  'designer:pictureKeys.addBoth',
+  'designer:pictureKeys.addOne',
+  'designer:pictureKeys.open',
+  'designer:pictureKeys.pexelsKey',
+  'designer:pictureKeys.ready',
+  'designer:pictureKeys.removed',
+  'designer:pictureKeys.unsplashKey',
   'designer:pictures.title',
   'designer:plan.addedTitle',
   'designer:plan.answeredLabel',

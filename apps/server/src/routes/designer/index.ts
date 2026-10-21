@@ -33,7 +33,7 @@ import type { z } from 'zod';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { auditExempt } from '../../audit/coverage.js';
+import { auditExempt, audited } from '../../audit/coverage.js';
 import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
 import { clearTemplateNote, listSiteTemplates, readTemplateNote, SITE_TEMPLATES_DIR, walkFolder } from '../../designer/site/folder.js';
 import { judgeSite, SiteRefusal, type SiteEntry } from '../../designer/site/judge.js';
@@ -85,6 +85,8 @@ import {
   designerLookBody,
   designerLookReply,
   designerPictureThumbParams,
+  designerPictureKeyBody,
+  designerPictureKeyReply,
   designerPicturePinBody,
   designerPictureFileQuery,
   designerPicturesApplyBody,
@@ -728,6 +730,25 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const session = store.read(request.params.id);
         if (deps.pictureDialog === undefined) return { state: 'gone' as const };
         return deps.pictureDialog.pin(session.id, request.body.shelf, request.body.picture);
+      },
+    );
+
+    // A Pexels or Unsplash key, given in the picture dialog: kept by the host that keeps keys (the desktop app), in use from the next search.
+    app.put(
+      '/designer/picture-keys',
+      { preHandler: guard, config: { ...RATE, audit: audited('rbac') }, schema: { body: designerPictureKeyBody, response: { 200: designerPictureKeyReply } } },
+      async (request) => {
+        const dialog = deps.pictureDialog;
+        if (onLive || dialog === undefined || dialog.keys() === null) {
+          throw new ConflictError('Picture keys are set in the server’s environment here: PEXELS_API_KEY and UNSPLASH_ACCESS_KEY.', 'CONFLICT', { reason: 'KEYS_NOT_KEPT_HERE' });
+        }
+        const { source, key } = request.body;
+        dialog.keepKey(source, key);
+        // The source only: a key is never in an audit entry.
+        await app.rbac.audit(request, { category: 'settings', action: key === null ? 'designer.picture-key.removed' : 'designer.picture-key.saved', changes: { after: { source } } });
+        const keys = dialog.keys();
+        if (keys === null) throw new ConflictError('Picture keys are not kept here any more.', 'CONFLICT', { reason: 'KEYS_NOT_KEPT_HERE' });
+        return { keys };
       },
     );
 

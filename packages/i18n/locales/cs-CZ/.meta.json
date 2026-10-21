@@ -12287,6 +12287,10 @@
     "status": "mt",
     "srcHash": "77dfd2135f4d"
   },
+  "designer.pictureDialog.changeKey": {
+    "status": "mt",
+    "srcHash": "02627e3eba31"
+  },
   "designer.pictureDialog.chooseAgain": {
     "status": "mt",
     "srcHash": "33161ed1d51f"
@@ -12426,6 +12430,18 @@
   "designer.pictureDialog.placeholder": {
     "status": "mt",
     "srcHash": "ed212fa164b9"
+  },
+  "designer.pictureDialog.refused": {
+    "status": "mt",
+    "srcHash": "99f78bae679a"
+  },
+  "designer.pictureDialog.refusedHere": {
+    "status": "mt",
+    "srcHash": "5d2ba6e451b1"
+  },
+  "designer.pictureDialog.refusedServer": {
+    "status": "mt",
+    "srcHash": "3f91fedbb342"
   },
   "designer.pictureDialog.remove": {
     "status": "mt",
@@ -12610,6 +12626,94 @@
   "designer.pictureDialog.wrongType": {
     "status": "mt",
     "srcHash": "c5f58ea49fad"
+  },
+  "designer.pictureKeys.addBoth": {
+    "status": "mt",
+    "srcHash": "0220b7b3edc6"
+  },
+  "designer.pictureKeys.addOne": {
+    "status": "mt",
+    "srcHash": "9a563572b4f3"
+  },
+  "designer.pictureKeys.added": {
+    "status": "mt",
+    "srcHash": "b68734c25910"
+  },
+  "designer.pictureKeys.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "designer.pictureKeys.failed": {
+    "status": "mt",
+    "srcHash": "8bc1de750ea2"
+  },
+  "designer.pictureKeys.getKey": {
+    "status": "mt",
+    "srcHash": "e27c8e41fa35"
+  },
+  "designer.pictureKeys.getKeyAt": {
+    "status": "mt",
+    "srcHash": "6a3a5fd2cf97"
+  },
+  "designer.pictureKeys.lead": {
+    "status": "mt",
+    "srcHash": "370c5ac10d36"
+  },
+  "designer.pictureKeys.noKey": {
+    "status": "mt",
+    "srcHash": "38878b052a56"
+  },
+  "designer.pictureKeys.notAKey": {
+    "status": "mt",
+    "srcHash": "2b009ed8c811"
+  },
+  "designer.pictureKeys.open": {
+    "status": "mt",
+    "srcHash": "20b689a7eaaa"
+  },
+  "designer.pictureKeys.pexelsKey": {
+    "status": "mt",
+    "srcHash": "670592486d56"
+  },
+  "designer.pictureKeys.pexelsTerms": {
+    "status": "mt",
+    "srcHash": "6c6530c52c3d"
+  },
+  "designer.pictureKeys.ready": {
+    "status": "mt",
+    "srcHash": "2639dc213b5e"
+  },
+  "designer.pictureKeys.remove": {
+    "status": "mt",
+    "srcHash": "ce99cb64af82"
+  },
+  "designer.pictureKeys.removed": {
+    "status": "mt",
+    "srcHash": "59d107694d27"
+  },
+  "designer.pictureKeys.replace": {
+    "status": "mt",
+    "srcHash": "794479da1721"
+  },
+  "designer.pictureKeys.save": {
+    "status": "mt",
+    "srcHash": "20b01a870f5d"
+  },
+  "designer.pictureKeys.saved": {
+    "status": "mt",
+    "srcHash": "201f3e96ce25"
+  },
+  "designer.pictureKeys.title": {
+    "status": "mt",
+    "srcHash": "2b9711b016b0"
+  },
+  "designer.pictureKeys.unsplashKey": {
+    "status": "mt",
+    "srcHash": "0cb10eba1bb5"
+  },
+  "designer.pictureKeys.unsplashTerms": {
+    "status": "mt",
+    "srcHash": "e6fd08e83bf8"
   },
   "designer.pictures.added": {
     "status": "mt",
