@@ -1773,6 +1773,7 @@
         "noType": "此列不接受 {type} 文件。",
         "saved": "随记录一起保存。",
         "tooLarge": "这张图片超过此列 {limit} 的上限。",
+        "tooLargePublic": "顾客会看到这些图片，因此每张不能超过 {limit}。请选择一张更小的图片。",
         "refused": "你不能更改 {table}，因此无法为其添加图片。",
         "choose": "选择已有图片…",
         "remove": "移除",

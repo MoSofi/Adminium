@@ -12,6 +12,9 @@ the bundle's pictures (`{ "@asset": "<label>" }`).
   "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } }
 ```
 
+`5242880` is 5 MiB, the largest picture served to visitors (see [Sizes and types](https://docs.adminium.dev/guides/apps/public-pictures/#sizes-and-types)).
+A column visitors see takes no larger picture, so give it that `maxBytes` or less.
+
 A read-only entry of the guests' key names its image columns in `pictures`:
 
 ```json

@@ -265,7 +265,7 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
+import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, publicPictureColumn, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
@@ -1919,6 +1919,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // An app's own file column first (its rule, read fresh), then a page's block.
           columnFileBlock: async (input) => (await ruledFileColumn(meta, input)) ?? columnBlocks.forColumn(input),
           tableIdOf: (connectionId, table) => tableIdOf(meta, connectionId, table),
+          // A picture every visitor sees takes no file larger than one served to them.
+          publicPicture: (input) => publicPictureColumn(meta, input),
           // A file a record keeps in an app's own file column changes only with its record.
           heldByRecord: fileHeldCheck(meta, manager),
           // A file a record keeps in a secret column is copied by nobody; in a personal one, into no other table.

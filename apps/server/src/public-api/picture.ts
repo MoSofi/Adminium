@@ -29,13 +29,22 @@
 import { createHash } from 'node:crypto';
 import type { Readable } from 'node:stream';
 
+import { PUBLIC_PICTURE_MAX_BYTES } from '@adminium/manifest';
+
 import { rateAddress } from './limiter.js';
 
 /** Bumped when the cleaning changes: a new version is a new entity tag, and the cache starts again. */
 export const PICTURE_PIPELINE = 'p2';
 
-/** The largest picture served to the public: a phone photo, resized for the web, is far smaller. */
-export const PICTURE_MAX_BYTES = 2 * 1024 * 1024;
+/**
+ * The largest picture served to the public: 5 MiB, a phone's photo as it
+ * comes. The same number bounds a picture column shown to visitors — the
+ * Designer writes it as the column's own `maxBytes`, the app check warns on a
+ * larger one, and an upload or a chosen file for such a column is refused
+ * above it (`publicPictureColumn`) — so a picture staff saved is one
+ * visitors see. Cleaning reads it whole, at most two at once.
+ */
+export const PICTURE_MAX_BYTES = PUBLIC_PICTURE_MAX_BYTES;
 
 /** The most pixels on either side. */
 export const PICTURE_MAX_SIDE = 8192;

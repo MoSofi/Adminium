@@ -87,6 +87,22 @@ describe('the picture field', () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
+  it('a picture customers see: the server’s refusal of an upload or a chosen picture too large for them says why', async () => {
+    // Uploaded: the column's own rule took it, the server did not.
+    const refused = Object.assign(new Error('Customers see the pictures in this column…'), { code: 'FILE_TOO_LARGE', details: { maxBytes: 5 * 1024 * 1024, publicPicture: true } });
+    const upload = vi.fn(async () => Promise.reject(refused)) as unknown as FileFieldUpload;
+    const { unmount } = render(<FileField variant="picture" column={column({ file: { ref: 'id', accept: PICTURES, inline: true, maxBytes: 25 * 1024 * 1024 } } as never)} value={null} onChange={() => undefined} upload={upload} />);
+    await userEvent.upload(document.querySelector('input[type="file"]') as HTMLInputElement, new File([new Uint8Array(6 * 1024 * 1024)], 'IMG_5000.jpg', { type: 'image/jpeg' }));
+    expect(await screen.findByText('Customers see these pictures, so each can be at most 5 MB. Choose a smaller picture.')).toBeTruthy();
+    unmount();
+    // Chosen with Choose existing…: the same line.
+    const choose = chooser({ copy: vi.fn(async () => Promise.reject(new PictureCopyRefused('size', 'too large', 5 * 1024 * 1024, true))) as never });
+    render(<FileField variant="picture" column={column()} value={null} onChange={() => undefined} upload={never} choose={choose} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Choose existing…' }));
+    await userEvent.click(await within(await screen.findByRole('dialog')).findByRole('option', { name: "Dish 1's picture, dish-1.jpg" }));
+    expect(await screen.findByText('Customers see these pictures, so each can be at most 5 MB. Choose a smaller picture.')).toBeTruthy();
+  });
+
   it('Choose existing… copies the chosen picture for this record, and says it is saved with the record', async () => {
     const onChange = vi.fn();
     const choose = chooser();

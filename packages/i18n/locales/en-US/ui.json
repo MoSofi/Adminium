@@ -1773,6 +1773,7 @@
         "noType": "This column doesn't take {type} files.",
         "saved": "Saved with the record.",
         "tooLarge": "That picture is larger than this column's {limit} limit.",
+        "tooLargePublic": "Customers see these pictures, so each can be at most {limit}. Choose a smaller picture.",
         "refused": "You can't change {table}, so you can't add a picture to it.",
         "choose": "Choose existing…",
         "remove": "Remove",

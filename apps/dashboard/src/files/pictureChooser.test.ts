@@ -74,7 +74,9 @@ describe('choosing a picture the workspace has, on the wire', () => {
     expect(await refusal(422, 'TYPE_NOT_ACCEPTED')).toMatchObject({ reason: 'type' });
     const large = await refusal(422, 'TOO_LARGE', { maxBytes: 2097152 });
     expect(large).toBeInstanceOf(PictureCopyRefused);
-    expect(large).toMatchObject({ reason: 'size', limit: 2097152 });
+    expect(large).toMatchObject({ reason: 'size', limit: 2097152, publicPicture: false });
+    // A column whose pictures customers see: the field says that is why.
+    expect(await refusal(422, 'TOO_LARGE', { maxBytes: 5242880, publicPicture: true })).toMatchObject({ reason: 'size', limit: 5242880, publicPicture: true });
   });
 });
 

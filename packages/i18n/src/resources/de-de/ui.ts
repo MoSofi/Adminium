@@ -1783,6 +1783,7 @@ export default {
         "noType": "Diese Spalte nimmt keine {type}-Dateien an.",
         "saved": "Wird mit dem Datensatz gespeichert.",
         "tooLarge": "Das Bild ist größer als das Limit dieser Spalte von {limit}.",
+        "tooLargePublic": "Kunden sehen diese Bilder, daher darf jedes höchstens {limit} groß sein. Wählen Sie ein kleineres Bild.",
         "refused": "Sie dürfen {table} nicht ändern und können daher kein Bild hinzufügen.",
         "choose": "Vorhandenes wählen…",
         "remove": "Entfernen",
