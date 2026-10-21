@@ -104,6 +104,7 @@ import type { JobRegistry } from '../jobs/registry.js';
 import { noticeMoney, providerName, tellPaymentManagers, type NoticeDeps } from './notices.js';
 import { exactAmount, pkOfRowKey, resolvePayable, type PayableSources } from './payables.js';
 import type { ProviderLookup } from './providers.js';
+import { followDocumentStatus } from './document-status.js';
 import type { RecordDeps } from './record-deps.js';
 
 export const PAYMENTS_REFUND_JOB = 'payments.refund';
@@ -424,6 +425,10 @@ export async function followRecord(deps: FollowDeps, attemptId: string): Promise
     for (const row of rows) if (row.state === 'failed' && row.appliedAt !== null && row.undoneAt === null) await refunds.markUndone(row.id, at);
     for (const row of rows) if (row.problemCode === 'NOT_WRITTEN') await refunds.setProblem(row.id, null, at, 'NOT_WRITTEN');
     if (past !== null) await refunds.setProblem(past.id, 'MORE_THAN_PAID', at);
+  }
+  // A designer invoice's Paid follows its balance, which a refund may have opened again.
+  if (outcome === 'written' && attempt.mode === 'live' && attempt.payable.kind === 'document') {
+    await followDocumentStatus({ meta: deps.meta, sources: deps.sources, ...(deps.now === undefined ? {} : { now: deps.now }) }, attempt.payable);
   }
   if (outcome === 'written' && writesShop(attempt)) {
     await setRefundedStatus(deps, attempt, total).catch((error: unknown) => {

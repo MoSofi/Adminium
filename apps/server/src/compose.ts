@@ -1993,7 +1993,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       // The authored `/invoices` surface — the same deps shape as the
       // email documents; rendering is a later wave's.
-      await api.register(invoicesRoutes({ meta }));
+      await api.register(invoicesRoutes({ meta, paymentSources }));
       // The authored `/report-builder` surface — the same deps shape as the
       // invoice documents. NOT scheduled reports.
       await api.register(reportDocumentsRoutes({ meta }));

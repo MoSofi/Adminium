@@ -78680,6 +78680,16 @@
                         "currency": {
                           "type": "string"
                         },
+                        "currencyCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "cents": {
                           "type": "boolean"
                         },
@@ -79223,6 +79233,7 @@
                       "required": [
                         "accent",
                         "currency",
+                        "currencyCode",
                         "cents",
                         "title",
                         "logoIcon",
@@ -79574,6 +79585,16 @@
                         "currency": {
                           "type": "string"
                         },
+                        "currencyCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "cents": {
                           "type": "boolean"
                         },
@@ -80117,6 +80138,7 @@
                       "required": [
                         "accent",
                         "currency",
+                        "currencyCode",
                         "cents",
                         "title",
                         "logoIcon",
@@ -80313,6 +80335,17 @@
                       "currency": {
                         "type": "string",
                         "maxLength": 300
+                      },
+                      "currencyCode": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 8
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "cents": {
                         "type": "boolean"
@@ -80976,6 +81009,16 @@
                         "currency": {
                           "type": "string"
                         },
+                        "currencyCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "cents": {
                           "type": "boolean"
                         },
@@ -81519,6 +81562,7 @@
                       "required": [
                         "accent",
                         "currency",
+                        "currencyCode",
                         "cents",
                         "title",
                         "logoIcon",
@@ -82012,6 +82056,16 @@
                         "currency": {
                           "type": "string"
                         },
+                        "currencyCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "cents": {
                           "type": "boolean"
                         },
@@ -82555,6 +82609,7 @@
                       "required": [
                         "accent",
                         "currency",
+                        "currencyCode",
                         "cents",
                         "title",
                         "logoIcon",
@@ -82869,6 +82924,16 @@
                         "currency": {
                           "type": "string"
                         },
+                        "currencyCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "cents": {
                           "type": "boolean"
                         },
@@ -83412,6 +83477,7 @@
                       "required": [
                         "accent",
                         "currency",
+                        "currencyCode",
                         "cents",
                         "title",
                         "logoIcon",
@@ -83723,6 +83789,16 @@
                         "currency": {
                           "type": "string"
                         },
+                        "currencyCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "cents": {
                           "type": "boolean"
                         },
@@ -84266,6 +84342,7 @@
                       "required": [
                         "accent",
                         "currency",
+                        "currencyCode",
                         "cents",
                         "title",
                         "logoIcon",
@@ -114451,28 +114528,45 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "connectionId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 64
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "connectionId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "table": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "recordId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      }
+                    },
+                    "required": [
+                      "connectionId",
+                      "table",
+                      "recordId"
+                    ]
                   },
-                  "table": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
-                  "recordId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 512
+                  {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "documentId"
+                    ]
                   }
-                },
-                "required": [
-                  "connectionId",
-                  "table",
-                  "recordId"
                 ]
               }
             }
@@ -114498,14 +114592,29 @@
                                   "type": "string",
                                   "enum": [
                                     "shape",
-                                    "profile"
+                                    "profile",
+                                    "document"
                                   ]
                                 },
                                 "connectionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "tableName": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "rowKey": {
                                   "type": "string"
@@ -114922,91 +115031,171 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "connectionId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 64
-                  },
-                  "table": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
-                  "recordId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 512
-                  },
-                  "amount": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 32
-                  },
-                  "way": {
-                    "type": "string",
-                    "enum": [
-                      "bank-transfer",
-                      "cash",
-                      "card",
-                      "cheque",
-                      "other"
-                    ]
-                  },
-                  "paidOn": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "note": {
-                    "anyOf": [
-                      {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "connectionId": {
                         "type": "string",
-                        "maxLength": 500
+                        "minLength": 1,
+                        "maxLength": 64
                       },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "approvalCode": {
-                    "anyOf": [
-                      {
+                      "table": {
                         "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "recordId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "amount": {
+                        "type": "string",
+                        "minLength": 1,
                         "maxLength": 32
                       },
-                      {
-                        "type": "null"
+                      "way": {
+                        "type": "string",
+                        "enum": [
+                          "bank-transfer",
+                          "cash",
+                          "card",
+                          "cheque",
+                          "other"
+                        ]
+                      },
+                      "paidOn": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "note": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "approvalCode": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 32
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "last4": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 32
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{16,59}$"
                       }
+                    },
+                    "required": [
+                      "connectionId",
+                      "table",
+                      "recordId",
+                      "amount",
+                      "way",
+                      "paidOn",
+                      "note",
+                      "approvalCode",
+                      "last4",
+                      "key"
                     ]
                   },
-                  "last4": {
-                    "anyOf": [
-                      {
+                  {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
                         "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "amount": {
+                        "type": "string",
+                        "minLength": 1,
                         "maxLength": 32
                       },
-                      {
-                        "type": "null"
+                      "way": {
+                        "type": "string",
+                        "enum": [
+                          "bank-transfer",
+                          "cash",
+                          "card",
+                          "cheque",
+                          "other"
+                        ]
+                      },
+                      "paidOn": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "note": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "approvalCode": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 32
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "last4": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 32
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "key": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{16,59}$"
                       }
+                    },
+                    "required": [
+                      "documentId",
+                      "amount",
+                      "way",
+                      "paidOn",
+                      "note",
+                      "approvalCode",
+                      "last4",
+                      "key"
                     ]
-                  },
-                  "key": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9_-]{16,59}$"
                   }
-                },
-                "required": [
-                  "connectionId",
-                  "table",
-                  "recordId",
-                  "amount",
-                  "way",
-                  "paidOn",
-                  "note",
-                  "approvalCode",
-                  "last4",
-                  "key"
                 ]
               }
             }

@@ -34,11 +34,13 @@ import { invoiceDocumentsRepo, type InvoiceDocument, type MetaDb } from '@admini
 import { audited } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
-import { acceptInvoiceBody, bodyColumn, normalizeInvoiceBody, type InvoiceBody } from '../../invoices/document.js';
+import { acceptInvoiceBody, bodyColumn, currencyCodeOf, normalizeInvoiceBody, type InvoiceBody } from '../../invoices/document.js';
 import { isInvoiceLang, languageMeta, localizeBody, type InvoiceLang } from '../../invoices/languages.js';
 import { TEMPLATE_NUMBER, nextInvoiceNumber } from '../../invoices/numbering.js';
 import { blankBody, isInvoiceStarterKey, renderStarter, starterCards } from '../../invoices/starters.js';
 import { summaryOf } from '../../invoices/summary.js';
+import { documentBalance, documentRef, followDocumentStatus, statusAfter } from '../../payments/document-status.js';
+import type { PayableSources } from '../../payments/payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   invoiceAddLanguageBody,
@@ -58,6 +60,13 @@ import {
 
 export interface InvoicesRoutesDeps {
   meta: MetaDb;
+  /**
+   * What an invoice's payments are read through. With it, an invoice that
+   * has live payments has its Paid set by the balance and its currency held
+   * to the one it was paid in; without it (tests of the surface alone), the
+   * status is saved as asked.
+   */
+  paymentSources?: PayableSources;
 }
 
 function requireUserId(request: FastifyRequest): string {
@@ -214,14 +223,41 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
         requireUserId(request);
         await requireSettingsManage(request, 'edit invoice documents');
         const row = await mustFind(request.params.id);
-        const body = acceptInvoiceBody(request.body.body);
-        const { name, status, topic, lang } = request.body;
-        const updated = await repo.patch(
+        const accepted = acceptInvoiceBody(request.body.body);
+        // An editor that does not know the currency code sends none: the stored one stays.
+        const sent = request.body.body as Record<string, unknown>;
+        const body = 'currencyCode' in sent ? accepted : { ...accepted, currencyCode: currencyCodeOf((row.body as Record<string, unknown>)['currencyCode']) ?? accepted.currencyCode };
+        const { name, topic, lang } = request.body;
+        let status = request.body.status;
+        const sources = deps.paymentSources;
+        if (sources !== undefined && row.kind === 'invoice') {
+          const balance = await documentBalance({ meta, sources }, row.id);
+          if (balance !== null) {
+            // Its payments were taken in one currency: the invoice stays in it.
+            if (balance.paidIn !== null && body.currencyCode !== balance.paidIn) {
+              throw new ValidationFailedError(`This invoice has payments in ${balance.paidIn}, so its currency stays ${balance.paidIn}.`, {
+                code: 'CURRENCY_HAS_PAYMENTS',
+                field: 'currencyCode',
+                currency: balance.paidIn,
+              });
+            }
+            status = statusAfter(row.status, status, balance);
+          }
+        } else if (row.kind === 'invoice' && status === 'paid' && row.status !== 'paid') {
+          // Paid is set by the balance, never picked by hand.
+          status = row.status;
+        }
+        let updated = await repo.patch(
           row.id,
           { name, status, topic, lang, body: bodyColumn(body), summary: summaryOf(body), number: body.number },
           app.rbac.now(),
         );
         if (updated === null) throw new NotFoundError(`Invoice document ${row.id} not found.`);
+        // A payment recorded while this save was on its way: the balance has the last word.
+        if (sources !== undefined && row.kind === 'invoice') {
+          const now = await followDocumentStatus({ meta, sources, now: () => app.rbac.now() }, documentRef(row.id));
+          if (now !== null && now !== updated.status) updated = (await repo.findById(row.id)) ?? updated;
+        }
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'invoice-document.update',

@@ -127,6 +127,11 @@ export interface InvoiceBody {
   accent: string;
   /** The currency SYMBOL the sheet prints (comp 1578: $ € £ ¥). */
   currency: string;
+  /**
+   * The ISO 4217 code a payment is taken in (`EUR`); null until one is chosen.
+   * A symbol alone cannot say it: `$` is USD, CAD or AUD.
+   */
+  currencyCode: string | null;
   cents: boolean;
   title: string;
   logoIcon: string;
@@ -276,6 +281,7 @@ const rowsOf = <T extends z.ZodRawShape>(shape: T) => z.array(z.object(shape).pa
 export const invoiceBodyInputSchema = z.object({
   accent: line.optional(),
   currency: line.optional(),
+  currencyCode: z.string().max(8).nullable().optional(),
   cents: z.boolean().optional(),
   title: line.optional(),
   logoIcon: line.optional(),
@@ -367,6 +373,7 @@ const customSectionSchema = z.discriminatedUnion('type', [
 export const invoiceBodySchema = z.object({
   accent: z.string(),
   currency: z.string(),
+  currencyCode: z.string().nullable(),
   cents: z.boolean(),
   title: z.string(),
   logoIcon: z.string(),
@@ -454,6 +461,7 @@ export function emptyBody(): InvoiceBody {
   return {
     accent: DEFAULT_ACCENT,
     currency: '$',
+    currencyCode: null,
     cents: true,
     title: 'INVOICE',
     logoIcon: 'hexagon',
@@ -619,6 +627,23 @@ export function reconcileBlockOrder(order: readonly string[], custom: readonly C
   return out;
 }
 
+/** An ISO 4217 code as three capital letters, or null for anything else. */
+export function currencyCodeOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : null;
+}
+
+/**
+ * The code a symbol can only mean. `€` and `£` say one currency each; `$` (USD,
+ * CAD, AUD…) and `¥` (JPY, CNY) do not, so the person picks.
+ */
+const ONE_CODE_SYMBOLS: Readonly<Record<string, string>> = { '€': 'EUR', '£': 'GBP' };
+
+export function currencyCodeForSymbol(symbol: string): string | null {
+  return ONE_CODE_SYMBOLS[symbol.trim()] ?? null;
+}
+
 /** A row's stored body (or anything on the wire) → the complete envelope. Lenient: an unknown value gets its default. */
 export function normalizeInvoiceBody(raw: unknown): InvoiceBody {
   const base = emptyBody();
@@ -630,6 +655,7 @@ export function normalizeInvoiceBody(raw: unknown): InvoiceBody {
   return {
     accent: /^#[0-9a-fA-F]{6}$/.test(str(r['accent'], '')) ? str(r['accent'], '') : base.accent,
     currency: str(r['currency'], base.currency) || base.currency,
+    currencyCode: currencyCodeOf(r['currencyCode']),
     cents: bool(r['cents'], base.cents),
     title: str(r['title'], base.title),
     logoIcon: str(r['logoIcon'], base.logoIcon) || base.logoIcon,
@@ -762,9 +788,14 @@ export function assertBodyWithinCaps(body: InvoiceBody): void {
   }
 }
 
-/** Normalize a wire body and hold it to the caps — the one door a `PUT` goes through. */
+/**
+ * Normalize a wire body and hold it to the caps — the one door a `PUT` goes
+ * through. A body saved with no currency code whose symbol can only mean one
+ * currency gets that code; a stored body is never given one on reading.
+ */
 export function acceptInvoiceBody(raw: unknown): InvoiceBody {
-  const body = normalizeInvoiceBody(raw);
+  const normalized = normalizeInvoiceBody(raw);
+  const body = normalized.currencyCode === null ? { ...normalized, currencyCode: currencyCodeForSymbol(normalized.currency) } : normalized;
   assertBodyWithinCaps(body);
   return body;
 }

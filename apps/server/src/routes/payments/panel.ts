@@ -7,6 +7,11 @@
  *   POST /payments/record-payment  a payment taken by hand (bank transfer, cash, a card on the shop's
  *                                  own terminal, a cheque) written into the record's payments
  *
+ * Both name a table's record (`connectionId`, `table`, `recordId`) or an
+ * invoice made on the Invoices page (`documentId`), whose payments Adminium
+ * keeps. A designer invoice is read by anyone signed in and changed by whoever
+ * may change the workspace's documents, as the Invoices page is.
+ *
  * ─── WHO SEES WHAT ─────────────────────────────────────────────────────────
  *
  * The panel is for whoever reads the record: a row their own row limits hide
@@ -47,6 +52,7 @@ import { payAddress, payReachable } from '../../payments/links.js';
 import { exactAmount, fromMinorUnits, pkOfRowKey, resolvePayable, rowKeyOf, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
 import { recordedByOf, setPaidStatus, writePaymentRow, type PaymentActor } from '../../payments/record.js';
 import { refundableOf, refundRefusalOf } from '../../payments/refunds.js';
+import { isTestPayable } from '../../payments/test-payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
@@ -72,8 +78,11 @@ const recordQuery = z.object({
   table: z.string().min(1).max(255),
   recordId: z.string().min(1).max(512),
 });
+/** An invoice made on the Invoices page. */
+const documentQuery = z.object({ documentId: z.string().min(1).max(64) });
+const panelBody = z.union([recordQuery, documentQuery]);
 
-const recordBody = recordQuery.extend({
+const paymentFields = {
   amount: z.string().trim().min(1).max(32),
   way: z.enum(HAND_WAYS),
   /** The day it was paid, `YYYY-MM-DD`. */
@@ -84,7 +93,8 @@ const recordBody = recordQuery.extend({
   /** Made by the dialog when it opened; the same key twice records once. */
   // `hand_<key>` is written to a 64-character reference column: 59 at most.
   key: z.string().regex(/^[A-Za-z0-9_-]{16,59}$/),
-});
+};
+const recordBody = z.union([recordQuery.extend(paymentFields), documentQuery.extend(paymentFields)]);
 
 const refusalView = z.object({ code: z.string(), message: z.string() });
 const paymentView = z.object({
@@ -115,7 +125,8 @@ const paymentView = z.object({
 });
 const waitingView = z.object({ id: z.string(), provider: z.string(), wayLabel: z.string().nullable(), startedAt: z.number(), test: z.boolean() });
 const panelView = z.object({
-  payable: z.object({ kind: z.enum(['shape', 'profile']), connectionId: z.string(), tableName: z.string(), rowKey: z.string() }),
+  /** A designer invoice names no connection or table. */
+  payable: z.object({ kind: z.enum(['shape', 'profile', 'document']), connectionId: z.string().nullable(), tableName: z.string().nullable(), rowKey: z.string() }),
   label: z.string(),
   currency: z.string(),
   total: z.string(),
@@ -306,26 +317,45 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     return out;
   }
 
-  async function panelOf(request: FastifyRequest, input: z.infer<typeof recordQuery>): Promise<PanelView | null> {
-    // Most record pages are of tables that take no payments: answered from meta alone, before any row is read.
-    const table = await sources.table(input.connectionId, input.table);
-    if (table === null || (await kindOf(input.connectionId, table.table.id)) === null) return null;
-    const { found, rowKey } = await reach(request, input, 'read');
-    const kind = await kindOf(input.connectionId, found.table.id);
-    if (kind === null) return null;
-    const ref: PayableRef = { kind, connectionId: input.connectionId, tableName: found.table.id, rowKey };
+  /** A designer invoice's own ref, or null for a test payable's id (which has no panel). */
+  function documentOf(documentId: string): PayableRef | null {
+    const ref: PayableRef = { kind: 'document', connectionId: null, tableName: null, rowKey: documentId };
+    return isTestPayable(ref) ? null : ref;
+  }
+
+  function requireSession(request: FastifyRequest): void {
+    const user = (request as unknown as { user?: { id?: string } }).user;
+    if (user?.id === undefined && request.apiKeyPrincipal == null) throw new UnauthorizedError();
+  }
+
+  /** The panel of a designer invoice: its payments are the ones Adminium keeps. */
+  async function documentPanelOf(request: FastifyRequest, documentId: string): Promise<PanelView | null> {
+    requireSession(request);
+    const ref = documentOf(documentId);
+    if (ref === null) return null;
     const payable = await resolvePayable(sources, ref);
     if (payable === null) return null;
-    const mayChange = await request.can(`table:${input.connectionId}:${found.table.id}:update`);
+    const mayChange = await request.can(PERMISSIONS.settingsManage);
+    return viewOf(request, ref, payable, mayChange, []);
+  }
+
+  /** The panel as the person sees it, from a resolved payable and the payments in its own table. */
+  async function viewOf(
+    request: FastifyRequest,
+    ref: PayableRef,
+    payable: ResolvedPayable,
+    mayChange: boolean,
+    tableRows: (Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null })[],
+  ): Promise<PanelView> {
     const scale = payable.currency === '' ? 2 : currencyScale(payable.currency);
     const paid = subtractAmounts(payable.total, payable.due, scale) ?? '0';
     const attempts = await paymentAttemptsRepo(meta).forPayable(ref);
     const kept = (await keptPaymentsRepo(meta).forPayable(ref)).filter((row) => !row.voided);
-    const payments = await withRefunds(attempts, [...(await tablePayments(request, payable)), ...kept.map(keptView)]);
+    const payments = await withRefunds(attempts, [...tableRows, ...kept.map(keptView)]);
     const mayRefund = request.apiKeyPrincipal == null && (await request.can(PERMISSIONS.paymentsRefund));
     const handOk = payable.refusal === null || payable.refusal.code === 'NEEDS_UPDATE';
     return {
-      payable: { kind, connectionId: input.connectionId, tableName: found.table.id, rowKey },
+      payable: { kind: ref.kind as PanelView['payable']['kind'], connectionId: ref.connectionId, tableName: ref.tableName, rowKey: ref.rowKey },
       label: payable.label,
       currency: payable.currency,
       total: payable.total,
@@ -341,6 +371,21 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         .map((attempt) => ({ id: attempt.id, provider: attempt.provider, wayLabel: (attempt.paidWith as { label?: string } | null)?.label ?? null, startedAt: attempt.createdAt, test: attempt.mode === 'test' })),
       payments,
     };
+  }
+
+  async function panelOf(request: FastifyRequest, input: z.infer<typeof panelBody>): Promise<PanelView | null> {
+    if ('documentId' in input) return documentPanelOf(request, input.documentId);
+    // Most record pages are of tables that take no payments: answered from meta alone, before any row is read.
+    const table = await sources.table(input.connectionId, input.table);
+    if (table === null || (await kindOf(input.connectionId, table.table.id)) === null) return null;
+    const { found, rowKey } = await reach(request, input, 'read');
+    const kind = await kindOf(input.connectionId, found.table.id);
+    if (kind === null) return null;
+    const ref: PayableRef = { kind, connectionId: input.connectionId, tableName: found.table.id, rowKey };
+    const payable = await resolvePayable(sources, ref);
+    if (payable === null) return null;
+    const mayChange = await request.can(`table:${input.connectionId}:${found.table.id}:update`);
+    return viewOf(request, ref, payable, mayChange, await tablePayments(request, payable));
   }
 
   /** A key's claim: a counters row in a day-long window that only one insert can make. */
@@ -383,7 +428,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
   return async (app) => {
     app.post(
       '/payments/panel',
-      { config: { audit: auditExempt('reading how a record stands changes nothing') }, schema: { body: recordQuery, response: { 200: panelReply } } },
+      { config: { audit: auditExempt('reading how a record stands changes nothing') }, schema: { body: panelBody, response: { 200: panelReply } } },
       async (request) => ({ data: await panelOf(request, request.body) }),
     );
 
@@ -393,10 +438,18 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
       async (request) => {
         const person = personOf(request);
         const body = request.body;
-        const { found, rowKey } = await reach(request, body, 'update');
-        const kind = await kindOf(body.connectionId, found.table.id);
-        if (kind === null) throw new NotFoundError('This record takes no payments.');
-        const ref: PayableRef = { kind, connectionId: body.connectionId, tableName: found.table.id, rowKey };
+        let ref: PayableRef;
+        if ('documentId' in body) {
+          if (!(await request.can(PERMISSIONS.settingsManage))) throw new ForbiddenError('You may not record a payment on this invoice.');
+          const document = documentOf(body.documentId);
+          if (document === null) throw new NotFoundError('No such invoice.');
+          ref = document;
+        } else {
+          const { found, rowKey } = await reach(request, body, 'update');
+          const kind = await kindOf(body.connectionId, found.table.id);
+          if (kind === null) throw new NotFoundError('This record takes no payments.');
+          ref = { kind, connectionId: body.connectionId, tableName: found.table.id, rowKey };
+        }
         const payable = await resolvePayable(sources, ref);
         if (payable === null) throw new NotFoundError('No such record.');
 
@@ -505,7 +558,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
           await app.rbac.audit(request, {
             category: 'payments',
             action: 'payments.payment.recorded',
-            changes: { after: { kind, connectionId: body.connectionId, tableName: found.table.id, rowKey, amount, currency: payable.currency, way: body.way, paidOn: body.paidOn } },
+            changes: { after: { kind: ref.kind, connectionId: ref.connectionId, tableName: ref.tableName, rowKey: ref.rowKey, amount, currency: payable.currency, way: body.way, paidOn: body.paidOn } },
           });
         }
         return { data: { key: body.key, already, due: sameAmount(due, '0') ? '0' : due } };

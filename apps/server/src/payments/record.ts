@@ -52,6 +52,7 @@ import { normalizeWriteValue } from '../crud/write-values.js';
 import { AppError } from '../errors.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { resolvePayable, rowKeyOf, type ResolvedPayable } from './payables.js';
+import { followDocumentStatus } from './document-status.js';
 import type { RecordDeps } from './record-deps.js';
 import { followRefundsOnRecord } from './refunds.js';
 
@@ -375,6 +376,11 @@ export function localDate(at: number, timeZone: string): string {
  * left: the payment stands. Anything else is thrown, so the job tries again.
  */
 export async function setPaidStatus(deps: RecordDeps, ref: PayableRef, before: ResolvedPayable, actor: PaymentActor, request: FastifyRequest | null): Promise<void> {
+  // A designer invoice: its Paid follows the balance (a meta write; a failure is thrown, so the job tries again).
+  if (ref.kind === 'document') {
+    await followDocumentStatus({ meta: deps.meta, sources: deps.sources, ...(deps.now === undefined ? {} : { now: deps.now }) }, ref);
+    return;
+  }
   try {
     await setPaidStatusOnce(deps, ref, before, actor, request);
   } catch (error) {
