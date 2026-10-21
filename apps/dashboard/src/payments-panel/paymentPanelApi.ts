@@ -138,34 +138,3 @@ export async function revokeLink(id: string): Promise<void> {
   await api.post(`/api/v1/payments/links/${encodeURIComponent(id)}/revoke`);
 }
 
-/** What the refund dialog needs: what may still be refunded, where it goes back to, or why it cannot be now. */
-export interface RefundPreview {
-  label: string;
-  provider: string;
-  test: boolean;
-  taken: string;
-  currency: string;
-  refundable: string;
-  paidWith: string | null;
-  refusal: { code: string; message: string } | null;
-}
-
-export const REFUND_REASONS = ['requested_by_customer', 'duplicate', 'fraudulent', 'other'] as const;
-export type RefundReason = (typeof REFUND_REASONS)[number];
-
-export interface RefundInput {
-  attemptId: string;
-  amount: string;
-  reason: RefundReason;
-  note: string | null;
-  /** Minted at the confirm step: the same key again is the same refund. */
-  key: string;
-}
-
-export async function fetchRefundPreview(attemptId: string): Promise<RefundPreview> {
-  return (await api.get<{ data: RefundPreview }>(`/api/v1/payments/attempts/${encodeURIComponent(attemptId)}/refund`)).data;
-}
-
-export async function requestRefund(input: RefundInput): Promise<{ refund: PanelRefund; fresh: boolean }> {
-  return (await api.post<{ data: { refund: PanelRefund; fresh: boolean } }>('/api/v1/payments/refunds', input)).data;
-}

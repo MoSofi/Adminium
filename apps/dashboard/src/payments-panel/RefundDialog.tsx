@@ -20,7 +20,8 @@ import { CornerDownLeft, RotateCcw } from 'lucide-react';
 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
-import { fetchRefundPreview, REFUND_REASONS, requestRefund, type PanelRefund, type RefundPreview, type RefundReason } from './paymentPanelApi.js';
+import type { PanelRefund } from './paymentPanelApi.js';
+import { fetchRefundPreview, REFUND_REASONS, requestRefund, type RefundPreview, type RefundReason } from './refundApi.js';
 import { decimalsOf, formatMoney, holdsCardNumber, moreThan, newPaymentKey, typedAmount } from './paymentText.js';
 import { readerLocale, usePaymentsMessages } from './paymentsMessages.js';
 import { refusalWords } from './refundWords.js';
