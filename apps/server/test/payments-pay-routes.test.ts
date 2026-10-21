@@ -114,7 +114,7 @@ describe('a pay link, end to end', () => {
     const made = await app.inject({ method: 'POST', url: '/api/v1/payments/links', headers: staff(), payload: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' } });
     expect(made.statusCode, made.payload).toBe(200);
     const url = made.json().data.link.url as string;
-    return { url, token: url.slice(`${PAY}/pay/`.length), id: made.json().data.link.id as string };
+    return { url, token: url.split('/pay/')[1]!, id: made.json().data.link.id as string };
   }
 
   async function proof(token: string, headers: Record<string, string> = staff()): Promise<string> {
@@ -122,9 +122,10 @@ describe('a pay link, end to end', () => {
     return `${challenge.id}.${solveProof(challenge.salt, challenge.difficulty)}`;
   }
 
-  it('makes a link on the pay address, a new one replacing the last', async () => {
+  it('makes a link, a new one replacing the last; a test link on the host staff are signed in on', async () => {
     const first = await mint();
-    expect(first.url.startsWith(`${PAY}/pay/`)).toBe(true);
+    // Live payments are off, so this is a test link: it opens only where the staff session is.
+    expect(first.url).toMatch(/^http:\/\/localhost(:80)?\/pay\//);
     expect(first.token).toMatch(/^[A-Za-z0-9_-]{22}$/);
     const again = await app.inject({ method: 'POST', url: '/api/v1/payments/links', headers: staff(), payload: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' } });
     expect(again.json().data.replaced).toBe(true);
@@ -210,6 +211,21 @@ describe('a pay link, end to end', () => {
     expect((await page(fakeStaff)).payable?.lines).toBeNull();
     await paymentSettingsRepo(meta).set('pay-page', payPageSchema, { shopName: 'Crumb & Co.', logoFileId: null, contactEmail: null, contactPhone: null, shopCountry: 'DE', showLines: true });
     expect((await page(fakeStaff)).payable?.lines).toEqual([{ label: 'Sourdough loaves × 24', amount: '96.00' }, { label: 'Delivery', amount: '24.00' }]);
+  });
+
+  it('says the shop will check a payment taken but not written down, and offers no way to pay again', async () => {
+    const { token } = await mint();
+    const started = await app.inject({ method: 'POST', url: `/pay/api/${token}/checkout`, headers: { ...staff(), 'x-adminium-proof': await proof(token) }, payload: { source: 'demo' } });
+    expect(started.statusCode, started.payload).toBe(200);
+    const [attempt] = await paymentAttemptsRepo(meta).forPayable({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' });
+    // The provider took a different amount: refused to record, its slot let go, nobody has looked yet.
+    await meta.db
+      .updateTable('adminium_payment_attempts')
+      .set({ state: 'record_refused', openKey: null, problem: JSON.stringify({ code: 'AMOUNT_DIFFERS', message: 'Took 100.00, asked 120.00.' }) } as never)
+      .where('id', '=', attempt!.id)
+      .execute();
+    const page = (await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: staff() })).json();
+    expect(page).toMatchObject({ state: 'shop-checks', ways: [] });
   });
 
   it('never spends one proof twice', async () => {

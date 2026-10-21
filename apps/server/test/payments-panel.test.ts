@@ -65,6 +65,10 @@ describe('the luhn check behind every payment text', () => {
     expect(holdsCardNumber('Visa ending 4242, approval A7K29Q')).toBe(false);
     expect(holdsCardNumber('4242424242424241')).toBe(false);
     expect(holdsCardNumber(null)).toBe(false);
+    // A number followed by more digits in the same run, or printed with dots, is still found.
+    expect(holdsCardNumber('4242424242424242 12/27')).toBe(true);
+    expect(holdsCardNumber('paid 4242 4242 4242 4242 1227')).toBe(true);
+    expect(holdsCardNumber('4242.4242.4242.4242')).toBe(true);
   });
 });
 
@@ -135,7 +139,7 @@ describe.each(LEGS)('the Payment panel — %s', (dialect, available) => {
     await roles.assignToUser(owner.id, (await roles.findBySlug('super-admin'))!.id);
     const grant = async (slug: string, update: boolean): Promise<User> => {
       const role = await roles.create({ slug: `${slug}-${dialect}`, name: slug });
-      for (const id of [invoicesId, depositsId]) {
+      for (const id of [invoicesId, depositsId, w.targetOf('payments').table.id]) {
         await permissionsRepo(h.meta).grant(role.id, 'table', `${h.connectionId}/${id}`, { read: true, create: false, update, delete: false, export: false, import: false } as never);
       }
       const user = await users.create({ email: `${slug}-${dialect}@adminium.test`, name: slug === 'clerk' ? 'Tom Becker' : 'Ida Reader', status: 'active' });
@@ -263,6 +267,43 @@ describe.each(LEGS)('the Payment panel — %s', (dialect, available) => {
     const refused = await record(reader, invoicesId, invoice['id'], { amount: '10.00' });
     expect(refused.statusCode).toBe(403);
     expect(await paymentsOf(invoice)).toHaveLength(1);
+  });
+
+  it.runIf(available)('records one payment when the same key arrives twice at once, and a key used on another record is that record\'s own', async () => {
+    const deposit = await w.create('deposits', { label: 'DEP-9', amount: '30.00', currency: 'EUR' });
+    const once = key();
+    const [a, b] = await Promise.all([record(owner, depositsId, deposit['id'], { amount: '10.00', key: once }), record(owner, depositsId, deposit['id'], { amount: '10.00', key: once })]);
+    expect([a.statusCode, b.statusCode]).toEqual([200, 200]);
+    expect([a.json().data.already, b.json().data.already].sort()).toEqual([false, true]);
+    const ref = { kind: 'profile' as const, connectionId: h.connectionId, tableName: depositsId, rowKey: String(deposit['id']) };
+    expect(await keptPaymentsRepo(h.meta).forPayable(ref)).toHaveLength(1);
+    // The same key on another record is not "already on file" there.
+    const other = await w.create('deposits', { label: 'DEP-10', amount: '30.00', currency: 'EUR' });
+    const there = await record(owner, depositsId, other['id'], { amount: '10.00', key: once });
+    expect(there.json().data, there.payload).toMatchObject({ already: false, due: '20.00' });
+  });
+
+  it.runIf(available)('shows the payments table\'s rows only to someone who may read that table', async () => {
+    const invoice = await sentInvoice('60.00');
+    expect((await record(owner, invoicesId, invoice['id'], { amount: '20.00' })).statusCode).toBe(200);
+    const roles = rolesRepo(h.meta);
+    const role = await roles.create({ slug: `invoices-only-${dialect}`, name: 'invoices only' });
+    await permissionsRepo(h.meta).grant(role.id, 'table', `${h.connectionId}/${invoicesId}`, { read: true, create: false, update: false, delete: false, export: false, import: false } as never);
+    const outsider = await usersRepo(h.meta).create({ email: `outsider-${dialect}@adminium.test`, name: 'Ola', status: 'active' });
+    await roles.assignToUser(outsider.id, role.id);
+    const read = (await panel(outsider, invoicesId, invoice['id'])).json().data;
+    expect(read).toMatchObject({ due: '40.00', mayChange: false });
+    expect(read.payments).toEqual([]);
+  });
+
+  it.runIf(available)('counts a payment under the row\'s own key, however its id was written', async () => {
+    const deposit = await w.create('deposits', { label: 'DEP-11', amount: '30.00', currency: 'EUR' });
+    const padded = `00${String(deposit['id'])}`;
+    const recorded = await record(owner, depositsId, padded, { amount: '10.00' });
+    expect(recorded.statusCode, recorded.payload).toBe(200);
+    const kept = await keptPaymentsRepo(h.meta).forPayable({ kind: 'profile', connectionId: h.connectionId, tableName: depositsId, rowKey: String(deposit['id']) });
+    expect(kept).toHaveLength(1);
+    expect((await panel(owner, depositsId, deposit['id'])).json().data).toMatchObject({ due: '20.00' });
   });
 
   it.runIf(available)('keeps one payment for one key, even when another process gets the retry', async () => {

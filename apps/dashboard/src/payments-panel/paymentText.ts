@@ -25,9 +25,19 @@ export function passesLuhn(digits: string): boolean {
 
 /** Whether a text holds what looks like a full card number. */
 export function holdsCardNumber(text: string): boolean {
-  for (const match of text.matchAll(/\d(?:[ -]?\d)*/g)) {
-    const digits = match[0].replace(/[ -]/g, '');
-    if (digits.length >= 13 && digits.length <= 19 && passesLuhn(digits)) return true;
+  for (const match of text.matchAll(/\d(?:[ .-]?\d)*/g)) {
+    // A run glued to letters is an IBAN or a code ("DE89 3704 …", "INV2024…"), not a card number.
+    if (match.index > 0 && /\p{L}/u.test(text[match.index - 1]!)) continue;
+    // The number may share its run with what follows it ("4242 4242 4242 4242 12/27"): every stretch of
+    // whole groups from a group's start, 13 to 19 digits long, is tried.
+    const groups = match[0].split(/[ .-]/);
+    for (let start = 0; start < groups.length; start += 1) {
+      let digits = '';
+      for (let end = start; end < groups.length && digits.length < 19; end += 1) {
+        digits += groups[end];
+        if (digits.length >= 13 && digits.length <= 19 && passesLuhn(digits)) return true;
+      }
+    }
   }
   return false;
 }
@@ -49,7 +59,7 @@ export function decimalsOf(amount: string): number {
 /** An amount as the reader reads it, with exactly the decimals the server sent. */
 export function formatMoney(amount: string, currency: string, locale: string, decimals = decimalsOf(amount)): string {
   try {
-    return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(amount));
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(amount as `${number}`); // the decimal string itself: exact, where a Number would round past 15 digits
   } catch {
     return `${currency} ${amount}`;
   }

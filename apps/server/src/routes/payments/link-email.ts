@@ -21,7 +21,7 @@ import { audited } from '../../audit/coverage.js';
 import type { EmailLogger } from '../../email/send.js';
 import { ForbiddenError, NotFoundError, RateLimitedError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { sendPayLinkEmail } from '../../payments/emails.js';
-import { linkOpens, linkSealFromSecret, payAddress, payUrl } from '../../payments/links.js';
+import { linkOpens, linkSealFromSecret, payAddress, payReachable, payUrl } from '../../payments/links.js';
 import type { PayableSources } from '../../payments/payables.js';
 
 export interface PaymentLinkEmailDeps {
@@ -30,6 +30,10 @@ export interface PaymentLinkEmailDeps {
   secret: string;
   /** The links routes' own check: may this person make (and so send) this payable's link? Throws when not. */
   assertMayLink: (request: FastifyRequest, payable: PayableRef) => Promise<void>;
+  /** Whether customers can reach the pay address: no link is sent while they cannot. */
+  networkFeatures: boolean;
+  desktop: boolean;
+  trustProxy: boolean;
   logger?: EmailLogger;
 }
 
@@ -72,6 +76,9 @@ export function paymentLinkEmailRoutes(deps: PaymentLinkEmailDeps): FastifyPlugi
         if (link.mode !== 'live') throw new ValidationFailedError('A test link opens only for staff, so it is not emailed to the customer.', { reason: 'test-link' });
         const address = await payAddress(meta);
         if (address === null) throw new ValidationFailedError('Customers cannot reach the pay address, so no pay link can be sent.', { reason: 'no-pay-address' });
+        const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['forwarded'] !== undefined;
+        const reach = await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded });
+        if (reach.state !== 'reachable') throw new ValidationFailedError('Customers cannot reach the pay address, so no pay link can be sent.', { reason: reach.state });
 
         if ((await counters.hit(`link-email:${payableBucket(link.payable)}`, app.rbac.now())) > LINK_EMAILS_PER_HOUR) {
           throw new RateLimitedError('This pay link was emailed several times in the last hour. Try again later.');

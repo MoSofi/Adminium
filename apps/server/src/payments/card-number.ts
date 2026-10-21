@@ -5,11 +5,12 @@
  * may copy the long number by mistake, and a note is shown to every reader of
  * the record and kept in the audit trail.
  *
- * What counts: a run of 13 to 19 digits, written together or in groups split
- * by single spaces or hyphens (as card numbers are printed), that passes the
- * Luhn check every card number carries. A longer run is not a card number (an
- * IBAN's digits run to 20 and more), and a run that fails the check is a
- * phone number, an order number or a reference.
+ * What counts: 13 to 19 digits, written together or in groups split by
+ * single spaces, dots or hyphens (as card numbers are printed), that pass the
+ * Luhn check every card number carries — also when more digits follow in the
+ * same run (an expiry, a code). A run glued to letters is an IBAN or a code,
+ * and digits that fail the check are a phone number, an order number or a
+ * reference.
  */
 
 /** The Luhn check over a string of digits. */
@@ -28,14 +29,22 @@ export function passesLuhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
-const RUN = /\d(?:[ -]?\d)*/g;
-
 /** Whether a text holds what looks like a full card number. */
 export function holdsCardNumber(text: string | null | undefined): boolean {
   if (text === null || text === undefined) return false;
-  for (const match of text.matchAll(RUN)) {
-    const digits = match[0].replace(/[ -]/g, '');
-    if (digits.length >= 13 && digits.length <= 19 && passesLuhn(digits)) return true;
+  for (const match of text.matchAll(/\d(?:[ .-]?\d)*/g)) {
+    // A run glued to letters is an IBAN or a code ("DE89 3704 …", "INV2024…"), not a card number.
+    if (match.index > 0 && /\p{L}/u.test(text[match.index - 1]!)) continue;
+    // The number may share its run with what follows it ("4242 4242 4242 4242 12/27"): every stretch of
+    // whole groups from a group's start, 13 to 19 digits long, is tried.
+    const groups = match[0].split(/[ .-]/);
+    for (let start = 0; start < groups.length; start += 1) {
+      let digits = '';
+      for (let end = start; end < groups.length && digits.length < 19; end += 1) {
+        digits += groups[end];
+        if (digits.length >= 13 && digits.length <= 19 && passesLuhn(digits)) return true;
+      }
+    }
   }
   return false;
 }

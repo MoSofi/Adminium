@@ -113,8 +113,9 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
     }
   }
 
-  async function reachable(): Promise<boolean> {
-    return (await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded: false })).state === 'reachable';
+  async function reachable(request: FastifyRequest): Promise<boolean> {
+    const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['forwarded'] !== undefined;
+    return (await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded })).state === 'reachable';
   }
 
   async function mayPreview(request: FastifyRequest): Promise<boolean> {
@@ -196,8 +197,9 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
     });
 
     app.get('/pay/api/:token/logo', { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams } }, async (request, reply) => {
-      if (!(await reachable())) return reply.status(404).send();
-      if ((await linkForToken(meta, request.params.token, now())) === null) return reply.status(404).send();
+      const link = await linkForToken(meta, request.params.token, now());
+      // A staff test link opens without a reachable pay address, and so does its logo.
+      if (link === null || (link.mode !== 'test' && !(await reachable(request)))) return reply.status(404).send();
       const settings = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
       if (settings?.logoFileId == null) return reply.status(404).send();
       const file = await filesRepo(meta).findById(settings.logoFileId);

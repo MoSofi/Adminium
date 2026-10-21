@@ -36,9 +36,44 @@ export const PAY_LANGUAGES: readonly { id: LocaleId; tag: string; name: string; 
   { id: 'zh_TW', tag: 'zh-TW', name: '繁體中文', dir: 'ltr' },
 ] as const;
 
+/** The shop's own rewording of the page's words (Studio → Translations), dotted keys; none when it cannot be read. */
+async function reworded(tag: string): Promise<Record<string, string>> {
+  try {
+    const answer = await fetch(`/pay/api/words/${encodeURIComponent(tag)}`, { credentials: 'omit', headers: { accept: 'application/json' } });
+    if (!answer.ok) return {};
+    const body = (await answer.json()) as { words?: unknown };
+    return typeof body.words === 'object' && body.words !== null ? (body.words as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** A copy of the built words with the shop's rewording laid over them, key by dotted key. */
+export function withRewording(words: Words, rewording: Record<string, string>): Words {
+  // A loaded module carries its words as its default export.
+  const plain = typeof words === 'object' && words !== null && 'default' in words ? (words as { default: unknown }).default : words;
+  const out = structuredClone(plain) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(rewording)) {
+    if (typeof value !== 'string') continue;
+    const parts = key.split('.');
+    let node: Record<string, unknown> = out;
+    for (const part of parts.slice(0, -1)) {
+      const next = node[part];
+      if (typeof next !== 'object' || next === null) break;
+      node = next as Record<string, unknown>;
+    }
+    const last = parts.at(-1)!;
+    // Only a word the page has: a rewording never adds keys.
+    if (typeof node[last] === 'string') node[last] = value;
+  }
+  return out as Words;
+}
+
 export async function loadPayWords(tag: string, namespace: string): Promise<Words | null> {
   const loader = LOADERS[`${tag}/${namespace}`];
-  return loader === undefined ? null : loader();
+  if (loader === undefined) return null;
+  const [words, rewording] = await Promise.all([loader(), namespace === 'pay' ? reworded(tag) : Promise.resolve({})]);
+  return Object.keys(rewording).length === 0 ? words : withRewording(words, rewording);
 }
 
 /** The browser's first language the page has, else English. */
@@ -52,5 +87,7 @@ export function payLocaleFor(preferred: readonly string[]): LocaleId {
 }
 
 export async function initPayWords(locale: LocaleId): Promise<I18nInstance> {
-  return createPageI18n({ locale, namespace: 'pay', english, loadBundle: loadPayWords });
+  // The English the page starts with carries the shop's English rewording too (it is every language's fallback).
+  const englishRewording = await reworded('en-US');
+  return createPageI18n({ locale, namespace: 'pay', english: Object.keys(englishRewording).length === 0 ? english : withRewording(english, englishRewording), loadBundle: loadPayWords });
 }

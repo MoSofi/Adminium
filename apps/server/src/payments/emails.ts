@@ -84,7 +84,7 @@ function intlTag(locale: string): string {
 export function moneyText(amount: string, currency: string, locale: string): string {
   const decimals = (amount.split('.')[1] ?? '').length;
   try {
-    return new Intl.NumberFormat(`${intlTag(locale)}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(amount));
+    return new Intl.NumberFormat(`${intlTag(locale)}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(amount as `${number}`); // the decimal string itself: exact, where a Number would round past 15 digits
   } catch {
     return `${currency} ${amount}`;
   }

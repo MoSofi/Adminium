@@ -138,8 +138,14 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
 
   const assertMayLink = createLinkRights(deps);
 
-  function viewOf(link: { id: string; tokenSealed: string; mode: 'test' | 'live'; expiresAt: number; createdAt: number }, address: string) {
-    return { id: link.id, url: payUrl(address, seal.unseal(link.tokenSealed)), mode: link.mode, expiresAt: link.expiresAt, createdAt: link.createdAt };
+  /**
+   * A link as the panel shows it. A test link opens only for signed-in staff,
+   * whose session lives on the host they are signed in on: it points there,
+   * never at a customer domain where it could never open.
+   */
+  function viewOf(link: { id: string; tokenSealed: string; mode: 'test' | 'live'; expiresAt: number; createdAt: number }, address: string, request: FastifyRequest) {
+    const base = link.mode === 'test' ? `${request.protocol}://${request.host}` : address;
+    return { id: link.id, url: payUrl(base, seal.unseal(link.tokenSealed)), mode: link.mode, expiresAt: link.expiresAt, createdAt: link.createdAt };
   }
 
   async function reachableAddress(request: FastifyRequest): Promise<string> {
@@ -193,7 +199,7 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
           action: 'payments.link.minted',
           changes: { after: { linkId: minted.link.id, kind: payable.kind, connectionId: payable.connectionId, tableName: payable.tableName, rowKey: payable.rowKey, mode: minted.link.mode, replaced: minted.replaced } },
         });
-        return { data: { link: viewOf(minted.link, address), replaced: minted.replaced } };
+        return { data: { link: viewOf(minted.link, address, request), replaced: minted.replaced } };
       },
     );
 
@@ -206,7 +212,7 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
         const link = await links.currentFor(request.body);
         const address = await payAddress(meta);
         if (link === null || address === null || link.revokedAt !== null || link.expiresAt <= app.rbac.now()) return { data: null };
-        return { data: viewOf(link, address) };
+        return { data: viewOf(link, address, request) };
       },
     );
 

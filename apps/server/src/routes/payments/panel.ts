@@ -27,7 +27,9 @@
  */
 import { compareAmounts, sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
 import { currencyScale } from '@adminium/manifest';
-import { keptPaymentsRepo, paymentAttemptsRepo, type KeptPayment, type MetaDb, type PayableRef } from '@adminium/meta';
+import { createHash } from 'node:crypto';
+
+import { isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, paymentAttemptsRepo, type KeptPayment, type MetaDb, type PayableRef } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -42,7 +44,7 @@ import type { RecordWriteService } from '../../crud/write-service.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { holdsCardNumber } from '../../payments/card-number.js';
 import { payAddress, payReachable } from '../../payments/links.js';
-import { exactAmount, fromMinorUnits, pkOfRowKey, resolvePayable, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
+import { exactAmount, fromMinorUnits, pkOfRowKey, resolvePayable, rowKeyOf, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
 import { recordedByOf, setPaidStatus, writePaymentRow, type PaymentActor } from '../../payments/record.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
@@ -77,7 +79,8 @@ const recordBody = recordQuery.extend({
   approvalCode: z.string().trim().max(32).nullable(),
   last4: z.string().trim().max(32).nullable(),
   /** Made by the dialog when it opened; the same key twice records once. */
-  key: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/),
+  // `hand_<key>` is written to a 64-character reference column: 59 at most.
+  key: z.string().regex(/^[A-Za-z0-9_-]{16,59}$/),
 });
 
 const refusalView = z.object({ code: z.string(), message: z.string() });
@@ -199,7 +202,9 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         ? await found.target.db.selectFrom(table.id).selectAll().where((eb) => eb.and(Object.entries(pk).map(([column, value]) => eb(found.target.db.dynamic.ref(column), '=', value)))).executeTakeFirst()
         : await fetchVisible(context, found.target.db, table, pk, action);
     if (row === undefined) throw new NotFoundError('No such record.');
-    return { found, rowKey: input.recordId };
+    // The row's own spelling of its key ("7", not "007"; "INV-1", not "inv-1" on a case-blind database),
+    // so the payable is counted under the one key links and kept payments use.
+    return { found, rowKey: rowKeyOf(table, row as Row) };
   }
 
   /** Which kind of payable the table is, or null when it is none. */
@@ -217,11 +222,13 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
   }
 
   /** The payments in the record's own payments table (live, online and by hand). */
-  async function tablePayments(payable: ResolvedPayable): Promise<PaymentView[]> {
+  async function tablePayments(request: FastifyRequest, payable: ResolvedPayable): Promise<PaymentView[]> {
     const into = payable.recordInto;
     if (into.kind !== 'table' || payable.ref.connectionId === null) return [];
     const found = await sources.table(payable.ref.connectionId, into.tableName);
     if (found === null) return [];
+    // The payments table's rows are shown only to someone who may read that table too.
+    if (!(await request.can(`table:${payable.ref.connectionId}:${found.table.id}:read`))) return [];
     const has = (column: string | null): column is string => column !== null && found.table.columns.has(column);
     const rows = (await found.target.db
       .selectFrom(found.table.id)
@@ -257,6 +264,9 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
   }
 
   async function panelOf(request: FastifyRequest, input: z.infer<typeof recordQuery>): Promise<PanelView | null> {
+    // Most record pages are of tables that take no payments: answered from meta alone, before any row is read.
+    const table = await sources.table(input.connectionId, input.table);
+    if (table === null || (await kindOf(input.connectionId, table.table.id)) === null) return null;
     const { found, rowKey } = await reach(request, input, 'read');
     const kind = await kindOf(input.connectionId, found.table.id);
     if (kind === null) return null;
@@ -268,7 +278,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     const paid = subtractAmounts(payable.total, payable.due, scale) ?? '0';
     const attempts = await paymentAttemptsRepo(meta).forPayable(ref);
     const kept = (await keptPaymentsRepo(meta).forPayable(ref)).filter((row) => !row.voided);
-    const payments = [...(await tablePayments(payable)), ...kept.map(keptView)];
+    const payments = [...(await tablePayments(request, payable)), ...kept.map(keptView)];
     const handOk = payable.refusal === null || payable.refusal.code === 'NEEDS_UPDATE';
     return {
       payable: { kind, connectionId: input.connectionId, tableName: found.table.id, rowKey },
@@ -286,6 +296,39 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         .map((attempt) => ({ id: attempt.id, provider: attempt.provider, wayLabel: (attempt.paidWith as { label?: string } | null)?.label ?? null, startedAt: attempt.createdAt, test: attempt.mode === 'test' })),
       payments,
     };
+  }
+
+  /** A key's claim: a counters row in a day-long window that only one insert can make. */
+  function claimOf(memoryKey: string, now: number): { bucket: string; windowStart: number } {
+    return { bucket: `hand-key:${createHash('sha256').update(memoryKey).digest('hex')}`, windowStart: Math.floor(now / 86_400_000) * 86_400_000 };
+  }
+
+  async function claimed(claim: { bucket: string; windowStart: number }): Promise<boolean> {
+    const row = await meta.db.selectFrom('adminium_payment_counters').select('hits').where('bucket', '=', claim.bucket).where('windowStart', '=', claim.windowStart).executeTakeFirst();
+    return row !== undefined;
+  }
+
+  async function takeClaim(claim: { bucket: string; windowStart: number }): Promise<boolean> {
+    try {
+      await meta.db.insertInto('adminium_payment_counters').values({ ...claim, hits: 1 }).execute();
+      return true;
+    } catch (error) {
+      if (isDuplicateKeyError(error)) return false;
+      throw error;
+    }
+  }
+
+  async function dropClaim(claim: { bucket: string; windowStart: number }): Promise<void> {
+    await meta.db.deleteFrom('adminium_payment_counters').where('bucket', '=', claim.bucket).where('windowStart', '=', claim.windowStart).execute();
+  }
+
+  /** Whether the payments table already holds a row with this reference. */
+  async function referenceWritten(connectionId: string, tableName: string, column: string | null, value: string): Promise<boolean> {
+    if (column === null) return false;
+    const found = await sources.table(connectionId, tableName);
+    if (found === null || !found.table.columns.has(column)) return false;
+    const row = await found.target.db.selectFrom(found.table.id).selectAll().where(found.target.db.dynamic.ref(column), '=', value).limit(1).executeTakeFirst();
+    return row !== undefined;
   }
 
   function forget(now: number): void {
@@ -314,8 +357,13 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
 
         const now = app.rbac.now();
         forget(now);
-        const remembered = recentKeys.get(body.key);
+        // A key belongs to one person and one record: the same key elsewhere is a different payment.
+        const memoryKey = `${person.id}:${payableKeyOf(ref)}:${body.key}`;
+        const remembered = recentKeys.get(memoryKey);
         if (remembered !== undefined) return { data: { key: body.key, already: true, due: remembered.due } };
+        // Claimed already, by this process or another: the same payment, answered as it stands now.
+        const claim = claimOf(memoryKey, now);
+        if (await claimed(claim)) return { data: { key: body.key, already: true, due: sameAmount(payable.due, '0') ? '0' : payable.due } };
 
         if (payable.refusal !== null && payable.refusal.code !== 'NEEDS_UPDATE') {
           throw new ValidationFailedError(payable.refusal.message, { reason: payable.refusal.code });
@@ -345,58 +393,69 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         const note = body.note === null || body.note === '' ? null : body.note;
         const recordDeps = { meta, sources, app: app as unknown as FastifyInstance, ...(deps.writes === undefined ? {} : { writes: deps.writes }) };
         let already = false;
-        if (payable.recordInto.kind === 'table') {
-          try {
-            const written = await writePaymentRow(recordDeps, payable, {
-              ref,
-              amount,
-              currency: payable.currency,
-              method: body.way,
-              manual: true,
-              note,
-              reference: `hand_${body.key}`,
-              paidAt,
-              provider: null,
-              approvalCode: terminal ? body.approvalCode : null,
-              cardLast4: terminal ? body.last4 : null,
-              actor,
-              request,
-            });
-            if (written === 'refused') throw new ValidationFailedError("The payment cannot be written into this record's payments.", { reason: 'NOT_PAYABLE' });
-          } catch (error) {
-            // The same key already wrote its row: a retry after a lost answer.
-            if (!isUniqueViolation(error)) throw error;
-            already = true;
+        // One insert only one request can win, in every process: the key's claim, made before the write.
+        if (!(await takeClaim(claim))) return { data: { key: body.key, already: true, due: sameAmount(payable.due, '0') ? '0' : payable.due } };
+        try {
+          if (payable.recordInto.kind === 'table') {
+            const into = payable.recordInto;
+            try {
+              const written = await writePaymentRow(recordDeps, payable, {
+                ref,
+                amount,
+                currency: payable.currency,
+                method: body.way,
+                manual: true,
+                note,
+                reference: `hand_${body.key}`,
+                paidAt,
+                provider: null,
+                approvalCode: terminal ? body.approvalCode : null,
+                cardLast4: terminal ? body.last4 : null,
+                actor,
+                request,
+              });
+              if (written === 'refused') throw new ValidationFailedError("The payment cannot be written into this record's payments.", { reason: 'NOT_PAYABLE' });
+            } catch (error) {
+              // The same key already wrote its row (a retry after a lost answer) — and only then: another
+              // unique column colliding is a refusal, never "already on file".
+              if (!isUniqueViolation(error) || !(await referenceWritten(ref.connectionId!, into.tableName, into.reference, `hand_${body.key}`))) throw error;
+              already = true;
+            }
+          } else {
+            const kept = await keptPaymentsRepo(meta).insert(
+              {
+                payable: ref,
+                // Unique across every record, so scoped to this person and record: a hash of the three.
+              requestKey: createHash('sha256').update(memoryKey).digest('hex'),
+                number: null,
+                amount,
+                currency: payable.currency,
+                method: body.way,
+                methodNote: null,
+                provider: null,
+                mode: 'live',
+                attemptId: null,
+                approvalCode: terminal ? body.approvalCode : null,
+                cardLast4: terminal ? body.last4 : null,
+                note,
+                paidOn: paidAt,
+                recordedBy: person.label,
+                recordedByUser: person.id,
+              },
+              now,
+            );
+            // The same key already kept its payment: a retry after a lost answer, here or in another process.
+            if (kept === null) already = true;
           }
-        } else {
-          const kept = await keptPaymentsRepo(meta).insert(
-            {
-              payable: ref,
-              requestKey: body.key,
-              number: null,
-              amount,
-              currency: payable.currency,
-              method: body.way,
-              methodNote: null,
-              provider: null,
-              mode: 'live',
-              attemptId: null,
-              approvalCode: terminal ? body.approvalCode : null,
-              cardLast4: terminal ? body.last4 : null,
-              note,
-              paidOn: paidAt,
-              recordedBy: person.label,
-              recordedByUser: person.id,
-            },
-            now,
-          );
-          // The same key already kept its payment: a retry after a lost answer, here or in another process.
-          if (kept === null) already = true;
+        } catch (error) {
+          // Nothing was written: the key may be tried again.
+          await dropClaim(claim);
+          throw error;
         }
         if (!already) await setPaidStatus(recordDeps, ref, payable, actor, request);
         const after = await resolvePayable(sources, ref);
         const due = after?.due ?? payable.due;
-        recentKeys.set(body.key, { at: now, due });
+        recentKeys.set(memoryKey, { at: now, due });
         if (!already) {
           await app.rbac.audit(request, {
             category: 'payments',

@@ -29,7 +29,7 @@
 import { subtractAmounts } from '@adminium/add-on-contracts';
 import { localeFromTag, type LocaleId } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
-import { paymentAttemptsRepo, paymentCountersRepo, paymentLinksRepo, paymentMethodsRepo, paymentSettingsRepo, publicProofsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
+import { translationsRepo, paymentAttemptsRepo, paymentCountersRepo, paymentLinksRepo, paymentMethodsRepo, paymentSettingsRepo, publicProofsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -254,7 +254,12 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     const payable = await resolvePayable(deps.sources, link.payable);
     if (payable === null) return base;
     const shown = await shownOf(payable);
-    const open = await attempts.openFor(payable.ref, link.mode);
+    // What holds the payable: the open attempt, else money taken and not yet written down — succeeded,
+    // being recorded, or refused and not yet looked at (the shop decides; the customer never pays twice).
+    const open =
+      (await attempts.openFor(payable.ref, link.mode)) ??
+      (await attempts.forPayable(payable.ref, 20)).find((one) => one.mode === link.mode && (one.state === 'succeeded' || one.state === 'recording' || (one.state === 'record_refused' && one.check === null))) ??
+      null;
     const held = open === null ? null : stateOfAttempt(open);
     if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
     if (held === 'paid' || held === 'shop-checks') return { ...base, state: held, test: link.mode === 'test', payable: shown };
@@ -306,7 +311,7 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     const money = (amount: string, currency: string): string => {
       const decimals = (amount.split('.')[1] ?? '').length;
       try {
-        return new Intl.NumberFormat(`${tag}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(amount));
+        return new Intl.NumberFormat(`${tag}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(amount as `${number}`); // the decimal string itself: exact, where a Number would round past 15 digits
       } catch {
         return `${currency} ${amount}`;
       }
@@ -355,6 +360,20 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
   const { meta, now, counters, attempts, proofs, key, shop, reachable, mayOpen, stateOfAttempt, shownOf, receiptSentFor, page, mayPreview } = createPayPageReader(deps);
 
   return async (app) => {
+    // The pay page's own words as the shop reworded them in Translations: this one namespace only, the
+    // words every customer already reads on the page, so anyone may ask. Nothing else is served here.
+    app.get(
+      '/pay/api/words/:locale',
+      { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: z.object({ locale: z.enum(PAGE_LOCALES) }), response: { 200: z.object({ words: z.record(z.string(), z.string()) }) } } },
+      async (request, reply) => {
+        void reply.header('cache-control', 'public, max-age=60');
+        const rows = await translationsRepo(meta).listBundle(request.params.locale.replace('-', '_'), 'pay');
+        const words: Record<string, string> = {};
+        for (const row of rows) words[row.key] = row.value;
+        return { words };
+      },
+    );
+
     app.get(
       '/pay/api/preview',
       { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, response: { 200: pageReply } } },
@@ -413,7 +432,9 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         noStore(reply);
         const answer = await page(request, request.params.token);
         if (answer.state !== 'ready') return say(answer.state);
-        const link = (await linkForToken(meta, request.params.token, now()))!;
+        const link = await linkForToken(meta, request.params.token, now());
+        // Revoked, replaced or expired a moment ago: as any link that does not open.
+        if (link === null) return say('unknown');
 
         const proved = checkProof(key, request.headers['x-adminium-proof'], { keyId: link.id, purpose: 'pay', now: now() });
         if (!proved.ok || !(await proofs.spend({ id: proved.spendId, keyId: link.id, purpose: 'pay', expiresAt: proved.expiresAt }))) {
@@ -430,7 +451,8 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
 
         const way = answer.ways.find((one) => one.source === request.body.source && one.source !== 'manual');
         if (way === undefined) return say('no-ways');
-        const payable = (await resolvePayable(deps.sources, link.payable))!;
+        const payable = await resolvePayable(deps.sources, link.payable);
+        if (payable === null) return say('unknown');
         // A test link is opened by signed-in staff, whose session lives on the
         // host they signed in on: a test payment comes back there. A live one
         // always comes back to the pay address.

@@ -275,6 +275,9 @@ describe('POST /payments/links/:id/email', () => {
             meta,
             sources: fakeResolving(payable()),
             secret: TEST_SECRET,
+            networkFeatures: true,
+            desktop: false,
+            trustProxy: false,
             assertMayLink: async (_request, ref) => {
               asked.push(ref);
               if (!mayLink) throw Object.assign(new Error('You may not make a pay link for this record.'), { statusCode: 403, code: 'FORBIDDEN' });
@@ -303,6 +306,14 @@ describe('POST /payments/links/:id/email', () => {
     const audit = await meta.db.selectFrom('adminium_audit_log').selectAll().where('action', '=', 'payments.link.emailed').execute();
     expect(audit).toHaveLength(1);
     expect(JSON.stringify(audit[0])).not.toContain('lena@example.com');
+  });
+
+  it('sends no link while customers cannot reach the pay address', async () => {
+    const { link } = await mintLink(meta, linkSealFromSecret(TEST_SECRET), { payable: REF, mode: 'live', createdBy: owner.id });
+    await paymentSettingsRepo(meta).set(PAY_ADDRESS_DOC, payAddressSchema, { origin: 'https://192.168.1.20' });
+    const refused = await send(link.id);
+    expect(refused.statusCode).toBe(422);
+    expect(refused.json().error.details).toEqual({ reason: 'private-network' });
   });
 
   it('refuses a test link, a revoked one, an unknown one, a person who may not, and a sixth email in the hour', async () => {

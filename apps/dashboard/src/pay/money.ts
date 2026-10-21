@@ -11,7 +11,7 @@ export function decimalsOf(amount: string): number {
 export function money(amount: string, currency: string, locale: string): string {
   const decimals = decimalsOf(amount);
   try {
-    return new Intl.NumberFormat(`${locale}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(amount));
+    return new Intl.NumberFormat(`${locale}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(amount as `${number}`); // the decimal string itself: exact, where a Number would round past 15 digits
   } catch {
     return `${currency} ${amount}`;
   }

@@ -2029,7 +2029,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) }));
       await api.register(paymentActivityRoutes({ meta }));
       // Email a record's pay link to its customer, under the links' own rights.
-      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log }));
+      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Send a test payment, and the pay page's full preview: a throwaway payable and a test link.
       await api.register(
         testPaymentsRoutes({
