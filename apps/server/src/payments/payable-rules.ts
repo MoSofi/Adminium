@@ -54,6 +54,8 @@ export const PAYABLE_ISSUES = [
   'STATUS_VALUE_UNKNOWN',
   /** A pay page field is personal, secret or masked. */
   'FIELD_PERSONAL',
+  /** A way-to-pay value is not one of the payments table's method column values. */
+  'METHOD_VALUE_UNKNOWN',
 ] as const;
 export type PayableIssueCode = (typeof PAYABLE_ISSUES)[number];
 
@@ -162,6 +164,12 @@ export function payableIssues(input: PayableRulesInput): PayableIssue[] {
   if (mapping.due !== null) {
     const due = columnOf(table, mapping.due.column, 'due');
     if (due !== null && !NUMBER_TYPES.has(due.logicalType)) add('NOT_A_MONEY_COLUMN', 'due', due.name);
+    // The balance is read in the amount's unit: an integer balance needs that unit said.
+    else if (due !== null && WHOLE_TYPES.has(due.logicalType) && mapping.amount.unit === null) add('NEEDS_UNIT', 'amount.unit', due.name);
+    else if (due !== null && due.logicalType === 'decimal' && currency !== null) {
+      const scale = due.numericScale ?? (typeof due.scale === 'number' ? due.scale : null);
+      if (scale !== null && scale < currencyScale(currency)) add('TOO_FEW_DECIMALS', 'due', due.name);
+    }
   }
 
   // ─── Where payments land ─────────────────────────────────────────────────
@@ -174,9 +182,16 @@ export function payableIssues(input: PayableRulesInput): PayableIssue[] {
       columnOf(payments, own.link, 'payments.link');
       const paid = columnOf(payments, own.amount, 'payments.amount');
       if (paid !== null && !NUMBER_TYPES.has(paid.logicalType)) add('NOT_A_MONEY_COLUMN', 'payments.amount', paid.name);
+      else if (paid !== null && paid.logicalType === 'decimal' && currency !== null && own.amountUnit === 'units') {
+        const scale = paid.numericScale ?? (typeof paid.scale === 'number' ? paid.scale : null);
+        if (scale !== null && scale < currencyScale(currency)) add('TOO_FEW_DECIMALS', 'payments.amount', paid.name);
+      }
       columnOf(payments, own.date, 'payments.date');
-      columnOf(payments, own.method.column, 'payments.method');
+      const way = columnOf(payments, own.method.column, 'payments.method');
       if (Object.keys(own.method.values).length === 0) add('NO_METHOD_VALUES', 'payments.method.values');
+      // A method column with its own value list takes only those values.
+      const allowed = way === null ? null : valuesOf(model, way);
+      if (allowed !== null && Object.values(own.method.values).some((value) => !allowed.includes(value))) add('METHOD_VALUE_UNKNOWN', 'payments.method.values', way!.name);
       if (own.note !== null) columnOf(payments, own.note, 'payments.note');
       if (own.voided !== null) columnOf(payments, own.voided, 'payments.voided');
       const reference = columnOf(payments, own.reference, 'payments.reference');

@@ -38,7 +38,7 @@ import { z } from 'zod';
 import type { JobRegistry } from '../jobs/registry.js';
 import type { CheckoutService } from './checkout.js';
 import type { ProviderLookup } from './providers.js';
-import { emptyServiceState, serviceDocName, serviceStateSchema } from './services.js';
+import { mutateServiceState } from './services.js';
 
 export const PAYMENTS_SETTLE_JOB = 'payments.settle';
 export const PAYMENTS_SETTLE_MAX_ATTEMPTS = 20;
@@ -125,10 +125,10 @@ export async function receiveWebhook(
   const docs = paymentSettingsRepo(deps.meta);
   const health = (await docs.get(webhookDocName(input.provider, mode), webhookHealthSchema)) ?? EMPTY_HEALTH;
   await docs.set(webhookDocName(input.provider, mode), webhookHealthSchema, { ...health, firstAt: health.firstAt ?? at, lastAt: at }, at);
-  const state = (await docs.get(serviceDocName(input.provider), serviceStateSchema)) ?? emptyServiceState();
-  if (state[mode].firstEventAt === null) {
-    await docs.set(serviceDocName(input.provider), serviceStateSchema, { ...state, [mode]: { ...state[mode], firstEventAt: at } }, at);
-  }
+  // Ticks the setup checklist's webhook step, on the latest document (never over a save in flight).
+  await mutateServiceState(deps.meta, input.provider, (state) => ({
+    state: state[mode].firstEventAt === null ? { ...state, [mode]: { ...state[mode], firstEventAt: at } } : state,
+  }), at);
 
   const attempts = paymentAttemptsRepo(deps.meta);
   let attempt: PaymentAttempt | null = null;

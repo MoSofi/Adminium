@@ -1284,6 +1284,10 @@ describe('connect and disconnect', () => {
     expect(res.statusCode).toBe(422);
     expect(res.json()).toMatchObject({ error: { details: { reason: 'payments' } } });
     expect(await meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
+    // Nor are its keys removed here.
+    const off = await app.inject({ method: 'DELETE', url: '/api/v1/add-ons/payments-stripe/connect' });
+    expect(off.statusCode).toBe(422);
+    expect(off.json()).toMatchObject({ error: { details: { reason: 'payments' } } });
     await app.close();
   });
 

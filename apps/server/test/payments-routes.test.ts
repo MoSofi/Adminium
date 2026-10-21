@@ -64,11 +64,15 @@ const MANIFEST = {
 function fakeProvider(context: PaymentProviderContext): PaymentProvider {
   const key = context.credentials['secret_key'] ?? '';
   const refuse = async () => providerError('UNAVAILABLE', 'not in this test');
+  const other = key.endsWith('mode');
   return {
     key: 'payments-stripe',
     mode: context.mode,
-    checkCredentials: async () =>
-      key.endsWith('dead') ? providerError('CREDENTIALS_REFUSED', 'Stripe refused the key.') : { ok: true, accountId: `acct_${key.slice(-4)}`, livemode: context.mode === 'live', missing: key.endsWith('miss') ? ['Events: read'] : [] },
+    checkCredentials: async () => {
+      if (key.endsWith('slow')) await slowCheck;
+      if (other) return { ok: true as const, accountId: 'acct_mode', livemode: context.mode !== 'live', missing: [] };
+      return key.endsWith('dead') ? providerError('CREDENTIALS_REFUSED', 'Stripe refused the key.') : { ok: true, accountId: `acct_${key.slice(-4)}`, livemode: context.mode === 'live', missing: key.endsWith('miss') ? ['Events: read'] : [] };
+    },
     createCheckout: refuse,
     status: refuse,
     complete: refuse,
@@ -82,6 +86,9 @@ function fakeProvider(context: PaymentProviderContext): PaymentProvider {
     fromMinor: () => providerError('UNAVAILABLE', 'not in this test'),
   };
 }
+
+let releaseSlow: () => void = () => undefined;
+let slowCheck: Promise<void> = Promise.resolve();
 
 const runtime: AddOnRuntimeState = {
   providers: new Map([['payment-provider@1', [{ addOnKey: 'payments-stripe', contract: 'payment-provider', version: 1, module: { createPaymentProvider: fakeProvider, webhookEvents: ['checkout.session.completed', 'refund.failed', 42] } }]]]),
@@ -231,6 +238,34 @@ describe('payments setup routes', () => {
     expect(notices.map((row) => row.userId)).toEqual([owner.id]);
     const alarms = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data.alarms;
     expect(alarms).toEqual([expect.objectContaining({ what: 'account', service: 'payments-stripe', from: 'acct_9xQ4', to: 'acct_7wE6' })]);
+  });
+
+  it('refuses a key that answers for the other mode', async () => {
+    const saved = await app.inject({ method: 'PUT', url: field('test', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_test_51Habcdefghijklmnopmode' } });
+    expect(saved.json().data.test.check).toMatchObject({ ok: false, code: 'MODE_MISMATCH' });
+    expect(saved.json().data.checklist.find((one: { step: string }) => one.step === 'test-key').done).toBe(false);
+  });
+
+  it('never writes back an old state over a Stop pressed while a Check runs', async () => {
+    slowCheck = new Promise((resolve) => {
+      releaseSlow = resolve;
+    });
+    const saving = app.inject({ method: 'PUT', url: field('test', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_test_51Habcdefghijklmnopslow' } });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const stop = await app.inject({ method: 'PUT', url: '/api/v1/payments/services/payments-stripe/stopped', headers: asUser(owner), payload: { stopped: true } });
+    expect(stop.json().data.stopped).toBe(true);
+    releaseSlow();
+    const saved = await saving;
+    expect(saved.json().data).toMatchObject({ stopped: true, test: { check: { ok: true } } });
+    const read = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data.services[0];
+    expect(read.stopped).toBe(true);
+    slowCheck = Promise.resolve();
+  });
+
+  it('gives the webhook address on the pay address once one is saved', async () => {
+    await meta.db.insertInto('adminium_payment_settings').values({ name: 'pay-address', value: JSON.stringify({ origin: 'https://pay.crumbandco.test' }), updatedAt: 1 }).execute();
+    const service = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data.services[0];
+    expect(service.test.webhookUrl).toBe('https://pay.crumbandco.test/api/v1/payments/webhook/payments-stripe/test');
   });
 
   it('keeps the field saved but records the refusal when the provider refuses the key', async () => {

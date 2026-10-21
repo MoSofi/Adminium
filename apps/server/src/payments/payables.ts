@@ -314,7 +314,8 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
     return { ...base, ...people, currency, total: '0', due: '0', refusal: refused('AMOUNT_UNCLEAR', `This record's amount is not exact in ${currency}.`), status: mapping.status, recordInto };
   }
   let due: string | null;
-  if (mapping.due !== null) due = exactAmount(row[mapping.due.column] ?? 0, scale);
+  // The balance is kept in the same unit as the amount: cents beside cents.
+  if (mapping.due !== null) due = mapping.amount.unit === 'minor' ? fromMinorUnits(row[mapping.due.column] ?? 0, scale) : exactAmount(row[mapping.due.column] ?? 0, scale);
   else due = subtractAmounts(total, await sources.keptPaid(ref, currency), scale) ?? '0';
   if (due === null) {
     return { ...base, ...people, currency, total, due: '0', refusal: refused('AMOUNT_UNCLEAR', `This record's balance is not exact in ${currency}.`), status: mapping.status, recordInto };

@@ -40,7 +40,8 @@ import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
-import { withField } from '../../payments/credentials.js';
+import { modeCredentials, withField } from '../../payments/credentials.js';
+import { payAddress } from '../../payments/links.js';
 import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
 import { raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
@@ -50,7 +51,9 @@ import { webhookDocName, webhookHealthSchema } from '../../payments/webhook.js';
 import {
   checklist,
   emptyServiceState,
+  mutateServiceState,
   recordCheck,
+  withServiceLock,
   serviceDocName,
   serviceStateSchema,
   withSavedField,
@@ -156,6 +159,11 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     return typeof value === 'string' && value !== '' ? value : null;
   }
 
+  /** Where providers must send webhooks: the pay address once one is saved, else this server's public address. */
+  async function webhookOrigin(): Promise<string | null> {
+    return (await payAddress(meta)) ?? (await publicOrigin());
+  }
+
   function webhookUrl(origin: string | null, key: string, mode: PaymentMode): string | null {
     return origin === null ? null : `${origin.replace(/\/$/, '')}/api/v1/payments/webhook/${key}/${mode}`;
   }
@@ -243,33 +251,53 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       return (await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView));
     }
 
-    async function save(key: string, state: ServiceState): Promise<ServiceView> {
-      await docs.set(serviceDocName(key), serviceStateSchema, state, app.rbac.now());
-      return viewOf(await paymentAddOn(key), state, await publicOrigin(), { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') });
+    async function viewNow(key: string, state: ServiceState): Promise<ServiceView> {
+      return viewOf(await paymentAddOn(key), state, await webhookOrigin(), { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') });
     }
 
-    async function checked(request: FastifyRequest, addOn: PaymentAddOn, state: ServiceState, mode: PaymentMode): Promise<ServiceState> {
-      const answer = await runCheck(addOn.manifest.key, mode);
-      const outcome = recordCheck(state, mode, answer, app.rbac.now());
-      if (outcome.accountChanged !== null) {
+    function who(request: FastifyRequest): string {
+      const user = (request as unknown as { user?: { email?: string; name?: string } }).user;
+      return user?.name ?? user?.email ?? 'someone';
+    }
+
+    /**
+     * Asks the provider (slow, outside the lock), then records what it said on
+     * the LATEST document. The provider's words are stored only after every
+     * saved value of this mode is taken out of them.
+     */
+    async function checked(request: FastifyRequest, addOn: PaymentAddOn, mode: PaymentMode): Promise<ServiceState> {
+      const key = addOn.manifest.key;
+      let answer = await runCheck(key, mode);
+      if (answer.ok !== true) {
+        const saved = modeCredentials(await manifests.getCredential(addOn.installed.row.id), mode) ?? {};
+        let message = answer.providerMessage;
+        for (const value of Object.values(saved)) if (value.length >= 6) message = message.split(value).join('[a saved secret]');
+        answer = { ...answer, providerMessage: message.slice(0, 2000) };
+      }
+      const { state, result: changed } = await mutateServiceState(meta, key, (current) => {
+        const outcome = recordCheck(current, mode, answer, app.rbac.now());
+        return { state: outcome.state, result: outcome.accountChanged };
+      }, app.rbac.now());
+      if (changed !== null && changed !== undefined) {
         await app.rbac.audit(request, {
           category: 'payments',
           action: 'payments.account.changed',
-          changes: { before: { key: addOn.manifest.key, mode, accountId: outcome.accountChanged.from }, after: { key: addOn.manifest.key, mode, accountId: outcome.accountChanged.to } },
+          changes: { before: { key, mode, accountId: changed.from }, after: { key, mode, accountId: changed.to } },
         });
-        await raiseMoneyRedirect(meta, { what: 'account', service: addOn.manifest.key, from: outcome.accountChanged.from, to: outcome.accountChanged.to, by: ((request as unknown as { user?: { email?: string; name?: string } }).user?.name ?? (request as unknown as { user?: { email?: string } }).user?.email ?? 'someone') });
+        await raiseMoneyRedirect(meta, { what: 'account', service: key, from: changed.from, to: changed.to, by: who(request) });
       }
-      return outcome.state;
+      return state;
     }
 
     app.get('/payments/setup', { schema: { response: { 200: setupReply } } }, async (request) => {
       if (!(await canRead(request))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
       const origin = await publicOrigin();
+      const hooks = await webhookOrigin();
       const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined;
       const services: ServiceView[] = [];
       for (const addOn of await paymentAddOns()) {
         const key = addOn.manifest.key;
-        services.push(viewOf(addOn, await stateOf(key), origin, { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') }));
+        services.push(viewOf(addOn, await stateOf(key), hooks, { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') }));
       }
       return {
         data: {
@@ -300,11 +328,16 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         const verdict = checkPaste(key, field, mode, request.body.value);
         if (!verdict.ok) throw new ValidationFailedError('That value cannot be saved in this field.', { reason: verdict.code, field });
 
-        const envelope = await manifests.getCredential(addOn.installed.row.id);
-        await manifests.setCredential(addOn.installed.row.id, { kind: 'api-key', secret: withField(envelope, mode, field, verdict.value) });
-        let state = await stateOf(key);
-        const replaced = state[mode].fields[field] !== undefined;
-        state = withSavedField(state, mode, field, verdict.value, app.rbac.now());
+        // The key and its hint change together, one writer at a time: two saves at once never lose a key.
+        const { state: saved, replaced } = await withServiceLock(key, async () => {
+          const envelope = await manifests.getCredential(addOn.installed.row.id);
+          await manifests.setCredential(addOn.installed.row.id, { kind: 'api-key', secret: withField(envelope, mode, field, verdict.value) });
+          const current = await stateOf(key);
+          const next = withSavedField(current, mode, field, verdict.value, app.rbac.now());
+          await docs.set(serviceDocName(key), serviceStateSchema, next, app.rbac.now());
+          return { state: next, replaced: current[mode].fields[field] !== undefined };
+        });
+        let state = saved;
         await app.rbac.audit(request, {
           category: 'payments',
           // The field's NAME, never its value.
@@ -312,8 +345,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
           changes: { after: { key, mode, field } },
         });
         const keyFields = fields.filter((one) => !one.webhook).map((one) => one.key);
-        if (keyFields.every((one) => state[mode].fields[one] !== undefined)) state = await checked(request, addOn, state, mode);
-        return { data: await save(key, state) };
+        if (keyFields.every((one) => state[mode].fields[one] !== undefined)) state = await checked(request, addOn, mode);
+        return { data: await viewNow(key, state) };
       },
     );
 
@@ -328,11 +361,15 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         requirePerson(request);
         const { key, mode, field } = request.params;
         const addOn = await paymentAddOn(key);
-        const envelope = await manifests.getCredential(addOn.installed.row.id);
-        if (envelope !== null) await manifests.setCredential(addOn.installed.row.id, { kind: 'api-key', secret: withField(envelope, mode, field, null) });
-        const state = withSavedField(await stateOf(key), mode, field, null, app.rbac.now());
+        const state = await withServiceLock(key, async () => {
+          const envelope = await manifests.getCredential(addOn.installed.row.id);
+          if (envelope !== null) await manifests.setCredential(addOn.installed.row.id, { kind: 'api-key', secret: withField(envelope, mode, field, null) });
+          const next = withSavedField(await stateOf(key), mode, field, null, app.rbac.now());
+          await docs.set(serviceDocName(key), serviceStateSchema, next, app.rbac.now());
+          return next;
+        });
         await app.rbac.audit(request, { category: 'payments', action: 'payments.service.field.removed', changes: { before: { key, mode, field } } });
-        return { data: await save(key, state) };
+        return { data: await viewNow(key, state) };
       },
     );
 
@@ -348,8 +385,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         refuseOffline();
         const { key, mode } = request.params;
         const addOn = await paymentAddOn(key);
-        const state = await checked(request, addOn, await stateOf(key), mode);
-        return { data: await save(key, state) };
+        const state = await checked(request, addOn, mode);
+        return { data: await viewNow(key, state) };
       },
     );
 
@@ -364,9 +401,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         requirePerson(request);
         const { key } = request.params;
         await paymentAddOn(key);
-        const state = { ...(await stateOf(key)), path: request.body.path };
+        const { state } = await mutateServiceState(meta, key, (current) => ({ state: { ...current, path: request.body.path } }), app.rbac.now());
         await app.rbac.audit(request, { category: 'payments', action: 'payments.service.path', changes: { after: { key, path: request.body.path } } });
-        return { data: await save(key, state) };
+        return { data: await viewNow(key, state) };
       },
     );
 
@@ -381,13 +418,13 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         requirePerson(request);
         const { key } = request.params;
         await paymentAddOn(key);
-        const state = { ...(await stateOf(key)), stopped: request.body.stopped };
+        const { state } = await mutateServiceState(meta, key, (current) => ({ state: { ...current, stopped: request.body.stopped } }), app.rbac.now());
         await app.rbac.audit(request, {
           category: 'payments',
           action: request.body.stopped ? 'payments.service.stopped' : 'payments.service.resumed',
           changes: { after: { key, stopped: request.body.stopped } },
         });
-        return { data: await save(key, state) };
+        return { data: await viewNow(key, state) };
       },
     );
   };

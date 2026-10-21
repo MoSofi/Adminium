@@ -31,7 +31,9 @@ import { payableIssues, PAYABLE_ISSUES, type PayableIssue } from '../../payments
 import { createPayableSources, resolvePayable, rowKeyOf, type PayableSources } from '../../payments/payables.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { readLimitOf } from '../../rbac/read-limits.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
+import { createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
 
 export interface PaymentPayablesDeps {
   meta: MetaDb;
@@ -51,7 +53,7 @@ const issueView = z.object({ code: z.enum(PAYABLE_ISSUES), path: z.string(), col
 const mayMarkView = z.object({
   ok: z.boolean(),
   /** Why not: a missing grant, a row limit, or the payments table's create. */
-  reason: z.enum(['read', 'update', 'row-limit', 'payments-create']).nullable(),
+  reason: z.enum(['read', 'update', 'row-limit', 'column-limit', 'payments-create']).nullable(),
 });
 const previewRow = z.object({
   rowKey: z.string(),
@@ -109,6 +111,9 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
     if (set !== undefined && set.superAdmin !== true) {
       const context = await rowLimitContextOf(meta, set, connectionId, await modelOf(connectionId));
       if (context !== null && (isRowLimited(context, tableId, 'read') || isRowLimited(context, tableId, 'update'))) return { ok: false, reason: 'row-limit' };
+      // Someone who may read or change only some columns must not make Adminium read and write the others.
+      if (readLimitOf(set, connectionId, tableId) !== null || updateLimitOf(set, connectionId, tableId) !== null) return { ok: false, reason: 'column-limit' };
+      if (mapping.payments.kind === 'table' && createLimitOf(set, connectionId, mapping.payments.table) !== null) return { ok: false, reason: 'column-limit' };
     }
     if (mapping.payments.kind === 'table' && !(await request.can(`table:${connectionId}:${mapping.payments.table}:create`))) {
       return { ok: false, reason: 'payments-create' };
@@ -181,13 +186,16 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
         schema: { body: tableBody, response: { 200: checkReply } },
       },
       async (request) => {
+        requirePerson(request);
         const { connectionId, tableId, mapping } = request.body;
         const issues = await issuesOf(connectionId, tableId, mapping);
+        const may = await mayMark(request, connectionId, tableId, mapping);
         return {
           data: {
             issues,
-            mayMark: await mayMark(request, connectionId, tableId, mapping),
-            preview: issues.length === 0 ? await preview(connectionId, tableId, mapping) : [],
+            mayMark: may,
+            // Real rows only for someone who may read every row and column of the table.
+            preview: issues.length === 0 && may.ok ? await preview(connectionId, tableId, mapping) : [],
           },
         };
       },
@@ -230,6 +238,11 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
         const current = await profiles.byId(request.params.id);
         if (current === null) throw new NotFoundError('No such payable table.');
         if (request.body.mapping !== undefined) await assertMarkable(request, current.connectionId, current.tableName, request.body.mapping);
+        // Switching a table back on is marking it payable again: the person and the stored mapping are checked again.
+        else if (request.body.enabled === true) {
+          if (current.mapping === null) throw new ValidationFailedError('This table\'s mapping no longer reads. Save it again to make it payable.');
+          await assertMarkable(request, current.connectionId, current.tableName, current.mapping);
+        }
         await profiles.update(
           current.id,
           {

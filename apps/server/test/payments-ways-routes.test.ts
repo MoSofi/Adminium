@@ -99,7 +99,7 @@ describe('ways to pay and pay page routes', () => {
       if (user !== null) (request as unknown as { user: object }).user = { id: user.id, name: user.name, email: user.email };
     });
     await app.register(rbacPlugin, { meta });
-    await app.register(async (api) => api.register(paymentWaysRoutes({ meta, manifests, runtime: () => runtime })), { prefix: '/api/v1' });
+    await app.register(async (api) => api.register(paymentWaysRoutes({ meta, storage: {} as never, manifests, runtime: () => runtime })), { prefix: '/api/v1' });
     await app.ready();
   });
 
@@ -116,6 +116,19 @@ describe('ways to pay and pay page routes', () => {
     expect((await put('manual', 'bank-transfer', way(false, { accounts: [EUR], note: null }))).statusCode).toBe(200);
     expect((await put('manual', 'bank-transfer', way(true, { accounts: [{ ...EUR, iban: 'DE02120300000000202051' }], note: null }))).statusCode).toBe(200);
     expect(await actions()).toEqual(['payments.way.changed', 'payments.bank.changed', 'payments.way.changed', 'payments.way.changed', 'payments.bank.changed']);
+  });
+
+  it('treats bank details written in a note as bank details, on any manual way', async () => {
+    await put('manual', 'cash-on-delivery', way(true, { note: 'Pay when it arrives.' }));
+    await put('manual', 'cash-on-delivery', way(true, { note: 'Or pay IBAN DE02120300000000202051.' }));
+    expect((await actions()).filter((one) => one === 'payments.bank.changed')).toHaveLength(2);
+  });
+
+  it('takes as the logo only an image uploaded for it, never another file', async () => {
+    const files = filesRepo(meta);
+    const upload = await files.create({ filename: 'scan.png', mime: 'image/png', sizeBytes: 10, kind: 'upload', sha256: 'c'.repeat(64) });
+    const page = { shopName: 'Crumb & Co.', logoFileId: upload.id, contactEmail: null, contactPhone: null, shopCountry: 'DE', showLines: false };
+    expect((await app.inject({ method: 'PUT', url: '/api/v1/payments/pay-page', headers: asUser(owner), payload: page })).statusCode).toBe(422);
   });
 
   it('refuses a manual way it does not know, details on a provider way, and an uninstalled service', async () => {
@@ -139,8 +152,8 @@ describe('ways to pay and pay page routes', () => {
   it('keeps the pay page settings, refusing an SVG logo', async () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/payments/pay-page', headers: asUser(owner) })).json().data).toMatchObject({ shopName: 'Adminium', showLines: false });
     const files = filesRepo(meta);
-    const svg = await files.create({ filename: 'logo.svg', mime: 'image/svg+xml', sizeBytes: 10, kind: 'upload', sha256: 'a'.repeat(64) });
-    const png = await files.create({ filename: 'logo.png', mime: 'image/png', sizeBytes: 10, kind: 'upload', sha256: 'b'.repeat(64) });
+    const svg = await files.create({ filename: 'logo.svg', mime: 'image/svg+xml', sizeBytes: 10, kind: 'branding', sha256: 'a'.repeat(64) });
+    const png = await files.create({ filename: 'logo.png', mime: 'image/png', sizeBytes: 10, kind: 'branding', sha256: 'b'.repeat(64) });
     const page = { shopName: 'Crumb & Co.', logoFileId: svg.id, contactEmail: 'hello@crumbandco.de', contactPhone: null, shopCountry: 'DE', showLines: true };
     const refused = await app.inject({ method: 'PUT', url: '/api/v1/payments/pay-page', headers: asUser(owner), payload: page });
     expect(refused.statusCode).toBe(422);

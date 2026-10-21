@@ -45,6 +45,8 @@ const MODEL = parseDatabaseModel({
         { name: 'number', logicalType: 'text', nullable: false },
         { name: 'total', logicalType: 'decimal', numericScale: 2, nullable: false },
         { name: 'currency', logicalType: 'text', nullable: false },
+        { name: 'total_cents', logicalType: 'integer', nullable: false },
+        { name: 'balance_cents', logicalType: 'integer', nullable: false },
         { name: 'email', logicalType: 'text', semantics: { primary: 'email', flags: { pii: 'email', secret: false, maskedByDefault: true }, confidence: 1 } },
       ],
       primaryKey: ['id'],
@@ -80,8 +82,8 @@ describe('payables routes', () => {
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     const raw = new BetterSqlite3(':memory:');
-    raw.exec("CREATE TABLE orders (id INTEGER PRIMARY KEY, number TEXT NOT NULL, total NUMERIC(10,2) NOT NULL, currency TEXT NOT NULL, email TEXT)");
-    raw.exec("INSERT INTO orders VALUES (1, 'ORD-1', '120.00', 'EUR', 'lena@example.test'), (2, 'ORD-2', '45.50', 'EUR', null), (3, 'ORD-3', '12000', 'JPY', null), (4, 'ORD-4', '1.00', 'EUR', null)");
+    raw.exec("CREATE TABLE orders (id INTEGER PRIMARY KEY, number TEXT NOT NULL, total NUMERIC(10,2) NOT NULL, currency TEXT NOT NULL, total_cents INTEGER NOT NULL, balance_cents INTEGER NOT NULL, email TEXT)");
+    raw.exec("INSERT INTO orders VALUES (1, 'ORD-1', '120.00', 'EUR', 12000, 1250, 'lena@example.test'), (2, 'ORD-2', '45.50', 'EUR', 4550, 4550, null), (3, 'ORD-3', '12000', 'JPY', 1200000, 1200000, null), (4, 'ORD-4', '1.00', 'EUR', 100, 100, null)");
     source = new Kysely<never>({ dialect: new SqliteDialect({ database: raw }) });
 
     const connection = await connectionsRepo(meta, dsnCryptoFromSecret(TEST_SECRET)).create({ name: 'Shop', engine: 'sqlite', introspectDsn: 'sqlite::memory:' });
@@ -181,10 +183,50 @@ describe('payables routes', () => {
     expect(refused.json().error.details.issues.map((one: { code: string }) => one.code)).toEqual(['FIELD_PERSONAL', 'NO_SUCH_COLUMN']);
   });
 
+  it('shows no real rows to someone who may not mark the table', async () => {
+    const checked = (await app.inject({ method: 'POST', url: '/api/v1/payments/payables/check', headers: asUser(clerk), payload: body() })).json().data;
+    expect(checked.mayMark).toEqual({ ok: false, reason: 'update' });
+    expect(checked.preview).toEqual([]);
+  });
+
+  it('reads a balance kept in cents in cents', async () => {
+    const mapping = { amount: { column: 'total_cents', unit: 'minor' as const }, due: { column: 'balance_cents' } };
+    const checked = (await app.inject({ method: 'POST', url: '/api/v1/payments/payables/check', headers: asUser(owner), payload: body(mapping) })).json().data;
+    expect(checked.preview[0]).toMatchObject({ label: 'ORD-1', due: '12.50' });
+    const noUnit = (await app.inject({ method: 'POST', url: '/api/v1/payments/payables/check', headers: asUser(owner), payload: body({ due: { column: 'balance_cents' } }) })).json().data;
+    expect(noUnit.issues.map((one: { code: string }) => one.code)).toContain('NEEDS_UNIT');
+  });
+
+  it('checks the person and the mapping again when a paused table is switched back on', async () => {
+    const id = (await app.inject({ method: 'POST', url: '/api/v1/payments/payables', headers: asUser(owner), payload: body() })).json().data.id as string;
+    await app.inject({ method: 'PATCH', url: `/api/v1/payments/payables/${id}`, headers: asUser(owner), payload: { enabled: false } });
+    expect((await app.inject({ method: 'PATCH', url: `/api/v1/payments/payables/${id}`, headers: asUser(clerk), payload: { enabled: true } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'PATCH', url: `/api/v1/payments/payables/${id}`, headers: asUser(owner), payload: { enabled: true } })).json().data.enabled).toBe(true);
+  });
+
   it('never lets someone who may not update the table make it payable', async () => {
     const refused = await app.inject({ method: 'POST', url: '/api/v1/payments/payables', headers: asUser(clerk), payload: body() });
     expect(refused.statusCode).toBe(403);
     expect(refused.json().error.details).toEqual({ reason: 'update' });
+  });
+
+  it('never lets someone who reads only some columns make the table payable', async () => {
+    const role = await rolesRepo(meta).create({ slug: 'narrow', name: 'Narrow' });
+    await permissionsRepo(meta).grant(role.id, 'system', 'payments.manage', { allowed: true });
+    await permissionsRepo(meta).grant(role.id, 'table', `${connectionId}/main.orders`, {
+      read: true,
+      create: false,
+      update: true,
+      delete: false,
+      export: false,
+      import: false,
+      readLimit: { readable: ['number'] },
+    } as never);
+    const narrow = await usersRepo(meta).create({ email: 'ali@adminium.test', name: 'Ali', status: 'active' });
+    await rolesRepo(meta).assignToUser(narrow.id, role.id);
+    const checked = (await app.inject({ method: 'POST', url: '/api/v1/payments/payables/check', headers: asUser(narrow), payload: body() })).json().data;
+    expect(checked.mayMark).toEqual({ ok: false, reason: 'column-limit' });
+    expect(checked.preview).toEqual([]);
   });
 
   it('never lets someone who reads only some rows make every row payable', async () => {

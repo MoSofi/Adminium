@@ -15,7 +15,7 @@
  * The setup page reads the same changes back from the audit log (the last
  * 30 days), so the alarm stays on screen after the notice is read.
  */
-import { auditRepo, permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 
@@ -96,13 +96,25 @@ export async function raiseMoneyRedirect(
 
 /** The alarms of the last 30 days, newest first, from the audit log. */
 export async function recentAlarms(meta: MetaDb, at: number): Promise<(MoneyRedirect & { at: number })[]> {
-  const rows = await auditRepo(meta).list({ category: 'payments', limit: 200 });
+  // Asked of the database by action and age, so a busy month of other payment rows never pushes one out.
+  const rows = await meta.db
+    .selectFrom('adminium_audit_log')
+    .select(['action', 'actorLabel', 'changes', 'createdAt'])
+    .where('category', '=', 'payments')
+    .where('action', 'in', Object.keys(ALARM_ACTIONS))
+    .where('createdAt', '>=', at - ALARM_SHOWN_MS)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .execute();
   const out: (MoneyRedirect & { at: number })[] = [];
   for (const row of rows) {
     const what = (ALARM_ACTIONS as Record<string, AlarmKind | undefined>)[row.action];
-    if (what === undefined || at - Number(row.createdAt) > ALARM_SHOWN_MS) continue;
-    const before = (row.changes?.['before'] ?? null) as Record<string, unknown> | null;
-    const after = (row.changes?.['after'] ?? null) as Record<string, unknown> | null;
+    if (what === undefined) continue;
+    const changes = (typeof row.changes === 'string' ? JSON.parse(row.changes) : row.changes) as Record<string, unknown> | null;
+    const before = (changes?.['before'] ?? null) as Record<string, unknown> | null;
+    const after = (changes?.['after'] ?? null) as Record<string, unknown> | null;
+    // Choosing the first pay address, or saving the same one, moves nothing.
+    if (what === 'pay-address' && (before?.['origin'] == null || before['origin'] === after?.['origin'])) continue;
     const field = what === 'account' ? 'accountId' : what === 'pay-address' ? 'origin' : null;
     const text = (value: unknown) => (typeof value === 'string' ? value : null);
     out.push({

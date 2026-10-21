@@ -48,12 +48,16 @@ const deposits = {
     column('way', 'text'),
     column('ref', 'text'),
     column('loose_ref', 'text'),
+    column('kind', 'enum', { enumRef: 'deposit_kind' }),
   ],
 };
 
 const model = {
   tables: [orders, deposits, { ...orders, id: 'public.secrets', name: 'secrets', private: true }],
-  enums: [{ id: 'order_status', name: 'order_status', values: ['open', 'paid', 'refunded'] }],
+  enums: [
+    { id: 'order_status', name: 'order_status', values: ['open', 'paid', 'refunded'] },
+    { id: 'deposit_kind', name: 'deposit_kind', values: ['card', 'cash'] },
+  ],
 } as unknown as PayableRulesInput['model'];
 
 const base: PayableMapping = {
@@ -112,6 +116,13 @@ describe('marking a table payable', () => {
 
     it('refuses a reference column that is not unique', () => {
       expect(issues(own('loose_ref'))).toEqual(['REFERENCE_NOT_UNIQUE payments.reference']);
+    });
+
+    it('refuses a way-to-pay value the method column does not have', () => {
+      const mapping = own('ref');
+      const methods = (values: Record<string, string>) => ({ ...mapping, payments: { ...mapping.payments, method: { column: 'kind', values } } });
+      expect(issues(methods({ card: 'card', '*': 'cash' }))).toEqual([]);
+      expect(issues(methods({ card: 'online' }))).toEqual(['METHOD_VALUE_UNKNOWN payments.method.values']);
     });
 
     it('refuses an empty way-to-pay value map', () => {

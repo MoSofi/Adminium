@@ -1984,7 +1984,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       await api.register(paymentPayablesRoutes({ meta, manager }));
-      await api.register(paymentWaysRoutes({ meta, manifests: appManifests, runtime: () => addOnRuntime }));
+      await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
         paymentLinksRoutes({
           meta,

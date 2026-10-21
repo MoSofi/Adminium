@@ -16,6 +16,7 @@
  * emails it.
  */
 import { PAYMENT_MODES, type CredentialCheck, type PaymentMode, type ProviderError } from '@adminium/add-on-contracts';
+import { paymentSettingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 /** The settings document's name for one add-on. */
@@ -110,7 +111,16 @@ export interface CheckOutcome {
 /** A refusal from the provider, or from the engine before a provider could be asked (not installed, not loaded). */
 export type CheckRefusal = Pick<ProviderError, 'ok' | 'providerMessage'> & { code: string };
 
-export function recordCheck(state: ServiceState, mode: PaymentMode, answer: CredentialCheck | CheckRefusal, at: number): CheckOutcome {
+export function recordCheck(state: ServiceState, mode: PaymentMode, given: CredentialCheck | CheckRefusal, at: number): CheckOutcome {
+  let answer = given;
+  // A key that answers for the other mode is not this mode's key, whatever else it says.
+  if (answer.ok === true && answer.livemode !== (mode === 'live')) {
+    answer = {
+      ok: false,
+      code: 'MODE_MISMATCH',
+      providerMessage: answer.livemode ? 'This key is for live payments, and it was saved for test ones.' : 'This key is for test payments, and it was saved for live ones.',
+    };
+  }
   const before = state[mode].accountId;
   const check =
     answer.ok === true
@@ -156,6 +166,42 @@ export function checklist(input: ChecklistInput): { step: ChecklistStep; done: b
     'live-payment': state.live.firstPaymentAt !== null,
   };
   return CHECKLIST_STEPS.filter((step) => step !== 'path' || input.hasPaths).map((step) => ({ step, done: done[step] }));
+}
+
+/**
+ * ONE writer per service at a time in this process, and always over the
+ * latest document: a save whose Check takes seconds must never write back a
+ * state read before somebody stopped payments or a webhook ticked a step.
+ * Callers do their slow work (a provider call) outside, and pass only the
+ * change they mean.
+ */
+const serviceLocks = new Map<string, Promise<unknown>>();
+
+export async function withServiceLock<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const before = serviceLocks.get(key) ?? Promise.resolve();
+  const mine = before.catch(() => undefined).then(run);
+  serviceLocks.set(key, mine);
+  try {
+    return await mine;
+  } finally {
+    if (serviceLocks.get(key) === mine) serviceLocks.delete(key);
+  }
+}
+
+/** Reads the latest document, applies one change, writes it back, under the service's lock. */
+export async function mutateServiceState<T = undefined>(
+  meta: MetaDb,
+  key: string,
+  change: (state: ServiceState) => { state: ServiceState; result?: T },
+  at: number = Date.now(),
+): Promise<{ state: ServiceState; result: T | undefined }> {
+  return withServiceLock(key, async () => {
+    const docs = paymentSettingsRepo(meta);
+    const current = (await docs.get(serviceDocName(key), serviceStateSchema)) ?? emptyServiceState();
+    const next = change(current);
+    await docs.set(serviceDocName(key), serviceStateSchema, next.state, at);
+    return { state: next.state, result: next.result };
+  });
 }
 
 /** Every mode, in the order Studio shows them. */

@@ -1895,6 +1895,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const { key } = request.params;
         const installed = await manifests.findByKey(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
+        // A payment service's keys are removed in Payments, by someone who may manage payments,
+        // so its setup page never shows a key as checked that is gone.
+        if ((parseManifest(installed.document, key).addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) {
+          throw new ValidationFailedError(`"${key}" is a payment service. Remove its keys in Studio → Payments.`, { reason: 'payments' });
+        }
 
         // And the whole of it: ONE delete, against a table that holds only
         // secrets. Nothing here touches the data source, the manifest row or

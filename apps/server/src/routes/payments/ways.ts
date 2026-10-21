@@ -21,6 +21,7 @@ import type { PaymentMode } from '@adminium/add-on-contracts';
 import {
   PAYABLE_KINDS,
   filesRepo,
+  newId,
   paymentMethodsRepo,
   paymentRulesSchema,
   paymentSettingsRepo,
@@ -42,10 +43,15 @@ import { paymentProviderFor } from '../../payments/providers.js';
 import { paymentAddOnKeys, readyPaymentProviders } from '../../payments/ready.js';
 import { emptyServiceState, serviceDocName, serviceStateSchema } from '../../payments/services.js';
 import { MANUAL_METHODS, MANUAL_SOURCE, waysFor } from '../../payments/ways.js';
+import type { FileStore } from '../../files/store.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { sniffLogo } from '../branding/index.js';
+import { LOGO_BODY_LIMIT } from '../branding/schema.js';
 
 export interface PaymentWaysDeps {
   meta: MetaDb;
+  /** Where the pay page's logo is stored, like the workspace logo. */
+  storage: FileStore;
   manifests: ManifestsRepo;
   runtime: () => AddOnRuntimeState | null;
 }
@@ -193,9 +199,13 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
           action: 'payments.way.changed',
           changes: { before: before === null ? null : { source, method, enabled: before.enabled, rules: before.rules }, after: { source, method, enabled: saved.enabled, rules: saved.rules } },
         });
-        // Where a bank transfer sends the money: its own action, as an account change is.
-        const accountsOf = (row: PaymentMethodRow | null) => JSON.stringify((row?.details as { accounts?: unknown } | null)?.accounts ?? []);
-        if (method === 'bank-transfer' && accountsOf(before) !== accountsOf(saved)) {
+        // Where a manual way sends the money: its own action, as an account change is. A note
+        // counts too, on any manual way: "pay IBAN DE…" in a note is bank details all the same.
+        const accountsOf = (row: PaymentMethodRow | null) => {
+          const details = (row?.details ?? null) as { accounts?: unknown; note?: unknown } | null;
+          return JSON.stringify({ accounts: details?.accounts ?? [], note: details?.note ?? null });
+        };
+        if (source === MANUAL_SOURCE && accountsOf(before) !== accountsOf(saved)) {
           await app.rbac.audit(request, {
             category: 'payments',
             action: 'payments.bank.changed',
@@ -260,6 +270,55 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
       },
     );
 
+    for (const mime of LOGO_TYPES) {
+      app.addContentTypeParser(mime, { parseAs: 'buffer', bodyLimit: LOGO_BODY_LIMIT }, (_request, body, done) => {
+        done(null, body);
+      });
+    }
+
+    /**
+     * The pay page's logo: the bytes as the body, sniffed (never the declared
+     * type), PNG, JPEG or WebP only (no SVG on a public page). Kept as a
+     * branding file, so it is never swept up as an unattached upload. The
+     * answer is its id, which the pay page settings then name.
+     */
+    app.post(
+      '/payments/pay-page/logo',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        bodyLimit: LOGO_BODY_LIMIT,
+        config: { audit: audited('rbac') },
+        schema: { querystring: z.object({ filename: z.string().trim().min(1).max(200) }), response: { 201: z.object({ data: z.object({ fileId: z.string() }) }) } },
+      },
+      async (request, reply) => {
+        requirePerson(request);
+        const body = request.body;
+        const mime = Buffer.isBuffer(body) && body.byteLength > 0 ? sniffLogo(body) : null;
+        if (mime === null || !(LOGO_TYPES as readonly string[]).includes(mime)) {
+          throw new ValidationFailedError('The logo must be a PNG, JPEG or WebP image.', { reason: 'logo-type' });
+        }
+        const fileId = newId('file');
+        const written = await deps.storage.write({ id: fileId, kind: 'branding', filename: request.query.filename, mime, bytes: body as Buffer });
+        await filesRepo(meta).create(
+          {
+            id: fileId,
+            filename: request.query.filename,
+            mime,
+            sizeBytes: written.sizeBytes,
+            sha256: written.sha256,
+            kind: 'branding',
+            uploadedBy: (request as unknown as { user?: { id?: string } }).user?.id ?? null,
+            storageKey: written.storageKey,
+            destinationId: written.destinationId,
+            storage: written.storage,
+          },
+          app.rbac.now(),
+        );
+        await app.rbac.audit(request, { category: 'payments', action: 'payments.pay-page.logo', changes: { after: { fileId, mime, sizeBytes: written.sizeBytes } } });
+        return reply.status(201).send({ data: { fileId } });
+      },
+    );
+
     app.get('/payments/pay-page', { schema: { response: { 200: payPageReply } } }, async (request) => {
       if (!(await canRead(request))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
       return { data: (await docs.get(PAY_PAGE_DOC, payPageSchema)) ?? (await defaultPayPage()) };
@@ -277,7 +336,8 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
         const page = request.body;
         if (page.logoFileId !== null) {
           const file = await filesRepo(meta).findById(page.logoFileId);
-          if (file === null) throw new ValidationFailedError('That logo file is not there any more.', { field: 'logoFileId' });
+          // Only a logo uploaded here (or the workspace's): never another record's attachment or a file in the trash.
+          if (file === null || file.deletedAt !== null || file.kind !== 'branding') throw new ValidationFailedError('That logo file is not there any more.', { field: 'logoFileId' });
           if (!(LOGO_TYPES as readonly string[]).includes(file.mime)) {
             throw new ValidationFailedError('The logo must be a PNG, JPEG or WebP image.', { field: 'logoFileId', reason: 'logo-type' });
           }
