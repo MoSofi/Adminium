@@ -2175,6 +2175,11 @@ export default {
       "one": "產生{name}"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "付款"
+    }
+  },
   "lists": {
     "name": {
       "countries": "國家和地區",

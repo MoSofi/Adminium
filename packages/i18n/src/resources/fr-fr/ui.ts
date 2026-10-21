@@ -2175,6 +2175,11 @@ export default {
       "one": "Établir {name}"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "Paiement"
+    }
+  },
   "lists": {
     "name": {
       "countries": "Pays",

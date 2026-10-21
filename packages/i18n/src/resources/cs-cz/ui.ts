@@ -2175,6 +2175,11 @@ export default {
       "one": "Vytvořit {name}"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "Platba"
+    }
+  },
   "lists": {
     "name": {
       "countries": "Země",

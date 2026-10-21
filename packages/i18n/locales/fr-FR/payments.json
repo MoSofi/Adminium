@@ -1,0 +1,74 @@
+{
+  "panel": {
+    "balanceDue": "Solde dû",
+    "paid": "Payé",
+    "paidInFull": "Payé en totalité",
+    "copyLink": "Copier le lien de paiement",
+    "record": "Enregistrer un paiement",
+    "revoke": "Révoquer",
+    "test": "Test",
+    "refunded": "Remboursé",
+    "linkLine": "Lien de paiement créé le {made} · valable jusqu’au {until}",
+    "waitingWith": "Paiement par {way} commencé le {date} · en attente de la banque",
+    "waitingPlain": "Un paiement en ligne a commencé le {date} · en attente de la banque",
+    "recordedBy": "enregistré par {name}",
+    "online": "Paiement en ligne ({service})",
+    "refundedInline": "{amount} remboursé",
+    "listLabel": "Paiements de cet enregistrement",
+    "notice": {
+      "draft": "Envoyez d’abord la facture. Un paiement ne peut être enregistré que sur une facture envoyée.",
+      "private": "Les clients ne peuvent pas joindre ce serveur, les liens de paiement sont donc désactivés. Vous pouvez toujours enregistrer des paiements.",
+      "update": "Cette table de factures a besoin de la mise à jour de son application pour accepter les paiements en ligne.",
+      "voided": "Cette facture a été annulée. Aucun paiement ne peut être accepté.",
+      "noCurrency": "Cet enregistrement n’a pas de devise, aucun paiement ne peut donc être enregistré.",
+      "unclear": "Le montant de cet enregistrement n’est pas exact dans sa devise, aucun paiement ne peut donc être enregistré.",
+      "notPayable": "Cet enregistrement ne peut pas recevoir de paiement pour le moment."
+    },
+    "by": {
+      "bank-transfer": "par virement bancaire",
+      "cash": "en espèces",
+      "card": "par carte sur notre propre terminal",
+      "cheque": "par chèque",
+      "other": "d’une autre façon",
+      "online": "en ligne"
+    },
+    "toast": {
+      "copied": "Lien de paiement copié.",
+      "replaced": "Un nouveau lien de paiement remplace celui créé le {date}.",
+      "revoked": "Lien de paiement révoqué. L’ancienne adresse ne fonctionne plus.",
+      "recorded": "Paiement de {amount} enregistré.",
+      "copyFailed": "Le lien de paiement est créé, mais ce navigateur ne l’a pas copié : {url}",
+      "failed": "Cela n’a pas fonctionné : {message}"
+    }
+  },
+  "record": {
+    "title": "Enregistrer un paiement",
+    "amount": "Montant",
+    "way": "Moyen de paiement",
+    "wayPh": "Choisir un moyen de paiement",
+    "ways": {
+      "bank-transfer": "Virement bancaire",
+      "cash": "Espèces",
+      "card": "Carte sur notre propre terminal",
+      "cheque": "Chèque",
+      "other": "Autre"
+    },
+    "date": "Date",
+    "note": "Note",
+    "notePh": "Facultatif",
+    "approval": "Code d’autorisation",
+    "approvalHelp": "Jusqu’à 12 lettres et chiffres.",
+    "approvalErr": "Lettres et chiffres uniquement, jusqu’à 12.",
+    "last4": "Quatre derniers chiffres",
+    "last4Err": "Saisissez uniquement les quatre derniers chiffres.",
+    "cardNumber": "Cela ressemble à un numéro de carte complet. N’écrivez jamais de numéro de carte ici.",
+    "amountErr": "Saisissez un montant supérieur à zéro.",
+    "overDue": "C’est plus que les {amount} dus.",
+    "dateErr": "Le jour du paiement ne peut pas être dans le futur.",
+    "pendingWarn": "Un paiement en ligne attend la banque. En enregistrer un autre risque de prendre l’argent deux fois.",
+    "cancel": "Annuler",
+    "submit": "Enregistrer le paiement",
+    "close": "Fermer",
+    "failed": "Le paiement n’a pas été enregistré : {message}"
+  }
+}

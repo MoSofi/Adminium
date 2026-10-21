@@ -1,0 +1,74 @@
+{
+  "panel": {
+    "balanceDue": "待付餘額",
+    "paid": "已付",
+    "paidInFull": "已全額付清",
+    "copyLink": "複製付款連結",
+    "record": "記錄一筆付款",
+    "revoke": "撤銷",
+    "test": "測試",
+    "refunded": "已退款",
+    "linkLine": "付款連結建立於 {made} · 有效至 {until}",
+    "waitingWith": "透過 {way} 的付款開始於 {date} · 等待銀行確認",
+    "waitingPlain": "一筆線上付款開始於 {date} · 等待銀行確認",
+    "recordedBy": "由 {name} 記錄",
+    "online": "線上付款（{service}）",
+    "refundedInline": "已退款 {amount}",
+    "listLabel": "此筆記錄的付款",
+    "notice": {
+      "draft": "請先寄出發票。只有已寄出的發票才能記錄付款。",
+      "private": "客戶無法連到此伺服器，因此付款連結已關閉。您仍可記錄付款。",
+      "update": "此發票資料表需要其應用程式的更新才能接受線上付款。",
+      "voided": "此發票已作廢，無法收款。",
+      "noCurrency": "此筆記錄沒有幣別，因此無法記錄付款。",
+      "unclear": "此筆記錄的金額在其幣別中不精確，因此無法記錄付款。",
+      "notPayable": "此筆記錄目前無法接受付款。"
+    },
+    "by": {
+      "bank-transfer": "透過銀行轉帳",
+      "cash": "現金",
+      "card": "透過我們自己的刷卡機",
+      "cheque": "透過支票",
+      "other": "其他方式",
+      "online": "線上"
+    },
+    "toast": {
+      "copied": "已複製付款連結。",
+      "replaced": "新的付款連結已取代 {date} 建立的連結。",
+      "revoked": "已撤銷付款連結。舊網址已失效。",
+      "recorded": "已記錄 {amount} 的付款。",
+      "copyFailed": "付款連結已建立，但此瀏覽器未能複製：{url}",
+      "failed": "操作未成功：{message}"
+    }
+  },
+  "record": {
+    "title": "記錄一筆付款",
+    "amount": "金額",
+    "way": "付款方式",
+    "wayPh": "選擇付款方式",
+    "ways": {
+      "bank-transfer": "銀行轉帳",
+      "cash": "現金",
+      "card": "我們自己的刷卡機",
+      "cheque": "支票",
+      "other": "其他"
+    },
+    "date": "日期",
+    "note": "備註",
+    "notePh": "選填",
+    "approval": "授權碼",
+    "approvalHelp": "最多 12 個字母和數字。",
+    "approvalErr": "只能使用字母和數字，最多 12 個。",
+    "last4": "卡號末四碼",
+    "last4Err": "只輸入卡號末四碼。",
+    "cardNumber": "這看起來像完整的卡號。請勿在此填寫卡號。",
+    "amountErr": "請輸入大於零的金額。",
+    "overDue": "這超過了待付的 {amount}。",
+    "dateErr": "付款日期不能在未來。",
+    "pendingWarn": "有一筆線上付款正在等待銀行確認。再記錄一筆可能會重複收款。",
+    "cancel": "取消",
+    "submit": "記錄付款",
+    "close": "關閉",
+    "failed": "付款未記錄：{message}"
+  }
+}

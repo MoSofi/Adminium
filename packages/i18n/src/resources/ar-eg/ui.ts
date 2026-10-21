@@ -2175,6 +2175,11 @@ export default {
       "one": "إنشاء {name}"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "الدفع"
+    }
+  },
   "lists": {
     "name": {
       "countries": "البلدان",

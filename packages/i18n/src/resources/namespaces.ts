@@ -33,6 +33,7 @@ export const NAMESPACES = [
   'designer',
   'desktop',
   'pay',
+  'payments',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -190,6 +191,12 @@ export const DEFERRED_NAMESPACES = [
    * dashboard's. No dashboard screen reads a `pay:` key.
    */
   'pay',
+  /*
+   * The record page's Payment panel and its Record-a-payment dialog: drawn
+   * only on a record that takes payments, by a lazy part that awaits this
+   * namespace first. Its title alone is a `ui:` word, read by the record page.
+   */
+  'payments',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

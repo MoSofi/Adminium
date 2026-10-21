@@ -1,0 +1,74 @@
+{
+  "panel": {
+    "balanceDue": "Zbývá zaplatit",
+    "paid": "Zaplaceno",
+    "paidInFull": "Zaplaceno v plné výši",
+    "copyLink": "Kopírovat platební odkaz",
+    "record": "Zaznamenat platbu",
+    "revoke": "Zrušit",
+    "test": "Test",
+    "refunded": "Vráceno",
+    "linkLine": "Platební odkaz vytvořen {made} · platí do {until}",
+    "waitingWith": "Platba (způsob: {way}) zahájena {date} · čeká na banku",
+    "waitingPlain": "Online platba zahájena {date} · čeká na banku",
+    "recordedBy": "zaznamenal(a) {name}",
+    "online": "Online platba ({service})",
+    "refundedInline": "vráceno {amount}",
+    "listLabel": "Platby k tomuto záznamu",
+    "notice": {
+      "draft": "Nejdřív fakturu odešlete. Platbu lze zaznamenat jen k odeslané faktuře.",
+      "private": "Zákazníci se k tomuto serveru nedostanou, proto jsou platební odkazy vypnuté. Platby můžete dál zaznamenávat.",
+      "update": "Tato tabulka faktur potřebuje aktualizaci své aplikace, aby přijímala online platby.",
+      "voided": "Tato faktura byla stornována. Žádnou platbu nelze přijmout.",
+      "noCurrency": "Tento záznam nemá měnu, proto nelze zaznamenat žádnou platbu.",
+      "unclear": "Částka tohoto záznamu není ve své měně přesná, proto nelze zaznamenat žádnou platbu.",
+      "notPayable": "Tento záznam teď nemůže přijmout platbu."
+    },
+    "by": {
+      "bank-transfer": "bankovním převodem",
+      "cash": "v hotovosti",
+      "card": "kartou na vlastním terminálu",
+      "cheque": "šekem",
+      "other": "jiným způsobem",
+      "online": "online"
+    },
+    "toast": {
+      "copied": "Platební odkaz zkopírován.",
+      "replaced": "Nový platební odkaz nahrazuje ten vytvořený {date}.",
+      "revoked": "Platební odkaz zrušen. Stará adresa už nefunguje.",
+      "recorded": "Platba {amount} zaznamenána.",
+      "copyFailed": "Platební odkaz je vytvořen, ale tento prohlížeč ho nezkopíroval: {url}",
+      "failed": "To se nepovedlo: {message}"
+    }
+  },
+  "record": {
+    "title": "Zaznamenat platbu",
+    "amount": "Částka",
+    "way": "Způsob platby",
+    "wayPh": "Zvolte způsob platby",
+    "ways": {
+      "bank-transfer": "Bankovní převod",
+      "cash": "Hotovost",
+      "card": "Karta na vlastním terminálu",
+      "cheque": "Šek",
+      "other": "Jiný"
+    },
+    "date": "Datum",
+    "note": "Poznámka",
+    "notePh": "Nepovinné",
+    "approval": "Autorizační kód",
+    "approvalHelp": "Až 12 písmen a číslic.",
+    "approvalErr": "Jen písmena a číslice, nejvýše 12.",
+    "last4": "Poslední čtyři číslice",
+    "last4Err": "Zadejte jen poslední čtyři číslice.",
+    "cardNumber": "Vypadá to jako celé číslo karty. Čísla karet sem nikdy nepište.",
+    "amountErr": "Zadejte částku větší než nula.",
+    "overDue": "To je víc než dlužná částka {amount}.",
+    "dateErr": "Den platby nemůže být v budoucnosti.",
+    "pendingWarn": "Online platba čeká na banku. Když zaznamenáte další, peníze se možná stáhnou dvakrát.",
+    "cancel": "Zrušit",
+    "submit": "Zaznamenat platbu",
+    "close": "Zavřít",
+    "failed": "Platba nebyla zaznamenána: {message}"
+  }
+}

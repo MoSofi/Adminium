@@ -2175,6 +2175,11 @@ export default {
       "one": "Lav {name}"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "Betaling"
+    }
+  },
   "lists": {
     "name": {
       "countries": "Lande",

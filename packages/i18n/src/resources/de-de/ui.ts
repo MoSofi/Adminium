@@ -2175,6 +2175,11 @@ export default {
       "one": "{name} erstellen"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "Zahlung"
+    }
+  },
   "lists": {
     "name": {
       "countries": "Länder",

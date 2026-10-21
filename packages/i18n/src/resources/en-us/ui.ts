@@ -226,6 +226,11 @@ export default {
       "one": "Make {name}"
     }
   },
+  "payments": {
+    "panel": {
+      "title": "Payment"
+    }
+  },
   "lists": {
     "name": {
       "countries": "Countries",
