@@ -28,7 +28,10 @@ describe('starting and settling a checkout', () => {
   let service: CheckoutService;
   let link: PaymentLink;
   let jobs: { kind: string; payload: Record<string, unknown> }[];
-  const sources = {} as PayableSources;
+  const sources = {
+    document: async () => ({ status: 'sent', number: 'INV-0042', currency: 'EUR', totalMinor: 12000 }),
+    keptPaid: async () => '0',
+  } as unknown as PayableSources;
 
   beforeEach(async () => {
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });

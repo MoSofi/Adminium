@@ -115,7 +115,7 @@ export function createCheckoutService(deps: CheckoutDeps) {
       const same = held.provider === input.provider && held.mode === input.link.mode && held.currency === payable.currency && sameAmount(held.amount, payable.due);
       if (same && held.checkoutUrl !== null) return { kind: 'redirect', url: held.checkoutUrl, attemptId: held.id, reused: true };
       if (!(await endAtProvider(held))) {
-        void settle(held.id);
+        settleInBackground(held.id);
         return { kind: 'in-progress', attemptId: held.id };
       }
       await attempts.move(held.id, 'expired', {}, now());
@@ -124,7 +124,7 @@ export function createCheckoutService(deps: CheckoutDeps) {
     // A page that may still be open behind an attempt that let the payable go.
     const [last] = await attempts.forPayable(payable.ref, 1);
     if (last !== undefined && last.state === 'failed' && last.providerRef !== null && !(await endAtProvider(last))) {
-      void settle(last.id);
+      settleInBackground(last.id);
       return { kind: 'in-progress', attemptId: last.id };
     }
 
@@ -209,19 +209,30 @@ export function createCheckoutService(deps: CheckoutDeps) {
     if (attempt.state === 'recorded' || attempt.state === 'recording' || attempt.state === 'record_refused' || attempt.state === 'abandoned') return attempt;
     const service = await provider(attempt);
     if (service === null) return attempt;
-    let state = await service.status(attempt.providerRef);
-    if (isProviderError(state)) return attempt;
-    // Approved but not taken yet (a two-step provider): take it only if the payable still owes exactly this.
-    if (state.status === 'pending' && (attempt.state === 'open' || attempt.state === 'failed')) {
+    // ONE call to the provider. An attempt still open may be approved but not
+    // taken yet (a two-step provider), so it is completed — but only if the
+    // payable, read again here, still owes exactly this; otherwise it is only
+    // read. A one-step provider's `complete` is a read either way.
+    let state;
+    if (attempt.state === 'open' || attempt.state === 'failed') {
       const payable = await resolvePayable(deps.sources, attempt.payable);
       const owes = payable !== null && payable.refusal === null && payable.currency === attempt.currency && sameAmount(payable.due, attempt.amount);
-      if (owes) {
-        const completed = await service.complete(attempt.providerRef, `${attempt.id}:capture`);
-        if (!isProviderError(completed)) state = completed;
-      }
+      state = owes ? await service.complete(attempt.providerRef, `${attempt.id}:capture`) : await service.status(attempt.providerRef);
+    } else {
+      state = await service.status(attempt.providerRef);
     }
+    if (isProviderError(state)) return attempt;
     await apply(attempt, state);
     return attempts.byId(attempt.id);
+  }
+
+  /**
+   * Settles in the background, never throwing: a payment that completed while
+   * the customer pressed Pay again is read now, and a failure here is only a
+   * delay (the sweep reads it again). An unhandled rejection would end the process.
+   */
+  function settleInBackground(attemptId: string): void {
+    settle(attemptId).catch(() => undefined);
   }
 
   /** Settles one attempt, one call at a time per attempt in this process. */

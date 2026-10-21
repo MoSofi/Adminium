@@ -38,7 +38,11 @@ describe('the payment webhook', () => {
     const enqueue: WebhookDeps['enqueue'] = async (job) => {
       if (job.kind === 'payments.settle') settles.push(job.payload as { attemptId: string; eventId?: string });
     };
-    checkout = createCheckoutService({ meta, sources: {} as PayableSources, providerFor, enqueue });
+    const sources = {
+      document: async () => ({ status: 'sent', number: 'INV-0042', currency: 'EUR', totalMinor: 12000 }),
+      keptPaid: async () => '0',
+    } as unknown as PayableSources;
+    checkout = createCheckoutService({ meta, sources, providerFor, enqueue });
     app = Fastify({ logger: false });
     await app.register(paymentWebhookRoutes({ meta, providerFor, enqueue }), { prefix: '/api/v1' });
     await app.ready();
