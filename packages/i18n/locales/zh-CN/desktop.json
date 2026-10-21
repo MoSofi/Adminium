@@ -221,5 +221,38 @@
     "version": "Adminium {version}",
     "forgetOf": "忘记 {address}",
     "forget": "忘记"
+  },
+  "menu": {
+    "file": "文件",
+    "fileNewDatabase": "新建本地数据库…",
+    "fileOpenSqlite": "打开 SQLite 文件…",
+    "fileBackupNow": "立即备份…",
+    "fileRestore": "从备份恢复…",
+    "edit": "编辑",
+    "view": "视图",
+    "window": "窗口",
+    "help": "帮助",
+    "helpDocs": "Adminium 文档",
+    "helpShortcuts": "键盘快捷键",
+    "helpLogs": "显示日志",
+    "helpCheckForUpdates": "检查更新…",
+    "helpAbout": "关于 Adminium"
+  },
+  "dialog": {
+    "ok": "好",
+    "aboutVersion": "版本 {version}",
+    "updateNoneTitle": "已是最新版本",
+    "updateNoneDetail": "Adminium {version} 是最新版本。",
+    "updateAvailableTitle": "Adminium {version} 已发布",
+    "updateAvailableDetail": "当前版本为 {current}。",
+    "updateDownload": "下载并安装",
+    "updateOpenPage": "打开下载页面",
+    "updateLater": "稍后",
+    "updateReadyTitle": "更新已就绪",
+    "updateReadyDetail": "重新启动 Adminium 以完成安装。",
+    "updateRestart": "立即重新启动",
+    "updateErrorTitle": "无法检查更新",
+    "updateErrorDetail": "请检查网络连接后重试。",
+    "updateDownloadFailedTitle": "无法下载更新"
   }
 }

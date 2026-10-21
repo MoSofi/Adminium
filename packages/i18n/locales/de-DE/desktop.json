@@ -221,5 +221,38 @@
     "version": "Adminium {version}",
     "forgetOf": "{address} vergessen",
     "forget": "Vergessen"
+  },
+  "menu": {
+    "file": "Datei",
+    "fileNewDatabase": "Neue lokale Datenbank…",
+    "fileOpenSqlite": "SQLite-Datei öffnen…",
+    "fileBackupNow": "Jetzt sichern…",
+    "fileRestore": "Aus Sicherung wiederherstellen…",
+    "edit": "Bearbeiten",
+    "view": "Ansicht",
+    "window": "Fenster",
+    "help": "Hilfe",
+    "helpDocs": "Adminium-Dokumentation",
+    "helpShortcuts": "Tastaturkürzel",
+    "helpLogs": "Protokolle anzeigen",
+    "helpCheckForUpdates": "Nach Updates suchen…",
+    "helpAbout": "Über Adminium"
+  },
+  "dialog": {
+    "ok": "OK",
+    "aboutVersion": "Version {version}",
+    "updateNoneTitle": "Adminium ist aktuell",
+    "updateNoneDetail": "Adminium {version} ist die neueste Version.",
+    "updateAvailableTitle": "Adminium {version} ist verfügbar",
+    "updateAvailableDetail": "Installiert ist Version {current}.",
+    "updateDownload": "Laden und installieren",
+    "updateOpenPage": "Download-Seite öffnen",
+    "updateLater": "Später",
+    "updateReadyTitle": "Das Update ist bereit",
+    "updateReadyDetail": "Starte Adminium neu, um die Installation abzuschließen.",
+    "updateRestart": "Jetzt neu starten",
+    "updateErrorTitle": "Updates konnten nicht geprüft werden",
+    "updateErrorDetail": "Prüfe die Internetverbindung und versuche es erneut.",
+    "updateDownloadFailedTitle": "Das Update konnte nicht geladen werden"
   }
 }

@@ -14,7 +14,7 @@
  * knows it, and only the renderer knows when it changes.
  *
  * So the renderer resolves these labels through its own i18n and pushes the
- * result over `setMenuLabels` ({@link DesktopMenuLabels}); `main/index.ts`
+ * result over `setMenuLabels` (`DesktopMenuLabels`); `main/index.ts`
  * rebuilds the menu from them. This module holds ZERO translations beyond the
  * en-US fallback below, which is the boot menu (there is no SPA yet step
  * 6) and the safety net for any key a push omits. {@link menuTranslator} is the
@@ -46,7 +46,7 @@
 
 import { Menu, shell, type MenuItemConstructorOptions } from 'electron';
 
-import type { DesktopMenuLabelKey, DesktopMenuLabels } from '../preload/api.js';
+import type { DesktopMenuLabelKey } from '../preload/api.js';
 
 // ─── Labels ("All labels localized via @adminium/i18n") ──────────────────────
 
@@ -90,13 +90,30 @@ export const EN_US_MENU_LABELS: Readonly<Record<MenuLabelKey, string>> = Object.
   'help.logs': 'Show Logs',
   'help.checkForUpdates': 'Check for Updates…',
   'help.about': 'About Adminium',
+  // The About box and the menu's update check (`about.ts`). Not menu items, but
+  // they cross on the same push: the shell holds no translations of its own.
+  'dialog.ok': 'OK',
+  'dialog.version': 'Version {version}',
+  'update.none.title': 'You’re up to date',
+  'update.none.detail': 'Adminium {version} is the newest version.',
+  'update.available.title': 'Adminium {version} is available',
+  'update.available.detail': 'You have version {current}.',
+  'update.download': 'Download and Install',
+  'update.openPage': 'Open Download Page',
+  'update.later': 'Later',
+  'update.ready.title': 'The update is ready',
+  'update.ready.detail': 'Restart Adminium to finish installing it.',
+  'update.restart': 'Restart Now',
+  'update.error.title': 'Couldn’t check for updates',
+  'update.error.detail': 'Check your internet connection and try again.',
+  'update.downloadFailed.title': 'The update couldn’t be downloaded',
 });
 
 const defaultTranslate: MenuTranslate = (key) => EN_US_MENU_LABELS[key];
 
 /**
  * A {@link MenuTranslate} backed by labels the renderer pushed
- * ({@link DesktopMenuLabels}, `setMenuLabels`), with the en-US fallback
+ * (`DesktopMenuLabels`, `setMenuLabels`), with the en-US fallback
  * behind every key.
  *
  * `null`/`undefined` labels — the boot menu, before the SPA has pushed anything
@@ -106,7 +123,7 @@ const defaultTranslate: MenuTranslate = (key) => EN_US_MENU_LABELS[key];
  * test long before it reaches here, but a native menu with a blank item is a
  * worse failure than a briefly-English one, so the fallback stays.
  */
-export function menuTranslator(labels?: Partial<DesktopMenuLabels> | null): MenuTranslate {
+export function menuTranslator(labels?: { readonly [K in MenuLabelKey]?: string | undefined } | null): MenuTranslate {
   if (labels === null || labels === undefined) return defaultTranslate;
   return (key) => labels[key] ?? EN_US_MENU_LABELS[key];
 }
@@ -211,12 +228,15 @@ export function appMenuTemplate(opts: BuildAppMenuOptions): MenuItemConstructorO
   // Hand-built rather than `role: 'appMenu'` for one reason: `role: 'about'`
   // opens Electron's own about panel, specifies OURS (app + server +
   // migration + Electron versions, data dir, AGPL notice, third-party notices).
-  // The rest of the submenu is the mac convention and must stay in this order.
+  // "Check for Updates…" sits under About, where mac apps put it (and so it
+  // leaves Help on mac). The rest of the submenu is the mac convention and must
+  // stay in this order.
   if (isMac) {
     template.push({
       role: 'appMenu',
       submenu: [
         command('help.about', handlers.about),
+        command('help.checkForUpdates', handlers.checkForUpdates),
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -322,9 +342,14 @@ export function appMenuTemplate(opts: BuildAppMenuOptions): MenuItemConstructorO
       command('help.shortcuts', handlers.shortcuts),
       { type: 'separator' },
       command('help.logs', handlers.showLogs),
-      command('help.checkForUpdates', handlers.checkForUpdates),
-      // On mac About is in the app menu, where the platform puts it.
-      ...(isMac ? [] : [{ type: 'separator' } as MenuItemConstructorOptions, command('help.about', handlers.about)]),
+      // On mac both are in the app menu, where the platform puts them.
+      ...(isMac
+        ? []
+        : [
+            command('help.checkForUpdates', handlers.checkForUpdates),
+            { type: 'separator' } as MenuItemConstructorOptions,
+            command('help.about', handlers.about),
+          ]),
     ],
   });
 

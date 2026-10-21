@@ -231,5 +231,38 @@ export default {
     "version": "Adminium {version}",
     "forgetOf": "Glem {address}",
     "forget": "Glem"
+  },
+  "menu": {
+    "file": "Fil",
+    "fileNewDatabase": "Ny lokal database…",
+    "fileOpenSqlite": "Åbn SQLite-fil…",
+    "fileBackupNow": "Sikkerhedskopiér nu…",
+    "fileRestore": "Gendan fra sikkerhedskopi…",
+    "edit": "Rediger",
+    "view": "Vis",
+    "window": "Vindue",
+    "help": "Hjælp",
+    "helpDocs": "Adminium-dokumentation",
+    "helpShortcuts": "Tastaturgenveje",
+    "helpLogs": "Vis logfiler",
+    "helpCheckForUpdates": "Søg efter opdateringer…",
+    "helpAbout": "Om Adminium"
+  },
+  "dialog": {
+    "ok": "OK",
+    "aboutVersion": "Version {version}",
+    "updateNoneTitle": "Adminium er opdateret",
+    "updateNoneDetail": "Adminium {version} er den nyeste version.",
+    "updateAvailableTitle": "Adminium {version} er tilgængelig",
+    "updateAvailableDetail": "Du har version {current}.",
+    "updateDownload": "Hent og installer",
+    "updateOpenPage": "Åbn downloadsiden",
+    "updateLater": "Senere",
+    "updateReadyTitle": "Opdateringen er klar",
+    "updateReadyDetail": "Genstart Adminium for at gøre installationen færdig.",
+    "updateRestart": "Genstart nu",
+    "updateErrorTitle": "Der kunne ikke søges efter opdateringer",
+    "updateErrorDetail": "Tjek din internetforbindelse, og prøv igen.",
+    "updateDownloadFailedTitle": "Opdateringen kunne ikke hentes"
   }
 } as const;

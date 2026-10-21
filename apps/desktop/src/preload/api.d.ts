@@ -336,7 +336,34 @@ export type DesktopMenuLabelKey =
   | 'help.shortcuts'
   | 'help.logs'
   | 'help.checkForUpdates'
-  | 'help.about';
+  | 'help.about'
+  | DesktopDialogLabelKey;
+
+/**
+ * The words of the native About box and of the update check started from the
+ * menu: dialogs the shell draws itself, so they cross on the same push as the
+ * menu. `{version}` / `{current}` are filled in by the shell.
+ *
+ * Kept apart from the menu's own keys for one reason: a project's page may come
+ * from an OLDER Adminium that pushes only the menu's keys, so `ipc.ts` takes
+ * these as optional. The shell's en-US then fills in any that did not come.
+ */
+export type DesktopDialogLabelKey =
+  | 'dialog.ok'
+  | 'dialog.version'
+  | 'update.none.title'
+  | 'update.none.detail'
+  | 'update.available.title'
+  | 'update.available.detail'
+  | 'update.download'
+  | 'update.openPage'
+  | 'update.later'
+  | 'update.ready.title'
+  | 'update.ready.detail'
+  | 'update.restart'
+  | 'update.error.title'
+  | 'update.error.detail'
+  | 'update.downloadFailed.title';
 
 /**
  * The full label set for one locale. A `Record` (not a `Partial`) so the

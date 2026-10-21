@@ -5359,62 +5359,6 @@
     "srcHash": "304a2d8338bb",
     "status": "mt"
   },
-  "common.desktop.menu.edit": {
-    "srcHash": "5301648dcf6b",
-    "status": "mt"
-  },
-  "common.desktop.menu.file": {
-    "srcHash": "2c3cafa4db3f",
-    "status": "mt"
-  },
-  "common.desktop.menu.fileBackupNow": {
-    "srcHash": "ed347e2a3458",
-    "status": "mt"
-  },
-  "common.desktop.menu.fileNewDatabase": {
-    "srcHash": "682cf2b7e866",
-    "status": "mt"
-  },
-  "common.desktop.menu.fileOpenSqlite": {
-    "srcHash": "3cb96fcd94b1",
-    "status": "mt"
-  },
-  "common.desktop.menu.fileRestore": {
-    "srcHash": "ddf23b21881f",
-    "status": "mt"
-  },
-  "common.desktop.menu.help": {
-    "srcHash": "c47ae15370cf",
-    "status": "mt"
-  },
-  "common.desktop.menu.helpAbout": {
-    "srcHash": "a18318ff07d5",
-    "status": "mt"
-  },
-  "common.desktop.menu.helpCheckForUpdates": {
-    "srcHash": "e7acf742b5a1",
-    "status": "mt"
-  },
-  "common.desktop.menu.helpDocs": {
-    "srcHash": "3d62ffa0b50b",
-    "status": "mt"
-  },
-  "common.desktop.menu.helpLogs": {
-    "srcHash": "2dbd3a4a2149",
-    "status": "mt"
-  },
-  "common.desktop.menu.helpShortcuts": {
-    "srcHash": "b465751c05fb",
-    "status": "mt"
-  },
-  "common.desktop.menu.view": {
-    "srcHash": "69bd4ef9fbd0",
-    "status": "mt"
-  },
-  "common.desktop.menu.window": {
-    "srcHash": "41dfc0a6c927",
-    "status": "mt"
-  },
   "common.desktop.requireLogin.description": {
     "srcHash": "34bc2049fadb",
     "status": "mt"
@@ -14791,6 +14735,66 @@
     "status": "src",
     "srcHash": "f987203947fc"
   },
+  "desktop.dialog.aboutVersion": {
+    "status": "mt",
+    "srcHash": "7a4a5b083da9"
+  },
+  "desktop.dialog.ok": {
+    "status": "src",
+    "srcHash": "9ce3bd4224c8"
+  },
+  "desktop.dialog.updateAvailableDetail": {
+    "status": "mt",
+    "srcHash": "f4665e314478"
+  },
+  "desktop.dialog.updateAvailableTitle": {
+    "status": "mt",
+    "srcHash": "eccd4a044e30"
+  },
+  "desktop.dialog.updateDownload": {
+    "status": "mt",
+    "srcHash": "aad43dfd72ec"
+  },
+  "desktop.dialog.updateDownloadFailedTitle": {
+    "status": "mt",
+    "srcHash": "89ee03682be0"
+  },
+  "desktop.dialog.updateErrorDetail": {
+    "status": "mt",
+    "srcHash": "86d8acd34ec2"
+  },
+  "desktop.dialog.updateErrorTitle": {
+    "status": "mt",
+    "srcHash": "00728af5aab9"
+  },
+  "desktop.dialog.updateLater": {
+    "status": "mt",
+    "srcHash": "56e2f5d3634e"
+  },
+  "desktop.dialog.updateNoneDetail": {
+    "status": "mt",
+    "srcHash": "5e30510cad5c"
+  },
+  "desktop.dialog.updateNoneTitle": {
+    "status": "mt",
+    "srcHash": "6f0ebb53cc81"
+  },
+  "desktop.dialog.updateOpenPage": {
+    "status": "mt",
+    "srcHash": "b205fe95d96b"
+  },
+  "desktop.dialog.updateReadyDetail": {
+    "status": "mt",
+    "srcHash": "a8e72d63644e"
+  },
+  "desktop.dialog.updateReadyTitle": {
+    "status": "mt",
+    "srcHash": "5c4fff4e500c"
+  },
+  "desktop.dialog.updateRestart": {
+    "status": "mt",
+    "srcHash": "84c07ca92acc"
+  },
   "desktop.found.data": {
     "status": "mt",
     "srcHash": "cd0b9a72894c"
@@ -14890,6 +14894,62 @@
   "desktop.key.new.title": {
     "status": "mt",
     "srcHash": "0ce5263db9f4"
+  },
+  "desktop.menu.edit": {
+    "srcHash": "5301648dcf6b",
+    "status": "mt"
+  },
+  "desktop.menu.file": {
+    "srcHash": "2c3cafa4db3f",
+    "status": "mt"
+  },
+  "desktop.menu.fileBackupNow": {
+    "srcHash": "ed347e2a3458",
+    "status": "mt"
+  },
+  "desktop.menu.fileNewDatabase": {
+    "srcHash": "682cf2b7e866",
+    "status": "mt"
+  },
+  "desktop.menu.fileOpenSqlite": {
+    "srcHash": "3cb96fcd94b1",
+    "status": "mt"
+  },
+  "desktop.menu.fileRestore": {
+    "srcHash": "ddf23b21881f",
+    "status": "mt"
+  },
+  "desktop.menu.help": {
+    "srcHash": "c47ae15370cf",
+    "status": "mt"
+  },
+  "desktop.menu.helpAbout": {
+    "srcHash": "a18318ff07d5",
+    "status": "mt"
+  },
+  "desktop.menu.helpCheckForUpdates": {
+    "srcHash": "e7acf742b5a1",
+    "status": "mt"
+  },
+  "desktop.menu.helpDocs": {
+    "srcHash": "3d62ffa0b50b",
+    "status": "mt"
+  },
+  "desktop.menu.helpLogs": {
+    "srcHash": "2dbd3a4a2149",
+    "status": "mt"
+  },
+  "desktop.menu.helpShortcuts": {
+    "srcHash": "b465751c05fb",
+    "status": "mt"
+  },
+  "desktop.menu.view": {
+    "srcHash": "69bd4ef9fbd0",
+    "status": "mt"
+  },
+  "desktop.menu.window": {
+    "srcHash": "41dfc0a6c927",
+    "status": "mt"
   },
   "desktop.new.back": {
     "status": "mt",

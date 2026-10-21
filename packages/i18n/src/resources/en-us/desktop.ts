@@ -231,5 +231,38 @@ export default {
     "version": "Adminium {version}",
     "forgetOf": "Forget {address}",
     "forget": "Forget"
+  },
+  "menu": {
+    "file": "File",
+    "fileNewDatabase": "New local database…",
+    "fileOpenSqlite": "Open SQLite file…",
+    "fileBackupNow": "Back up now…",
+    "fileRestore": "Restore from backup…",
+    "edit": "Edit",
+    "view": "View",
+    "window": "Window",
+    "help": "Help",
+    "helpDocs": "Adminium Docs",
+    "helpShortcuts": "Keyboard Shortcuts",
+    "helpLogs": "Show Logs",
+    "helpCheckForUpdates": "Check for Updates…",
+    "helpAbout": "About Adminium"
+  },
+  "dialog": {
+    "ok": "OK",
+    "aboutVersion": "Version {version}",
+    "updateNoneTitle": "You’re up to date",
+    "updateNoneDetail": "Adminium {version} is the newest version.",
+    "updateAvailableTitle": "Adminium {version} is available",
+    "updateAvailableDetail": "You have version {current}.",
+    "updateDownload": "Download and Install",
+    "updateOpenPage": "Open Download Page",
+    "updateLater": "Later",
+    "updateReadyTitle": "The update is ready",
+    "updateReadyDetail": "Restart Adminium to finish installing it.",
+    "updateRestart": "Restart Now",
+    "updateErrorTitle": "Couldn’t check for updates",
+    "updateErrorDetail": "Check your internet connection and try again.",
+    "updateDownloadFailedTitle": "The update couldn’t be downloaded"
   }
 } as const;

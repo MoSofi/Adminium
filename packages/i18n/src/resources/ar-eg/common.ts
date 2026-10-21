@@ -1124,22 +1124,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "ملف",
-      "fileNewDatabase": "قاعدة بيانات محلية جديدة…",
-      "fileOpenSqlite": "فتح ملف SQLite…",
-      "fileBackupNow": "النسخ الاحتياطي الآن…",
-      "fileRestore": "الاستعادة من نسخة احتياطية…",
-      "edit": "تحرير",
-      "view": "عرض",
-      "window": "نافذة",
-      "help": "مساعدة",
-      "helpDocs": "مستندات Adminium",
-      "helpShortcuts": "اختصارات لوحة المفاتيح",
-      "helpLogs": "عرض السجلات",
-      "helpCheckForUpdates": "التحقق من وجود تحديثات…",
-      "helpAbout": "حول Adminium"
-    },
     "settings": {
       "explainer": "تنطبق هذه الإعدادات على تطبيق Adminium على هذا الكمبيوتر فقط، وتُحفَظ على هذا الجهاز لا في مساحة العمل.",
       "title": "إعدادات سطح المكتب"

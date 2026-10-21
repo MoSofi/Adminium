@@ -1114,22 +1114,6 @@
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Fichier",
-      "fileNewDatabase": "Nouvelle base de données locale…",
-      "fileOpenSqlite": "Ouvrir un fichier SQLite…",
-      "fileBackupNow": "Sauvegarder maintenant…",
-      "fileRestore": "Restaurer depuis une sauvegarde…",
-      "edit": "Édition",
-      "view": "Affichage",
-      "window": "Fenêtre",
-      "help": "Aide",
-      "helpDocs": "Documentation Adminium",
-      "helpShortcuts": "Raccourcis clavier",
-      "helpLogs": "Afficher les journaux",
-      "helpCheckForUpdates": "Rechercher des mises à jour…",
-      "helpAbout": "À propos d’Adminium"
-    },
     "settings": {
       "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail.",
       "title": "Paramètres du bureau"

@@ -17,6 +17,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { AboutDialogs } from './about.js';
 import type { BackupCoordinator } from './backup.js';
 import { createDefaultConfig, type DesktopConfig, type UpdateMode } from './config.js';
 import {
@@ -27,6 +28,7 @@ import {
   createDesktopApp,
   extractFileArgument,
   isElectronMain,
+  nameTheApp,
   type BackupWiring,
   type DesktopAppHost,
   type DesktopBootDeps,
@@ -1840,6 +1842,27 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.h.bridge()?.runtime()).toMatchObject({ serverPort: 4701 });
   });
 
+  it('About and Check for Updates work in a project: the native box, and an answer in a dialog', async () => {
+    const p = projectHarness();
+    const about = vi.fn<AboutDialogs['about']>(() => Promise.resolve());
+    const check = vi.fn<AboutDialogs['checkForUpdates']>(() => Promise.resolve());
+    await createDesktopApp({ ...p.deps, aboutDialogs: { about, checkForUpdates: check } }).start();
+    const handlers = p.h.menuHandlers();
+    handlers?.about?.();
+    expect(about).toHaveBeenCalledOnce();
+    // The box offers the same check as the menu item.
+    about.mock.calls[0]?.[0].check?.();
+    handlers?.checkForUpdates?.();
+    expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it('without the dialogs, About stays disabled in a project', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    expect(p.h.menuHandlers()).not.toHaveProperty('about');
+    expect(p.h.menuHandlers()).toHaveProperty('checkForUpdates');
+  });
+
   it('a build with none of the optional folders and no updater still opens the project', async () => {
     const p = projectHarness();
     const bare: DesktopBootDeps = { ...p.deps, createUpdateManager: () => null };
@@ -1929,6 +1952,39 @@ describe('createDesktopApp opening on Start', () => {
     // The bridge answers Start's calls only while Start is what the window holds.
     expect(s.h.bridge()?.start?.()).not.toBeNull();
     expect(s.h.bridge()?.start?.()?.state()).toMatchObject({ firstLaunch: true, recent: [], proposedParent: '/home/ava/Adminium' });
+  });
+
+  it('Start has a working About and Check for Updates; the updater is made on the first check', async () => {
+    const s = startHarness();
+    const about = vi.fn<AboutDialogs['about']>(() => Promise.resolve());
+    const check = vi.fn<AboutDialogs['checkForUpdates']>(() => Promise.resolve());
+    let made = 0;
+    const deps: DesktopBootDeps = {
+      ...s.deps,
+      aboutDialogs: { about, checkForUpdates: check },
+      createUpdateManager: (input) => {
+        made += 1;
+        return s.deps.createUpdateManager(input);
+      },
+    };
+    void createDesktopApp(deps).start();
+    await settle();
+    const handlers = s.h.menuHandlers();
+    expect(made).toBe(0);
+    handlers?.about?.();
+    expect(about).toHaveBeenCalledOnce();
+    handlers?.checkForUpdates?.();
+    handlers?.checkForUpdates?.();
+    expect(made).toBe(1);
+    expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it('Start offers no check when updates are switched off', async () => {
+    const s = startHarness();
+    void createDesktopApp({ ...s.deps, updatesDisabledByEnv: true, aboutDialogs: { about: () => Promise.resolve(), checkForUpdates: () => Promise.resolve() } }).start();
+    await settle();
+    expect(s.h.menuHandlers()).toHaveProperty('about');
+    expect(s.h.menuHandlers()).not.toHaveProperty('checkForUpdates');
   });
 
   it('"Use my own database" goes on into the classic workspace as a launch without Start does', async () => {
@@ -2079,5 +2135,28 @@ describe('microphoneSwitchedOn', () => {
     for (const body of [null, {}, { voice: {} }, { voice: { input: true } }, { error: { code: 'FORBIDDEN' } }, 'yes']) {
       expect(microphoneSwitchedOn(body)).toBe(false);
     }
+  });
+});
+
+describe('nameTheApp', () => {
+  it('renames the app and keeps its folders where they were', () => {
+    // Electron derives both folders from the name: read before, put back after.
+    let name = '@adminium/desktop';
+    const set: Record<string, string> = {};
+    const calls: string[] = [];
+    nameTheApp({
+      getPath: ((key: string) => set[key] ?? `/base/${key}/${name}`) as never,
+      setPath: ((key: string, path: string) => {
+        calls.push(`setPath:${key}`);
+        set[key] = path;
+      }) as never,
+      setName: (next: string) => {
+        calls.push('setName');
+        name = next;
+      },
+    });
+    expect(name).toBe('Adminium');
+    expect(set).toEqual({ userData: '/base/userData/@adminium/desktop', logs: '/base/logs/@adminium/desktop' });
+    expect(calls).toEqual(['setName', 'setPath:userData', 'setPath:logs']);
   });
 });

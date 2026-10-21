@@ -1124,22 +1124,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Fil",
-      "fileNewDatabase": "Ny lokal database…",
-      "fileOpenSqlite": "Åbn SQLite-fil…",
-      "fileBackupNow": "Sikkerhedskopiér nu…",
-      "fileRestore": "Gendan fra sikkerhedskopi…",
-      "edit": "Rediger",
-      "view": "Vis",
-      "window": "Vindue",
-      "help": "Hjælp",
-      "helpDocs": "Adminium-dokumentation",
-      "helpShortcuts": "Tastaturgenveje",
-      "helpLogs": "Vis logfiler",
-      "helpCheckForUpdates": "Søg efter opdateringer…",
-      "helpAbout": "Om Adminium"
-    },
     "settings": {
       "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace.",
       "title": "Skrivebordsindstillinger"

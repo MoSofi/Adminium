@@ -6,6 +6,7 @@ import { ThemeProvider } from '@adminium/ui';
 
 import { App, SharedApp } from './App.js';
 import { desktopApi, startApi } from './bridge.js';
+import { pushMenuWords } from './menuWords.js';
 import { initWords, localeFor } from './words.js';
 import './styles.css';
 
@@ -15,6 +16,8 @@ async function start(): Promise<void> {
   const state = shared == null ? await startApi().state() : null;
   const locale = localeFor((shared ?? state)?.language ?? null, navigator.language);
   const i18n = await initWords(locale);
+  // The menu bar, the About box and the update answers in this page's language: the shell has no words of its own.
+  pushMenuWords(i18n, desktopApi());
 
   const container = document.getElementById('root');
   if (container === null) throw new Error('missing #root container');

@@ -1124,22 +1124,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "Datei",
-      "fileNewDatabase": "Neue lokale Datenbank…",
-      "fileOpenSqlite": "SQLite-Datei öffnen…",
-      "fileBackupNow": "Jetzt sichern…",
-      "fileRestore": "Aus Sicherung wiederherstellen…",
-      "edit": "Bearbeiten",
-      "view": "Ansicht",
-      "window": "Fenster",
-      "help": "Hilfe",
-      "helpDocs": "Adminium-Dokumentation",
-      "helpShortcuts": "Tastaturkürzel",
-      "helpLogs": "Protokolle anzeigen",
-      "helpCheckForUpdates": "Nach Updates suchen…",
-      "helpAbout": "Über Adminium"
-    },
     "settings": {
       "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace.",
       "title": "Desktop-Einstellungen"

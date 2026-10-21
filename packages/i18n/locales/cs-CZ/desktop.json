@@ -221,5 +221,38 @@
     "version": "Adminium {version}",
     "forgetOf": "Zapomenout {address}",
     "forget": "Zapomenout"
+  },
+  "menu": {
+    "file": "Soubor",
+    "fileNewDatabase": "Nová místní databáze…",
+    "fileOpenSqlite": "Otevřít soubor SQLite…",
+    "fileBackupNow": "Zálohovat nyní…",
+    "fileRestore": "Obnovit ze zálohy…",
+    "edit": "Úpravy",
+    "view": "Zobrazení",
+    "window": "Okno",
+    "help": "Nápověda",
+    "helpDocs": "Dokumentace Adminium",
+    "helpShortcuts": "Klávesové zkratky",
+    "helpLogs": "Zobrazit protokoly",
+    "helpCheckForUpdates": "Zkontrolovat aktualizace…",
+    "helpAbout": "O aplikaci Adminium"
+  },
+  "dialog": {
+    "ok": "OK",
+    "aboutVersion": "Verze {version}",
+    "updateNoneTitle": "Adminium je aktuální",
+    "updateNoneDetail": "Adminium {version} je nejnovější verze.",
+    "updateAvailableTitle": "Je k dispozici Adminium {version}",
+    "updateAvailableDetail": "Máte verzi {current}.",
+    "updateDownload": "Stáhnout a nainstalovat",
+    "updateOpenPage": "Otevřít stránku ke stažení",
+    "updateLater": "Později",
+    "updateReadyTitle": "Aktualizace je připravena",
+    "updateReadyDetail": "Dokončete instalaci restartováním Adminia.",
+    "updateRestart": "Restartovat nyní",
+    "updateErrorTitle": "Aktualizace se nepodařilo zkontrolovat",
+    "updateErrorDetail": "Zkontrolujte připojení k internetu a zkuste to znovu.",
+    "updateDownloadFailedTitle": "Aktualizaci se nepodařilo stáhnout"
   }
 }

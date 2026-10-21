@@ -221,5 +221,38 @@
     "version": "Adminium {version}",
     "forgetOf": "نسيان {address}",
     "forget": "نسيان"
+  },
+  "menu": {
+    "file": "ملف",
+    "fileNewDatabase": "قاعدة بيانات محلية جديدة…",
+    "fileOpenSqlite": "فتح ملف SQLite…",
+    "fileBackupNow": "النسخ الاحتياطي الآن…",
+    "fileRestore": "الاستعادة من نسخة احتياطية…",
+    "edit": "تحرير",
+    "view": "عرض",
+    "window": "نافذة",
+    "help": "مساعدة",
+    "helpDocs": "مستندات Adminium",
+    "helpShortcuts": "اختصارات لوحة المفاتيح",
+    "helpLogs": "عرض السجلات",
+    "helpCheckForUpdates": "التحقق من وجود تحديثات…",
+    "helpAbout": "حول Adminium"
+  },
+  "dialog": {
+    "ok": "حسنًا",
+    "aboutVersion": "الإصدار {version}",
+    "updateNoneTitle": "لديك أحدث إصدار",
+    "updateNoneDetail": "Adminium {version} هو أحدث إصدار.",
+    "updateAvailableTitle": "يتوفر Adminium {version}",
+    "updateAvailableDetail": "لديك الإصدار {current}.",
+    "updateDownload": "تنزيل وتثبيت",
+    "updateOpenPage": "فتح صفحة التنزيل",
+    "updateLater": "لاحقًا",
+    "updateReadyTitle": "التحديث جاهز",
+    "updateReadyDetail": "أعد تشغيل Adminium لإكمال التثبيت.",
+    "updateRestart": "إعادة التشغيل الآن",
+    "updateErrorTitle": "تعذّر البحث عن تحديثات",
+    "updateErrorDetail": "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.",
+    "updateDownloadFailedTitle": "تعذّر تنزيل التحديث"
   }
 }

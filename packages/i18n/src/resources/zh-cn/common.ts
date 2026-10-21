@@ -1124,22 +1124,6 @@ export default {
     }
   },
   "desktop": {
-    "menu": {
-      "file": "文件",
-      "fileNewDatabase": "新建本地数据库…",
-      "fileOpenSqlite": "打开 SQLite 文件…",
-      "fileBackupNow": "立即备份…",
-      "fileRestore": "从备份恢复…",
-      "edit": "编辑",
-      "view": "视图",
-      "window": "窗口",
-      "help": "帮助",
-      "helpDocs": "Adminium 文档",
-      "helpShortcuts": "键盘快捷键",
-      "helpLogs": "显示日志",
-      "helpCheckForUpdates": "检查更新…",
-      "helpAbout": "关于 Adminium"
-    },
     "settings": {
       "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。",
       "title": "桌面设置"

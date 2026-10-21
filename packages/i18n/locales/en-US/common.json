@@ -1114,22 +1114,6 @@
     }
   },
   "desktop": {
-    "menu": {
-      "file": "File",
-      "fileNewDatabase": "New local database…",
-      "fileOpenSqlite": "Open SQLite file…",
-      "fileBackupNow": "Back up now…",
-      "fileRestore": "Restore from backup…",
-      "edit": "Edit",
-      "view": "View",
-      "window": "Window",
-      "help": "Help",
-      "helpDocs": "Adminium Docs",
-      "helpShortcuts": "Keyboard Shortcuts",
-      "helpLogs": "Show Logs",
-      "helpCheckForUpdates": "Check for Updates…",
-      "helpAbout": "About Adminium"
-    },
     "settings": {
       "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace.",
       "title": "Desktop settings"

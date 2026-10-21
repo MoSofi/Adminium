@@ -1114,22 +1114,6 @@
     }
   },
   "desktop": {
-    "menu": {
-      "file": "檔案",
-      "fileNewDatabase": "新增本機資料庫…",
-      "fileOpenSqlite": "開啟 SQLite 檔案…",
-      "fileBackupNow": "立即備份…",
-      "fileRestore": "從備份還原…",
-      "edit": "編輯",
-      "view": "檢視",
-      "window": "視窗",
-      "help": "說明",
-      "helpDocs": "Adminium 文件",
-      "helpShortcuts": "鍵盤快速鍵",
-      "helpLogs": "顯示日誌",
-      "helpCheckForUpdates": "檢查更新…",
-      "helpAbout": "關於 Adminium"
-    },
     "settings": {
       "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到你的工作區。",
       "title": "桌面設定"
