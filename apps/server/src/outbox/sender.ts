@@ -177,6 +177,7 @@ import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '../payments/reminder-hold.js';
+import { createMemoryHolds } from './memory-holds.js';
 
 /** The job that sends one app's queued rows now. */
 export const OUTBOX_SEND_JOB_KIND = 'app-outbox-send';
@@ -782,6 +783,9 @@ async function houseReplyTo(box: LiveOutbox, db: Kysely<SourceDatabase>): Promis
 }
 
 export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
+  /** Held rows with no column to write their wait into: left out of each batch until it is up. */
+  const heldInMemory = createMemoryHolds();
+
   /** Where the app's guest side lives: its own host, else the server's public address, else nowhere. */
   async function guestBase(appKey: string): Promise<string | null> {
     return guestBaseOf({ meta: deps.meta, hostFor: deps.hostFor }, appKey);
@@ -1588,6 +1592,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         ]),
       );
     }
+    const waiting = heldInMemory.waiting(box.row.id, now);
+    if (waiting.length > 0) query = query.where(sql.ref(key), 'not in', waiting as never);
     const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
     // Judged again, all together, just before they go.
     const verdicts = await verdictsFor(
@@ -1623,6 +1629,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           if (Object.keys(values).length > 0) {
             const held = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued'));
             if (held !== null) settled.push(held);
+          } else {
+            // Nowhere to write the wait: this process keeps it, so the row does not head every batch.
+            heldInMemory.hold(box.row.id, row[key], now + PAYMENT_HOLD_RETRY_MS);
           }
           continue;
         }
