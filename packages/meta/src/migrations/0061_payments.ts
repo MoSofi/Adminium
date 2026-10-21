@@ -223,6 +223,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('current_key', c.str(600))
     .addColumn('expires_at', c.ts, (col) => col.notNull())
     .addColumn('revoked_at', c.ts)
+    // Why it was revoked when the holder should be told (`test-ended`: live payments were switched on).
+    .addColumn('revoke_reason', c.str(32))
     .addColumn('created_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .execute();

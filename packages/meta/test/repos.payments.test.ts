@@ -422,6 +422,17 @@ for (const dialect of TEST_DIALECTS) {
         expect(await links.revoke(second.link.id, T0 + 2)).toBe(true);
         expect(await links.currentFor(INVOICE)).toBeNull();
         expect((await links.byId(second.link.id))?.revokedAt).toBe(T0 + 2);
+        expect((await links.byId(second.link.id))?.revokeReason).toBeNull();
+      });
+
+      it('ends every current test link at once, saying why, and leaves live ones', async () => {
+        const links = paymentLinksRepo(meta());
+        const test = await links.mint({ tokenHash: 't1', tokenSealed: 's1', payable: INVOICE, mode: 'test', expiresAt: T0 + 9, createdBy: null }, T0);
+        const live = await links.mint({ tokenHash: 'l1', tokenSealed: 's2', payable: DOCUMENT, mode: 'live', expiresAt: T0 + 9, createdBy: null }, T0);
+        expect(await links.revokeTestLinks(T0 + 1)).toBe(1);
+        expect(await links.byId(test.link.id)).toMatchObject({ current: false, revokedAt: T0 + 1, revokeReason: 'test-ended' });
+        expect(await links.byId(live.link.id)).toMatchObject({ current: true, revokedAt: null });
+        expect(await links.revokeTestLinks(T0 + 2)).toBe(0);
       });
     });
 
@@ -479,6 +490,19 @@ for (const dialect of TEST_DIALECTS) {
         await settings.set('page', schema, { shopName: 'Crumb & Co. GmbH' }, T0 + 1);
         expect(await settings.get('page', schema)).toEqual({ shopName: 'Crumb & Co. GmbH' });
         expect(await settings.get('page', z.object({ other: z.number() }))).toBeNull();
+      });
+
+      it('claims a document once in every process, and drops old claims by prefix', async () => {
+        const settings = paymentSettingsRepo(meta());
+        const schema = z.object({ at: z.number() });
+        const claims = await Promise.all(Array.from({ length: 4 }, () => settings.claim('notice:landed:pat_1', schema, { at: T0 }, T0)));
+        expect(claims.filter(Boolean)).toHaveLength(1);
+        expect(await settings.claim('notice:landed:pat_2', schema, { at: T0 + 5 }, T0 + 5)).toBe(true);
+        await settings.set('page', z.object({ shopName: z.string() }), { shopName: 'kept' }, T0);
+        expect(await settings.gcPrefix('notice:', T0 + 1)).toBe(1);
+        expect(await settings.get('notice:landed:pat_2', schema)).toEqual({ at: T0 + 5 });
+        expect(await settings.get('page', z.object({ shopName: z.string() }))).toEqual({ shopName: 'kept' });
+        await expect(settings.gcPrefix('notice_%', T0)).rejects.toThrow(/plain prefix/);
       });
 
       it('counts every hit per hour, under concurrency too', async () => {

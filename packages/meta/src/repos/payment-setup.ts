@@ -39,6 +39,8 @@ export interface PaymentLink {
   current: boolean;
   expiresAt: number;
   revokedAt: number | null;
+  /** Why it was revoked, when its holder is told (`test-ended`). */
+  revokeReason: string | null;
   createdBy: string | null;
   createdAt: number;
 }
@@ -62,6 +64,7 @@ function decodeLink(row: Selectable<AdminiumPaymentLinksTable>): PaymentLink {
     current: row.currentKey !== null,
     expiresAt: Number(row.expiresAt),
     revokedAt: row.revokedAt === null ? null : Number(row.revokedAt),
+    revokeReason: row.revokeReason ?? null,
     createdBy: row.createdBy,
     createdAt: Number(row.createdAt),
   };
@@ -97,6 +100,7 @@ export function paymentLinksRepo(meta: MetaDb) {
         currentKey: payableKeyOf(input.payable),
         expiresAt: input.expiresAt,
         revokedAt: null,
+        revokeReason: null,
         createdBy: input.createdBy,
         createdAt: at,
       };
@@ -144,6 +148,17 @@ export function paymentLinksRepo(meta: MetaDb) {
 
     /** Ends a payable's current link (it was paid, voided, deleted or removed with sample data). */
     retire,
+
+    /** Revokes every current test link (live payments were switched on), saying why. */
+    async revokeTestLinks(at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_payment_links')
+        .set({ revokedAt: at, currentKey: null, revokeReason: 'test-ended' })
+        .where('mode', '=', 'test')
+        .where('currentKey', 'is not', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows);
+    },
   };
 }
 
@@ -441,6 +456,27 @@ export function paymentSettingsRepo(meta: MetaDb) {
 
     async remove(name: string): Promise<void> {
       await db.deleteFrom('adminium_payment_settings').where('name', '=', name).execute();
+    },
+
+    /**
+     * Writes a document only when there is none of that name: true for the
+     * caller that made it. What a "tell once" rides on, in every process.
+     */
+    async claim<T>(name: string, schema: z.ZodType<T>, value: T, at: number = Date.now()): Promise<boolean> {
+      try {
+        await db.insertInto('adminium_payment_settings').values({ name, value: packJson(schema.parse(value)), updatedAt: at }).execute();
+        return true;
+      } catch (error) {
+        if (isDuplicateKeyError(error)) return false;
+        throw error;
+      }
+    },
+
+    /** Removes the documents whose name starts with `prefix` (letters, digits, `-` and `:` only) and that were last written before `before`. */
+    async gcPrefix(prefix: string, before: number): Promise<number> {
+      if (!/^[a-z0-9:-]+$/.test(prefix)) throw new Error(`gcPrefix takes a plain prefix, not "${prefix}".`);
+      const res = await db.deleteFrom('adminium_payment_settings').where('name', 'like', `${prefix}%`).where('updatedAt', '<', before).executeTakeFirst();
+      return affected(res.numDeletedRows);
     },
   };
 }

@@ -1659,6 +1659,7 @@ export interface AdminiumPaymentLinksTable {
   currentKey: string | null;
   expiresAt: Ts;
   revokedAt: Ts | null;
+  revokeReason: ColumnType<string | null, string | null | undefined, string | null>;
   createdBy: Id | null;
   createdAt: Ts;
 }
