@@ -32,7 +32,7 @@ import {
   type PaymentMode,
 } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
-import { paymentSettingsRepo, settingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
+import { paymentCountersRepo, paymentSettingsRepo, settingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -44,6 +44,8 @@ import { withField } from '../../payments/credentials.js';
 import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
 import { reachability } from '../../payments/reachability.js';
+import { sweepDocName, sweepStateSchema } from '../../payments/sweep.js';
+import { webhookDocName, webhookHealthSchema } from '../../payments/webhook.js';
 import {
   checklist,
   emptyServiceState,
@@ -124,6 +126,7 @@ function requirePerson(request: FastifyRequest): void {
 export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod {
   const { meta, manifests } = deps;
   const docs = paymentSettingsRepo(meta);
+  const clock = () => Date.now();
 
   async function paymentAddOns(): Promise<PaymentAddOn[]> {
     const out: PaymentAddOn[] = [];
@@ -156,7 +159,22 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     return origin === null ? null : `${origin.replace(/\/$/, '')}/api/v1/payments/webhook/${key}/${mode}`;
   }
 
-  function viewOf(addOn: PaymentAddOn, state: ServiceState, origin: string | null): ServiceView {
+  type Health = ServiceView['test']['health'];
+
+  async function healthOf(key: string, mode: PaymentMode): Promise<Health> {
+    const at = clock();
+    const hook = await docs.get(webhookDocName(key, mode), webhookHealthSchema);
+    const sweep = await docs.get(sweepDocName(key, mode), sweepStateSchema);
+    return {
+      lastEventAt: hook?.lastAt ?? null,
+      lastBadAt: hook?.lastBadAt ?? null,
+      badThisHour: await paymentCountersRepo(meta).read(`webhook-bad:${key}:${mode}`, at),
+      caughtAt: sweep?.caughtAt ?? null,
+      slowed: sweep?.slowed ?? false,
+    };
+  }
+
+  function viewOf(addOn: PaymentAddOn, state: ServiceState, origin: string | null, health: Record<PaymentMode, Health>): ServiceView {
     const { manifest, installed } = addOn;
     const fields = secretFields(manifest);
     const runtime = deps.runtime();
@@ -171,6 +189,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       webhookUrl: webhookUrl(origin, manifest.key, which),
       firstEventAt: state[which].firstEventAt,
       firstPaymentAt: state[which].firstPaymentAt,
+      health: health[which],
     });
     return {
       key: manifest.key,
@@ -225,7 +244,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
 
     async function save(key: string, state: ServiceState): Promise<ServiceView> {
       await docs.set(serviceDocName(key), serviceStateSchema, state, app.rbac.now());
-      return viewOf(await paymentAddOn(key), state, await publicOrigin());
+      return viewOf(await paymentAddOn(key), state, await publicOrigin(), { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') });
     }
 
     async function checked(request: FastifyRequest, addOn: PaymentAddOn, state: ServiceState, mode: PaymentMode): Promise<ServiceState> {
@@ -246,7 +265,10 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       const origin = await publicOrigin();
       const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined;
       const services: ServiceView[] = [];
-      for (const addOn of await paymentAddOns()) services.push(viewOf(addOn, await stateOf(addOn.manifest.key), origin));
+      for (const addOn of await paymentAddOns()) {
+        const key = addOn.manifest.key;
+        services.push(viewOf(addOn, await stateOf(key), origin, { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') }));
+      }
       return {
         data: {
           reachability: reachability({ networkFeatures: deps.networkFeatures, desktop: deps.desktop, publicOrigin: origin, trustProxy: deps.trustProxy, forwarded }),

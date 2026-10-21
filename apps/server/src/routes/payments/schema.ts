@@ -48,6 +48,19 @@ const modeView = z.object({
   webhookUrl: z.string().nullable(),
   firstEventAt: z.number().nullable(),
   firstPaymentAt: z.number().nullable(),
+  /** What the webhook and the sweep know of this mode: the delivery log's lines. */
+  health: z.object({
+    /** The last delivery that verified. */
+    lastEventAt: z.number().nullable(),
+    /** The last delivery whose signature did not match the saved secret. */
+    lastBadAt: z.number().nullable(),
+    /** Deliveries refused for their signature in the last hour. */
+    badThisHour: z.number(),
+    /** The sweep found a payment no webhook had announced: the webhook is not reaching this server. */
+    caughtAt: z.number().nullable(),
+    /** The sweep slowed down: this month's reads passed half the provider's allowance. */
+    slowed: z.boolean(),
+  }),
 });
 
 export const serviceView = z.object({

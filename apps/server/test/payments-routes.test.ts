@@ -16,6 +16,7 @@ import {
   createSqliteMetaDb,
   firstRun,
   manifestsRepo,
+  paymentCountersRepo,
   paymentSettingsRepo,
   rolesRepo,
   usersRepo,
@@ -173,6 +174,13 @@ describe('payments setup routes', () => {
       ['webhook_secret', true, false],
     ]);
     expect((await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(viewer) })).statusCode).toBe(403);
+  });
+
+  it("reports the webhook's health per mode: refused deliveries this hour", async () => {
+    await paymentCountersRepo(meta).hit('webhook-bad:payments-stripe:test');
+    const data = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data;
+    expect(data.services[0].test.health).toEqual({ lastEventAt: null, lastBadAt: null, badThisHour: 1, caughtAt: null, slowed: false });
+    expect(data.services[0].live.health.badThisHour).toBe(0);
   });
 
   it('refuses a wrong paste with its reason and saves nothing', async () => {
