@@ -82,5 +82,55 @@ export default {
     "submit": "Enregistrer le paiement",
     "close": "Fermer",
     "failed": "Le paiement n’a pas été enregistré : {message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "Paiement reçu",
+      "body": "{amount} pour {label}",
+      "bodyWith": "{amount} pour {label} par {paidWith}"
+    },
+    "look": {
+      "title": "Un paiement demande votre attention",
+      "notRecorded": "Payé sur {provider}, non enregistré : {label}",
+      "notYet": "Payé sur {provider}, pas encore enregistré : {label}",
+      "amount": "Payé sur {provider}, pas le montant demandé : {label}",
+      "voided": "Payé sur {provider} après son annulation : {label}",
+      "mode": "Payé sur {provider} dans l’autre mode, non retenu : {label}",
+      "twice": "Payé deux fois sur {provider} : {label}",
+      "missing": "Le paiement enregistré n’y est plus : {label}"
+    },
+    "key": {
+      "title": "{provider} a refusé la clé",
+      "body": "Les paiements sont suspendus jusqu’à ce qu’une clé valide soit enregistrée."
+    },
+    "webhook": {
+      "title": "Le webhook de {provider} est silencieux",
+      "body": "Aucun événement depuis le {date}. Les paiements sont trouvés en interrogeant, plus lentement.",
+      "bodyNever": "Aucun événement réel n’est encore arrivé. Les paiements sont trouvés en interrogeant, plus lentement."
+    },
+    "reads": {
+      "title": "Adminium interroge {provider} moins souvent",
+      "body": "La moitié des lectures que {provider} permet ce mois-ci est utilisée."
+    },
+    "keysRemoved": {
+      "title": "Les clés {provider} ont été supprimées",
+      "body": "Par {by}. Aucun paiement ne démarre avec {provider} tant que de nouvelles clés ne sont pas enregistrées."
+    },
+    "redirect": {
+      "account": "Une clé de paiement appartient maintenant à un autre compte",
+      "bank": "Les coordonnées bancaires pour les virements ont changé",
+      "payAddress": "L’adresse de paiement a changé",
+      "body": "Avant {from} · maintenant {to} · par {by}",
+      "byTo": "Maintenant {to} · par {by}",
+      "byOnly": "Par {by}"
+    },
+    "refundFailed": {
+      "title": "Remboursement échoué",
+      "body": "{amount} vers {paidWith}"
+    },
+    "dispute": {
+      "title": "Litige ouvert",
+      "body": "{label} · réponse avant le {date}"
+    }
   }
 } as const;

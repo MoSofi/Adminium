@@ -36,6 +36,7 @@ import { z } from 'zod';
 import type { JobRegistry } from '../jobs/registry.js';
 import { MAX_CHECKOUT_LIFE_MS, type CheckoutService } from './checkout.js';
 import type { ProviderLookup } from './providers.js';
+import { serviceDocName, serviceStateSchema } from './services.js';
 import { enqueueSettle, type WebhookDeps } from './webhook.js';
 
 export const PAYMENTS_SWEEP_JOB = 'payments.sweep';
@@ -197,8 +198,18 @@ export async function sweepDue(meta: MetaDb, key: string, mode: PaymentMode, at:
   // Unprocessed events still count as work.
   if ((await paymentEventsRepo(meta).unprocessed(at - REDRIVE_AFTER_MS, 1, { provider: key, mode })).length > 0) return since >= SWEEP_OPEN_EVERY_MS;
   const declined = (await attempts.waitingOn(key, mode, ['failed'], at + 1, 1, at - MAX_CHECKOUT_LIFE_MS)).some((one) => one.checkoutUrl !== null);
-  if (declined || (await attempts.countIn(key, mode, ['processing'])) > 0) return since >= SWEEP_PROCESSING_EVERY_MS;
+  if (declined || (await attempts.countIn(key, mode, ['processing'])) > 0) {
+    // Live on with no live event yet: nothing proves the webhook reaches this server, so a waiting payment is asked about often.
+    return since >= ((await liveUnproven(meta, key, mode)) ? SWEEP_OPEN_EVERY_MS : SWEEP_PROCESSING_EVERY_MS);
+  }
   return false;
+}
+
+/** Live payments are on for the service and no live event has arrived yet. */
+async function liveUnproven(meta: MetaDb, key: string, mode: PaymentMode): Promise<boolean> {
+  if (mode !== 'live') return false;
+  const service = await paymentSettingsRepo(meta).get(serviceDocName(key), serviceStateSchema);
+  return service !== null && service.liveOn && service.live.firstEventAt === null;
 }
 
 const sweepPayload = z.object({ key: z.string().min(1), mode: z.enum(['test', 'live']) });

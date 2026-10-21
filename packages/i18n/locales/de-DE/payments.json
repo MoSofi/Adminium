@@ -72,5 +72,55 @@
     "submit": "Zahlung erfassen",
     "close": "Schließen",
     "failed": "Die Zahlung wurde nicht erfasst: {message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "Zahlung eingegangen",
+      "body": "{amount} für {label}",
+      "bodyWith": "{amount} für {label} mit {paidWith}"
+    },
+    "look": {
+      "title": "Eine Zahlung braucht einen Blick",
+      "notRecorded": "Bei {provider} bezahlt, nicht verbucht: {label}",
+      "notYet": "Bei {provider} bezahlt, noch nicht verbucht: {label}",
+      "amount": "Bei {provider} bezahlt, nicht der verlangte Betrag: {label}",
+      "voided": "Bei {provider} bezahlt, nachdem es storniert wurde: {label}",
+      "mode": "Bei {provider} im anderen Modus bezahlt, nicht anerkannt: {label}",
+      "twice": "Zweimal bei {provider} bezahlt: {label}",
+      "missing": "Die verbuchte Zahlung ist nicht mehr da: {label}"
+    },
+    "key": {
+      "title": "{provider} hat den Schlüssel abgelehnt",
+      "body": "Zahlungen sind angehalten, bis ein funktionierender Schlüssel gespeichert ist."
+    },
+    "webhook": {
+      "title": "Der Webhook von {provider} schweigt",
+      "body": "Kein Ereignis seit {date}. Zahlungen werden durch Nachfragen gefunden, langsamer.",
+      "bodyNever": "Noch kein Live-Ereignis angekommen. Zahlungen werden durch Nachfragen gefunden, langsamer."
+    },
+    "reads": {
+      "title": "Adminium fragt seltener bei {provider} nach",
+      "body": "Die Hälfte der Abfragen, die {provider} diesen Monat erlaubt, ist verbraucht."
+    },
+    "keysRemoved": {
+      "title": "Die Schlüssel für {provider} wurden entfernt",
+      "body": "Von {by}. Keine Zahlung beginnt mit {provider}, bis neue Schlüssel gespeichert sind."
+    },
+    "redirect": {
+      "account": "Ein Zahlungsschlüssel gehört jetzt zu einem anderen Konto",
+      "bank": "Die Bankdaten für Überweisungen wurden geändert",
+      "payAddress": "Die Zahlungsadresse wurde geändert",
+      "body": "Vorher {from} · jetzt {to} · von {by}",
+      "byTo": "Jetzt {to} · von {by}",
+      "byOnly": "Von {by}"
+    },
+    "refundFailed": {
+      "title": "Erstattung fehlgeschlagen",
+      "body": "{amount} an {paidWith}"
+    },
+    "dispute": {
+      "title": "Rückbuchung eröffnet",
+      "body": "{label} · Antwort bis {date}"
+    }
   }
 }

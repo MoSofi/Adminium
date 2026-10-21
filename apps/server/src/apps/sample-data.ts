@@ -135,6 +135,12 @@ export interface SampleDataDeps {
    * asks for moves is refused before any of it is written.
    */
   writes?: (() => RecordWriteService) | undefined;
+  /**
+   * Told the rows a removal took away, once it is done (the payments: their
+   * pay links end, their open checkouts close). A failure here is logged by
+   * the caller, never undoes the removal.
+   */
+  onRowsRemoved?: ((connectionId: string, rows: readonly { table: ResolvedTable; pk: Row }[]) => Promise<void>) | undefined;
 }
 
 /** What an add is told. */
@@ -2563,6 +2569,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const kept: LedgerRow[] = [];
       /** Rows of a section that fed a total kept elsewhere, as they read before they went. */
       const fed: { table: ResolvedTable; record: Row }[] = [];
+      /** The rows this removal deleted, for whoever must hear of it once it is done. */
+      const gone: { table: ResolvedTable; pk: Row }[] = [];
 
       await handle.db.transaction().execute(async (trx) => {
         const db = asDb(trx);
@@ -2602,6 +2610,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               );
             }
             byTable[row.table_ref] = (byTable[row.table_ref] ?? 0) + 1;
+            gone.push({ table, pk });
             const was = analysis.current.get(row.seq);
             // A row an app shipped for an add-on (`<addOn>:<ref>`), or any row of a removal narrowed to one section.
             if ((only !== undefined || row.table_ref.includes(':')) && was !== undefined && was !== null && (tableRulesFor({ view, table })?.rollupsInto?.length ?? 0) > 0) fed.push({ table, record: was });
@@ -2704,6 +2713,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
         changes: { after: { key: app.key, removed: byTable, kept: analysis.keep.size, keepChanged: opts.keepChanged } },
       });
       await deps.publish?.(connectionId);
+      if (gone.length > 0) await deps.onRowsRemoved?.(connectionId, gone).catch(() => undefined);
       return { removed, kept: analysis.keep.size, byTable };
     }
   }

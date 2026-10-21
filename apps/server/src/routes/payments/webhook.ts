@@ -44,7 +44,7 @@ export function paymentWebhookRoutes(deps: WebhookDeps): FastifyPluginAsync {
         if (!/^[a-z][a-z0-9-]{1,79}$/.test(provider)) return reply.status(404).send({ received: false });
         const headers: Record<string, string | undefined> = {};
         for (const [name, value] of Object.entries(request.headers)) headers[name.toLowerCase()] = Array.isArray(value) ? value[0] : value;
-        const outcome = await receiveWebhook(deps, { provider, mode, rawBody: typeof request.body === 'string' ? request.body : '', headers });
+        const outcome = await receiveWebhook(deps, { provider, mode, rawBody: typeof request.body === 'string' ? request.body : '', headers, origin: `${request.protocol}://${request.host}` });
         if (outcome.status === 200) return reply.status(200).send({ received: true });
         return reply.status(outcome.status).send({ received: false });
       },

@@ -72,5 +72,55 @@
     "submit": "Registrér betaling",
     "close": "Luk",
     "failed": "Betalingen blev ikke registreret: {message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "Betaling modtaget",
+      "body": "{amount} for {label}",
+      "bodyWith": "{amount} for {label} med {paidWith}"
+    },
+    "look": {
+      "title": "En betaling skal ses efter",
+      "notRecorded": "Betalt hos {provider}, ikke registreret: {label}",
+      "notYet": "Betalt hos {provider}, ikke registreret endnu: {label}",
+      "amount": "Betalt hos {provider}, ikke det beløb der blev bedt om: {label}",
+      "voided": "Betalt hos {provider} efter den blev annulleret: {label}",
+      "mode": "Betalt hos {provider} i den anden tilstand, ikke godtaget: {label}",
+      "twice": "Betalt to gange hos {provider}: {label}",
+      "missing": "Den registrerede betaling er der ikke længere: {label}"
+    },
+    "key": {
+      "title": "{provider} afviste nøglen",
+      "body": "Betalinger er sat på pause, indtil en nøgle, der virker, er gemt."
+    },
+    "webhook": {
+      "title": "Webhooken hos {provider} er tavs",
+      "body": "Ingen hændelse siden {date}. Betalinger findes ved at spørge, langsommere.",
+      "bodyNever": "Der er ikke kommet nogen live-hændelse endnu. Betalinger findes ved at spørge, langsommere."
+    },
+    "reads": {
+      "title": "Adminium spørger {provider} sjældnere",
+      "body": "Halvdelen af de opslag, {provider} tillader denne måned, er brugt."
+    },
+    "keysRemoved": {
+      "title": "Nøglerne til {provider} blev fjernet",
+      "body": "Af {by}. Ingen betaling starter med {provider}, før nye nøgler er gemt."
+    },
+    "redirect": {
+      "account": "En betalingsnøgle hører nu til en anden konto",
+      "bank": "Bankoplysningerne til bankoverførsler er ændret",
+      "payAddress": "Betalingsadressen er ændret",
+      "body": "Før {from} · nu {to} · af {by}",
+      "byTo": "Nu {to} · af {by}",
+      "byOnly": "Af {by}"
+    },
+    "refundFailed": {
+      "title": "Refusion mislykkedes",
+      "body": "{amount} til {paidWith}"
+    },
+    "dispute": {
+      "title": "Indsigelse åbnet",
+      "body": "{label} · svar senest {date}"
+    }
   }
 }

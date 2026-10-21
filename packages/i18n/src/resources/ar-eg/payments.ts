@@ -82,5 +82,55 @@ export default {
     "submit": "تسجيل الدفعة",
     "close": "إغلاق",
     "failed": "لم تُسجّل الدفعة: {message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "تم استلام دفعة",
+      "body": "{amount} مقابل {label}",
+      "bodyWith": "{amount} مقابل {label} عبر {paidWith}"
+    },
+    "look": {
+      "title": "دفعة تحتاج إلى مراجعة",
+      "notRecorded": "تم الدفع عبر {provider} ولم تُسجَّل: {label}",
+      "notYet": "تم الدفع عبر {provider} ولم تُسجَّل بعد: {label}",
+      "amount": "تم الدفع عبر {provider} بمبلغ غير المطلوب: {label}",
+      "voided": "تم الدفع عبر {provider} بعد الإلغاء: {label}",
+      "mode": "تم الدفع عبر {provider} في الوضع الآخر، ولم يُعتمد: {label}",
+      "twice": "تم الدفع مرتين عبر {provider}: {label}",
+      "missing": "الدفعة المسجَّلة لم تعد موجودة: {label}"
+    },
+    "key": {
+      "title": "رفضت خدمة {provider} المفتاح",
+      "body": "المدفوعات متوقفة حتى يُحفظ مفتاح يعمل."
+    },
+    "webhook": {
+      "title": "لا يصل شيء من webhook خدمة {provider}",
+      "body": "لا حدث منذ {date}. يُعثر على المدفوعات بالاستعلام، بشكل أبطأ.",
+      "bodyNever": "لم يصل أي حدث مباشر بعد. يُعثر على المدفوعات بالاستعلام، بشكل أبطأ."
+    },
+    "reads": {
+      "title": "يستعلم Adminium من {provider} بوتيرة أقل",
+      "body": "استُخدم نصف الاستعلامات التي تسمح بها {provider} هذا الشهر."
+    },
+    "keysRemoved": {
+      "title": "أُزيلت مفاتيح {provider}",
+      "body": "بواسطة {by}. لن تبدأ أي دفعة عبر {provider} حتى تُحفظ مفاتيح جديدة."
+    },
+    "redirect": {
+      "account": "مفتاح الدفع يتبع الآن حسابًا آخر",
+      "bank": "تغيّرت البيانات المصرفية للتحويلات",
+      "payAddress": "تغيّر عنوان الدفع",
+      "body": "كان {from} · الآن {to} · بواسطة {by}",
+      "byTo": "الآن {to} · بواسطة {by}",
+      "byOnly": "بواسطة {by}"
+    },
+    "refundFailed": {
+      "title": "فشل الاسترداد",
+      "body": "{amount} إلى {paidWith}"
+    },
+    "dispute": {
+      "title": "فُتح نزاع",
+      "body": "{label} · الرد قبل {date}"
+    }
   }
 } as const;

@@ -55,7 +55,7 @@ import { randomBytes } from 'node:crypto';
 import { resolvePayable, type PayableSources, type ResolvedPayable } from './payables.js';
 import { checkoutUrlAllowed, type ProviderLookup } from './providers.js';
 import { enqueueRecord } from './record.js';
-import { mutateServiceState, serviceDocName, serviceStateSchema } from './services.js';
+import { mutateServiceState, noteKeyRefused, serviceDocName, serviceStateSchema } from './services.js';
 
 export interface CheckoutDeps {
   meta: MetaDb;
@@ -236,6 +236,7 @@ export function createCheckoutService(deps: CheckoutDeps) {
       idempotencyKey: `${attempt.id}:create`,
     });
     if (isProviderError(made)) {
+      if (made.code === 'CREDENTIALS_REFUSED') await noteKeyRefused(deps.meta, input.provider, mode, made.providerMessage, now()).catch(() => false);
       await attempts.move(attempt.id, 'failed', { problem: { code: made.code, message: made.providerMessage } }, now());
       return { kind: 'refused', code: made.code, message: made.providerMessage, retryable: made.retryable };
     }
@@ -343,6 +344,7 @@ export function createCheckoutService(deps: CheckoutDeps) {
     }
     await attempts.looked(attempt.id, now());
     if (isProviderError(state)) {
+      if (state.code === 'CREDENTIALS_REFUSED') await noteKeyRefused(deps.meta, attempt.provider, attempt.mode, state.providerMessage, now()).catch(() => false);
       // Not there at all is an answer; a timeout or a refusal of the key is not.
       return { attempt, answered: state.code === 'NOT_FOUND', reason: state.code };
     }

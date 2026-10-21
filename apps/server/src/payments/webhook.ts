@@ -67,11 +67,13 @@ export const webhookHealthSchema = z
     lastAt: z.number().int().nonnegative().nullable(),
     /** The last delivery whose signature did not verify. */
     lastBadAt: z.number().int().nonnegative().nullable(),
+    /** The address (`https://host`) the last verified event came to: a moved webhook address is warned about. */
+    origin: z.string().max(300).nullable().default(null),
   })
   .strict();
 export type WebhookHealth = z.infer<typeof webhookHealthSchema>;
 
-const EMPTY_HEALTH: WebhookHealth = { firstAt: null, lastAt: null, lastBadAt: null };
+const EMPTY_HEALTH: WebhookHealth = { firstAt: null, lastAt: null, lastBadAt: null, origin: null };
 
 /** Queues a settle for an attempt. A second queue for the same attempt while one waits is "already queued". */
 export async function enqueueSettle(enqueue: WebhookDeps['enqueue'], attemptId: string, eventId: string | null): Promise<boolean> {
@@ -99,7 +101,7 @@ async function noteHealth(meta: MetaDb, key: string, mode: PaymentMode, patch: P
 /** Receives one delivery. Never throws for something the provider sent. */
 export async function receiveWebhook(
   deps: WebhookDeps,
-  input: { provider: string; mode: string; rawBody: string; headers: Readonly<Record<string, string | undefined>> },
+  input: { provider: string; mode: string; rawBody: string; headers: Readonly<Record<string, string | undefined>>; origin?: string | null },
 ): Promise<WebhookOutcome> {
   const now = deps.now ?? (() => Date.now());
   if (!(PAYMENT_MODES as readonly string[]).includes(input.mode)) return { status: 404 };
@@ -124,7 +126,7 @@ export async function receiveWebhook(
   const at = now();
   const docs = paymentSettingsRepo(deps.meta);
   const health = (await docs.get(webhookDocName(input.provider, mode), webhookHealthSchema)) ?? EMPTY_HEALTH;
-  await docs.set(webhookDocName(input.provider, mode), webhookHealthSchema, { ...health, firstAt: health.firstAt ?? at, lastAt: at }, at);
+  await docs.set(webhookDocName(input.provider, mode), webhookHealthSchema, { ...health, firstAt: health.firstAt ?? at, lastAt: at, origin: input.origin ?? health.origin }, at);
   // Ticks the setup checklist's webhook step, on the latest document (never over a save in flight).
   await mutateServiceState(deps.meta, input.provider, (state) => ({
     state: state[mode].firstEventAt === null ? { ...state, [mode]: { ...state[mode], firstEventAt: at } } : state,

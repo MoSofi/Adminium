@@ -72,5 +72,55 @@
     "submit": "Record payment",
     "close": "Close",
     "failed": "The payment was not recorded: {message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "Payment received",
+      "body": "{amount} for {label}",
+      "bodyWith": "{amount} for {label} by {paidWith}"
+    },
+    "look": {
+      "title": "A payment needs a look",
+      "notRecorded": "Paid at {provider}, not recorded: {label}",
+      "notYet": "Paid at {provider}, not recorded yet: {label}",
+      "amount": "Paid at {provider}, not the amount asked: {label}",
+      "voided": "Paid at {provider} after it was voided: {label}",
+      "mode": "Paid at {provider} in the other mode, not believed: {label}",
+      "twice": "Paid twice at {provider}: {label}",
+      "missing": "Its recorded payment is no longer there: {label}"
+    },
+    "key": {
+      "title": "{provider} refused the key",
+      "body": "Payments are paused until a working key is saved."
+    },
+    "webhook": {
+      "title": "The {provider} webhook is silent",
+      "body": "No event since {date}. Payments are found by asking, more slowly.",
+      "bodyNever": "No live event has arrived yet. Payments are found by asking, more slowly."
+    },
+    "reads": {
+      "title": "Adminium checks {provider} less often",
+      "body": "It has used half of the reads {provider} allows this month."
+    },
+    "keysRemoved": {
+      "title": "The {provider} keys were removed",
+      "body": "By {by}. No payment starts with {provider} until new keys are saved."
+    },
+    "redirect": {
+      "account": "A payment key now belongs to another account",
+      "bank": "The bank details for bank transfers changed",
+      "payAddress": "The pay address changed",
+      "body": "Was {from} · now {to} · by {by}",
+      "byTo": "Now {to} · by {by}",
+      "byOnly": "By {by}"
+    },
+    "refundFailed": {
+      "title": "Refund failed",
+      "body": "{amount} to {paidWith}"
+    },
+    "dispute": {
+      "title": "Dispute opened",
+      "body": "{label} · answer by {date}"
+    }
   }
 }

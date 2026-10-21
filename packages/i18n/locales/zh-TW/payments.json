@@ -72,5 +72,55 @@
     "submit": "記錄付款",
     "close": "關閉",
     "failed": "付款未記錄：{message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "已收到付款",
+      "body": "{label} 的 {amount}",
+      "bodyWith": "{label} 的 {amount}，透過 {paidWith}"
+    },
+    "look": {
+      "title": "有一筆付款需要查看",
+      "notRecorded": "已在 {provider} 付款，未記錄：{label}",
+      "notYet": "已在 {provider} 付款，尚未記錄：{label}",
+      "amount": "已在 {provider} 付款，但金額與要求不符：{label}",
+      "voided": "作廢後在 {provider} 付款：{label}",
+      "mode": "在 {provider} 以另一種模式付款，未獲認可：{label}",
+      "twice": "在 {provider} 付款了兩次：{label}",
+      "missing": "已記錄的付款已不存在：{label}"
+    },
+    "key": {
+      "title": "{provider} 拒絕了金鑰",
+      "body": "在儲存可用的金鑰之前，付款已暫停。"
+    },
+    "webhook": {
+      "title": "{provider} 的 webhook 沒有訊息",
+      "body": "自 {date} 起沒有事件。將透過查詢找到付款，速度較慢。",
+      "bodyNever": "尚未收到任何正式事件。將透過查詢找到付款，速度較慢。"
+    },
+    "reads": {
+      "title": "Adminium 向 {provider} 查詢的頻率降低",
+      "body": "本月 {provider} 允許的查詢次數已用掉一半。"
+    },
+    "keysRemoved": {
+      "title": "{provider} 的金鑰已刪除",
+      "body": "由 {by} 刪除。在儲存新金鑰之前，不會透過 {provider} 開始任何付款。"
+    },
+    "redirect": {
+      "account": "某個付款金鑰現在屬於另一個帳戶",
+      "bank": "銀行轉帳的銀行資料已變更",
+      "payAddress": "付款地址已變更",
+      "body": "原為 {from} · 現為 {to} · 由 {by} 變更",
+      "byTo": "現為 {to} · 由 {by} 變更",
+      "byOnly": "由 {by} 變更"
+    },
+    "refundFailed": {
+      "title": "退款失敗",
+      "body": "{amount} 退至 {paidWith}"
+    },
+    "dispute": {
+      "title": "已提出爭議",
+      "body": "{label} · 請在 {date} 前回覆"
+    }
   }
 }

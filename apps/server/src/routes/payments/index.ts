@@ -45,6 +45,9 @@ import { payAddress } from '../../payments/links.js';
 import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
 import { raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
+import { clockSkewOf } from '../../payments/clock.js';
+import { refundableCount, removeKeys, setLive, waitingCount } from '../../payments/going-live.js';
+import { providerName, tellPaymentManagers } from '../../payments/notices.js';
 import { reachability } from '../../payments/reachability.js';
 import { sweepDocName, sweepStateSchema } from '../../payments/sweep.js';
 import { webhookDocName, webhookHealthSchema } from '../../payments/webhook.js';
@@ -62,6 +65,8 @@ import {
 } from '../../payments/services.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
+  disconnectBody,
+  liveBody,
   pathBody,
   saveFieldBody,
   serviceFieldParams,
@@ -180,10 +185,22 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       badThisHour: await paymentCountersRepo(meta).read(`webhook-bad:${key}:${mode}`, at),
       caughtAt: sweep?.caughtAt ?? null,
       slowed: sweep?.slowed ?? false,
+      eventOrigin: hook?.origin ?? null,
     };
   }
 
-  function viewOf(addOn: PaymentAddOn, state: ServiceState, origin: string | null, health: Record<PaymentMode, Health>): ServiceView {
+  /** What the Disconnect dialog counts, and how far the service's clock was off. */
+  interface Extra {
+    waiting: number;
+    refundable: number;
+    clockSkewMs: number | null;
+  }
+
+  async function extraOf(key: string): Promise<Extra> {
+    return { waiting: await waitingCount(meta, key), refundable: await refundableCount(meta, key, clock()), clockSkewMs: clockSkewOf(key)?.skewMs ?? null };
+  }
+
+  function viewOf(addOn: PaymentAddOn, state: ServiceState, origin: string | null, health: Record<PaymentMode, Health>, extra: Extra): ServiceView {
     const { manifest, installed } = addOn;
     const fields = secretFields(manifest);
     const runtime = deps.runtime();
@@ -219,6 +236,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         webhookFields: fields.filter((field) => field.webhook).map((field) => field.key),
         hasPaths: TWO_PATHS.has(manifest.key),
       }),
+      ...extra,
     };
   }
 
@@ -237,6 +255,10 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     return lookup.provider.checkCredentials();
   }
 
+  async function lookupFor(key: string, mode: PaymentMode) {
+    return paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null }, key, mode);
+  }
+
   function refuseOffline(): void {
     if (!deps.networkFeatures) {
       throw new ValidationFailedError('Network features are off on this server, so no payment service can be connected.', { reason: 'network-off' });
@@ -252,7 +274,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     }
 
     async function viewNow(key: string, state: ServiceState): Promise<ServiceView> {
-      return viewOf(await paymentAddOn(key), state, await webhookOrigin(), { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') });
+      return viewOf(await paymentAddOn(key), state, await webhookOrigin(), { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') }, await extraOf(key));
     }
 
     function who(request: FastifyRequest): string {
@@ -297,7 +319,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       const services: ServiceView[] = [];
       for (const addOn of await paymentAddOns()) {
         const key = addOn.manifest.key;
-        services.push(viewOf(addOn, await stateOf(key), hooks, { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') }));
+        services.push(viewOf(addOn, await stateOf(key), hooks, { test: await healthOf(key, 'test'), live: await healthOf(key, 'live') }, await extraOf(key)));
       }
       return {
         data: {
@@ -424,6 +446,75 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
           action: request.body.stopped ? 'payments.service.stopped' : 'payments.service.resumed',
           changes: { after: { key, stopped: request.body.stopped } },
         });
+        return { data: await viewNow(key, state) };
+      },
+    );
+
+    // Live payments on (only with a live key that passed its Check) or off.
+    app.put(
+      '/payments/services/:key/live',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: serviceKeyParams, body: liveBody, response: { 200: serviceReply } },
+      },
+      async (request) => {
+        requirePerson(request);
+        const { key } = request.params;
+        await paymentAddOn(key);
+        if (request.body.on) {
+          refuseOffline();
+          const current = await stateOf(key);
+          if (current.live.check?.ok !== true) throw new ValidationFailedError('Save a live key that passes its Check first.', { reason: 'live-key' });
+        }
+        const { state, ended } = await setLive({ meta, providerFor: lookupFor, now: () => app.rbac.now() }, key, request.body.on);
+        await app.rbac.audit(request, {
+          category: 'payments',
+          action: request.body.on ? 'payments.service.live.on' : 'payments.service.live.off',
+          changes: { after: { key, liveOn: request.body.on, testLinksEnded: ended?.links ?? 0, testCheckoutsEnded: ended?.checkouts ?? 0 } },
+        });
+        return { data: await viewNow(key, state) };
+      },
+    );
+
+    // Disconnect: stop new payments, or remove the keys.
+    app.post(
+      '/payments/services/:key/disconnect',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: serviceKeyParams, body: disconnectBody, response: { 200: serviceReply } },
+      },
+      async (request) => {
+        requirePerson(request);
+        const { key } = request.params;
+        const addOn = await paymentAddOn(key);
+        if (request.body.action === 'stop') {
+          const { state } = await mutateServiceState(meta, key, (current) => ({ state: { ...current, stopped: true } }), app.rbac.now());
+          await app.rbac.audit(request, { category: 'payments', action: 'payments.service.stopped', changes: { after: { key, stopped: true } } });
+          return { data: await viewNow(key, state) };
+        }
+        const waiting = await waitingCount(meta, key);
+        if (waiting > 0 && !request.body.settleByHand) {
+          throw new ValidationFailedError('Payments are still on their way. Say you will settle them by hand first.', { reason: 'waiting', waiting });
+        }
+        const state = await removeKeys(meta, manifests, addOn.installed.row.id, key, app.rbac.now());
+        await app.rbac.audit(request, { category: 'payments', action: 'payments.service.keys.removed', changes: { after: { key, waiting, settleByHand: request.body.settleByHand } } });
+        // Taking a service's keys stops its payments: everyone who manages them hears of it.
+        await tellPaymentManagers(
+          { meta, now: () => app.rbac.now() },
+          {
+            kind: 'payments.keys-removed',
+            about: `keys-removed:${key}:${String(app.rbac.now())}`,
+            urgent: true,
+            actorLabel: who(request),
+            words: () => ({
+              title: { key: 'keysRemoved.title', fallback: 'The {provider} keys were removed' },
+              body: { key: 'keysRemoved.body', fallback: 'By {by}. No payment starts with {provider} until new keys are saved.' },
+              values: { provider: providerName(key), by: who(request) },
+            }),
+          },
+        );
         return { data: await viewNow(key, state) };
       },
     );

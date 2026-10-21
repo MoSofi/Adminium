@@ -49,6 +49,7 @@ import type { CredentialEnvelope, InstalledManifest } from '@adminium/meta';
 
 import { hostnameAllowed } from '../add-ons/egress-policy.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
+import { watchingClock } from './clock.js';
 import { modeCredentials } from './credentials.js';
 
 /** The fixed demo credentials. The demo is pretend money in test mode; nothing here is secret. */
@@ -200,7 +201,8 @@ export async function paymentProviderFor(deps: PaymentSeamDeps, key: string, mod
 
   let provider: PaymentProvider;
   try {
-    provider = factory({ http: deps.httpFor(manifest.data), credentials, mode });
+    // Each answer's date is compared with this clock on its way back (`clock.ts`).
+    provider = factory({ http: watchingClock(key, deps.httpFor(manifest.data)), credentials, mode });
   } catch {
     deps.log?.('payment provider factory threw', { key });
     return refuse('NO_FACTORY', `The payment add-on "${key}" could not be started.`);

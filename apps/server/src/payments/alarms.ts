@@ -15,9 +15,14 @@
  * The setup page reads the same changes back from the audit log (the last
  * 30 days), so the alarm stays on screen after the notice is read.
  */
-import { permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { randomBytes } from 'node:crypto';
 
-import { notify, type NotificationPublisher } from '../notifications/notify.js';
+import type { MetaDb } from '@adminium/meta';
+
+import type { NotificationPublisher } from '../notifications/notify.js';
+import { paymentManagers, providerName, tellPaymentManagers } from './notices.js';
+
+export { paymentManagers };
 
 export const MONEY_REDIRECT_KIND = 'payments.money-redirect';
 
@@ -48,25 +53,6 @@ const TITLES: Record<AlarmKind, string> = {
   'pay-address': 'The pay address changed',
 };
 
-/** Everyone who may manage payments: each role granting `payments.manage`, and every Super Admin. */
-export async function paymentManagers(meta: MetaDb): Promise<string[]> {
-  const roles = rolesRepo(meta);
-  const roleIds = new Set<string>();
-  const superAdmin = await roles.findBySlug('super-admin');
-  if (superAdmin !== null) roleIds.add(superAdmin.id);
-  for (const grant of await permissionsRepo(meta).listForResource('system', 'payments.manage')) {
-    if ((grant.actions as { allowed?: boolean }).allowed === true) roleIds.add(grant.roleId);
-  }
-  const people = new Set<string>();
-  for (const roleId of roleIds) for (const userId of await roles.usersInRole(roleId)) people.add(userId);
-  const active: string[] = [];
-  for (const userId of people) {
-    const user = await usersRepo(meta).findById(userId);
-    if (user !== null && user.status === 'active') active.push(userId);
-  }
-  return active.sort();
-}
-
 /**
  * Tells every payment manager. Best effort: the change it reports has
  * already been made and audited, and a notice that cannot be written must
@@ -75,23 +61,27 @@ export async function paymentManagers(meta: MetaDb): Promise<string[]> {
 export async function raiseMoneyRedirect(
   meta: MetaDb,
   change: MoneyRedirect,
-  opts: { hub?: NotificationPublisher; origin?: string; at?: number } = {},
+  opts: { hub?: NotificationPublisher; at?: number } = {},
 ): Promise<number> {
-  let told = 0;
-  const body = [change.service, change.from === null ? null : `was ${change.from}`, change.to === null ? null : `now ${change.to}`, `by ${change.by}`].filter((part) => part !== null).join(' · ');
-  for (const userId of await paymentManagers(meta).catch(() => [])) {
-    try {
-      await notify(
-        meta,
-        { userId, kind: MONEY_REDIRECT_KIND, actorLabel: change.by, title: TITLES[change.what], body, actionUrl: '/studio/payments' },
-        { urgent: true, ...(opts.hub === undefined ? {} : { hub: opts.hub }), ...(opts.origin === undefined ? {} : { origin: opts.origin }), ...(opts.at === undefined ? {} : { at: opts.at }) },
-      );
-      told += 1;
-    } catch {
-      // One person's notice failing never stops the others'.
-    }
-  }
-  return told;
+  const at = opts.at ?? Date.now();
+  return tellPaymentManagers(
+    { meta, now: () => at, ...(opts.hub === undefined ? {} : { hub: opts.hub }) },
+    {
+      kind: MONEY_REDIRECT_KIND,
+      // Every change is told: each is its own thing.
+      about: `redirect:${change.what}:${String(at)}:${randomBytes(4).toString('hex')}`,
+      urgent: true,
+      actorLabel: change.by,
+      words: () => ({
+        title: { key: `redirect.${change.what === 'pay-address' ? 'payAddress' : change.what}`, fallback: TITLES[change.what] },
+        body: {
+          key: change.from === null && change.to === null ? 'redirect.byOnly' : change.from === null ? 'redirect.byTo' : 'redirect.body',
+          fallback: change.from === null && change.to === null ? 'By {by}' : change.from === null ? 'Now {to} · by {by}' : 'Was {from} · now {to} · by {by}',
+        },
+        values: { by: change.by, from: change.from ?? '', to: change.to ?? '', service: change.service === null ? '' : providerName(change.service) },
+      }),
+    },
+  );
 }
 
 /** The alarms of the last 30 days, newest first, from the audit log. */

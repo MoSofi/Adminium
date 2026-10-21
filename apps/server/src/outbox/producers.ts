@@ -975,6 +975,8 @@ export interface Verdict {
   skip?: SkipReason;
   /** Its due moment worked out again (null: it can no longer be worked out). */
   due?: number | null;
+  /** Not now: a payment for the row it is about has been on its way since this moment (a bank's direct debit). */
+  heldSince?: number;
 }
 
 /**
@@ -1002,6 +1004,8 @@ export async function verdictsFor(
     zone: string;
     read: SettingReader;
     now: number;
+    /** Since when a payment for this row has been waiting for the bank, or null: a reminder about it waits. */
+    paymentHold?: (table: ResolvedTable, row: Row) => Promise<number | null>;
   },
   rows: readonly Row[],
   mode: 'scan' | 'send',
@@ -1047,6 +1051,14 @@ export async function verdictsFor(
     if (repeat !== undefined && !sameValue(row[repeat.column] ?? null, repeat.key)) {
       out.set(row, { skip: 'overtaken' });
       continue;
+    }
+    // About to go while the customer's payment is on its way: a reminder to pay would be wrong.
+    if (mode === 'send' && linked !== null && ctx.paymentHold !== undefined) {
+      const since = await ctx.paymentHold(linked.table, linked.row).catch(() => null);
+      if (since !== null) {
+        out.set(row, { heldSince: since });
+        continue;
+      }
     }
     if (producer.due !== undefined && !approved && !batched && linked !== null && cols.due !== undefined) {
       const next = await dueFor(producer.due, linked.row, linked.table.columns.get(producer.due.date), ctx.zone, ctx.read);

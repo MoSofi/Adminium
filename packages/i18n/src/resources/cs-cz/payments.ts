@@ -82,5 +82,55 @@ export default {
     "submit": "Zaznamenat platbu",
     "close": "Zavřít",
     "failed": "Platba nebyla zaznamenána: {message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "Platba přijata",
+      "body": "{amount} za {label}",
+      "bodyWith": "{amount} za {label} přes {paidWith}"
+    },
+    "look": {
+      "title": "Platba potřebuje kontrolu",
+      "notRecorded": "Zaplaceno přes {provider}, nezaznamenáno: {label}",
+      "notYet": "Zaplaceno přes {provider}, zatím nezaznamenáno: {label}",
+      "amount": "Zaplaceno přes {provider}, ale ne požadovaná částka: {label}",
+      "voided": "Zaplaceno přes {provider} až po zrušení: {label}",
+      "mode": "Zaplaceno přes {provider} v jiném režimu, neuznáno: {label}",
+      "twice": "Zaplaceno dvakrát přes {provider}: {label}",
+      "missing": "Zaznamenaná platba už tam není: {label}"
+    },
+    "key": {
+      "title": "Služba {provider} odmítla klíč",
+      "body": "Platby jsou pozastavené, dokud nebude uložen funkční klíč."
+    },
+    "webhook": {
+      "title": "Webhook služby {provider} mlčí",
+      "body": "Žádná událost od {date}. Platby se hledají dotazováním, pomaleji.",
+      "bodyNever": "Zatím nedorazila žádná ostrá událost. Platby se hledají dotazováním, pomaleji."
+    },
+    "reads": {
+      "title": "Adminium se službě {provider} ptá méně často",
+      "body": "Tento měsíc je využita polovina dotazů, které {provider} povoluje."
+    },
+    "keysRemoved": {
+      "title": "Klíče služby {provider} byly odstraněny",
+      "body": "Odstranil(a): {by}. Žádná platba přes {provider} nezačne, dokud nebudou uloženy nové klíče."
+    },
+    "redirect": {
+      "account": "Platební klíč teď patří jinému účtu",
+      "bank": "Bankovní údaje pro převody se změnily",
+      "payAddress": "Platební adresa se změnila",
+      "body": "Dříve {from} · nyní {to} · změnil(a) {by}",
+      "byTo": "Nyní {to} · změnil(a) {by}",
+      "byOnly": "Změnil(a) {by}"
+    },
+    "refundFailed": {
+      "title": "Vrácení peněz selhalo",
+      "body": "{amount} na {paidWith}"
+    },
+    "dispute": {
+      "title": "Otevřen spor",
+      "body": "{label} · odpovězte do {date}"
+    }
   }
 } as const;

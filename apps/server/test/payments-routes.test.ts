@@ -16,6 +16,9 @@ import {
   createSqliteMetaDb,
   firstRun,
   manifestsRepo,
+  notificationsRepo,
+  paymentAttemptsRepo,
+  paymentLinksRepo,
   paymentCountersRepo,
   paymentSettingsRepo,
   rolesRepo,
@@ -186,7 +189,7 @@ describe('payments setup routes', () => {
   it("reports the webhook's health per mode: refused deliveries this hour", async () => {
     await paymentCountersRepo(meta).hit('webhook-bad:payments-stripe:test');
     const data = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data;
-    expect(data.services[0].test.health).toEqual({ lastEventAt: null, lastBadAt: null, badThisHour: 1, caughtAt: null, slowed: false });
+    expect(data.services[0].test.health).toEqual({ lastEventAt: null, lastBadAt: null, badThisHour: 1, caughtAt: null, slowed: false, eventOrigin: null });
     expect(data.services[0].live.health.badThisHour).toBe(0);
   });
 
@@ -309,5 +312,44 @@ describe('payments setup routes', () => {
 
   it('answers 404 for an add-on that is not a payment service', async () => {
     expect((await app.inject({ method: 'PUT', url: '/api/v1/payments/services/shipping-dhl/path', headers: asUser(owner), payload: { path: 'app' } })).statusCode).toBe(404);
+  });
+
+  it('turns live payments on only with a live key that passed its Check, and ends the test links then', async () => {
+    const live = '/api/v1/payments/services/payments-stripe/live';
+    const refused = await app.inject({ method: 'PUT', url: live, headers: asUser(owner), payload: { on: true } });
+    expect(refused.statusCode).toBe(422);
+    expect(refused.json().error.details).toEqual({ reason: 'live-key' });
+    await paymentLinksRepo(meta).mint({ tokenHash: 'h1', tokenSealed: 's1', payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_1' }, mode: 'test', expiresAt: Date.now() + 9e6, createdBy: null });
+    await app.inject({ method: 'PUT', url: field('live', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_live_51Habcdefghijklmnop9xQ4' } });
+    const on = await app.inject({ method: 'PUT', url: live, headers: asUser(owner), payload: { on: true } });
+    expect(on.statusCode, on.payload).toBe(200);
+    expect(on.json().data).toMatchObject({ liveOn: true });
+    expect(await paymentLinksRepo(meta).currentFor({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_1' })).toBeNull();
+    const audited = await meta.db.selectFrom('adminium_audit_log').select(['action', 'changes']).where('action', '=', 'payments.service.live.on').execute();
+    expect(audited).toHaveLength(1);
+    expect((await app.inject({ method: 'PUT', url: live, headers: asUser(viewer), payload: { on: false } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'PUT', url: live, headers: asUser(owner), payload: { on: false } })).json().data.liveOn).toBe(false);
+  });
+
+  it('stops new payments, or removes the keys of both modes once waiting payments are owned up to, and tells the managers', async () => {
+    const disconnect = '/api/v1/payments/services/payments-stripe/disconnect';
+    await app.inject({ method: 'PUT', url: field('test', 'secret_key'), headers: asUser(owner), payload: { value: KEY } });
+    await app.inject({ method: 'PUT', url: field('live', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_live_51Habcdefghijklmnop9xQ4' } });
+    const stop = await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner), payload: { action: 'stop' } });
+    expect(stop.json().data).toMatchObject({ stopped: true, waiting: 0 });
+    const made = await paymentAttemptsRepo(meta).create({ provider: 'payments-stripe', mode: 'live', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_9' }, payableLabel: 'INV-9', amount: '1.00', currency: 'EUR', linkId: null, nonce: 'n'.repeat(22), createdBy: null });
+    await paymentAttemptsRepo(meta).move(made!.id, 'open', {});
+    const refused = await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner), payload: { action: 'remove' } });
+    expect(refused.statusCode).toBe(422);
+    expect(refused.json().error.details).toEqual({ reason: 'waiting', waiting: 1 });
+    const removed = await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner), payload: { action: 'remove', settleByHand: true } });
+    expect(removed.statusCode, removed.payload).toBe(200);
+    expect(removed.json().data.test.fields.every((one: { set: boolean }) => !one.set)).toBe(true);
+    expect(removed.json().data.live.fields.every((one: { set: boolean }) => !one.set)).toBe(true);
+    expect(removed.json().data.live.accountId).toBe('acct_9xQ4');
+    expect(await manifests.getCredential((await manifests.findByKey('payments-stripe'))!.row.id)).toBeNull();
+    const notices = await notificationsRepo(meta).listForUser(owner.id, { limit: 10 });
+    expect(notices.map((one) => [one.kind, one.title])).toContainEqual(['payments.keys-removed', 'The Stripe keys were removed']);
+    expect((await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner, { 'x-test-api-key': '1' }), payload: { action: 'stop' } })).statusCode).toBe(403);
   });
 });

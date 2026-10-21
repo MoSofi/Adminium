@@ -206,3 +206,18 @@ export async function mutateServiceState<T = undefined>(
 
 /** Every mode, in the order Studio shows them. */
 export const SERVICE_MODES: readonly PaymentMode[] = PAYMENT_MODES;
+
+/**
+ * A payment service refused its key while taking or reading a payment (the
+ * key was revoked, the app uninstalled): the mode's Check reads refused, so
+ * no new payment starts with it, the setup page raises its alarm and every
+ * payment manager is told. Kept as the provider said it; only a working
+ * Check clears it.
+ */
+export async function noteKeyRefused(meta: MetaDb, key: string, mode: PaymentMode, providerMessage: string, at: number = Date.now()): Promise<boolean> {
+  const { result } = await mutateServiceState(meta, key, (state) => {
+    if (state[mode].check !== null && state[mode].check.ok === false && state[mode].check.code === 'CREDENTIALS_REFUSED') return { state, result: false };
+    return { state: { ...state, [mode]: { ...state[mode], check: { at, ok: false, code: 'CREDENTIALS_REFUSED', message: providerMessage.slice(0, 2000), missing: [] } } }, result: true };
+  }, at);
+  return result === true;
+}

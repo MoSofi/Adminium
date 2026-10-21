@@ -82,5 +82,55 @@ export default {
     "submit": "记录付款",
     "close": "关闭",
     "failed": "付款未记录：{message}"
+  },
+  "notice": {
+    "landed": {
+      "title": "已收到付款",
+      "body": "{label} 的 {amount}",
+      "bodyWith": "{label} 的 {amount}，通过 {paidWith}"
+    },
+    "look": {
+      "title": "有一笔付款需要查看",
+      "notRecorded": "已在 {provider} 付款，未记录：{label}",
+      "notYet": "已在 {provider} 付款，尚未记录：{label}",
+      "amount": "已在 {provider} 付款，但金额与要求不符：{label}",
+      "voided": "作废后在 {provider} 付款：{label}",
+      "mode": "在 {provider} 以另一种模式付款，未被认可：{label}",
+      "twice": "在 {provider} 付款了两次：{label}",
+      "missing": "已记录的付款已不存在：{label}"
+    },
+    "key": {
+      "title": "{provider} 拒绝了密钥",
+      "body": "在保存可用的密钥之前，付款已暂停。"
+    },
+    "webhook": {
+      "title": "{provider} 的 webhook 没有消息",
+      "body": "自 {date} 起没有事件。将通过查询找到付款，速度较慢。",
+      "bodyNever": "尚未收到任何正式事件。将通过查询找到付款，速度较慢。"
+    },
+    "reads": {
+      "title": "Adminium 向 {provider} 查询的频率降低",
+      "body": "本月 {provider} 允许的查询次数已用掉一半。"
+    },
+    "keysRemoved": {
+      "title": "{provider} 的密钥已删除",
+      "body": "由 {by} 删除。在保存新密钥之前，不会通过 {provider} 开始任何付款。"
+    },
+    "redirect": {
+      "account": "某个付款密钥现在属于另一个账户",
+      "bank": "银行转账的银行信息已更改",
+      "payAddress": "付款地址已更改",
+      "body": "原为 {from} · 现为 {to} · 由 {by} 更改",
+      "byTo": "现为 {to} · 由 {by} 更改",
+      "byOnly": "由 {by} 更改"
+    },
+    "refundFailed": {
+      "title": "退款失败",
+      "body": "{amount} 退至 {paidWith}"
+    },
+    "dispute": {
+      "title": "已发起争议",
+      "body": "{label} · 请在 {date} 前答复"
+    }
   }
 } as const;

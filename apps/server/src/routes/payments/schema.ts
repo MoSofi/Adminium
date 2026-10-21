@@ -20,6 +20,9 @@ export const serviceFieldParams = serviceModeParams.extend({ field: z.string().r
 export const saveFieldBody = z.object({ value: z.string().max(4096) });
 export const pathBody = z.object({ path: z.enum(['app', 'by-hand']) });
 export const stoppedBody = z.object({ stopped: z.boolean() });
+export const liveBody = z.object({ on: z.boolean() });
+/** Disconnect: stop new payments, or remove the keys (with payments still waiting, only once the person says they will settle them by hand). */
+export const disconnectBody = z.object({ action: z.enum(['stop', 'remove']), settleByHand: z.boolean().default(false) });
 
 const fieldView = z.object({
   key: z.string(),
@@ -60,6 +63,8 @@ const modeView = z.object({
     caughtAt: z.number().nullable(),
     /** The sweep slowed down: this month's reads passed half the provider's allowance. */
     slowed: z.boolean(),
+    /** The address the last verified event came to; the webhook moved when it is not this mode's `webhookUrl`'s. */
+    eventOrigin: z.string().nullable(),
   }),
 });
 
@@ -80,6 +85,12 @@ export const serviceView = z.object({
   test: modeView,
   live: modeView,
   checklist: z.array(z.object({ step: z.enum(CHECKLIST_STEPS), done: z.boolean() })),
+  /** Payments of this service still on their way (open, waiting for the bank, taken and not written down yet). */
+  waiting: z.number(),
+  /** Live payments of the last 180 days not refunded in full. */
+  refundable: z.number(),
+  /** The service's clock minus this server's, at its last answer (ms); null before any answer. */
+  clockSkewMs: z.number().nullable(),
 });
 export type ServiceView = z.infer<typeof serviceView>;
 
