@@ -22,6 +22,8 @@ import { TEST_SECRET } from './helpers.js';
 const PAY = 'https://pay.crumbandco.test';
 
 describe('who may make a pay link', () => {
+  /** Whether live payments are on: a live link needs an address customers reach, a test link does not. */
+  let live = true;
   let meta: MetaDb;
   let app: FastifyInstance;
   let owner: User;
@@ -63,7 +65,7 @@ describe('who may make a pay link', () => {
     await app.register(
       async (api) =>
         api.register(
-          paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } } as never, sources, secret: TEST_SECRET, networkFeatures: true, desktop: false, trustProxy: false, liveOn: async () => false }),
+          paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } } as never, sources, secret: TEST_SECRET, networkFeatures: true, desktop: false, trustProxy: false, liveOn: async () => live }),
         ),
       { prefix: '/api/v1' },
     );
@@ -86,11 +88,14 @@ describe('who may make a pay link', () => {
     expect(rowsRead).toBe(0);
   });
 
-  it('refuses a link while requests come through a proxy the server does not trust', async () => {
+  it('refuses a live link while requests come through a proxy the server does not trust; a test link is staff\'s own', async () => {
     const answer = await post({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_1' }, { 'x-forwarded-for': '203.0.113.9' });
     expect(answer.statusCode).toBe(422);
     expect(answer.json().error.details.reason).toBe('proxy-hidden');
     expect((await post({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_1' })).statusCode).toBe(200);
+    live = false;
+    expect((await post({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_1' }, { 'x-forwarded-for': '203.0.113.9' })).statusCode).toBe(200);
+    live = true;
   });
 
   it('names which pay address is the staff one', async () => {

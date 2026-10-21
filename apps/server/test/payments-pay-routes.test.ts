@@ -48,6 +48,8 @@ describe('a pay link, end to end', () => {
   let owner: User;
   let jobs: string[];
   let locales: (string | null)[];
+  /** Whether live payments are on (links are then live). */
+  let live = false;
   const sources: PayableSources = {
     table: async () => null,
     readRow: async () => null,
@@ -68,6 +70,7 @@ describe('a pay link, end to end', () => {
     backend = createDemoPaymentBackend({ pageUrl: (checkout) => `${new URL(checkout.successUrl ?? PAY).origin}/pay/demo/${checkout.attemptId}` });
     jobs = [];
     locales = [];
+    live = false;
     const users = usersRepo(meta);
     const superAdmin = await rolesRepo(meta).findBySlug('super-admin');
     owner = await users.create({ email: 'mara@adminium.test', name: 'Mara', status: 'active' });
@@ -96,7 +99,7 @@ describe('a pay link, end to end', () => {
       if (user !== null) (request as unknown as { user: object }).user = { id: user.id, name: user.name, email: user.email };
     });
     await app.register(rbacPlugin, { meta });
-    await app.register(async (api) => api.register(paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } }, sources, secret: TEST_SECRET, ...facts, liveOn: async () => false })), { prefix: '/api/v1' });
+    await app.register(async (api) => api.register(paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } }, sources, secret: TEST_SECRET, ...facts, liveOn: async () => live })), { prefix: '/api/v1' });
     // Notes the language each checkout is started in.
     const noting = { ...checkout, start: async (input: Parameters<typeof checkout.start>[0]) => (locales.push(input.locale), checkout.start(input)) };
     // What a browser with JavaScript off gets for a link, read the way the HTML route reads it.
@@ -258,11 +261,14 @@ describe('a pay link, end to end', () => {
 
   it('opens no live link and makes none while customers cannot reach the pay address; a test link still opens for staff', async () => {
     const { token } = await mint();
-    const live = await mintLink(meta, linkSealFromSecret(TEST_SECRET), { payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0043' }, mode: 'live', createdBy: owner.id });
+    const liveLink = await mintLink(meta, linkSealFromSecret(TEST_SECRET), { payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0043' }, mode: 'live', createdBy: owner.id });
     await paymentSettingsRepo(meta).set(PAY_ADDRESS_DOC, payAddressSchema, { origin: 'http://192.168.1.20:4600' });
-    expect((await app.inject({ method: 'GET', url: `/pay/api/${live.token}` })).json().state).toBe('unavailable');
+    expect((await app.inject({ method: 'GET', url: `/pay/api/${liveLink.token}` })).json().state).toBe('unavailable');
     // A test link is staff's own: it needs no address customers can reach.
     expect((await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: staff() })).json().state).toBe('ready');
+    // A test link is still made (staff's own); a live one is not.
+    expect((await app.inject({ method: 'POST', url: '/api/v1/payments/links', headers: staff(), payload: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' } })).statusCode).toBe(200);
+    live = true;
     const refused = await app.inject({ method: 'POST', url: '/api/v1/payments/links', headers: staff(), payload: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' } });
     expect(refused.statusCode).toBe(422);
     expect(refused.json().error.details).toEqual({ reason: 'private-network' });

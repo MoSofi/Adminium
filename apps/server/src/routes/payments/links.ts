@@ -192,8 +192,11 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
         const userId = requirePerson(request);
         const payable = request.body;
         await assertMayLink(request, payable);
-        const address = await reachableAddress(request);
-        const minted = await mintLink(meta, seal, { payable, mode: (await deps.liveOn()) ? 'live' : 'test', createdBy: userId }, app.rbac.now());
+        const mode = (await deps.liveOn()) ? 'live' : 'test';
+        // A test link opens only for staff, on the host they are signed in on: it needs no address
+        // customers can reach. A live link does.
+        const address = mode === 'test' ? `${request.protocol}://${request.host}` : await reachableAddress(request);
+        const minted = await mintLink(meta, seal, { payable, mode, createdBy: userId }, app.rbac.now());
         await app.rbac.audit(request, {
           category: 'payments',
           action: 'payments.link.minted',
