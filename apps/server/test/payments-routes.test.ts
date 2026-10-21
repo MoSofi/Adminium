@@ -223,6 +223,16 @@ describe('payments setup routes', () => {
     ]);
   });
 
+  it('tells every payment manager when a key now belongs to another account, and keeps it on the setup page', async () => {
+    await app.inject({ method: 'PUT', url: field('live', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_live_51Habcdefghijklmnop9xQ4' } });
+    await app.inject({ method: 'PUT', url: field('live', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_live_51Habcdefghijklmnop7wE6' } });
+    const notices = await meta.db.selectFrom('adminium_notifications').select(['userId', 'kind']).where('kind', '=', 'payments.money-redirect').execute();
+    // The owner is the one Super Admin; the viewer may not manage payments and is not told.
+    expect(notices.map((row) => row.userId)).toEqual([owner.id]);
+    const alarms = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data.alarms;
+    expect(alarms).toEqual([expect.objectContaining({ what: 'account', service: 'payments-stripe', from: 'acct_9xQ4', to: 'acct_7wE6' })]);
+  });
+
   it('keeps the field saved but records the refusal when the provider refuses the key', async () => {
     const saved = await app.inject({ method: 'PUT', url: field('test', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_test_51Habcdefghijklmnopdead' } });
     expect(saved.json().data.test.check).toMatchObject({ ok: false, code: 'CREDENTIALS_REFUSED', message: 'Stripe refused the key.' });

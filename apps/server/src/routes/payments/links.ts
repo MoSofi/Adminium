@@ -26,6 +26,7 @@ import { fetchVisible } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { PAY_ADDRESS_DOC, linkSealFromSecret, mintLink, payAddress, payAddressSchema, payReachable, payUrl } from '../../payments/links.js';
+import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { pkOfRowKey, type PayableSources } from '../../payments/payables.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -144,6 +145,8 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
         await paymentSettingsRepo(meta).set(PAY_ADDRESS_DOC, payAddressSchema, { origin }, app.rbac.now());
         // Where every link points, and where the providers must now send webhooks.
         await app.rbac.audit(request, { category: 'payments', action: 'payments.pay-address.changed', changes: { before: { origin: before }, after: { origin } } });
+        // Choosing the first address moves nothing; changing it moves every link and webhook.
+        if (before !== null && before !== origin) await raiseMoneyRedirect(meta, { what: 'pay-address', service: null, from: before, to: origin, by: ((request as unknown as { user?: { email?: string; name?: string } }).user?.name ?? (request as unknown as { user?: { email?: string } }).user?.email ?? 'someone') });
         return { data: { origin, choices: allowed } };
       },
     );

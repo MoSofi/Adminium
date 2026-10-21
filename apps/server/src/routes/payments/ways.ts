@@ -37,6 +37,7 @@ import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { paymentProviderFor } from '../../payments/providers.js';
 import { paymentAddOnKeys, readyPaymentProviders } from '../../payments/ready.js';
 import { emptyServiceState, serviceDocName, serviceStateSchema } from '../../payments/services.js';
@@ -200,6 +201,7 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
             action: 'payments.bank.changed',
             changes: { before: { accounts: JSON.parse(accountsOf(before)) as unknown }, after: { accounts: JSON.parse(accountsOf(saved)) as unknown } },
           });
+          await raiseMoneyRedirect(meta, { what: 'bank', service: null, from: null, to: null, by: ((request as unknown as { user?: { email?: string; name?: string } }).user?.name ?? (request as unknown as { user?: { email?: string } }).user?.email ?? 'someone') });
         }
         return { data: toView(saved) };
       },

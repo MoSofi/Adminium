@@ -43,6 +43,7 @@ import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError
 import { withField } from '../../payments/credentials.js';
 import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
+import { raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
 import { reachability } from '../../payments/reachability.js';
 import { sweepDocName, sweepStateSchema } from '../../payments/sweep.js';
 import { webhookDocName, webhookHealthSchema } from '../../payments/webhook.js';
@@ -256,6 +257,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
           action: 'payments.account.changed',
           changes: { before: { key: addOn.manifest.key, mode, accountId: outcome.accountChanged.from }, after: { key: addOn.manifest.key, mode, accountId: outcome.accountChanged.to } },
         });
+        await raiseMoneyRedirect(meta, { what: 'account', service: addOn.manifest.key, from: outcome.accountChanged.from, to: outcome.accountChanged.to, by: ((request as unknown as { user?: { email?: string; name?: string } }).user?.name ?? (request as unknown as { user?: { email?: string } }).user?.email ?? 'someone') });
       }
       return outcome.state;
     }
@@ -274,6 +276,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
           reachability: reachability({ networkFeatures: deps.networkFeatures, desktop: deps.desktop, publicOrigin: origin, trustProxy: deps.trustProxy, forwarded }),
           canManage: await request.can(PERMISSIONS.paymentsManage),
           services,
+          alarms: await recentAlarms(meta, clock()),
         },
       };
     });

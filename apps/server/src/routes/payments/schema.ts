@@ -93,6 +93,17 @@ export const setupReply = z.object({
     /** May this person change anything here, or only read it. */
     canManage: z.boolean(),
     services: z.array(serviceView),
+    /** Changes of where the money goes, in the last 30 days, newest first. */
+    alarms: z.array(
+      z.object({
+        what: z.enum(['account', 'bank', 'pay-address']),
+        service: z.string().nullable(),
+        from: z.string().nullable(),
+        to: z.string().nullable(),
+        by: z.string(),
+        at: z.number(),
+      }),
+    ),
   }),
 });
 export type SetupReply = z.infer<typeof setupReply>;
