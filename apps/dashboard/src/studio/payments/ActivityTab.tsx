@@ -10,10 +10,13 @@
  * cursor, exported as CSV, and opens one row's story in a drawer.
  *
  * Someone who may only see payments reads all of it and exports it, and is
- * offered nothing to act on.
+ * offered nothing to act on. A flag where money may be owed back (paid and
+ * not recorded, a different amount, paid after the record was voided) offers
+ * "Refund" to whoever may refund: the record page's two-step refund, never an
+ * automatic one.
  */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CheckCheck,
   CircleAlert,
@@ -38,8 +41,10 @@ import {
 } from 'lucide-react';
 import { Badge, Button, Drawer, DrawerBody, DrawerHeader, FormField, Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Skeleton, Textarea } from '@adminium/ui';
 
+import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import type { PanelRefund } from '../../payments-panel/paymentPanelApi.js';
 import {
   ACTIVITY_COUNT_QUERY_KEY,
   ACTIVITY_QUERY_KEY,
@@ -57,6 +62,12 @@ import {
 } from './activityApi.js';
 import { knownProvider, type ServiceView } from './paymentsApi.js';
 import { locale as activeLocale } from './paymentsWords.js';
+
+/** The record page's two-step refund, with its own words: loaded only when someone refunds. */
+const RefundDialog = lazy(() => import('../../payments-panel/RefundDialog.js'));
+
+/** The flags where money may be owed back, and so offer a refund. */
+const REFUND_FLAGS: ReadonlySet<string> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided']);
 
 type Tone = 'warn' | 'info' | 'danger' | 'neutral' | 'pos';
 
@@ -91,6 +102,8 @@ function stateWord(group: StateGroup): string {
       return t('studio:payments.activity.state.refunded', 'Refunded');
     case 'refundFailed':
       return t('studio:payments.activity.state.refundFailed', 'Refund failed');
+    case 'disputed':
+      return t('studio:payments.activity.state.disputed', 'Disputed');
   }
 }
 
@@ -98,6 +111,7 @@ function stateTone(group: StateGroup): Tone {
   if (group === 'paid') return 'pos';
   if (group === 'waiting') return 'info';
   if (group === 'failed' || group === 'refundFailed') return 'danger';
+  if (group === 'disputed') return 'warn';
   return 'neutral';
 }
 
@@ -207,6 +221,8 @@ export function flagSentence(row: ActivityRow, services: readonly ServiceView[],
     }
     case 'record-changed':
       return t('studio:payments.activity.flag.recordChanged', 'A recorded payment changed: {record} · {amount} is no longer written down as it was.', { record, amount });
+    case 'disputed':
+      return t('studio:payments.activity.flag.disputed', 'Disputed: {record} · {amount}. Answer it in the {service} dashboard.', { record, amount, service });
     default:
       return '';
   }
@@ -228,6 +244,8 @@ function flagLook(row: ActivityRow): { icon: LucideIcon; tone: Tone } {
       return { icon: Layers, tone: 'warn' };
     case 'waiting-long':
       return { icon: Landmark, tone: 'info' };
+    case 'disputed':
+      return { icon: ShieldAlert, tone: 'danger' };
     default:
       return { icon: PencilLine, tone: 'neutral' };
   }
@@ -298,6 +316,14 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
       if (row.state === 'record_refused') steps.push({ text: t('studio:payments.activity.story.notRecorded', 'Not recorded: it needs a look'), at: row.times.updated, tone: 'warn' });
     }
   }
+  if (row.dispute !== null) {
+    steps.push({ text: t('studio:payments.activity.story.disputed', 'Dispute opened by the card holder'), at: row.dispute.at, tone: 'danger' });
+    steps.push(
+      row.dispute.state === 'open'
+        ? { text: t('studio:payments.activity.story.disputeAnswer', 'Answer it in the {service} dashboard', { service }), at: null, tone: 'warn' }
+        : { text: t('studio:payments.activity.story.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service }), at: row.dispute.closedAt, tone: 'neutral' },
+    );
+  }
   return steps;
 }
 
@@ -332,8 +358,31 @@ function Tile({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }): ReactNode
   );
 }
 
-function FlagRow({ row, services, locale, canManage, first, onCheck, checkedRef }: { row: ActivityRow; services: readonly ServiceView[]; locale: string; canManage: boolean; first: boolean; onCheck: (row: ActivityRow, from: HTMLButtonElement) => void; checkedRef: (element: HTMLElement | null) => void }): ReactNode {
+function FlagRow({
+  row,
+  services,
+  locale,
+  canManage,
+  canRefund,
+  first,
+  onCheck,
+  onRefund,
+  checkedRef,
+}: {
+  row: ActivityRow;
+  services: readonly ServiceView[];
+  locale: string;
+  canManage: boolean;
+  canRefund: boolean;
+  first: boolean;
+  onCheck: (row: ActivityRow, from: HTMLButtonElement) => void;
+  onRefund: (row: ActivityRow, from: HTMLButtonElement) => void;
+  checkedRef: (element: HTMLElement | null) => void;
+}): ReactNode {
   const look = flagLook(row);
+  // Money may be owed back, and some of it may still go back online.
+  const refundable = canRefund && row.check === null && row.flag !== null && REFUND_FLAGS.has(row.flag.code) && row.refund !== null && row.refund.refusal === null;
+  const markable = canManage && row.check === null;
   return (
     <div className={`flex flex-wrap items-start gap-3.5 px-5 py-4 ${first ? '' : 'border-t border-border'} ${row.check === null ? '' : 'bg-surface-2'}`} data-testid={`activity-flag-${row.id}`}>
       <Tile icon={look.icon} tone={look.tone} />
@@ -354,11 +403,20 @@ function FlagRow({ row, services, locale, canManage, first, onCheck, checkedRef 
             </span>
           </p>
         ) : null}
-        {canManage && row.check === null ? (
+        {refundable || markable ? (
           <div className="mt-0.5 flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" iconLeft={<CircleCheck className="size-3.5" aria-hidden="true" />} aria-haspopup="dialog" onClick={(event) => onCheck(row, event.currentTarget)}>
-              {t('studio:payments.activity.markChecked', 'Mark as checked')}
-            </Button>
+            {refundable ? (
+              <Button variant="secondary" size="sm" iconLeft={<RotateCcw className="size-3.5" aria-hidden="true" />} aria-haspopup="dialog" onClick={(event) => onRefund(row, event.currentTarget)}>
+                {row.flag?.code === 'paid-not-recorded'
+                  ? t('studio:payments.activity.refundAmount', 'Refund {amount}', { amount: money(row.refund!.refundable, row.currency, locale) })
+                  : t('studio:payments.activity.refund', 'Refund')}
+              </Button>
+            ) : null}
+            {markable ? (
+              <Button variant="secondary" size="sm" iconLeft={<CircleCheck className="size-3.5" aria-hidden="true" />} aria-haspopup="dialog" onClick={(event) => onCheck(row, event.currentTarget)}>
+                {t('studio:payments.activity.markChecked', 'Mark as checked')}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -446,10 +504,13 @@ function CheckDialog({ row, services, locale, onClose }: { row: ActivityRow | nu
   );
 }
 
-function NeedsLookCard({ services, locale, canManage, onOpenSetup }: { services: readonly ServiceView[]; locale: string; canManage: boolean; onOpenSetup: () => void }): ReactNode {
+function NeedsLookCard({ services, locale, canManage, canRefund, onOpenSetup }: { services: readonly ServiceView[]; locale: string; canManage: boolean; canRefund: boolean; onOpenSetup: () => void }): ReactNode {
   const open = useQuery(needsLookQuery());
   const count = useQuery(activityCountQuery());
+  const client = useQueryClient();
+  const toasts = useAppToasts();
   const [checking, setChecking] = useState<ActivityRow | null>(null);
+  const [refunding, setRefunding] = useState<ActivityRow | null>(null);
   const [kept, setKept] = useState<ActivityRow[]>([]);
   const focusAfter = useRef<string | null>(null);
   const returnTo = useRef<HTMLButtonElement | null>(null);
@@ -510,10 +571,15 @@ function NeedsLookCard({ services, locale, canManage, onOpenSetup }: { services:
               services={services}
               locale={locale}
               canManage={canManage}
+              canRefund={canRefund}
               first={index === 0 && silent.length === 0}
               onCheck={(chosen, from) => {
                 returnTo.current = from;
                 setChecking(chosen);
+              }}
+              onRefund={(chosen, from) => {
+                returnTo.current = from;
+                setRefunding(chosen);
               }}
               checkedRef={(element) => {
                 // After "Mark as checked" the button is gone: focus goes to the line that replaced it.
@@ -526,6 +592,28 @@ function NeedsLookCard({ services, locale, canManage, onOpenSetup }: { services:
           ))}
         </>
       )}
+      {refunding !== null && refunding.kind === 'attempt' ? (
+        <Suspense fallback={null}>
+          <RefundDialog
+            open
+            onOpenChange={(still) => {
+              if (still) return;
+              setRefunding(null);
+              returnTo.current?.focus();
+            }}
+            attemptId={refunding.id}
+            onRequested={(refund: PanelRefund) => {
+              const amount = money(refund.amount, refund.currency, locale);
+              toasts.push(
+                refund.state === 'failed'
+                  ? { variant: 'error', title: t('studio:payments.activity.toast.refundFailed', 'The refund of {amount} failed: {reason}', { amount, reason: refund.failureMessage ?? '' }) }
+                  : { variant: 'success', title: t('studio:payments.activity.toast.refundRequested', 'Refund of {amount} requested.', { amount }) },
+              );
+              void client.invalidateQueries({ queryKey: ACTIVITY_QUERY_KEY });
+            }}
+          />
+        </Suspense>
+      ) : null}
       <CheckDialog
         row={checking}
         services={services}
@@ -896,6 +984,9 @@ function AllActivityCard({ services, locale }: { services: readonly ServiceView[
 
 export function ActivityTab({ services, canManage, onOpenSetup }: { services: readonly ServiceView[]; canManage: boolean; onOpenSetup: () => void }): ReactNode {
   const locale = activeLocale();
+  // Refunding is its own right, apart from managing payments.
+  const bootstrap = useQuery(bootstrapQuery()).data;
+  const canRefund = bootstrap !== undefined && holdsSystemAction(bootstrap, 'payments.refund');
   return (
     <div className="flex flex-col gap-[18px]" data-testid="payments-activity">
       {!canManage ? (
@@ -904,7 +995,7 @@ export function ActivityTab({ services, canManage, onOpenSetup }: { services: re
           <span>{t('studio:payments.activity.viewOnly', 'You can view payments. Ask someone who manages payments to act.')}</span>
         </div>
       ) : null}
-      <NeedsLookCard services={services} locale={locale} canManage={canManage} onOpenSetup={onOpenSetup} />
+      <NeedsLookCard services={services} locale={locale} canManage={canManage} canRefund={canRefund} onOpenSetup={onOpenSetup} />
       <AllActivityCard services={services} locale={locale} />
     </div>
   );

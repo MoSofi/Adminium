@@ -48,6 +48,8 @@ function row(patch: Partial<ActivityRow> = {}): ActivityRow {
     refundSource: null,
     flag: null,
     check: null,
+    refund: null,
+    dispute: null,
     ...patch,
   };
 }
@@ -68,7 +70,7 @@ interface Call {
   body: unknown;
 }
 
-function stub(answers: { open?: ActivityRow[]; list?: ActivityRow[] | 'error'; count?: number } = {}): Call[] {
+function stub(answers: { open?: ActivityRow[]; list?: ActivityRow[] | 'error'; count?: number; mayRefund?: boolean; more?: Record<string, unknown> } = {}): Call[] {
   const calls: Call[] = [];
   let open = answers.open ?? [];
   vi.stubGlobal(
@@ -77,6 +79,9 @@ function stub(answers: { open?: ActivityRow[]; list?: ActivityRow[] | 'error'; c
       const url = String(input);
       const method = init?.method ?? 'GET';
       calls.push({ method, url, body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown) });
+      if (url === '/api/v1/bootstrap' && answers.mayRefund === true) return Promise.resolve(jsonResponse(200, { data: { roles: [], systemActions: ['payments.view', 'payments.manage', 'payments.refund'] } }));
+      const extra = Object.entries(answers.more ?? {}).find(([path]) => url === path);
+      if (extra !== undefined) return Promise.resolve(jsonResponse(200, extra[1]));
       if (url === '/api/v1/payments/activity/count') return Promise.resolve(jsonResponse(200, { data: { open: answers.count ?? open.length } }));
       if (url === '/api/v1/payments/activity?open=1') return Promise.resolve(jsonResponse(200, { data: { rows: open, more: false, next: null } }));
       if (url.startsWith('/api/v1/payments/activity/attempts/') && method === 'POST') {
@@ -155,6 +160,50 @@ describe('ActivityTab', () => {
     stub({ open: [{ ...AT_STRIPE, check: { at: NOW, by: 'usr_1', byName: 'Mara Lind', note: 'Matches the refund Lena asked for by email.' } }] });
     show();
     expect(textOf(await screen.findByTestId('activity-checked-prf_1'))).toBe('Checked by Mara Lind · Matches the refund Lena asked for by email.');
+  });
+
+  it('offers a refund on a flag where money may be owed back, only to whoever may refund, through the two-step refund', async () => {
+    const refundable = { ...NOT_RECORDED, refund: { refundable: '80.00', refusal: null } };
+    stub({ open: [refundable, { ...DIFFERS, refund: { refundable: '100.00', refusal: null } }], list: [] });
+    show();
+    await screen.findByText(/Paid at Stripe, not recorded/);
+    expect(screen.queryByRole('button', { name: /^Refund/ })).toBeNull();
+    cleanup();
+    const calls = stub({
+      open: [refundable, { ...DIFFERS, refund: { refundable: '100.00', refusal: null } }, { ...AT_STRIPE }],
+      list: [],
+      mayRefund: true,
+      more: {
+        '/api/v1/payments/attempts/pat_51/refund': { data: { label: 'INV-0051', provider: 'payments-stripe', test: false, taken: '80.00', currency: 'EUR', refundable: '80.00', paidWith: 'Visa ••4242', refusal: null } },
+        '/api/v1/payments/refunds': { data: { refund: { id: 'rf_9', attemptId: 'pat_51', amount: '80.00', currency: 'EUR', state: 'pending', source: 'staff', failureMessage: null, createdAt: NOW, settledAt: null }, fresh: true } },
+      },
+    });
+    const user = show();
+    await user.click(await screen.findByRole('button', { name: 'Refund €80.00' }));
+    expect(screen.getAllByRole('button', { name: 'Refund' })).toHaveLength(1);
+    const dialog = await screen.findByRole('dialog', { name: /Refund a payment/ });
+    expect(await within(dialog).findByText('Up to €80.00 can be refunded')).toBeTruthy();
+    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    const confirm = await screen.findByRole('dialog', { name: /Refund €80\.00 to Visa ••4242\?/ });
+    await user.click(within(confirm).getByRole('button', { name: 'Refund' }));
+    expect(await screen.findByText('Refund of €80.00 requested.')).toBeTruthy();
+    expect(calls.find((call) => call.url === '/api/v1/payments/refunds')?.body).toMatchObject({ attemptId: 'pat_51', amount: '80.00', reason: 'requested_by_customer' });
+  });
+
+  it('says a disputed payment needs answering in the service, in the list, the flag and its story', async () => {
+    const disputed = row({ id: 'pat_33', group: 'disputed', flag: { code: 'disputed', reason: null, message: null }, refund: { refundable: '120.00', refusal: { code: 'DISPUTED', message: 'x' } }, dispute: { state: 'open', at: NOW + 3_600_000, closedAt: null } });
+    stub({ open: [disputed], list: [disputed], mayRefund: true });
+    const user = show();
+    const card = await screen.findByTestId('activity-needs-look');
+    await waitFor(() => expect(textOf(card)).toContain('Disputed: INV-0042 · €120.00. Answer it in the Stripe dashboard.'));
+    // Refunds wait for the dispute: no refund here, and "Mark as checked" needs no note.
+    expect(within(card).queryByRole('button', { name: /^Refund/ })).toBeNull();
+    const table = await screen.findByTestId('activity-table');
+    expect(textOf(table)).toContain('Disputed');
+    await user.click(within(table).getByRole('button', { name: /INV-0042/ }));
+    const drawer = await screen.findByTestId('activity-drawer');
+    expect(textOf(drawer)).toContain('Dispute opened by the card holder');
+    expect(textOf(drawer)).toContain('Answer it in the Stripe dashboard');
   });
 
   it('lets someone who may only see payments read and export, with nothing to act on', async () => {
