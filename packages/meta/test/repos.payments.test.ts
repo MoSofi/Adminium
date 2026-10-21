@@ -412,6 +412,21 @@ for (const dialect of TEST_DIALECTS) {
         expect(await attempts.noteDispute(id, 'open', T0 + 5)).toBe(true);
         expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 5, closedAt: null });
       });
+
+      it('needs a look while a dispute is open and unchecked, and again when it opens anew', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const id = await taken();
+        expect(await attempts.countNeedingLook()).toBe(0);
+        await attempts.noteDispute(id, 'open', T0 + 10);
+        expect((await attempts.needingLook()).map((one) => one.id)).toEqual([id]);
+        expect(await attempts.countNeedingLook()).toBe(1);
+        expect(await attempts.check(id, null, null, T0 + 11)).toBe(true);
+        expect(await attempts.check(id, null, null, T0 + 12)).toBe(false);
+        expect(await attempts.countNeedingLook()).toBe(0);
+        await attempts.noteDispute(id, 'closed', T0 + 20);
+        await attempts.noteDispute(id, 'open', T0 + 30);
+        expect(await attempts.countNeedingLook()).toBe(1);
+      });
     });
 
     describe('refunds', () => {

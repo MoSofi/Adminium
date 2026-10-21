@@ -346,6 +346,16 @@ function uncheckedNow(eb: ExpressionBuilder<MetaDB, 'adminium_payment_attempts'>
   ]);
 }
 
+/** An open dispute nobody has checked since it opened. */
+function disputeUnchecked(eb: ExpressionBuilder<MetaDB, 'adminium_payment_attempts'>) {
+  return eb.and([eb('disputeState', '=', 'open'), eb.or([eb('checkedAt', 'is', null), eb('checkedAt', '<', eb.ref('disputedAt'))])]);
+}
+
+/** What "needs a look" means in the database: a refused record or a flag not checked for its problem, or an open dispute not checked since it opened. */
+function needsLook(eb: ExpressionBuilder<MetaDB, 'adminium_payment_attempts'>) {
+  return eb.or([eb.and([eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]), uncheckedNow(eb)]), disputeUnchecked(eb)]);
+}
+
 export function paymentAttemptsRepo(meta: MetaDb) {
   const { db } = meta;
 
@@ -648,7 +658,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         .updateTable('adminium_payment_attempts')
         .set((eb) => ({ checkedAt: at, checkedBy: by, checkNote: note, checkCode: eb.ref('problemCode'), updatedAt: at }))
         .where('id', '=', id)
-        .where((eb) => uncheckedNow(eb))
+        .where((eb) => eb.or([uncheckedNow(eb), disputeUnchecked(eb)]))
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
     },
@@ -702,8 +712,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
       let query = db
         .selectFrom('adminium_payment_attempts')
         .selectAll()
-        .where((eb) => eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]))
-        .where((eb) => uncheckedNow(eb));
+        .where((eb) => needsLook(eb));
       if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
       if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
       const before = filter.before;
@@ -716,8 +725,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
       const row = await db
         .selectFrom('adminium_payment_attempts')
         .select((eb) => eb.fn.countAll<number>().as('n'))
-        .where((eb) => eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]))
-        .where((eb) => uncheckedNow(eb))
+        .where((eb) => needsLook(eb))
         .executeTakeFirst();
       return Number(row?.n ?? 0);
     },
