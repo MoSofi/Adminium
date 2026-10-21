@@ -154,7 +154,7 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
       return reply.type('text/html; charset=utf-8').send(noscript === null ? html : html.replace(/<noscript>[\s\S]*?<\/noscript>/, () => `<noscript>${noscript}</noscript>`));
     }
 
-    app.get('/pay/:token', { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams } }, async (request, reply) => {
+    app.get('/pay/:token', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: tokenParams } }, async (request, reply) => {
       let noscript: string | null = null;
       try {
         noscript = deps.noscript === undefined ? null : await deps.noscript(request, request.params.token);
@@ -163,13 +163,13 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
       }
       return page(reply, noscript);
     });
-    app.get('/pay/back/:nonce', { config: { rateLimitBucket: 'pay-page' }, schema: { params: nonceParams } }, async (_request, reply) => page(reply));
-    app.get('/pay/demo/:attempt', { config: { rateLimitBucket: 'pay-page' }, schema: { params: attemptParams } }, async (_request, reply) => page(reply));
+    app.get('/pay/back/:nonce', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: nonceParams } }, async (_request, reply) => page(reply));
+    app.get('/pay/demo/:attempt', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: attemptParams } }, async (_request, reply) => page(reply));
     // Studio's preview of the pay page settings: staff only, read by the page itself.
-    app.get('/pay/preview', { config: { rateLimitBucket: 'pay-page' } }, async (_request, reply) => page(reply));
+    app.get('/pay/preview', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true } }, async (_request, reply) => page(reply));
 
     // The logo the preview shows: the saved one, or one just uploaded and not saved yet.
-    app.get('/pay/api/preview/logo', { config: { rateLimitBucket: 'pay-page' }, schema: { querystring: z.object({ file: z.string().max(64).optional() }) } }, async (request, reply) => {
+    app.get('/pay/api/preview/logo', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, querystring: z.object({ file: z.string().max(64).optional() }) } }, async (request, reply) => {
       if (!(await mayPreview(request))) return reply.status(404).send();
       const settings = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
       const id = request.query.file ?? settings?.logoFileId ?? null;
@@ -179,7 +179,7 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
       return reply.type(file.mime).send(await deps.storage.read(file));
     });
 
-    app.get('/pay/assets/*', { config: { rateLimitBucket: 'pay-page' } }, async (request, reply) => {
+    app.get('/pay/assets/*', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true } }, async (request, reply) => {
       const root = await payRoot(app);
       const wanted = (request.params as { '*': string })['*'];
       const type = ASSET_TYPES[extname(wanted)];
@@ -196,7 +196,7 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
       return reply.type(type).header('cache-control', 'public, max-age=31536000, immutable').send(createReadStream(file));
     });
 
-    app.get('/pay/api/:token/logo', { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams } }, async (request, reply) => {
+    app.get('/pay/api/:token/logo', { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: tokenParams } }, async (request, reply) => {
       const link = await linkForToken(meta, request.params.token, now());
       // A staff test link opens without a reachable pay address, and so does its logo.
       if (link === null || (link.mode !== 'test' && !(await reachable(request)))) return reply.status(404).send();
@@ -209,7 +209,7 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/pay/api/demo/:attempt',
-      { config: { rateLimitBucket: 'pay-page' }, schema: { params: attemptParams, response: { 200: demoReply } } },
+      { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: attemptParams, response: { 200: demoReply } } },
       async (request) => {
         const attempt = await paymentAttemptsRepo(meta).byId(request.params.attempt);
         const checkout = deps.demo === null || attempt === null ? null : deps.demo.checkoutForAttempt(attempt.id);
@@ -227,7 +227,7 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
           csrf: 'origin',
           audit: auditExempt('the demo payment service is pretend money in test mode; the attempt row records what happened'),
         },
-        schema: { params: attemptParams, body: demoBody, response: { 200: demoDoneReply } },
+        schema: { hide: true, params: attemptParams, body: demoBody, response: { 200: demoDoneReply } },
       },
       async (request) => {
         const attempt = await paymentAttemptsRepo(meta).byId(request.params.attempt);

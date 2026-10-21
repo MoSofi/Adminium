@@ -107723,6 +107723,16 @@
                                       },
                                       "slowed": {
                                         "type": "boolean"
+                                      },
+                                      "eventOrigin": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       }
                                     },
                                     "required": [
@@ -107730,7 +107740,8 @@
                                       "lastBadAt",
                                       "badThisHour",
                                       "caughtAt",
-                                      "slowed"
+                                      "slowed",
+                                      "eventOrigin"
                                     ],
                                     "additionalProperties": false
                                   }
@@ -107972,6 +107983,16 @@
                                       },
                                       "slowed": {
                                         "type": "boolean"
+                                      },
+                                      "eventOrigin": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       }
                                     },
                                     "required": [
@@ -107979,7 +108000,8 @@
                                       "lastBadAt",
                                       "badThisHour",
                                       "caughtAt",
-                                      "slowed"
+                                      "slowed",
+                                      "eventOrigin"
                                     ],
                                     "additionalProperties": false
                                   }
@@ -108022,6 +108044,22 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "waiting": {
+                                "type": "number"
+                              },
+                              "refundable": {
+                                "type": "number"
+                              },
+                              "clockSkewMs": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -108037,7 +108075,10 @@
                               "liveOn",
                               "test",
                               "live",
-                              "checklist"
+                              "checklist",
+                              "waiting",
+                              "refundable",
+                              "clockSkewMs"
                             ],
                             "additionalProperties": false
                           }
@@ -108472,6 +108513,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -108479,7 +108530,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -108721,6 +108773,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -108728,7 +108790,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -108771,6 +108834,22 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -108786,7 +108865,10 @@
                         "liveOn",
                         "test",
                         "live",
-                        "checklist"
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
                       ],
                       "additionalProperties": false
                     }
@@ -109129,6 +109211,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -109136,7 +109228,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -109378,6 +109471,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -109385,7 +109488,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -109428,6 +109532,22 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -109443,7 +109563,10 @@
                         "liveOn",
                         "test",
                         "live",
-                        "checklist"
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
                       ],
                       "additionalProperties": false
                     }
@@ -109778,6 +109901,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -109785,7 +109918,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -110027,6 +110161,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -110034,7 +110178,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -110077,6 +110222,22 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -110092,7 +110253,10 @@
                         "liveOn",
                         "test",
                         "live",
-                        "checklist"
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
                       ],
                       "additionalProperties": false
                     }
@@ -110437,6 +110601,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -110444,7 +110618,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -110686,6 +110861,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -110693,7 +110878,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -110736,6 +110922,22 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -110751,7 +110953,10 @@
                         "liveOn",
                         "test",
                         "live",
-                        "checklist"
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
                       ],
                       "additionalProperties": false
                     }
@@ -111092,6 +111297,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -111099,7 +111314,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -111341,6 +111557,16 @@
                                 },
                                 "slowed": {
                                   "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 }
                               },
                               "required": [
@@ -111348,7 +111574,8 @@
                                 "lastBadAt",
                                 "badThisHour",
                                 "caughtAt",
-                                "slowed"
+                                "slowed",
+                                "eventOrigin"
                               ],
                               "additionalProperties": false
                             }
@@ -111391,6 +111618,22 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -111406,7 +111649,2877 @@
                         "liveOn",
                         "test",
                         "live",
-                        "checklist"
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/services/{key}/live": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "on"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "fallback": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "fallback"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "loaded": {
+                          "type": "boolean"
+                        },
+                        "hasPaths": {
+                          "type": "boolean"
+                        },
+                        "webhookEvents": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "path": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "app",
+                                "by-hand"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stopped": {
+                          "type": "boolean"
+                        },
+                        "liveOn": {
+                          "type": "boolean"
+                        },
+                        "test": {
+                          "type": "object",
+                          "properties": {
+                            "fields": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "help": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "webhook": {
+                                    "type": "boolean"
+                                  },
+                                  "set": {
+                                    "type": "boolean"
+                                  },
+                                  "hint": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "setAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "label",
+                                  "help",
+                                  "webhook",
+                                  "set",
+                                  "hint",
+                                  "setAt"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "check": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "number"
+                                    },
+                                    "ok": {
+                                      "type": "boolean"
+                                    },
+                                    "code": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "message": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "missing": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "ok",
+                                    "code",
+                                    "message",
+                                    "missing"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "accountId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "webhookUrl": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstEventAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstPaymentAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "health": {
+                              "type": "object",
+                              "properties": {
+                                "lastEventAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lastBadAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "badThisHour": {
+                                  "type": "number"
+                                },
+                                "caughtAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "slowed": {
+                                  "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "lastEventAt",
+                                "lastBadAt",
+                                "badThisHour",
+                                "caughtAt",
+                                "slowed",
+                                "eventOrigin"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "fields",
+                            "check",
+                            "accountId",
+                            "webhookUrl",
+                            "firstEventAt",
+                            "firstPaymentAt",
+                            "health"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "live": {
+                          "type": "object",
+                          "properties": {
+                            "fields": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "help": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "webhook": {
+                                    "type": "boolean"
+                                  },
+                                  "set": {
+                                    "type": "boolean"
+                                  },
+                                  "hint": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "setAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "label",
+                                  "help",
+                                  "webhook",
+                                  "set",
+                                  "hint",
+                                  "setAt"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "check": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "number"
+                                    },
+                                    "ok": {
+                                      "type": "boolean"
+                                    },
+                                    "code": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "message": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "missing": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "ok",
+                                    "code",
+                                    "message",
+                                    "missing"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "accountId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "webhookUrl": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstEventAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstPaymentAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "health": {
+                              "type": "object",
+                              "properties": {
+                                "lastEventAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lastBadAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "badThisHour": {
+                                  "type": "number"
+                                },
+                                "caughtAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "slowed": {
+                                  "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "lastEventAt",
+                                "lastBadAt",
+                                "badThisHour",
+                                "caughtAt",
+                                "slowed",
+                                "eventOrigin"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "fields",
+                            "check",
+                            "accountId",
+                            "webhookUrl",
+                            "firstEventAt",
+                            "firstPaymentAt",
+                            "health"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "checklist": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "step": {
+                                "type": "string",
+                                "enum": [
+                                  "path",
+                                  "test-key",
+                                  "test-webhook",
+                                  "test-payment",
+                                  "live-key",
+                                  "live-webhook",
+                                  "live-payment"
+                                ]
+                              },
+                              "done": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "step",
+                              "done"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "description",
+                        "status",
+                        "loaded",
+                        "hasPaths",
+                        "webhookEvents",
+                        "path",
+                        "stopped",
+                        "liveOn",
+                        "test",
+                        "live",
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/services/{key}/disconnect": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "stop",
+                      "remove"
+                    ]
+                  },
+                  "settleByHand": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "fallback": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "fallback"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "loaded": {
+                          "type": "boolean"
+                        },
+                        "hasPaths": {
+                          "type": "boolean"
+                        },
+                        "webhookEvents": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "path": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "app",
+                                "by-hand"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stopped": {
+                          "type": "boolean"
+                        },
+                        "liveOn": {
+                          "type": "boolean"
+                        },
+                        "test": {
+                          "type": "object",
+                          "properties": {
+                            "fields": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "help": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "webhook": {
+                                    "type": "boolean"
+                                  },
+                                  "set": {
+                                    "type": "boolean"
+                                  },
+                                  "hint": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "setAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "label",
+                                  "help",
+                                  "webhook",
+                                  "set",
+                                  "hint",
+                                  "setAt"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "check": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "number"
+                                    },
+                                    "ok": {
+                                      "type": "boolean"
+                                    },
+                                    "code": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "message": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "missing": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "ok",
+                                    "code",
+                                    "message",
+                                    "missing"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "accountId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "webhookUrl": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstEventAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstPaymentAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "health": {
+                              "type": "object",
+                              "properties": {
+                                "lastEventAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lastBadAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "badThisHour": {
+                                  "type": "number"
+                                },
+                                "caughtAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "slowed": {
+                                  "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "lastEventAt",
+                                "lastBadAt",
+                                "badThisHour",
+                                "caughtAt",
+                                "slowed",
+                                "eventOrigin"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "fields",
+                            "check",
+                            "accountId",
+                            "webhookUrl",
+                            "firstEventAt",
+                            "firstPaymentAt",
+                            "health"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "live": {
+                          "type": "object",
+                          "properties": {
+                            "fields": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "help": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "fallback"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "webhook": {
+                                    "type": "boolean"
+                                  },
+                                  "set": {
+                                    "type": "boolean"
+                                  },
+                                  "hint": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "setAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "label",
+                                  "help",
+                                  "webhook",
+                                  "set",
+                                  "hint",
+                                  "setAt"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "check": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "number"
+                                    },
+                                    "ok": {
+                                      "type": "boolean"
+                                    },
+                                    "code": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "message": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "missing": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "ok",
+                                    "code",
+                                    "message",
+                                    "missing"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "accountId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "webhookUrl": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstEventAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "firstPaymentAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "health": {
+                              "type": "object",
+                              "properties": {
+                                "lastEventAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "lastBadAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "badThisHour": {
+                                  "type": "number"
+                                },
+                                "caughtAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "slowed": {
+                                  "type": "boolean"
+                                },
+                                "eventOrigin": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "lastEventAt",
+                                "lastBadAt",
+                                "badThisHour",
+                                "caughtAt",
+                                "slowed",
+                                "eventOrigin"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "fields",
+                            "check",
+                            "accountId",
+                            "webhookUrl",
+                            "firstEventAt",
+                            "firstPaymentAt",
+                            "health"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "checklist": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "step": {
+                                "type": "string",
+                                "enum": [
+                                  "path",
+                                  "test-key",
+                                  "test-webhook",
+                                  "test-payment",
+                                  "live-key",
+                                  "live-webhook",
+                                  "live-payment"
+                                ]
+                              },
+                              "done": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "step",
+                              "done"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "waiting": {
+                          "type": "number"
+                        },
+                        "refundable": {
+                          "type": "number"
+                        },
+                        "clockSkewMs": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "description",
+                        "status",
+                        "loaded",
+                        "hasPaths",
+                        "webhookEvents",
+                        "path",
+                        "stopped",
+                        "liveOn",
+                        "test",
+                        "live",
+                        "checklist",
+                        "waiting",
+                        "refundable",
+                        "clockSkewMs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/activity": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "test",
+                "live"
+              ]
+            },
+            "in": "query",
+            "name": "mode",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "query",
+            "name": "service",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "open",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "before",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "beforeId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "started",
+                "paid",
+                "waiting",
+                "failed",
+                "expired",
+                "refunded",
+                "refundFailed"
+              ]
+            },
+            "in": "query",
+            "name": "state",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,39}$"
+            },
+            "in": "query",
+            "name": "way",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "attempt",
+                                  "refund"
+                                ]
+                              },
+                              "at": {
+                                "type": "number"
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "test",
+                                  "live"
+                                ]
+                              },
+                              "payable": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "connectionId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "tableName": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "rowKey": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "connectionId",
+                                      "tableName",
+                                      "rowKey",
+                                      "label"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "amount": {
+                                "type": "string"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string"
+                              },
+                              "paidWith": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "way": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "group": {
+                                "type": "string",
+                                "enum": [
+                                  "started",
+                                  "paid",
+                                  "waiting",
+                                  "failed",
+                                  "expired",
+                                  "refunded",
+                                  "refundFailed"
+                                ]
+                              },
+                              "asked": {
+                                "type": "object",
+                                "properties": {
+                                  "amount": {
+                                    "type": "string"
+                                  },
+                                  "currency": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "amount",
+                                  "currency"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "times": {
+                                "type": "object",
+                                "properties": {
+                                  "started": {
+                                    "type": "number"
+                                  },
+                                  "settled": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "recorded": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "updated": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "started",
+                                  "settled",
+                                  "recorded",
+                                  "updated"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "refs": {
+                                "type": "object",
+                                "properties": {
+                                  "attempt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "checkout": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "payment": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "refund": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "attempt",
+                                  "checkout",
+                                  "payment",
+                                  "refund"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "refundSource": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "staff",
+                                      "provider"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "flag": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string",
+                                        "enum": [
+                                          "paid-not-recorded",
+                                          "amount-differs",
+                                          "payable-voided",
+                                          "refunded-at-provider",
+                                          "mode-mismatch",
+                                          "paid-twice",
+                                          "waiting-long",
+                                          "record-changed"
+                                        ]
+                                      },
+                                      "reason": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "message": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "reason",
+                                      "message"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "check": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "at": {
+                                        "type": "number"
+                                      },
+                                      "by": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "byName": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "note": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "at",
+                                      "by",
+                                      "byName",
+                                      "note"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "at",
+                              "service",
+                              "mode",
+                              "payable",
+                              "amount",
+                              "currency",
+                              "state",
+                              "paidWith",
+                              "way",
+                              "group",
+                              "asked",
+                              "times",
+                              "refs",
+                              "refundSource",
+                              "flag",
+                              "check"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "more": {
+                          "type": "boolean"
+                        },
+                        "next": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "before": {
+                                  "type": "number"
+                                },
+                                "beforeId": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "before",
+                                "beforeId"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "more",
+                        "next"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/activity/count": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "open": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "open"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/activity.csv": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "test",
+                "live"
+              ]
+            },
+            "in": "query",
+            "name": "mode",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "query",
+            "name": "service",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "open",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "before",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "beforeId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "started",
+                "paid",
+                "waiting",
+                "failed",
+                "expired",
+                "refunded",
+                "refundFailed"
+              ]
+            },
+            "in": "query",
+            "name": "state",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,39}$"
+            },
+            "in": "query",
+            "name": "way",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/activity/attempts/{id}/check": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/activity/refunds/{id}/check": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/services/{key}/key-app": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/links/{id}/email": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "queued": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "to": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "queued",
+                        "to"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/test-payments": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "service": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  }
+                },
+                "required": [
+                  "service"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rowKey": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "rowKey",
+                        "label",
+                        "url",
+                        "amount",
+                        "currency"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/test-payments/{rowKey}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^paytest_.*"
+            },
+            "in": "path",
+            "name": "rowKey",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "service": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "taken": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "amount": {
+                                  "type": "string"
+                                },
+                                "currency": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "amount",
+                                "currency"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "paidWith": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "webhookArrived": {
+                          "type": "boolean"
+                        },
+                        "recorded": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "service",
+                        "amount",
+                        "currency",
+                        "state",
+                        "taken",
+                        "paidWith",
+                        "webhookArrived",
+                        "recorded"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/panel": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "recordId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "payable": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "shape",
+                                    "profile"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string"
+                                },
+                                "tableName": {
+                                  "type": "string"
+                                },
+                                "rowKey": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "tableName",
+                                "rowKey"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "total": {
+                              "type": "string"
+                            },
+                            "due": {
+                              "type": "string"
+                            },
+                            "paid": {
+                              "type": "string"
+                            },
+                            "refusal": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "message"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "links": {
+                              "type": "object",
+                              "properties": {
+                                "on": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "on",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "mayChange": {
+                              "type": "boolean"
+                            },
+                            "mayRecord": {
+                              "type": "boolean"
+                            },
+                            "waiting": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "wayLabel": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "startedAt": {
+                                    "type": "number"
+                                  },
+                                  "test": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "provider",
+                                  "wayLabel",
+                                  "startedAt",
+                                  "test"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "payments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "number": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "amount": {
+                                    "type": "string"
+                                  },
+                                  "currency": {
+                                    "type": "string"
+                                  },
+                                  "refunded": {
+                                    "type": "string"
+                                  },
+                                  "way": {
+                                    "type": "string"
+                                  },
+                                  "wayLabel": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "provider": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "test": {
+                                    "type": "boolean"
+                                  },
+                                  "paidOn": {
+                                    "type": "string"
+                                  },
+                                  "recordedBy": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "cardLast4": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "number",
+                                  "amount",
+                                  "currency",
+                                  "refunded",
+                                  "way",
+                                  "wayLabel",
+                                  "provider",
+                                  "test",
+                                  "paidOn",
+                                  "recordedBy",
+                                  "cardLast4"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "payable",
+                            "label",
+                            "currency",
+                            "total",
+                            "due",
+                            "paid",
+                            "refusal",
+                            "links",
+                            "mayChange",
+                            "mayRecord",
+                            "waiting",
+                            "payments"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/record-payment": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "amount": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "way": {
+                    "type": "string",
+                    "enum": [
+                      "bank-transfer",
+                      "cash",
+                      "card",
+                      "cheque",
+                      "other"
+                    ]
+                  },
+                  "paidOn": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "approvalCode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 32
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last4": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 32
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{16,59}$"
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "recordId",
+                  "amount",
+                  "way",
+                  "paidOn",
+                  "note",
+                  "approvalCode",
+                  "last4",
+                  "key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "already": {
+                          "type": "boolean"
+                        },
+                        "due": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "already",
+                        "due"
                       ],
                       "additionalProperties": false
                     }
@@ -113953,11 +117066,22 @@
                           "items": {
                             "type": "string"
                           }
+                        },
+                        "staffOrigin": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
                         "origin",
-                        "choices"
+                        "choices",
+                        "staffOrigin"
                       ],
                       "additionalProperties": false
                     }
@@ -114019,11 +117143,22 @@
                           "items": {
                             "type": "string"
                           }
+                        },
+                        "staffOrigin": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
                         "origin",
-                        "choices"
+                        "choices",
+                        "staffOrigin"
                       ],
                       "additionalProperties": false
                     }
@@ -114430,7 +117565,9 @@
                 "apiDocs",
                 "roles",
                 "designer",
-                "desktop"
+                "desktop",
+                "pay",
+                "payments"
               ]
             },
             "in": "path",
@@ -114567,7 +117704,9 @@
                 "apiDocs",
                 "roles",
                 "designer",
-                "desktop"
+                "desktop",
+                "pay",
+                "payments"
               ]
             },
             "in": "query",
@@ -114775,7 +117914,9 @@
                       "apiDocs",
                       "roles",
                       "designer",
-                      "desktop"
+                      "desktop",
+                      "pay",
+                      "payments"
                     ]
                   },
                   "key": {
@@ -114931,7 +118072,9 @@
                 "apiDocs",
                 "roles",
                 "designer",
-                "desktop"
+                "desktop",
+                "pay",
+                "payments"
               ]
             },
             "in": "query",
@@ -115091,7 +118234,9 @@
                             "apiDocs",
                             "roles",
                             "designer",
-                            "desktop"
+                            "desktop",
+                            "pay",
+                            "payments"
                           ]
                         },
                         "key": {
