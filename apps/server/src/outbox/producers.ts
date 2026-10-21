@@ -108,6 +108,7 @@ import { releasedLinksOf, type ReleasedLink } from './release.js';
 import { repeatKeyOf } from './repeat-key.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
+import { asksForPayment } from '../payments/reminder-hold.js';
 
 export interface OutboxLogger {
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -1052,8 +1053,8 @@ export async function verdictsFor(
       out.set(row, { skip: 'overtaken' });
       continue;
     }
-    // About to go while the customer's payment is on its way: a reminder to pay would be wrong.
-    if (mode === 'send' && linked !== null && ctx.paymentHold !== undefined) {
+    // A request to pay, about to go while the customer's payment is on its way: it would ask them to pay twice.
+    if (mode === 'send' && linked !== null && ctx.paymentHold !== undefined && asksForPayment(producer)) {
       const since = await ctx.paymentHold(linked.table, linked.row).catch(() => null);
       if (since !== null) {
         out.set(row, { heldSince: since });

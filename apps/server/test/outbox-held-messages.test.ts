@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, emailTemplatesRepo, manifestsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, emailTemplatesRepo, manifestsRepo, payableProfilesRepo, paymentAttemptsRepo, paymentSettingsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { encryptSecret, decryptSecret } from '../src/config/secrets.js';
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
@@ -30,6 +30,7 @@ import { withOutboxMoves } from '../src/outbox/moves.js';
 import { createOutboxProducers, type LiveOutbox, type OutboxProducers } from '../src/outbox/producers.js';
 import { createOutboxSender, routeFor, type OutboxSender } from '../src/outbox/sender.js';
 import type { SignInLinkMinter } from '../src/outbox/sign-in-link.js';
+import { emptyServiceState, serviceDocName, serviceStateSchema } from '../src/payments/services.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, installInvoicing, invoicingManifest, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -693,6 +694,43 @@ for (const [dialect, reachable] of LEGS) {
       expect(await mail()).toHaveLength(before);
       expect((await rows(`SELECT status, error FROM studio.messages WHERE id = ${String(brought)}`))[0]).toMatchObject({ status: 'skipped', error: 'Sample data (never sent)' });
       await rows(`DELETE FROM studio_sample_rows`);
+    });
+
+    it('holds a request to pay while a live payment for the invoice waits for the bank, saying nothing of it, and sends it once that ends', async () => {
+      const a = await invoice({});
+      await send(a);
+      const invoicesId = table('invoices').id;
+      await payableProfilesRepo(meta).create({
+        connectionId: h.connectionId,
+        tableName: invoicesId,
+        mapping: { label: null, amount: { column: 'total', unit: null }, currency: { connection: true }, due: null, payments: { kind: 'kept' }, status: null, customerEmail: null, customerCountry: null, pageFields: [] },
+        ownerApp: null,
+        createdBy: null,
+      });
+      await paymentSettingsRepo(meta).set(serviceDocName('payments-stripe'), serviceStateSchema, { ...emptyServiceState(), live: { ...emptyServiceState().live, fields: { secret_key: { hint: 'rk_live_…1234', setAt: 1 } } } });
+      const attempts = paymentAttemptsRepo(meta);
+      const made = (await attempts.create(
+        { provider: 'payments-stripe', mode: 'live', accountId: 'acct_1', payable: { kind: 'profile', connectionId: h.connectionId, tableName: invoicesId, rowKey: String(a['id']) }, payableLabel: String(a['id']), amount: '100.00', currency: 'GBP', linkId: null, nonce: `hold${String(a['id'])}`.padEnd(22, 'x'), createdBy: null },
+        clock,
+      ))!;
+      await attempts.move(made.id, 'open', {}, clock);
+      await attempts.move(made.id, 'processing', {}, clock);
+      const first = await rungOf(a['id'], 1);
+      await update('messages', first.id, { status: 'queued' });
+      const before = (await mail()).length;
+      // Looked at, and put off an hour: no email goes.
+      expect(await sender.sendApp('studio', clock)).toBe(1);
+      expect(await sender.sendApp('studio', clock + 60_000)).toBe(0);
+      expect((await mail()).length).toBe(before);
+      const held = await rungOf(a['id'], 1);
+      // Held an hour, and the desk's log says only that.
+      expect(held).toMatchObject({ status: 'queued', error: 'Held for now. It is looked at again in an hour.', due: new Date(clock + 3_600_000).toISOString() });
+      // The bank said no: the request to pay goes at its next look.
+      await attempts.move(made.id, 'failed', {}, clock);
+      clock += 3_600_000;
+      expect(await sender.sendApp('studio', clock)).toBe(1);
+      expect(await rungOf(a['id'], 1)).toMatchObject({ status: 'sent', sent: true });
+      await payableProfilesRepo(meta).remove((await payableProfilesRepo(meta).byTable(h.connectionId, invoicesId))!.id);
     });
 
     it("sends a studio notice to the settings' reply-to address — and never to the client when there is none", async () => {

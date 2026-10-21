@@ -897,8 +897,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const sampleDataDeps: SampleDataDeps = {
     meta,
     manager,
+    // Off the request: a removal answers at once, and a failure here is logged, never undoing it.
     onRowsRemoved: async (connectionId, rows) => {
-      if (endPaymentsOnRows !== null) await endPaymentsOnRows(connectionId, rows);
+      if (endPaymentsOnRows === null) return;
+      void endPaymentsOnRows(connectionId, rows).catch((error: unknown) => {
+        app.log.warn({ err: error, connectionId, rows: rows.length }, 'payments: ending the pay links of removed sample rows failed');
+      });
     },
     store: appStore,
     appFiles,

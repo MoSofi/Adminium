@@ -339,11 +339,17 @@ describe('payments setup routes', () => {
     expect(stop.json().data).toMatchObject({ stopped: true, waiting: 0 });
     const made = await paymentAttemptsRepo(meta).create({ provider: 'payments-stripe', mode: 'live', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_9' }, payableLabel: 'INV-9', amount: '1.00', currency: 'EUR', linkId: null, nonce: 'n'.repeat(22), createdBy: null });
     await paymentAttemptsRepo(meta).move(made!.id, 'open', {});
+    const atBank = await paymentAttemptsRepo(meta).create({ provider: 'payments-stripe', mode: 'live', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_10' }, payableLabel: 'INV-10', amount: '2.00', currency: 'EUR', linkId: null, nonce: 'm'.repeat(22), createdBy: null });
+    await paymentAttemptsRepo(meta).move(atBank!.id, 'open', {});
+    await paymentAttemptsRepo(meta).move(atBank!.id, 'processing', {});
+    // A checkout still open is ended first; one already at the bank is owned up to.
     const refused = await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner), payload: { action: 'remove' } });
     expect(refused.statusCode).toBe(422);
     expect(refused.json().error.details).toEqual({ reason: 'waiting', waiting: 1 });
+    expect((await paymentAttemptsRepo(meta).byId(made!.id))?.state).toBe('expired');
     const removed = await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner), payload: { action: 'remove', settleByHand: true } });
     expect(removed.statusCode, removed.payload).toBe(200);
+    expect(await paymentAttemptsRepo(meta).byId(atBank!.id)).toMatchObject({ state: 'expired', problem: { code: 'SETTLE_BY_HAND' } });
     expect(removed.json().data.test.fields.every((one: { set: boolean }) => !one.set)).toBe(true);
     expect(removed.json().data.live.fields.every((one: { set: boolean }) => !one.set)).toBe(true);
     expect(removed.json().data.live.accountId).toBe('acct_9xQ4');

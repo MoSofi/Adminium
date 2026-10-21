@@ -6,25 +6,25 @@
  *  1. each notice is told once, to every payment manager and to nobody else,
  *     in the reader's own language; test and demo payments tell nobody;
  *  2. the integrity check flags a recorded payment whose row is gone, and
- *     leaves one it cannot read now alone;
+ *     leaves one it cannot read now, or one a person voided, alone;
  *  3. a key refused while taking a payment pauses the service;
  *  4. switching live on ends the test links and the open test checkouts;
- *  5. a reminder waits while a payment for its row waits for the bank;
+ *  5. a request to pay waits while a live payment for its row waits for the
+ *     bank (live only, at most 14 days, a service that still has keys);
  *  6. rows removed with sample data lose their links and open checkouts;
  *  7. the provider's clock is read off its answers.
  */
-import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  createSqliteMetaDb,
-  firstRun,
   keptPaymentsRepo,
+  payableProfilesRepo,
   notificationsRepo,
   paymentAttemptsRepo,
   paymentLinksRepo,
   paymentSettingsRepo,
   permissionsRepo,
+  refundsRepo,
   rolesRepo,
   userPrefsRepo,
   usersRepo,
@@ -36,18 +36,20 @@ import {
 
 import { attemptFlag } from '../src/routes/payments/activity.js';
 import { clockSkewOf, forgetClockReadings, noteServiceDate, watchingClock } from '../src/payments/clock.js';
-import { endPaymentsForRows, endTestWork, setLive } from '../src/payments/going-live.js';
+import { endPaymentsForRows, endTestWork, removeKeysSafely, setLive, waitingCount } from '../src/payments/going-live.js';
 import type { PayableSources } from '../src/payments/payables.js';
-import { paymentWaitingSince } from '../src/payments/reminder-hold.js';
+import { asksForPayment, createPaymentHolds, PAYMENT_HOLD_MAX_MS } from '../src/payments/reminder-hold.js';
 import { emptyServiceState, noteKeyRefused, serviceDocName, serviceStateSchema } from '../src/payments/services.js';
 import { sweepDocName, sweepStateSchema } from '../src/payments/sweep.js';
 import { runPaymentIntegrity, runPaymentWatch, UNRECORDED_AFTER_MS } from '../src/payments/watch.js';
 import { webhookDocName, webhookHealthSchema } from '../src/payments/webhook.js';
+import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const T0 = 1_760_000_000_000;
 const STRIPE = 'payments-stripe';
 
-describe('payment notices, integrity and the moves around live', () => {
+describe.each(META_ENGINES)('payment notices, integrity and the moves around live — $name', ({ available, make }) => {
+  let handle: MetaHandle;
   let meta: MetaDb;
   let owner: User;
   let desk: User;
@@ -90,8 +92,9 @@ describe('payment notices, integrity and the moves around live', () => {
   const told = async (user: User) => notificationsRepo(meta).listForUser(user.id, { limit: 50 });
 
   beforeEach(async () => {
-    meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
-    await firstRun(meta);
+    if (!available) return;
+    handle = await make();
+    meta = handle.meta;
     const users = usersRepo(meta);
     const roles = rolesRepo(meta);
     owner = await users.create({ email: 'mara@adminium.test', name: 'Mara', status: 'active' });
@@ -108,10 +111,11 @@ describe('payment notices, integrity and the moves around live', () => {
   });
 
   afterEach(async () => {
-    await meta.db.destroy();
+    if (!available) return;
+    await handle.destroy();
   });
 
-  it('tells every payment manager once that a payment arrived, in their own language, and nobody else', async () => {
+  it.runIf(available)('tells every payment manager once that a payment arrived, in their own language, and nobody else', async () => {
     const id = await attempt(['open', 'succeeded', 'recording']);
     await paymentAttemptsRepo(meta).move(id, 'recorded', { recordedKey: 'kept:x', recordedAt: T0 + 1, takenAmount: '120.00', paidWith: { method: 'card', label: 'Visa ••4242', delayed: false } }, T0 + 1);
     expect((await watch(T0 + 60_000)).landed).toBe(1);
@@ -124,7 +128,7 @@ describe('payment notices, integrity and the moves around live', () => {
     expect(await told(clerk)).toEqual([]);
   });
 
-  it('tells nobody of a test or demo payment', async () => {
+  it.runIf(available)('tells nobody of a test or demo payment', async () => {
     const test = await attempt(['open', 'succeeded', 'recording'], { mode: 'test' });
     await paymentAttemptsRepo(meta).move(test, 'recorded', { recordedKey: 'kept:t', recordedAt: T0 + 1 }, T0 + 1);
     await attempt(['open', 'succeeded', 'recording', 'record_refused'], { mode: 'test', patch: { problem: { code: 'AMOUNT_DIFFERS', message: 'x' } } });
@@ -133,7 +137,7 @@ describe('payment notices, integrity and the moves around live', () => {
     expect(await told(owner)).toEqual([]);
   });
 
-  it('says what a payment that needs a look is about, once, and what is taken but not recorded', async () => {
+  it.runIf(available)('says what a payment that needs a look is about, once, and what is taken but not recorded', async () => {
     await attempt(['open', 'succeeded', 'recording', 'record_refused'], { patch: { problem: { code: 'AMOUNT_DIFFERS', message: 'Stripe took 100.00' } } });
     await attempt(['open', 'succeeded'], { at: T0 - UNRECORDED_AFTER_MS - 60_000 });
     const first = await watch(T0);
@@ -144,7 +148,7 @@ describe('payment notices, integrity and the moves around live', () => {
     expect((await told(owner)).every((one) => one.title === 'A payment needs a look')).toBe(true);
   });
 
-  it('pauses a service whose key is refused while taking a payment, and tells once per refusal', async () => {
+  it.runIf(available)('pauses a service whose key is refused while taking a payment, and tells once per refusal', async () => {
     await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, { ...emptyServiceState(), test: { ...emptyServiceState().test, check: { at: T0 - 1, ok: true, code: null, message: null, missing: [] } } }, T0 - 1);
     expect(await noteKeyRefused(meta, STRIPE, 'test', 'Expired API Key provided', T0)).toBe(true);
     expect(await noteKeyRefused(meta, STRIPE, 'test', 'Expired API Key provided', T0 + 1)).toBe(false);
@@ -155,7 +159,7 @@ describe('payment notices, integrity and the moves around live', () => {
     expect((await told(owner))[0]).toMatchObject({ kind: 'payments.key-refused', title: 'Stripe refused the key', body: 'Payments are paused until a working key is saved.' });
   });
 
-  it('says a live webhook is silent, once a day, and that the sweep slowed, once a month', async () => {
+  it.runIf(available)('says a live webhook is silent, once a day, and that the sweep slowed, once a month', async () => {
     await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, { ...emptyServiceState(), liveOn: true }, T0);
     await paymentSettingsRepo(meta).set(webhookDocName(STRIPE, 'live'), webhookHealthSchema, { firstAt: T0 - 5 * 86_400_000, lastAt: T0 - 2 * 86_400_000, lastBadAt: null, origin: null }, T0);
     await attempt(['open'], { at: T0 - 5 * 3_600_000 });
@@ -166,17 +170,22 @@ describe('payment notices, integrity and the moves around live', () => {
     expect(titles).toEqual(['Adminium checks Stripe less often', 'The Stripe webhook is silent']);
   });
 
-  it('flags a recorded payment whose kept row was voided, as Activity shows it, and leaves the rest', async () => {
+  it.runIf(available)('flags a recorded payment whose kept row is gone, as Activity shows it, and leaves a voided one and the rest', async () => {
     const kept = keptPaymentsRepo(meta);
     const ok = await attempt(['open', 'succeeded', 'recording']);
     const gone = await attempt(['open', 'succeeded', 'recording']);
-    for (const id of [ok, gone]) {
+    const voided = await attempt(['open', 'succeeded', 'recording']);
+    for (const id of [ok, gone, voided]) {
       const row = (await kept.insert({ payable: (await paymentAttemptsRepo(meta).byId(id))!.payable, number: null, amount: '120.00', currency: 'EUR', method: 'card', methodNote: null, provider: STRIPE, mode: 'live', attemptId: id, approvalCode: null, cardLast4: null, note: null, paidOn: T0, recordedBy: 'Online payment (Stripe)', recordedByUser: null }, T0))!;
       await paymentAttemptsRepo(meta).move(id, 'recorded', { recordedKey: `kept:${row.id}`, recordedAt: T0, takenAmount: '120.00' }, T0);
-      if (id === gone) await kept.void(row.id, 'restored from a backup', T0);
+      // A person voided this one: their own act, never "missing".
+      if (id === voided) await kept.void(row.id, 'entered twice', T0);
+      // A restore to an older point lost this one.
+      if (id === gone) await meta.db.deleteFrom('adminium_payments').where('id', '=', row.id).execute();
     }
     const result = await runPaymentIntegrity({ meta, sources, serviceKeys: async () => [], now: () => T0 + 60_000 });
-    expect(result).toEqual({ checked: 2, missing: 1, skipped: 0 });
+    expect(result).toEqual({ checked: 3, missing: 1, skipped: 0 });
+    expect(attemptFlag((await paymentAttemptsRepo(meta).byId(voided))!)).toBeNull();
     const flagged = (await paymentAttemptsRepo(meta).byId(gone))!;
     expect(flagged.problem?.code).toBe('RECORD_MISSING');
     expect(attemptFlag(flagged)?.code).toBe('record-changed');
@@ -187,7 +196,7 @@ describe('payment notices, integrity and the moves around live', () => {
     expect((await told(owner)).some((one) => one.body === 'Its recorded payment is no longer there: INV-0042')).toBe(true);
   });
 
-  it('ends every test link and open test checkout when live payments are switched on', async () => {
+  it.runIf(available)('ends every test link and open test checkout when live payments are switched on', async () => {
     const links = paymentLinksRepo(meta);
     const testLink = await links.mint({ tokenHash: 'h1', tokenSealed: 's1', payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_a' }, mode: 'test', expiresAt: T0 + 9e6, createdBy: null }, T0);
     const openTest = await attempt(['open'], { mode: 'test', provider: 'demo' });
@@ -199,22 +208,105 @@ describe('payment notices, integrity and the moves around live', () => {
     expect((await paymentAttemptsRepo(meta).byId(openTest))!.state).toBe('expired');
     expect((await paymentAttemptsRepo(meta).byId(liveOpen))!.state).toBe('open');
     expect((await paymentAttemptsRepo(meta).byId(waiting))!.state).toBe('processing');
-    // Already on: nothing more is ended.
-    expect((await setLive({ meta, providerFor: async () => ({ ok: false, code: 'NOT_LOADED', message: 'x' }) }, STRIPE, true)).ended).toBeNull();
+    // Already on: what is left is ended again (nothing now), and switching off ends nothing.
+    expect((await setLive({ meta, providerFor: async () => ({ ok: false, code: 'NOT_LOADED', message: 'x' }) }, STRIPE, true)).ended).toEqual({ links: 0, checkouts: 0 });
+    expect((await setLive({ meta, providerFor: async () => ({ ok: false, code: 'NOT_LOADED', message: 'x' }) }, STRIPE, false)).ended).toBeNull();
     expect(await endTestWork({ meta, providerFor: async () => ({ ok: false, code: 'NOT_LOADED', message: 'x' }) })).toEqual({ links: 0, checkouts: 0 });
   });
 
-  it('holds a reminder about a row while a payment for it waits for the bank', async () => {
+  it.runIf(available)('holds a request to pay about a row while a live payment for it waits for the bank: live only, 14 days at most, keys kept', async () => {
     const table = { id: 'main.invoices', primaryKey: ['id'] } as never;
-    const ref: PayableRef = { kind: 'shape', connectionId: 'conn_1', tableName: 'main.invoices', rowKey: '42' };
-    expect(await paymentWaitingSince(meta, 'conn_1', table, { id: 42 })).toBeNull();
-    const id = await attempt(['open', 'processing'], { payable: ref, at: T0 - 86_400_000 });
-    expect(await paymentWaitingSince(meta, 'conn_1', table, { id: 42 })).toBe(T0 - 86_400_000);
-    await paymentAttemptsRepo(meta).move(id, 'failed', {}, T0);
-    expect(await paymentWaitingSince(meta, 'conn_1', table, { id: 42 })).toBeNull();
+    const ref: PayableRef = { kind: 'profile', connectionId: 'conn_1', tableName: 'main.invoices', rowKey: '42' };
+    const holds = () => createPaymentHolds(meta, 'conn_1', T0);
+    // Not a payable table: nothing is ever held, and nothing is asked of the attempts.
+    expect(await holds()(table, { id: 42 })).toBeNull();
+    await meta.db
+      .insertInto('adminium_connections')
+      .values({ id: 'conn_1', name: 'Shop', engine: 'postgres', sourceKind: 'dsn', introspectDsnEncrypted: 'sealed', settings: '{}', status: 'connected', disabledAt: null, createdAt: 1, updatedAt: 1 } as never)
+      .execute();
+    await payableProfilesRepo(meta).create({
+      connectionId: 'conn_1',
+      tableName: 'main.invoices',
+      mapping: { label: null, amount: { column: 'total', unit: null }, currency: { connection: true }, due: null, payments: { kind: 'kept' }, status: null, customerEmail: null, customerCountry: null, pageFields: [] },
+      ownerApp: null,
+      createdBy: null,
+    });
+    await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, { ...emptyServiceState(), live: { ...emptyServiceState().live, fields: { secret_key: { hint: 'rk_live_…1234', setAt: T0 } } } }, T0);
+    const test = await attempt(['open', 'processing'], { payable: ref, mode: 'test', at: T0 - 86_400_000 });
+    // A test payment never holds a customer's mail.
+    expect(await holds()(table, { id: 42 })).toBeNull();
+    await paymentAttemptsRepo(meta).move(test, 'failed', {}, T0);
+    const live = await attempt(['open', 'processing'], { payable: ref, at: T0 - 86_400_000 });
+    expect(await holds()(table, { id: 42 })).toBe(T0 - 86_400_000);
+    // Keys removed: the payment can no longer be read, and holds nothing.
+    await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, emptyServiceState(), T0);
+    expect(await holds()(table, { id: 42 })).toBeNull();
+    await paymentAttemptsRepo(meta).move(live, 'failed', {}, T0);
+    // Past 14 days, a payment the provider never answered about holds nothing either.
+    await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, { ...emptyServiceState(), live: { ...emptyServiceState().live, fields: { secret_key: { hint: 'rk_live_…1234', setAt: T0 } } } }, T0);
+    await attempt(['open', 'processing'], { payable: ref, at: T0 - PAYMENT_HOLD_MAX_MS - 1 });
+    expect(await holds()(table, { id: 42 })).toBeNull();
+    // Only a producer that asks for payment waits.
+    expect(asksForPayment({ dropWhen: [{ reason: 'paid' }] })).toBe(true);
+    expect(asksForPayment({ dropWhen: [{ reason: 'void' }] })).toBe(false);
+    expect(asksForPayment({})).toBe(false);
   });
 
-  it('ends the pay links and open checkouts of rows removed with sample data', async () => {
+  it.runIf(available)('stops, ends the open checkouts while the keys work, and removes keys only with nothing in motion or the person\'s word', async () => {
+    const expired: string[] = [];
+    const providerFor = async () => ({ ok: true, provider: { expire: async (ref: string) => (expired.push(ref), { status: 'expired' }) } }) as never;
+    const deleted: string[] = [];
+    const manifests = { deleteCredential: async (id: string) => (deleted.push(id), true) };
+    await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, { ...emptyServiceState(), live: { ...emptyServiceState().live, fields: { secret_key: { hint: 'rk_live_…1234', setAt: T0 } } } }, T0);
+    const open = await attempt(['open'], { patch: { providerRef: 'cs_open' } });
+    const waiting = await attempt(['open', 'processing']);
+    // A refund still on its way at the service is money in motion too.
+    await refundsRepo(meta).create({ attemptId: null, paymentId: null, provider: STRIPE, mode: 'live', paymentRef: 'pi_1', amount: '10.00', currency: 'EUR', reason: 'requested_by_customer', note: null, idempotencyKey: 'k1', source: 'staff', requestedBy: null, state: 'pending' }, T0);
+    const refused = await removeKeysSafely({ meta, manifests, providerFor, now: () => T0 + 1 }, { manifestId: 'mft_1', key: STRIPE, settleByHand: false });
+    expect(refused.removed).toBe(false);
+    // Stopped at once, the open checkout ended at the service; the keys stay.
+    expect((await paymentSettingsRepo(meta).get(serviceDocName(STRIPE), serviceStateSchema))?.stopped).toBe(true);
+    expect(expired).toEqual(['cs_open']);
+    expect((await paymentAttemptsRepo(meta).byId(open))!.state).toBe('expired');
+    expect(deleted).toEqual([]);
+    expect(await waitingCount(meta, STRIPE)).toBeGreaterThanOrEqual(1);
+    const done = await removeKeysSafely({ meta, manifests, providerFor, now: () => T0 + 2 }, { manifestId: 'mft_1', key: STRIPE, settleByHand: true });
+    expect(done).toMatchObject({ removed: true, leftByHand: 1 });
+    expect(deleted).toEqual(['mft_1']);
+    const settled = (await paymentAttemptsRepo(meta).byId(waiting))!;
+    expect(settled).toMatchObject({ state: 'expired', problem: { code: 'SETTLE_BY_HAND' } });
+    expect(attemptFlag(settled)?.code).toBe('record-changed');
+    expect(Object.keys((await paymentSettingsRepo(meta).get(serviceDocName(STRIPE), serviceStateSchema))!.live.fields)).toEqual([]);
+  });
+
+  it.runIf(available)('finishes ending the test work when switching live on is tried again after a failure', async () => {
+    // The first try turned live on and stopped there: a test link and an open test page are left.
+    await paymentSettingsRepo(meta).set(serviceDocName(STRIPE), serviceStateSchema, { ...emptyServiceState(), liveOn: true }, T0);
+    const links = paymentLinksRepo(meta);
+    await links.mint({ tokenHash: 'h2', tokenSealed: 's2', payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_b' }, mode: 'test', expiresAt: T0 + 9e6, createdBy: null }, T0);
+    const creating = (await paymentAttemptsRepo(meta).create({ provider: 'demo', mode: 'test', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_c' }, payableLabel: 'INV-0099', amount: '1.00', currency: 'EUR', linkId: null, nonce: 'c'.padEnd(22, 'x'), createdBy: null }, T0))!;
+    const { ended } = await setLive({ meta, providerFor: async () => ({ ok: false, code: 'NOT_LOADED', message: 'x' }), now: () => T0 + 1 }, STRIPE, true);
+    expect(ended).toEqual({ links: 1, checkouts: 1 });
+    expect((await paymentAttemptsRepo(meta).byId(creating.id))!.state).toBe('abandoned');
+  });
+
+  it.runIf(available)('opens a checked attempt again when a different problem comes up later', async () => {
+    const attempts = paymentAttemptsRepo(meta);
+    const id = await attempt(['open', 'succeeded', 'recording', 'record_refused'], { patch: { problem: { code: 'AMOUNT_DIFFERS', message: 'x' } } });
+    expect(await attempts.check(id, owner.id, 'Spoke to the customer', T0)).toBe(true);
+    expect((await attempts.needingLook({ mode: 'live' })).map((one) => one.id)).not.toContain(id);
+    expect(await attempts.countNeedingLook()).toBe(0);
+    // Checked once is checked: the same problem is not checked twice.
+    expect(await attempts.check(id, owner.id, 'again', T0)).toBe(false);
+    await attempts.note(id, 'record_refused', { problem: { code: 'VOIDED', message: 'The invoice was voided since.' } }, T0 + 1);
+    const reopened = (await attempts.byId(id))!;
+    expect(reopened.check).toBeNull();
+    expect((await attempts.needingLook({ mode: 'live' })).map((one) => one.id)).toContain(id);
+    expect(await attempts.countNeedingLook()).toBe(1);
+    expect(await attempts.check(id, owner.id, 'Refunded', T0 + 2)).toBe(true);
+  });
+
+  it.runIf(available)('ends the pay links and open checkouts of rows removed with sample data', async () => {
     const ref: PayableRef = { kind: 'profile', connectionId: 'conn_1', tableName: 'main.deposits', rowKey: '7' };
     const link = await paymentLinksRepo(meta).mint({ tokenHash: 'h7', tokenSealed: 's7', payable: ref, mode: 'live', expiresAt: T0 + 9e6, createdBy: null }, T0);
     const open = await attempt(['open'], { payable: ref, provider: 'demo', mode: 'test' });
@@ -224,7 +316,7 @@ describe('payment notices, integrity and the moves around live', () => {
     expect((await paymentAttemptsRepo(meta).byId(open))!.state).toBe('expired');
   });
 
-  it('reads how far a service\'s clock is from this one off its answers', async () => {
+  it.runIf(available)('reads how far a service\'s clock is from this one off its answers', async () => {
     noteServiceDate(STRIPE, new Date(T0 + 90_000).toUTCString(), T0);
     expect(clockSkewOf(STRIPE)?.skewMs).toBe(90_000);
     noteServiceDate(STRIPE, new Date(T0 + 1_000).toUTCString(), T0);

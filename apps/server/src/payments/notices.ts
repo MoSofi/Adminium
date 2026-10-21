@@ -84,7 +84,8 @@ export function providerName(key: string): string {
 export function noticeMoney(amount: string, currency: string, locale: string): string {
   const decimals = (amount.split('.')[1] ?? '').length;
   try {
-    return new Intl.NumberFormat(`${locale.replace('_', '-')}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(amount));
+    // The decimal string itself: exact, where a Number would round past 15 digits.
+    return new Intl.NumberFormat(`${locale.replace('_', '-')}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(amount as `${number}`);
   } catch {
     return `${currency} ${amount}`;
   }
@@ -110,13 +111,23 @@ export async function tellPaymentManagers(
   notice: { kind: NoticeKind | 'payments.money-redirect'; about: string; urgent?: boolean; actionUrl?: string; actorLabel?: string | null; words: (locale: string) => NoticeWords },
 ): Promise<number> {
   const at = (deps.now ?? Date.now)();
+  const docs = paymentSettingsRepo(deps.meta);
+  const claimName = `${NOTICE_CLAIM_PREFIX}${notice.about}`;
+  // Who to tell first: a notice claimed and then told to nobody (the lookup failed) would be lost for good.
+  let managers: string[];
   try {
-    if (!(await paymentSettingsRepo(deps.meta).claim(`${NOTICE_CLAIM_PREFIX}${notice.about}`, claimSchema, { at }, at))) return 0;
+    managers = await paymentManagers(deps.meta);
+  } catch {
+    return 0;
+  }
+  if (managers.length === 0) return 0;
+  try {
+    if (!(await docs.claim(claimName, claimSchema, { at }, at))) return 0;
   } catch {
     return 0;
   }
   let told = 0;
-  for (const userId of await paymentManagers(deps.meta).catch(() => [] as string[])) {
+  for (const userId of managers) {
     try {
       const i18n = await translatorFor(deps.meta, userId);
       const locale = String(i18n.language || 'en-US');
@@ -133,7 +144,15 @@ export async function tellPaymentManagers(
       // One person's notice failing never stops the others'.
     }
   }
+  // Told to nobody: let the claim go, so the next run tries again.
+  if (told === 0) await docs.remove(claimName).catch(() => undefined);
   return told;
+}
+
+/** Which of these notices were told already: one read, so a run does not try hundreds of claims it would lose. */
+export async function toldAlready(meta: MetaDb, abouts: readonly string[]): Promise<Set<string>> {
+  const names = await paymentSettingsRepo(meta).existing(abouts.map((about) => `${NOTICE_CLAIM_PREFIX}${about}`));
+  return new Set([...names].map((name) => name.slice(NOTICE_CLAIM_PREFIX.length)));
 }
 
 /** Drops "told once" claims older than the keep: the same thing is not told twice within it. */

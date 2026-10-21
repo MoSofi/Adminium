@@ -21,20 +21,21 @@
  * ─── THE INTEGRITY CHECK (daily) ───────────────────────────────────────────
  *
  * Every live payment recorded in the last 30 days: is its row still there,
- * for the amount taken (kept by Adminium: still there and not voided)? A
- * shop's database restored to an older point loses rows Adminium recorded;
- * each one missing is flagged for Activity (`RECORD_MISSING`) and told. It
- * only reads the shop's tables. A table it cannot read now is skipped, never
- * flagged.
+ * for the amount taken? A shop's database restored to an older point loses
+ * rows Adminium recorded; each one missing is flagged for Activity
+ * (`RECORD_MISSING`) and told. It only reads the shop's tables, finding each
+ * row by the key the record job wrote. A table, column or set-up it cannot
+ * read now is skipped, never flagged; a payment a person voided is theirs.
  */
 import { DEMO_PAYMENT_KEY, sameAmount, type PaymentMode } from '@adminium/add-on-contracts';
 import { currencyScale } from '@adminium/manifest';
-import { keptPaymentsRepo, paymentAttemptsRepo, paymentSettingsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
+import { keptPaymentsRepo, payableProfilesRepo, paymentAttemptsRepo, paymentSettingsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
 
 import type { Row } from '../crud/mask.js';
 import type { NotificationPublisher } from '../notifications/notify.js';
-import { noticeDay, noticeMoney, providerName, tellPaymentManagers, type NoticeWords } from './notices.js';
-import { exactAmount, fromMinorUnits, resolvePayable, type PayableSources } from './payables.js';
+import { noticeDay, noticeMoney, providerName, tellPaymentManagers, toldAlready, type NoticeWords } from './notices.js';
+import { exactAmount, fromMinorUnits, pkOfRowKey, type PayableSources } from './payables.js';
+import { fetchByPk } from '../crud/records.js';
 import { sweepDocName, sweepStateSchema } from './sweep.js';
 import { serviceDocName, serviceStateSchema, emptyServiceState } from './services.js';
 import { webhookDocName, webhookHealthSchema } from './webhook.js';
@@ -94,20 +95,17 @@ export function lookWords(attempt: PaymentAttempt): (locale: string) => NoticeWo
   return () => ({ title: { key: 'look.title', fallback: 'A payment needs a look' }, body: kind, values: { provider: providerName(attempt.provider), label: attempt.payableLabel } });
 }
 
-async function recentlyRecorded(meta: MetaDb, since: number): Promise<PaymentAttempt[]> {
-  const ids = await meta.db
-    .selectFrom('adminium_payment_attempts')
-    .select('id')
-    .where('state', '=', 'recorded')
-    .where('mode', '=', 'live')
-    .where('recordedAt', '>=', since)
-    .orderBy('recordedAt', 'desc')
-    .limit(500)
-    .execute();
+/** Live payments recorded at or after `since`, newest first, page by page (at most `cap`). */
+async function recordedSince(meta: MetaDb, since: number, cap: number): Promise<PaymentAttempt[]> {
+  const attempts = paymentAttemptsRepo(meta);
   const out: PaymentAttempt[] = [];
-  for (const { id } of ids) {
-    const attempt = await paymentAttemptsRepo(meta).byId(id);
-    if (attempt !== null) out.push(attempt);
+  let before: { at: number; id: string } | undefined;
+  while (out.length < cap) {
+    const page = await attempts.recordedPage({ mode: 'live', since, ...(before === undefined ? {} : { before }), limit: Math.min(200, cap - out.length) });
+    out.push(...page);
+    const last = page.at(-1);
+    if (page.length < 200 || last === undefined || last.recordedAt === null) break;
+    before = { at: last.recordedAt, id: last.id };
   }
   return out;
 }
@@ -119,9 +117,11 @@ export async function runPaymentWatch(deps: WatchDeps): Promise<WatchResult> {
   const attempts = paymentAttemptsRepo(deps.meta);
   const result: WatchResult = { landed: 0, looks: 0, unrecorded: 0, keys: 0, silent: 0, reads: 0 };
 
-  // A payment received.
-  for (const attempt of await recentlyRecorded(deps.meta, at - 2 * 3_600_000)) {
-    if (attempt.provider === DEMO_PAYMENT_KEY) continue;
+  // A payment received. What was told before is read in one go, not tried claim by claim.
+  const landedNow = (await recordedSince(deps.meta, at - 2 * 3_600_000, 500)).filter((attempt) => attempt.provider !== DEMO_PAYMENT_KEY);
+  const landedTold = await toldAlready(deps.meta, landedNow.map((attempt) => `landed:${attempt.id}`));
+  for (const attempt of landedNow) {
+    if (landedTold.has(`landed:${attempt.id}`)) continue;
     const paidWith = (attempt.paidWith as { label?: string } | null)?.label ?? null;
     result.landed += told(
       await tellPaymentManagers(notices, {
@@ -137,14 +137,19 @@ export async function runPaymentWatch(deps: WatchDeps): Promise<WatchResult> {
   }
 
   // A payment that needs a look.
-  for (const attempt of await attempts.needingLook({ mode: 'live', limit: 200 })) {
-    if (attempt.provider === DEMO_PAYMENT_KEY || attempt.updatedAt < at - 7 * DAY_MS) continue;
-    result.looks += told(await tellPaymentManagers(notices, { kind: 'payments.needs-look', about: `look:${attempt.id}:${attempt.problem?.code ?? 'flag'}`, urgent: true, words: lookWords(attempt) }));
+  const looks = (await attempts.needingLook({ mode: 'live', limit: 200 })).filter((attempt) => attempt.provider !== DEMO_PAYMENT_KEY && attempt.updatedAt >= at - 7 * DAY_MS);
+  const lookAbout = (attempt: PaymentAttempt): string => `look:${attempt.id}:${attempt.problem?.code ?? 'flag'}`;
+  const looksTold = await toldAlready(deps.meta, looks.map(lookAbout));
+  for (const attempt of looks) {
+    if (looksTold.has(lookAbout(attempt))) continue;
+    result.looks += told(await tellPaymentManagers(notices, { kind: 'payments.needs-look', about: lookAbout(attempt), urgent: true, words: lookWords(attempt) }));
   }
 
-  // Taken, and still not recorded.
-  for (const attempt of await attempts.stale(['succeeded', 'recording'], at - UNRECORDED_AFTER_MS, 200)) {
-    if (attempt.mode !== 'live' || attempt.provider === DEMO_PAYMENT_KEY) continue;
+  // Taken, and still not recorded: the newest of the last week first, so old stuck ones never crowd out new ones.
+  const unrecorded = (await attempts.movedBetween(['succeeded', 'recording'], { mode: 'live', since: at - 7 * DAY_MS, before: at - UNRECORDED_AFTER_MS, limit: 200 })).filter((attempt) => attempt.provider !== DEMO_PAYMENT_KEY);
+  const unrecordedTold = await toldAlready(deps.meta, unrecorded.map((attempt) => `unrecorded:${attempt.id}`));
+  for (const attempt of unrecorded) {
+    if (unrecordedTold.has(`unrecorded:${attempt.id}`)) continue;
     result.unrecorded += told(
       await tellPaymentManagers(notices, {
         kind: 'payments.needs-look',
@@ -226,37 +231,73 @@ export interface IntegrityResult {
   skipped: number;
 }
 
-/** Whether a recorded payment's row is there, for the amount taken; null when it cannot be told now. */
-async function stillThere(deps: WatchDeps, attempt: PaymentAttempt): Promise<boolean | null> {
+/**
+ * Whether a recorded payment's row is still there, for the amount taken.
+ * Null when it cannot be told now — a table hidden or renamed, a profile
+ * switched off, a column gone, an amount that does not read — which is
+ * skipped, never flagged. A payment a person voided is their own doing: it
+ * reads as there.
+ */
+export async function stillThere(deps: Pick<WatchDeps, 'meta' | 'sources'>, attempt: PaymentAttempt): Promise<boolean | null> {
   const taken = attempt.takenAmount ?? attempt.amount;
-  if (attempt.recordedKey?.startsWith('kept:') === true) {
+  const key = attempt.recordedKey ?? '';
+  if (key.startsWith('kept:')) {
     const kept = await keptPaymentsRepo(deps.meta).byAttempt(attempt.id);
-    return kept !== null && !kept.voided && sameAmount(kept.amount, taken);
+    if (kept === null) return false;
+    return kept.voided || sameAmount(kept.amount, taken);
   }
-  const payable = await resolvePayable(deps.sources, attempt.payable);
-  // The record itself is gone: its payment is gone with it.
-  if (payable === null) return false;
-  const into = payable.recordInto;
-  if (into.kind !== 'table' || attempt.payable.connectionId === null) return null;
-  const found = await deps.sources.table(attempt.payable.connectionId, into.tableName);
+  if (!key.startsWith('row:') || attempt.payable.connectionId === null || attempt.payable.tableName === null) return null;
+  // `row:<payments table>:<row key>`, as the record job wrote it: found by its own key, not by today's mapping.
+  const rest = key.slice('row:'.length);
+  const split = rest.indexOf(':');
+  if (split <= 0) return null;
+  const tableName = rest.slice(0, split);
+  const rowKey = rest.slice(split + 1);
+  const connectionId = attempt.payable.connectionId;
+  const found = await deps.sources.table(connectionId, tableName);
   if (found === null) return null;
-  const row = (await found.target.db
-    .selectFrom(found.table.id)
-    .selectAll()
-    .where((eb) => eb(eb.ref(into.reference as never), '=', attempt.id as never))
-    .executeTakeFirst()) as Row | undefined;
-  if (row === undefined) return false;
+  const pk = pkOfRowKey(found.table, rowKey);
+  if (pk === null) return null;
+  const row = (await fetchByPk(found.target.db, found.table, pk)) as Row | undefined;
+  // The table is there and answered: the row is not.
+  if (row === undefined || row === null) return false;
+
+  // Which columns hold the amount and the void, read from the payable's set-up as it is now.
+  let amountColumn: string | null = null;
+  let voidedColumn: string | null = null;
+  if (attempt.payable.kind === 'shape') {
+    amountColumn = 'amount';
+    voidedColumn = 'voided';
+  } else if (attempt.payable.kind === 'profile') {
+    const profile = await payableProfilesRepo(deps.meta).byTable(connectionId, attempt.payable.tableName);
+    const payments = profile?.mapping?.payments;
+    if (profile === null || payments === undefined || payments.kind !== 'table' || payments.table !== tableName) return null;
+    // Set up again since the payment was written: the row is there, and its amount is read no further.
+    if (attempt.recordedAt !== null && profile.updatedAt > attempt.recordedAt) return true;
+    amountColumn = payments.amount;
+    voidedColumn = payments.voided;
+  } else return null;
+  if (voidedColumn !== null && found.table.columns.has(voidedColumn)) {
+    const voided = row[voidedColumn];
+    if (voided === true || voided === 1 || voided === '1' || voided === 't' || voided === 'true') return true;
+  }
+  if (!found.table.columns.has(amountColumn)) return null;
+  const raw = row[amountColumn];
+  if (raw === null || raw === undefined) return null;
   const scale = currencyScale(attempt.takenCurrency ?? attempt.currency);
-  const amount = into.amountUnit === 'minor' ? fromMinorUnits(row[into.amount] ?? 0, scale) : exactAmount(row[into.amount] ?? 0, scale);
-  return amount !== null && sameAmount(amount, taken);
+  // Written in whole units or in the smallest one: either reading of what is there may match.
+  const readings = [exactAmount(raw, scale), fromMinorUnits(raw, scale)].filter((one): one is string => one !== null);
+  if (readings.length === 0) return null;
+  return readings.some((amount) => sameAmount(amount, taken));
 }
 
 /** One integrity run. It writes only to meta (a flag), never to a shop's table. */
 export async function runPaymentIntegrity(deps: WatchDeps): Promise<IntegrityResult> {
   const at = (deps.now ?? Date.now)();
   const attempts = paymentAttemptsRepo(deps.meta);
+  const notices = { meta: deps.meta, now: () => at, ...(deps.hub === undefined ? {} : { hub: deps.hub }) };
   const result: IntegrityResult = { checked: 0, missing: 0, skipped: 0 };
-  for (const attempt of await recentlyRecorded(deps.meta, at - INTEGRITY_DAYS * DAY_MS)) {
+  for (const attempt of await recordedSince(deps.meta, at - INTEGRITY_DAYS * DAY_MS, 10_000)) {
     if (attempt.provider === DEMO_PAYMENT_KEY || attempt.problem?.code === 'RECORD_MISSING') continue;
     let there: boolean | null;
     try {
@@ -270,9 +311,19 @@ export async function runPaymentIntegrity(deps: WatchDeps): Promise<IntegrityRes
     }
     result.checked += 1;
     if (there) continue;
+    result.missing += 1;
+    if (attempt.problem !== null) {
+      // An earlier problem (paid twice, the other mode) stays what Activity shows; the missing row is told on its own.
+      await tellPaymentManagers(notices, {
+        kind: 'payments.needs-look',
+        about: `missing:${attempt.id}`,
+        urgent: true,
+        words: () => ({ title: { key: 'look.title', fallback: 'A payment needs a look' }, body: { key: 'look.missing', fallback: 'Its recorded payment is no longer there: {label}' }, values: { label: attempt.payableLabel } }),
+      });
+      continue;
+    }
     await attempts.note(attempt.id, 'recorded', { problem: { code: 'RECORD_MISSING', message: 'The payment Adminium recorded is no longer in the record’s payments, or not for the amount taken.' } }, at);
     await attempts.flag(attempt.id, at);
-    result.missing += 1;
   }
   return result;
 }

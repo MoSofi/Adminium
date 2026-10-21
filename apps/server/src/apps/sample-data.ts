@@ -137,8 +137,8 @@ export interface SampleDataDeps {
   writes?: (() => RecordWriteService) | undefined;
   /**
    * Told the rows a removal took away, once it is done (the payments: their
-   * pay links end, their open checkouts close). A failure here is logged by
-   * the caller, never undoes the removal.
+   * pay links end, their open checkouts close). The caller does that work off
+   * the request and logs its own failures; it never undoes the removal.
    */
   onRowsRemoved?: ((connectionId: string, rows: readonly { table: ResolvedTable; pk: Row }[]) => Promise<void>) | undefined;
 }

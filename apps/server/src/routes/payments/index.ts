@@ -46,7 +46,7 @@ import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
 import { raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
 import { clockSkewOf } from '../../payments/clock.js';
-import { refundableCount, removeKeys, setLive, waitingCount } from '../../payments/going-live.js';
+import { refundableCount, removeKeysSafely, setLive, waitingCount } from '../../payments/going-live.js';
 import { providerName, tellPaymentManagers } from '../../payments/notices.js';
 import { reachability } from '../../payments/reachability.js';
 import { sweepDocName, sweepStateSchema } from '../../payments/sweep.js';
@@ -494,12 +494,21 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
           await app.rbac.audit(request, { category: 'payments', action: 'payments.service.stopped', changes: { after: { key, stopped: true } } });
           return { data: await viewNow(key, state) };
         }
-        const waiting = await waitingCount(meta, key);
-        if (waiting > 0 && !request.body.settleByHand) {
-          throw new ValidationFailedError('Payments are still on their way. Say you will settle them by hand first.', { reason: 'waiting', waiting });
+        // Stopped first, open checkouts ended while the keys still work; then, with nothing in motion
+        // (or the person's word they settle it by hand), the keys go.
+        const outcome = await removeKeysSafely(
+          { meta, manifests, providerFor: lookupFor, now: () => app.rbac.now() },
+          { manifestId: addOn.installed.row.id, key, settleByHand: request.body.settleByHand },
+        );
+        if (!outcome.removed) {
+          throw new ValidationFailedError('Payments are still on their way. New payments are stopped; say you will settle these by hand first.', { reason: 'waiting', waiting: outcome.waiting });
         }
-        const state = await removeKeys(meta, manifests, addOn.installed.row.id, key, app.rbac.now());
-        await app.rbac.audit(request, { category: 'payments', action: 'payments.service.keys.removed', changes: { after: { key, waiting, settleByHand: request.body.settleByHand } } });
+        const { state, waiting } = outcome;
+        await app.rbac.audit(request, {
+          category: 'payments',
+          action: 'payments.service.keys.removed',
+          changes: { after: { key, waiting, settleByHand: request.body.settleByHand, checkoutsEnded: outcome.ended, settledByHand: outcome.leftByHand } },
+        });
         // Taking a service's keys stops its payments: everyone who manages them hears of it.
         await tellPaymentManagers(
           { meta, now: () => app.rbac.now() },

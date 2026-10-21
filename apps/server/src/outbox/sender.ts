@@ -176,7 +176,7 @@ import { staffReplyTo } from './staff-reply-to.js';
 import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
-import { PAYMENT_HOLD_RETRY_MS, paymentHoldSentence, paymentWaitingSince } from '../payments/reminder-hold.js';
+import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '../payments/reminder-hold.js';
 
 /** The job that sends one app's queued rows now. */
 export const OUTBOX_SEND_JOB_KIND = 'app-outbox-send';
@@ -1591,7 +1591,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
     // Judged again, all together, just before they go.
     const verdicts = await verdictsFor(
-      { db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view), now, paymentHold: (table, record) => paymentWaitingSince(deps.meta, box.connectionId, table, record) },
+      { db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view), now, paymentHold: createPaymentHolds(deps.meta, box.connectionId, now) },
       rows,
       'send',
     );
@@ -1616,10 +1616,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           continue;
         }
         if (verdict?.heldSince !== undefined) {
-          // A payment for its row is waiting for the bank: it waits an hour, and says why.
+          // A request to pay while a payment for its row is on its way: it waits an hour, saying only that it is held.
           const values: Row = {};
           if (due !== undefined) values[due.name] = normalizeWriteValue(due, new Date(now + PAYMENT_HOLD_RETRY_MS).toISOString());
-          if (cols.error !== undefined) values[cols.error] = paymentHoldSentence(verdict.heldSince);
+          if (cols.error !== undefined) values[cols.error] = paymentHoldSentence();
           if (Object.keys(values).length > 0) {
             const held = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued'));
             if (held !== null) settled.push(held);
