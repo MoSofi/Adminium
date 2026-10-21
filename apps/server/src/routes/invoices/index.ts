@@ -209,8 +209,8 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
           name = request.body.name ?? starter.card.name;
           body = withInferredCode(starter.body);
           topic = starter.topic;
-          // An invoice's Paid is set by its balance: a starter drawn as paid (a receipt) starts as a draft.
-          status = kind === 'invoice' && starter.status === 'paid' ? 'draft' : starter.status;
+          // A starter drawn as paid (a receipt) keeps it: nothing is paid in Adminium yet, so the pick is the person's.
+          status = starter.status;
         } else {
           const { t } = await translatorFor(meta, userId);
           name =
@@ -273,9 +273,6 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
             // Its payments (or a payment on its way) are in one currency: the invoice stays in it.
             if (balance.heldIn !== null && body.currencyCode !== balance.heldIn) throw currencyHeld(balance.heldIn);
             status = statusAfter(row.status, status, balance);
-          } else if (status === 'paid' && row.status !== 'paid') {
-            // Paid is set by the balance, never picked by hand.
-            status = row.status;
           }
         }
         await deps.faults?.afterCheck?.();

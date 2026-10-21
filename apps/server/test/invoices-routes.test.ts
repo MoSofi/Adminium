@@ -114,8 +114,7 @@ describe('invoice document routes', () => {
     expect(doc.languages).toEqual([{ id: doc.id, lang: 'en', name: 'Standard invoice', status: 'draft' }]);
 
     const receipt = await create({ kind: 'invoice', starter: 'receipt', name: 'Acme — receipt' });
-    // An invoice's Paid is set by its balance, so a receipt starter makes a draft invoice.
-    expect(receipt).toMatchObject({ kind: 'invoice', name: 'Acme — receipt', status: 'draft', topic: 'receipts' });
+    expect(receipt).toMatchObject({ kind: 'invoice', name: 'Acme — receipt', status: 'paid', topic: 'receipts' });
     expect(receipt.summary).toMatchObject({ number: 'INV-1001', title: 'RECEIPT', accent: '#12805c', totalMinor: 29_000, itemCount: 1 });
     expect(receipt.body.number).toBe('INV-1001');
     expect(receipt.body.payment[2]).toBe('Reference: INV-1001');

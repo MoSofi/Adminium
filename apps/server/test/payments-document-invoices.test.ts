@@ -27,8 +27,9 @@ describe('the status the balance puts down', () => {
   const open = { follows: true, settled: false, paidIn: 'EUR', heldIn: 'EUR' };
   const settled = { follows: true, settled: true, paidIn: 'EUR', heldIn: 'EUR' };
 
-  it('never takes Paid by hand, and keeps every other pick until a payment is in charge', () => {
-    expect(statusAfter('sent', 'paid', none)).toBe('sent');
+  it('keeps every pick, Paid included, until a payment is in charge', () => {
+    // A shop that takes no payments in Adminium still marks an invoice Paid by hand.
+    expect(statusAfter('sent', 'paid', none)).toBe('paid');
     expect(statusAfter('sent', 'overdue', none)).toBe('overdue');
     // An invoice marked Paid before payments were recorded keeps it, and may be moved off it.
     expect(statusAfter('paid', 'paid', none)).toBe('paid');
@@ -201,14 +202,35 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a d
     expect(grown.json()).toMatchObject({ status: 'sent' });
   });
 
-  it.runIf(engine.available)('never lets Paid be picked by hand, and keeps one marked Paid before any payment', async () => {
+  it.runIf(engine.available)('takes Paid by hand while nothing is paid in Adminium, and never once a payment stands', async () => {
     const id = await sentInvoice();
-    expect((await save(id, 'paid', { currency: '€', items: [{ id: 'l1', desc: 'Cake', qty: '1', rate: '120' }], taxRate: '0' })).json()).toMatchObject({ status: 'sent' });
-    expect((await save(id, 'overdue', { currency: '€', items: [{ id: 'l1', desc: 'Cake', qty: '1', rate: '120' }], taxRate: '0' })).json()).toMatchObject({ status: 'overdue' });
-    // One marked Paid before payments were recorded (a receipt starter, an older install): it stays Paid.
-    await invoiceDocumentsRepo(meta).patch(id, { status: 'paid' }, Date.now());
-    expect((await save(id, 'paid', { currency: '€', items: [{ id: 'l1', desc: 'Cake', qty: '1', rate: '120' }], taxRate: '0' })).json()).toMatchObject({ status: 'paid' });
+    const lines = { currency: '€', items: [{ id: 'l1', desc: 'Cake', qty: '1', rate: '120' }], taxRate: '0' };
+    // The page an install already has (no payments set up) marks it Paid: the pick stands, and reading it keeps it.
+    expect((await save(id, 'paid', lines)).json()).toMatchObject({ status: 'paid' });
     expect(await followDocumentStatus({ meta, sources }, documentRef(id))).toBe('paid');
+    expect((await save(id, 'overdue', lines)).json()).toMatchObject({ status: 'overdue' });
+    // Once a payment stands, the balance has Paid: a part payment leaves it open whatever is asked.
+    expect((await record(owner, id, '20.00')).statusCode).toBe(200);
+    expect((await save(id, 'paid', lines)).json()).toMatchObject({ status: 'overdue' });
+    expect(await followDocumentStatus({ meta, sources }, documentRef(id))).toBe('overdue');
+  });
+
+  it.runIf(engine.available)('works for an install with no payment sources: Paid by hand, as before', async () => {
+    const bare = buildBareApp();
+    bare.addHook('onRequest', async (request) => {
+      (request as unknown as { user: object }).user = { id: owner.id, name: owner.name, email: owner.email };
+    });
+    await bare.register(rbacPlugin, { meta });
+    await bare.register(invoicesRoutes({ meta }));
+    await bare.ready();
+    try {
+      const made = (await bare.inject({ method: 'POST', url: '/invoices', payload: { kind: 'invoice' } })).json() as { id: string };
+      const saved = await bare.inject({ method: 'PUT', url: `/invoices/${made.id}`, payload: { name: 'Bakery order', status: 'paid', topic: 'other', lang: 'en', body: { currency: '€', items: [], taxRate: '0' } } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect(saved.json()).toMatchObject({ status: 'paid' });
+    } finally {
+      await bare.close();
+    }
   });
 
   it.runIf(engine.available)('follows an online payment and its refunds both ways; a test payment changes nothing', async () => {
@@ -289,12 +311,12 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a d
     expect((await save(template.id, 'draft', { currency: 'KD', currencyCode: 'KWD', items: [], taxRate: '0' })).statusCode).toBe(200);
   });
 
-  it.runIf(engine.available)('starts an invoice drawn as paid as a draft; a template keeps Paid', async () => {
+  it.runIf(engine.available)('keeps the status a starter is drawn with, Paid included, for an invoice and a template', async () => {
     const receipt = await app.inject({ method: 'POST', url: '/invoices', headers: as(owner), payload: { kind: 'invoice', starter: 'receipt' } });
     expect(receipt.statusCode, receipt.body).toBe(201);
-    expect(receipt.json()).toMatchObject({ status: 'draft' });
+    expect(receipt.json()).toMatchObject({ status: 'paid' });
     const donation = await app.inject({ method: 'POST', url: '/invoices', headers: as(owner), payload: { kind: 'invoice', starter: 'donation' } });
-    expect(donation.json()).toMatchObject({ status: 'draft' });
+    expect(donation.json()).toMatchObject({ status: 'paid' });
     const template = await app.inject({ method: 'POST', url: '/invoices', headers: as(owner), payload: { kind: 'template', starter: 'receipt' } });
     expect(template.json()).toMatchObject({ status: 'paid' });
   });

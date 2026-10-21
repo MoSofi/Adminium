@@ -6,10 +6,12 @@
  * has a live payment, the balance is in charge of one status: Paid when
  * nothing is left to pay, and back to Sent when a refund (or a refund that
  * failed after all) opens the balance again. The other statuses (Draft, Live,
- * Sent, Overdue) stay the person's to pick; Paid is never picked by hand.
+ * Sent, Overdue) stay the person's to pick; Paid is not picked by hand once
+ * a live payment stands.
  *
- * An invoice with no live payment keeps whatever status it has, Paid
- * included: one marked Paid by hand before payments were recorded is not
+ * An invoice with no live payment is the person's, Paid included: a shop that
+ * takes no payments in Adminium marks it Paid by hand, as before payments
+ * existed, and one marked Paid before any payment was recorded is not
  * reopened by reading it. Test payments are kept apart and never count.
  *
  * TWO WRITERS, ONE ANSWER. A payment being recorded and a person saving the
@@ -55,10 +57,11 @@ export function documentRef(id: string): PayableRef {
 
 /** The status the balance puts down, given the one asked for and the one stored. Pure. */
 export function statusAfter(stored: InvoiceStatus, asked: InvoiceStatus, balance: DocumentBalance): InvoiceStatus {
-  // Paid is never picked by hand: asking for it keeps what is stored.
-  const picked = asked === 'paid' && stored !== 'paid' ? stored : asked;
-  if (!balance.follows) return picked;
+  // Nothing paid in Adminium yet: the person's pick stands, Paid included.
+  if (!balance.follows) return asked;
   if (balance.settled) return 'paid';
+  // Once a live payment stands, Paid is the balance's: asking for it keeps what is stored.
+  const picked = asked === 'paid' && stored !== 'paid' ? stored : asked;
   return picked === 'paid' ? 'sent' : picked;
 }
 
