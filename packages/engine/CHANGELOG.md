@@ -1,5 +1,12 @@
 # @adminium/engine
 
+## 0.3.32
+
+### Patch Changes
+
+- Updated dependencies [1a2943a]
+  - @adminium/widgets@0.3.32
+
 ## 0.3.31
 
 ### Patch Changes

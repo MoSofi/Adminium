@@ -1,5 +1,43 @@
 # @adminium/server
 
+## 0.3.32
+
+### Patch Changes
+
+- 5adafea: The Designer's Pictures dialog can always be opened again: a "Pictures · N to fill" button now sits in the build page's top bar, also after a picture was applied (it used to disappear after one Apply). A picture search that finds nothing is tried again with fewer words. The desktop app now carries the Designer's skills and its ten built-in styles: before, its Designer worked without them and its Style list was empty.
+- b1928be: The Designer's picture dialog can search Pixabay too, beside Openverse, Pexels and Unsplash, when the project's `.env` (or the desktop app) has a `PIXABAY_API_KEY`. A Pixabay picture has its own badge, "Pixabay licence" (the Pixabay Content License): no credit is needed, and it is copied into the app like a Pexels or Openverse picture. As Pixabay's rules ask, the same search on Pixabay within a day shows the results kept from the first time and does not count against the key's 100 searches a minute, and the dialog now says which site the pictures come from ("Pictures from Pixabay") under every search's results.
+- 98579cd: In the desktop app, a Pexels or Unsplash key can be pasted into the Designer's Pictures dialog, and that source appears at once, without a restart. The key is kept with the app's other keys, not in the project's `.env`. Before, the desktop app offered only Openverse and had no way to add these keys.
+- 5f45487: Adminium can now take payments. Your shop stays the seller: you connect your own payment service, and Adminium holds no account, no key of its own and no money.
+  
+  - **Studio → Payments** sets it up: whether customers can reach this server, the payment services and their test and live keys, the ways to pay (online, or by hand: bank transfer, cash on delivery and your own), which tables can be paid and where each payment is written, and the pay page's name, logo, contact and address. Three new permissions: "Set up payments", "See payment activity and export it" and "Give refunds".
+  - **A record's Payment panel** shows the balance and every payment, makes the record's pay link (one current link, 30 days), emails it, and records a payment that arrived another way, a card on your own terminal included. A full card number is refused in every payment field.
+  - **The pay page** (`/pay/…`) shows the shop, the number, the amount due and the ways to pay, never the customer's name, in the customer's language. Test links open only for staff, and every test link offers a demo service that needs no account.
+  - **Payments are written once**, whether the webhook, the return page or the safety check finds them first, against the record's own payments table or kept by Adminium. A payment that cannot be written is shown in Activity for a person to decide, never refunded by itself. A nightly check flags recorded payments whose row has gone.
+  - **Refunds** in two steps, refunds made at the service recorded and flagged, disputes marked and notified, all listed in **Activity** with a CSV export.
+  - **Emails and documents** can carry the record's pay link (`{{pay_url}}`) and print it with a code to scan.
+  - **Invoices made on the Invoices page** take payments too once they name their currency's code: Paid then follows the balance.
+  
+  **On upgrade:** an email template of your own whose key was `payment-link` or `payment-receipt` moves to `payment-link-2` / `payment-receipt-2` (automations that send it follow), because those keys are now built-in emails.
+  
+  Card payments (Stripe) and Wallet payments (PayPal) come as add-ons in the next add-ons release. The new add-on contract is `payment-provider@1`.
+- 1a2943a: A picture over 2 MB on a customer page no longer shows as a broken image: it is served as a smaller copy. A picture too big for customers to be shown is refused where it is uploaded or chosen, and the field says why, in every language. `adminium app check` warns about a picture column whose file limit is above what customers can be shown, and the Designer no longer writes one.
+- Updated dependencies [5adafea]
+- Updated dependencies [b1928be]
+- Updated dependencies [a2f57e4]
+- Updated dependencies [98579cd]
+- Updated dependencies [5f45487]
+- Updated dependencies [1a2943a]
+  - @adminium/i18n@0.3.32
+  - @adminium/add-on-contracts@0.3.32
+  - @adminium/manifest@0.3.32
+  - @adminium/meta@0.3.32
+  - @adminium/engine@0.3.32
+  - @adminium/llm@0.3.32
+  - @adminium/adapter-mysql@0.3.32
+  - @adminium/adapter-postgres@0.3.32
+  - @adminium/adapter-sqlite@0.3.32
+  - @adminium/schema-import@0.3.32
+
 ## 0.3.31
 
 ### Patch Changes

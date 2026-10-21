@@ -1,5 +1,23 @@
 # @adminium/desktop
 
+## 0.3.32
+
+### Patch Changes
+
+- 5adafea: The Designer's Pictures dialog can always be opened again: a "Pictures · N to fill" button now sits in the build page's top bar, also after a picture was applied (it used to disappear after one Apply). A picture search that finds nothing is tried again with fewer words. The desktop app now carries the Designer's skills and its ten built-in styles: before, its Designer worked without them and its Style list was empty.
+- b1928be: The Designer's picture dialog can search Pixabay too, beside Openverse, Pexels and Unsplash, when the project's `.env` (or the desktop app) has a `PIXABAY_API_KEY`. A Pixabay picture has its own badge, "Pixabay licence" (the Pixabay Content License): no credit is needed, and it is copied into the app like a Pexels or Openverse picture. As Pixabay's rules ask, the same search on Pixabay within a day shows the results kept from the first time and does not count against the key's 100 searches a minute, and the dialog now says which site the pictures come from ("Pictures from Pixabay") under every search's results.
+- a2f57e4: The desktop app's menu now says "Adminium" instead of "@adminium/desktop" (in "Hide" and "Quit", for example). Its data and logs stay in the same folders, so nothing moves. "About Adminium" now works on the Start screen and in an open project: it shows the version and offers "Check for Updates…". On macOS, "Check for Updates…" has moved from Help to the Adminium menu, under About. A check started from the menu always gets an answer: you're up to date, an update to download and install, or the check failed. The menu and these dialogs now follow the app's language on the Start screen too, where they used to stay in English.
+- 4c478fc: The desktop app now carries the AI allow-lists, so Milo, the page assistant, works in it: before, the app's server started with no assistant at all ("Route GET:/api/v1/assistant/availability … not found"). It also carries the sample database seed, like the npm package. A desktop build now stops if any of these, or the Designer's skills and styles, is missing from the app.
+- Updated dependencies [5adafea]
+- Updated dependencies [b1928be]
+- Updated dependencies [98579cd]
+- Updated dependencies [5f45487]
+- Updated dependencies [1a2943a]
+  - @adminium/server@0.3.32
+  - @adminium/adapter-mysql@0.3.32
+  - @adminium/adapter-postgres@0.3.32
+  - @adminium/adapter-sqlite@0.3.32
+
 ## 0.3.31
 
 ### Patch Changes

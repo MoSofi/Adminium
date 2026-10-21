@@ -1,5 +1,21 @@
 # @adminium/widgets
 
+## 0.3.32
+
+### Patch Changes
+
+- 1a2943a: A picture over 2 MB on a customer page no longer shows as a broken image: it is served as a smaller copy. A picture too big for customers to be shown is refused where it is uploaded or chosen, and the field says why, in every language. `adminium app check` warns about a picture column whose file limit is above what customers can be shown, and the Designer no longer writes one.
+- Updated dependencies [5adafea]
+- Updated dependencies [b1928be]
+- Updated dependencies [a2f57e4]
+- Updated dependencies [98579cd]
+- Updated dependencies [5f45487]
+- Updated dependencies [1a2943a]
+  - @adminium/i18n@0.3.32
+  - @adminium/charts@0.3.32
+  - @adminium/tokens@0.3.32
+  - @adminium/ui@0.3.32
+
 ## 0.3.31
 
 ### Patch Changes
