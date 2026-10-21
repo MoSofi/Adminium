@@ -585,3 +585,16 @@ codes the endpoint features for app pages raise (child rows, quotes, retries, wi
 | `SCOPE_FORGET_COLUMN` | "Delete my details" is declared on the identity, empties columns that can be emptied (never a key), stamps a time column, and stops own links that exist. |
 | `ENDPOINT_PICTURES_READ_ONLY`, `ENDPOINT_PICTURES_CLAIMED`, `ENDPOINT_PICTURES_UNKNOWN_COLUMN`, `ENDPOINT_PICTURES_NOT_SELECTED`, `ENDPOINT_PICTURES_WRITABLE` | Pictures are shown to every visitor through a read-only endpoint, from columns it shows and no caller writes. |
 | `ENDPOINT_COLUMN_UNKNOWN`, `SCOPE_COLUMN_UNKNOWN` | A column named by one of these settings is not in the table. |
+
+### Saving an invoice made on the Invoices page
+
+An invoice made on the Invoices add-on's own page (`PUT /api/v1/invoices/:id`) can be paid only
+in a currency the page offers, and keeps the currency its payments are in:
+
+| Code | Status | When | details |
+|---|---|---|---|
+| `CURRENCY_HAS_PAYMENTS` | 422 | The save changes the currency of an invoice that has a live payment, or one on its way. Nothing was kept. | `field` (`currencyCode`), `currency` (the one it keeps) |
+| `VALIDATION_FAILED` | 422 | `details.reason` `CURRENCY_NOT_OFFERED`: a currency the page does not offer, or one with three decimals (BHD, JOD, KWD, OMR, TND). Templates take any code. | `field`, `reason`, `currency` |
+
+An invoice's status Paid is set and cleared by its balance. A save that asks for Paid keeps the
+status already stored; it is not refused.
