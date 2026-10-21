@@ -85,6 +85,8 @@ export interface WebhookHealth {
   badThisHour: number;
   caughtAt: number | null;
   slowed: boolean;
+  /** The address the last verified event came to (`https://host`); absent from an older server. */
+  eventOrigin?: string | null;
 }
 
 export interface ServiceView {
@@ -101,6 +103,12 @@ export interface ServiceView {
   test: ModeView;
   live: ModeView;
   checklist: { step: ChecklistStep; done: boolean }[];
+  /** Payments of this service still on their way; absent from an older server. */
+  waiting?: number;
+  /** Live payments of the last 180 days not refunded in full. */
+  refundable?: number;
+  /** The service's clock minus this server's (ms), at its last answer. */
+  clockSkewMs?: number | null;
 }
 
 export interface Reachability {
@@ -156,6 +164,16 @@ export async function choosePath(key: string, path: 'app' | 'by-hand'): Promise<
 
 export async function setStopped(key: string, stopped: boolean): Promise<ServiceView> {
   return (await api.put<{ data: ServiceView }>(`${service(key)}/stopped`, { stopped })).data;
+}
+
+/** Live payments on (needs a live key that passed its Check; ends the test links) or off. */
+export async function setLive(key: string, on: boolean): Promise<ServiceView> {
+  return (await api.put<{ data: ServiceView }>(`${service(key)}/live`, { on })).data;
+}
+
+/** Disconnect: stop new payments, or remove the keys (with payments waiting, only when they will be settled by hand). */
+export async function disconnectService(key: string, action: 'stop' | 'remove', settleByHand = false): Promise<ServiceView> {
+  return (await api.post<{ data: ServiceView }>(`${service(key)}/disconnect`, { action, settleByHand })).data;
 }
 
 /** The refusal reason a save came back with, when it is one this page words. */

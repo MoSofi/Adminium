@@ -3674,7 +3674,8 @@
       "badLive": "过去一小时内收到 {count, plural, other {# 个事件}}，但签名不匹配。这是端点页面上用于正式模式的密钥吗？",
       "badTest": "过去一小时内收到 {count, plural, other {# 个事件}}，但签名不匹配。这是端点页面上用于测试模式的密钥吗？",
       "caught": "Adminium 在 {when} 发现了一笔没有任何 webhook 通知过的付款。webhook 没有到达此服务器。",
-      "slowed": "本月 Adminium 会减少检查 {provider} 的次数：它已用掉 {provider} 允许读取次数的一半。"
+      "slowed": "本月 Adminium 会减少检查 {provider} 的次数：它已用掉 {provider} 允许读取次数的一半。",
+      "moved": "webhook 地址已更改。请在 {provider} 更新："
     },
     "mode": {
       "test": "测试",
@@ -4130,6 +4131,39 @@
       "older": "加载更早的付款",
       "viewOnly": "您可以查看付款。如需操作，请联系管理付款的人员。",
       "countLabel": "{count, plural, other {# 项需要查看}}"
-    }
+    },
+    "live": {
+      "ready": "正式密钥可用",
+      "readyBody": "开启正式付款后，客户将进行真实付款，所有测试链接随即失效。",
+      "on": "正式模式已开启",
+      "firstPayment": "首笔正式付款已于 {when} 到达",
+      "unproven": "正式模式已开启，但 webhook 尚未确认。",
+      "unprovenBody": "在首个正式事件到达前，Adminium 会更频繁地查询 {provider}。",
+      "turnOff": "关闭正式付款",
+      "turnOn": "开启正式付款"
+    },
+    "disconnect": {
+      "title": "断开 {provider}？",
+      "waiting": "{count, plural, other {# 笔付款}}仍在等待银行",
+      "refundable": "{count, plural, other {# 笔付款}}仍可退款",
+      "choice": "要做什么",
+      "stop": "停止新付款",
+      "stopBody": "不再开始新付款。Adminium 会保留密钥，以完成等待中的付款并办理退款。",
+      "remove": "删除密钥",
+      "removeBody": "从此服务器删除 {provider} 的密钥。之后 Adminium 将无法完成付款或办理退款。",
+      "removeWaiting": "{count, plural, other {# 笔付款}}仍在等待银行。仍要删除密钥吗？这些付款需要手动处理。",
+      "settle": "是的，删除密钥并手动处理这 {count, plural, other {# 笔付款}}",
+      "roll": "在此删除密钥不会在 {provider} 作废它。为安全起见，请在 {provider} 的控制台中更换密钥。",
+      "cancel": "取消"
+    },
+    "menu": {
+      "check": "再次检查密钥",
+      "disconnect": "断开…"
+    },
+    "clock": {
+      "title": "此服务器的时钟与 {provider} 的时钟相差 {seconds} 秒。",
+      "body": "请自动设置服务器时间（NTP）。超过五分钟，来自 {provider} 的付款消息将被拒绝。"
+    },
+    "menuLabel": "{service} 的更多操作"
   }
 }

@@ -3684,7 +3684,8 @@ export default {
       "badLive": "Za poslední hodinu {count, plural, one {přišla # událost} few {přišly # události} many {přišlo # události} other {přišlo # událostí}}, ale podpis nesouhlasil. Je to tajný klíč ze stránky endpointu, pro ostrý režim?",
       "badTest": "Za poslední hodinu {count, plural, one {přišla # událost} few {přišly # události} many {přišlo # události} other {přišlo # událostí}}, ale podpis nesouhlasil. Je to tajný klíč ze stránky endpointu, pro testovací režim?",
       "caught": "Adminium {when} našlo platbu, kterou neohlásil žádný webhook. Webhook se k tomuto serveru nedostává.",
-      "slowed": "Adminium se tento měsíc ptá {provider} méně často: spotřebovalo polovinu dotazů, které {provider} povoluje."
+      "slowed": "Adminium se tento měsíc ptá {provider} méně často: spotřebovalo polovinu dotazů, které {provider} povoluje.",
+      "moved": "Adresa webhooku se změnila. Aktualizujte ji u služby {provider}:"
     },
     "mode": {
       "test": "Test",
@@ -4140,6 +4141,39 @@ export default {
       "older": "Načíst starší platby",
       "viewOnly": "Platby můžete prohlížet. Požádejte někoho, kdo platby spravuje, aby jednal.",
       "countLabel": "K prohlédnutí: {count, plural, one {#} few {#} many {#} other {#}}"
-    }
+    },
+    "live": {
+      "ready": "Ostrý klíč funguje",
+      "readyBody": "Zapnutím ostrých plateb zákazníci platí skutečně. Všechny testovací odkazy pak přestanou fungovat.",
+      "on": "Ostrý režim je zapnutý",
+      "firstPayment": "První ostrá platba dorazila {when}",
+      "unproven": "Ostrý režim je zapnutý, ale webhook ještě není ověřený.",
+      "unprovenBody": "Adminium se službě {provider} ptá častěji, dokud nedorazí první ostrá událost.",
+      "turnOff": "Vypnout ostré platby",
+      "turnOn": "Zapnout ostré platby"
+    },
+    "disconnect": {
+      "title": "Odpojit službu {provider}?",
+      "waiting": "{count, plural, one {# platba ještě čeká} few {# platby ještě čekají} other {# plateb ještě čeká}} na banku",
+      "refundable": "{count, plural, one {# platbu lze} few {# platby lze} other {# plateb lze}} ještě vrátit",
+      "choice": "Co udělat",
+      "stop": "Zastavit nové platby",
+      "stopBody": "Žádné nové platby nezačnou. Adminium si klíč ponechá, aby dokončilo čekající platby a mohlo vracet peníze.",
+      "remove": "Odstranit klíče",
+      "removeBody": "Smaže klíče služby {provider} z tohoto serveru. Adminium pak už nemůže dokončit platby ani vracet peníze.",
+      "removeWaiting": "{count, plural, one {# platba ještě čeká} few {# platby ještě čekají} other {# plateb ještě čeká}} na banku. Přesto klíče odstranit? Bude je nutné vyřídit ručně.",
+      "settle": "Ano, odstranit klíče a vyřídit {count, plural, one {# platbu} few {# platby} other {# plateb}} ručně",
+      "roll": "Odstraněním zde se klíč u služby {provider} nezruší. Pro jistotu klíč obnovte v dashboardu služby {provider}.",
+      "cancel": "Zrušit"
+    },
+    "menu": {
+      "check": "Znovu ověřit klíče",
+      "disconnect": "Odpojit…"
+    },
+    "clock": {
+      "title": "Hodiny tohoto serveru se od hodin služby {provider} liší o {seconds} s.",
+      "body": "Nastavte čas serveru automaticky (NTP). Po pěti minutách jsou platební zprávy od služby {provider} odmítnuty."
+    },
+    "menuLabel": "Další pro {service}"
   }
 } as const;

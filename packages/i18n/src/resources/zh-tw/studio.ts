@@ -3684,7 +3684,8 @@ export default {
       "badLive": "過去一小時內收到 {count, plural, other {# 個事件}}，但簽章不符。這是端點頁面上用於正式模式的密鑰嗎？",
       "badTest": "過去一小時內收到 {count, plural, other {# 個事件}}，但簽章不符。這是端點頁面上用於測試模式的密鑰嗎？",
       "caught": "Adminium 在 {when} 發現了一筆沒有任何 Webhook 通知過的付款。Webhook 沒有到達此伺服器。",
-      "slowed": "本月 Adminium 會減少檢查 {provider} 的次數：它已用掉 {provider} 允許讀取次數的一半。"
+      "slowed": "本月 Adminium 會減少檢查 {provider} 的次數：它已用掉 {provider} 允許讀取次數的一半。",
+      "moved": "webhook 位址已變更。請在 {provider} 更新："
     },
     "mode": {
       "test": "測試",
@@ -4140,6 +4141,39 @@ export default {
       "older": "載入較早的付款",
       "viewOnly": "您可以檢視付款。如需處理，請聯絡管理付款的人員。",
       "countLabel": "{count, plural, other {# 項需要查看}}"
-    }
+    },
+    "live": {
+      "ready": "正式金鑰可用",
+      "readyBody": "開啟正式付款後，客戶將進行真實付款，所有測試連結隨即失效。",
+      "on": "正式模式已開啟",
+      "firstPayment": "首筆正式付款已於 {when} 到達",
+      "unproven": "正式模式已開啟，但 webhook 尚未確認。",
+      "unprovenBody": "在首個正式事件到達前，Adminium 會更頻繁地查詢 {provider}。",
+      "turnOff": "關閉正式付款",
+      "turnOn": "開啟正式付款"
+    },
+    "disconnect": {
+      "title": "中斷 {provider}？",
+      "waiting": "{count, plural, other {# 筆付款}}仍在等待銀行",
+      "refundable": "{count, plural, other {# 筆付款}}仍可退款",
+      "choice": "要做什麼",
+      "stop": "停止新付款",
+      "stopBody": "不再開始新付款。Adminium 會保留金鑰，以完成等待中的付款並辦理退款。",
+      "remove": "刪除金鑰",
+      "removeBody": "從此伺服器刪除 {provider} 的金鑰。之後 Adminium 將無法完成付款或辦理退款。",
+      "removeWaiting": "{count, plural, other {# 筆付款}}仍在等待銀行。仍要刪除金鑰嗎？這些付款需要手動處理。",
+      "settle": "是的，刪除金鑰並手動處理這 {count, plural, other {# 筆付款}}",
+      "roll": "在此刪除金鑰不會在 {provider} 作廢它。為安全起見，請在 {provider} 的控制台中更換金鑰。",
+      "cancel": "取消"
+    },
+    "menu": {
+      "check": "再次檢查金鑰",
+      "disconnect": "中斷…"
+    },
+    "clock": {
+      "title": "此伺服器的時鐘與 {provider} 的時鐘相差 {seconds} 秒。",
+      "body": "請自動設定伺服器時間（NTP）。超過五分鐘，來自 {provider} 的付款訊息將被拒絕。"
+    },
+    "menuLabel": "{service} 的更多操作"
   }
 } as const;

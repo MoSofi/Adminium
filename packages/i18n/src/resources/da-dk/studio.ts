@@ -3684,7 +3684,8 @@ export default {
       "badLive": "{count, plural, one {# hændelse} other {# hændelser}} kom i den seneste time, men signaturen passede ikke. Er det hemmeligheden fra endpointets side, til live-tilstand?",
       "badTest": "{count, plural, one {# hændelse} other {# hændelser}} kom i den seneste time, men signaturen passede ikke. Er det hemmeligheden fra endpointets side, til testtilstand?",
       "caught": "Adminium fandt {when} en betaling, som ingen webhook havde meldt. Webhooken når ikke frem til denne server.",
-      "slowed": "Adminium tjekker {provider} sjældnere denne måned: Den har brugt halvdelen af de opslag, {provider} tillader."
+      "slowed": "Adminium tjekker {provider} sjældnere denne måned: Den har brugt halvdelen af de opslag, {provider} tillader.",
+      "moved": "Webhook-adressen er ændret. Opdater den hos {provider}:"
     },
     "mode": {
       "test": "Test",
@@ -4140,6 +4141,39 @@ export default {
       "older": "Indlæs ældre betalinger",
       "viewOnly": "Du kan se betalinger. Bed en, der administrerer betalinger, om at handle.",
       "countLabel": "{count, plural, one {# skal ses på} other {# skal ses på}}"
-    }
+    },
+    "live": {
+      "ready": "Live-nøglen virker",
+      "readyBody": "Når live-betalinger slås til, betaler kunderne rigtigt. Alle testlinks holder så op med at virke.",
+      "on": "Live er slået til",
+      "firstPayment": "Første live-betaling kom {when}",
+      "unproven": "Live er slået til, men webhooken er ikke bekræftet endnu.",
+      "unprovenBody": "Adminium spørger {provider} oftere, indtil den første live-hændelse kommer.",
+      "turnOff": "Slå live-betalinger fra",
+      "turnOn": "Slå live-betalinger til"
+    },
+    "disconnect": {
+      "title": "Afbryd {provider}?",
+      "waiting": "{count, plural, one {# betaling venter} other {# betalinger venter}} stadig på banken",
+      "refundable": "{count, plural, one {# betaling} other {# betalinger}} kan stadig refunderes",
+      "choice": "Hvad skal der ske",
+      "stop": "Stop nye betalinger",
+      "stopBody": "Ingen nye betalinger starter. Adminium beholder nøglen for at afslutte ventende betalinger og give refusioner.",
+      "remove": "Fjern nøgler",
+      "removeBody": "Sletter nøglerne til {provider} fra denne server. Adminium kan så ikke længere afslutte betalinger eller give refusioner.",
+      "removeWaiting": "{count, plural, one {# betaling venter} other {# betalinger venter}} stadig på banken. Fjern nøglerne alligevel? De skal så afsluttes manuelt.",
+      "settle": "Ja, fjern nøglerne og afslut {count, plural, one {den # betaling} other {de # betalinger}} manuelt",
+      "roll": "At fjerne nøglen her annullerer den ikke hos {provider}. Forny for en sikkerheds skyld nøglen i dit dashboard hos {provider}.",
+      "cancel": "Annuller"
+    },
+    "menu": {
+      "check": "Tjek nøglerne igen",
+      "disconnect": "Afbryd …"
+    },
+    "clock": {
+      "title": "Denne servers ur går {seconds} sekunder forkert i forhold til uret hos {provider}.",
+      "body": "Indstil servertiden automatisk (NTP). Efter fem minutter afvises betalingsbeskeder fra {provider}."
+    },
+    "menuLabel": "Mere for {service}"
   }
 } as const;

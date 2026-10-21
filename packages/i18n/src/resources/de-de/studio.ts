@@ -3684,7 +3684,8 @@ export default {
       "badLive": "{count, plural, one {# Ereignis kam} other {# Ereignisse kamen}} in der letzten Stunde an, aber die Signatur passte nicht. Ist das das Secret von der Endpoint-Seite, für den Live-Modus?",
       "badTest": "{count, plural, one {# Ereignis kam} other {# Ereignisse kamen}} in der letzten Stunde an, aber die Signatur passte nicht. Ist das das Secret von der Endpoint-Seite, für den Testmodus?",
       "caught": "Adminium hat {when} eine Zahlung gefunden, die kein Webhook gemeldet hatte. Der Webhook erreicht diesen Server nicht.",
-      "slowed": "Adminium fragt {provider} diesen Monat seltener ab: Die Hälfte der Abrufe, die {provider} erlaubt, ist verbraucht."
+      "slowed": "Adminium fragt {provider} diesen Monat seltener ab: Die Hälfte der Abrufe, die {provider} erlaubt, ist verbraucht.",
+      "moved": "Die Webhook-Adresse hat sich geändert. Aktualisieren Sie sie bei {provider}:"
     },
     "mode": {
       "test": "Test",
@@ -4140,6 +4141,39 @@ export default {
       "older": "Ältere Zahlungen laden",
       "viewOnly": "Sie können Zahlungen ansehen. Bitten Sie jemanden, der Zahlungen verwaltet, zu handeln.",
       "countLabel": "{count, plural, one {# muss angesehen werden} other {# müssen angesehen werden}}"
-    }
+    },
+    "live": {
+      "ready": "Der Live-Schlüssel funktioniert",
+      "readyBody": "Mit Live-Zahlungen zahlen Kunden echt. Jeder Testlink funktioniert dann nicht mehr.",
+      "on": "Live ist an",
+      "firstPayment": "Erste Live-Zahlung eingegangen {when}",
+      "unproven": "Live ist an, aber der Webhook ist noch nicht bestätigt.",
+      "unprovenBody": "Adminium fragt bei {provider} häufiger nach, bis das erste Live-Ereignis ankommt.",
+      "turnOff": "Live-Zahlungen ausschalten",
+      "turnOn": "Live-Zahlungen einschalten"
+    },
+    "disconnect": {
+      "title": "{provider} trennen?",
+      "waiting": "{count, plural, one {# Zahlung wartet} other {# Zahlungen warten}} noch auf die Bank",
+      "refundable": "{count, plural, one {# Zahlung kann} other {# Zahlungen können}} noch erstattet werden",
+      "choice": "Was soll geschehen",
+      "stop": "Neue Zahlungen stoppen",
+      "stopBody": "Es beginnen keine neuen Zahlungen. Adminium behält den Schlüssel, um wartende Zahlungen abzuschließen und Erstattungen zu geben.",
+      "remove": "Schlüssel entfernen",
+      "removeBody": "Löscht die Schlüssel für {provider} von diesem Server. Adminium kann dann keine Zahlungen mehr abschließen und keine Erstattungen geben.",
+      "removeWaiting": "{count, plural, one {# Zahlung wartet} other {# Zahlungen warten}} noch auf die Bank. Die Schlüssel trotzdem entfernen? Sie müssen dann von Hand abgeschlossen werden.",
+      "settle": "Ja, Schlüssel entfernen und {count, plural, one {die # Zahlung} other {die # Zahlungen}} von Hand abschließen",
+      "roll": "Das Entfernen hier sperrt den Schlüssel bei {provider} nicht. Erneuern Sie den Schlüssel zur Sicherheit im Dashboard von {provider}.",
+      "cancel": "Abbrechen"
+    },
+    "menu": {
+      "check": "Schlüssel erneut prüfen",
+      "disconnect": "Trennen …"
+    },
+    "clock": {
+      "title": "Die Uhr dieses Servers weicht {seconds} Sekunden von der Uhr von {provider} ab.",
+      "body": "Stellen Sie die Serverzeit automatisch ein (NTP). Ab fünf Minuten werden Zahlungsnachrichten von {provider} abgelehnt."
+    },
+    "menuLabel": "Mehr zu {service}"
   }
 } as const;

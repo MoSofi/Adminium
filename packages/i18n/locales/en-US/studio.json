@@ -3674,7 +3674,8 @@
       "badLive": "{count, plural, one {# event} other {# events}} arrived in the last hour but the signature did not match. Is this the secret from the endpoint page, for live mode?",
       "badTest": "{count, plural, one {# event} other {# events}} arrived in the last hour but the signature did not match. Is this the secret from the endpoint page, for test mode?",
       "caught": "Adminium found a payment {when} that no webhook had announced. The webhook is not reaching this server.",
-      "slowed": "Adminium checks {provider} less often this month: it has used half of the reads {provider} allows."
+      "slowed": "Adminium checks {provider} less often this month: it has used half of the reads {provider} allows.",
+      "moved": "The webhook address changed. Update it at {provider}:"
     },
     "mode": {
       "test": "Test",
@@ -4130,6 +4131,39 @@
       "older": "Load older payments",
       "viewOnly": "You can view payments. Ask someone who manages payments to act.",
       "countLabel": "{count, plural, one {# needs a look} other {# need a look}}"
-    }
+    },
+    "live": {
+      "ready": "The live key works",
+      "readyBody": "Turning on live payments sends customers to real payments. Every test link stops working then.",
+      "on": "Live is on",
+      "firstPayment": "First live payment arrived {when}",
+      "unproven": "Live is on, but the webhook is not proven yet.",
+      "unprovenBody": "Adminium checks {provider} more often until the first live event arrives.",
+      "turnOff": "Turn off live payments",
+      "turnOn": "Turn on live payments"
+    },
+    "disconnect": {
+      "title": "Disconnect {provider}?",
+      "waiting": "{count, plural, one {# payment is} other {# payments are}} still waiting for the bank",
+      "refundable": "{count, plural, one {# payment} other {# payments}} can still be refunded",
+      "choice": "What to do",
+      "stop": "Stop new payments",
+      "stopBody": "No new payments start. Adminium keeps the key to finish the waiting payments and to give refunds.",
+      "remove": "Remove keys",
+      "removeBody": "Deletes the {provider} keys from this server. Adminium can no longer finish payments or give refunds.",
+      "removeWaiting": "{count, plural, one {# payment is} other {# payments are}} still waiting for the bank. Remove the keys anyway? They will need settling by hand.",
+      "settle": "Yes, remove the keys and settle {count, plural, one {the # payment} other {the # payments}} by hand",
+      "roll": "Removing the key here does not cancel it at {provider}. To be safe, roll the key in your {provider} dashboard.",
+      "cancel": "Cancel"
+    },
+    "menu": {
+      "check": "Check keys again",
+      "disconnect": "Disconnect…"
+    },
+    "clock": {
+      "title": "This server's clock is {seconds} seconds off the {provider} clock.",
+      "body": "Set the server time automatically (NTP). Past five minutes, payment messages from {provider} are refused."
+    },
+    "menuLabel": "More for {service}"
   }
 }

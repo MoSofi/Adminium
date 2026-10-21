@@ -24,7 +24,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, Check, CircleCheck, Copy, CreditCard, ExternalLink, FileText, Globe, KeyRound, ShieldAlert, TriangleAlert, Wallet } from 'lucide-react';
+import { ArrowRight, Check, CircleCheck, Clock, Copy, CreditCard, Ellipsis, ExternalLink, FileText, Globe, KeyRound, RotateCcw, ShieldAlert, TriangleAlert, Unplug, Wallet } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -32,6 +32,11 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   IconTile,
   Input,
   Modal,
@@ -67,6 +72,8 @@ import {
   paymentsSetupQuery,
   saveField,
   saveRefusalOf,
+  disconnectService,
+  setLive,
   setStopped,
   startTestPayment,
   testPaymentQuery,
@@ -572,8 +579,82 @@ function WebhookCard({ service, mode, view, canManage }: { service: ServiceView;
         {view.health?.slowed === true ? (
           <p className="text-fg-muted">{t('studio:payments.webhook.slowed', 'Adminium checks {provider} less often this month: it has used half of the reads {provider} allows.', { provider: name })}</p>
         ) : null}
+        {movedFrom(view) !== null && view.webhookUrl !== null ? (
+          <div className="flex flex-col gap-1 text-warn" data-testid={`payments-${service.key}-${mode}-moved`}>
+            <p className="font-semibold">{t('studio:payments.webhook.moved', 'The webhook address changed. Update it at {provider}:', { provider: name })}</p>
+            <div className="flex flex-wrap items-center gap-2 text-fg">
+              <span dir="ltr" className="break-all font-mono text-[12.5px]">
+                {view.webhookUrl}
+              </span>
+              <CopyButton text={view.webhookUrl} label={t('studio:payments.webhook.copyAddress', 'Copy the webhook address')} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+/** Where the last event came, when that is no longer this mode's webhook address. */
+function movedFrom(view: ModeView): string | null {
+  const seen = view.health?.eventOrigin ?? null;
+  if (seen === null || view.webhookUrl === null) return null;
+  try {
+    return new URL(view.webhookUrl).origin === seen ? null : seen;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Going live ─────────────────────────────────────────────────────────────
+
+/** The live mode's state, and the switch that turns live payments on (it ends every test link). */
+function LiveCard({ service, view, canManage }: { service: ServiceView; view: ModeView; canManage: boolean }) {
+  const client = useQueryClient();
+  const name = providerWord(knownProvider(service.key), service.name);
+  const toggle = useMutation({
+    mutationFn: (on: boolean) => setLive(service.key, on),
+    onSuccess: async () => client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY }),
+  });
+  const box = (tone: 'pos' | 'warn' | 'info', title: string, body: string | null, testid: string) => (
+    <div
+      role="status"
+      data-testid={testid}
+      className={`flex flex-col gap-1 rounded-md border p-3 text-[12.5px] ${tone === 'pos' ? 'border-pos/30 bg-pos-soft' : tone === 'warn' ? 'border-warn/30 bg-warn-soft' : 'border-info/30 bg-info-soft'}`}
+    >
+      <p className="text-[13px] font-bold">{title}</p>
+      {body === null ? null : <p className="text-fg-muted">{body}</p>}
+    </div>
+  );
+  let state: ReactNode;
+  if (!service.liveOn) {
+    if (view.check?.ok !== true) return null;
+    state = box('info', t('studio:payments.live.ready', 'The live key works'), t('studio:payments.live.readyBody', 'Turning on live payments sends customers to real payments. Every test link stops working then.'), `payments-${service.key}-live-ready`);
+  } else if (view.firstPaymentAt !== null) {
+    state = box('pos', t('studio:payments.live.on', 'Live is on'), t('studio:payments.live.firstPayment', 'First live payment arrived {when}', { when: when(view.firstPaymentAt) }), `payments-${service.key}-live-on`);
+  } else if (view.firstEventAt !== null) {
+    state = box('pos', t('studio:payments.live.on', 'Live is on'), null, `payments-${service.key}-live-on`);
+  } else {
+    state = box('warn', t('studio:payments.live.unproven', 'Live is on, but the webhook is not proven yet.'), t('studio:payments.live.unprovenBody', 'Adminium checks {provider} more often until the first live event arrives.', { provider: name }), `payments-${service.key}-live-unproven`);
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {state}
+      {canManage ? (
+        <div>
+          {service.liveOn ? (
+            <Button variant="ghost" size="sm" disabled={toggle.isPending} onClick={() => toggle.mutate(false)} data-testid={`payments-${service.key}-live-off`}>
+              {t('studio:payments.live.turnOff', 'Turn off live payments')}
+            </Button>
+          ) : (
+            <Button disabled={toggle.isPending} onClick={() => toggle.mutate(true)} data-testid={`payments-${service.key}-live-turn-on`}>
+              {t('studio:payments.live.turnOn', 'Turn on live payments')}
+            </Button>
+          )}
+        </div>
+      ) : null}
+      {toggle.isError ? <Alert tone="danger" role="alert" title={errorText(toggle.error)} /> : null}
+    </div>
   );
 }
 
@@ -610,6 +691,7 @@ function ModeSection({ service, mode, canManage }: { service: ServiceView; mode:
       <CheckLine service={service} mode={mode} view={view} />
       <WebhookCard service={service} mode={mode} view={view} canManage={canManage} />
       {mode === 'test' && canManage && view.check?.ok === true ? <TestPaymentCard service={service} /> : null}
+      {mode === 'live' ? <LiveCard service={service} view={view} canManage={canManage} /> : null}
     </section>
   );
 }
@@ -886,6 +968,125 @@ function StopSwitch({ service, canManage }: { service: ServiceView; canManage: b
   );
 }
 
+// ─── Disconnect ─────────────────────────────────────────────────────────────
+
+/** Stop new payments (the key stays to finish and refund), or remove the keys from this server. */
+function DisconnectDialog({ service, open, onClose }: { service: ServiceView; open: boolean; onClose: () => void }) {
+  const client = useQueryClient();
+  const name = providerWord(knownProvider(service.key), service.name);
+  const [choice, setChoice] = useState<'stop' | 'remove'>('stop');
+  const [settle, setSettle] = useState(false);
+  const waiting = service.waiting ?? 0;
+  const refundable = service.refundable ?? 0;
+  const run = useMutation({
+    mutationFn: () => disconnectService(service.key, choice, settle),
+    onSuccess: async () => {
+      onClose();
+      await client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY });
+    },
+  });
+  const blocked = choice === 'remove' && waiting > 0 && !settle;
+  return (
+    <Modal open={open} onOpenChange={(next) => (next ? null : onClose())}>
+      <ModalHeader title={t('studio:payments.disconnect.title', 'Disconnect {provider}?', { provider: name })} closeLabel={t('studio:payments.close', 'Close')} />
+      <ModalBody className="flex flex-col gap-4">
+        {waiting > 0 || refundable > 0 ? (
+          <ul className="flex flex-col gap-1 text-[13px]" data-testid={`payments-${service.key}-disconnect-counts`}>
+            {waiting > 0 ? <li>{t('studio:payments.disconnect.waiting', '{count, plural, one {# payment is} other {# payments are}} still waiting for the bank', { count: waiting })}</li> : null}
+            {refundable > 0 ? <li>{t('studio:payments.disconnect.refundable', '{count, plural, one {# payment} other {# payments}} can still be refunded', { count: refundable })}</li> : null}
+          </ul>
+        ) : null}
+        <RadioGroup aria-label={t('studio:payments.disconnect.choice', 'What to do')} value={choice} onValueChange={(next) => (next === 'stop' || next === 'remove' ? setChoice(next) : null)}>
+          <Radio
+            value="stop"
+            label={t('studio:payments.disconnect.stop', 'Stop new payments')}
+            description={t('studio:payments.disconnect.stopBody', 'No new payments start. Adminium keeps the key to finish the waiting payments and to give refunds.')}
+          />
+          <Radio
+            value="remove"
+            label={t('studio:payments.disconnect.remove', 'Remove keys')}
+            description={t('studio:payments.disconnect.removeBody', 'Deletes the {provider} keys from this server. Adminium can no longer finish payments or give refunds.', { provider: name })}
+          />
+        </RadioGroup>
+        {choice === 'remove' && waiting > 0 ? (
+          <div className="flex flex-col gap-2 rounded-md bg-warn-soft p-3 text-[12.5px]">
+            <p>{t('studio:payments.disconnect.removeWaiting', '{count, plural, one {# payment is} other {# payments are}} still waiting for the bank. Remove the keys anyway? They will need settling by hand.', { count: waiting })}</p>
+            <div className="flex items-center gap-2">
+              <Checkbox id={`payments-${service.key}-settle`} checked={settle} onCheckedChange={(next) => setSettle(next === true)} />
+              <label htmlFor={`payments-${service.key}-settle`} className="font-semibold">
+                {t('studio:payments.disconnect.settle', 'Yes, remove the keys and settle {count, plural, one {the # payment} other {the # payments}} by hand', { count: waiting })}
+              </label>
+            </div>
+          </div>
+        ) : null}
+        {choice === 'remove' ? (
+          <p className="text-[12.5px] text-fg-muted">{t('studio:payments.disconnect.roll', 'Removing the key here does not cancel it at {provider}. To be safe, roll the key in your {provider} dashboard.', { provider: name })}</p>
+        ) : null}
+        {run.isError ? <Alert tone="danger" role="alert" title={errorText(run.error)} /> : null}
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose}>
+          {t('studio:payments.disconnect.cancel', 'Cancel')}
+        </Button>
+        <Button variant={choice === 'remove' ? 'destructive' : 'primary'} disabled={blocked || run.isPending} onClick={() => run.mutate()} data-testid={`payments-${service.key}-disconnect-confirm`}>
+          {choice === 'remove' ? t('studio:payments.disconnect.remove', 'Remove keys') : t('studio:payments.disconnect.stop', 'Stop new payments')}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+/** The card's menu: check the saved keys again, and disconnect. */
+function ServiceMenu({ service }: { service: ServiceView }) {
+  const client = useQueryClient();
+  const [disconnecting, setDisconnecting] = useState(false);
+  const recheck = useMutation({
+    mutationFn: async () => {
+      for (const mode of ['test', 'live'] as const) {
+        const keys = service[mode].fields.filter((field) => !field.webhook);
+        if (keys.length > 0 && keys.every((field) => field.set)) await checkKeys(service.key, mode);
+      }
+    },
+    onSettled: async () => client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY }),
+  });
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label={t('studio:payments.menuLabel', 'More for {service}', { service: service.name })} data-testid={`payments-${service.key}-menu`}>
+            <Ellipsis className="size-4" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem icon={<RotateCcw className="size-4" />} disabled={recheck.isPending} onSelect={() => recheck.mutate()}>
+            {t('studio:payments.menu.check', 'Check keys again')}
+          </DropdownMenuItem>
+          <DropdownMenuItem icon={<Unplug className="size-4" />} destructive onSelect={() => setDisconnecting(true)} data-testid={`payments-${service.key}-disconnect`}>
+            {t('studio:payments.menu.disconnect', 'Disconnect…')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DisconnectDialog key={String(disconnecting)} service={service} open={disconnecting} onClose={() => setDisconnecting(false)} />
+    </>
+  );
+}
+
+/** Past a minute apart, signatures are near their five-minute limit: the server's clock needs setting. */
+function ClockWarning({ service }: { service: ServiceView }) {
+  const skew = service.clockSkewMs ?? null;
+  if (skew === null || Math.abs(skew) <= 60_000) return null;
+  const name = providerWord(knownProvider(service.key), service.name);
+  return (
+    <Alert
+      tone="warn"
+      icon={<Clock />}
+      data-testid={`payments-${service.key}-clock`}
+      title={t('studio:payments.clock.title', "This server's clock is {seconds} seconds off the {provider} clock.", { seconds: Math.round(Math.abs(skew) / 1000), provider: name })}
+      body={t('studio:payments.clock.body', 'Set the server time automatically (NTP). Past five minutes, payment messages from {provider} are refused.', { provider: name })}
+    />
+  );
+}
+
 function ServiceCard({ service, canManage, reachable, paypalConnected }: { service: ServiceView; canManage: boolean; reachable: boolean; paypalConnected: boolean }) {
   const provider = knownProvider(service.key);
   const progress = checklistProgress(service);
@@ -903,6 +1104,7 @@ function ServiceCard({ service, canManage, reachable, paypalConnected }: { servi
           </div>
           {connects !== null ? <p className="text-[12.5px] text-fg-muted">{connects}</p> : null}
         </div>
+        {canManage && reachable ? <ServiceMenu service={service} /> : null}
       </CardHeader>
       <CardBody className="flex flex-col gap-5">
         {!reachable ? (
@@ -919,6 +1121,7 @@ function ServiceCard({ service, canManage, reachable, paypalConnected }: { servi
               />
             ) : null}
             <KeyAlarm service={service} />
+            <ClockWarning service={service} />
             {provider === 'paypal' && paypalConnected ? (
               <p className="text-[12.5px] text-fg-muted">{t('studio:payments.service.paypalOnce', 'PayPal shows once: through this card, not on the Stripe page.')}</p>
             ) : null}

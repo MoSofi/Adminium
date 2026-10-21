@@ -3674,7 +3674,8 @@
       "badLive": "{count, plural, one {# événement est arrivé} other {# événements sont arrivés}} dans la dernière heure, mais la signature ne correspondait pas. Est-ce le secret de la page de l’endpoint, pour le mode en direct ?",
       "badTest": "{count, plural, one {# événement est arrivé} other {# événements sont arrivés}} dans la dernière heure, mais la signature ne correspondait pas. Est-ce le secret de la page de l’endpoint, pour le mode test ?",
       "caught": "Adminium a trouvé {when} un paiement qu’aucun webhook n’avait annoncé. Le webhook n’atteint pas ce serveur.",
-      "slowed": "Adminium interroge {provider} moins souvent ce mois-ci : la moitié des lectures que {provider} autorise est utilisée."
+      "slowed": "Adminium interroge {provider} moins souvent ce mois-ci : la moitié des lectures que {provider} autorise est utilisée.",
+      "moved": "L’adresse du webhook a changé. Mettez-la à jour chez {provider} :"
     },
     "mode": {
       "test": "Test",
@@ -4130,6 +4131,39 @@
       "older": "Charger des paiements plus anciens",
       "viewOnly": "Vous pouvez consulter les paiements. Demandez à une personne qui gère les paiements d'agir.",
       "countLabel": "{count, plural, one {# à examiner} other {# à examiner}}"
-    }
+    },
+    "live": {
+      "ready": "La clé réelle fonctionne",
+      "readyBody": "Activer les paiements réels envoie les clients vers de vrais paiements. Tous les liens de test cessent alors de fonctionner.",
+      "on": "Le mode réel est activé",
+      "firstPayment": "Premier paiement réel reçu {when}",
+      "unproven": "Le mode réel est activé, mais le webhook n’est pas encore confirmé.",
+      "unprovenBody": "Adminium interroge {provider} plus souvent jusqu’à l’arrivée du premier événement réel.",
+      "turnOff": "Désactiver les paiements réels",
+      "turnOn": "Activer les paiements réels"
+    },
+    "disconnect": {
+      "title": "Déconnecter {provider} ?",
+      "waiting": "{count, plural, one {# paiement attend} other {# paiements attendent}} encore la banque",
+      "refundable": "{count, plural, one {# paiement peut} other {# paiements peuvent}} encore être remboursés",
+      "choice": "Que faire",
+      "stop": "Arrêter les nouveaux paiements",
+      "stopBody": "Aucun nouveau paiement ne démarre. Adminium garde la clé pour terminer les paiements en attente et effectuer les remboursements.",
+      "remove": "Supprimer les clés",
+      "removeBody": "Supprime les clés {provider} de ce serveur. Adminium ne peut plus terminer les paiements ni rembourser.",
+      "removeWaiting": "{count, plural, one {# paiement attend} other {# paiements attendent}} encore la banque. Supprimer les clés quand même ? Il faudra les régler à la main.",
+      "settle": "Oui, supprimer les clés et régler {count, plural, one {le # paiement} other {les # paiements}} à la main",
+      "roll": "Supprimer la clé ici ne l’annule pas chez {provider}. Par précaution, renouvelez la clé dans votre tableau de bord {provider}.",
+      "cancel": "Annuler"
+    },
+    "menu": {
+      "check": "Vérifier les clés à nouveau",
+      "disconnect": "Déconnecter…"
+    },
+    "clock": {
+      "title": "L’horloge de ce serveur est décalée de {seconds} secondes par rapport à celle de {provider}.",
+      "body": "Réglez l’heure du serveur automatiquement (NTP). Au-delà de cinq minutes, les messages de paiement de {provider} sont refusés."
+    },
+    "menuLabel": "Plus pour {service}"
   }
 }
