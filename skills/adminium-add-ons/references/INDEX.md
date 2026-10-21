@@ -7,7 +7,7 @@ file. Every file is 8 KB or less.
 
 | Area | Files | Its index |
 |---|---|---|
-| guides | 80 | `references/guides/INDEX.md` |
+| guides | 95 | `references/guides/INDEX.md` |
 | shapes | 6 | `references/shapes/INDEX.md` |
 | install | 8 | `references/install/INDEX.md` |
 | catalogue | 1 | `references/catalogue/INDEX.md` |

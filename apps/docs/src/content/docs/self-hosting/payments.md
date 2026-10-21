@@ -6,7 +6,7 @@ sidebar:
 ---
 
 From Adminium 0.3.32. How to set payments up in the dashboard is in
-[Take payments](/guides/payments/).
+[Take payments](/guides/take-payments/).
 
 Online payments need two things from the internet: customers open the pay page on your server, and
 Stripe or PayPal call your server back to say how a payment went. **Studio → Payments → Setup**

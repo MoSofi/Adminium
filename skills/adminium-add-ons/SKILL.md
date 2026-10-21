@@ -39,7 +39,8 @@ there, so a page can carry `"feature": "<id>"` and stay hidden until they are. R
 ## 3. Build tables on its shape
 
 Read `references/guides/building-on-an-add-on--*.md` in order; the page walks through an app that
-bills clients on the `invoice@1` shape of Invoices & Receipts (`invoices`).
+bills clients on the `invoice@1` shape of Invoices & Receipts (`invoices`). Invoices paid
+online use `invoice@2`.
 
 The essentials:
 
@@ -63,7 +64,7 @@ The essentials:
   `documents` in `documents.json`.
 
 Write the tables with a small script that reads the add-on's manifest and writes the part files,
-swapping part names for your table names. Do not retype sixty columns.
+swapping part names for your table names.
 
 The add-on's manifest is `manifest.json` inside its package. To get the package and read it:
 `references/guides/building-on-an-add-on--get-the-add-on-s-manifest.md`. Ask the person for

@@ -187,7 +187,7 @@ export default defineConfig({
             },
             {
               label: 'Payments',
-              items: [{ label: 'Take payments', link: '/guides/payments/' }],
+              items: [{ label: 'Take payments', link: '/guides/take-payments/' }],
             },
             {
               label: 'Public API',

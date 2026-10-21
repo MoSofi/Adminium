@@ -16,6 +16,8 @@ export default {
     { area: 'projects', page: 'projects/index.md' },
     { area: 'projects', page: 'projects/apps.md' },
     { area: 'projects', page: 'projects/folder.md' },
+    { area: 'guides', page: 'guides/take-payments.md' },
+    { area: 'self-hosting', page: 'self-hosting/payments.md' },
     { area: 'cli', page: 'reference/cli.md', flat: true },
   ],
   'adminium-app': [
@@ -73,6 +75,7 @@ export default {
     { area: 'guides', page: 'guides/add-ons/inventory.md' },
     { area: 'guides', page: 'guides/apps/discounts-and-codes.md' },
     { area: 'guides', page: 'guides/add-ons/offers.md' },
+    { area: 'guides', page: 'guides/take-payments.md' },
     { area: 'shapes', page: 'reference/offers-shapes.md', flat: true },
     { area: 'install', page: 'self-hosting/installing-add-ons.md', flat: true },
     { area: 'catalogue', generator: 'add-on-catalogue' },

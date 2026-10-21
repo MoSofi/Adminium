@@ -14,6 +14,7 @@
 | `references/guides/building-on-an-add-on--7-open-a-portal-for-clients.md` | 7. Open a portal for clients | 1780 |
 | `references/guides/building-on-an-add-on--8-ship-sample-data.md` | 8. Ship sample data | 758 |
 | `references/guides/building-on-an-add-on--9-check-it-before-you-release.md` | 9. Check it before you release | 659 |
+| `references/guides/building-on-an-add-on--let-clients-pay-online.md` | Let clients pay online | 1645 |
 | `references/guides/building-on-an-add-on--get-the-add-on-s-manifest.md` | Get the add-on's manifest | 800 |
 | `references/guides/building-on-an-add-on--an-add-on-that-keeps-its-own-tables.md` | An add-on that keeps its own tables | 2415 |
 | `references/guides/building-on-an-add-on--take-stock-when-a-row-is-saved.md` | Take stock when a row is saved | 3284 |
@@ -84,3 +85,11 @@
 | `references/guides/offers--sample-data.md` | Sample data | 722 |
 | `references/guides/offers--cards-from-an-older-system.md` | Cards from an older system | 1115 |
 | `references/guides/offers--for-app-developers.md` | For app developers | 734 |
+| `references/guides/take-payments--overview.md` | Take payments | 399 |
+| `references/guides/take-payments--who-the-seller-is.md` | Who the seller is | 883 |
+| `references/guides/take-payments--what-you-need.md` | What you need | 693 |
+| `references/guides/take-payments--who-may-do-what.md` | Who may do what | 662 |
+| `references/guides/take-payments--set-it-up.md` | Set it up | 4502 |
+| `references/guides/take-payments--on-a-record.md` | On a record | 1201 |
+
+More: `references/guides/INDEX-2.md`
