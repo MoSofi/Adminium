@@ -139,7 +139,7 @@ import {
   type AppManifest,
   type OutboxProducer,
 } from '@adminium/manifest';
-import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb, type RecordRef } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -214,6 +214,11 @@ export interface OutboxSenderDeps {
   logger?: OutboxLogger | undefined;
   /** The host an app's guest side is served on, when the operator mapped one. */
   hostFor?: ((appKey: string) => Promise<string | undefined>) | undefined;
+  /**
+   * A record's live pay link (`{{pay_url}}`): an invoice's reminder carries the
+   * link to pay it. Null when the record cannot be paid online now.
+   */
+  payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
   /** The host an app's staff side is served on, when the operator mapped one (`{{staff_url}}`). */
   staffHostFor?: ((appKey: string) => Promise<string | undefined>) | undefined;
   /** Tell the screens watching the log that a row changed. */
@@ -976,6 +981,20 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     Object.assign(vars, await appUrlsFor({ meta: deps.meta, guestBase }, { connectionId: box.connectionId, addOnKey: box.appKey, links: pages?.app }));
     // The desk: a studio notice's button opens `{{staff_url}}proposals/42`.
     vars['staff_url'] = (await staffBase(box.appKey)) ?? '';
+    // The link to pay what the message is about (an invoice's reminder): the first linked record that can be
+    // paid online now. Always filled, empty when none can: the pay button is then left out, never sent dead.
+    vars['pay_url'] = '';
+    if (deps.payLinkFor !== undefined) {
+      for (const { table, record } of linked) {
+        const key = table.primaryKey.length === 1 ? table.primaryKey[0]! : null;
+        if (key === null || record[key] === null || record[key] === undefined) continue;
+        const link = await deps.payLinkFor({ connectionId: box.connectionId, table: table.id, pk: { [key]: record[key] }, label: '' }).catch(() => null);
+        if (link !== null) {
+          vars['pay_url'] = link;
+          break;
+        }
+      }
+    }
     Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires));
     await namePeople(deps.meta, out);
     // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.

@@ -37,7 +37,7 @@ const BOS = 'BOSPROJECTLINK26';
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120, rules?: Record<string, unknown>) => ({ ref, type: 'text', maxLength, nullable: true, ...(rules === undefined ? {} : { rules }) });
 const fk = (ref: string, references: string) => ({ ref, type: 'fk', references, nullable: true });
-const KINDS = ['handover', 'note', 'typo', 'receipt'];
+const KINDS = ['handover', 'note', 'typo', 'receipt', 'pay'];
 /** A project's reference: a code Adminium makes, which no link opens anything with. */
 const REF = 'K7Q2M9XA';
 
@@ -90,6 +90,12 @@ function manifest(): Record<string, unknown> {
       template('note', 'A note on {{project.name}}: {{project.studio_note}}'),
       template('typo', 'Hi {{recipient.first_name}}, {{project.nmae}} is done.'),
       template('receipt', 'Thank you. Your reference is {{project.ref}}.'),
+      // A pay button: filled with the record's live pay link, left out when it has none.
+      {
+        key: 'studio-pay',
+        name: 'pay',
+        locales: { 'en-US': { subject: 'About pay', blocks: [{ block: 'email.text', data: { text: 'Your invoice for {{project.name}}.' } }, { block: 'email.button', data: { label: 'Pay online', url: '{{pay_url}}' } }] } },
+      },
     ],
     // `share_token` is the code a shared link opens a project with; `ref` opens nothing.
     publicKeys: { handover: {} },
@@ -142,6 +148,8 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
       live: () => producers.live(),
       secret: TEST_SECRET,
       hostFor: async () => 'portal.north-studio.dev',
+      // The first project can be paid online; the others cannot.
+      payLinkFor: async (entity) => (entity.table.endsWith('projects') && String(entity.pk['id']) === '1' ? 'https://pay.north-studio.dev/pay/AAAAAAAAAAAAAAAAAAAAAA' : null),
     });
     await h.rows(`INSERT INTO ${h.real('clients')} (email, name) VALUES ('ann@client.studio.dev', 'Ann Lee')`);
     await h.rows(`INSERT INTO ${h.real('clients')} (email, name) VALUES ('bo@other.studio.dev', 'Bo Chen')`);
@@ -166,6 +174,20 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
     const [sent] = (await mail()).filter((m) => m.subject === 'About handover');
     expect(sent!.text).toContain(`Open the handover: https://portal.north-studio.dev/h#${TOKEN}`);
     expect(sent!.text).not.toContain('{{');
+  });
+
+  it.skipIf(!available)('carries the record\'s pay link, and leaves the pay button out when it has none, never failing', async () => {
+    const before = (await mail()).length;
+    const payable = await queue('pay', 1);
+    const unpayable = await queue('pay', 2, null, 2);
+    await sender.sendApp('studio', now);
+    expect(await message(payable)).toEqual({ status: 'sent', error: null });
+    expect(await message(unpayable)).toEqual({ status: 'sent', error: null });
+    const sent = (await mail()).slice(before);
+    expect(sent.find((m) => m.text.includes('Studio identity'))!.text).toContain('Pay online: https://pay.north-studio.dev/pay/AAAAAAAAAAAAAAAAAAAAAA');
+    const other = sent.find((m) => m.text.includes('launch'))!;
+    expect(other.text).not.toContain('Pay online');
+    expect(other.html).not.toContain('Pay online');
   });
 
   it.skipIf(!available)('is failed, naming the variable, rather than sent with `{{…}}` in it', async () => {
@@ -376,6 +398,7 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
       await served.close();
     }
   });
+
 });
 
 describe('the sentence of an email nothing fills', () => {

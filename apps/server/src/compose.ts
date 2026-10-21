@@ -1129,6 +1129,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     createIdentityEmailWatch({ meta, manager, views: { viewFor: (connectionId) => publicViews.viewFor(connectionId) }, addressSecret: addressKey(env.ADMINIUM_SECRET), logger: app.log }),
   );
   let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
+  // A record's live pay link, for printed invoices and reminders; found once the payment parts exist (below).
+  let documentPayLink: ((entity: RecordRef) => Promise<string | null>) | null = null;
   const outboxSender = createOutboxSender({
     meta,
     manager,
@@ -1146,6 +1148,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
       return Object.entries(settings.domains).find(([, target]) => target.appKey === appKey && target.side === 'staff' && target.instance === undefined)?.[0];
     },
+    // An invoice's reminder carries the link to pay it (the payment parts are made further down).
+    payLinkFor: async (entity) => (documentPayLink === null ? null : documentPayLink(entity)),
     // The change a sent message makes reaches the rules, the other producers and every screen.
     emit: (event) => emitRecordEvent(app, event),
     // So do the rows its move moved too.
@@ -1347,8 +1351,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * profile produces the same document however it was asked for" is one
    * object rather than two that agree today.
    */
-  // A printed invoice's pay link is found once the payment parts exist (below).
-  let documentPayLink: ((entity: RecordRef) => Promise<string | null>) | null = null;
   const documents = createDocumentPipeline({
     meta,
     manager,
