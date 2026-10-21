@@ -1,0 +1,153 @@
+{
+  "documentTitle": "Betal {label}",
+  "documentTitlePlain": "Betaling",
+  "testBand": "Testside — ingen penge flyttes.",
+  "language": {
+    "menu": "Sprog",
+    "button": "Sprog: {name}"
+  },
+  "hero": {
+    "due": "Beløb til betaling",
+    "paid": "Betalt",
+    "started": "Betaling startet",
+    "partly": "{paid} af {total} er allerede betalt.",
+    "dueBy": "Forfalder {date}"
+  },
+  "ways": {
+    "title": "Betalingsmåder",
+    "stripe": "Betal med kort og på andre måder",
+    "stripeSub": "Kort, Apple Pay, Google Pay og mere på den sikre side hos Stripe",
+    "paypal": "Betal med PayPal",
+    "demo": "Betal med demotjenesten",
+    "demoSub": "Legepenge, kun i testtilstand",
+    "online": "Betal online",
+    "bank": "Betal med bankoverførsel",
+    "cash": "Betal ved levering",
+    "other": "En anden betalingsmåde",
+    "gettingReady": "Gør klar …",
+    "noteStripe": "Du betaler på siden hos Stripe. Denne butik ser aldrig dit kort.",
+    "notePaypal": "Du betaler på siden hos PayPal. Denne butik ser aldrig dit kort.",
+    "noteBoth": "Du betaler på siden hos Stripe eller PayPal. Denne butik ser aldrig dit kort."
+  },
+  "provider": {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "demo": "demotjenesten",
+    "other": "betalingstjenesten"
+  },
+  "redirect": {
+    "title": "Sender dig videre til {provider} …",
+    "link": "Sker der ikke noget? Fortsæt til {provider}",
+    "notArabic": "Siden hos Stripe findes ikke på arabisk."
+  },
+  "checking": {
+    "title": "Tjekker med {provider} …",
+    "body": "Det tager et par sekunder. Du kan lukke denne side; butikken får stadig din betaling.",
+    "slow": "Det tager længere tid end normalt. Du kan lukke denne side; butikken får stadig din betaling."
+  },
+  "paid": {
+    "title": "Tak. Din betaling på {amount} er kommet frem.",
+    "receiptAsk": "Spørg {shop}, hvis du har brug for en kvittering.",
+    "already": "Dette er betalt. Tak.",
+    "receiptSent": "En kvittering er på vej til din e-mail."
+  },
+  "processing": {
+    "title": "Din bank bekræfter betalingen",
+    "withMethod": "En betaling på {amount} med {method} blev startet {date}. Din bank bekræfter den inden for nogle få hverdage. Du behøver ikke at betale igen.",
+    "plain": "En betaling på {amount} blev startet {date}. Din bank bekræfter den inden for nogle få hverdage. Du behøver ikke at betale igen."
+  },
+  "failed": {
+    "title": "Betalingen gik ikke igennem.",
+    "body": "Der blev ikke trukket noget.",
+    "retry": "Prøv igen"
+  },
+  "cancelled": {
+    "title": "Du forlod betalingssiden, før du betalte.",
+    "body": "Der blev ikke trukket noget.",
+    "stripe": "Du forlod siden hos Stripe, før du betalte.",
+    "paypal": "Du forlod siden hos PayPal, før du betalte."
+  },
+  "shopChecks": {
+    "title": "Butikken tjekker denne betaling",
+    "body": "Vi har modtaget en betaling, men den passer ikke med beløbet til betaling. Butikken ser på den og skriver til dig."
+  },
+  "retryLater": "Åbn betalingslinket igen for at prøve en gang til.",
+  "nothingDue": {
+    "title": "Der er ikke noget at betale her endnu.",
+    "body": "Kontakt venligst {shop}."
+  },
+  "voided": {
+    "title": "Dette kan ikke længere betales her.",
+    "body": "Kontakt venligst {shop}."
+  },
+  "expired": {
+    "title": "Dette betalingslink er udløbet.",
+    "body": "Bed {shop} om et nyt."
+  },
+  "unknown": {
+    "title": "Dette link virker ikke.",
+    "body": "Bed {shop} om et nyt."
+  },
+  "locked": {
+    "title": "For mange betalingsforsøg på dette link.",
+    "bodyBank": "Prøv igen om en time, eller betal med bankoverførsel.",
+    "body": "Prøv igen om en time."
+  },
+  "noWays": {
+    "title": "Dette beløb kan ikke betales online her.",
+    "body": "Kontakt venligst {shop}."
+  },
+  "unavailable": {
+    "title": "{shop} kan ikke tage imod onlinebetalinger lige nu.",
+    "body": "Kontakt venligst butikken."
+  },
+  "testStaffOnly": {
+    "title": "Dette testlink åbner kun for personalet hos {shop}.",
+    "body": "Log ind på dashboardet i denne browser, og åbn så linket igen."
+  },
+  "offline": {
+    "title": "Denne side kunne ikke få forbindelse til butikken.",
+    "body": "Tjek din forbindelse, og prøv igen.",
+    "retry": "Prøv igen"
+  },
+  "proofFailed": "Tjekket af, at du er et menneske, gik ikke igennem. Prøv igen.",
+  "bank": {
+    "title": "Bankoverførsel",
+    "holder": "Kontohaver",
+    "iban": "IBAN",
+    "bic": "BIC",
+    "accountNumber": "Kontonummer",
+    "sortCode": "Reg.nr. (sort code)",
+    "bankName": "Bank",
+    "amount": "Beløb",
+    "reference": "Reference",
+    "note": "Brug denne reference, så butikken kan finde din betaling. Den vises som betalt, når butikken har tjekket den.",
+    "copy": "Kopiér",
+    "copied": "Kopieret",
+    "copyLabel": "Kopiér {label}",
+    "copiedLive": "{label} kopieret.",
+    "otherWays": "Andre betalingsmåder",
+    "noAccount": "Bed {shop} om bankoplysninger for denne valuta."
+  },
+  "cash": {
+    "title": "Betal ved levering",
+    "plain": "Betal beløbet til betaling, når din ordre kommer frem."
+  },
+  "footer": {
+    "questions": "Spørgsmål? Skriv til"
+  },
+  "demo": {
+    "title": "Demobetalingstjeneste",
+    "staff": "Kun for personale. En betalingstjeneste på skrømt: ingen penge flyttes, og der kræves intet kort.",
+    "succeeds": "Betal: kortet godkendes",
+    "fails": "Betal: kortet afvises",
+    "needsStep": "Betal: banken beder om et trin",
+    "settlesLate": "Betal: pengene kommer senere",
+    "finishStep": "Gennemfør bankens trin",
+    "leave": "Gå uden at betale",
+    "gone": "Denne demobetaling kan ikke fortsættes. Gå tilbage til betalingssiden."
+  },
+  "lines": {
+    "title": "Hvad du betaler for"
+  }
+}

@@ -17691,6 +17691,410 @@
     "status": "mt",
     "srcHash": "158764b2c6dd"
   },
+  "pay.bank.accountNumber": {
+    "status": "mt",
+    "srcHash": "25d74dd58e6d"
+  },
+  "pay.bank.amount": {
+    "status": "mt",
+    "srcHash": "43dc8532f7e5"
+  },
+  "pay.bank.bankName": {
+    "status": "src",
+    "srcHash": "9e89988cc3fb"
+  },
+  "pay.bank.bic": {
+    "status": "src",
+    "srcHash": "7434fa918f1c"
+  },
+  "pay.bank.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "pay.bank.copiedLive": {
+    "status": "mt",
+    "srcHash": "b8ad491f8df8"
+  },
+  "pay.bank.copy": {
+    "status": "mt",
+    "srcHash": "af74f7c5362a"
+  },
+  "pay.bank.copyLabel": {
+    "status": "mt",
+    "srcHash": "371625fcd003"
+  },
+  "pay.bank.holder": {
+    "status": "mt",
+    "srcHash": "714ac805d07e"
+  },
+  "pay.bank.iban": {
+    "status": "src",
+    "srcHash": "e81566a5d524"
+  },
+  "pay.bank.noAccount": {
+    "status": "mt",
+    "srcHash": "6092905f7d03"
+  },
+  "pay.bank.note": {
+    "status": "mt",
+    "srcHash": "25f8b7f543e6"
+  },
+  "pay.bank.otherWays": {
+    "status": "mt",
+    "srcHash": "f150fa985f9b"
+  },
+  "pay.bank.reference": {
+    "status": "mt",
+    "srcHash": "db1c784524e1"
+  },
+  "pay.bank.sortCode": {
+    "status": "mt",
+    "srcHash": "aa8631b04306"
+  },
+  "pay.bank.title": {
+    "status": "mt",
+    "srcHash": "ff1d79c5055b"
+  },
+  "pay.cancelled.body": {
+    "status": "mt",
+    "srcHash": "6e684ae688ee"
+  },
+  "pay.cancelled.paypal": {
+    "status": "mt",
+    "srcHash": "157313da0b7e"
+  },
+  "pay.cancelled.stripe": {
+    "status": "mt",
+    "srcHash": "50b0e7e5dd6d"
+  },
+  "pay.cancelled.title": {
+    "status": "mt",
+    "srcHash": "4ad738e1f545"
+  },
+  "pay.cash.plain": {
+    "status": "mt",
+    "srcHash": "5604c37186d2"
+  },
+  "pay.cash.title": {
+    "status": "mt",
+    "srcHash": "9bdc33005d0e"
+  },
+  "pay.checking.body": {
+    "status": "mt",
+    "srcHash": "9e507e53c732"
+  },
+  "pay.checking.slow": {
+    "status": "mt",
+    "srcHash": "970a80aa5812"
+  },
+  "pay.checking.title": {
+    "status": "mt",
+    "srcHash": "8d5ec01a820b"
+  },
+  "pay.demo.fails": {
+    "status": "mt",
+    "srcHash": "2e67fc58f8ac"
+  },
+  "pay.demo.finishStep": {
+    "status": "mt",
+    "srcHash": "1a7f90069f16"
+  },
+  "pay.demo.gone": {
+    "status": "mt",
+    "srcHash": "bd2e322b0d18"
+  },
+  "pay.demo.leave": {
+    "status": "mt",
+    "srcHash": "147fc459d6ef"
+  },
+  "pay.demo.needsStep": {
+    "status": "mt",
+    "srcHash": "c64f256c9ca2"
+  },
+  "pay.demo.settlesLate": {
+    "status": "mt",
+    "srcHash": "acc8d445d6e2"
+  },
+  "pay.demo.staff": {
+    "status": "mt",
+    "srcHash": "91b391805919"
+  },
+  "pay.demo.succeeds": {
+    "status": "mt",
+    "srcHash": "ddfda40299c3"
+  },
+  "pay.demo.title": {
+    "status": "mt",
+    "srcHash": "a58ef0ef93e6"
+  },
+  "pay.documentTitle": {
+    "status": "mt",
+    "srcHash": "d17c76abfc19"
+  },
+  "pay.documentTitlePlain": {
+    "status": "mt",
+    "srcHash": "b41a92bed032"
+  },
+  "pay.expired.body": {
+    "status": "mt",
+    "srcHash": "e4877979ae91"
+  },
+  "pay.expired.title": {
+    "status": "mt",
+    "srcHash": "75b739c66ee1"
+  },
+  "pay.failed.body": {
+    "status": "mt",
+    "srcHash": "6e684ae688ee"
+  },
+  "pay.failed.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "pay.failed.title": {
+    "status": "mt",
+    "srcHash": "b7c1fdfedacc"
+  },
+  "pay.footer.questions": {
+    "status": "mt",
+    "srcHash": "330603f0cdba"
+  },
+  "pay.hero.due": {
+    "status": "mt",
+    "srcHash": "c0e3e6eaf66d"
+  },
+  "pay.hero.dueBy": {
+    "status": "mt",
+    "srcHash": "13cb39aa9365"
+  },
+  "pay.hero.paid": {
+    "status": "mt",
+    "srcHash": "dc9d4584a554"
+  },
+  "pay.hero.partly": {
+    "status": "mt",
+    "srcHash": "2d4cb4cab9eb"
+  },
+  "pay.hero.started": {
+    "status": "mt",
+    "srcHash": "82d63206a33f"
+  },
+  "pay.language.button": {
+    "status": "mt",
+    "srcHash": "eaebc1bf76a7"
+  },
+  "pay.language.menu": {
+    "status": "mt",
+    "srcHash": "89b86ab0e66f"
+  },
+  "pay.lines.title": {
+    "status": "mt",
+    "srcHash": "a5dd1730f29e"
+  },
+  "pay.locked.body": {
+    "status": "mt",
+    "srcHash": "88c1a5edea68"
+  },
+  "pay.locked.bodyBank": {
+    "status": "mt",
+    "srcHash": "61d7f204962a"
+  },
+  "pay.locked.title": {
+    "status": "mt",
+    "srcHash": "529bdf9eb10f"
+  },
+  "pay.noWays.body": {
+    "status": "mt",
+    "srcHash": "568a7b4ea42e"
+  },
+  "pay.noWays.title": {
+    "status": "mt",
+    "srcHash": "a18d1a67232f"
+  },
+  "pay.nothingDue.body": {
+    "status": "mt",
+    "srcHash": "568a7b4ea42e"
+  },
+  "pay.nothingDue.title": {
+    "status": "mt",
+    "srcHash": "9e775b85f9b8"
+  },
+  "pay.offline.body": {
+    "status": "mt",
+    "srcHash": "563862b7d73e"
+  },
+  "pay.offline.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "pay.offline.title": {
+    "status": "mt",
+    "srcHash": "f22caeafd489"
+  },
+  "pay.paid.already": {
+    "status": "mt",
+    "srcHash": "c1c4348b7b24"
+  },
+  "pay.paid.receiptAsk": {
+    "status": "mt",
+    "srcHash": "338f92f1c69b"
+  },
+  "pay.paid.receiptSent": {
+    "status": "mt",
+    "srcHash": "74c832e6104a"
+  },
+  "pay.paid.title": {
+    "status": "mt",
+    "srcHash": "a37dab02522e"
+  },
+  "pay.processing.plain": {
+    "status": "mt",
+    "srcHash": "181ca3413d81"
+  },
+  "pay.processing.title": {
+    "status": "mt",
+    "srcHash": "3c6051ffe3c7"
+  },
+  "pay.processing.withMethod": {
+    "status": "mt",
+    "srcHash": "3a4963eefc38"
+  },
+  "pay.proofFailed": {
+    "status": "mt",
+    "srcHash": "478a244b13c1"
+  },
+  "pay.provider.demo": {
+    "status": "mt",
+    "srcHash": "06194c597be9"
+  },
+  "pay.provider.other": {
+    "status": "mt",
+    "srcHash": "c14cd407b3a5"
+  },
+  "pay.provider.paypal": {
+    "status": "src",
+    "srcHash": "559ef5544c82"
+  },
+  "pay.provider.stripe": {
+    "status": "src",
+    "srcHash": "4d08ec587433"
+  },
+  "pay.redirect.link": {
+    "status": "mt",
+    "srcHash": "a596c47814f3"
+  },
+  "pay.redirect.notArabic": {
+    "status": "mt",
+    "srcHash": "9a1ec7e75d7a"
+  },
+  "pay.redirect.title": {
+    "status": "mt",
+    "srcHash": "f14e46b6c38f"
+  },
+  "pay.retryLater": {
+    "status": "mt",
+    "srcHash": "470f084635f8"
+  },
+  "pay.shopChecks.body": {
+    "status": "mt",
+    "srcHash": "7ab719afe425"
+  },
+  "pay.shopChecks.title": {
+    "status": "mt",
+    "srcHash": "eebb381e21bf"
+  },
+  "pay.testBand": {
+    "status": "mt",
+    "srcHash": "666999802412"
+  },
+  "pay.testStaffOnly.body": {
+    "status": "mt",
+    "srcHash": "e7065c335529"
+  },
+  "pay.testStaffOnly.title": {
+    "status": "mt",
+    "srcHash": "093b51c7114f"
+  },
+  "pay.unavailable.body": {
+    "status": "mt",
+    "srcHash": "ad66c0273f49"
+  },
+  "pay.unavailable.title": {
+    "status": "mt",
+    "srcHash": "4d01a651906a"
+  },
+  "pay.unknown.body": {
+    "status": "mt",
+    "srcHash": "e4877979ae91"
+  },
+  "pay.unknown.title": {
+    "status": "mt",
+    "srcHash": "e574f9d039c2"
+  },
+  "pay.voided.body": {
+    "status": "mt",
+    "srcHash": "568a7b4ea42e"
+  },
+  "pay.voided.title": {
+    "status": "mt",
+    "srcHash": "5344d4d44250"
+  },
+  "pay.ways.bank": {
+    "status": "mt",
+    "srcHash": "61d81c5380ae"
+  },
+  "pay.ways.cash": {
+    "status": "mt",
+    "srcHash": "9bdc33005d0e"
+  },
+  "pay.ways.demo": {
+    "status": "mt",
+    "srcHash": "252e9c45a1b0"
+  },
+  "pay.ways.demoSub": {
+    "status": "mt",
+    "srcHash": "f8c45d070006"
+  },
+  "pay.ways.gettingReady": {
+    "status": "mt",
+    "srcHash": "1e6538235e7b"
+  },
+  "pay.ways.noteBoth": {
+    "status": "mt",
+    "srcHash": "7f765fa8833e"
+  },
+  "pay.ways.notePaypal": {
+    "status": "mt",
+    "srcHash": "cf1f707ad120"
+  },
+  "pay.ways.noteStripe": {
+    "status": "mt",
+    "srcHash": "56cf279b5303"
+  },
+  "pay.ways.online": {
+    "status": "mt",
+    "srcHash": "e00be2b784bf"
+  },
+  "pay.ways.other": {
+    "status": "mt",
+    "srcHash": "ea68e7d48363"
+  },
+  "pay.ways.paypal": {
+    "status": "mt",
+    "srcHash": "58293560f293"
+  },
+  "pay.ways.stripe": {
+    "status": "mt",
+    "srcHash": "2397a7bff4e1"
+  },
+  "pay.ways.stripeSub": {
+    "status": "mt",
+    "srcHash": "696187a8dffb"
+  },
+  "pay.ways.title": {
+    "status": "mt",
+    "srcHash": "705052ddcba9"
+  },
   "project.cell.notCell": {
     "status": "mt",
     "srcHash": "e7083103f03d"

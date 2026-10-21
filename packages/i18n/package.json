@@ -26,6 +26,10 @@
       "types": "./dist/react.d.ts",
       "default": "./dist/react.js"
     },
+    "./page": {
+      "types": "./dist/page.d.ts",
+      "default": "./dist/page.js"
+    },
     "./registry": {
       "types": "./dist/locales.d.ts",
       "default": "./dist/locales.js"

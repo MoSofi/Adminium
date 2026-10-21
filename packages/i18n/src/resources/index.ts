@@ -16,6 +16,7 @@ import automations from './en-us/automations.js';
 import dataio from './en-us/dataio.js';
 import designer from './en-us/designer.js';
 import desktop from './en-us/desktop.js';
+import pay from './en-us/pay.js';
 import email from './en-us/email.js';
 import files from './en-us/files.js';
 import assistant from './en-us/assistant.js';
@@ -67,4 +68,5 @@ export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   roles,
   designer,
   desktop,
+  pay,
 };

@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/fr-FR/pay.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "documentTitle": "Payer {label}",
+  "documentTitlePlain": "Paiement",
+  "testBand": "Page de test — aucun argent ne circule.",
+  "language": {
+    "menu": "Langue",
+    "button": "Langue : {name}"
+  },
+  "hero": {
+    "due": "Montant dû",
+    "paid": "Payé",
+    "started": "Paiement lancé",
+    "partly": "Déjà payé : {paid} sur {total}.",
+    "dueBy": "Échéance : {date}"
+  },
+  "ways": {
+    "title": "Moyens de paiement",
+    "stripe": "Payer par carte et d’autres moyens",
+    "stripeSub": "Carte, Apple Pay, Google Pay et plus, sur la page sécurisée Stripe",
+    "paypal": "Payer avec PayPal",
+    "demo": "Payer avec le service de démonstration",
+    "demoSub": "Argent fictif, mode test uniquement",
+    "online": "Payer en ligne",
+    "bank": "Payer par virement bancaire",
+    "cash": "Payer à la livraison",
+    "other": "Autre moyen de paiement",
+    "gettingReady": "Préparation…",
+    "noteStripe": "Vous paierez sur la page Stripe. Cette boutique ne voit jamais votre carte.",
+    "notePaypal": "Vous paierez sur la page PayPal. Cette boutique ne voit jamais votre carte.",
+    "noteBoth": "Vous paierez sur la page Stripe ou PayPal. Cette boutique ne voit jamais votre carte."
+  },
+  "provider": {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "demo": "le service de démonstration",
+    "other": "le service de paiement"
+  },
+  "redirect": {
+    "title": "Redirection vers {provider}…",
+    "link": "Rien ne se passe ? Continuer vers {provider}",
+    "notArabic": "La page Stripe n’est pas disponible en arabe."
+  },
+  "checking": {
+    "title": "Vérification avec {provider}…",
+    "body": "Cela prend quelques secondes. Vous pouvez fermer cette page ; la boutique recevra quand même votre paiement.",
+    "slow": "Cela prend plus de temps que d’habitude. Vous pouvez fermer cette page ; la boutique recevra quand même votre paiement."
+  },
+  "paid": {
+    "title": "Merci. Votre paiement de {amount} est bien arrivé.",
+    "receiptAsk": "Demandez un reçu à {shop} si vous en avez besoin.",
+    "already": "C’est payé. Merci.",
+    "receiptSent": "Un reçu est en route vers votre adresse e-mail."
+  },
+  "processing": {
+    "title": "Votre banque confirme le paiement",
+    "withMethod": "Un paiement de {amount} par {method} a été lancé le {date}. Votre banque le confirme sous quelques jours ouvrés. Vous n’avez pas besoin de payer à nouveau.",
+    "plain": "Un paiement de {amount} a été lancé le {date}. Votre banque le confirme sous quelques jours ouvrés. Vous n’avez pas besoin de payer à nouveau."
+  },
+  "failed": {
+    "title": "Le paiement n’a pas abouti.",
+    "body": "Rien n’a été débité.",
+    "retry": "Réessayer"
+  },
+  "cancelled": {
+    "title": "Vous avez quitté la page de paiement avant de payer.",
+    "body": "Rien n’a été débité.",
+    "stripe": "Vous avez quitté la page Stripe avant de payer.",
+    "paypal": "Vous avez quitté la page PayPal avant de payer."
+  },
+  "shopChecks": {
+    "title": "La boutique va vérifier ce paiement",
+    "body": "Nous avons reçu un paiement, mais il ne correspond pas au montant dû. La boutique va l’examiner et vous écrira."
+  },
+  "retryLater": "Ouvrez à nouveau le lien de paiement pour réessayer.",
+  "nothingDue": {
+    "title": "Il n’y a encore rien à payer ici.",
+    "body": "Veuillez contacter {shop}."
+  },
+  "voided": {
+    "title": "Ceci ne peut plus être payé ici.",
+    "body": "Veuillez contacter {shop}."
+  },
+  "expired": {
+    "title": "Ce lien de paiement a expiré.",
+    "body": "Demandez-en un nouveau à {shop}."
+  },
+  "unknown": {
+    "title": "Ce lien ne fonctionne pas.",
+    "body": "Demandez-en un nouveau à {shop}."
+  },
+  "locked": {
+    "title": "Trop de tentatives de paiement sur ce lien.",
+    "bodyBank": "Veuillez réessayer dans une heure, ou payer par virement bancaire.",
+    "body": "Veuillez réessayer dans une heure."
+  },
+  "noWays": {
+    "title": "Il n’est pas possible de payer ce montant en ligne ici.",
+    "body": "Veuillez contacter {shop}."
+  },
+  "unavailable": {
+    "title": "{shop} ne peut pas accepter de paiements en ligne pour le moment.",
+    "body": "Veuillez contacter la boutique."
+  },
+  "testStaffOnly": {
+    "title": "Ce lien de test ne s’ouvre que pour l’équipe de {shop}.",
+    "body": "Connectez-vous au tableau de bord dans ce navigateur, puis ouvrez à nouveau le lien."
+  },
+  "offline": {
+    "title": "Cette page n’a pas pu joindre la boutique.",
+    "body": "Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer"
+  },
+  "proofFailed": "La vérification indiquant que vous êtes une personne n’a pas abouti. Réessayez.",
+  "bank": {
+    "title": "Virement bancaire",
+    "holder": "Titulaire du compte",
+    "iban": "IBAN",
+    "bic": "BIC",
+    "accountNumber": "Numéro de compte",
+    "sortCode": "Code guichet (sort code)",
+    "bankName": "Banque",
+    "amount": "Montant",
+    "reference": "Référence",
+    "note": "Indiquez cette référence pour que la boutique retrouve votre paiement. Il apparaîtra comme payé une fois vérifié par la boutique.",
+    "copy": "Copier",
+    "copied": "Copié",
+    "copyLabel": "Copier {label}",
+    "copiedLive": "{label} copié.",
+    "otherWays": "Autres moyens de paiement",
+    "noAccount": "Demandez à {shop} ses coordonnées bancaires pour cette devise."
+  },
+  "cash": {
+    "title": "Payer à la livraison",
+    "plain": "Réglez le montant dû à la réception de votre commande."
+  },
+  "footer": {
+    "questions": "Des questions ? Écrivez à"
+  },
+  "demo": {
+    "title": "Service de paiement de démonstration",
+    "staff": "Réservé à l’équipe. Un service de paiement fictif : aucun argent ne circule et aucune carte n’est nécessaire.",
+    "succeeds": "Payer : la carte est acceptée",
+    "fails": "Payer : la carte est refusée",
+    "needsStep": "Payer : la banque demande une étape",
+    "settlesLate": "Payer : l’argent arrive plus tard",
+    "finishStep": "Terminer l’étape de la banque",
+    "leave": "Partir sans payer",
+    "gone": "Ce paiement de démonstration ne peut pas être poursuivi. Revenez à la page de paiement."
+  },
+  "lines": {
+    "title": "Objet du paiement"
+  }
+} as const;

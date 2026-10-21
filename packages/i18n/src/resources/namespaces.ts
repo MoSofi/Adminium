@@ -32,6 +32,7 @@ export const NAMESPACES = [
   'roles',
   'designer',
   'desktop',
+  'pay',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -183,6 +184,12 @@ export const DEFERRED_NAMESPACES = [
    * before its first render.
    */
   'desktop',
+  /*
+   * The customer's pay page: its own small bundle under `/pay/assets/`, which
+   * loads this one namespace before its first render, and nothing of the
+   * dashboard's. No dashboard screen reads a `pay:` key.
+   */
+  'pay',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

@@ -1,0 +1,153 @@
+{
+  "documentTitle": "{label} bezahlen",
+  "documentTitlePlain": "Zahlung",
+  "testBand": "Testseite — es wird kein Geld bewegt.",
+  "language": {
+    "menu": "Sprache",
+    "button": "Sprache: {name}"
+  },
+  "hero": {
+    "due": "Fälliger Betrag",
+    "paid": "Bezahlt",
+    "started": "Zahlung gestartet",
+    "partly": "{paid} von {total} sind bereits bezahlt.",
+    "dueBy": "Fällig am {date}"
+  },
+  "ways": {
+    "title": "Zahlungsarten",
+    "stripe": "Mit Karte und auf anderen Wegen bezahlen",
+    "stripeSub": "Karte, Apple Pay, Google Pay und mehr, auf der sicheren Seite von Stripe",
+    "paypal": "Mit PayPal bezahlen",
+    "demo": "Mit dem Demo-Dienst bezahlen",
+    "demoSub": "Spielgeld, nur im Testmodus",
+    "online": "Online bezahlen",
+    "bank": "Per Banküberweisung bezahlen",
+    "cash": "Bei Lieferung bezahlen",
+    "other": "Andere Zahlungsart",
+    "gettingReady": "Wird vorbereitet …",
+    "noteStripe": "Sie bezahlen auf der Seite von Stripe. Dieser Shop sieht Ihre Karte nie.",
+    "notePaypal": "Sie bezahlen auf der Seite von PayPal. Dieser Shop sieht Ihre Karte nie.",
+    "noteBoth": "Sie bezahlen auf der Seite von Stripe oder PayPal. Dieser Shop sieht Ihre Karte nie."
+  },
+  "provider": {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "demo": "dem Demo-Dienst",
+    "other": "dem Zahlungsdienst"
+  },
+  "redirect": {
+    "title": "Sie werden zu {provider} weitergeleitet …",
+    "link": "Geht es nicht weiter? Weiter zu {provider}",
+    "notArabic": "Die Seite von Stripe ist nicht auf Arabisch verfügbar."
+  },
+  "checking": {
+    "title": "Wird bei {provider} geprüft …",
+    "body": "Das dauert ein paar Sekunden. Sie können diese Seite schließen; der Shop erhält Ihre Zahlung trotzdem.",
+    "slow": "Das dauert länger als üblich. Sie können diese Seite schließen; der Shop erhält Ihre Zahlung trotzdem."
+  },
+  "paid": {
+    "title": "Vielen Dank. Ihre Zahlung über {amount} ist eingegangen.",
+    "receiptAsk": "Wenden Sie sich an {shop}, wenn Sie eine Quittung benötigen.",
+    "already": "Das ist bezahlt. Vielen Dank.",
+    "receiptSent": "Eine Quittung ist an Ihre E-Mail-Adresse unterwegs."
+  },
+  "processing": {
+    "title": "Ihre Bank bestätigt die Zahlung",
+    "withMethod": "Eine Zahlung über {amount} per {method} wurde am {date} gestartet. Ihre Bank bestätigt sie in einigen Werktagen. Sie müssen nicht noch einmal bezahlen.",
+    "plain": "Eine Zahlung über {amount} wurde am {date} gestartet. Ihre Bank bestätigt sie in einigen Werktagen. Sie müssen nicht noch einmal bezahlen."
+  },
+  "failed": {
+    "title": "Die Zahlung ist nicht durchgegangen.",
+    "body": "Es wurde nichts abgebucht.",
+    "retry": "Erneut versuchen"
+  },
+  "cancelled": {
+    "title": "Sie haben die Zahlungsseite vor dem Bezahlen verlassen.",
+    "body": "Es wurde nichts abgebucht.",
+    "stripe": "Sie haben die Seite von Stripe vor dem Bezahlen verlassen.",
+    "paypal": "Sie haben die Seite von PayPal vor dem Bezahlen verlassen."
+  },
+  "shopChecks": {
+    "title": "Der Shop prüft diese Zahlung",
+    "body": "Wir haben eine Zahlung erhalten, aber sie entspricht nicht dem fälligen Betrag. Der Shop sieht sie sich an und schreibt Ihnen."
+  },
+  "retryLater": "Öffnen Sie den Zahlungslink erneut, um es noch einmal zu versuchen.",
+  "nothingDue": {
+    "title": "Hier ist noch nichts zu bezahlen.",
+    "body": "Bitte wenden Sie sich an {shop}."
+  },
+  "voided": {
+    "title": "Dies kann hier nicht mehr bezahlt werden.",
+    "body": "Bitte wenden Sie sich an {shop}."
+  },
+  "expired": {
+    "title": "Dieser Zahlungslink ist abgelaufen.",
+    "body": "Bitten Sie {shop} um einen neuen."
+  },
+  "unknown": {
+    "title": "Dieser Link funktioniert nicht.",
+    "body": "Bitten Sie {shop} um einen neuen."
+  },
+  "locked": {
+    "title": "Zu viele Zahlungsversuche über diesen Link.",
+    "bodyBank": "Bitte versuchen Sie es in einer Stunde erneut oder bezahlen Sie per Banküberweisung.",
+    "body": "Bitte versuchen Sie es in einer Stunde erneut."
+  },
+  "noWays": {
+    "title": "Dieser Betrag kann hier nicht online bezahlt werden.",
+    "body": "Bitte wenden Sie sich an {shop}."
+  },
+  "unavailable": {
+    "title": "{shop} kann gerade keine Online-Zahlungen annehmen.",
+    "body": "Bitte wenden Sie sich direkt an den Shop."
+  },
+  "testStaffOnly": {
+    "title": "Dieser Testlink öffnet sich nur für das Team von {shop}.",
+    "body": "Melden Sie sich in diesem Browser im Dashboard an und öffnen Sie den Link dann erneut."
+  },
+  "offline": {
+    "title": "Diese Seite konnte den Shop nicht erreichen.",
+    "body": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "retry": "Erneut versuchen"
+  },
+  "proofFailed": "Die Prüfung, ob Sie ein Mensch sind, war nicht erfolgreich. Versuchen Sie es erneut.",
+  "bank": {
+    "title": "Banküberweisung",
+    "holder": "Kontoinhaber",
+    "iban": "IBAN",
+    "bic": "BIC",
+    "accountNumber": "Kontonummer",
+    "sortCode": "Bankleitzahl",
+    "bankName": "Bank",
+    "amount": "Betrag",
+    "reference": "Verwendungszweck",
+    "note": "Geben Sie diesen Verwendungszweck an, damit der Shop Ihre Zahlung zuordnen kann. Sie wird als bezahlt angezeigt, sobald der Shop sie geprüft hat.",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "copyLabel": "{label} kopieren",
+    "copiedLive": "{label} kopiert.",
+    "otherWays": "Andere Zahlungsarten",
+    "noAccount": "Bitten Sie {shop} um die Bankverbindung für diese Währung."
+  },
+  "cash": {
+    "title": "Bei Lieferung bezahlen",
+    "plain": "Bezahlen Sie den fälligen Betrag, wenn Ihre Bestellung ankommt."
+  },
+  "footer": {
+    "questions": "Fragen? Schreiben Sie an"
+  },
+  "demo": {
+    "title": "Demo-Zahlungsdienst",
+    "staff": "Nur für das Team. Ein simulierter Zahlungsdienst: Es wird kein Geld bewegt und keine Karte benötigt.",
+    "succeeds": "Bezahlen: Die Karte wird akzeptiert",
+    "fails": "Bezahlen: Die Karte wird abgelehnt",
+    "needsStep": "Bezahlen: Die Bank verlangt einen Schritt",
+    "settlesLate": "Bezahlen: Das Geld kommt später an",
+    "finishStep": "Schritt der Bank abschließen",
+    "leave": "Ohne Bezahlen verlassen",
+    "gone": "Diese Demo-Zahlung kann nicht fortgesetzt werden. Gehen Sie zurück zur Zahlungsseite."
+  },
+  "lines": {
+    "title": "Wofür Sie bezahlen"
+  }
+}

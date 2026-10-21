@@ -1,0 +1,153 @@
+{
+  "documentTitle": "Pay {label}",
+  "documentTitlePlain": "Payment",
+  "testBand": "Test page — no money moves.",
+  "language": {
+    "menu": "Language",
+    "button": "Language: {name}"
+  },
+  "hero": {
+    "due": "Amount due",
+    "paid": "Paid",
+    "started": "Payment started",
+    "partly": "{paid} of {total} is already paid.",
+    "dueBy": "Due {date}"
+  },
+  "ways": {
+    "title": "Ways to pay",
+    "stripe": "Pay by card and other ways",
+    "stripeSub": "Card, Apple Pay, Google Pay and more, on the secure Stripe page",
+    "paypal": "Pay with PayPal",
+    "demo": "Pay with the demo service",
+    "demoSub": "Pretend money, test mode only",
+    "online": "Pay online",
+    "bank": "Pay by bank transfer",
+    "cash": "Pay when it arrives",
+    "other": "Another way to pay",
+    "gettingReady": "Getting ready…",
+    "noteStripe": "You'll pay on the Stripe page. This shop never sees your card.",
+    "notePaypal": "You'll pay on the PayPal page. This shop never sees your card.",
+    "noteBoth": "You'll pay on the Stripe or PayPal page. This shop never sees your card."
+  },
+  "provider": {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "demo": "the demo service",
+    "other": "the payment service"
+  },
+  "redirect": {
+    "title": "Taking you to {provider}…",
+    "link": "Not moving? Continue to {provider}",
+    "notArabic": "The Stripe page is not in Arabic."
+  },
+  "checking": {
+    "title": "Checking with {provider}…",
+    "body": "This takes a few seconds. You can close this page; the shop will still get your payment.",
+    "slow": "This is taking longer than usual. You can close this page; the shop will still get your payment."
+  },
+  "paid": {
+    "title": "Thank you. Your payment of {amount} arrived.",
+    "receiptAsk": "Ask {shop} if you need a receipt.",
+    "already": "This is paid. Thank you.",
+    "receiptSent": "A receipt is on its way to your email."
+  },
+  "processing": {
+    "title": "Your bank is confirming it",
+    "withMethod": "A payment of {amount} by {method} was started on {date}. Your bank confirms it in a few working days. You don't need to pay again.",
+    "plain": "A payment of {amount} was started on {date}. Your bank confirms it in a few working days. You don't need to pay again."
+  },
+  "failed": {
+    "title": "The payment did not go through.",
+    "body": "Nothing was taken.",
+    "retry": "Try again"
+  },
+  "cancelled": {
+    "title": "You left the payment page before paying.",
+    "body": "Nothing was taken.",
+    "stripe": "You left the Stripe page before paying.",
+    "paypal": "You left the PayPal page before paying."
+  },
+  "shopChecks": {
+    "title": "The shop will check this payment",
+    "body": "We received a payment, but it does not match the amount due. The shop will look at it and write to you."
+  },
+  "retryLater": "Open the pay link again to try once more.",
+  "nothingDue": {
+    "title": "There is nothing to pay here yet.",
+    "body": "Please contact {shop}."
+  },
+  "voided": {
+    "title": "This can no longer be paid here.",
+    "body": "Please contact {shop}."
+  },
+  "expired": {
+    "title": "This pay link has expired.",
+    "body": "Ask {shop} for a new one."
+  },
+  "unknown": {
+    "title": "This link doesn't work.",
+    "body": "Ask {shop} for a new one."
+  },
+  "locked": {
+    "title": "Too many payment tries on this link.",
+    "bodyBank": "Please try again in an hour, or pay by bank transfer.",
+    "body": "Please try again in an hour."
+  },
+  "noWays": {
+    "title": "There is no way to pay this amount online here.",
+    "body": "Please contact {shop}."
+  },
+  "unavailable": {
+    "title": "{shop} cannot take payments online right now.",
+    "body": "Please contact them."
+  },
+  "testStaffOnly": {
+    "title": "This test link opens only for the staff of {shop}.",
+    "body": "Sign in to the dashboard in this browser, then open the link again."
+  },
+  "offline": {
+    "title": "This page could not reach the shop.",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "proofFailed": "The check that you are a person did not pass. Try again.",
+  "bank": {
+    "title": "Bank transfer",
+    "holder": "Account holder",
+    "iban": "IBAN",
+    "bic": "BIC",
+    "accountNumber": "Account number",
+    "sortCode": "Sort code",
+    "bankName": "Bank",
+    "amount": "Amount",
+    "reference": "Reference",
+    "note": "Use this reference so the shop can find your payment. It shows as paid once the shop has checked.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyLabel": "Copy {label}",
+    "copiedLive": "{label} copied.",
+    "otherWays": "Other ways to pay",
+    "noAccount": "Ask {shop} for its bank details for this currency."
+  },
+  "cash": {
+    "title": "Pay when it arrives",
+    "plain": "Pay the amount due when your order arrives."
+  },
+  "footer": {
+    "questions": "Questions? Write to"
+  },
+  "demo": {
+    "title": "Demo payment service",
+    "staff": "Staff only. A pretend payment service: no money moves and no card is needed.",
+    "succeeds": "Pay: the card succeeds",
+    "fails": "Pay: the card is declined",
+    "needsStep": "Pay: the bank asks for a step",
+    "settlesLate": "Pay: the money arrives later",
+    "finishStep": "Finish the bank's step",
+    "leave": "Leave without paying",
+    "gone": "This demo payment cannot be continued. Go back to the pay page."
+  },
+  "lines": {
+    "title": "What this is for"
+  }
+}
