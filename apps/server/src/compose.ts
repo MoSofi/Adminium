@@ -282,6 +282,7 @@ import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
+import { paymentsRoutes } from './routes/payments/index.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -1948,6 +1949,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           storageCrypto,
           destinations: destinationResolver,
           enqueue: (input) => jobs.enqueue(input),
+        }),
+      );
+      // Studio → Payments. Its own three keys; setup changes are for a
+      // signed-in person only (the routes refuse an API key).
+      await api.register(
+        paymentsRoutes({
+          meta,
+          manifests: appManifests,
+          runtime: () => addOnRuntime,
+          networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+          desktop: env.ADMINIUM_RUNTIME === 'desktop',
+          trustProxy: env.ADMINIUM_TRUST_PROXY,
         }),
       );
       await api.register(i18nRoutes({ meta }));

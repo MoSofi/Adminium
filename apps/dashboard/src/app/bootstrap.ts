@@ -376,7 +376,10 @@ export type SystemAction =
   | 'schema.remap'
   | 'llm.run'
   | 'project.read'
-  | 'designer.use';
+  | 'designer.use'
+  | 'payments.manage'
+  | 'payments.refund'
+  | 'payments.view';
 
 /**
  * Does this session hold `system:<action>`? What the dashboard asks before it

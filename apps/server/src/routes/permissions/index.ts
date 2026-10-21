@@ -98,6 +98,11 @@ const SYSTEM_PERMISSION_META: Record<
   // want to withhold from a role that still administers the provider.
   'assistant.use': { label: 'Use the page assistant', category: 'operations' },
   'designer.use': { label: 'Build apps with Adminium Designer', category: 'operations' },
+  // `workspace`: they configure where customers pay and where the money goes.
+  // Refunding is a key of its own because it moves money back out.
+  'payments.manage': { label: 'Set up payments', category: 'workspace' },
+  'payments.refund': { label: 'Give refunds', category: 'workspace' },
+  'payments.view': { label: 'See payment activity and export it', category: 'workspace' },
 };
 
 /** `users.manage` → `system:users:manage` (spells the dot as a colon). */

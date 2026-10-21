@@ -286,6 +286,14 @@ export const SYSTEM_ACTION_KEYS = [
   // then runs, so this is code execution as the server's user (plan 65, B5):
   // a key of its own, held by Super Admin only unless granted on purpose.
   'designer.use',
+  // Payments. `payments.manage` sets up the payment services, the ways to pay,
+  // what can be paid and the pay page; `payments.refund` gives money back;
+  // `payments.view` reads Activity and exports it, and acts on nothing (a
+  // bookkeeper). No built-in role but the Super Admin holds any of them.
+  // Connecting a service and refunding are for a signed-in person only.
+  'payments.manage',
+  'payments.refund',
+  'payments.view',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);
@@ -374,6 +382,11 @@ export const auditCategorySchema = z.enum([
   // origin, inside the session boundary, so "what code arrived on this
   // deployment, from where, and did anything refuse it" is asked of apps too.
   'app',
+  // Payments: a service connected, a key replaced or removed, the account a
+  // key belongs to changing, a rule changed, a pay link minted or revoked, a
+  // refund, a flag resolved, the switch to live. Its own category because
+  // "who touched where the money goes" is asked on its own.
+  'payments',
 ]);
 export type AuditCategory = z.infer<typeof auditCategorySchema>;
 

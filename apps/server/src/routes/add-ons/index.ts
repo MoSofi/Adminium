@@ -62,6 +62,7 @@
  * build behind, and only `openapi-check` catches it.
  */
 
+import { PAYMENT_PROVIDER_CONTRACT } from '@adminium/add-on-contracts';
 import {
   compareSemver,
   installsLikeAnApp,
@@ -1715,6 +1716,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
         const manifest = parseManifest(installed.document, key);
         const kind = manifest.addOn.connect.kind;
+
+        // A payment service keeps a test set and a live set of keys, saved
+        // field by field and checked as they are saved, by a signed-in person
+        // who may manage payments. This form saves one set in one call with
+        // `manifests.manage`, so it is refused here and done in Payments.
+        if ((manifest.addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) {
+          throw new ValidationFailedError(`"${key}" is a payment service. Set it up in Studio → Payments.`, {
+            reason: 'payments',
+          });
+        }
 
         if (kind === 'none') {
           // Not an error the caller can fix by sending different values, so it

@@ -1256,6 +1256,37 @@ describe('connect and disconnect', () => {
     await app.close();
   });
 
+  it('refuses to connect a payment service here, and points to Payments', async () => {
+    // A payment service keeps a test and a live set of keys, saved one field
+    // at a time by someone who may manage payments; this form does neither.
+    const manifest = {
+      ...manifestFor('payments-stripe', undefined, ['printing'], { kind: 'api-key' }, [
+        { key: 'secret_key', type: 'string', secret: true, label: { key: 'k', fallback: 'Restricted key' } },
+      ], ['outbound-http'], ['api.stripe.com']),
+      categories: ['payments'],
+    };
+    manifest.addOn = { ...manifest.addOn, provides: [{ contract: 'payment-provider', version: 1, server: 'dist/client.js' }] as never[], publicSettings: [] } as never;
+    const tarball = packageTarball({
+      'manifest.json': JSON.stringify(manifest),
+      'package.json': JSON.stringify({ name: '@adminiumjs/add-on-payments-stripe' }),
+      'dist/client.js': 'export const register = () => {};',
+    });
+    await store.stage({ key: 'payments-stripe', version: '1.0.0', tarball, expectedIntegrity: sha512Integrity(tarball) });
+    const app = await buildApp();
+    const installed = await app.inject({ method: 'POST', url: '/api/v1/add-ons', payload: { key: 'payments-stripe', version: '1.0.0', attachTo: ['printing'] } });
+    expect(installed.statusCode, installed.payload).toBeLessThan(300);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/add-ons/payments-stripe/connect',
+      payload: { credentials: { secret_key: 'rk_test_51abcdefghijklmnop' } },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toMatchObject({ error: { details: { reason: 'payments' } } });
+    expect(await meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
+    await app.close();
+  });
+
   it('404s connecting an add-on that is not installed', async () => {
     const app = await buildApp();
     const res = await app.inject({

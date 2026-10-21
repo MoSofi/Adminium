@@ -103,6 +103,11 @@ export const PERMISSIONS = {
   // adding a model to the project's .env. Its model writes code this server
   // runs, so only Super Admin holds it unless it is granted on purpose.
   designerUse: 'system:designer:use',
+  // Payments: setting up services, ways to pay, payables and the pay page;
+  // giving money back; reading Activity (and exporting it) without acting.
+  paymentsManage: 'system:payments:manage',
+  paymentsRefund: 'system:payments:refund',
+  paymentsView: 'system:payments:view',
 } as const;
 
 /**
