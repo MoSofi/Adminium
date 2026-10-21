@@ -29,14 +29,7 @@ import { queryOptions } from '@tanstack/react-query';
 import { api } from '../app/api.js';
 import { getDesktopApi } from '../lib/desktop-runtime.js';
 
-/**
- * The panel's anchor, for "click → LAN panel".
- *
- * A hash and not a route: this is a panel opened FROM the toggle, and it
- * lives on the desktop settings page next to the switch that controls it. The
- * chip needs somewhere to send you, not a second page to maintain.
- */
-export const LAN_SHARE_PANEL_HASH = 'lan-share';
+export { LAN_SHARE_PANEL_HASH } from './lanSharePanel.js';
 
 /** Mirrors `main/config.ts`'s `DEFAULT_LAN_PORT`. */
 export const DEFAULT_LAN_PORT = 4600;

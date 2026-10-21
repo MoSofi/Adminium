@@ -22,7 +22,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { RuntimeChip } from '@adminium/ui';
 
 import { useCapabilities } from '../app/capabilities.js';
-import { LAN_SHARE_PANEL_HASH } from '../desktop/lanShare.js';
+import { LAN_SHARE_PANEL_HASH } from '../desktop/lanSharePanel.js';
 import { t } from '../i18n/t.js';
 import { connectionHealthQuery } from './connectionHealth.js';
 import { runtimeChipState, unreachableRemotes } from './runtimeChipState.js';
