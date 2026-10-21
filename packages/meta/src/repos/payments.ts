@@ -636,12 +636,31 @@ export function paymentAttemptsRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
-    /** A dispute the provider told of: opened (once), then closed (once). */
-    async noteDispute(id: string, state: 'open' | 'closed', at: number = Date.now()): Promise<boolean> {
+    /**
+     * A dispute the provider told of, at the time its event happened. Events
+     * come in any order, so each moves only what is older than itself:
+     *   - opened (`fresh`, a new dispute): from none, or from closed when it
+     *     happened after that close (a second dispute);
+     *   - any other news of an open dispute (an update) opens only one never
+     *     heard of: after a close it changes nothing;
+     *   - closed: from open when it happened after the open, or from none (the
+     *     close came first; the open that follows is older and changes nothing).
+     */
+    async noteDispute(id: string, state: 'open' | 'closed', at: number = Date.now(), fresh = true): Promise<boolean> {
       const res =
         state === 'open'
-          ? await db.updateTable('adminium_payment_attempts').set({ disputeState: 'open', disputedAt: at, disputeClosedAt: null, updatedAt: at }).where('id', '=', id).where((eb) => eb.or([eb('disputeState', 'is', null), eb('disputeState', '=', 'closed')])).executeTakeFirst()
-          : await db.updateTable('adminium_payment_attempts').set({ disputeState: 'closed', disputeClosedAt: at, updatedAt: at }).where('id', '=', id).where('disputeState', '=', 'open').executeTakeFirst();
+          ? await db
+              .updateTable('adminium_payment_attempts')
+              .set({ disputeState: 'open', disputedAt: at, disputeClosedAt: null, updatedAt: at })
+              .where('id', '=', id)
+              .where((eb) => (fresh ? eb.or([eb('disputeState', 'is', null), eb.and([eb('disputeState', '=', 'closed'), eb('disputeClosedAt', '<', at)])]) : eb('disputeState', 'is', null)))
+              .executeTakeFirst()
+          : await db
+              .updateTable('adminium_payment_attempts')
+              .set((eb) => ({ disputeState: 'closed', disputeClosedAt: at, disputedAt: eb.fn.coalesce('disputedAt', eb.val(at)), updatedAt: at }))
+              .where('id', '=', id)
+              .where((eb) => eb.or([eb('disputeState', 'is', null), eb.and([eb('disputeState', '=', 'open'), eb('disputedAt', '<=', at)])]))
+              .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
     },
 
@@ -1108,8 +1127,20 @@ export interface RefundRow {
   settledAt: number | null;
   appliedAt: number | null;
   undoneAt: number | null;
+  /** What kept the record from following this refund as it should, until it does (or a person checked it). */
+  problemCode: RefundProblemCode | null;
   check: AttemptCheck | null;
 }
+
+/**
+ * Why the record did not follow a refund as it should:
+ *   - `NOT_WRITTEN`       writing it failed; it is tried again until it lands (then cleared);
+ *   - `RECORD_GONE`       the payment row it refunds is no longer in the record's table;
+ *   - `MORE_THAN_PAID`    refunds stand above what was paid: the record shows what was paid, no more;
+ *   - `CURRENCY_DIFFERS`  made at the provider in another currency than was paid: not written.
+ */
+export const REFUND_PROBLEM_CODES = ['NOT_WRITTEN', 'RECORD_GONE', 'MORE_THAN_PAID', 'CURRENCY_DIFFERS'] as const;
+export type RefundProblemCode = (typeof REFUND_PROBLEM_CODES)[number];
 
 export interface CreateRefundInput {
   attemptId: string | null;
@@ -1158,6 +1189,7 @@ function decodeRefund(row: Selectable<AdminiumRefundsTable>): RefundRow {
     settledAt: row.settledAt === null ? null : Number(row.settledAt),
     appliedAt: row.appliedAt === null ? null : Number(row.appliedAt),
     undoneAt: row.undoneAt === null ? null : Number(row.undoneAt),
+    problemCode: (REFUND_PROBLEM_CODES as readonly string[]).includes(row.problemCode ?? '') ? (row.problemCode as RefundProblemCode) : null,
     check: row.checkedAt === null ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
   };
 }
@@ -1199,6 +1231,7 @@ export function refundsRepo(meta: MetaDb) {
         settledAt: input.state === 'succeeded' ? at : null,
         appliedAt: null,
         undoneAt: null,
+        problemCode: null,
         checkedAt: null,
         checkedBy: null,
         checkNote: null,
@@ -1266,6 +1299,58 @@ export function refundsRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * A refund asked here whose answer was lost takes the provider's id an
+     * event brought: only while it is still `requested` with none. False when
+     * it moved or got an id first.
+     */
+    async adopt(id: string, providerRefundId: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_refunds')
+        .set({ providerRefundId, updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'requested')
+        .where('providerRefundId', 'is', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** Notes (or, with null, clears) why the record did not follow. Clearing clears only `only` when given. */
+    async setProblem(id: string, code: RefundProblemCode | null, at: number = Date.now(), only?: RefundProblemCode): Promise<boolean> {
+      let query = db.updateTable('adminium_refunds').set({ problemCode: code, updatedAt: at }).where('id', '=', id);
+      if (code !== null) query = query.where((eb) => eb.or([eb('problemCode', 'is', null), eb('problemCode', '!=', code)]));
+      else query = only === undefined ? query.where('problemCode', 'is not', null) : query.where('problemCode', '=', only);
+      const res = await query.executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Refunds the record has not followed yet, on payments already written
+     * down: done but not applied, or failed after being applied and not yet
+     * undone. A problem a person must look at (the row gone) is not retried.
+     */
+    async unfollowed(limit = 100): Promise<RefundRow[]> {
+      const rows = await db
+        .selectFrom('adminium_refunds as r')
+        .innerJoin('adminium_payment_attempts as a', 'a.id', 'r.attemptId')
+        .selectAll('r')
+        .where('a.state', '=', 'recorded')
+        .where((eb) =>
+          eb.and([
+            eb.or([eb('r.problemCode', 'is', null), eb('r.problemCode', '=', 'NOT_WRITTEN')]),
+            eb.or([
+              eb.and([eb('r.state', '=', 'succeeded'), eb('r.appliedAt', 'is', null)]),
+              eb.and([eb('r.state', '=', 'failed'), eb('r.appliedAt', 'is not', null), eb('r.undoneAt', 'is', null)]),
+            ]),
+          ]),
+        )
+        .orderBy('r.updatedAt', 'asc')
+        .orderBy('r.id', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(decodeRefund);
+    },
+
     /** The shop's record took this refund. Once. */
     async markApplied(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
@@ -1298,8 +1383,7 @@ export function refundsRepo(meta: MetaDb) {
       return rows.map(decodeRefund);
     },
 
-    /** A failure after success took the refund back out of the shop's record. Once. */
-    /** "Mark as checked" in Activity: a refund made at the provider, looked at by a person. */
+    /** "Mark as checked" in Activity: a refund made at the provider (or one the record did not follow), looked at by a person. */
     async check(id: string, by: string | null, note: string | null, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_refunds')
@@ -1315,8 +1399,8 @@ export function refundsRepo(meta: MetaDb) {
       let query = db.selectFrom('adminium_refunds').selectAll();
       if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
       if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
-      // A refund made at the provider is shown to a person until they check it.
-      if (filter.needingLook === true) query = query.where('source', '=', 'provider').where('checkedAt', 'is', null);
+      // A refund made at the provider, or one the record did not follow, is shown to a person until they check it.
+      if (filter.needingLook === true) query = query.where((eb) => eb.or([eb('source', '=', 'provider'), eb('problemCode', 'is not', null)])).where('checkedAt', 'is', null);
       const before = filter.before;
       if (typeof before === 'number') query = query.where('createdAt', '<', before);
       else if (before !== undefined) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
@@ -1328,12 +1412,13 @@ export function refundsRepo(meta: MetaDb) {
       const row = await db
         .selectFrom('adminium_refunds')
         .select((eb) => eb.fn.countAll<number>().as('n'))
-        .where('source', '=', 'provider')
+        .where((eb) => eb.or([eb('source', '=', 'provider'), eb('problemCode', 'is not', null)]))
         .where('checkedAt', 'is', null)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
     },
 
+    /** A failure after success took the refund back out of the shop's record. Once. */
     async markUndone(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_refunds')

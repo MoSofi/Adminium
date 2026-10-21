@@ -205,6 +205,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     // When the shop's record took the refund, and when a later failure undid it.
     .addColumn('applied_at', c.ts)
     .addColumn('undone_at', c.ts)
+    // What kept the record from following it as it should (not written yet, its payment gone, past what was paid).
+    .addColumn('problem_code', c.str(40))
     .addColumn('checked_at', c.ts)
     .addColumn('checked_by', c.id)
     .addColumn('check_note', c.str(500))

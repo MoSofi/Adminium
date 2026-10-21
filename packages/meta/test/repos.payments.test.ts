@@ -374,9 +374,9 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     describe('refunds held on an attempt, and disputes', () => {
-      async function taken(amount = '120.00') {
+      async function taken(amount = '120.00', rowKey = DOCUMENT.rowKey) {
         const attempts = paymentAttemptsRepo(meta());
-        const one = (await attempts.create(attempt(DOCUMENT, { mode: 'live', nonce: `n-${Math.random().toString(36).slice(2)}` }), T0))!;
+        const one = (await attempts.create(attempt({ ...DOCUMENT, rowKey }, { mode: 'live', nonce: `n-${Math.random().toString(36).slice(2)}` }), T0))!;
         await attempts.move(one.id, 'open', { providerRef: `cs_${one.id}` }, T0);
         await attempts.move(one.id, 'succeeded', { takenAmount: amount, takenCurrency: 'EUR', paymentRef: `pi_${one.id}` }, T0);
         return one.id;
@@ -400,7 +400,6 @@ for (const dialect of TEST_DIALECTS) {
       it('opens a dispute once, closes it once, opens it again, and lists the disputed', async () => {
         const attempts = paymentAttemptsRepo(meta());
         const id = await taken();
-        expect(await attempts.noteDispute(id, 'closed', T0 + 1)).toBe(false);
         expect(await attempts.noteDispute(id, 'open', T0 + 2)).toBe(true);
         expect(await attempts.noteDispute(id, 'open', T0 + 3)).toBe(false);
         expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 2, closedAt: null });
@@ -411,6 +410,63 @@ for (const dialect of TEST_DIALECTS) {
         expect((await attempts.disputed('closed')).map((one) => one.id)).toEqual([id]);
         expect(await attempts.noteDispute(id, 'open', T0 + 5)).toBe(true);
         expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 5, closedAt: null });
+      });
+
+      it('takes dispute events in any order: a close before its open, an update after the close, an old open', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        // The close came first: closed, and the open that follows (older) changes nothing.
+        const first = await taken();
+        expect(await attempts.noteDispute(first, 'closed', T0 + 20)).toBe(true);
+        expect((await attempts.byId(first))?.dispute).toEqual({ state: 'closed', at: T0 + 20, closedAt: T0 + 20 });
+        expect(await attempts.noteDispute(first, 'open', T0 + 10)).toBe(false);
+        expect(await attempts.noteDispute(first, 'closed', T0 + 21)).toBe(false);
+        // An update after the close never reopens it; a new dispute after it does.
+        expect(await attempts.noteDispute(first, 'open', T0 + 30, false)).toBe(false);
+        expect((await attempts.byId(first))?.dispute?.state).toBe('closed');
+        expect(await attempts.noteDispute(first, 'open', T0 + 40)).toBe(true);
+        // A close older than the open it would close is a close of something before it.
+        expect(await attempts.noteDispute(first, 'closed', T0 + 35)).toBe(false);
+        expect((await attempts.byId(first))?.dispute).toEqual({ state: 'open', at: T0 + 40, closedAt: null });
+        // An update about a dispute never heard of opens it.
+        const second = await taken('120.00', 'idoc_9');
+        expect(await attempts.noteDispute(second, 'open', T0 + 5, false)).toBe(true);
+        expect(await attempts.noteDispute(second, 'open', T0 + 6)).toBe(false);
+      });
+
+      it('finds the refunds the record has not followed yet, on payments already written down', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const refunds = refundsRepo(meta());
+        const id = await taken();
+        const make = async (key: string) => (await refunds.create({ attemptId: id, paymentId: null, provider: 'demo', mode: 'live', paymentRef: `pi_${id}`, amount: '10.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: key, source: 'staff', requestedBy: null }, T0)).refund;
+        const done = await make(`rk-u1-${id}`);
+        const undone = await make(`rk-u2-${id}`);
+        const gone = await make(`rk-u3-${id}`);
+        const waiting = await make(`rk-u4-${id}`);
+        await refunds.move(done.id, 'succeeded', { providerRefundId: `re_u1_${id}` }, T0 + 1);
+        await refunds.move(undone.id, 'succeeded', { providerRefundId: `re_u2_${id}` }, T0 + 2);
+        await refunds.markApplied(undone.id, T0 + 3);
+        await refunds.move(undone.id, 'failed', {}, T0 + 4);
+        await refunds.move(gone.id, 'succeeded', { providerRefundId: `re_u3_${id}` }, T0 + 5);
+        expect(await refunds.setProblem(gone.id, 'RECORD_GONE', T0 + 6)).toBe(true);
+        expect(await refunds.setProblem(gone.id, 'RECORD_GONE', T0 + 7)).toBe(false);
+        // Not written down yet: nothing to follow.
+        expect(await refunds.unfollowed()).toEqual([]);
+        await attempts.move(id, 'recording', {}, T0 + 8);
+        await attempts.move(id, 'recorded', { recordedKey: 'kept:pay_1', recordedAt: T0 + 8 }, T0 + 8);
+        expect((await refunds.unfollowed()).map((one) => one.id)).toEqual([done.id, undone.id]);
+        // A write that failed is retried; once it lands, the problem is cleared.
+        expect(await refunds.setProblem(done.id, 'NOT_WRITTEN', T0 + 9)).toBe(true);
+        expect((await refunds.unfollowed()).map((one) => one.id)).toEqual([undone.id, done.id]);
+        expect(await refunds.setProblem(done.id, null, T0 + 10, 'NOT_WRITTEN')).toBe(true);
+        expect(await refunds.setProblem(gone.id, null, T0 + 10, 'NOT_WRITTEN')).toBe(false);
+        expect((await refunds.byId(gone.id))?.problemCode).toBe('RECORD_GONE');
+        // A problem needs a person's look like a refund made at the provider.
+        expect(await refunds.countNeedingLook()).toBe(1);
+        expect((await refunds.list({ needingLook: true })).map((one) => one.id)).toEqual([gone.id]);
+        // A refund whose answer was lost takes the id an event brought, only while it has none.
+        expect(await refunds.adopt(waiting.id, `re_u4_${id}`, T0 + 11)).toBe(true);
+        expect(await refunds.adopt(waiting.id, `re_u5_${id}`, T0 + 12)).toBe(false);
+        expect((await refunds.byId(waiting.id))?.providerRefundId).toBe(`re_u4_${id}`);
       });
 
       it('needs a look while a dispute is open and unchecked, and again when it opens anew', async () => {

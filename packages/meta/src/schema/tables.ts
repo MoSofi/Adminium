@@ -1662,6 +1662,7 @@ export interface AdminiumRefundsTable {
   settledAt: Ts | null;
   appliedAt: Ts | null;
   undoneAt: Ts | null;
+  problemCode: string | null;
   checkedAt: Ts | null;
   checkedBy: string | null;
   checkNote: string | null;
