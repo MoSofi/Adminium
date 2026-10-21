@@ -166,6 +166,12 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles:permission.storageManage', 'Manage storage destinations');
     case 'system:designer:use':
       return t('roles:permission.designerUse', 'Build apps with Adminium Designer');
+    case 'system:payments:manage':
+      return t('roles:permission.paymentsManage', 'Set up payments');
+    case 'system:payments:refund':
+      return t('roles:permission.paymentsRefund', 'Give refunds');
+    case 'system:payments:view':
+      return t('roles:permission.paymentsView', 'See payment activity and export it');
     default:
       return entry.label;
   }

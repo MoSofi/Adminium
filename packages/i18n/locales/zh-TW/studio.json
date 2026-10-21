@@ -99,7 +99,8 @@
       "off": "off",
       "on": "on",
       "title": "Installed",
-      "uninstall": "Uninstall"
+      "uninstall": "Uninstall",
+      "setUpInPayments": "在「付款」中設定"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -2563,6 +2564,11 @@
       "heading": "地圖",
       "body": "是否顯示地圖、會詢問哪些伺服器，以及每台伺服器會得知什麼。",
       "cta": "開啟地圖設定"
+    },
+    "paymentsCard": {
+      "heading": "付款",
+      "body": "讓客戶支付應付款項：付款連結、付款頁面、Stripe 和 PayPal，以及手動付款方式。",
+      "cta": "開啟付款"
     }
   },
   "source": {
@@ -3540,5 +3546,195 @@
       "off": "關閉時，距離是在本伺服器上算出的直線距離，並標為「約」。不會向外部詢問任何內容。",
       "whyEnvOff": "執行本伺服器的人已關閉路線伺服器（ADMINIUM_ROUTING_SERVER=off，或用 ADMINIUM_NETWORK_FEATURES=off 關閉所有對外請求），所以這個開關沒有作用。"
     }
+  },
+  "payments": {
+    "service": {
+      "connectsStripe": "連接到 Stripe",
+      "connectsPaypal": "連接到 PayPal",
+      "first": "請先完成這一步。",
+      "notLoaded": "此附加元件未載入，因此無法檢查它的金鑰。",
+      "notLoadedBody": "付款服務只會從 Adminium 能夠擔保的套件載入：隨此版本附帶的套件，或從目錄下載的套件。",
+      "paypalOnce": "PayPal 只出現一次：透過此卡片，而不是在 Stripe 頁面上。"
+    },
+    "reach": {
+      "badge": {
+        "networkOff": "離線運作",
+        "thisComputer": "僅限本機",
+        "notSet": "未設定",
+        "private": "私人網路",
+        "https": "需要 https",
+        "proxy": "代理設定",
+        "reachable": "可連線"
+      },
+      "problem": {
+        "networkOff": "此伺服器設定為不連網運作，因此無法接受線上付款。",
+        "thisComputer": "此伺服器只在這台電腦上執行。客戶無法連到它。",
+        "notSet": "此伺服器尚無公開網址。",
+        "private": "只有您自己網路中的人才能連到此網址。",
+        "https": "付款頁面需要 https。請先讓此伺服器透過 HTTPS 提供服務。",
+        "proxy": "此伺服器位於一個隱藏客戶位址的代理之後。請開啟 ADMINIUM_TRUST_PROXY。"
+      },
+      "fix": {
+        "networkOff": "在伺服器上設定 ADMINIUM_NETWORK_FEATURES=on，重新啟動後再檢查一次。",
+        "thisComputer": "請在擁有公開 https 網址的伺服器上執行 Adminium，然後在那裡設定付款。",
+        "notSet": "加入人們開啟此伺服器所用的網址。它就是「寄件者」卡片中的「郵件連結中的網址」。",
+        "private": "為此伺服器設定一個公開 https 網址，並在「寄件者」中把它設為「郵件連結中的網址」。",
+        "https": "HTTPS 可用後，在「寄件者」中把網址改為 https 網址。",
+        "proxy": "在伺服器上設定 ADMINIUM_TRUST_PROXY=on，重新啟動後再檢查一次。"
+      },
+      "heading": "客戶能連到此伺服器嗎？",
+      "ok": "客戶可以連到此伺服器。",
+      "address": "此伺服器的公開網址：",
+      "change": "變更",
+      "current": "目前的值",
+      "notSetValue": "未設定",
+      "still": "這裡仍可使用：手動付款方式、記錄付款、刷卡終端機記錄。",
+      "setAddress": "設定網址",
+      "checkAgain": "重新檢查",
+      "portTitle": "該網址帶有連接埠",
+      "portBody": "PayPal 只會把 Webhook 傳送到 443 連接埠。請使用不帶連接埠的網址。",
+      "fixLabel": "解決方法："
+    },
+    "step": {
+      "paypal": {
+        "testKey": "沙盒應用程式",
+        "testWebhook": "沙盒 Webhook",
+        "liveKey": "正式應用程式"
+      },
+      "path": "選擇如何建立您的 Stripe 金鑰",
+      "testKey": "測試金鑰",
+      "testWebhook": "測試 Webhook",
+      "testPayment": "傳送測試付款",
+      "liveKey": "正式金鑰",
+      "liveWebhook": "正式 Webhook",
+      "livePayment": "第一筆正式付款已入帳"
+    },
+    "field": {
+      "testKey": "測試金鑰",
+      "liveKey": "正式金鑰",
+      "signingSecret": "簽章密鑰",
+      "clientId": "用戶端 ID",
+      "secret": "密鑰",
+      "webhookId": "Webhook ID",
+      "testKeyPrompt": "貼上以 rk_test_ 開頭的金鑰",
+      "liveKeyPrompt": "貼上以 rk_live_ 開頭的金鑰",
+      "signingSecretPrompt": "貼上 Stripe 中該端點頁面上的簽章密鑰。它以 whsec_ 開頭。",
+      "webhookIdPrompt": "PayPal 會在該 Webhook 的頁面上顯示它。Adminium 需要它來確認訊息確實來自 PayPal。",
+      "savedWhen": "儲存於 {when}",
+      "replace": "取代",
+      "save": "儲存",
+      "checkAndSave": "檢查並儲存",
+      "cancel": "取消",
+      "notSet": "未設定",
+      "saving": "正在儲存…",
+      "checking": "正在與 {provider} 核對…"
+    },
+    "refused": {
+      "secretKey": "這是一個秘密金鑰 (sk_)。Stripe 要求外掛不要使用它。請改為建立一個受限金鑰。",
+      "publishableKey": "這是一個可公開金鑰 (pk_)。請改為貼上受限金鑰 (rk_)。",
+      "webhookSecretInKey": "這是一個 Webhook 密鑰 (whsec_)。它應填在下方的 Webhook 卡片中。",
+      "keyInSecret": "這是金鑰，不是簽章密鑰。請貼上端點頁面上以 whsec_ 開頭的簽章密鑰。",
+      "liveInTest": "這是正式金鑰。此欄位用於測試金鑰。",
+      "testInLive": "這是測試金鑰。此欄位用於正式金鑰。",
+      "notRestricted": "這不是受限金鑰。受限金鑰以 rk_test_ 或 rk_live_ 開頭。",
+      "notSigningSecret": "這不是簽章密鑰。簽章密鑰以 whsec_ 開頭。",
+      "hasSpaces": "您貼上的內容中有空格或換行。請只貼上一個值。",
+      "empty": "請先貼上一個值。",
+      "networkOff": "此伺服器設定為不連網運作，因此無法連接任何付款服務。",
+      "desktop": "桌面應用程式只能手動記錄付款：客戶無法連到這台電腦。"
+    },
+    "error": {
+      "unknown": "操作未成功。請重試。"
+    },
+    "copied": "已複製",
+    "copy": "複製",
+    "check": {
+      "missing": "{provider} 表示此金鑰缺少：{list}。請在 {provider} 中編輯該金鑰，然後重新貼上。",
+      "ok": "{provider} 已接受此金鑰。檢查於 {when}。",
+      "failed": "{provider} 無法檢查此金鑰。",
+      "again": "檢查"
+    },
+    "webhook": {
+      "headingStripe": "Webhook（Stripe 稱之為 Webhook 端點）",
+      "heading": "Webhook",
+      "address": "網址",
+      "noAddress": "此伺服器需要先有公開網址。",
+      "copyAddress": "複製 Webhook 網址",
+      "events": "在 {provider} 中勾選這些事件",
+      "copyEvent": "複製 {event}",
+      "snapshot": "選擇 Snapshot 負載。",
+      "stripeListen": "stripe listen 印出的密鑰是另一個。",
+      "arrived": "第一個事件於 {when} 到達，已核驗。",
+      "noLiveEvent": "還沒有正式事件到達。",
+      "nothing": "還沒有任何內容到達此網址。如果您已建立端點，請檢查您的代理是否放行。"
+    },
+    "mode": {
+      "test": "測試",
+      "live": "正式"
+    },
+    "access": {
+      "sessionsWrite": "發起付款，並結束不再需要的付款",
+      "sessionsRead": "查看付款的結果",
+      "intentsRead": "查看已收取的金額",
+      "refundsWrite": "辦理退款（在 Stripe 中，此權限也允許變更扣款）",
+      "eventsRead": "找回 Webhook 遺失的付款",
+      "disputesRead": "顯示爭議",
+      "methodsRead": "查看您開啟了哪些付款方式",
+      "accountRead": "顯示該金鑰屬於哪個 Stripe 帳戶",
+      "webhooksRead": "檢查您的正式 Webhook",
+      "heading": "金鑰需要的權限",
+      "note": "兩種方式都只給金鑰這些權限。其餘全部保持為「無」。",
+      "access": "權限",
+      "why": "用途"
+    },
+    "path": {
+      "app": {
+        "step1": "安裝 Node.js 22 或更新版本",
+        "step2": "安裝 Stripe CLI",
+        "step5": "解壓縮範本並開啟其資料夾",
+        "step7": "在 Stripe 控制台中安裝該應用程式並複製它的金鑰",
+        "title": "使用您自己的 Stripe App（Stripe 建議的方式）",
+        "desc": "您只需用 Stripe 命令列工具把一個小應用程式上傳到您自己的 Stripe 帳戶一次。它會建立一個權限與下方完全一致的金鑰。",
+        "note": "在測試帳戶上傳一次，在正式帳戶再上傳一次。"
+      },
+      "hand": {
+        "step1": "在 Stripe 控制台中開啟「開發人員 → API 金鑰」",
+        "step2": "選擇「建立受限金鑰」",
+        "step3": "將其命名為 Adminium",
+        "step4": "依下方清單設定權限。其餘全部保持為「無」。",
+        "step5": "建立金鑰並複製",
+        "title": "在 Stripe 控制台中手動建立（無需終端機）",
+        "desc": "自己建立一個帶有下方權限的受限金鑰。Stripe 較建議使用應用程式，但這樣也可以。"
+      }
+    },
+    "alarm": {
+      "refused": "{provider} 拒絕了該金鑰。它可能已被撤銷，或應用程式已被解除安裝。",
+      "permission": "{provider} 拒絕了該金鑰：它缺少一項權限。",
+      "paused": "在儲存可用的金鑰之前，付款已暫停。"
+    },
+    "stop": {
+      "label": "停止新付款",
+      "desc": "不會再開始新的付款。Adminium 會保留金鑰，以完成等待中的付款並辦理退款。",
+      "confirmTitle": "停止新付款？",
+      "confirmBody": "在您再次關閉此項之前，客戶無法透過 {service} 發起付款。已在進行的付款仍會完成，退款也照常可用。",
+      "cancel": "繼續接受付款",
+      "confirm": "停止新付款",
+      "badge": "新付款已停止"
+    },
+    "close": "關閉",
+    "checklist": {
+      "heading": "設定清單",
+      "progress": "已完成 {done}/{total} · 您的進度會被保留",
+      "done": "已完成"
+    },
+    "title": "付款",
+    "subtitle": "為發票和其他記錄收款。錢會直接進入您自己的 Stripe 或 PayPal 帳戶；Adminium 從不經手。",
+    "tab": {
+      "setup": "設定"
+    },
+    "loadFailed": "無法載入付款",
+    "forbidden": "查看付款需要「設定付款」或「查看付款活動」權限。",
+    "viewOnly": "您可以查看付款的設定，但不能變更。",
+    "noServices": "尚未安裝任何付款服務。請在「附加元件」中安裝 Card payments 或 Wallet payments，然後在此設定。"
   }
 }

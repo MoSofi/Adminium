@@ -99,7 +99,8 @@
       "off": "aus",
       "on": "an",
       "title": "Installiert",
-      "uninstall": "Deinstallieren"
+      "uninstall": "Deinstallieren",
+      "setUpInPayments": "In Zahlungen einrichten"
     },
     "job": {
       "body": "Wird geladen und geprüft. Installiert wird erst auf Ihr Wort.",
@@ -2563,6 +2564,11 @@
       "heading": "Karten",
       "body": "Ob Karten angezeigt werden, welche Server gefragt werden und was jeder von ihnen erfährt.",
       "cta": "Karten öffnen"
+    },
+    "paymentsCard": {
+      "heading": "Zahlungen",
+      "body": "Lassen Sie Kunden bezahlen, was sie schulden: Zahlungslinks, eine Zahlungsseite, Stripe und PayPal und Zahlungswege von Hand.",
+      "cta": "Zahlungen öffnen"
     }
   },
   "source": {
@@ -3540,5 +3546,195 @@
       "off": "Ist dies aus, sind Entfernungen gerade Linien, die auf diesem Server berechnet und mit „etwa“ gekennzeichnet werden. Nach außen wird nichts gefragt.",
       "whyEnvOff": "Die Betreiber dieses Servers haben den Routingserver ausgeschaltet (ADMINIUM_ROUTING_SERVER=off oder alle Aufrufe nach außen mit ADMINIUM_NETWORK_FEATURES=off), daher bewirkt dieser Schalter nichts."
     }
+  },
+  "payments": {
+    "service": {
+      "connectsStripe": "Verbindet mit Stripe",
+      "connectsPaypal": "Verbindet mit PayPal",
+      "first": "Richten Sie das zuerst ein.",
+      "notLoaded": "Dieses Add-on wurde nicht geladen, daher können seine Schlüssel nicht geprüft werden.",
+      "notLoadedBody": "Ein Zahlungsdienst lädt nur aus einem Paket, für das Adminium bürgen kann: eines, das dieser Build mitbringt, oder eines aus dem Katalog.",
+      "paypalOnce": "PayPal erscheint nur einmal: über diese Karte, nicht auf der Seite von Stripe."
+    },
+    "reach": {
+      "badge": {
+        "networkOff": "Arbeitet offline",
+        "thisComputer": "Nur dieser Computer",
+        "notSet": "Nicht festgelegt",
+        "private": "Privates Netzwerk",
+        "https": "Braucht https",
+        "proxy": "Proxy-Einstellung",
+        "reachable": "Erreichbar"
+      },
+      "problem": {
+        "networkOff": "Dieser Server ist so eingestellt, dass er ohne Internet arbeitet. Er kann daher keine Online-Zahlungen annehmen.",
+        "thisComputer": "Dieser Server läuft nur auf diesem Computer. Kunden können ihn nicht erreichen.",
+        "notSet": "Dieser Server hat noch keine öffentliche Adresse.",
+        "private": "Nur Personen in Ihrem eigenen Netzwerk können diese Adresse erreichen.",
+        "https": "Zahlungsseiten brauchen https. Stellen Sie diesen Server zuerst hinter HTTPS.",
+        "proxy": "Dieser Server steht hinter einem Proxy, der die Adressen Ihrer Kunden verbirgt. Schalten Sie ADMINIUM_TRUST_PROXY ein."
+      },
+      "fix": {
+        "networkOff": "Setzen Sie ADMINIUM_NETWORK_FEATURES=on auf dem Server, starten Sie ihn neu und prüfen Sie dann erneut.",
+        "thisComputer": "Betreiben Sie Adminium auf einem Server mit öffentlicher https-Adresse und richten Sie die Zahlungen dort ein.",
+        "notSet": "Fügen Sie die Adresse hinzu, mit der man diesen Server öffnet. Das ist „Adresse in E-Mail-Links“ in der Karte Absender.",
+        "private": "Geben Sie diesem Server eine öffentliche https-Adresse und tragen Sie sie unter Absender als „Adresse in E-Mail-Links“ ein.",
+        "https": "Wenn HTTPS funktioniert, ändern Sie die Adresse unter Absender in die https-Adresse.",
+        "proxy": "Setzen Sie ADMINIUM_TRUST_PROXY=on auf dem Server, starten Sie ihn neu und prüfen Sie dann erneut."
+      },
+      "heading": "Können Kunden diesen Server erreichen?",
+      "ok": "Kunden können diesen Server erreichen.",
+      "address": "Öffentliche Adresse dieses Servers:",
+      "change": "Ändern",
+      "current": "Aktueller Wert",
+      "notSetValue": "nicht festgelegt",
+      "still": "Funktioniert hier weiterhin: Zahlungswege von Hand, Zahlungen erfassen, der Kartenterminal-Eintrag.",
+      "setAddress": "Adresse festlegen",
+      "checkAgain": "Erneut prüfen",
+      "portTitle": "Die Adresse hat einen Port",
+      "portBody": "PayPal sendet Webhooks nur an Port 443. Verwenden Sie eine Adresse ohne Port.",
+      "fixLabel": "Lösung:"
+    },
+    "step": {
+      "paypal": {
+        "testKey": "Sandbox-App",
+        "testWebhook": "Sandbox-Webhook",
+        "liveKey": "Live-App"
+      },
+      "path": "Wählen Sie, wie Sie Ihren Stripe-Schlüssel erstellen",
+      "testKey": "Testschlüssel",
+      "testWebhook": "Test-Webhook",
+      "testPayment": "Testzahlung senden",
+      "liveKey": "Live-Schlüssel",
+      "liveWebhook": "Live-Webhook",
+      "livePayment": "Erste Live-Zahlung eingegangen"
+    },
+    "field": {
+      "testKey": "Testschlüssel",
+      "liveKey": "Live-Schlüssel",
+      "signingSecret": "Signaturgeheimnis",
+      "clientId": "Client-ID",
+      "secret": "Geheimnis",
+      "webhookId": "Webhook-ID",
+      "testKeyPrompt": "Fügen Sie den Schlüssel ein, der mit rk_test_ beginnt",
+      "liveKeyPrompt": "Fügen Sie den Schlüssel ein, der mit rk_live_ beginnt",
+      "signingSecretPrompt": "Fügen Sie das Signaturgeheimnis von der Endpunktseite bei Stripe ein. Es beginnt mit whsec_.",
+      "webhookIdPrompt": "PayPal zeigt sie auf der Seite des Webhooks an. Adminium braucht sie, um zu prüfen, dass eine Nachricht wirklich von PayPal kommt.",
+      "savedWhen": "Gespeichert {when}",
+      "replace": "Ersetzen",
+      "save": "Speichern",
+      "checkAndSave": "Prüfen und speichern",
+      "cancel": "Abbrechen",
+      "notSet": "Nicht festgelegt",
+      "saving": "Wird gespeichert…",
+      "checking": "Wird mit {provider} geprüft…"
+    },
+    "refused": {
+      "secretKey": "Das ist ein geheimer Schlüssel (sk_). Stripe bittet Plugins, keine zu verwenden. Erstellen Sie stattdessen einen eingeschränkten Schlüssel.",
+      "publishableKey": "Das ist ein veröffentlichbarer Schlüssel (pk_). Fügen Sie stattdessen den eingeschränkten Schlüssel (rk_) ein.",
+      "webhookSecretInKey": "Das ist ein Webhook-Geheimnis (whsec_). Es gehört in die Webhook-Karte unten.",
+      "keyInSecret": "Das ist ein Schlüssel, kein Signaturgeheimnis. Fügen Sie das Geheimnis ein, das mit whsec_ beginnt, von der Seite des Endpunkts.",
+      "liveInTest": "Das ist ein Live-Schlüssel. Dieses Feld ist für den Testschlüssel.",
+      "testInLive": "Das ist ein Testschlüssel. Dieses Feld ist für den Live-Schlüssel.",
+      "notRestricted": "Das ist kein eingeschränkter Schlüssel. Er beginnt mit rk_test_ oder rk_live_.",
+      "notSigningSecret": "Das ist kein Signaturgeheimnis. Es beginnt mit whsec_.",
+      "hasSpaces": "In dem, was Sie eingefügt haben, steht ein Leerzeichen oder ein Zeilenumbruch. Fügen Sie nur einen Wert ein.",
+      "empty": "Fügen Sie zuerst einen Wert ein.",
+      "networkOff": "Dieser Server ist so eingestellt, dass er ohne Internet arbeitet. Daher kann kein Zahlungsdienst verbunden werden.",
+      "desktop": "Die Desktop-App nimmt Zahlungen nur von Hand an: Kunden können diesen Computer nicht erreichen."
+    },
+    "error": {
+      "unknown": "Das hat nicht funktioniert. Versuchen Sie es erneut."
+    },
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "check": {
+      "missing": "{provider} meldet, dass diesem Schlüssel Folgendes fehlt: {list}. Bearbeiten Sie den Schlüssel bei {provider} und fügen Sie ihn erneut ein.",
+      "ok": "{provider} hat diesen Schlüssel angenommen. Geprüft {when}.",
+      "failed": "{provider} konnte diesen Schlüssel nicht prüfen.",
+      "again": "Prüfen"
+    },
+    "webhook": {
+      "headingStripe": "Webhook (bei Stripe heißt er Webhook-Endpunkt)",
+      "heading": "Webhook",
+      "address": "Adresse",
+      "noAddress": "Dieser Server braucht zuerst eine öffentliche Adresse.",
+      "copyAddress": "Webhook-Adresse kopieren",
+      "events": "Kreuzen Sie diese Ereignisse bei {provider} an",
+      "copyEvent": "{event} kopieren",
+      "snapshot": "Wählen Sie die Snapshot-Nutzlast.",
+      "stripeListen": "Das Geheimnis, das stripe listen ausgibt, ist ein anderes.",
+      "arrived": "Das erste Ereignis kam {when} an, geprüft.",
+      "noLiveEvent": "Es ist noch kein Live-Ereignis angekommen.",
+      "nothing": "Bei dieser Adresse ist noch nichts angekommen. Wenn Sie den Endpunkt angelegt haben, prüfen Sie, ob Ihr Proxy ihn durchlässt."
+    },
+    "mode": {
+      "test": "Test",
+      "live": "Live"
+    },
+    "access": {
+      "sessionsWrite": "Eine Zahlung starten und eine nicht mehr benötigte beenden",
+      "sessionsRead": "Sehen, wie eine Zahlung ausging",
+      "intentsRead": "Den eingezogenen Betrag sehen",
+      "refundsWrite": "Erstattungen geben (bei Stripe erlaubt dieser Zugriff auch, Belastungen zu ändern)",
+      "eventsRead": "Eine Zahlung finden, deren Webhook verloren ging",
+      "disputesRead": "Rückbuchungen zeigen",
+      "methodsRead": "Sehen, welche Zahlungswege Sie eingeschaltet haben",
+      "accountRead": "Zeigen, zu welchem Stripe-Konto der Schlüssel gehört",
+      "webhooksRead": "Ihren Live-Webhook prüfen",
+      "heading": "Der Zugriff, den der Schlüssel braucht",
+      "note": "Beide Wege geben dem Schlüssel genau diesen Zugriff. Lassen Sie alles andere auf „Kein“.",
+      "access": "Zugriff",
+      "why": "Wozu"
+    },
+    "path": {
+      "app": {
+        "step1": "Node.js 22 oder neuer installieren",
+        "step2": "Die Stripe CLI installieren",
+        "step5": "Die Vorlage entpacken und ihren Ordner öffnen",
+        "step7": "Die App im Dashboard von Stripe installieren und ihren Schlüssel kopieren",
+        "title": "Mit Ihrer eigenen Stripe App (so empfiehlt es Stripe)",
+        "desc": "Sie laden einmal eine kleine App in Ihr eigenes Stripe-Konto hoch, mit dem Kommandozeilenwerkzeug von Stripe. Sie erstellt einen Schlüssel mit genau dem Zugriff unten.",
+        "note": "Einmal in Ihrem Testkonto und einmal in Ihrem Live-Konto hochladen."
+      },
+      "hand": {
+        "step1": "Im Dashboard von Stripe Entwickler → API-Schlüssel öffnen",
+        "step2": "„Eingeschränkten Schlüssel erstellen“ wählen",
+        "step3": "Ihn Adminium nennen",
+        "step4": "Den Zugriff wie in der Liste unten einstellen. Alles andere auf „Kein“ lassen.",
+        "step5": "Den Schlüssel erstellen und kopieren",
+        "title": "Von Hand im Dashboard von Stripe (ohne Terminal)",
+        "desc": "Erstellen Sie selbst einen eingeschränkten Schlüssel mit dem Zugriff unten. Stripe bevorzugt die App, aber so geht es auch."
+      }
+    },
+    "alarm": {
+      "refused": "{provider} hat den Schlüssel abgelehnt. Er wurde vielleicht widerrufen oder die App deinstalliert.",
+      "permission": "{provider} hat den Schlüssel abgelehnt: Ihm fehlt eine Berechtigung.",
+      "paused": "Zahlungen sind angehalten, bis ein funktionierender Schlüssel gespeichert ist."
+    },
+    "stop": {
+      "label": "Neue Zahlungen stoppen",
+      "desc": "Es starten keine neuen Zahlungen. Adminium behält den Schlüssel, um laufende Zahlungen abzuschließen und Erstattungen zu geben.",
+      "confirmTitle": "Neue Zahlungen stoppen?",
+      "confirmBody": "Kunden können mit {service} keine Zahlung starten, bis Sie dies wieder ausschalten. Laufende Zahlungen werden trotzdem abgeschlossen, und Erstattungen funktionieren weiter.",
+      "cancel": "Weiter Zahlungen annehmen",
+      "confirm": "Neue Zahlungen stoppen",
+      "badge": "Neue Zahlungen gestoppt"
+    },
+    "close": "Schließen",
+    "checklist": {
+      "heading": "Einrichtungs-Checkliste",
+      "progress": "{done} von {total} erledigt · Ihr Fortschritt bleibt gespeichert",
+      "done": "erledigt"
+    },
+    "title": "Zahlungen",
+    "subtitle": "Nehmen Sie Zahlungen für Rechnungen und andere Datensätze an. Das Geld geht direkt auf Ihr eigenes Stripe- oder PayPal-Konto; Adminium hält es nie.",
+    "tab": {
+      "setup": "Einrichtung"
+    },
+    "loadFailed": "Zahlungen konnten nicht geladen werden",
+    "forbidden": "Um Zahlungen zu sehen, brauchen Sie die Berechtigung „Zahlungen einrichten“ oder „Zahlungsaktivität sehen“.",
+    "viewOnly": "Sie können sehen, wie Zahlungen eingerichtet sind, aber nichts ändern.",
+    "noServices": "Es ist kein Zahlungsdienst installiert. Installieren Sie Card payments oder Wallet payments unter Add-ons und richten Sie ihn dann hier ein."
   }
 }

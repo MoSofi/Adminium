@@ -77,7 +77,10 @@
     "usersManage": "Manage users",
     "filesManage": "Manage everyone’s files",
     "storageManage": "Manage storage destinations",
-    "designerUse": "Build apps with Adminium Designer"
+    "designerUse": "Build apps with Adminium Designer",
+    "paymentsManage": "Set up payments",
+    "paymentsRefund": "Give refunds",
+    "paymentsView": "See payment activity and export it"
   },
   "rename": {
     "failed": "Could not rename the role",

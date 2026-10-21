@@ -77,7 +77,10 @@
     "usersManage": "Spravovat uživatele",
     "filesManage": "Spravovat soubory všech uživatelů",
     "storageManage": "Spravovat cíle úložiště",
-    "designerUse": "Vytvářet aplikace v Adminium Designer"
+    "designerUse": "Vytvářet aplikace v Adminium Designer",
+    "paymentsManage": "Nastavit platby",
+    "paymentsRefund": "Vracet peníze",
+    "paymentsView": "Zobrazit aktivitu plateb a exportovat ji"
   },
   "rename": {
     "failed": "Roli se nepodařilo přejmenovat",

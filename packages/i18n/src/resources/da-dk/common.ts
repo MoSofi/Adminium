@@ -1578,7 +1578,10 @@ export default {
       "rbac": "Roller og rettigheder",
       "schema": "Skema",
       "settings": "Indstillinger",
-      "system": "System"
+      "system": "System",
+      "addOn": "Tilføjelser",
+      "app": "Apps",
+      "payments": "Betalinger"
     },
     "column": {
       "action": "Handling",

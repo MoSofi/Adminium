@@ -1578,7 +1578,10 @@ export default {
       "rbac": "Rôles et permissions",
       "schema": "Schéma",
       "settings": "Paramètres",
-      "system": "Système"
+      "system": "Système",
+      "addOn": "Modules",
+      "app": "Applications",
+      "payments": "Paiements"
     },
     "column": {
       "action": "Action",

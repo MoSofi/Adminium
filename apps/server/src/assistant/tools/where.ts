@@ -40,8 +40,12 @@ function matches(words: readonly string[], ...texts: readonly (string | null)[])
 async function passes(place: AssistantPlace, deps: AssistantToolDeps, studio: boolean): Promise<boolean> {
   if (place.guard === 'none') return true;
   if (place.guard === 'studio') return studio;
-  const [resource, action] = place.guard.split('.') as [string, string];
-  return deps.can(`system:${resource}:${action}`);
+  // `a|b`: any one of the keys opens the screen.
+  for (const key of place.guard.split('|')) {
+    const [resource, action] = key.split('.') as [string, string];
+    if (await deps.can(`system:${resource}:${action}`)) return true;
+  }
+  return false;
 }
 
 export interface WhereIsAnswer {

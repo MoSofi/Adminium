@@ -1578,7 +1578,10 @@ export default {
       "rbac": "角色与权限",
       "schema": "架构",
       "settings": "设置",
-      "system": "系统"
+      "system": "系统",
+      "addOn": "附加组件",
+      "app": "应用",
+      "payments": "付款"
     },
     "column": {
       "action": "操作",

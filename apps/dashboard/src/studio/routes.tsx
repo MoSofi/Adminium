@@ -100,6 +100,11 @@ const OptionListsPageLazy = lazy(async () => {
   return { default: mod.OptionListsPage };
 });
 
+const PaymentsPageLazy = lazy(async () => {
+  const mod = await import('./payments/PaymentsPage.js');
+  return { default: mod.PaymentsPage };
+});
+
 const StoragePageLazy = lazy(async () => {
   const mod = await import('./storage/StoragePage.js');
   return { default: mod.StoragePage };
@@ -308,6 +313,7 @@ function SettingsRouteComponent() {
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
           onOpenPages={() => void navigate({ to: '/studio/pages' })}
           onOpenStorage={() => void navigate({ to: '/studio/storage' })}
+          onOpenPayments={() => void navigate({ to: '/studio/payments' })}
           onOpenLists={() => void navigate({ to: '/studio/lists' })}
           onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
           onOpenDocuments={() => void navigate({ to: '/studio/documents' })}
@@ -384,6 +390,18 @@ function HostedAppsRouteComponent() {
     <StudioGuard requires="manifests.manage">
       <StudioBody>
         <HostedAppsPageLazy />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
+function PaymentsRouteComponent() {
+  const navigate = useNavigate();
+  return (
+    // Either payments key opens it: `payments.view` reads, `payments.manage` changes.
+    <StudioGuard requires={['payments.manage', 'payments.view']}>
+      <StudioBody>
+        <PaymentsPageLazy onOpenSettings={() => void navigate({ to: '/studio/settings' })} />
       </StudioBody>
     </StudioGuard>
   );
@@ -579,6 +597,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: StorageRouteComponent,
   });
 
+  const paymentsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/payments',
+    component: PaymentsRouteComponent,
+  });
+
   const addOnsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/add-ons',
@@ -601,6 +625,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     appSettingsRoute,
     listsRoute,
     storageRoute,
+    paymentsRoute,
     addOnsRoute,
     reviewRoute,
     remapRoute,

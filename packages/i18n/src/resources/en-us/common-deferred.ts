@@ -824,7 +824,10 @@ export default {
       "rbac": "Roles & permissions",
       "schema": "Schema",
       "settings": "Settings",
-      "system": "System"
+      "system": "System",
+      "addOn": "Add-ons",
+      "app": "Apps",
+      "payments": "Payments"
     },
     "column": {
       "action": "Action",

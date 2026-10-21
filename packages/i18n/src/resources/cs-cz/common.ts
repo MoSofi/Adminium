@@ -1578,7 +1578,10 @@ export default {
       "rbac": "Role a oprávnění",
       "schema": "Schéma",
       "settings": "Nastavení",
-      "system": "Systém"
+      "system": "Systém",
+      "addOn": "Doplňky",
+      "app": "Aplikace",
+      "payments": "Platby"
     },
     "column": {
       "action": "Akce",

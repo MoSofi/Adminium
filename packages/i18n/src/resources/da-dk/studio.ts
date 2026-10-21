@@ -109,7 +109,8 @@ export default {
       "off": "off",
       "on": "on",
       "title": "Installed",
-      "uninstall": "Uninstall"
+      "uninstall": "Uninstall",
+      "setUpInPayments": "Opsæt under Betalinger"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -2573,6 +2574,11 @@ export default {
       "heading": "Kort",
       "body": "Om kort vises, hvilke servere der spørges, og hvad hver af dem får at vide.",
       "cta": "Åbn kort"
+    },
+    "paymentsCard": {
+      "heading": "Betalinger",
+      "body": "Lad kunderne betale det, de skylder: betalingslinks, en betalingsside, Stripe og PayPal og manuelle betalingsmåder.",
+      "cta": "Åbn betalinger"
     }
   },
   "source": {
@@ -3550,5 +3556,195 @@ export default {
       "off": "Når dette er slået fra, er afstande rette linjer, der beregnes på denne server og mærkes “cirka”. Der spørges ikke om noget udefra.",
       "whyEnvOff": "Den, der driver denne server, har slået ruteserveren fra (ADMINIUM_ROUTING_SERVER=off, eller alle kald udadtil med ADMINIUM_NETWORK_FEATURES=off), så denne kontakt gør ingenting."
     }
+  },
+  "payments": {
+    "service": {
+      "connectsStripe": "Forbinder til Stripe",
+      "connectsPaypal": "Forbinder til PayPal",
+      "first": "Opsæt dette først.",
+      "notLoaded": "Denne tilføjelse blev ikke indlæst, så dens nøgler kan ikke tjekkes.",
+      "notLoadedBody": "En betalingstjeneste indlæses kun fra en pakke, Adminium kan stå inde for: en, der følger med denne version, eller en, der er hentet fra kataloget.",
+      "paypalOnce": "PayPal vises kun én gang: gennem dette kort, ikke på siden hos Stripe."
+    },
+    "reach": {
+      "badge": {
+        "networkOff": "Arbejder offline",
+        "thisComputer": "Kun denne computer",
+        "notSet": "Ikke angivet",
+        "private": "Privat netværk",
+        "https": "Kræver https",
+        "proxy": "Proxyindstilling",
+        "reachable": "Kan nås"
+      },
+      "problem": {
+        "networkOff": "Denne server er sat til at arbejde uden internet, så den kan ikke tage imod onlinebetalinger.",
+        "thisComputer": "Denne server kører kun på denne computer. Kunderne kan ikke nå den.",
+        "notSet": "Denne server har endnu ingen offentlig adresse.",
+        "private": "Kun personer på dit eget netværk kan nå denne adresse.",
+        "https": "Betalingssider kræver https. Sæt først denne server bag HTTPS.",
+        "proxy": "Denne server står bag en proxy, der skjuler dine kunders adresser. Slå ADMINIUM_TRUST_PROXY til."
+      },
+      "fix": {
+        "networkOff": "Sæt ADMINIUM_NETWORK_FEATURES=on på serveren, genstart den, og tjek så igen.",
+        "thisComputer": "Kør Adminium på en server med en offentlig https-adresse, og opsæt betalinger dér.",
+        "notSet": "Tilføj den adresse, folk bruger til at åbne denne server. Det er »Adresse i e-maillinks« på kortet Afsendere.",
+        "private": "Giv denne server en offentlig https-adresse, og angiv den som »Adresse i e-maillinks« under Afsendere.",
+        "https": "Når HTTPS virker, så skift adressen under Afsendere til https-adressen.",
+        "proxy": "Sæt ADMINIUM_TRUST_PROXY=on på serveren, genstart den, og tjek så igen."
+      },
+      "heading": "Kan kunderne nå denne server?",
+      "ok": "Kunderne kan nå denne server.",
+      "address": "Denne servers offentlige adresse:",
+      "change": "Skift",
+      "current": "Nuværende værdi",
+      "notSetValue": "ikke angivet",
+      "still": "Virker stadig her: manuelle betalingsmåder, registrering af betalinger, kortterminal-registreringen.",
+      "setAddress": "Angiv adressen",
+      "checkAgain": "Tjek igen",
+      "portTitle": "Adressen har en port",
+      "portBody": "PayPal sender kun webhooks til port 443. Brug en adresse uden port.",
+      "fixLabel": "Løsning:"
+    },
+    "step": {
+      "paypal": {
+        "testKey": "Sandbox-app",
+        "testWebhook": "Sandbox-webhook",
+        "liveKey": "Live-app"
+      },
+      "path": "Vælg, hvordan du laver din nøgle til Stripe",
+      "testKey": "Testnøgle",
+      "testWebhook": "Test-webhook",
+      "testPayment": "Send en testbetaling",
+      "liveKey": "Live-nøgle",
+      "liveWebhook": "Live-webhook",
+      "livePayment": "Første rigtige betaling modtaget"
+    },
+    "field": {
+      "testKey": "Testnøgle",
+      "liveKey": "Live-nøgle",
+      "signingSecret": "Signeringshemmelighed",
+      "clientId": "Klient-id",
+      "secret": "Hemmelighed",
+      "webhookId": "Webhook-id",
+      "testKeyPrompt": "Indsæt nøglen, der starter med rk_test_",
+      "liveKeyPrompt": "Indsæt nøglen, der starter med rk_live_",
+      "signingSecretPrompt": "Indsæt signeringshemmeligheden fra endpointets side i Stripe. Den starter med whsec_.",
+      "webhookIdPrompt": "PayPal viser det på webhookens side. Adminium skal bruge det til at tjekke, at en besked virkelig kom fra PayPal.",
+      "savedWhen": "Gemt {when}",
+      "replace": "Erstat",
+      "save": "Gem",
+      "checkAndSave": "Tjek og gem",
+      "cancel": "Annullér",
+      "notSet": "Ikke angivet",
+      "saving": "Gemmer…",
+      "checking": "Tjekker med {provider}…"
+    },
+    "refused": {
+      "secretKey": "Dette er en hemmelig nøgle (sk_). Stripe beder plugins om ikke at bruge dem. Lav en begrænset nøgle i stedet.",
+      "publishableKey": "Dette er en offentlig nøgle (pk_). Indsæt den begrænsede nøgle (rk_) i stedet.",
+      "webhookSecretInKey": "Dette er en webhook-hemmelighed (whsec_). Den skal i webhook-kortet nedenfor.",
+      "keyInSecret": "Dette er en nøgle, ikke en signeringshemmelighed. Indsæt hemmeligheden, der starter med whsec_, fra endpointets side.",
+      "liveInTest": "Dette er en live-nøgle. Dette felt er til testnøglen.",
+      "testInLive": "Dette er en testnøgle. Dette felt er til live-nøglen.",
+      "notRestricted": "Dette er ikke en begrænset nøgle. Den starter med rk_test_ eller rk_live_.",
+      "notSigningSecret": "Dette er ikke en signeringshemmelighed. Den starter med whsec_.",
+      "hasSpaces": "Det, du indsatte, indeholder et mellemrum eller et linjeskift. Indsæt kun én værdi.",
+      "empty": "Indsæt først en værdi.",
+      "networkOff": "Denne server er sat til at arbejde uden internet, så ingen betalingstjeneste kan forbindes.",
+      "desktop": "Skrivebordsappen tager kun imod betalinger manuelt: kunderne kan ikke nå denne computer."
+    },
+    "error": {
+      "unknown": "Det virkede ikke. Prøv igen."
+    },
+    "copied": "Kopieret",
+    "copy": "Kopiér",
+    "check": {
+      "missing": "{provider} siger, at denne nøgle mangler: {list}. Redigér nøglen hos {provider}, og indsæt den igen.",
+      "ok": "{provider} accepterede denne nøgle. Tjekket {when}.",
+      "failed": "{provider} kunne ikke tjekke denne nøgle.",
+      "again": "Tjek"
+    },
+    "webhook": {
+      "headingStripe": "Webhook (Stripe kalder det et webhook-endpoint)",
+      "heading": "Webhook",
+      "address": "Adresse",
+      "noAddress": "Denne server skal først have en offentlig adresse.",
+      "copyAddress": "Kopiér webhook-adressen",
+      "events": "Sæt flueben ved disse hændelser hos {provider}",
+      "copyEvent": "Kopiér {event}",
+      "snapshot": "Vælg Snapshot-indholdet.",
+      "stripeListen": "Hemmeligheden, som stripe listen viser, er en anden.",
+      "arrived": "Den første hændelse kom {when}, tjekket.",
+      "noLiveEvent": "Der er endnu ikke kommet nogen rigtig hændelse.",
+      "nothing": "Der er endnu ikke kommet noget til denne adresse. Hvis du har lavet endpointet, så tjek, at din proxy lukker det igennem."
+    },
+    "mode": {
+      "test": "Test",
+      "live": "Live"
+    },
+    "access": {
+      "sessionsWrite": "Starte en betaling og afslutte en, der ikke længere skal bruges",
+      "sessionsRead": "Se, hvordan en betaling endte",
+      "intentsRead": "Se det trukne beløb",
+      "refundsWrite": "Give refusioner (hos Stripe giver denne adgang også lov til at ændre betalinger)",
+      "eventsRead": "Fange en betaling, hvis webhook gik tabt",
+      "disputesRead": "Vise tvister",
+      "methodsRead": "Se, hvilke betalingsmåder du har slået til",
+      "accountRead": "Vise, hvilken Stripe-konto nøglen hører til",
+      "webhooksRead": "Tjekke din live-webhook",
+      "heading": "Den adgang, nøglen skal have",
+      "note": "Begge måder giver nøglen præcis dette. Lad alt andet stå på Ingen.",
+      "access": "Adgang",
+      "why": "Hvorfor"
+    },
+    "path": {
+      "app": {
+        "step1": "Installér Node.js 22 eller nyere",
+        "step2": "Installér Stripe CLI",
+        "step5": "Pak skabelonen ud, og åbn dens mappe",
+        "step7": "Installér appen i dashboardet hos Stripe, og kopiér dens nøgle",
+        "title": "Med din egen Stripe-app (sådan anbefaler Stripe det)",
+        "desc": "Du uploader én gang en lille app til din egen Stripe-konto med kommandolinjeværktøjet fra Stripe. Den laver en nøgle med præcis adgangen nedenfor.",
+        "note": "Upload én gang i din testkonto og én gang i din live-konto."
+      },
+      "hand": {
+        "step1": "I dashboardet hos Stripe skal du åbne Udviklere → API-nøgler",
+        "step2": "Vælg »Opret begrænset nøgle«",
+        "step3": "Kald den Adminium",
+        "step4": "Indstil adgangen som i listen nedenfor. Lad alt andet stå på Ingen.",
+        "step5": "Opret nøglen, og kopiér den",
+        "title": "Manuelt i dashboardet hos Stripe (uden terminal)",
+        "desc": "Lav selv en begrænset nøgle med adgangen nedenfor. Stripe foretrækker appen, men dette virker også."
+      }
+    },
+    "alarm": {
+      "refused": "{provider} afviste nøglen. Den kan være tilbagekaldt, eller appen afinstalleret.",
+      "permission": "{provider} afviste nøglen: den mangler en tilladelse.",
+      "paused": "Betalinger er sat på pause, indtil en nøgle, der virker, er gemt."
+    },
+    "stop": {
+      "label": "Stop nye betalinger",
+      "desc": "Der starter ingen nye betalinger. Adminium beholder nøglen til at afslutte ventende betalinger og give refusioner.",
+      "confirmTitle": "Stop nye betalinger?",
+      "confirmBody": "Kunderne kan ikke starte en betaling med {service}, før du slår dette fra igen. Betalinger, der allerede er på vej, bliver stadig gennemført, og refusioner virker stadig.",
+      "cancel": "Bliv ved med at tage imod betalinger",
+      "confirm": "Stop nye betalinger",
+      "badge": "Nye betalinger stoppet"
+    },
+    "close": "Luk",
+    "checklist": {
+      "heading": "Tjekliste til opsætning",
+      "progress": "{done} af {total} færdige · dine fremskridt gemmes",
+      "done": "færdig"
+    },
+    "title": "Betalinger",
+    "subtitle": "Tag imod betalinger for fakturaer og andre poster. Pengene går direkte til din egen konto hos Stripe eller PayPal; Adminium holder dem aldrig.",
+    "tab": {
+      "setup": "Opsætning"
+    },
+    "loadFailed": "Betalinger kunne ikke indlæses",
+    "forbidden": "For at se betalinger skal du have tilladelsen »Opsæt betalinger« eller »Se betalingsaktivitet«.",
+    "viewOnly": "Du kan se, hvordan betalinger er sat op, men ikke ændre det.",
+    "noServices": "Der er ingen betalingstjeneste installeret. Installér Card payments eller Wallet payments under Tilføjelser, og opsæt den så her."
   }
 } as const;

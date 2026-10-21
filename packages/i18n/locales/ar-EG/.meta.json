@@ -3787,6 +3787,14 @@
     "status": "mt",
     "srcHash": "9f8a2389a20c"
   },
+  "common.audit.category.addOn": {
+    "status": "mt",
+    "srcHash": "41b634ed2413"
+  },
+  "common.audit.category.app": {
+    "status": "mt",
+    "srcHash": "d9a36850b7f3"
+  },
   "common.audit.category.auth": {
     "status": "mt",
     "srcHash": "dd34275b1bf9"
@@ -3810,6 +3818,10 @@
   "common.audit.category.llm": {
     "status": "mt",
     "srcHash": "9fd17eb7ffe4"
+  },
+  "common.audit.category.payments": {
+    "status": "mt",
+    "srcHash": "44357ae55a21"
   },
   "common.audit.category.rbac": {
     "status": "mt",
@@ -19083,6 +19095,18 @@
     "status": "mt",
     "srcHash": "901b67a9a07f"
   },
+  "roles.permission.paymentsManage": {
+    "status": "mt",
+    "srcHash": "4a5fa1be3916"
+  },
+  "roles.permission.paymentsRefund": {
+    "status": "mt",
+    "srcHash": "4b33fd67cb8e"
+  },
+  "roles.permission.paymentsView": {
+    "status": "mt",
+    "srcHash": "f4ddc98746e2"
+  },
   "roles.permission.projectRead": {
     "status": "mt",
     "srcHash": "bb0cbe226b62"
@@ -19762,6 +19786,10 @@
   "studio.addOns.installed.on": {
     "status": "src",
     "srcHash": "db3d405b1067"
+  },
+  "studio.addOns.installed.setUpInPayments": {
+    "status": "mt",
+    "srcHash": "8c6f3aa1aa0d"
   },
   "studio.addOns.installed.title": {
     "status": "src",
@@ -26799,6 +26827,590 @@
     "status": "mt",
     "srcHash": "f0abb31a3c5f"
   },
+  "studio.payments.access.access": {
+    "status": "mt",
+    "srcHash": "2f81a22de0af"
+  },
+  "studio.payments.access.accountRead": {
+    "status": "mt",
+    "srcHash": "fc278df63fe5"
+  },
+  "studio.payments.access.disputesRead": {
+    "status": "mt",
+    "srcHash": "0d08453cb46c"
+  },
+  "studio.payments.access.eventsRead": {
+    "status": "mt",
+    "srcHash": "be9c43289536"
+  },
+  "studio.payments.access.heading": {
+    "status": "mt",
+    "srcHash": "085766aea16e"
+  },
+  "studio.payments.access.intentsRead": {
+    "status": "mt",
+    "srcHash": "ae7f0dca9280"
+  },
+  "studio.payments.access.methodsRead": {
+    "status": "mt",
+    "srcHash": "4ce26d998e1c"
+  },
+  "studio.payments.access.note": {
+    "status": "mt",
+    "srcHash": "0fcb6db36c8a"
+  },
+  "studio.payments.access.refundsWrite": {
+    "status": "mt",
+    "srcHash": "33ed8deb6387"
+  },
+  "studio.payments.access.sessionsRead": {
+    "status": "mt",
+    "srcHash": "6003b7c65d76"
+  },
+  "studio.payments.access.sessionsWrite": {
+    "status": "mt",
+    "srcHash": "020b1c3e5374"
+  },
+  "studio.payments.access.webhooksRead": {
+    "status": "mt",
+    "srcHash": "1afab1485950"
+  },
+  "studio.payments.access.why": {
+    "status": "mt",
+    "srcHash": "21e2caea4476"
+  },
+  "studio.payments.alarm.paused": {
+    "status": "mt",
+    "srcHash": "d5b9ed7e9792"
+  },
+  "studio.payments.alarm.permission": {
+    "status": "mt",
+    "srcHash": "e5798f37e131"
+  },
+  "studio.payments.alarm.refused": {
+    "status": "mt",
+    "srcHash": "05e8100260f5"
+  },
+  "studio.payments.check.again": {
+    "status": "mt",
+    "srcHash": "4b5e84be0e45"
+  },
+  "studio.payments.check.failed": {
+    "status": "mt",
+    "srcHash": "191fd610e306"
+  },
+  "studio.payments.check.missing": {
+    "status": "mt",
+    "srcHash": "b90df0fb5d35"
+  },
+  "studio.payments.check.ok": {
+    "status": "mt",
+    "srcHash": "4ead66ba81b8"
+  },
+  "studio.payments.checklist.done": {
+    "status": "mt",
+    "srcHash": "e5fd9cfe0e80"
+  },
+  "studio.payments.checklist.heading": {
+    "status": "mt",
+    "srcHash": "33e304036dbc"
+  },
+  "studio.payments.checklist.progress": {
+    "status": "mt",
+    "srcHash": "efe336c580b9"
+  },
+  "studio.payments.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.payments.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "studio.payments.copy": {
+    "status": "mt",
+    "srcHash": "af74f7c5362a"
+  },
+  "studio.payments.error.unknown": {
+    "status": "mt",
+    "srcHash": "fa9c0cf87f18"
+  },
+  "studio.payments.field.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.payments.field.checkAndSave": {
+    "status": "mt",
+    "srcHash": "21ec34e7981d"
+  },
+  "studio.payments.field.checking": {
+    "status": "mt",
+    "srcHash": "8d5ec01a820b"
+  },
+  "studio.payments.field.clientId": {
+    "status": "mt",
+    "srcHash": "0e44a69453c1"
+  },
+  "studio.payments.field.liveKey": {
+    "status": "mt",
+    "srcHash": "dc63ccb7cf0f"
+  },
+  "studio.payments.field.liveKeyPrompt": {
+    "status": "mt",
+    "srcHash": "130826d8e605"
+  },
+  "studio.payments.field.notSet": {
+    "status": "mt",
+    "srcHash": "93039e609d94"
+  },
+  "studio.payments.field.replace": {
+    "status": "mt",
+    "srcHash": "a7cf7b25a703"
+  },
+  "studio.payments.field.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.payments.field.savedWhen": {
+    "status": "mt",
+    "srcHash": "3ad5b188504c"
+  },
+  "studio.payments.field.saving": {
+    "status": "mt",
+    "srcHash": "56a2285c5b11"
+  },
+  "studio.payments.field.secret": {
+    "status": "mt",
+    "srcHash": "f4e7a8740db0"
+  },
+  "studio.payments.field.signingSecret": {
+    "status": "mt",
+    "srcHash": "07918d78708f"
+  },
+  "studio.payments.field.signingSecretPrompt": {
+    "status": "mt",
+    "srcHash": "9e6ba0b176bc"
+  },
+  "studio.payments.field.testKey": {
+    "status": "mt",
+    "srcHash": "b4d40aaebbac"
+  },
+  "studio.payments.field.testKeyPrompt": {
+    "status": "mt",
+    "srcHash": "a8c0fde0d401"
+  },
+  "studio.payments.field.webhookId": {
+    "status": "mt",
+    "srcHash": "72a6fe99db19"
+  },
+  "studio.payments.field.webhookIdPrompt": {
+    "status": "mt",
+    "srcHash": "8b3442f50794"
+  },
+  "studio.payments.forbidden": {
+    "status": "mt",
+    "srcHash": "4affa766ddf5"
+  },
+  "studio.payments.loadFailed": {
+    "status": "mt",
+    "srcHash": "a4b96c2048dd"
+  },
+  "studio.payments.mode.live": {
+    "status": "mt",
+    "srcHash": "65c821a596ce"
+  },
+  "studio.payments.mode.test": {
+    "status": "mt",
+    "srcHash": "640ab2bae07b"
+  },
+  "studio.payments.noServices": {
+    "status": "mt",
+    "srcHash": "7e981352c580"
+  },
+  "studio.payments.path.app.desc": {
+    "status": "mt",
+    "srcHash": "45993f55db18"
+  },
+  "studio.payments.path.app.note": {
+    "status": "mt",
+    "srcHash": "0ea3e7e8cc69"
+  },
+  "studio.payments.path.app.step1": {
+    "status": "mt",
+    "srcHash": "6b183cee8719"
+  },
+  "studio.payments.path.app.step2": {
+    "status": "mt",
+    "srcHash": "6cdc585d6720"
+  },
+  "studio.payments.path.app.step5": {
+    "status": "mt",
+    "srcHash": "d8ee7d393f67"
+  },
+  "studio.payments.path.app.step7": {
+    "status": "mt",
+    "srcHash": "930d3b56ade0"
+  },
+  "studio.payments.path.app.title": {
+    "status": "mt",
+    "srcHash": "fbc5ad16dcb8"
+  },
+  "studio.payments.path.hand.desc": {
+    "status": "mt",
+    "srcHash": "5d727d3f4a00"
+  },
+  "studio.payments.path.hand.step1": {
+    "status": "mt",
+    "srcHash": "75ddfff162a8"
+  },
+  "studio.payments.path.hand.step2": {
+    "status": "mt",
+    "srcHash": "ac9cdf4cae83"
+  },
+  "studio.payments.path.hand.step3": {
+    "status": "mt",
+    "srcHash": "72e2b23f5b8a"
+  },
+  "studio.payments.path.hand.step4": {
+    "status": "mt",
+    "srcHash": "06aad9531ef8"
+  },
+  "studio.payments.path.hand.step5": {
+    "status": "mt",
+    "srcHash": "6f10a3a39a99"
+  },
+  "studio.payments.path.hand.title": {
+    "status": "mt",
+    "srcHash": "65f1ef2805f9"
+  },
+  "studio.payments.reach.address": {
+    "status": "mt",
+    "srcHash": "fd8f297e2998"
+  },
+  "studio.payments.reach.badge.https": {
+    "status": "mt",
+    "srcHash": "2adbd47f27d7"
+  },
+  "studio.payments.reach.badge.networkOff": {
+    "status": "mt",
+    "srcHash": "14c6ece20713"
+  },
+  "studio.payments.reach.badge.notSet": {
+    "status": "mt",
+    "srcHash": "93039e609d94"
+  },
+  "studio.payments.reach.badge.private": {
+    "status": "mt",
+    "srcHash": "84842bb30efe"
+  },
+  "studio.payments.reach.badge.proxy": {
+    "status": "mt",
+    "srcHash": "5af765e09117"
+  },
+  "studio.payments.reach.badge.reachable": {
+    "status": "mt",
+    "srcHash": "fa887b56cb68"
+  },
+  "studio.payments.reach.badge.thisComputer": {
+    "status": "mt",
+    "srcHash": "c8da9f2a7cb4"
+  },
+  "studio.payments.reach.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "studio.payments.reach.checkAgain": {
+    "status": "mt",
+    "srcHash": "e185048ce3c0"
+  },
+  "studio.payments.reach.current": {
+    "status": "mt",
+    "srcHash": "ed2757f1ed21"
+  },
+  "studio.payments.reach.fix.https": {
+    "status": "mt",
+    "srcHash": "d396d12ec149"
+  },
+  "studio.payments.reach.fix.networkOff": {
+    "status": "mt",
+    "srcHash": "eab579d70f4d"
+  },
+  "studio.payments.reach.fix.notSet": {
+    "status": "mt",
+    "srcHash": "901974ff80df"
+  },
+  "studio.payments.reach.fix.private": {
+    "status": "mt",
+    "srcHash": "45e62dad9267"
+  },
+  "studio.payments.reach.fix.proxy": {
+    "status": "mt",
+    "srcHash": "d4ab63bf1c26"
+  },
+  "studio.payments.reach.fix.thisComputer": {
+    "status": "mt",
+    "srcHash": "716683fe560c"
+  },
+  "studio.payments.reach.fixLabel": {
+    "status": "mt",
+    "srcHash": "c341e94c1b98"
+  },
+  "studio.payments.reach.heading": {
+    "status": "mt",
+    "srcHash": "67523ad479d2"
+  },
+  "studio.payments.reach.notSetValue": {
+    "status": "mt",
+    "srcHash": "ef374c577ee1"
+  },
+  "studio.payments.reach.ok": {
+    "status": "mt",
+    "srcHash": "395b9b496a78"
+  },
+  "studio.payments.reach.portBody": {
+    "status": "mt",
+    "srcHash": "f2e088701656"
+  },
+  "studio.payments.reach.portTitle": {
+    "status": "mt",
+    "srcHash": "469d437d7776"
+  },
+  "studio.payments.reach.problem.https": {
+    "status": "mt",
+    "srcHash": "0b2af16e5526"
+  },
+  "studio.payments.reach.problem.networkOff": {
+    "status": "mt",
+    "srcHash": "e737f4ac0822"
+  },
+  "studio.payments.reach.problem.notSet": {
+    "status": "mt",
+    "srcHash": "acb8c10bf0b1"
+  },
+  "studio.payments.reach.problem.private": {
+    "status": "mt",
+    "srcHash": "04ccc1b90fec"
+  },
+  "studio.payments.reach.problem.proxy": {
+    "status": "mt",
+    "srcHash": "ad874059f595"
+  },
+  "studio.payments.reach.problem.thisComputer": {
+    "status": "mt",
+    "srcHash": "98a3df06c56d"
+  },
+  "studio.payments.reach.setAddress": {
+    "status": "mt",
+    "srcHash": "4d0eadd3f849"
+  },
+  "studio.payments.reach.still": {
+    "status": "mt",
+    "srcHash": "1f6cfc70456e"
+  },
+  "studio.payments.refused.desktop": {
+    "status": "mt",
+    "srcHash": "13b8d480a56e"
+  },
+  "studio.payments.refused.empty": {
+    "status": "mt",
+    "srcHash": "994a6681a8e8"
+  },
+  "studio.payments.refused.hasSpaces": {
+    "status": "mt",
+    "srcHash": "61a49f9e24f1"
+  },
+  "studio.payments.refused.keyInSecret": {
+    "status": "mt",
+    "srcHash": "2a73a481c461"
+  },
+  "studio.payments.refused.liveInTest": {
+    "status": "mt",
+    "srcHash": "8fd100174633"
+  },
+  "studio.payments.refused.networkOff": {
+    "status": "mt",
+    "srcHash": "db0d5fc464d4"
+  },
+  "studio.payments.refused.notRestricted": {
+    "status": "mt",
+    "srcHash": "bb9065faef2c"
+  },
+  "studio.payments.refused.notSigningSecret": {
+    "status": "mt",
+    "srcHash": "fb6fabe923c6"
+  },
+  "studio.payments.refused.publishableKey": {
+    "status": "mt",
+    "srcHash": "f3cb1142900c"
+  },
+  "studio.payments.refused.secretKey": {
+    "status": "mt",
+    "srcHash": "b173b6080dd3"
+  },
+  "studio.payments.refused.testInLive": {
+    "status": "mt",
+    "srcHash": "e7bfb2bd865e"
+  },
+  "studio.payments.refused.webhookSecretInKey": {
+    "status": "mt",
+    "srcHash": "6c8c665531f2"
+  },
+  "studio.payments.service.connectsPaypal": {
+    "status": "mt",
+    "srcHash": "6612de49d1f9"
+  },
+  "studio.payments.service.connectsStripe": {
+    "status": "mt",
+    "srcHash": "4af2da0946d8"
+  },
+  "studio.payments.service.first": {
+    "status": "mt",
+    "srcHash": "033d66a732fc"
+  },
+  "studio.payments.service.notLoaded": {
+    "status": "mt",
+    "srcHash": "3abf4741c020"
+  },
+  "studio.payments.service.notLoadedBody": {
+    "status": "mt",
+    "srcHash": "7fc485ab6f0c"
+  },
+  "studio.payments.service.paypalOnce": {
+    "status": "mt",
+    "srcHash": "f6fdc0ad8a75"
+  },
+  "studio.payments.step.liveKey": {
+    "status": "mt",
+    "srcHash": "dc63ccb7cf0f"
+  },
+  "studio.payments.step.livePayment": {
+    "status": "mt",
+    "srcHash": "7b1577a0c1dd"
+  },
+  "studio.payments.step.liveWebhook": {
+    "status": "mt",
+    "srcHash": "d929fd8772c6"
+  },
+  "studio.payments.step.path": {
+    "status": "mt",
+    "srcHash": "52eec00ae7d7"
+  },
+  "studio.payments.step.paypal.liveKey": {
+    "status": "mt",
+    "srcHash": "89d66db0109e"
+  },
+  "studio.payments.step.paypal.testKey": {
+    "status": "mt",
+    "srcHash": "9014cc4e60c7"
+  },
+  "studio.payments.step.paypal.testWebhook": {
+    "status": "mt",
+    "srcHash": "36bc381033c3"
+  },
+  "studio.payments.step.testKey": {
+    "status": "mt",
+    "srcHash": "b4d40aaebbac"
+  },
+  "studio.payments.step.testPayment": {
+    "status": "mt",
+    "srcHash": "a75721942fac"
+  },
+  "studio.payments.step.testWebhook": {
+    "status": "mt",
+    "srcHash": "01c8ad4af849"
+  },
+  "studio.payments.stop.badge": {
+    "status": "mt",
+    "srcHash": "fe90eac4679a"
+  },
+  "studio.payments.stop.cancel": {
+    "status": "mt",
+    "srcHash": "b03700e00898"
+  },
+  "studio.payments.stop.confirm": {
+    "status": "mt",
+    "srcHash": "f6c9927a4823"
+  },
+  "studio.payments.stop.confirmBody": {
+    "status": "mt",
+    "srcHash": "9d4ba3b9e3f8"
+  },
+  "studio.payments.stop.confirmTitle": {
+    "status": "mt",
+    "srcHash": "a09a4a85be7c"
+  },
+  "studio.payments.stop.desc": {
+    "status": "mt",
+    "srcHash": "7711d2fa1cd2"
+  },
+  "studio.payments.stop.label": {
+    "status": "mt",
+    "srcHash": "f6c9927a4823"
+  },
+  "studio.payments.subtitle": {
+    "status": "mt",
+    "srcHash": "089f3015dd19"
+  },
+  "studio.payments.tab.setup": {
+    "status": "mt",
+    "srcHash": "cdd7bb2816b7"
+  },
+  "studio.payments.title": {
+    "status": "mt",
+    "srcHash": "44357ae55a21"
+  },
+  "studio.payments.viewOnly": {
+    "status": "mt",
+    "srcHash": "6a2e86b32903"
+  },
+  "studio.payments.webhook.address": {
+    "status": "mt",
+    "srcHash": "d70f93df5e8f"
+  },
+  "studio.payments.webhook.arrived": {
+    "status": "mt",
+    "srcHash": "f3db82a319a5"
+  },
+  "studio.payments.webhook.copyAddress": {
+    "status": "mt",
+    "srcHash": "dff911fce0be"
+  },
+  "studio.payments.webhook.copyEvent": {
+    "status": "mt",
+    "srcHash": "ea3a35bdd0b6"
+  },
+  "studio.payments.webhook.events": {
+    "status": "mt",
+    "srcHash": "b24b9a751c10"
+  },
+  "studio.payments.webhook.heading": {
+    "status": "src",
+    "srcHash": "3ac2826f1733"
+  },
+  "studio.payments.webhook.headingStripe": {
+    "status": "mt",
+    "srcHash": "ea1045f930c7"
+  },
+  "studio.payments.webhook.noAddress": {
+    "status": "mt",
+    "srcHash": "e8cd9425a37f"
+  },
+  "studio.payments.webhook.noLiveEvent": {
+    "status": "mt",
+    "srcHash": "d512c93a9cbe"
+  },
+  "studio.payments.webhook.nothing": {
+    "status": "mt",
+    "srcHash": "66fdc82c9965"
+  },
+  "studio.payments.webhook.snapshot": {
+    "status": "mt",
+    "srcHash": "5b2bd92c261d"
+  },
+  "studio.payments.webhook.stripeListen": {
+    "status": "mt",
+    "srcHash": "48142c2d47a3"
+  },
   "studio.project.actions.bulk": {
     "status": "mt",
     "srcHash": "7d629df7ade5"
@@ -29122,6 +29734,18 @@
   "studio.settingsHub.pagesCard.heading": {
     "status": "mt",
     "srcHash": "600584c2d5cc"
+  },
+  "studio.settingsHub.paymentsCard.body": {
+    "status": "mt",
+    "srcHash": "de85ab7bffcd"
+  },
+  "studio.settingsHub.paymentsCard.cta": {
+    "status": "mt",
+    "srcHash": "0d34f9073588"
+  },
+  "studio.settingsHub.paymentsCard.heading": {
+    "status": "mt",
+    "srcHash": "44357ae55a21"
   },
   "studio.settingsHub.projectCard.body": {
     "status": "mt",

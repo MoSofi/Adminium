@@ -1578,7 +1578,10 @@ export default {
       "rbac": "角色與權限",
       "schema": "結構描述",
       "settings": "設定",
-      "system": "系統"
+      "system": "系統",
+      "addOn": "附加元件",
+      "app": "應用程式",
+      "payments": "付款"
     },
     "column": {
       "action": "動作",

@@ -36,7 +36,9 @@ export type AssistantPlaceGuard =
   | 'audit.read'
   | 'storage.manage'
   | 'pages.manage'
-  | 'llm.run';
+  | 'llm.run'
+  // Any of the keys, as `StudioGuard requires={[…]}` reads it.
+  | 'payments.manage|payments.view';
 
 export interface AssistantPlace {
   /** The route's path, exactly as the dashboard's router spells it. */
@@ -78,6 +80,7 @@ export const ASSISTANT_PLACES: readonly AssistantPlace[] = Object.freeze([
   { path: '/studio/public-api', guard: 'api-keys.manage', name: 'Public API', what: 'Endpoints and keys that let your own customer or staff pages read this database, through a scope you define.' },
   { path: '/studio/apps', guard: 'manifests.manage', name: 'Hosted apps', what: 'Install, update and remove apps; where each app\'s screens appear, their names and their domains.' },
   { path: '/studio/add-ons', guard: 'manifests.manage', name: 'Add-ons', what: 'Install, update, switch off and set up add-ons: extra capabilities for the workspace and its apps.' },
+  { path: '/studio/payments', guard: 'payments.manage|payments.view', name: 'Payments', what: 'Taking payments: the payment services (Card payments, Wallet payments) and their keys, whether customers can reach this server, and later the ways to pay, what can be paid, the pay page and payment activity.' },
   { path: '/studio/storage', guard: 'storage.manage', name: 'Storage', what: 'Where this instance keeps uploaded files, exports and other stored bytes.' },
   { path: '/help', guard: 'none', name: 'Help', what: 'Articles on how the product works.' },
   { path: '/changelog', guard: 'none', name: 'What is new', what: 'What changed in each version.' },

@@ -23,6 +23,7 @@ import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from '
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  Banknote,
   Blocks,
   Building2,
   FileText,
@@ -1521,6 +1522,8 @@ export interface StudioSettingsPageProps {
   onOpenLists: () => void;
   /** `/studio/add-ons`. */
   onOpenAddOns: () => void;
+  /** `/studio/payments`: payment services, ways to pay, the pay page. */
+  onOpenPayments?: (() => void) | undefined;
   /** `/studio/documents`: which table a document is drawn from. */
   onOpenDocuments?: (() => void) | undefined;
   /** `/studio/public-api`. */
@@ -1551,6 +1554,7 @@ function StudioSettingsHub({
   onOpenLists,
   onOpenAddOns,
   onOpenDocuments,
+  onOpenPayments,
   onOpenPublicApi,
   onOpenProject,
 }: StudioSettingsPageProps): ReactNode {
@@ -1708,6 +1712,22 @@ function StudioSettingsHub({
             )}
             cta={t('studio:settingsHub.documentsCard.cta', 'Open document mappings')}
             onOpen={onOpenDocuments}
+          />
+        ) : null}
+
+        {/* Payments (/studio/payments). Either payments key opens it: a
+            bookkeeper with `payments.view` reads it, `payments.manage` sets
+            it up. Every route behind it checks the same keys. */}
+        {(holds('payments.manage') || holds('payments.view')) && onOpenPayments !== undefined ? (
+          <LinkRow
+            icon={<Banknote />}
+            heading={t('studio:settingsHub.paymentsCard.heading', 'Payments')}
+            body={t(
+              'studio:settingsHub.paymentsCard.body',
+              'Let customers pay what they owe: pay links, a pay page, Stripe and PayPal, and ways to pay by hand.',
+            )}
+            cta={t('studio:settingsHub.paymentsCard.cta', 'Open payments')}
+            onOpen={onOpenPayments}
           />
         ) : null}
 

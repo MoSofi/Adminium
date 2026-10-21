@@ -87,7 +87,10 @@ export default {
     "usersManage": "Administrér brugere",
     "filesManage": "Administrér alles filer",
     "storageManage": "Administrér lagringsdestinationer",
-    "designerUse": "Byg apps med Adminium Designer"
+    "designerUse": "Byg apps med Adminium Designer",
+    "paymentsManage": "Opsæt betalinger",
+    "paymentsRefund": "Give refusioner",
+    "paymentsView": "Se betalingsaktivitet og eksportere den"
   },
   "rename": {
     "failed": "Rollen kunne ikke omdøbes",

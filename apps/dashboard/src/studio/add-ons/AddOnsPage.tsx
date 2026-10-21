@@ -32,8 +32,9 @@
  * disabled button, and certainly not a "create them" action that would fail.
  */
 import { useMutation, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
+import { ArrowRight, Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -670,7 +671,13 @@ export function forgetStaleAsk(): void {
   askedForStaleAt = 0;
 }
 
+/** An add-on that provides `payment-provider`: set up in Studio → Payments, never with the connect form. */
+function isPaymentAddOn(addOn: { provides: { contract: string }[] }): boolean {
+  return addOn.provides.some((entry) => entry.contract === 'payment-provider');
+}
+
 export function AddOnsPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [{ data: installed }, { data: catalog }] = useSuspenseQueries({
     queries: [addOnsQuery, addOnCatalogQuery],
@@ -1078,7 +1085,24 @@ export function AddOnsPage() {
                     ))}
                   </div>
 
-                  {!addOn.connected && (
+                  {/* A payment service is set up in Payments: a test and a live
+                      set of keys, saved field by field and checked as they are
+                      saved. The generic form below would refuse it anyway. */}
+                  {isPaymentAddOn(addOn) && (
+                    <div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        iconRight={<ArrowRight className="size-4 rtl:-scale-x-100" aria-hidden="true" />}
+                        onClick={() => void navigate({ to: '/studio/payments' })}
+                        data-testid={`add-on-${addOn.key}-payments`}
+                      >
+                        {t('studio:addOns.installed.setUpInPayments', 'Set up in Payments')}
+                      </Button>
+                    </div>
+                  )}
+
+                  {!addOn.connected && !isPaymentAddOn(addOn) && (
                     <ConnectForm
                       addOn={addOn}
                       busy={busy}

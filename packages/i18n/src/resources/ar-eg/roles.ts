@@ -87,7 +87,10 @@ export default {
     "usersManage": "إدارة المستخدمين",
     "filesManage": "إدارة ملفات الجميع",
     "storageManage": "إدارة وجهات التخزين",
-    "designerUse": "إنشاء تطبيقات باستخدام Adminium Designer"
+    "designerUse": "إنشاء تطبيقات باستخدام Adminium Designer",
+    "paymentsManage": "إعداد المدفوعات",
+    "paymentsRefund": "إصدار المبالغ المستردة",
+    "paymentsView": "رؤية نشاط المدفوعات وتصديره"
   },
   "rename": {
     "failed": "تعذّرت إعادة تسمية الدور",

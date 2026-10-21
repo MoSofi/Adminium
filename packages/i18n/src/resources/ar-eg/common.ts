@@ -1578,7 +1578,10 @@ export default {
       "rbac": "الأدوار والصلاحيات",
       "schema": "المخطط",
       "settings": "الإعدادات",
-      "system": "النظام"
+      "system": "النظام",
+      "addOn": "الإضافات",
+      "app": "التطبيقات",
+      "payments": "المدفوعات"
     },
     "column": {
       "action": "الإجراء",

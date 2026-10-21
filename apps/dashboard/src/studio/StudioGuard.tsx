@@ -25,10 +25,17 @@ export { hasStudioAccess };
  * consulted at all: a custom role holding the key gets in, an Admin without it
  * gets the `forbidden` state rather than a page whose every request 403s.
  */
-export function StudioGuard({ children, requires }: { children: ReactNode; requires?: SystemAction }) {
+export function StudioGuard({
+  children,
+  requires,
+}: {
+  children: ReactNode;
+  /** One key, or a list meaning ANY of them opens the screen (Payments: `payments.manage` or `payments.view`). */
+  requires?: SystemAction | readonly SystemAction[];
+}) {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const allowed =
-    requires === undefined ? hasStudioAccess(bootstrap.roles) : holdsSystemAction(bootstrap, requires);
+  const keys: readonly SystemAction[] | null = requires === undefined ? null : typeof requires === 'string' ? [requires] : requires;
+  const allowed = keys === null ? hasStudioAccess(bootstrap.roles) : keys.some((key) => holdsSystemAction(bootstrap, key));
   if (!allowed) {
     return <StatePage stateId="forbidden" fullPage={false} />;
   }

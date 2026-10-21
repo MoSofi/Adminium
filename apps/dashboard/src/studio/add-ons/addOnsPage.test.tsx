@@ -17,7 +17,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -206,6 +206,26 @@ describe('AddOnsPage', () => {
     await renderPage();
     expect(await screen.findByText('Holiday Calendars')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Install' })).toBeTruthy();
+  });
+
+  it('sends a payment service to Payments instead of offering the connect form', async () => {
+    await renderPage({
+      installed: [
+        makeAddOn({
+          key: 'payments-stripe',
+          name: 'Card payments',
+          connected: false,
+          provides: [{ contract: 'payment-provider', version: 1 }],
+          networkAllow: ['api.stripe.com', 'checkout.stripe.com'],
+        }),
+      ],
+    });
+    const button = await screen.findByTestId('add-on-payments-stripe-payments');
+    expect(button.textContent).toContain('Set up in Payments');
+    expect(screen.getByText(/May contact: api\.stripe\.com, checkout\.stripe\.com/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
+    fireEvent.click(button);
+    expect(await screen.findByRole('tab', { name: 'Setup' })).toBeTruthy();
   });
 
   it('browses air-gapped, and says so instead of offering a broken action', async () => {

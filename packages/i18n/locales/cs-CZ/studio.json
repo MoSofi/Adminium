@@ -99,7 +99,8 @@
       "off": "off",
       "on": "on",
       "title": "Installed",
-      "uninstall": "Uninstall"
+      "uninstall": "Uninstall",
+      "setUpInPayments": "Nastavit v Platbách"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -2563,6 +2564,11 @@
       "heading": "Mapy",
       "body": "Zda se zobrazují mapy, kterých serverů se systém ptá a co se každý z nich dozví.",
       "cta": "Otevřít mapy"
+    },
+    "paymentsCard": {
+      "heading": "Platby",
+      "body": "Nechte zákazníky zaplatit, co dluží: platební odkazy, platební stránka, Stripe a PayPal a ruční způsoby platby.",
+      "cta": "Otevřít platby"
     }
   },
   "source": {
@@ -3540,5 +3546,195 @@
       "off": "Když je to vypnuté, vzdálenosti jsou přímé čáry spočítané na tomto serveru a označené „asi“. Nikoho venku se systém neptá.",
       "whyEnvOff": "Provozovatel tohoto serveru směrovací server vypnul (ADMINIUM_ROUTING_SERVER=off, nebo všechna volání ven pomocí ADMINIUM_NETWORK_FEATURES=off), takže tento přepínač nic nedělá."
     }
+  },
+  "payments": {
+    "service": {
+      "connectsStripe": "Připojuje se ke Stripe",
+      "connectsPaypal": "Připojuje se k PayPal",
+      "first": "Nejdřív nastavte tohle.",
+      "notLoaded": "Tento doplněk se nenačetl, takže jeho klíče nelze ověřit.",
+      "notLoadedBody": "Platební služba se načte jen z balíčku, za který se Adminium může zaručit: z balíčku dodaného s tímto sestavením, nebo staženého z katalogu.",
+      "paypalOnce": "PayPal se zobrazí jen jednou: přes tuto kartu, ne na stránce Stripe."
+    },
+    "reach": {
+      "badge": {
+        "networkOff": "Funguje offline",
+        "thisComputer": "Jen tento počítač",
+        "notSet": "Nenastaveno",
+        "private": "Soukromá síť",
+        "https": "Vyžaduje https",
+        "proxy": "Nastavení proxy",
+        "reachable": "Dostupný"
+      },
+      "problem": {
+        "networkOff": "Tento server je nastaven na práci bez internetu, takže nemůže přijímat online platby.",
+        "thisComputer": "Tento server běží jen na tomto počítači. Zákazníci se k němu nedostanou.",
+        "notSet": "Tento server zatím nemá veřejnou adresu.",
+        "private": "Tuto adresu mohou otevřít jen lidé ve vaší vlastní síti.",
+        "https": "Platební stránky vyžadují https. Nejdřív dejte tento server za HTTPS.",
+        "proxy": "Tento server je za proxy, která skrývá adresy vašich zákazníků. Zapněte ADMINIUM_TRUST_PROXY."
+      },
+      "fix": {
+        "networkOff": "Nastavte na serveru ADMINIUM_NETWORK_FEATURES=on, restartujte ho a pak to zkontrolujte znovu.",
+        "thisComputer": "Spusťte Adminium na serveru s veřejnou adresou https a platby nastavte tam.",
+        "notSet": "Přidejte adresu, kterou lidé otevírají tento server. Je to „Adresa v odkazech v e-mailech“ na kartě Odesílatelé.",
+        "private": "Dejte tomuto serveru veřejnou adresu https a nastavte ji v Odesílatelích jako „Adresa v odkazech v e-mailech“.",
+        "https": "Až HTTPS funguje, změňte v Odesílatelích adresu na tu s https.",
+        "proxy": "Nastavte na serveru ADMINIUM_TRUST_PROXY=on, restartujte ho a pak to zkontrolujte znovu."
+      },
+      "heading": "Dostanou se zákazníci k tomuto serveru?",
+      "ok": "Zákazníci se k tomuto serveru dostanou.",
+      "address": "Veřejná adresa tohoto serveru:",
+      "change": "Změnit",
+      "current": "Aktuální hodnota",
+      "notSetValue": "nenastaveno",
+      "still": "Tady dál funguje: ruční způsoby platby, zaznamenávání plateb, záznam z platebního terminálu.",
+      "setAddress": "Nastavit adresu",
+      "checkAgain": "Zkontrolovat znovu",
+      "portTitle": "Adresa obsahuje port",
+      "portBody": "PayPal posílá webhooky jen na port 443. Použijte adresu bez portu.",
+      "fixLabel": "Řešení:"
+    },
+    "step": {
+      "paypal": {
+        "testKey": "Aplikace sandbox",
+        "testWebhook": "Webhook sandbox",
+        "liveKey": "Ostrá aplikace"
+      },
+      "path": "Vyberte, jak vytvoříte klíč pro Stripe",
+      "testKey": "Testovací klíč",
+      "testWebhook": "Testovací webhook",
+      "testPayment": "Odeslat testovací platbu",
+      "liveKey": "Ostrý klíč",
+      "liveWebhook": "Ostrý webhook",
+      "livePayment": "Přišla první ostrá platba"
+    },
+    "field": {
+      "testKey": "Testovací klíč",
+      "liveKey": "Ostrý klíč",
+      "signingSecret": "Podpisový tajný klíč",
+      "clientId": "ID klienta",
+      "secret": "Tajný klíč",
+      "webhookId": "ID webhooku",
+      "testKeyPrompt": "Vložte klíč, který začíná rk_test_",
+      "liveKeyPrompt": "Vložte klíč, který začíná rk_live_",
+      "signingSecretPrompt": "Vložte podpisový tajný klíč ze stránky koncového bodu ve Stripe. Začíná whsec_.",
+      "webhookIdPrompt": "PayPal ho zobrazuje na stránce webhooku. Adminium ho potřebuje k ověření, že zpráva opravdu přišla od PayPal.",
+      "savedWhen": "Uloženo {when}",
+      "replace": "Nahradit",
+      "save": "Uložit",
+      "checkAndSave": "Zkontrolovat a uložit",
+      "cancel": "Zrušit",
+      "notSet": "Nenastaveno",
+      "saving": "Ukládá se…",
+      "checking": "Ověřuje se u {provider}…"
+    },
+    "refused": {
+      "secretKey": "Toto je tajný klíč (sk_). Stripe žádá pluginy, aby je nepoužívaly. Vytvořte místo něj omezený klíč.",
+      "publishableKey": "Toto je publikovatelný klíč (pk_). Vložte místo něj omezený klíč (rk_).",
+      "webhookSecretInKey": "Toto je tajný klíč webhooku (whsec_). Patří do karty webhooku níže.",
+      "keyInSecret": "Toto je klíč, ne podpisový tajný klíč. Vložte tajný klíč začínající whsec_ ze stránky koncového bodu.",
+      "liveInTest": "Toto je ostrý klíč. Toto pole je pro testovací klíč.",
+      "testInLive": "Toto je testovací klíč. Toto pole je pro ostrý klíč.",
+      "notRestricted": "Toto není omezený klíč. Začíná rk_test_ nebo rk_live_.",
+      "notSigningSecret": "Toto není podpisový tajný klíč. Začíná whsec_.",
+      "hasSpaces": "V tom, co jste vložili, je mezera nebo zalomení řádku. Vložte jen jednu hodnotu.",
+      "empty": "Nejdřív vložte hodnotu.",
+      "networkOff": "Tento server je nastaven na práci bez internetu, takže nelze připojit žádnou platební službu.",
+      "desktop": "Desktopová aplikace přijímá platby jen ručně: zákazníci se k tomuto počítači nedostanou."
+    },
+    "error": {
+      "unknown": "To se nepovedlo. Zkuste to znovu."
+    },
+    "copied": "Zkopírováno",
+    "copy": "Kopírovat",
+    "check": {
+      "missing": "{provider} hlásí, že tomuto klíči chybí: {list}. Upravte klíč u {provider} a vložte ho znovu.",
+      "ok": "{provider} tento klíč přijal. Ověřeno {when}.",
+      "failed": "{provider} tento klíč nemohl ověřit.",
+      "again": "Zkontrolovat"
+    },
+    "webhook": {
+      "headingStripe": "Webhook (Stripe mu říká koncový bod webhooku)",
+      "heading": "Webhook",
+      "address": "Adresa",
+      "noAddress": "Tento server nejdřív potřebuje veřejnou adresu.",
+      "copyAddress": "Zkopírovat adresu webhooku",
+      "events": "Zaškrtněte tyto události u {provider}",
+      "copyEvent": "Zkopírovat {event}",
+      "snapshot": "Zvolte datovou část Snapshot.",
+      "stripeListen": "Tajný klíč, který vypíše stripe listen, je jiný.",
+      "arrived": "První událost dorazila {when}, ověřeno.",
+      "noLiveEvent": "Zatím nedorazila žádná ostrá událost.",
+      "nothing": "Na tuto adresu zatím nic nedorazilo. Pokud jste koncový bod vytvořili, ověřte, že ho vaše proxy propouští."
+    },
+    "mode": {
+      "test": "Test",
+      "live": "Ostrý"
+    },
+    "access": {
+      "sessionsWrite": "Zahájit platbu a ukončit tu, která už není potřeba",
+      "sessionsRead": "Vidět, jak platba skončila",
+      "intentsRead": "Vidět stržené částky",
+      "refundsWrite": "Vracet peníze (ve Stripe tento přístup umožňuje i měnit platby)",
+      "eventsRead": "Zachytit platbu, jejíž webhook se ztratil",
+      "disputesRead": "Zobrazit spory",
+      "methodsRead": "Vidět, které způsoby platby jste zapnuli",
+      "accountRead": "Ukázat, ke kterému účtu Stripe klíč patří",
+      "webhooksRead": "Zkontrolovat ostrý webhook",
+      "heading": "Přístup, který klíč potřebuje",
+      "note": "Oba způsoby dají klíči přesně tento přístup. Vše ostatní nechte na Žádný.",
+      "access": "Přístup",
+      "why": "Proč"
+    },
+    "path": {
+      "app": {
+        "step1": "Nainstalovat Node.js 22 nebo novější",
+        "step2": "Nainstalovat Stripe CLI",
+        "step5": "Rozbalit šablonu a otevřít její složku",
+        "step7": "Nainstalovat aplikaci v nástěnce Stripe a zkopírovat její klíč",
+        "title": "S vlastní aplikací Stripe App (tak to doporučuje Stripe)",
+        "desc": "Jednou nahrajete malou aplikaci do svého účtu Stripe pomocí nástroje příkazové řádky Stripe. Vytvoří klíč přesně s přístupem uvedeným níže.",
+        "note": "Nahrajte jednou do testovacího účtu a jednou do ostrého účtu."
+      },
+      "hand": {
+        "step1": "V nástěnce Stripe otevřete Vývojáři → Klíče API",
+        "step2": "Zvolte „Vytvořit omezený klíč“",
+        "step3": "Pojmenujte ho Adminium",
+        "step4": "Nastavte přístup podle seznamu níže. Vše ostatní nechte na Žádný.",
+        "step5": "Vytvořte klíč a zkopírujte ho",
+        "title": "Ručně v nástěnce Stripe (bez terminálu)",
+        "desc": "Vytvořte si sami omezený klíč s přístupem níže. Stripe dává přednost aplikaci, ale funguje i tohle."
+      }
+    },
+    "alarm": {
+      "refused": "{provider} klíč odmítl. Možná byl zrušen nebo byla aplikace odinstalována.",
+      "permission": "{provider} klíč odmítl: chybí mu oprávnění.",
+      "paused": "Platby jsou pozastaveny, dokud nebude uložen funkční klíč."
+    },
+    "stop": {
+      "label": "Zastavit nové platby",
+      "desc": "Žádné nové platby nezačnou. Adminium si klíč ponechá, aby dokončil čekající platby a mohl vracet peníze.",
+      "confirmTitle": "Zastavit nové platby?",
+      "confirmBody": "Zákazníci nemohou zahájit platbu přes {service}, dokud to znovu nevypnete. Platby, které už probíhají, se dokončí a vracení peněz dál funguje.",
+      "cancel": "Dál přijímat platby",
+      "confirm": "Zastavit nové platby",
+      "badge": "Nové platby zastaveny"
+    },
+    "close": "Zavřít",
+    "checklist": {
+      "heading": "Kontrolní seznam nastavení",
+      "progress": "Hotovo {done} z {total} · váš postup zůstane uložen",
+      "done": "hotovo"
+    },
+    "title": "Platby",
+    "subtitle": "Přijímejte platby za faktury a další záznamy. Peníze jdou přímo na váš vlastní účet Stripe nebo PayPal; Adminium je nikdy nedrží.",
+    "tab": {
+      "setup": "Nastavení"
+    },
+    "loadFailed": "Platby se nepodařilo načíst",
+    "forbidden": "K zobrazení plateb potřebujete oprávnění „Nastavit platby“ nebo „Zobrazit aktivitu plateb“.",
+    "viewOnly": "Vidíte, jak jsou platby nastavené, ale nemůžete to měnit.",
+    "noServices": "Není nainstalovaná žádná platební služba. Nainstalujte Card payments nebo Wallet payments v Doplňcích a pak ji nastavte tady."
   }
 }

@@ -85,6 +85,12 @@ function categoryLabel(category: AuditCategory): string {
       return t('audit.category.export', 'Imports & exports');
     case 'system':
       return t('audit.category.system', 'System');
+    case 'add-on':
+      return t('audit.category.addOn', 'Add-ons');
+    case 'app':
+      return t('audit.category.app', 'Apps');
+    case 'payments':
+      return t('audit.category.payments', 'Payments');
   }
 }
 

@@ -103,8 +103,12 @@ describe('where_is', () => {
     for (const path of ['/files', '/studio/settings', '/studio/lists', '/settings/team']) expect(open, path).toContain(path);
     for (const place of ASSISTANT_PLACES) {
       if (place.guard === 'none' || place.guard === 'studio') continue;
-      const [resource, action] = place.guard.split('.');
-      const held = await depsFor(t.users.admin).can(`system:${resource!}:${action!}`);
+      // `a|b`: any one of the keys opens it.
+      let held = false;
+      for (const key of place.guard.split('|')) {
+        const [resource, action] = key.split('.');
+        held ||= await depsFor(t.users.admin).can(`system:${resource!}:${action!}`);
+      }
       expect(open.includes(place.path), place.path).toBe(held);
     }
   });
@@ -119,6 +123,16 @@ describe('where_is', () => {
     expect(open).toContain('/settings/team');
     expect(open).not.toContain('/settings/roles');
     expect(open).not.toContain('/studio/settings');
+  });
+
+  it('opens a screen that any of two keys opens to a role holding just one of them', async () => {
+    const roles = rolesRepo(t.meta);
+    const role = await roles.create({ slug: 'bookkeeper', name: 'Bookkeeper' });
+    await permissionsRepo(t.meta).grant(role.id, 'system', 'payments.view', { allowed: true });
+    const keeper = await usersRepo(t.meta).create({ email: 'books@adminium.test', name: 'Books', passwordHash: 'x', status: 'active' });
+    await roles.assignToUser(keeper.id, role.id);
+    expect(paths(await whereIs(depsFor(keeper), ''))).toContain('/studio/payments');
+    expect(paths(await whereIs(depsFor(t.users.viewer), ''))).not.toContain('/studio/payments');
   });
 
   it('tells someone whose every role is one app`s screens of no dashboard screen', async () => {

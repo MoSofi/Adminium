@@ -33,6 +33,9 @@ export const AUDIT_CATEGORIES = [
   'automation',
   'export',
   'system',
+  'add-on',
+  'app',
+  'payments',
 ] as const;
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 

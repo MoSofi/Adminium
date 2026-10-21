@@ -99,7 +99,8 @@
       "off": "désactivé",
       "on": "activé",
       "title": "Installés",
-      "uninstall": "Désinstaller"
+      "uninstall": "Désinstaller",
+      "setUpInPayments": "Configurer dans Paiements"
     },
     "job": {
       "body": "Récupération et vérification. Rien n’est installé sans votre accord.",
@@ -2563,6 +2564,11 @@
       "heading": "Cartes",
       "body": "Si les cartes sont affichées, quels serveurs sont interrogés et ce que chacun apprend.",
       "cta": "Ouvrir les cartes"
+    },
+    "paymentsCard": {
+      "heading": "Paiements",
+      "body": "Laissez vos clients régler ce qu’ils doivent : liens de paiement, page de paiement, Stripe et PayPal, et moyens de paiement manuels.",
+      "cta": "Ouvrir les paiements"
     }
   },
   "source": {
@@ -3540,5 +3546,195 @@
       "off": "Quand ce réglage est désactivé, les distances sont des lignes droites calculées sur ce serveur et marquées « environ ». Rien n’est demandé à l’extérieur.",
       "whyEnvOff": "La personne qui exploite ce serveur a désactivé le serveur d’itinéraires (ADMINIUM_ROUTING_SERVER=off, ou tous les appels extérieurs avec ADMINIUM_NETWORK_FEATURES=off) ; ce réglage n’a donc aucun effet."
     }
+  },
+  "payments": {
+    "service": {
+      "connectsStripe": "Se connecte à Stripe",
+      "connectsPaypal": "Se connecte à PayPal",
+      "first": "Configurez d’abord ceci.",
+      "notLoaded": "Ce module n’a pas été chargé : ses clés ne peuvent donc pas être vérifiées.",
+      "notLoadedBody": "Un service de paiement ne se charge que depuis un paquet dont Adminium peut se porter garant : un paquet fourni avec cette version, ou téléchargé depuis le catalogue.",
+      "paypalOnce": "PayPal n’apparaît qu’une fois : via cette carte, pas sur la page Stripe."
+    },
+    "reach": {
+      "badge": {
+        "networkOff": "Fonctionne hors ligne",
+        "thisComputer": "Cet ordinateur uniquement",
+        "notSet": "Non défini",
+        "private": "Réseau privé",
+        "https": "Https requis",
+        "proxy": "Réglage du proxy",
+        "reachable": "Accessible"
+      },
+      "problem": {
+        "networkOff": "Ce serveur est réglé pour fonctionner sans internet : il ne peut donc pas encaisser de paiements en ligne.",
+        "thisComputer": "Ce serveur ne fonctionne que sur cet ordinateur. Les clients ne peuvent pas y accéder.",
+        "notSet": "Ce serveur n'a pas encore d'adresse publique.",
+        "private": "Seules les personnes de votre propre réseau peuvent accéder à cette adresse.",
+        "https": "Les pages de paiement exigent https. Placez d’abord ce serveur derrière HTTPS.",
+        "proxy": "Ce serveur est derrière un proxy qui masque les adresses de vos clients. Activez ADMINIUM_TRUST_PROXY."
+      },
+      "fix": {
+        "networkOff": "Définissez ADMINIUM_NETWORK_FEATURES=on sur le serveur, redémarrez-le, puis vérifiez à nouveau.",
+        "thisComputer": "Faites tourner Adminium sur un serveur avec une adresse https publique, puis configurez les paiements là-bas.",
+        "notSet": "Ajoutez l’adresse utilisée pour ouvrir ce serveur. C’est « Adresse dans les liens des e-mails » dans la carte Expéditeurs.",
+        "private": "Donnez à ce serveur une adresse https publique et définissez-la comme « Adresse dans les liens des e-mails » dans Expéditeurs.",
+        "https": "Quand HTTPS fonctionne, remplacez l’adresse dans Expéditeurs par l’adresse https.",
+        "proxy": "Définissez ADMINIUM_TRUST_PROXY=on sur le serveur, redémarrez-le, puis vérifiez à nouveau."
+      },
+      "heading": "Les clients peuvent-ils accéder à ce serveur ?",
+      "ok": "Les clients peuvent accéder à ce serveur.",
+      "address": "Adresse publique de ce serveur :",
+      "change": "Modifier",
+      "current": "Valeur actuelle",
+      "notSetValue": "non défini",
+      "still": "Fonctionne toujours ici : les moyens de paiement manuels, l’enregistrement des paiements, la saisie du terminal de carte.",
+      "setAddress": "Définir l’adresse",
+      "checkAgain": "Vérifier à nouveau",
+      "portTitle": "L’adresse comporte un port",
+      "portBody": "PayPal n’envoie les webhooks qu’au port 443. Utilisez une adresse sans port.",
+      "fixLabel": "Solution :"
+    },
+    "step": {
+      "paypal": {
+        "testKey": "App sandbox",
+        "testWebhook": "Webhook sandbox",
+        "liveKey": "App en direct"
+      },
+      "path": "Choisissez comment créer votre clé Stripe",
+      "testKey": "Clé de test",
+      "testWebhook": "Webhook de test",
+      "testPayment": "Envoyer un paiement test",
+      "liveKey": "Clé en direct",
+      "liveWebhook": "Webhook en direct",
+      "livePayment": "Premier paiement réel reçu"
+    },
+    "field": {
+      "testKey": "Clé de test",
+      "liveKey": "Clé en direct",
+      "signingSecret": "Secret de signature",
+      "clientId": "ID client",
+      "secret": "Secret",
+      "webhookId": "ID du webhook",
+      "testKeyPrompt": "Collez la clé qui commence par rk_test_",
+      "liveKeyPrompt": "Collez la clé qui commence par rk_live_",
+      "signingSecretPrompt": "Collez le secret de signature affiché sur la page du point de terminaison dans Stripe. Il commence par whsec_.",
+      "webhookIdPrompt": "PayPal l’affiche sur la page du webhook. Adminium en a besoin pour vérifier qu’un message vient vraiment de PayPal.",
+      "savedWhen": "Enregistré {when}",
+      "replace": "Remplacer",
+      "save": "Enregistrer",
+      "checkAndSave": "Vérifier et enregistrer",
+      "cancel": "Annuler",
+      "notSet": "Non défini",
+      "saving": "Enregistrement…",
+      "checking": "Vérification avec {provider}…"
+    },
+    "refused": {
+      "secretKey": "C’est une clé secrète (sk_). Stripe demande aux plugins de ne pas les utiliser. Créez plutôt une clé restreinte.",
+      "publishableKey": "C’est une clé publiable (pk_). Collez plutôt la clé restreinte (rk_).",
+      "webhookSecretInKey": "C’est un secret de webhook (whsec_). Il va dans la carte Webhook ci-dessous.",
+      "keyInSecret": "C’est une clé, pas un secret de signature. Collez le secret qui commence par whsec_ depuis la page du point de terminaison.",
+      "liveInTest": "C’est une clé en direct. Ce champ est pour la clé de test.",
+      "testInLive": "C’est une clé de test. Ce champ est pour la clé en direct.",
+      "notRestricted": "Ce n’est pas une clé restreinte. Elle commence par rk_test_ ou rk_live_.",
+      "notSigningSecret": "Ce n’est pas un secret de signature. Il commence par whsec_.",
+      "hasSpaces": "Ce que vous avez collé contient un espace ou un saut de ligne. Collez une seule valeur.",
+      "empty": "Collez d’abord une valeur.",
+      "networkOff": "Ce serveur est réglé pour fonctionner sans internet : aucun service de paiement ne peut donc être connecté.",
+      "desktop": "L’application de bureau n’enregistre les paiements qu’à la main : les clients ne peuvent pas accéder à cet ordinateur."
+    },
+    "error": {
+      "unknown": "Cela n’a pas fonctionné. Réessayez."
+    },
+    "copied": "Copié",
+    "copy": "Copier",
+    "check": {
+      "missing": "{provider} indique qu’il manque à cette clé : {list}. Modifiez la clé dans {provider} et collez-la à nouveau.",
+      "ok": "{provider} a accepté cette clé. Vérifiée {when}.",
+      "failed": "{provider} n’a pas pu vérifier cette clé.",
+      "again": "Vérifier"
+    },
+    "webhook": {
+      "headingStripe": "Webhook (Stripe l’appelle un point de terminaison webhook)",
+      "heading": "Webhook",
+      "address": "Adresse",
+      "noAddress": "Ce serveur a d’abord besoin d’une adresse publique.",
+      "copyAddress": "Copier l’adresse du webhook",
+      "events": "Cochez ces événements dans {provider}",
+      "copyEvent": "Copier {event}",
+      "snapshot": "Choisissez la charge utile Snapshot.",
+      "stripeListen": "Le secret qu’affiche stripe listen est différent.",
+      "arrived": "Le premier événement est arrivé {when}, vérifié.",
+      "noLiveEvent": "Aucun événement réel n’est encore arrivé.",
+      "nothing": "Rien n’est encore arrivé à cette adresse. Si vous avez créé le point de terminaison, vérifiez que votre proxy le laisse passer."
+    },
+    "mode": {
+      "test": "Test",
+      "live": "En direct"
+    },
+    "access": {
+      "sessionsWrite": "Démarrer un paiement et en clore un qui n’est plus utile",
+      "sessionsRead": "Voir comment un paiement s’est terminé",
+      "intentsRead": "Voir le montant encaissé",
+      "refundsWrite": "Effectuer des remboursements (dans Stripe, cet accès permet aussi de modifier des débits)",
+      "eventsRead": "Rattraper un paiement dont le webhook s’est perdu",
+      "disputesRead": "Afficher les litiges",
+      "methodsRead": "Voir les moyens de paiement que vous avez activés",
+      "accountRead": "Indiquer à quel compte Stripe appartient la clé",
+      "webhooksRead": "Vérifier votre webhook réel",
+      "heading": "Les accès dont la clé a besoin",
+      "note": "Les deux méthodes donnent exactement ces accès à la clé. Laissez tout le reste sur Aucun.",
+      "access": "Accès",
+      "why": "Pourquoi"
+    },
+    "path": {
+      "app": {
+        "step1": "Installer Node.js 22 ou plus récent",
+        "step2": "Installer la Stripe CLI",
+        "step5": "Décompresser le modèle et ouvrir son dossier",
+        "step7": "Installer l’app dans le tableau de bord Stripe et copier sa clé",
+        "title": "Avec votre propre app Stripe (la méthode recommandée par Stripe)",
+        "desc": "Vous téléversez une fois une petite app dans votre propre compte Stripe, avec l’outil en ligne de commande Stripe. Elle crée une clé avec exactement les accès ci-dessous.",
+        "note": "Téléversez une fois dans votre compte de test et une fois dans votre compte réel."
+      },
+      "hand": {
+        "step1": "Dans le tableau de bord Stripe, ouvrez Développeurs → Clés API",
+        "step2": "Choisissez « Créer une clé restreinte »",
+        "step3": "Nommez-la Adminium",
+        "step4": "Réglez les accès comme dans la liste ci-dessous. Laissez tout le reste sur Aucun.",
+        "step5": "Créez la clé et copiez-la",
+        "title": "À la main dans le tableau de bord Stripe (sans terminal)",
+        "desc": "Créez vous-même une clé restreinte avec les accès ci-dessous. Stripe préfère l’app, mais cela fonctionne aussi."
+      }
+    },
+    "alarm": {
+      "refused": "{provider} a refusé la clé. Elle a peut-être été révoquée, ou l’app désinstallée.",
+      "permission": "{provider} a refusé la clé : il lui manque une autorisation.",
+      "paused": "Les paiements sont en pause jusqu’à l’enregistrement d’une clé qui fonctionne."
+    },
+    "stop": {
+      "label": "Arrêter les nouveaux paiements",
+      "desc": "Aucun nouveau paiement ne démarre. Adminium garde la clé pour terminer les paiements en attente et effectuer les remboursements.",
+      "confirmTitle": "Arrêter les nouveaux paiements ?",
+      "confirmBody": "Les clients ne peuvent pas démarrer de paiement avec {service} tant que vous ne désactivez pas ceci. Les paiements déjà en cours se terminent quand même, et les remboursements fonctionnent toujours.",
+      "cancel": "Continuer à encaisser",
+      "confirm": "Arrêter les nouveaux paiements",
+      "badge": "Nouveaux paiements arrêtés"
+    },
+    "close": "Fermer",
+    "checklist": {
+      "heading": "Liste de configuration",
+      "progress": "{done} sur {total} terminées · votre progression est conservée",
+      "done": "terminé"
+    },
+    "title": "Paiements",
+    "subtitle": "Encaissez les paiements de vos factures et autres fiches. L’argent va directement sur votre propre compte Stripe ou PayPal ; Adminium ne le détient jamais.",
+    "tab": {
+      "setup": "Configuration"
+    },
+    "loadFailed": "Les paiements n’ont pas pu être chargés",
+    "forbidden": "Pour voir les paiements, il faut l’autorisation « Configurer les paiements » ou « Voir l’activité des paiements ».",
+    "viewOnly": "Vous pouvez voir comment les paiements sont configurés, mais pas les modifier.",
+    "noServices": "Aucun service de paiement n’est installé. Installez Card payments ou Wallet payments depuis les modules, puis configurez-le ici."
   }
 }

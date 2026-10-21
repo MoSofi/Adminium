@@ -87,7 +87,10 @@ export default {
     "usersManage": "Benutzer verwalten",
     "filesManage": "Dateien aller Benutzer verwalten",
     "storageManage": "Speicherziele verwalten",
-    "designerUse": "Apps mit Adminium Designer erstellen"
+    "designerUse": "Apps mit Adminium Designer erstellen",
+    "paymentsManage": "Zahlungen einrichten",
+    "paymentsRefund": "Erstattungen geben",
+    "paymentsView": "Zahlungsaktivität sehen und exportieren"
   },
   "rename": {
     "failed": "Die Rolle konnte nicht umbenannt werden",

@@ -14,7 +14,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -588,6 +588,30 @@ describe('StudioSettingsPage', () => {
     expect(await screen.findByRole('button', { name: 'Manage pages' })).toBeDefined();
     expect(await screen.findByRole('heading', { name: 'Danger zone' })).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Open storage' })).toBeNull();
+  });
+
+  it('offers Payments to either payments key, and to no one else', async () => {
+    systemActions = ['payments.view'];
+    await renderPage(['admin']);
+    expect(await screen.findByRole('button', { name: 'Open payments' })).toBeDefined();
+  });
+
+  it('hides Payments from an Admin who holds neither payments key', async () => {
+    systemActions = ['users.manage', 'storage.manage'];
+    await renderPage(['admin']);
+    expect(await screen.findByRole('button', { name: 'Open storage' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Open payments' })).toBeNull();
+  });
+
+  it('opens /studio/payments for payments.view alone, and refuses it without either key', async () => {
+    systemActions = ['payments.view'];
+    await renderPage(['viewer'], undefined, undefined, undefined, undefined, '/studio/payments');
+    expect(await screen.findByRole('tab', { name: 'Setup' })).toBeDefined();
+    cleanup();
+    systemActions = ['users.manage'];
+    await renderPage(['admin'], undefined, undefined, undefined, undefined, '/studio/payments');
+    expect(await screen.findByText('You don’t have access')).toBeDefined();
+    expect(screen.queryByRole('tab', { name: 'Setup' })).toBeNull();
   });
 
   it('admins get the super-admin notice, no settings fetch, but keep the danger zone', async () => {

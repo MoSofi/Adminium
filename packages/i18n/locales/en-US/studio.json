@@ -99,7 +99,8 @@
       "off": "off",
       "on": "on",
       "title": "Installed",
-      "uninstall": "Uninstall"
+      "uninstall": "Uninstall",
+      "setUpInPayments": "Set up in Payments"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -2563,6 +2564,11 @@
       "heading": "Maps",
       "body": "Whether maps are shown, which servers are asked, and what each of them learns.",
       "cta": "Open maps"
+    },
+    "paymentsCard": {
+      "heading": "Payments",
+      "body": "Let customers pay what they owe: pay links, a pay page, Stripe and PayPal, and ways to pay by hand.",
+      "cta": "Open payments"
     }
   },
   "source": {
@@ -3540,5 +3546,195 @@
       "off": "With this off, distances are straight lines worked out on this server and marked “about”. Nothing is asked outside.",
       "whyEnvOff": "Whoever runs this server switched the routing server off (ADMINIUM_ROUTING_SERVER=off, or all outside calls with ADMINIUM_NETWORK_FEATURES=off), so this switch does nothing."
     }
+  },
+  "payments": {
+    "service": {
+      "connectsStripe": "Connects to Stripe",
+      "connectsPaypal": "Connects to PayPal",
+      "first": "Set this up first.",
+      "notLoaded": "This add-on did not load, so its keys cannot be checked.",
+      "notLoadedBody": "A payment service loads only from a package Adminium can vouch for: one this build bundles, or one downloaded from the catalogue.",
+      "paypalOnce": "PayPal shows once: through this card, not on the Stripe page."
+    },
+    "reach": {
+      "badge": {
+        "networkOff": "Works offline",
+        "thisComputer": "This computer only",
+        "notSet": "Not set",
+        "private": "Private network",
+        "https": "Needs https",
+        "proxy": "Proxy setting",
+        "reachable": "Reachable"
+      },
+      "problem": {
+        "networkOff": "This server is set to work without the internet, so it cannot take online payments.",
+        "thisComputer": "This server runs on this computer only. Customers cannot reach it.",
+        "notSet": "This server has no public address yet.",
+        "private": "Only people on your own network can reach this address.",
+        "https": "Pay pages need https. Put this server behind HTTPS first.",
+        "proxy": "This server is behind a proxy that hides your customers' addresses. Turn on ADMINIUM_TRUST_PROXY."
+      },
+      "fix": {
+        "networkOff": "Set ADMINIUM_NETWORK_FEATURES=on on the server, restart it, then check again.",
+        "thisComputer": "Run Adminium on a server with a public https address, then set up payments there.",
+        "notSet": "Add the address people use to open this server. It is “Address in email links” in the Senders card.",
+        "private": "Give this server a public https address, and set it as “Address in email links” in Senders.",
+        "https": "When HTTPS works, change the address in Senders to the https one.",
+        "proxy": "Set ADMINIUM_TRUST_PROXY=on on the server, restart it, then check again."
+      },
+      "heading": "Can customers reach this server?",
+      "ok": "Customers can reach this server.",
+      "address": "This server's public address:",
+      "change": "Change",
+      "current": "Current value",
+      "notSetValue": "not set",
+      "still": "Still works here: ways to pay by hand, recording payments, the card-terminal record.",
+      "setAddress": "Set the address",
+      "checkAgain": "Check again",
+      "portTitle": "The address has a port",
+      "portBody": "PayPal only sends webhooks to port 443. Use an address without a port.",
+      "fixLabel": "Fix:"
+    },
+    "step": {
+      "paypal": {
+        "testKey": "Sandbox app",
+        "testWebhook": "Sandbox webhook",
+        "liveKey": "Live app"
+      },
+      "path": "Choose how to make your Stripe key",
+      "testKey": "Test key",
+      "testWebhook": "Test webhook",
+      "testPayment": "Send a test payment",
+      "liveKey": "Live key",
+      "liveWebhook": "Live webhook",
+      "livePayment": "First live payment arrived"
+    },
+    "field": {
+      "testKey": "Test key",
+      "liveKey": "Live key",
+      "signingSecret": "Signing secret",
+      "clientId": "Client id",
+      "secret": "Secret",
+      "webhookId": "Webhook ID",
+      "testKeyPrompt": "Paste the key that starts with rk_test_",
+      "liveKeyPrompt": "Paste the key that starts with rk_live_",
+      "signingSecretPrompt": "Paste the signing secret from the endpoint's page in Stripe. It starts with whsec_.",
+      "webhookIdPrompt": "PayPal shows it on the webhook’s page. Adminium needs it to check that a message really came from PayPal.",
+      "savedWhen": "Saved {when}",
+      "replace": "Replace",
+      "save": "Save",
+      "checkAndSave": "Check and save",
+      "cancel": "Cancel",
+      "notSet": "Not set",
+      "saving": "Saving…",
+      "checking": "Checking with {provider}…"
+    },
+    "refused": {
+      "secretKey": "This is a secret key (sk_). Stripe asks plugins not to use them. Make a restricted key instead.",
+      "publishableKey": "This is a publishable key (pk_). Paste the restricted key (rk_) instead.",
+      "webhookSecretInKey": "This is a webhook secret (whsec_). It goes in the webhook card below.",
+      "keyInSecret": "This is a key, not a signing secret. Paste the secret that starts with whsec_ from the endpoint’s page.",
+      "liveInTest": "This is a live key. This field is for the test key.",
+      "testInLive": "This is a test key. This field is for the live key.",
+      "notRestricted": "This is not a restricted key. It starts with rk_test_ or rk_live_.",
+      "notSigningSecret": "This is not a signing secret. It starts with whsec_.",
+      "hasSpaces": "There is a space or a line break inside what you pasted. Paste one value only.",
+      "empty": "Paste a value first.",
+      "networkOff": "This server is set to work without the internet, so no payment service can be connected.",
+      "desktop": "The desktop app takes payments by hand only: customers cannot reach this computer."
+    },
+    "error": {
+      "unknown": "That did not work. Try again."
+    },
+    "copied": "Copied",
+    "copy": "Copy",
+    "check": {
+      "missing": "{provider} says this key is missing: {list}. Edit the key in {provider} and paste it again.",
+      "ok": "{provider} accepted this key. Checked {when}.",
+      "failed": "{provider} could not check this key.",
+      "again": "Check"
+    },
+    "webhook": {
+      "headingStripe": "Webhook (Stripe calls it a webhook endpoint)",
+      "heading": "Webhook",
+      "address": "Address",
+      "noAddress": "This server needs a public address first.",
+      "copyAddress": "Copy the webhook address",
+      "events": "Tick these events in {provider}",
+      "copyEvent": "Copy {event}",
+      "snapshot": "Choose the Snapshot payload.",
+      "stripeListen": "The secret that stripe listen prints is a different one.",
+      "arrived": "The first event arrived {when}, checked.",
+      "noLiveEvent": "No live event has arrived yet.",
+      "nothing": "Nothing has reached this address yet. If you made the endpoint, check that your proxy lets it through."
+    },
+    "mode": {
+      "test": "Test",
+      "live": "Live"
+    },
+    "access": {
+      "sessionsWrite": "Start a payment and end one that is no longer needed",
+      "sessionsRead": "See how a payment ended",
+      "intentsRead": "See the amount taken",
+      "refundsWrite": "Give refunds (in Stripe this access also allows changing charges)",
+      "eventsRead": "Catch a payment whose webhook went missing",
+      "disputesRead": "Show disputes",
+      "methodsRead": "See which ways to pay you switched on",
+      "accountRead": "Show which Stripe account the key belongs to",
+      "webhooksRead": "Check your live webhook",
+      "heading": "The access the key needs",
+      "note": "Both ways give the key exactly this. Leave everything else at None.",
+      "access": "Access",
+      "why": "Why"
+    },
+    "path": {
+      "app": {
+        "step1": "Install Node.js 22 or later",
+        "step2": "Install the Stripe CLI",
+        "step5": "Unzip the template and open its folder",
+        "step7": "Install the app in the Stripe dashboard and copy its key",
+        "title": "With your own Stripe App (the way Stripe recommends)",
+        "desc": "You upload a small app to your own Stripe account once, using the Stripe command-line tool. It makes a key with exactly the access below.",
+        "note": "Upload once in your test account and once in your live account."
+      },
+      "hand": {
+        "step1": "In the Stripe dashboard, open Developers → API keys",
+        "step2": "Choose “Create restricted key”",
+        "step3": "Name it Adminium",
+        "step4": "Set the access in the list below. Leave everything else at None.",
+        "step5": "Create the key and copy it",
+        "title": "By hand in the Stripe dashboard (no terminal)",
+        "desc": "Make a restricted key yourself with the access below. Stripe prefers the app, but this works too."
+      }
+    },
+    "alarm": {
+      "refused": "{provider} refused the key. It may have been revoked, or the app uninstalled.",
+      "permission": "{provider} refused the key: it is missing a permission.",
+      "paused": "Payments are paused until a working key is saved."
+    },
+    "stop": {
+      "label": "Stop new payments",
+      "desc": "No new payments start. Adminium keeps the key to finish waiting payments and to give refunds.",
+      "confirmTitle": "Stop new payments?",
+      "confirmBody": "Customers cannot start a payment with {service} until you turn this off again. Payments already on their way still finish, and refunds still work.",
+      "cancel": "Keep taking payments",
+      "confirm": "Stop new payments",
+      "badge": "New payments stopped"
+    },
+    "close": "Close",
+    "checklist": {
+      "heading": "Setup checklist",
+      "progress": "{done} of {total} done · your progress is kept",
+      "done": "done"
+    },
+    "title": "Payments",
+    "subtitle": "Take payments for invoices and other records. The money goes straight to your own Stripe or PayPal account; Adminium never holds it.",
+    "tab": {
+      "setup": "Setup"
+    },
+    "loadFailed": "Payments could not be loaded",
+    "forbidden": "Seeing payments needs the “Set up payments” or the “See payment activity” permission.",
+    "viewOnly": "You can see how payments are set up, but not change it.",
+    "noServices": "No payment service is installed. Install Card payments or Wallet payments from Add-ons, then set it up here."
   }
 }
