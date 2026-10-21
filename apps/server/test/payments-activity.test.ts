@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * Activity: every attempt and refund, the ones that need a look flagged by
+ * what happened, "Mark as checked" kept with its note, a badge of what is
+ * still open, and a CSV a spreadsheet cannot be tricked by. A bookkeeper
+ * with payments.view reads and exports, and acts on nothing.
+ */
+import BetterSqlite3 from 'better-sqlite3';
+import Fastify, { type FastifyInstance } from 'fastify';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { createSqliteMetaDb, firstRun, paymentAttemptsRepo, permissionsRepo, refundsRepo, rolesRepo, usersRepo, type AttemptState, type MetaDb, type User } from '@adminium/meta';
+
+import { errorEnvelope } from '../src/errors.js';
+import { rbacPlugin } from '../src/plugins/rbac.js';
+import { paymentActivityRoutes } from '../src/routes/payments/activity.js';
+
+describe('payments activity', () => {
+  let meta: MetaDb;
+  let app: FastifyInstance;
+  let owner: User;
+  let bookkeeper: User;
+  const as = (user: User) => ({ 'x-test-user-id': user.id });
+  let seq = 0;
+
+  async function attempt(path: AttemptState[], patch: Record<string, unknown> = {}, label = 'INV-0042'): Promise<string> {
+    seq += 1;
+    const repo = paymentAttemptsRepo(meta);
+    const made = (await repo.create({ provider: 'payments-stripe', mode: 'live', accountId: 'acct_1', payable: { kind: 'document', connectionId: null, tableName: null, rowKey: `doc_${seq}` }, payableLabel: label, amount: '120.00', currency: 'EUR', linkId: null, nonce: `n${seq}`.padEnd(22, 'x'), createdBy: null }, 1000 + seq))!;
+    for (const to of path) await repo.move(made.id, to, to === path.at(-1) ? patch : {}, 1000 + seq);
+    return made.id;
+  }
+
+  beforeEach(async () => {
+    meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const users = usersRepo(meta);
+    const roles = rolesRepo(meta);
+    owner = await users.create({ email: 'mara@adminium.test', name: 'Mara', status: 'active' });
+    await roles.assignToUser(owner.id, (await roles.findBySlug('super-admin'))!.id);
+    const books = await roles.create({ slug: 'books', name: 'Bookkeeper' });
+    await permissionsRepo(meta).grant(books.id, 'system', 'payments.view', { allowed: true });
+    bookkeeper = await users.create({ email: 'ines@adminium.test', name: 'Ines', status: 'active' });
+    await roles.assignToUser(bookkeeper.id, books.id);
+
+    app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+    app.setErrorHandler((error: { statusCode?: number; code?: string; message: string; details?: unknown }, request, reply) => {
+      void reply.status(error.statusCode ?? 500).send(errorEnvelope(error.code ?? 'INTERNAL', error.message, request.id, error.details));
+    });
+    app.addHook('onRequest', async (request) => {
+      const id = request.headers['x-test-user-id'];
+      if (typeof id !== 'string') return;
+      const user = await users.findById(id);
+      if (user !== null) (request as unknown as { user: object }).user = { id: user.id, name: user.name, email: user.email };
+    });
+    await app.register(rbacPlugin, { meta });
+    await app.register(async (api) => api.register(paymentActivityRoutes({ meta })), { prefix: '/api/v1' });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+    await meta.db.destroy();
+  });
+
+  const REFUSED: AttemptState[] = ['open', 'succeeded', 'recording', 'record_refused'];
+
+  it('flags each row by what happened, and leaves a recorded payment alone', async () => {
+    await attempt(['open', 'succeeded', 'recording', 'recorded']);
+    await attempt(REFUSED, { problem: { code: 'AMOUNT_DIFFERS', message: 'Stripe took 100.00 EUR; 120.00 was asked.' } });
+    await attempt(REFUSED, { problem: { code: 'VOIDED', message: 'This invoice was voided.' } });
+    await attempt(REFUSED, { problem: { code: 'VALIDATION_FAILED', message: 'The table refused the row.' } });
+    await refundsRepo(meta).create({ attemptId: null, paymentId: null, provider: 'payments-stripe', mode: 'live', paymentRef: 'pi_1', amount: '20.00', currency: 'EUR', reason: 'requested_by_customer', note: null, idempotencyKey: 'provider:re_1', source: 'provider', requestedBy: null, state: 'succeeded', providerRefundId: 're_1' });
+    const listed = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(owner) })).json().data.rows;
+    expect(listed.map((row: { flag: { code: string } | null }) => row.flag?.code ?? null).sort()).toEqual([null, 'amount-differs', 'paid-not-recorded', 'payable-voided', 'refunded-at-provider'].sort((a, b) => String(a).localeCompare(String(b))));
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(4);
+  });
+
+  it('keeps who checked a flag and what they found, and asks for a note where it matters', async () => {
+    const id = await attempt(REFUSED, { problem: { code: 'VOIDED', message: 'This invoice was voided.' } });
+    const noNote = await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${id}/check`, headers: as(owner), payload: { note: '' } });
+    expect(noNote.statusCode).toBe(422);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${id}/check`, headers: as(owner), payload: { note: 'Refunded by bank transfer on 22 Oct.' } })).statusCode).toBe(204);
+    const row = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(owner) })).json().data.rows[0];
+    expect(row.check).toMatchObject({ by: owner.id, note: 'Refunded by bank transfer on 22 Oct.' });
+    expect(row.flag.code).toBe('payable-voided');
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows).toEqual([]);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${id}/check`, headers: as(owner), payload: { note: 'again' } })).statusCode).toBe(409);
+  });
+
+  it('lets a bookkeeper read and export, and act on nothing', async () => {
+    const id = await attempt(REFUSED, { problem: { code: 'AMOUNT_DIFFERS', message: 'x' } });
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(bookkeeper) })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity.csv', headers: as(bookkeeper) })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${id}/check`, headers: as(bookkeeper), payload: { note: 'ok' } })).statusCode).toBe(403);
+  });
+
+  it('writes a CSV no spreadsheet reads as a formula', async () => {
+    await attempt(['open', 'succeeded', 'recording', 'recorded'], {}, '=HYPERLINK("https://evil.test","pay")');
+    const csv = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity.csv', headers: as(owner) })).payload;
+    const [header, line] = csv.trim().split('\r\n');
+    expect(header).toBe('when,kind,service,mode,record,amount,currency,state,paid with,needs a look,checked,note');
+    expect(line).toContain(`"'=HYPERLINK(""https://evil.test"",""pay"")"`);
+  });
+});

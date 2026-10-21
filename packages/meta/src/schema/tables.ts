@@ -1558,6 +1558,9 @@ export interface AdminiumPaymentAttemptsTable {
   settledAt: Ts | null;
   recordedAt: Ts | null;
   flaggedAt: Ts | null;
+  checkedAt: Ts | null;
+  checkedBy: string | null;
+  checkNote: string | null;
 }
 
 /** A webhook, or a status change a poll found, unique per provider, mode and event id (0061). */
@@ -1630,6 +1633,9 @@ export interface AdminiumRefundsTable {
   settledAt: Ts | null;
   appliedAt: Ts | null;
   undoneAt: Ts | null;
+  checkedAt: Ts | null;
+  checkedBy: string | null;
+  checkNote: string | null;
 }
 
 /** A pay link: its token hashed and sealed, one current per payable (0061). */

@@ -81,6 +81,10 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('settled_at', c.ts)
     .addColumn('recorded_at', c.ts)
     .addColumn('flagged_at', c.ts)
+    // "Mark as checked" in Activity: who looked, when, and what they wrote.
+    .addColumn('checked_at', c.ts)
+    .addColumn('checked_by', c.id)
+    .addColumn('check_note', c.str(500))
     .execute();
   await db.schema.createIndex('uq_adminium_payment_attempts_open_key').on(metaTable('payment_attempts')).columns(['open_key']).unique().execute();
   await db.schema
@@ -180,6 +184,9 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     // When the shop's record took the refund, and when a later failure undid it.
     .addColumn('applied_at', c.ts)
     .addColumn('undone_at', c.ts)
+    .addColumn('checked_at', c.ts)
+    .addColumn('checked_by', c.id)
+    .addColumn('check_note', c.str(500))
     .execute();
   await db.schema.createIndex('uq_adminium_refunds_idempotency').on(metaTable('refunds')).columns(['idempotency_key']).unique().execute();
   await db.schema

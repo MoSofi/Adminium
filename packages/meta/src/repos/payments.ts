@@ -192,6 +192,14 @@ export interface PaymentAttempt {
   settledAt: number | null;
   recordedAt: number | null;
   flaggedAt: number | null;
+  /** "Mark as checked" in Activity. */
+  check: AttemptCheck | null;
+}
+
+export interface AttemptCheck {
+  at: number;
+  by: string | null;
+  note: string | null;
 }
 
 /** Why an attempt stopped short: a code the engine branches on, and the sentence staff read. */
@@ -261,6 +269,7 @@ function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAt
     settledAt: row.settledAt === null ? null : Number(row.settledAt),
     recordedAt: row.recordedAt === null ? null : Number(row.recordedAt),
     flaggedAt: row.flaggedAt === null ? null : Number(row.flaggedAt),
+    check: row.checkedAt === null ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
   };
 }
 
@@ -313,6 +322,9 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         settledAt: null,
         recordedAt: null,
         flaggedAt: null,
+        checkedAt: null,
+        checkedBy: null,
+        checkNote: null,
       };
       try {
         await db.insertInto('adminium_payment_attempts').values(row).execute();
@@ -414,6 +426,28 @@ export function paymentAttemptsRepo(meta: MetaDb) {
     },
 
     /** Marks a processing attempt past its method's horizon (Activity shows it; the sweep stops polling). */
+    /** "Mark as checked" in Activity: a person looked at this attempt's flag and said what they found. */
+    async check(id: string, by: string | null, note: string | null, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_payment_attempts')
+        .set({ checkedAt: at, checkedBy: by, checkNote: note, updatedAt: at })
+        .where('id', '=', id)
+        .where('checkedAt', 'is', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** Every attempt, newest first, for Activity: by mode and states when given. */
+    async list(filter: { mode?: 'test' | 'live'; states?: readonly AttemptState[]; provider?: string; before?: number; limit?: number } = {}): Promise<PaymentAttempt[]> {
+      let query = db.selectFrom('adminium_payment_attempts').selectAll();
+      if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
+      if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
+      if (filter.states !== undefined && filter.states.length > 0) query = query.where('state', 'in', [...filter.states]);
+      if (filter.before !== undefined) query = query.where('createdAt', '<', filter.before);
+      const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 50).execute();
+      return rows.map(decodeAttempt);
+    },
+
     async flag(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_payment_attempts')
@@ -787,6 +821,7 @@ export interface RefundRow {
   settledAt: number | null;
   appliedAt: number | null;
   undoneAt: number | null;
+  check: AttemptCheck | null;
 }
 
 export interface CreateRefundInput {
@@ -836,6 +871,7 @@ function decodeRefund(row: Selectable<AdminiumRefundsTable>): RefundRow {
     settledAt: row.settledAt === null ? null : Number(row.settledAt),
     appliedAt: row.appliedAt === null ? null : Number(row.appliedAt),
     undoneAt: row.undoneAt === null ? null : Number(row.undoneAt),
+    check: row.checkedAt === null ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
   };
 }
 
@@ -876,6 +912,9 @@ export function refundsRepo(meta: MetaDb) {
         settledAt: input.state === 'succeeded' ? at : null,
         appliedAt: null,
         undoneAt: null,
+        checkedAt: null,
+        checkedBy: null,
+        checkNote: null,
       };
       try {
         await db.insertInto('adminium_refunds').values(row).execute();
@@ -953,6 +992,26 @@ export function refundsRepo(meta: MetaDb) {
     },
 
     /** A failure after success took the refund back out of the shop's record. Once. */
+    /** "Mark as checked" in Activity: a refund made at the provider, looked at by a person. */
+    async check(id: string, by: string | null, note: string | null, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_refunds')
+        .set({ checkedAt: at, checkedBy: by, checkNote: note, updatedAt: at })
+        .where('id', '=', id)
+        .where('checkedAt', 'is', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** Refunds, newest first, for Activity. */
+    async list(filter: { mode?: 'test' | 'live'; before?: number; limit?: number } = {}): Promise<RefundRow[]> {
+      let query = db.selectFrom('adminium_refunds').selectAll();
+      if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
+      if (filter.before !== undefined) query = query.where('createdAt', '<', filter.before);
+      const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 50).execute();
+      return rows.map(decodeRefund);
+    },
+
     async markUndone(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_refunds')
