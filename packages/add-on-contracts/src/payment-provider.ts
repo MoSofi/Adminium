@@ -48,6 +48,16 @@ export const PAYMENT_PROVIDER_VERSION = 1;
 /** The name of the factory a server half must export. */
 export const PAYMENT_PROVIDER_FACTORY = 'createPaymentProvider';
 
+/**
+ * The name of an OPTIONAL second export of the server half: the event types
+ * the admin ticks when making the webhook at the provider, in the provider's
+ * own spelling (`checkout.session.completed`, `PAYMENT.CAPTURE.COMPLETED`).
+ * Studio lists them beside the webhook address with a copy button each, so
+ * the admin ticks exactly what the provider half listens for. A server half
+ * without it gets a webhook card with no list.
+ */
+export const PAYMENT_WEBHOOK_EVENTS_EXPORT = 'webhookEvents';
+
 /** A key belongs to one mode; so does every checkout, event and refund made with it. */
 export const PAYMENT_MODES = ['test', 'live'] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];

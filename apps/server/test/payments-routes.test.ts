@@ -83,7 +83,7 @@ function fakeProvider(context: PaymentProviderContext): PaymentProvider {
 }
 
 const runtime: AddOnRuntimeState = {
-  providers: new Map([['payment-provider@1', [{ addOnKey: 'payments-stripe', contract: 'payment-provider', version: 1, module: { createPaymentProvider: fakeProvider } }]]]),
+  providers: new Map([['payment-provider@1', [{ addOnKey: 'payments-stripe', contract: 'payment-provider', version: 1, module: { createPaymentProvider: fakeProvider, webhookEvents: ['checkout.session.completed', 'refund.failed', 42] } }]]]),
   slots: new Map(),
   conflicts: [],
   problems: [],
@@ -166,6 +166,8 @@ describe('payments setup routes', () => {
     expect(data.reachability.state).toBe('not-set');
     expect(data.services).toHaveLength(1);
     expect(data.services[0]).toMatchObject({ key: 'payments-stripe', name: 'Card payments', loaded: true, hasPaths: true });
+    // The list its server half exports, with anything that is not an event name left out.
+    expect(data.services[0].webhookEvents).toEqual(['checkout.session.completed', 'refund.failed']);
     expect(data.services[0].test.fields.map((one: { key: string; webhook: boolean; set: boolean }) => [one.key, one.webhook, one.set])).toEqual([
       ['secret_key', false, false],
       ['webhook_secret', true, false],

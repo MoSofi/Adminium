@@ -59,6 +59,8 @@ export const serviceView = z.object({
   /** Its server half loaded (a payment provider loads only from a package Adminium vouches for). */
   loaded: z.boolean(),
   hasPaths: z.boolean(),
+  /** The event types to tick at the provider, as its server half lists them (empty when it lists none). */
+  webhookEvents: z.array(z.string()),
   path: z.enum(['app', 'by-hand']).nullable(),
   stopped: z.boolean(),
   liveOn: z.boolean(),

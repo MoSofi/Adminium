@@ -24,7 +24,13 @@
  * Connecting is refused while network features are off and on the desktop
  * app: neither can take a payment online.
  */
-import { PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, type CredentialCheck, type PaymentMode } from '@adminium/add-on-contracts';
+import {
+  PAYMENT_PROVIDER_CONTRACT,
+  PAYMENT_PROVIDER_VERSION,
+  PAYMENT_WEBHOOK_EVENTS_EXPORT,
+  type CredentialCheck,
+  type PaymentMode,
+} from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
 import { paymentSettingsRepo, settingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
@@ -77,6 +83,16 @@ export interface PaymentsRoutesDeps {
 interface PaymentAddOn {
   installed: InstalledManifest;
   manifest: AddOnManifest;
+}
+
+/**
+ * The event types a loaded server half lists for its webhook, read off its
+ * optional named export and kept only when it is a short list of short names.
+ */
+function webhookEventsOf(module: unknown): string[] {
+  const value = (module as Record<string, unknown> | null)?.[PAYMENT_WEBHOOK_EVENTS_EXPORT];
+  if (!Array.isArray(value) || value.length > 30) return [];
+  return value.filter((one): one is string => typeof one === 'string' && /^[A-Za-z0-9._*-]{1,120}$/.test(one));
 }
 
 /** The provider that offers two ways to make its key (its own app, or by hand). */
@@ -144,6 +160,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     const { manifest, installed } = addOn;
     const fields = secretFields(manifest);
     const runtime = deps.runtime();
+    const entry = runtime === null ? null : providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, manifest.key);
     const mode = (which: PaymentMode) => ({
       fields: fields.map((field) => {
         const saved = state[which].fields[field.key];
@@ -160,8 +177,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       name: manifest.name,
       description: manifest.description,
       status: installed.row.status,
-      loaded: runtime !== null && providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, manifest.key) !== null,
+      loaded: entry !== null,
       hasPaths: TWO_PATHS.has(manifest.key),
+      webhookEvents: entry === null ? [] : webhookEventsOf(entry.module),
       path: state.path,
       stopped: state.stopped,
       liveOn: state.liveOn,
