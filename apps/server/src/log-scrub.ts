@@ -95,11 +95,33 @@ function decodeParamName(raw: string): string {
  * Fast path: no `?`, nothing to do — which is every request in the product but
  * the handful that carry a query.
  */
+/**
+ * Pay page paths whose next segment opens something: a pay link's token, the
+ * nonce of a way back from a provider, a demo checkout's attempt. Anyone who
+ * reads a log line with a live token holds a working pay link, so the segment
+ * is replaced; the rest of the path (`/challenge`, `/checkout`) stays.
+ */
+const PAY_PATH_SECRETS: readonly RegExp[] = [
+  /^(\/pay\/api\/(?:back|demo)\/)[^/?#]+/,
+  /^(\/pay\/(?:back|demo)\/)[^/?#]+/,
+  /^(\/pay\/api\/)(?!back\/|demo\/)[^/?#]+/,
+  /^(\/pay\/)(?!api\/|back\/|demo\/|assets\/)[^/?#]+/,
+];
+
+/** The path with a pay link's token (or a way back's nonce) replaced by {@link REDACTED}. */
+export function scrubPathForLog(path: string): string {
+  if (!path.startsWith('/pay/')) return path;
+  for (const pattern of PAY_PATH_SECRETS) {
+    if (pattern.test(path)) return path.replace(pattern, `$1${REDACTED}`);
+  }
+  return path;
+}
+
 export function scrubUrlForLog(url: string): string {
   const mark = url.indexOf('?');
-  if (mark === -1) return url;
+  if (mark === -1) return scrubPathForLog(url);
 
-  const path = url.slice(0, mark);
+  const path = scrubPathForLog(url.slice(0, mark));
   const query = url.slice(mark + 1);
   let touched = false;
 
@@ -117,5 +139,5 @@ export function scrubUrlForLog(url: string): string {
     })
     .join('&');
 
-  return touched ? `${path}?${scrubbed}` : url;
+  return touched ? `${path}?${scrubbed}` : `${path}?${query}`;
 }

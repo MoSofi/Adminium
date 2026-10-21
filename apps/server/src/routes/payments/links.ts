@@ -58,7 +58,8 @@ const addressBody = z.object({ origin: z.string().min(1).max(255) });
 const linkView = z.object({ id: z.string(), url: z.string(), mode: z.enum(['test', 'live']), expiresAt: z.number(), createdAt: z.number() });
 const mintReply = z.object({ data: z.object({ link: linkView, replaced: z.boolean() }) });
 const currentReply = z.object({ data: linkView.nullable() });
-const addressReply = z.object({ data: z.object({ origin: z.string().nullable(), choices: z.array(z.string()) }) });
+/** `staffOrigin`: the server's own public address (the staff one), when it is among the choices; the others are customer domains. */
+const addressReply = z.object({ data: z.object({ origin: z.string().nullable(), choices: z.array(z.string()), staffOrigin: z.string().nullable() }) });
 
 function requirePerson(request: FastifyRequest): string {
   if (request.apiKeyPrincipal != null) {
@@ -74,6 +75,11 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
   const seal = linkSealFromSecret(deps.secret);
   const views = createPublicViews(meta);
   const links = paymentLinksRepo(meta);
+
+  async function staffOrigin(): Promise<string | null> {
+    const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
+    return typeof publicOrigin === 'string' ? normalizePublicOrigin(publicOrigin) : null;
+  }
 
   async function choices(): Promise<string[]> {
     const out: string[] = [];
@@ -102,12 +108,19 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
     if (found === null) throw new NotFoundError('That table is not there any more.');
     const pk = pkOfRowKey(found.table, payable.rowKey);
     if (pk === null) throw new NotFoundError('No such record.');
+    // The row as this person's own row limits show it. When those cannot be
+    // worked out (no resolved permissions, or the table is not in the
+    // connection's view, a private table among them), no link is made.
     const set = (request as unknown as { rbacResolution?: PermissionSet }).rbacResolution;
     const view = await views.viewFor(connectionId);
-    const context = set === undefined || view === null ? null : await rowLimitContextOf(meta, set, connectionId, view.model);
-    const row = context === null
-      ? await found.target.db.selectFrom(found.table.id).selectAll().where((eb) => eb.and(Object.entries(pk).map(([column, value]) => eb(found.target.db.dynamic.ref(column), '=', value)))).executeTakeFirst()
-      : await fetchVisible(context, found.target.db, found.table, pk, 'read');
+    if (set === undefined || view === null || !view.model.tables.some((table) => table.id === found.table.id)) {
+      throw new ForbiddenError('No pay link can be made for this record: which of its rows you may see cannot be worked out.', 'TABLE_FORBIDDEN');
+    }
+    const context = await rowLimitContextOf(meta, set, connectionId, view.model);
+    const row =
+      context === null
+        ? await found.target.db.selectFrom(found.table.id).selectAll().where((eb) => eb.and(Object.entries(pk).map(([column, value]) => eb(found.target.db.dynamic.ref(column), '=', value)))).executeTakeFirst()
+        : await fetchVisible(context, found.target.db, found.table, pk, 'read');
     // A row this person cannot see answers as one that is not there.
     if (row === undefined) throw new NotFoundError('No such record.');
   }
@@ -116,8 +129,10 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
     return { id: link.id, url: payUrl(address, seal.unseal(link.tokenSealed)), mode: link.mode, expiresAt: link.expiresAt, createdAt: link.createdAt };
   }
 
-  async function reachableAddress(): Promise<string> {
-    const answer = await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded: false });
+  async function reachableAddress(request: FastifyRequest): Promise<string> {
+    // A request that came through a proxy, with the proxy's word not trusted, means every customer would share its address.
+    const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined;
+    const answer = await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded });
     const address = await payAddress(meta);
     if (answer.state !== 'reachable' || address === null) {
       throw new ValidationFailedError('Customers cannot reach the pay address, so no pay link can be made.', { reason: answer.state });
@@ -128,7 +143,7 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
   return async (app) => {
     app.get('/payments/pay-address', { schema: { response: { 200: addressReply } } }, async (request) => {
       if (!((await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView)))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
-      return { data: { origin: await payAddress(meta), choices: await choices() } };
+      return { data: { origin: await payAddress(meta), choices: await choices(), staffOrigin: await staffOrigin() } };
     });
 
     app.put(
@@ -147,7 +162,7 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
         await app.rbac.audit(request, { category: 'payments', action: 'payments.pay-address.changed', changes: { before: { origin: before }, after: { origin } } });
         // Choosing the first address moves nothing; changing it moves every link and webhook.
         if (before !== null && before !== origin) await raiseMoneyRedirect(meta, { what: 'pay-address', service: null, from: before, to: origin, by: ((request as unknown as { user?: { email?: string; name?: string } }).user?.name ?? (request as unknown as { user?: { email?: string } }).user?.email ?? 'someone') });
-        return { data: { origin, choices: allowed } };
+        return { data: { origin, choices: allowed, staffOrigin: await staffOrigin() } };
       },
     );
 
@@ -158,7 +173,7 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
         const userId = requirePerson(request);
         const payable = request.body;
         await assertMayLink(request, payable);
-        const address = await reachableAddress();
+        const address = await reachableAddress(request);
         const minted = await mintLink(meta, seal, { payable, mode: (await deps.liveOn()) ? 'live' : 'test', createdBy: userId }, app.rbac.now());
         await app.rbac.audit(request, {
           category: 'payments',

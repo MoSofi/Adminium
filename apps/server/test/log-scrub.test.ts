@@ -18,6 +18,24 @@ import { REDACTED, SENSITIVE_QUERY_PARAMS, scrubUrlForLog } from '../src/log-scr
 const TOKEN = 'f'.repeat(64);
 
 describe('scrubUrlForLog', () => {
+  it("redacts a pay link's token, a way back's nonce and a demo attempt, in every pay path", () => {
+    const token = 'Xk2v9QpL7mN3aR5tW8yZ1b';
+    expect(scrubUrlForLog(`/pay/${token}`)).toBe(`/pay/${REDACTED}`);
+    expect(scrubUrlForLog(`/pay/api/${token}`)).toBe(`/pay/api/${REDACTED}`);
+    expect(scrubUrlForLog(`/pay/api/${token}/challenge`)).toBe(`/pay/api/${REDACTED}/challenge`);
+    expect(scrubUrlForLog(`/pay/api/${token}/checkout`)).toBe(`/pay/api/${REDACTED}/checkout`);
+    expect(scrubUrlForLog(`/pay/api/${token}/logo?v=2`)).toBe(`/pay/api/${REDACTED}/logo?v=2`);
+    expect(scrubUrlForLog('/pay/back/nonce_123?left=1')).toBe(`/pay/back/${REDACTED}?left=1`);
+    expect(scrubUrlForLog('/pay/api/back/nonce_123')).toBe(`/pay/api/back/${REDACTED}`);
+    expect(scrubUrlForLog('/pay/demo/pat_1')).toBe(`/pay/demo/${REDACTED}`);
+    expect(scrubUrlForLog('/pay/api/demo/pat_1')).toBe(`/pay/api/demo/${REDACTED}`);
+    // The page's own files carry nothing secret.
+    expect(scrubUrlForLog('/pay/assets/pay-abc123.js')).toBe('/pay/assets/pay-abc123.js');
+    // Other paths are untouched.
+    expect(scrubUrlForLog(`/payments/${token}`)).toBe(`/payments/${token}`);
+    expect(scrubUrlForLog(`/api/v1/pay/${token}`)).toBe(`/api/v1/pay/${token}`);
+  });
+
   it('redacts a code a guest typed, in the query and in its header', () => {
     expect(scrubUrlForLog('/public/records/tickets?code=K7PX2QWE&limit=5')).toBe(`/public/records/tickets?code=${REDACTED}&limit=5`);
     const lines: string[] = [];
