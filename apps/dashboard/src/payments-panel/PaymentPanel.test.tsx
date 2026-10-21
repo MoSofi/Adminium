@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppToastProvider } from '../pages/toasts.js';
-import type { PaymentPanelView } from './paymentPanelApi.js';
+import type { PanelPayment, PanelRefund, PaymentPanelView } from './paymentPanelApi.js';
 import PaymentPanel from './PaymentPanel.js';
 import { holdsCardNumber, moreThan, typedAmount } from './paymentText.js';
 
@@ -29,10 +29,16 @@ function viewOf(patch: Partial<PaymentPanelView> = {}): PaymentPanelView {
     links: { on: true, reason: null },
     mayChange: true,
     mayRecord: true,
+    mayRefund: false,
     waiting: [],
     payments: [],
     ...patch,
   };
+}
+
+/** A payment as the server lists it: by hand unless the patch names its online payment. */
+function paymentOf(patch: Partial<PanelPayment> = {}): PanelPayment {
+  return { id: 'kept:1', number: 'REC-0012', amount: '120.00', currency: 'EUR', refunded: '0', way: 'card', wayLabel: 'Visa ••4242', provider: 'payments-stripe', test: false, paidOn: '2026-10-20', recordedBy: null, cardLast4: null, attemptId: null, refundable: '0', refundRefusal: null, refunds: [], dispute: null, ...patch };
 }
 
 let calls: { url: string; body: unknown }[];
@@ -125,8 +131,8 @@ describe('the Payment panel', () => {
         paid: '120.00',
         mayRecord: false,
         payments: [
-          { id: 'kept:1', number: 'REC-0012', amount: '70.00', currency: 'EUR', refunded: '0', way: 'card', wayLabel: 'Visa ••4242', provider: 'payments-stripe', test: true, paidOn: '2026-10-20', recordedBy: null, cardLast4: null },
-          { id: 'row:2', number: 'REC-0013', amount: '50.00', currency: 'EUR', refunded: '0', way: 'card', wayLabel: null, provider: null, test: false, paidOn: '2026-10-21', recordedBy: 'Tom Becker', cardLast4: '4242' },
+          paymentOf({ id: 'kept:1', number: 'REC-0012', amount: '70.00', refunded: '0', way: 'card', wayLabel: 'Visa ••4242', provider: 'payments-stripe', test: true, paidOn: '2026-10-20', recordedBy: null, cardLast4: null }),
+          paymentOf({ id: 'row:2', number: 'REC-0013', amount: '50.00', refunded: '0', way: 'card', wayLabel: null, provider: null, test: false, paidOn: '2026-10-21', recordedBy: 'Tom Becker', cardLast4: '4242' }),
         ],
       }),
     );
@@ -148,7 +154,7 @@ describe('the Payment panel', () => {
       viewOf({
         due: '40.00',
         paid: '80.00',
-        payments: [{ id: 'kept:1', number: 'REC-0012', amount: '120.00', currency: 'EUR', refunded: '40.00', way: 'card', wayLabel: 'Visa ••4242', provider: 'payments-stripe', test: false, paidOn: '2026-10-20', recordedBy: null, cardLast4: null }],
+        payments: [paymentOf({ id: 'kept:1', number: 'REC-0012', amount: '120.00', refunded: '40.00', way: 'card', wayLabel: 'Visa ••4242', provider: 'payments-stripe', test: false, paidOn: '2026-10-20', recordedBy: null, cardLast4: null })],
       }),
     );
     expect(screen.getByText('€40.00', { selector: 'bdi.text-\\[20px\\]' })).toBeTruthy();
@@ -173,6 +179,109 @@ describe('the Payment panel', () => {
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(await screen.findByText('Pay link revoked. The old address no longer works.')).toBeTruthy();
     expect(calls.some((call) => call.url.endsWith('/links/pl_1/revoke'))).toBe(true);
+  });
+});
+
+describe('refunds and disputes on the Payment panel', () => {
+  const ONLINE = { attemptId: 'pat_1', refundable: '120.00' };
+
+  it('offers Refund… only to whoever may refund, and says why when it cannot be now', async () => {
+    const user = userEvent.setup();
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf(ONLINE)] }));
+    expect(screen.queryByRole('button', { name: 'More for REC-0012' })).toBeNull();
+    cleanup();
+    await show(
+      viewOf({
+        due: '0.00',
+        paid: '120.00',
+        mayRecord: false,
+        mayRefund: true,
+        payments: [
+          paymentOf({ ...ONLINE, refundable: '0', refundRefusal: { code: 'FULLY_REFUNDED', message: 'This payment is fully refunded.' }, refunded: '120.00' }),
+          paymentOf({ id: 'row:2', number: 'REC-0013', provider: null, wayLabel: null, recordedBy: 'Tom Becker' }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'More for REC-0012' }));
+    const item = await screen.findByRole('menuitem', { name: 'Refund…' });
+    expect(item.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById(item.getAttribute('aria-describedby')!)?.textContent).toBe('This payment is fully refunded.');
+    await user.click(item);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'More for REC-0013' }));
+    const byHand = await screen.findByRole('menuitem', { name: 'Refund…' });
+    expect(document.getElementById(byHand.getAttribute('aria-describedby')!)?.textContent).toBe('This way to pay cannot be refunded online. Refund the customer by hand.');
+  });
+
+  it('refunds in two steps: Full or Part under the most that is left, then the question with focus on Back, with one key', async () => {
+    const user = userEvent.setup();
+    answers['/api/v1/payments/attempts/pat_1/refund'] = { data: { label: 'INV-0042', provider: 'payments-stripe', test: false, taken: '120.00', currency: 'EUR', refundable: '120.00', paidWith: 'Visa ••4242', refusal: null } };
+    answers['/api/v1/payments/refunds'] = { data: { refund: { id: 'rf_1', attemptId: 'pat_1', amount: '40.00', currency: 'EUR', state: 'pending', source: 'staff', failureMessage: null, createdAt: Date.now(), settledAt: null }, fresh: true } };
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, mayRefund: true, payments: [paymentOf(ONLINE)] }));
+    await user.click(screen.getByRole('button', { name: 'More for REC-0012' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Refund…' }));
+    const dialog = await screen.findByRole('dialog', { name: /Refund a payment/ });
+    expect(await within(dialog).findByText('Up to €120.00 can be refunded')).toBeTruthy();
+    expect(within(dialog).getByText('REC-0012 · €120.00 · Visa ••4242')).toBeTruthy();
+    const amount = within(dialog).getByLabelText('Amount', { selector: 'input' }) as HTMLInputElement;
+    expect(amount.value).toBe('120.00');
+    expect(amount.readOnly).toBe(true);
+    await user.click(within(dialog).getByRole('radio', { name: 'Part' }));
+    expect(amount.readOnly).toBe(false);
+    const go = within(dialog).getByRole('button', { name: 'Continue' });
+    await user.type(amount, '120.01');
+    expect(go.getAttribute('aria-disabled')).toBe('true');
+    expect(within(dialog).getByText('Up to €120.00 can be refunded').className).toContain('text-danger');
+    await user.clear(amount);
+    await user.type(amount, '40');
+    await user.click(within(dialog).getByRole('radio', { name: 'Duplicate' }));
+    expect(within(dialog).getByText('Goes back to Visa ••4242. Usually 5–10 days.')).toBeTruthy();
+    await user.click(go);
+    const confirm = await screen.findByRole('dialog', { name: /Refund €40\.00 to Visa ••4242\?/ });
+    expect(within(confirm).getByText("This can't be undone.")).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(within(confirm).getByRole('button', { name: 'Back' })));
+    await user.click(within(confirm).getByRole('button', { name: 'Refund' }));
+    expect(await screen.findByText('Refund of €40.00 requested.')).toBeTruthy();
+    const sent = calls.filter((call) => call.url.endsWith('/api/v1/payments/refunds'));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toMatchObject({ attemptId: 'pat_1', amount: '40', reason: 'duplicate', note: null });
+    expect(String((sent[0]!.body as { key: string }).key)).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it('says each refund under its payment: asked, failed in the service’s words, made in its dashboard; a done one inline', async () => {
+    const at = Date.UTC(2026, 9, 22);
+    const refund = (patch: Partial<PanelRefund> & { id: string }): PanelRefund => ({ attemptId: 'pat_1', amount: '40.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: at, settledAt: at, ...patch, id: `rf_${patch.id}` });
+    await show(
+      viewOf({
+        due: '60.00',
+        paid: '60.00',
+        payments: [
+          paymentOf({
+            ...ONLINE,
+            refunded: '60.00',
+            refundable: '20.00',
+            refunds: [refund({ id: 'a' }), refund({ id: 'b', amount: '10.00', state: 'pending', settledAt: null }), refund({ id: 'c', amount: '30.00', state: 'failed', failureMessage: 'The card was closed.' }), refund({ id: 'd', amount: '20.00', source: 'provider' })],
+          }),
+        ],
+      }),
+    );
+    expect(screen.getByText(/^refunded €40\.00 on (22 Oct|Oct 22)$/)).toBeTruthy();
+    expect(screen.getByText('Refund of €10.00 requested')).toBeTruthy();
+    expect(screen.getByText('The refund of €30.00 failed: The card was closed. Contact the customer and record what you agree.')).toBeTruthy();
+    expect(screen.getByText(/^Refund of €20\.00 made in the Stripe dashboard on (22 Oct|Oct 22) · recorded$/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Needs a look' }).getAttribute('href')).toBe('/studio/payments?tab=activity');
+  });
+
+  it('shows an open dispute as a danger notice and a badge, and a closed one as where to read its outcome', async () => {
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, dispute: { state: 'open', at: Date.now(), closedAt: null } })] }));
+    expect(screen.getByText('Disputed — answer it in the Stripe dashboard')).toBeTruthy();
+    expect(screen.getByText('If the dispute is lost, the money goes back to the customer. The invoice is not changed by itself.')).toBeTruthy();
+    expect(screen.getByText('Disputed')).toBeTruthy();
+    cleanup();
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, dispute: { state: 'closed', at: 1, closedAt: 2 } })] }));
+    expect(screen.getByText('The dispute was closed. Its outcome is in the Stripe dashboard.')).toBeTruthy();
+    expect(screen.queryByText('Disputed')).toBeNull();
   });
 });
 

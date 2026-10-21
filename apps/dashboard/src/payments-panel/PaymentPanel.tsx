@@ -9,20 +9,30 @@
  * back. The actions are for whoever may change the record; a reader sees the
  * panel and no button.
  *
+ * A payment taken online carries a "…" menu with "Refund…" for whoever may
+ * refund; when it cannot be refunded now the item stays (focusable, with
+ * `aria-disabled`) and says why. Each refund shows under its payment: asked,
+ * waiting, failed in the service's words, made in the service's dashboard; a
+ * done one reads inline. A dispute is a danger notice and a badge on its row;
+ * the record itself is never changed by it.
+ *
  * Loaded lazily, with its words, only on a record that takes payments.
  */
-import { useState, type ReactNode } from 'react';
-import { Badge, Button } from '@adminium/ui';
+import { useId, useState, type ReactNode } from 'react';
+import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Tooltip } from '@adminium/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Banknote, CircleCheck, CircleDot, Clock, CreditCard, FileText, Landmark, Link2, Mail, Package, Plus, Send, ServerOff, type LucideIcon } from 'lucide-react';
+import { Ban, Banknote, CircleCheck, CircleDot, CircleX, Clock, CornerDownLeft, CreditCard, Ellipsis, FileText, Landmark, Link2, Loader, Mail, Package, Plus, RotateCcw, Send, ServerOff, ShieldAlert, type LucideIcon } from 'lucide-react';
 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
-import { emailLink, fetchCurrentLink, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelPayment, type PanelRecord, type PaymentPanelView } from './paymentPanelApi.js';
+import { emailLink, fetchCurrentLink, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelPayment, type PanelRecord, type PanelRefund, type PaymentPanelView } from './paymentPanelApi.js';
 import { decimalsOf, formatMoney, moreThan, shortDay } from './paymentText.js';
 import { readerLocale, usePaymentsMessages } from './paymentsMessages.js';
 import { RecordPaymentDialog } from './RecordPaymentDialog.js';
+import RefundDialog from './RefundDialog.js';
+import { refusalWords } from './refundWords.js';
+import { serviceName } from './serviceName.js';
 
 const WAY_ICONS: Record<string, LucideIcon> = {
   card: CreditCard,
@@ -33,13 +43,7 @@ const WAY_ICONS: Record<string, LucideIcon> = {
   online: CreditCard,
 };
 
-/** The service's name, as its own mark (never translated). */
-export function serviceName(provider: string): string {
-  if (provider === 'payments-stripe') return 'Stripe';
-  if (provider === 'payments-paypal') return 'PayPal';
-  if (provider === 'demo') return t('payments:panel.by.online', 'online');
-  return provider.replace(/^payments-/, '');
-}
+export { serviceName };
 
 function byWay(way: string, last4: string | null): string {
   const words: Record<string, () => string> = {
@@ -78,6 +82,7 @@ const NOTICE_TONES = {
   neutral: 'bg-surface-3 text-fg-muted',
   warn: 'bg-warn-soft text-warn',
   info: 'bg-info-soft text-info',
+  danger: 'bg-danger-soft text-danger',
 } as const;
 
 function Notice({ tone, icon: Icon, children, action }: { tone: keyof typeof NOTICE_TONES; icon: LucideIcon; children: ReactNode; action?: ReactNode }): ReactNode {
@@ -92,13 +97,103 @@ function Notice({ tone, icon: Icon, children, action }: { tone: keyof typeof NOT
   );
 }
 
-function PaymentRow({ payment, currency, locale }: { payment: PanelPayment; currency: string; locale: string }): ReactNode {
+const SUB_TONES = {
+  info: { box: 'bg-info-soft px-2.5 py-1.5 text-fg-muted', icon: 'text-info' },
+  danger: { box: 'bg-danger-soft px-2.5 py-1.5 font-semibold text-fg', icon: 'text-danger' },
+  neutral: { box: 'text-fg-muted', icon: 'text-fg-subtle' },
+} as const;
+
+/** A refund's line under its payment, or null when it reads inline (done, asked here). */
+function refundLine(refund: PanelRefund, provider: string | null, money: (amount: string) => string, locale: string): { tone: keyof typeof SUB_TONES; icon: LucideIcon; text: string; look: boolean } | null {
+  const amount = money(refund.amount);
+  if (refund.source === 'provider' && refund.state === 'succeeded') {
+    return {
+      tone: 'neutral',
+      icon: CornerDownLeft,
+      text: t('payments:panel.refundedThere', 'Refund of {amount} made in the {service} dashboard on {date} · recorded', { amount, service: serviceName(provider ?? ''), date: shortDay(refund.settledAt ?? refund.createdAt, locale) }),
+      look: true,
+    };
+  }
+  switch (refund.state) {
+    case 'succeeded':
+      return null;
+    case 'requires_action':
+      return { tone: 'info', icon: Loader, text: t('payments:panel.refundWaitingCustomer', 'Refund of {amount} is waiting for the customer', { amount }), look: false };
+    case 'failed': {
+      const reason = refund.failureMessage?.trim().replace(/[.。]+$/u, '') ?? '';
+      return {
+        tone: 'danger',
+        icon: CircleX,
+        text:
+          reason === ''
+            ? t('payments:panel.refundFailedPlain', 'The refund of {amount} failed. Contact the customer and record what you agree.', { amount })
+            : t('payments:panel.refundFailed', 'The refund of {amount} failed: {reason}. Contact the customer and record what you agree.', { amount, reason }),
+        look: false,
+      };
+    }
+    case 'cancelled':
+      return { tone: 'neutral', icon: CircleX, text: t('payments:panel.refundCancelled', 'The refund of {amount} was cancelled.', { amount }), look: false };
+    default:
+      return { tone: 'info', icon: Loader, text: t('payments:panel.refundRequested', 'Refund of {amount} requested', { amount }), look: false };
+  }
+}
+
+/** The "…" menu of a payment (or of a payment waiting for the bank): "Refund…", or why it cannot be refunded now. */
+function RowMenu({ label, why, onRefund }: { label: string; why: string | null; onRefund: () => void }): ReactNode {
+  const whyId = useId();
+  const item = (
+    <DropdownMenuItem
+      icon={<RotateCcw className="size-4" />}
+      aria-disabled={why === null ? undefined : true}
+      aria-describedby={why === null ? undefined : whyId}
+      className={why === null ? undefined : 'cursor-not-allowed text-fg-subtle'}
+      onSelect={(event) => {
+        if (why !== null) {
+          event.preventDefault();
+          return;
+        }
+        onRefund();
+      }}
+    >
+      {t('payments:panel.menu.refund', 'Refund…')}
+    </DropdownMenuItem>
+  );
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="size-[30px] shrink-0 border border-border p-0" aria-label={label}>
+          <Ellipsis className="size-4" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[210px]">
+        {why === null ? item : <Tooltip content={why} side="bottom" align="end">{item}</Tooltip>}
+        {/* The reason stays in the page while the menu is open, so a screen reader finds it on the first focus. */}
+        {why === null ? null : (
+          <span id={whyId} className="sr-only">
+            {why}
+          </span>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { payment: PanelPayment; currency: string; locale: string; mayRefund: boolean; onRefund: (payment: PanelPayment) => void }): ReactNode {
   const Icon = WAY_ICONS[payment.way] ?? CircleDot;
+  const money = (value: string): string => formatMoney(value, payment.currency || currency, locale, decimalsOf(payment.amount));
   const amount = formatMoney(payment.amount, payment.currency || currency, locale);
   const date = payment.paidOn === '' ? '' : shortDay(payment.paidOn, locale);
   const fullyRefunded = payment.refunded !== '0' && !moreThan(payment.amount, payment.refunded);
-  const partlyRefunded = moreThan(payment.refunded, '0') && !fullyRefunded;
-  const refunded = partlyRefunded ? t('payments:panel.refundedInline', 'refunded {amount}', { amount: formatMoney(payment.refunded, payment.currency || currency, locale) }) : null;
+  const disputed = payment.dispute?.state === 'open';
+  // Refunds done here read inline, each with its day; a refunded amount with no refund behind it (written by hand) reads as one.
+  const doneHere = payment.refunds.filter((refund) => refund.state === 'succeeded' && refund.source === 'staff');
+  const inline: string[] =
+    payment.refunds.length > 0
+      ? doneHere.map((refund) => t('payments:panel.refundedOnInline', 'refunded {amount} on {date}', { amount: money(refund.amount), date: shortDay(refund.settledAt ?? refund.createdAt, locale) }))
+      : moreThan(payment.refunded, '0') && !fullyRefunded
+        ? [t('payments:panel.refundedInline', 'refunded {amount}', { amount: money(payment.refunded) })]
+        : [];
+  const subs = payment.refunds.map((refund) => ({ refund, line: refundLine(refund, payment.provider, money, locale) })).filter((one) => one.line !== null);
   const online = payment.provider !== null;
   const recorder = online
     ? t('payments:panel.recordedBy', 'recorded by {name}', { name: t('payments:panel.online', 'Online payment ({service})', { service: serviceName(payment.provider!) }) })
@@ -107,28 +202,31 @@ function PaymentRow({ payment, currency, locale }: { payment: PanelPayment; curr
       : t('payments:panel.recordedBy', 'recorded by {name}', { name: payment.recordedBy });
   const parts: ReactNode[] = online
     ? [
-        payment.number === null ? null : <bdi key="n" className="font-mono">{payment.number}</bdi>,
+        payment.number === null ? null : <bdi key="n" className="font-mono font-bold text-accent">{payment.number}</bdi>,
         <bdi key="a" dir="ltr" className="font-mono font-semibold text-fg">{amount}</bdi>,
         payment.wayLabel === null ? null : <span key="w">{payment.wayLabel}</span>,
         <span key="s">{serviceName(payment.provider!)}</span>,
         date === '' ? null : <span key="d">{date}</span>,
         recorder === null ? null : <span key="r">{recorder}</span>,
-        refunded === null ? null : <span key="f">{refunded}</span>,
+        ...inline.map((text, index) => <span key={`f${String(index)}`}>{text}</span>),
       ]
     : [
         <bdi key="a" dir="ltr" className="font-mono font-semibold text-fg">{amount}</bdi>,
         <span key="w">{byWay(payment.way, payment.cardLast4)}</span>,
         recorder === null ? null : <span key="r">{recorder}</span>,
-        refunded === null ? null : <span key="f">{refunded}</span>,
+        ...inline.map((text, index) => <span key={`f${String(index)}`}>{text}</span>),
       ];
   const shownParts = parts.filter((part) => part !== null);
   const meta = online ? null : [payment.number, date].filter((part) => part !== null && part !== '').join(' · ');
+  // Recorded by hand: refunded by hand. Otherwise the server says why not, or nothing does.
+  const why = payment.attemptId === null ? refusalWords('BY_HAND', null, '') : payment.refundRefusal === null ? null : refusalWords(payment.refundRefusal.code, payment.provider, payment.refundRefusal.message);
+  const ref = payment.number ?? amount;
   return (
     <li className="flex items-start gap-3 border-b border-border px-3 py-3 last:border-b-0">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-3 text-fg-muted">
+      <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${disputed ? 'bg-danger-soft text-danger' : 'bg-surface-3 text-fg-muted'}`}>
         <Icon className="size-4" aria-hidden="true" />
       </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-y-1 text-[13px] leading-normal text-fg-muted">
           {shownParts.map((part, index) => (
             <span key={index} className="inline-flex items-center">
@@ -145,6 +243,11 @@ function PaymentRow({ payment, currency, locale }: { payment: PanelPayment; curr
               {t('payments:panel.test', 'Test')}
             </Badge>
           ) : null}
+          {disputed ? (
+            <Badge tone="danger" className="ms-2">
+              {t('payments:panel.disputed', 'Disputed')}
+            </Badge>
+          ) : null}
           {fullyRefunded ? (
             <Badge tone="neutral" className="ms-2">
               {t('payments:panel.refunded', 'Refunded')}
@@ -158,7 +261,23 @@ function PaymentRow({ payment, currency, locale }: { payment: PanelPayment; curr
             </bdi>
           </div>
         )}
+        {subs.map(({ refund, line }) => {
+          const tone = SUB_TONES[line!.tone];
+          const LineIcon = line!.icon;
+          return (
+            <div key={refund.id} className={`flex flex-wrap items-start gap-[7px] rounded-md text-[12.5px] leading-normal ${tone.box}`}>
+              <LineIcon className={`mt-0.5 size-3.5 shrink-0 ${tone.icon}`} aria-hidden="true" />
+              <span className="min-w-0 flex-[1_1_200px]">{line!.text}</span>
+              {line!.look ? (
+                <a href="/studio/payments?tab=activity" className="shrink-0 rounded-full bg-warn-soft px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[.05em] text-warn no-underline">
+                  {t('payments:panel.needsLook', 'Needs a look')}
+                </a>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
+      {mayRefund ? <RowMenu label={t('payments:panel.moreFor', 'More for {ref}', { ref })} why={why} onRefund={() => onRefund(payment)} /> : null}
     </li>
   );
 }
@@ -176,6 +295,7 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
   const toasts = useAppToasts();
   const queryClient = useQueryClient();
   const [recording, setRecording] = useState(false);
+  const [refunding, setRefunding] = useState<PanelPayment | null>(null);
 
   const due = formatMoney(view.due, view.currency || 'EUR', locale);
   const nothingDue = view.currency !== '' && !moreThan(view.due, '0');
@@ -274,7 +394,12 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
         </Notice>
       ) : null}
       {view.waiting.map((waiting) => (
-        <Notice key={waiting.id} tone="info" icon={Clock}>
+        <Notice
+          key={waiting.id}
+          tone="info"
+          icon={Clock}
+          action={view.mayRefund ? <RowMenu label={t('payments:panel.moreFor', 'More for {ref}', { ref: waiting.wayLabel ?? serviceName(waiting.provider) })} why={refusalWords('PROCESSING', waiting.provider, '')} onRefund={() => undefined} /> : undefined}
+        >
           {waiting.wayLabel === null
             ? t('payments:panel.waitingPlain', 'An online payment started {date} · waiting for the bank', { date: shortDay(waiting.startedAt, locale) })
             : t('payments:panel.waitingWith', 'Payment by {way} started {date} · waiting for the bank', { way: waiting.wayLabel, date: shortDay(waiting.startedAt, locale) })}
@@ -304,10 +429,27 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
         </Notice>
       )}
 
+      {view.payments
+        .filter((payment) => payment.dispute !== null && payment.provider !== null)
+        .map((payment) =>
+          payment.dispute!.state === 'open' ? (
+            <Notice key={`dispute-${payment.id}`} tone="danger" icon={ShieldAlert}>
+              <span className="font-bold">{t('payments:panel.disputeLine', 'Disputed — answer it in the {service} dashboard', { service: serviceName(payment.provider!) })}</span>
+              <span className="mt-1 block text-[12.5px] text-fg-muted">
+                {t('payments:panel.disputeNote', 'If the dispute is lost, the money goes back to the customer. The invoice is not changed by itself.')}
+              </span>
+            </Notice>
+          ) : (
+            <Notice key={`dispute-${payment.id}`} tone="neutral" icon={ShieldAlert}>
+              {t('payments:panel.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service: serviceName(payment.provider!) })}
+            </Notice>
+          ),
+        )}
+
       {view.payments.length === 0 ? null : (
         <ul aria-label={t('payments:panel.listLabel', 'Payments on this record')} className="m-0 list-none rounded-[10px] border border-border p-0">
           {view.payments.map((payment) => (
-            <PaymentRow key={payment.id} payment={payment} currency={view.currency} locale={locale} />
+            <PaymentRow key={payment.id} payment={payment} currency={view.currency} locale={locale} mayRefund={view.mayRefund} onRefund={setRefunding} />
           ))}
         </ul>
       )}
@@ -330,6 +472,25 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
             </Button>
           ) : null}
         </div>
+      ) : null}
+
+      {refunding !== null && refunding.attemptId !== null ? (
+        <RefundDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setRefunding(null);
+          }}
+          attemptId={refunding.attemptId}
+          number={refunding.number}
+          onRequested={(refund) => {
+            const amount = formatMoney(refund.amount, refund.currency, locale);
+            if (refund.state === 'failed') {
+              toasts.push({ variant: 'error', title: t('payments:panel.toast.refundFailed', 'The refund of {amount} failed: {reason}', { amount, reason: refund.failureMessage ?? '' }) });
+            } else toasts.push({ variant: 'success', title: t('payments:panel.toast.refundRequested', 'Refund of {amount} requested.', { amount }) });
+            void queryClient.invalidateQueries({ queryKey: paymentPanelKey });
+            onChanged?.();
+          }}
+        />
       ) : null}
 
       {view.mayRecord ? (

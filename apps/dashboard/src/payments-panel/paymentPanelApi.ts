@@ -34,6 +34,30 @@ export interface PanelPayment {
   paidOn: string;
   recordedBy: string | null;
   cardLast4: string | null;
+  /** The online payment behind it, which a refund is asked against; null when recorded by hand. */
+  attemptId: string | null;
+  /** What may still be refunded online, and why nothing may now. */
+  refundable: string;
+  refundRefusal: { code: string; message: string } | null;
+  refunds: PanelRefund[];
+  /** A dispute the service told of; its deadline and outcome are read in the service's dashboard. */
+  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null } | null;
+}
+
+export type RefundState = 'requested' | 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'cancelled';
+
+export interface PanelRefund {
+  id: string;
+  attemptId: string | null;
+  amount: string;
+  currency: string;
+  state: RefundState;
+  /** `staff`: asked in Adminium; `provider`: made in the service's own dashboard. */
+  source: 'staff' | 'provider';
+  /** The service's own words, when it failed. */
+  failureMessage: string | null;
+  createdAt: number;
+  settledAt: number | null;
 }
 
 export interface PanelWaiting {
@@ -55,6 +79,8 @@ export interface PaymentPanelView {
   links: { on: boolean; reason: string | null };
   mayChange: boolean;
   mayRecord: boolean;
+  /** May refund online payments (the refund permission, signed in). */
+  mayRefund: boolean;
   waiting: PanelWaiting[];
   payments: PanelPayment[];
 }
@@ -110,4 +136,36 @@ export async function emailLink(id: string): Promise<{ to: string }> {
 
 export async function revokeLink(id: string): Promise<void> {
   await api.post(`/api/v1/payments/links/${encodeURIComponent(id)}/revoke`);
+}
+
+/** What the refund dialog needs: what may still be refunded, where it goes back to, or why it cannot be now. */
+export interface RefundPreview {
+  label: string;
+  provider: string;
+  test: boolean;
+  taken: string;
+  currency: string;
+  refundable: string;
+  paidWith: string | null;
+  refusal: { code: string; message: string } | null;
+}
+
+export const REFUND_REASONS = ['requested_by_customer', 'duplicate', 'fraudulent', 'other'] as const;
+export type RefundReason = (typeof REFUND_REASONS)[number];
+
+export interface RefundInput {
+  attemptId: string;
+  amount: string;
+  reason: RefundReason;
+  note: string | null;
+  /** Minted at the confirm step: the same key again is the same refund. */
+  key: string;
+}
+
+export async function fetchRefundPreview(attemptId: string): Promise<RefundPreview> {
+  return (await api.get<{ data: RefundPreview }>(`/api/v1/payments/attempts/${encodeURIComponent(attemptId)}/refund`)).data;
+}
+
+export async function requestRefund(input: RefundInput): Promise<{ refund: PanelRefund; fresh: boolean }> {
+  return (await api.post<{ data: { refund: PanelRefund; fresh: boolean } }>('/api/v1/payments/refunds', input)).data;
 }
