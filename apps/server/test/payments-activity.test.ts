@@ -142,5 +142,60 @@ describe('payments activity', () => {
     const rows = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows;
     expect(rows.map((row: { flag: { code: string } }) => row.flag.code)).toEqual(['paid-twice']);
   });
-});
 
+  it('names who checked a flag, and carries what was asked, the ids and the times', async () => {
+    const id = await attempt(REFUSED, { problem: { code: 'AMOUNT_DIFFERS', message: 'x' }, takenAmount: '100.00', takenCurrency: 'EUR', providerRef: 'cs_live_1', paymentRef: 'pi_1', paidWith: { method: 'card', label: 'Visa ••4242', delayed: false } });
+    await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${id}/check`, headers: as(owner), payload: { note: 'Asked the customer.' } });
+    const row = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(bookkeeper) })).json().data.rows[0];
+    expect(row).toMatchObject({
+      amount: '100.00',
+      asked: { amount: '120.00', currency: 'EUR' },
+      group: 'paid',
+      way: 'card',
+      paidWith: 'Visa ••4242',
+      refs: { attempt: id, checkout: 'cs_live_1', payment: 'pi_1', refund: null },
+      check: { by: owner.id, byName: 'Mara', note: 'Asked the customer.' },
+    });
+    expect(row.times.started).toBeGreaterThan(0);
+  });
+
+  it('flags a payment waiting for the bank for more than two weeks, counts it, and lets it be checked without a note', async () => {
+    const repo = paymentAttemptsRepo(meta);
+    const old = (await repo.create({ provider: 'payments-stripe', mode: 'live', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'sepa_1' }, payableLabel: 'INV-0039', amount: '60.00', currency: 'EUR', linkId: null, nonce: 'sepa'.padEnd(22, 'x'), createdBy: null }, Date.now() - 15 * 86_400_000))!;
+    await repo.move(old.id, 'open', {}, Date.now() - 15 * 86_400_000);
+    await repo.move(old.id, 'processing', {}, Date.now() - 15 * 86_400_000);
+    // A debit started today is only waiting.
+    const fresh = (await repo.create({ provider: 'payments-stripe', mode: 'live', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'sepa_2' }, payableLabel: 'INV-0040', amount: '60.00', currency: 'EUR', linkId: null, nonce: 'sepb'.padEnd(22, 'x'), createdBy: null }))!;
+    await repo.move(fresh.id, 'open', {});
+    await repo.move(fresh.id, 'processing', {});
+    const open = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows;
+    expect(open.map((row: { id: string; flag: { code: string } }) => [row.id, row.flag.code])).toEqual([[old.id, 'waiting-long']]);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(1);
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${old.id}/check`, headers: as(owner), payload: { note: null } })).statusCode).toBe(204);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(0);
+  });
+
+  it('flags a written-down payment that changed afterwards', async () => {
+    const id = await attempt(['open', 'succeeded', 'recording', 'recorded'], { problem: { code: 'RECORD_CHANGED', message: 'The payment row was voided.' } });
+    await paymentAttemptsRepo(meta).flag(id, 9999);
+    const row = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows[0];
+    expect(row.flag).toMatchObject({ code: 'record-changed', reason: 'RECORD_CHANGED' });
+  });
+
+  it('narrows by state group, way to pay and days, and names the record a refund gave money back on', async () => {
+    const paid = await attempt(['open', 'succeeded', 'recording', 'recorded'], { paidWith: { method: 'sepa_debit', label: 'SEPA ••3000', delayed: true } }, 'INV-0007');
+    await attempt(['open', 'failed']);
+    await attempt(['open', 'succeeded', 'recording', 'recorded'], { paidWith: { method: 'card', label: 'Visa ••4242', delayed: false } });
+    await refundsRepo(meta).create({ attemptId: paid, paymentId: null, provider: 'payments-stripe', mode: 'live', paymentRef: 'pi_7', amount: '10.00', currency: 'EUR', reason: 'requested_by_customer', note: null, idempotencyKey: 'k7', source: 'staff', requestedBy: owner.id, state: 'succeeded', providerRefundId: 're_7' });
+    const list = async (q: string) => (await app.inject({ method: 'GET', url: `/api/v1/payments/activity?${q}`, headers: as(owner) })).json().data.rows as { kind: string; group: string; way: string | null; payable: { label: string } | null }[];
+    expect((await list('state=failed')).map((row) => row.group)).toEqual(['failed']);
+    expect((await list('state=paid')).length).toBe(2);
+    expect((await list('way=sepa_debit')).map((row) => row.kind).sort()).toEqual(['attempt', 'refund']);
+    const refunded = await list('state=refunded');
+    expect(refunded).toEqual([expect.objectContaining({ kind: 'refund', payable: expect.objectContaining({ label: 'INV-0007' }) })]);
+    // The attempts here were made on 1 January 1970, the refund today.
+    expect((await list('from=1970-01-02')).map((row) => row.kind)).toEqual(['refund']);
+    expect((await list('to=1970-01-01')).length).toBe(3);
+    expect(await list('to=1969-12-31')).toEqual([]);
+  });
+});
