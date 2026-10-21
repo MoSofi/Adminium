@@ -27,8 +27,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 // TypeScript's own scanner tells a string from a comment; the server's copy is always installed.
 const require = createRequire(join(root, 'apps/server/package.json'));
 const ts = require('typescript');
