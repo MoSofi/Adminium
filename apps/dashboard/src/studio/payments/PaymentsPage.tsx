@@ -53,6 +53,8 @@ import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
+import { ActivityTab } from './ActivityTab.js';
+import { useActivityCount } from './activityApi.js';
 import { PayablesTab } from './PayablesTab.js';
 import { PayPageTab } from './PayPageTab.js';
 import { WaysTab } from './WaysTab.js';
@@ -995,6 +997,11 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
     (one) => knownProvider(one.key) === 'paypal' && [one.test.check, one.live.check].some((check) => check?.ok === true),
   ) && (data?.services ?? []).some((one) => knownProvider(one.key) === 'stripe' && [one.test.check, one.live.check].some((check) => check?.ok === true));
 
+  // Which tab: the one asked for in the address (the hub's "need a look" opens Activity), else Setup.
+  const [tab, setTab] = useState<string>(() => (new URLSearchParams(window.location.search).get('tab') === 'activity' ? 'activity' : 'setup'));
+  const shownTab = tab;
+  const activityCount = useActivityCount(data !== undefined);
+
   // Every tab reads the setup first; while it is loading or has failed, each says so.
   const loadState = (tab: string): ReactNode =>
     setup.isPending ? (
@@ -1021,12 +1028,21 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
         title={t('studio:payments.title', 'Payments')}
         subtitle={t('studio:payments.subtitle', 'Take payments for invoices and other records. The money goes straight to your own Stripe or PayPal account; Adminium never holds it.')}
       />
-      <Tabs defaultValue="setup">
+      <Tabs value={shownTab} onValueChange={setTab}>
         <TabsList aria-label={t('studio:payments.title', 'Payments')}>
           <TabsTrigger value="setup">{t('studio:payments.tab.setup', 'Setup')}</TabsTrigger>
           <TabsTrigger value="ways">{t('studio:payments.tab.ways', 'Ways to pay')}</TabsTrigger>
           <TabsTrigger value="payables">{t('studio:payments.tab.payables', 'What can be paid')}</TabsTrigger>
           <TabsTrigger value="page">{t('studio:payments.tab.page', 'Pay page')}</TabsTrigger>
+          <TabsTrigger value="activity" data-testid="payments-tab-activity">
+            {t('studio:payments.tab.activity', 'Activity')}
+            {activityCount > 0 ? (
+              <span className="ms-1.5 rounded-full bg-surface-3 px-[7px] py-px font-mono text-[10.5px] font-bold text-fg-muted" data-testid="payments-activity-count">
+                <span aria-hidden="true">{String(activityCount)}</span>
+                <span className="sr-only">{t('studio:payments.activity.countLabel', '{count, plural, one {# needs a look} other {# need a look}}', { count: activityCount })}</span>
+              </span>
+            ) : null}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="setup" className="flex flex-col gap-5 pt-4">
           {loadState('setup')}
@@ -1064,6 +1080,9 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
         </TabsContent>
         <TabsContent value="page" className="pt-4">
           {data !== undefined ? <PayPageTab canManage={data.canManage} /> : loadState('page')}
+        </TabsContent>
+        <TabsContent value="activity" className="pt-4">
+          {data !== undefined ? <ActivityTab services={data.services} canManage={data.canManage} onOpenSetup={() => setTab('setup')} /> : loadState('activity')}
         </TabsContent>
       </Tabs>
     </PageSurface>

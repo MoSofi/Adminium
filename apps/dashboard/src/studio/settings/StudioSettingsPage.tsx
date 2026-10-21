@@ -21,6 +21,7 @@
  */
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from '@tanstack/react-router';
+import { useActivityCount } from '../payments/activityApi.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Banknote,
@@ -1485,18 +1486,24 @@ function LinkRow({
   body,
   cta,
   onOpen,
+  aside,
 }: {
   icon: ReactNode;
   heading: string;
   body: string;
   cta: string;
   onOpen: () => void;
+  /** Beside the heading: a count that wants attention, say. */
+  aside?: ReactNode;
 }): ReactNode {
   return (
     <div className="flex items-center gap-3 px-[var(--card-pad)] py-[calc(var(--card-pad)*0.7)]">
       <IconTile tone="accent" size="md" icon={icon} />
       <div className="min-w-0 flex-1">
-        <h3 className="text-section text-fg">{heading}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-section text-fg">{heading}</h3>
+          {aside}
+        </div>
         <p className="text-caption text-fg-subtle">{body}</p>
       </div>
       <Button variant="secondary" size="sm" onClick={onOpen}>
@@ -1564,6 +1571,8 @@ function StudioSettingsHub({
   const holds = (action: Parameters<typeof holdsSystemAction>[1]) => holdsSystemAction(bootstrap, action);
   // Only a server that runs a project folder answers; the row shows only then.
   const project = useQuery({ ...projectOverviewQuery(), enabled: isSuperAdmin && onOpenProject !== undefined });
+  // Payments that still need a look: the same count as the Payments page's Activity tab.
+  const paymentsOpen = useActivityCount((holds('payments.manage') || holds('payments.view')) && onOpenPayments !== undefined);
 
   return (
     <PageSurface width="page" className="flex flex-col gap-4">
@@ -1728,6 +1737,19 @@ function StudioSettingsHub({
             )}
             cta={t('studio:settingsHub.paymentsCard.cta', 'Open payments')}
             onOpen={onOpenPayments}
+            aside={
+              paymentsOpen > 0 ? (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-warn hover:underline"
+                  onClick={() => void navigate({ href: '/studio/payments?tab=activity' })}
+                  data-testid="settings-hub-payments-look"
+                >
+                  <span className="size-[7px] rounded-full bg-warn" aria-hidden="true" />
+                  {t('studio:payments.activity.countLabel', '{count, plural, one {# needs a look} other {# need a look}}', { count: paymentsOpen })}
+                </button>
+              ) : null
+            }
           />
         ) : null}
 
