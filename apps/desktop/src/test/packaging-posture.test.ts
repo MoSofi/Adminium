@@ -81,4 +81,14 @@ describe('the archive', () => {
     expect(hook).toContain('checkWorkspacePackages(context)');
     expect(hook).toContain('the carried npm is not whole');
   });
+
+  it('gets the server’s skills before it is made, and is stopped without them', () => {
+    // 0.3.31 shipped with no skills: the Designer had no skill pages and no styles.
+    expect(builder).toMatch(/^beforePack: build\/before-pack\.cjs$/m);
+    expect(read('build/before-pack.cjs')).toContain("'bundle-skills.mjs'");
+    const hook = read('build/after-pack.cjs');
+    expect(hook).toContain('checkSkills(context)');
+    expect(hook).toContain("['adminium', 'SKILL.md']");
+    expect(hook).toContain("['adminium-design', 'styles']");
+  });
 });

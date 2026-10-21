@@ -117,9 +117,28 @@ function checkStarter(context) {
   console.log('  • the starter lockfile is in the archive');
 }
 
+/**
+ * The server's skills are in the archive: the Designer's skill pages and the
+ * built-in styles it offers. They are copied in by `before-pack.cjs`, and the
+ * app once shipped without them (0.3.31), with no error anywhere: the Designer
+ * ran with no skill pages and a Style picker with one choice.
+ */
+function checkSkills(context) {
+  const archive = join(resourcesDir(context), 'app.asar');
+  if (!existsSync(archive)) return;
+  const skills = archiveHeader(archive).files?.node_modules?.files?.['@adminium']?.files?.server?.files?.skills?.files;
+  const missing = [
+    ['adminium', 'SKILL.md'],
+    ['adminium-design', 'styles'],
+  ].filter((path) => path.reduce((node, part) => node?.files?.[part], { files: skills }) === undefined);
+  if (missing.length > 0) throw new Error(`after-pack: the server's skills are not in the archive (no ${missing.map((path) => `skills/${path.join('/')}`).join(', ')}): the Designer would run with no skill pages and no styles.`);
+  console.log('  • the server’s skills are in the archive');
+}
+
 exports.default = async function afterPack(context) {
   checkWorkspacePackages(context);
   checkStarter(context);
+  checkSkills(context);
   const from = realpathSync(join(context.packager.projectDir, 'node_modules', 'npm'));
   const to = join(resourcesDir(context), 'npm');
   rmSync(to, { recursive: true, force: true });

@@ -147,6 +147,12 @@ files:
 # so that the notices attribute it and the packages it bundles.
 afterPack: build/after-pack.cjs
 
+# The server's `skills/` (the Designer's skill pages and built-in styles) is not
+# in git: `build/before-pack.cjs` copies it in before every pack, and
+# `after-pack.cjs` stops the build when the archive does not hold it. 0.3.31
+# shipped without it.
+beforePack: build/before-pack.cjs
+
 mac:
   category: public.app-category.developer-tools
   # dmg is the human download; zip is MANDATORY — electron-updater consumes the
