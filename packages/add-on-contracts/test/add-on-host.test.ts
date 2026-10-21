@@ -10,7 +10,10 @@
  * and a name added to one side and not the other is either a symbol nobody can
  * import or a symbol nobody meant to publish.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentType } from 'react';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+
+import type { AddOnAppNamespace, AddOnDocumentPaymentPanelProps } from '../src/runtime/app-types.js';
 
 import {
   ADD_ON_APP_EXPORTS,
@@ -175,6 +178,8 @@ describe('the shims export exactly what their lists promise', () => {
     // And the host's own Payment panel for a designer invoice, the twelfth.
     expect(ADD_ON_APP_EXPORTS).toContain('DocumentPaymentPanel');
     expect(ADD_ON_APP_EXPORTS).toHaveLength(12);
+    // An older host has none: its type says so, so a page cannot render it unchecked.
+    expectTypeOf<AddOnAppNamespace['DocumentPaymentPanel']>().toEqualTypeOf<ComponentType<AddOnDocumentPaymentPanelProps> | undefined>();
   });
 
   it('publishes no way to build a route or a second query client', () => {

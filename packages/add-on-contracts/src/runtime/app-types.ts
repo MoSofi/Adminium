@@ -199,8 +199,11 @@ export interface AddOnDocumentPaymentPanelProps {
 
 export interface AddOnAppNamespace {
   ApiError: AddOnApiErrorConstructor;
-  /** Every host from this one on publishes it; a page built for older hosts too checks it is there. */
-  DocumentPaymentPanel: ComponentType<AddOnDocumentPaymentPanelProps>;
+  /**
+   * Every host from this one on publishes it. An older host has none, so the
+   * type says so: a page checks it is there before rendering it.
+   */
+  DocumentPaymentPanel: ComponentType<AddOnDocumentPaymentPanelProps> | undefined;
   PageActions: ComponentType<AddOnPageActionsProps>;
   PageSurface: ComponentType<AddOnPageSurfaceProps>;
   api: AddOnApiClient;
