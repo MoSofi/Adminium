@@ -1385,6 +1385,24 @@ describe('the updater is built at step 5 and wired to the menu + quit', () => {
     expect(h.menuHandlers()?.checkForUpdates).toBeUndefined();
   });
 
+  it('an updater that cannot be made leaves the launch without updates, and the app still opens', async () => {
+    // electron-updater throws while it is built when the version is not semver ("0.0" on Linux once the app
+    // is renamed with no version set). That throw used to stop the boot on Start, with nothing said.
+    const h = harness({ config: { updates: { mode: 'notify' } } });
+    const deps: DesktopBootDeps = {
+      ...h.deps,
+      createUpdateManager: () => {
+        throw new Error('App version is not a valid semver version: "0.0"');
+      },
+    };
+    await createDesktopApp(deps).start();
+    expect(h.calls).toContain('server.start');
+    expect(h.calls.at(-1)).toBe('loadApp');
+    expect(h.crashes).toEqual([]);
+    // As with updates off: the menu item is there, disabled.
+    expect(h.menuHandlers()?.checkForUpdates).toBeUndefined();
+  });
+
   it('disposes the updater on quit, so its 30 s / 24 h schedules cannot fire into a closing app', async () => {
     const h = harness({ config: { updates: { mode: 'notify' } } });
     await createDesktopApp(h.deps).start();
@@ -1861,6 +1879,20 @@ describe('createDesktopApp opening a project folder', () => {
     await createDesktopApp(p.deps).start();
     expect(p.h.menuHandlers()).not.toHaveProperty('about');
     expect(p.h.menuHandlers()).toHaveProperty('checkForUpdates');
+  });
+
+  it('a project opens too when the updater cannot be made', async () => {
+    const p = projectHarness();
+    const deps: DesktopBootDeps = {
+      ...p.deps,
+      createUpdateManager: () => {
+        throw new Error('no updater');
+      },
+    };
+    await createDesktopApp(deps).start();
+    expect(p.shown).toHaveLength(1);
+    expect(p.h.crashes).toEqual([]);
+    expect(p.h.menuHandlers()).not.toHaveProperty('checkForUpdates');
   });
 
   it('a build with none of the optional folders and no updater still opens the project', async () => {
