@@ -356,6 +356,62 @@ for (const dialect of TEST_DIALECTS) {
         expect(await kept.paid(INVOICE, 'EUR')).toBe('0');
         expect((await kept.byId(payment.id))?.voided).toBe(true);
       });
+
+      it('sets what stands refunded as a total, the same again changing nothing, never past what was paid', async () => {
+        const kept = keptPaymentsRepo(meta());
+        const payment = (await kept.insert(
+          { payable: DOCUMENT, number: null, amount: '50.00', currency: 'EUR', method: 'card', methodNote: null, provider: 'demo', mode: 'live', attemptId: 'pat_03', approvalCode: null, cardLast4: null, note: null, paidOn: T0, recordedBy: 'Online payment (Demo)', recordedByUser: null },
+          T0,
+        ))!;
+        expect(await kept.setRefunded(payment.id, '20.00')).toBe(true);
+        expect(await kept.setRefunded(payment.id, '20.00')).toBe(true);
+        expect(await kept.setRefunded(payment.id, '50.01')).toBe(false);
+        expect(await kept.setRefunded('kp_none', '1.00')).toBe(false);
+        expect((await kept.byId(payment.id))?.refundedAmount).toBe('20.00');
+        expect(await kept.setRefunded(payment.id, '0')).toBe(true);
+        expect((await kept.byId(payment.id))?.refundedAmount).toBe('0');
+      });
+    });
+
+    describe('refunds held on an attempt, and disputes', () => {
+      async function taken(amount = '120.00') {
+        const attempts = paymentAttemptsRepo(meta());
+        const one = (await attempts.create(attempt(DOCUMENT, { mode: 'live', nonce: `n-${Math.random().toString(36).slice(2)}` }), T0))!;
+        await attempts.move(one.id, 'open', { providerRef: `cs_${one.id}` }, T0);
+        await attempts.move(one.id, 'succeeded', { takenAmount: amount, takenCurrency: 'EUR', paymentRef: `pi_${one.id}` }, T0);
+        return one.id;
+      }
+
+      it('holds what refunds promise back by compare-and-set, never past the money taken unless it already happened', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const id = await taken();
+        expect((await attempts.byId(id))).toMatchObject({ refundCommitted: '0', dispute: null });
+        expect(await attempts.commitRefund(id, '0', '40.00', T0 + 1)).toBe(true);
+        expect(await attempts.commitRefund(id, '0', '50.00', T0 + 2)).toBe(false); // moved by another first
+        expect(await attempts.commitRefund(id, '40.00', '120.01', T0 + 3)).toBe(false); // past what was taken
+        expect(await attempts.commitRefund(id, '40.00', '130.00', T0 + 4, true)).toBe(true); // made at the provider
+        expect(await attempts.commitRefund('pat_none', '0', '1', T0 + 5)).toBe(false);
+        expect((await attempts.byId(id))?.refundCommitted).toBe('130.00');
+        // No money taken: nothing may be held.
+        const open = (await attempts.create(attempt(DOCUMENT, { mode: 'live', nonce: 'n-open-1', payable: { ...DOCUMENT, rowKey: 'idoc_2' } }), T0))!;
+        expect(await attempts.commitRefund(open.id, '0', '1.00', T0 + 6)).toBe(false);
+      });
+
+      it('opens a dispute once, closes it once, opens it again, and lists the disputed', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const id = await taken();
+        expect(await attempts.noteDispute(id, 'closed', T0 + 1)).toBe(false);
+        expect(await attempts.noteDispute(id, 'open', T0 + 2)).toBe(true);
+        expect(await attempts.noteDispute(id, 'open', T0 + 3)).toBe(false);
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 2, closedAt: null });
+        expect((await attempts.disputed('open')).map((one) => one.id)).toEqual([id]);
+        expect(await attempts.noteDispute(id, 'closed', T0 + 4)).toBe(true);
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 4 });
+        expect(await attempts.disputed('open')).toEqual([]);
+        expect((await attempts.disputed('closed')).map((one) => one.id)).toEqual([id]);
+        expect(await attempts.noteDispute(id, 'open', T0 + 5)).toBe(true);
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 5, closedAt: null });
+      });
     });
 
     describe('refunds', () => {
@@ -407,6 +463,18 @@ for (const dialect of TEST_DIALECTS) {
           T0,
         );
         expect(refund).toMatchObject({ state: 'succeeded', source: 'provider', settledAt: T0 });
+      });
+
+      it('lists the refunds still on their way, longest waiting first, and the refunds of one attempt', async () => {
+        const refunds = refundsRepo(meta());
+        const a = (await refunds.create({ ...base, attemptId: 'pat_w', idempotencyKey: 'rk-w1' }, T0)).refund;
+        const b = (await refunds.create({ ...base, attemptId: 'pat_w', idempotencyKey: 'rk-w2' }, T0 + 10)).refund;
+        const c = (await refunds.create({ ...base, attemptId: 'pat_v', idempotencyKey: 'rk-w3' }, T0 + 20)).refund;
+        await refunds.move(c.id, 'succeeded', { providerRefundId: 're_w3' }, T0 + 30);
+        expect((await refunds.waiting(T0 + 100)).map((one) => one.id)).toEqual([a.id, b.id]);
+        expect((await refunds.waiting(T0 + 5)).map((one) => one.id)).toEqual([a.id]);
+        expect((await refunds.forAttempt('pat_w')).map((one) => one.id)).toEqual([a.id, b.id]);
+        expect(await refunds.forAttempt('pat_none')).toEqual([]);
       });
     });
 

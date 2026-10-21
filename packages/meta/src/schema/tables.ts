@@ -1583,6 +1583,12 @@ export interface AdminiumPaymentAttemptsTable {
   /** Declines the provider's events reported; and how many the link's failure count already holds. */
   failEvents: ColumnType<number, number | undefined, number>;
   failCounted: ColumnType<number, number | undefined, number>;
+  /** What refunds have promised back from the money taken (decimal text). */
+  refundCommitted: ColumnType<string, string | undefined, string>;
+  /** A dispute the provider told of: `open`, then `closed`. */
+  disputeState: ColumnType<string | null, string | null | undefined, string | null>;
+  disputedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  disputeClosedAt: ColumnType<number | null, number | null | undefined, number | null>;
 }
 
 /** A webhook, or a status change a poll found, unique per provider, mode and event id (0062). */

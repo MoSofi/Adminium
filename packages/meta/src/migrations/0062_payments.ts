@@ -96,6 +96,12 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     // Declines seen through the provider's events, and how many of them the link's failure count holds.
     .addColumn('fail_events', c.int, (col) => col.notNull().defaultTo(0))
     .addColumn('fail_counted', c.int, (col) => col.notNull().defaultTo(0))
+    // What refunds have promised back from the money taken: moved only by compare-and-set, never past it.
+    .addColumn('refund_committed', c.str(AMOUNT), (col) => col.notNull().defaultTo('0'))
+    // A dispute the provider told of: `open`, then `closed` (its outcome is read in the provider's dashboard).
+    .addColumn('dispute_state', c.str(16))
+    .addColumn('disputed_at', c.ts)
+    .addColumn('dispute_closed_at', c.ts)
     .execute();
   await db.schema.createIndex('uq_adminium_payment_attempts_open_key').on(metaTable('payment_attempts')).columns(['open_key']).unique().execute();
   await db.schema

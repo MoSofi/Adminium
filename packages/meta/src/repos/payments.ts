@@ -222,6 +222,10 @@ export interface PaymentAttempt {
   captureTry: number;
   failEvents: number;
   failCounted: number;
+  /** What refunds not failed have promised back from the money taken. */
+  refundCommitted: string;
+  /** A dispute the provider told of, or null. */
+  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null } | null;
 }
 
 export interface AttemptCheck {
@@ -303,6 +307,11 @@ function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAt
     captureTry: Number(row.captureTry ?? 0),
     failEvents: Number(row.failEvents ?? 0),
     failCounted: Number(row.failCounted ?? 0),
+    refundCommitted: row.refundCommitted ?? '0',
+    dispute:
+      row.disputeState === 'open' || row.disputeState === 'closed'
+        ? { state: row.disputeState, at: Number(row.disputedAt ?? 0), closedAt: row.disputeClosedAt === null || row.disputeClosedAt === undefined ? null : Number(row.disputeClosedAt) }
+        : null,
   };
 }
 
@@ -385,6 +394,10 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         lookedAt: null,
         captureTry: 0,
         failEvents: 0,
+        refundCommitted: '0',
+        disputeState: null,
+        disputedAt: null,
+        disputeClosedAt: null,
         failCounted: 0,
       };
       try {
@@ -592,6 +605,40 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         .where('state', '=', state)
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Moves what refunds have promised back from `previous` to `next`, as one
+     * compare-and-set: false when another refund moved it first (the caller
+     * reads again and tries again). Never past the money taken, unless
+     * `beyondTaken` (a refund the provider already made, which happened).
+     */
+    async commitRefund(id: string, previous: string, next: string, at: number = Date.now(), beyondTaken = false): Promise<boolean> {
+      const attempt = await this.byId(id);
+      if (attempt === null || attempt.refundCommitted !== previous) return false;
+      if (!beyondTaken && (attempt.takenAmount === null || amountLeft(attempt.takenAmount, next) === null)) return false;
+      const res = await db
+        .updateTable('adminium_payment_attempts')
+        .set({ refundCommitted: next, updatedAt: at })
+        .where('id', '=', id)
+        .where('refundCommitted', '=', previous)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** A dispute the provider told of: opened (once), then closed (once). */
+    async noteDispute(id: string, state: 'open' | 'closed', at: number = Date.now()): Promise<boolean> {
+      const res =
+        state === 'open'
+          ? await db.updateTable('adminium_payment_attempts').set({ disputeState: 'open', disputedAt: at, disputeClosedAt: null, updatedAt: at }).where('id', '=', id).where((eb) => eb.or([eb('disputeState', 'is', null), eb('disputeState', '=', 'closed')])).executeTakeFirst()
+          : await db.updateTable('adminium_payment_attempts').set({ disputeState: 'closed', disputeClosedAt: at, updatedAt: at }).where('id', '=', id).where('disputeState', '=', 'open').executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** Attempts with a dispute in a state, newest first (Activity, notices). */
+    async disputed(state: 'open' | 'closed', limit = 200): Promise<PaymentAttempt[]> {
+      const rows = await db.selectFrom('adminium_payment_attempts').selectAll().where('disputeState', '=', state).orderBy('disputedAt', 'desc').limit(limit).execute();
+      return rows.map(decodeAttempt);
     },
 
     /** Marks a processing attempt past its method's horizon (Activity shows it; the sweep stops polling). */
@@ -974,6 +1021,15 @@ export function keptPaymentsRepo(meta: MetaDb) {
       return amountLeft(gross, refunded) ?? '0';
     },
 
+    /** Sets a payment's refunded amount to the refunds that stand on it (never past what was paid). */
+    async setRefunded(id: string, total: string): Promise<boolean> {
+      const current = await this.byId(id);
+      if (current === null || amountLeft(current.amount, total) === null) return false;
+      if (current.refundedAmount === total) return true;
+      const res = await db.updateTable('adminium_payments').set({ refundedAmount: total }).where('id', '=', id).executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
     /**
      * Adds to a payment's refunded amount, as a compare-and-set on the old
      * value, refusing to pass the amount paid. Returns false when someone
@@ -1212,6 +1268,26 @@ export function refundsRepo(meta: MetaDb) {
         .where('appliedAt', 'is', null)
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** Refunds still on their way (requested, pending, waiting for the customer), the longest-waiting first. */
+    async waiting(before: number, limit = 100): Promise<RefundRow[]> {
+      const rows = await db
+        .selectFrom('adminium_refunds')
+        .selectAll()
+        .where('state', 'in', ['requested', 'pending', 'requires_action'])
+        .where('updatedAt', '<', before)
+        .orderBy('updatedAt', 'asc')
+        .orderBy('id', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(decodeRefund);
+    },
+
+    /** The refunds of one attempt, oldest first. */
+    async forAttempt(attemptId: string): Promise<RefundRow[]> {
+      const rows = await db.selectFrom('adminium_refunds').selectAll().where('attemptId', '=', attemptId).orderBy('createdAt', 'asc').orderBy('id', 'asc').execute();
+      return rows.map(decodeRefund);
     },
 
     /** A failure after success took the refund back out of the shop's record. Once. */

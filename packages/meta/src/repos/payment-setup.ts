@@ -183,6 +183,8 @@ export const ownPaymentsMappingSchema = z
     voided: column.nullable(),
     /** Unique for each payment: Adminium writes the attempt id here, so a payment is never written twice. */
     reference: column,
+    /** What has been refunded of each payment, in the amount's unit; a refund then reopens the balance. */
+    refunded: column.nullable().optional(),
     /** Whether `amount` holds whole units ("12.50") or the smallest unit (1250). */
     amountUnit: z.enum(['units', 'minor']).default('units'),
   })
