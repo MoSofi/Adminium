@@ -85,6 +85,10 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('checked_at', c.ts)
     .addColumn('checked_by', c.id)
     .addColumn('check_note', c.str(500))
+    // The code of `problem`, readable by a query; and the code a check covered:
+    // a later, different problem needs a look again.
+    .addColumn('problem_code', c.str(40))
+    .addColumn('check_code', c.str(40))
     // When the provider was last asked about it: the sweep asks the longest-unasked first.
     .addColumn('looked_at', c.ts)
     // A two-step provider's capture is retried under a new key after a decline (the old key would replay it).

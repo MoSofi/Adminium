@@ -1573,6 +1573,9 @@ export interface AdminiumPaymentAttemptsTable {
   checkedAt: Ts | null;
   checkedBy: string | null;
   checkNote: string | null;
+  /** `problem`'s code, for queries; and the problem code a check covered. */
+  problemCode: ColumnType<string | null, string | null | undefined, string | null>;
+  checkCode: ColumnType<string | null, string | null | undefined, string | null>;
   /** When the provider was last asked about it. */
   lookedAt: Ts | null;
   /** Which capture try a two-step provider's next capture is (its key changes after a decline). */

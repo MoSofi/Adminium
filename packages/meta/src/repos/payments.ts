@@ -33,11 +33,12 @@
 
 import { createHash } from 'node:crypto';
 
-import type { Insertable, Selectable } from 'kysely';
+import type { ExpressionBuilder, Insertable, Selectable } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import type {
+  MetaDB,
   AdminiumPaymentAttemptsTable,
   AdminiumPaymentEventsTable,
   AdminiumPaymentsTable,
@@ -296,7 +297,8 @@ function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAt
     settledAt: row.settledAt === null ? null : Number(row.settledAt),
     recordedAt: row.recordedAt === null ? null : Number(row.recordedAt),
     flaggedAt: row.flaggedAt === null ? null : Number(row.flaggedAt),
-    check: row.checkedAt === null ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
+    // A check covers the problem it was made for: a later, different one is unchecked.
+    check: !checkHolds(row) ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
     lookedAt: row.lookedAt === null || row.lookedAt === undefined ? null : Number(row.lookedAt),
     captureTry: Number(row.captureTry ?? 0),
     failEvents: Number(row.failEvents ?? 0),
@@ -315,8 +317,24 @@ function patchColumns(patch: AttemptPatch): Partial<Record<string, unknown>> {
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
     out[key] = key === 'paidWith' || key === 'problem' ? (value === null ? null : packJson(value)) : value;
+    if (key === 'problem') out['problemCode'] = value === null ? null : String((value as AttemptProblem).code).slice(0, 40);
   }
   return out;
+}
+
+/** Whether an attempt's check still covers it: made, and for the problem it has now. */
+function checkHolds(row: { checkedAt: unknown; checkCode?: string | null; problemCode?: string | null }): boolean {
+  return row.checkedAt !== null && (row.checkCode ?? null) === (row.problemCode ?? null);
+}
+
+/** "Not checked for the problem it has now", as a condition (null-safe on every engine). */
+function uncheckedNow(eb: ExpressionBuilder<MetaDB, 'adminium_payment_attempts'>) {
+  return eb.or([
+    eb('checkedAt', 'is', null),
+    eb.and([eb('checkCode', 'is', null), eb('problemCode', 'is not', null)]),
+    eb.and([eb('checkCode', 'is not', null), eb('problemCode', 'is', null)]),
+    eb('checkCode', '<>', eb.ref('problemCode')),
+  ]);
 }
 
 export function paymentAttemptsRepo(meta: MetaDb) {
@@ -362,6 +380,8 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         checkedAt: null,
         checkedBy: null,
         checkNote: null,
+        problemCode: null,
+        checkCode: null,
         lookedAt: null,
         captureTry: 0,
         failEvents: 0,
@@ -472,7 +492,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
           } catch (error) {
             if (!isDuplicateKeyError(error)) throw error;
             const problem: AttemptProblem = { code: 'TWO_AT_ONCE', message: 'Another payment for the same record was on its way when this one arrived.' };
-            return affected((await run({ ...set, flaggedAt: at, problem: packJson(problem) })).numUpdatedRows) === 1;
+            return affected((await run({ ...set, flaggedAt: at, problem: packJson(problem), problemCode: problem.code })).numUpdatedRows) === 1;
           }
         }
       }
@@ -579,11 +599,28 @@ export function paymentAttemptsRepo(meta: MetaDb) {
     async check(id: string, by: string | null, note: string | null, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_payment_attempts')
-        .set({ checkedAt: at, checkedBy: by, checkNote: note, updatedAt: at })
+        .set((eb) => ({ checkedAt: at, checkedBy: by, checkNote: note, checkCode: eb.ref('problemCode'), updatedAt: at }))
         .where('id', '=', id)
-        .where('checkedAt', 'is', null)
+        .where((eb) => uncheckedNow(eb))
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** Recorded attempts of one mode, recorded at or after `since`, newest first, from a `(recordedAt, id)` cursor. */
+    async recordedPage(filter: { mode: 'test' | 'live'; since: number; before?: { at: number; id: string }; limit?: number }): Promise<PaymentAttempt[]> {
+      let query = db.selectFrom('adminium_payment_attempts').selectAll().where('state', '=', 'recorded').where('mode', '=', filter.mode).where('recordedAt', '>=', filter.since);
+      const before = filter.before;
+      if (before !== undefined) query = query.where((eb) => eb.or([eb('recordedAt', '<', before.at), eb.and([eb('recordedAt', '=', before.at), eb('id', '<', before.id)])]));
+      const rows = await query.orderBy('recordedAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 200).execute();
+      return rows.map(decodeAttempt);
+    },
+
+    /** Attempts in some states, last moved between `since` and `before`, newest first: what is stuck now, not years ago. */
+    async movedBetween(states: readonly AttemptState[], filter: { mode?: 'test' | 'live'; since: number; before: number; limit?: number }): Promise<PaymentAttempt[]> {
+      let query = db.selectFrom('adminium_payment_attempts').selectAll().where('state', 'in', [...states]).where('updatedAt', '>=', filter.since).where('updatedAt', '<', filter.before);
+      if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
+      const rows = await query.orderBy('updatedAt', 'desc').orderBy('id', 'desc').limit(filter.limit ?? 200).execute();
+      return rows.map(decodeAttempt);
     },
 
     /** Every attempt, newest first, for Activity: by mode and states when given. */
@@ -619,7 +656,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         .selectFrom('adminium_payment_attempts')
         .selectAll()
         .where((eb) => eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]))
-        .where('checkedAt', 'is', null);
+        .where((eb) => uncheckedNow(eb));
       if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
       if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
       const before = filter.before;
@@ -633,7 +670,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         .selectFrom('adminium_payment_attempts')
         .select((eb) => eb.fn.countAll<number>().as('n'))
         .where((eb) => eb.or([eb('state', '=', 'record_refused'), eb('flaggedAt', 'is not', null)]))
-        .where('checkedAt', 'is', null)
+        .where((eb) => uncheckedNow(eb))
         .executeTakeFirst();
       return Number(row?.n ?? 0);
     },

@@ -458,6 +458,18 @@ export function paymentSettingsRepo(meta: MetaDb) {
       await db.deleteFrom('adminium_payment_settings').where('name', '=', name).execute();
     },
 
+    /** Which of these names have a document: one read for many, in chunks. */
+    async existing(names: readonly string[]): Promise<Set<string>> {
+      const out = new Set<string>();
+      for (let start = 0; start < names.length; start += 500) {
+        const chunk = names.slice(start, start + 500);
+        if (chunk.length === 0) continue;
+        for (const row of await db.selectFrom('adminium_payment_settings').select('name').where('name', 'in', chunk).execute()) out.add(row.name);
+      }
+      // A store that compares names without regard to case answers a near-twin: only exact names count.
+      return new Set([...out].filter((name) => names.includes(name)));
+    },
+
     /**
      * Writes a document only when there is none of that name: true for the
      * caller that made it. What a "tell once" rides on, in every process.
