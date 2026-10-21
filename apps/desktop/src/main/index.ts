@@ -2939,15 +2939,28 @@ export const APP_NAME = 'Adminium';
  * back to the same place after it. A `productName` in `package.json` would have
  * moved them, and every person would have opened a first-run app.
  *
+ * The version is kept the same way. On Linux, an app still named "Electron"
+ * reports Electron's own version, and any other name reports only what
+ * `setVersion` set, else "0.0". A launch with no `package.json` of its own (the
+ * desktop e2e suite) set none, so after the rename electron-updater refused
+ * "0.0" and the boot stopped on Start.
+ *
+ * `setVersion` is the one Electron's own loader calls with `package.json`'s
+ * version; its typings leave it out, so it is optional here.
+ *
  * Runs before anything reads a path, and before the single-instance lock (which
  * lives in `userData`).
  */
-export function nameTheApp(target: Pick<Electron.App, 'getPath' | 'setPath' | 'setName'>): void {
+export function nameTheApp(
+  target: Pick<Electron.App, 'getPath' | 'setPath' | 'setName' | 'getVersion'> & { setVersion?: (version: string) => void },
+): void {
   const userData = target.getPath('userData');
   const logs = target.getPath('logs');
+  const version = target.getVersion();
   target.setName(APP_NAME);
   target.setPath('userData', userData);
   target.setPath('logs', logs);
+  target.setVersion?.(version);
 }
 
 if (isElectronMain()) {

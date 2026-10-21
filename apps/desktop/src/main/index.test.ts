@@ -2139,9 +2139,11 @@ describe('microphoneSwitchedOn', () => {
 });
 
 describe('nameTheApp', () => {
-  it('renames the app and keeps its folders where they were', () => {
-    // Electron derives both folders from the name: read before, put back after.
-    let name = '@adminium/desktop';
+  it('renames the app and keeps its folders and its version where they were', () => {
+    // Electron derives both folders from the name: read before, put back after. On Linux the version too: an app
+    // named "Electron" reports Electron's version, any other name only a set one, else "0.0".
+    let name = 'Electron';
+    let setVersion: string | null = null;
     const set: Record<string, string> = {};
     const calls: string[] = [];
     nameTheApp({
@@ -2154,9 +2156,15 @@ describe('nameTheApp', () => {
         calls.push('setName');
         name = next;
       },
+      getVersion: () => setVersion ?? (name === 'Electron' ? '39.2.0' : '0.0'),
+      setVersion: (next: string) => {
+        calls.push('setVersion');
+        setVersion = next;
+      },
     });
     expect(name).toBe('Adminium');
-    expect(set).toEqual({ userData: '/base/userData/@adminium/desktop', logs: '/base/logs/@adminium/desktop' });
-    expect(calls).toEqual(['setName', 'setPath:userData', 'setPath:logs']);
+    expect(set).toEqual({ userData: '/base/userData/Electron', logs: '/base/logs/Electron' });
+    expect(setVersion).toBe('39.2.0');
+    expect(calls).toEqual(['setName', 'setPath:userData', 'setPath:logs', 'setVersion']);
   });
 });
