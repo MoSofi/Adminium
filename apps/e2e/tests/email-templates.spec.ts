@@ -6,7 +6,7 @@
  * The dashboard suite mounts the manager through the real router with a
  * fetch stub (`email/manager/manager.test.tsx`); the server suite covers the
  * routes in process. What only this file sees: the lazy route mounts from
- * the BUILT bundle, the seed's nine built-ins × eight locales come back
+ * the BUILT bundle, the seed's eleven built-ins × eight locales come back
  * through a real socket as seventy-two cards, and a duplicate + Undo makes
  * the round trip and leaves the fixture as it found it. The send flows (test
  * send, campaign run) join here once the SMTP sink lands.
@@ -56,24 +56,24 @@ test.describe('email templates manager', () => {
   test('mounts from the built bundle with the seeded built-ins, grouped by topic', async ({ page }, testInfo) => {
     await expect(page.getByText('Design reusable emails & the campaigns you send from them.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New template' })).toBeVisible();
-    // Nine built-in flows × eight locales: password reset, team invitation,
+    // Eleven built-in flows × eight locales: password reset, team invitation,
     // notification, document ready, booking confirmation, sign-in code,
-    // address changed, sign-in link and details deleted
-    // (`BUILTIN_EMAIL_TEMPLATE_KEYS`).
-    await expect(page.getByTestId('email-card')).toHaveCount(72);
-    await expect(page.getByTestId('tab-count').first()).toHaveText('72');
+    // address changed, sign-in link, details deleted, payment link and
+    // payment receipt (`BUILTIN_EMAIL_TEMPLATE_KEYS`).
+    await expect(page.getByTestId('email-card')).toHaveCount(88);
+    await expect(page.getByTestId('tab-count').first()).toHaveText('88');
     await testInfo.attach('manager-gallery', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 
-    // A topic is one flow (`groupDocuments` keys on the template key), so nine.
+    // A topic is one flow (`groupDocuments` keys on the template key), so eleven.
     await page.getByRole('radio', { name: 'Topic' }).click();
     const headers = page.getByTestId('email-group-header');
-    await expect(headers).toHaveCount(9);
+    await expect(headers).toHaveCount(11);
     await expect(page.getByTestId('email-group-sub').first()).toHaveText('8 languages');
     await testInfo.attach('manager-topics', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 
     // One table per topic group, each with the comp's five columns.
     await page.getByRole('radio', { name: 'List' }).click();
-    await expect(page.getByRole('table')).toHaveCount(9);
+    await expect(page.getByRole('table')).toHaveCount(11);
     await expect(page.getByRole('table').first().getByRole('columnheader')).toHaveText(['Name', 'Lang', 'Status', 'Updated', 'Actions']);
     await testInfo.attach('manager-list', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
     // Leave the prefs as found: they persist in localStorage for later specs.
@@ -153,7 +153,7 @@ test.describe('email templates manager', () => {
     await expect(page.getByTestId('email-save-chip')).toHaveText('All changes saved');
     await page.getByRole('link', { name: 'Back' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Email templates' })).toBeVisible();
-    await expect(page.getByTestId('email-card')).toHaveCount(72);
+    await expect(page.getByTestId('email-card')).toHaveCount(88);
   });
 
   test('the canvas draws every block kind without blocking a11y violations (axe)', async ({ page }, testInfo) => {
@@ -401,6 +401,6 @@ test.describe('email templates manager', () => {
     await expect(page.getByText('No archived templates')).toBeVisible();
     await page.getByRole('button', { name: 'Leave archived' }).click();
     await expect(page.getByTestId('email-archived-chip')).toBeHidden();
-    await expect(page.getByTestId('email-card')).toHaveCount(72);
+    await expect(page.getByTestId('email-card')).toHaveCount(88);
   });
 });
