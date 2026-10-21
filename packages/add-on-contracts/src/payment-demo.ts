@@ -141,6 +141,10 @@ export interface DemoPaymentBackend {
   settleNow(id: string): Promise<void>;
   /** A refund that had succeeded fails afterwards (a closed card). */
   failRefund(refundId: string): Promise<void>;
+  /** The customer's bank opens a dispute on a payment, or (`closes`) it closes. */
+  dispute(paymentRef: string, closes?: boolean): Promise<void>;
+  /** A refund made in the provider's own dashboard, which nobody asked through the transport. Answers its id. */
+  refundAtProvider(paymentRef: string, amount: string): Promise<string>;
   /** The signed webhook the demo would have sent for an event. */
   deliveryFor(eventId: string, webhookSecret: string, at?: number): Promise<WebhookDelivery>;
   /** The events made so far, oldest first. */
@@ -460,6 +464,28 @@ export function createDemoPaymentBackend(options: DemoPaymentBackendOptions = {}
         return;
       }
       throw new Error(`Nothing of id ${id} is waiting to settle.`);
+    },
+    async dispute(paymentRef, closes = false) {
+      const checkout = [...checkouts.values()].find((one) => one.paymentRef === paymentRef);
+      if (checkout === undefined) throw new Error(`No demo payment ${paymentRef}.`);
+      emit(closes ? 'charge.dispute.closed' : 'charge.dispute.created', 'dispute', { checkout });
+    },
+    async refundAtProvider(paymentRef, amount) {
+      const paid = [...checkouts.values()].find((one) => one.paymentRef === paymentRef);
+      if (paid === undefined || paid.takenCurrency === null) throw new Error(`No demo payment ${paymentRef}.`);
+      const refund: DemoRefund = {
+        id: nextId('re'),
+        paymentRef,
+        amount,
+        currency: paid.takenCurrency,
+        status: 'succeeded',
+        failureMessage: null,
+        settleAt: now(),
+        idempotencyKey: nextId('dash'),
+      };
+      refunds.set(refund.id, refund);
+      emit('refund.succeeded', 'refund', { refund });
+      return refund.id;
     },
     async failRefund(refundId) {
       const refund = refunds.get(refundId);

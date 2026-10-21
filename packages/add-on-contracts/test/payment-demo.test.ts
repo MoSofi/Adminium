@@ -116,6 +116,24 @@ describe('demo refunds', () => {
     expect(code(await provider.refund({ paymentRef, amount: '1.00', currency: 'USD', reason: 'other', idempotencyKey: 'x3' }))).toBe('REFUND_REFUSED');
     expect(code(await provider.refund({ paymentRef, amount: '0', currency: 'EUR', reason: 'other', idempotencyKey: 'x4' }))).toBe('REFUND_REFUSED');
   });
+
+  it('can be made in the dashboard, and a payment can be disputed and the dispute closed', async () => {
+    const { backend, provider, checkout, status } = setup();
+    const { ref } = await checkout();
+    await backend.pay(ref, 'succeeds');
+    const paymentRef = (await status(ref)).paymentRef!;
+    const made = await backend.refundAtProvider(paymentRef, '15.00');
+    expect(await provider.refundStatus(made)).toMatchObject({ status: 'succeeded', amount: '15.00', currency: 'EUR', paymentRef });
+    expect(backend.events().at(-1)).toMatchObject({ type: 'refund.succeeded', refundRef: made });
+    // What the dashboard refunded counts: only the rest may still be refunded.
+    expect(code(await provider.refund({ paymentRef, amount: '5.01', currency: 'EUR', reason: 'other', idempotencyKey: 'd1' }))).toBe('REFUND_REFUSED');
+    await backend.dispute(paymentRef);
+    expect(backend.events().at(-1)).toMatchObject({ type: 'charge.dispute.created', checkoutRef: ref });
+    await backend.dispute(paymentRef, true);
+    expect(backend.events().at(-1)).toMatchObject({ type: 'charge.dispute.closed' });
+    await expect(backend.dispute('pay_none')).rejects.toThrow('No demo payment');
+    await expect(backend.refundAtProvider('pay_none', '1.00')).rejects.toThrow('No demo payment');
+  });
 });
 
 describe('demo events', () => {
