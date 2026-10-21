@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "الغرض من هذه الدفعة"
+  },
+  "noscript": {
+    "title": "تحتاج هذه الصفحة إلى JavaScript للدفع عبر الإنترنت."
   }
 } as const;

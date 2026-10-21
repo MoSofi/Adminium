@@ -31,9 +31,10 @@ import { PAY_ADDRESS_DOC, linkSealFromSecret, mintLink, payAddressSchema } from 
 import type { PayableSources } from '../src/payments/payables.js';
 import { paymentProviderFor } from '../src/payments/providers.js';
 import { recordAttempt } from '../src/payments/record.js';
+import { payPageSchema } from '../src/routes/payments/ways.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { solveProof } from '../src/public-api/proof.js';
-import { paidSoFar, payRoutes } from '../src/routes/pay/index.js';
+import { createPayPageReader, paidSoFar, payRoutes } from '../src/routes/pay/index.js';
 import { paymentLinksRoutes } from '../src/routes/payments/links.js';
 import { TEST_SECRET } from './helpers.js';
 
@@ -97,6 +98,9 @@ describe('a pay link, end to end', () => {
     await app.register(async (api) => api.register(paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } }, sources, secret: TEST_SECRET, ...facts, liveOn: async () => false })), { prefix: '/api/v1' });
     // Notes the language each checkout is started in.
     const noting = { ...checkout, start: async (input: Parameters<typeof checkout.start>[0]) => (locales.push(input.locale), checkout.start(input)) };
+    // What a browser with JavaScript off gets for a link, read the way the HTML route reads it.
+    const reader = createPayPageReader({ meta, sources, checkout, readyProviders: async (mode) => (mode === 'test' ? ['demo'] : []), secret: TEST_SECRET, ...facts });
+    app.get<{ Params: { token: string } }>('/noscript/:token', async (request) => reader.noscript(request, request.params.token));
     await app.register(payRoutes({ meta, sources, checkout: noting, readyProviders: async (mode) => (mode === 'test' ? ['demo'] : []), secret: TEST_SECRET, ...facts }));
     await app.ready();
   });
@@ -170,6 +174,42 @@ describe('a pay link, end to end', () => {
     await meta.db.updateTable('adminium_payment_links').set({ expiresAt: 1 }).where('id', '=', fresh.id).execute();
     const expired = (await app.inject({ method: 'GET', url: `/pay/api/${fresh.token}`, headers: staff() })).json();
     expect(expired).toMatchObject({ state: 'expired', payable: null, ways: [] });
+  });
+
+  it('writes the bank details for a browser with JavaScript off, in its language, escaped', async () => {
+    await paymentMethodsRepo(meta).put({
+      source: 'manual',
+      method: 'bank-transfer',
+      label: null,
+      enabled: true,
+      rules: NO_RULES,
+      details: { accounts: [{ currency: 'EUR', holder: 'Crumb & Co. <GmbH>', iban: 'DE89370400440532013000', bic: 'COBADEFFXXX' }] },
+      position: 1,
+    });
+    const { token } = await mint();
+    const english = (await app.inject({ method: 'GET', url: `/noscript/${token}`, headers: { ...staff(), 'accept-language': 'en-GB,en;q=0.8' } })).payload;
+    expect(english).toContain('This page needs JavaScript to pay online.');
+    expect(english).toContain('DE89 3704 0044 0532 0130 00');
+    expect(english).toContain('Crumb &amp; Co. &lt;GmbH&gt;');
+    expect(english).toContain('€120.00');
+    expect(english).not.toContain('<GmbH>');
+    const german = (await app.inject({ method: 'GET', url: `/noscript/${token}`, headers: { ...staff(), 'accept-language': 'de-DE' } })).payload;
+    expect(german).toContain('Diese Seite braucht JavaScript, um online zu bezahlen.');
+    expect(german).toContain('lang="de-DE"');
+    // A link that does not open shows no bank details at all.
+    const dead = (await app.inject({ method: 'GET', url: '/noscript/AAAAAAAAAAAAAAAAAAAAAA' })).payload;
+    expect(dead).not.toContain('DE89');
+  });
+
+  it('lists the invoice\'s lines only when the shop shows them', async () => {
+    const withLines: PayableSources = { ...sources, lines: async () => [{ label: 'Sourdough loaves × 24', amount: '96.00' }, { label: 'Delivery', amount: '24.00' }] };
+    const reader = createPayPageReader({ meta, sources: withLines, checkout: {} as never, readyProviders: async () => ['demo'], secret: TEST_SECRET, networkFeatures: true, desktop: false, trustProxy: false });
+    const { token } = await mint();
+    const page = (request: object) => reader.page(request as never, token);
+    const fakeStaff = { apiKeyPrincipal: null, can: async () => true, headers: {} };
+    expect((await page(fakeStaff)).payable?.lines).toBeNull();
+    await paymentSettingsRepo(meta).set('pay-page', payPageSchema, { shopName: 'Crumb & Co.', logoFileId: null, contactEmail: null, contactPhone: null, shopCountry: 'DE', showLines: true });
+    expect((await page(fakeStaff)).payable?.lines).toEqual([{ label: 'Sourdough loaves × 24', amount: '96.00' }, { label: 'Delivery', amount: '24.00' }]);
   });
 
   it('never spends one proof twice', async () => {

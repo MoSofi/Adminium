@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "What this is for"
+  },
+  "noscript": {
+    "title": "This page needs JavaScript to pay online."
   }
 } as const;

@@ -117,4 +117,28 @@ describe('the pay page routes', () => {
     expect((await app.inject({ method: 'GET', url: '/pay/api/demo/att_1' })).statusCode).toBe(404);
     expect((await app.inject({ method: 'POST', url: '/pay/api/demo/att_1', payload: { action: 'succeeds' } })).statusCode).toBe(404);
   });
+
+  it('puts what a link offers with JavaScript off into the page, in place of the built sentence', async () => {
+    mkdirSync(join(spa, 'pay', 'assets'), { recursive: true });
+    writeFileSync(join(spa, 'pay', 'index.html'), '<!doctype html><html><body><noscript><p>Turn on JavaScript.</p></noscript><div id="pay-root"></div></body></html>');
+    app = Fastify({ logger: false });
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
+    app.decorate('spaRoot', spa);
+    await app.register(
+      payPageRoutes({
+        meta,
+        storage: { read: async () => Readable.from([]) },
+        demo: null,
+        noscript: async (_request, token) => `<p>bank details for ${token.length} $& $1</p>`,
+        networkFeatures: true,
+        desktop: false,
+        trustProxy: false,
+      }),
+    );
+    await app.ready();
+    const answer = await app.inject({ method: 'GET', url: '/pay/AAAAAAAAAAAAAAAAAAAAAA' });
+    expect(answer.payload).toContain('<noscript><p>bank details for 22 $& $1</p></noscript>');
+    expect(answer.payload).not.toContain('Turn on JavaScript.');
+  });
 });

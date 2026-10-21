@@ -175,6 +175,8 @@ export interface PayableSources {
   profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: ParsedPayableMapping | null } | null>;
   /** What Adminium keeps as paid on a payable, live payments only. */
   keptPaid(ref: PayableRef, currency: string): Promise<string>;
+  /** The lines a payable lists (an invoice's), in order, at most 50; null when it has none to show. */
+  lines?(ref: PayableRef): Promise<PayableLine[] | null>;
   /** A staff test payable, and the test payments kept on it; null when there is none. */
   testPayable?(rowKey: string): Promise<{ label: string; currency: string; amount: string; provider: string; paid: string } | null>;
   /** A designer invoice's money, as stored. */
@@ -194,6 +196,24 @@ function refused(code: PayableRefusalCode, message: string): PayableRefusal {
 }
 
 const ISO = /^[A-Z]{3}$/;
+
+/** One line of what a payable is for, as the pay page lists it. */
+export interface PayableLine {
+  label: string;
+  /** In the payable's currency, at its decimals. */
+  amount: string;
+}
+
+/** The most lines the pay page lists. */
+export const PAY_LINES_MAX = 50;
+
+/** A designer invoice's line: quantity × rate, at the currency's decimals; null when either is not a number. */
+export function designerLineAmount(qty: unknown, rate: unknown, scale: number): string | null {
+  const q = toRatio(typeof qty === 'string' && qty.trim() === '' ? '1' : qty);
+  const r = toRatio(rate);
+  if (q === null || r === null) return null;
+  return ratioText({ n: q.n * r.n, d: q.d * r.d }, scale);
+}
 
 /** Resolves a payable; null when it no longer exists at all. */
 export async function resolvePayable(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
@@ -440,6 +460,55 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
       return profile === null ? null : { id: profile.id, enabled: profile.enabled, mapping: profile.mapping };
     },
     keptPaid: (ref, currency) => keptPaymentsRepo(deps.meta).paid(ref, currency, 'live'),
+    async lines(ref) {
+      if (isTestPayable(ref)) return null;
+      if (ref.kind === 'document') {
+        const document = await invoiceDocumentsRepo(deps.meta).findById(ref.rowKey);
+        if (document === null || document.kind !== 'invoice') return null;
+        const body = document.body as { items?: unknown; currencyCode?: unknown };
+        const currency = typeof body.currencyCode === 'string' && ISO.test(body.currencyCode) ? body.currencyCode : null;
+        if (currency === null || !Array.isArray(body.items)) return null;
+        const out: PayableLine[] = [];
+        for (const item of body.items.slice(0, PAY_LINES_MAX) as { desc?: unknown; qty?: unknown; rate?: unknown }[]) {
+          const amount = designerLineAmount(item.qty, item.rate, currencyScale(currency));
+          if (amount === null || typeof item.desc !== 'string' || item.desc.trim() === '') continue;
+          out.push({ label: item.desc.trim().slice(0, 200), amount });
+        }
+        return out.length === 0 ? null : out;
+      }
+      if (ref.kind !== 'shape' || ref.connectionId === null || ref.tableName === null) return null;
+      const { connectionId, tableName } = ref;
+      const records = await appTablesRepo(deps.meta).byTable(connectionId, tableName.includes('.') ? tableName.slice(tableName.indexOf('.') + 1) : tableName);
+      const document = records.find((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''));
+      if (document === undefined) return null;
+      const version = /@(\d+)#/.exec(document.builtOn!)![1];
+      const part = (await appTablesRepo(deps.meta).forInstall(connectionId, document.appKey)).find((record) => record.builtOn === `invoices/invoice@${version}#lines`);
+      if (part === undefined) return null;
+      const view = await viewFor(connectionId);
+      const linesId = view?.model.tables.find((candidate) => candidate.name === part.tableName)?.id ?? null;
+      const head = await table(connectionId, tableName);
+      if (linesId === null || head === null) return null;
+      const lines = await table(connectionId, linesId);
+      const pk = pkOfRowKey(head.table, ref.rowKey);
+      if (lines === null || pk === null) return null;
+      const docRow = await fetchByPk(head.target.db, head.table, pk);
+      const currency = typeof docRow?.['currency'] === 'string' && ISO.test(docRow['currency']) ? docRow['currency'] : await connectionTenantConfig(deps.meta, connectionId).then((config) => config?.currency ?? null);
+      if (docRow === undefined || currency === null) return null;
+      const rows = await lines.target.db
+        .selectFrom(lines.table.id)
+        .select([lines.target.db.dynamic.ref('description'), lines.target.db.dynamic.ref('amount')])
+        .where(lines.target.db.dynamic.ref('document_id'), '=', pkValue(docRow))
+        .orderBy(lines.target.db.dynamic.ref('position'))
+        .limit(PAY_LINES_MAX)
+        .execute();
+      const out: PayableLine[] = [];
+      for (const row of rows as Record<string, unknown>[]) {
+        const amount = exactAmount(row['amount'] ?? 0, currencyScale(currency));
+        if (amount === null || typeof row['description'] !== 'string') continue;
+        out.push({ label: row['description'].slice(0, 200), amount });
+      }
+      return out.length === 0 ? null : out;
+    },
     async testPayable(rowKey) {
       const test = await readTestPayable(deps.meta, rowKey);
       if (test === null) return null;

@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "Za co platíte"
+  },
+  "noscript": {
+    "title": "Tato stránka potřebuje k online platbě JavaScript."
   }
 } as const;

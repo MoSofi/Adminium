@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "付款用途"
+  },
+  "noscript": {
+    "title": "此页面需要 JavaScript 才能在线付款。"
   }
 } as const;

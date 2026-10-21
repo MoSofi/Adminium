@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3183 entries. */
+/** `namespace:key` — 3203 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1450,6 +1450,22 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'pay:ways.other',
   'pay:ways.paypal',
   'pay:ways.stripe',
+  'payments:panel.listLabel',
+  'payments:panel.toast.copied',
+  'payments:panel.toast.copyFailed',
+  'payments:panel.toast.failed',
+  'payments:panel.toast.recorded',
+  'payments:panel.toast.replaced',
+  'payments:panel.toast.revoked',
+  'payments:record.amount',
+  'payments:record.approval',
+  'payments:record.close',
+  'payments:record.date',
+  'payments:record.last4',
+  'payments:record.note',
+  'payments:record.notePh',
+  'payments:record.title',
+  'payments:record.way',
   'project:page.failed.title',
   'project:page.missing.title',
   'project:table.empty',
@@ -2287,7 +2303,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.page.country',
   'studio:payments.page.email',
   'studio:payments.page.phone',
+  'studio:payments.page.previewFrame',
   'studio:payments.page.shopName',
+  'studio:payments.page.whereCustomer',
+  'studio:payments.page.whereStaff',
   'studio:payments.path.app.title',
   'studio:payments.path.hand.title',
   'studio:payments.payables.amount',
@@ -2729,6 +2748,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:pages.linked.which',
   'ui:pages.record.cancel',
   'ui:pages.record.more',
+  'ui:payments.panel.title',
   'ui:record.lockedHint',
   'ui:record.timedMoveAt',
   'ui:record.timedMoveSoon',

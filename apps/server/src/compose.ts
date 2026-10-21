@@ -287,8 +287,9 @@ import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
 import { paymentLinkEmailRoutes } from './routes/payments/link-email.js';
+import { paymentPanelRoutes } from './routes/payments/panel.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
-import { payRoutes } from './routes/pay/index.js';
+import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
@@ -2037,6 +2038,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           readyInTest: () => readyInMode({ meta, manifests: appManifests, runtime: () => addOnRuntime }, 'test'),
         }),
       );
+      // The record page's Payment panel, and recording a payment by hand.
+      await api.register(
+        paymentPanelRoutes({
+          meta,
+          manager,
+          sources: paymentSources,
+          networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+          desktop: env.ADMINIUM_RUNTIME === 'desktop',
+          trustProxy: env.ADMINIUM_TRUST_PROXY,
+          writes: recordWrites,
+        }),
+      );
       await api.register(paymentPayablesRoutes({ meta, manager }));
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
@@ -2708,19 +2721,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * customer domain), and every route asks first whether customers can reach
    * it at all.
    */
-  await app.register(
-    payRoutes({
-      meta,
-      sources: paymentSources,
-      checkout: paymentCheckout,
-      readyProviders: (mode) => readyInMode({ meta, manifests: appManifests, runtime: () => addOnRuntime }, mode),
-      secret: env.ADMINIUM_SECRET,
-      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
-      desktop: env.ADMINIUM_RUNTIME === 'desktop',
-      trustProxy: env.ADMINIUM_TRUST_PROXY,
-      receiptSent: (attempt) => receiptSentFor(meta, attempt),
-    }),
-  );
+  const payDeps: PayRoutesDeps = {
+    meta,
+    sources: paymentSources,
+    checkout: paymentCheckout,
+    readyProviders: (mode) => readyInMode({ meta, manifests: appManifests, runtime: () => addOnRuntime }, mode),
+    secret: env.ADMINIUM_SECRET,
+    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+    desktop: env.ADMINIUM_RUNTIME === 'desktop',
+    trustProxy: env.ADMINIUM_TRUST_PROXY,
+    receiptSent: (attempt) => receiptSentFor(meta, attempt),
+  };
+  await app.register(payRoutes(payDeps));
+
   // The pay page's HTML, its own files and the demo's hosted page, each with
   // the pay page's own content policy (set last, in its own scope).
   await app.register(
@@ -2728,6 +2741,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       meta,
       storage,
       demo: paymentDemo,
+      noscript: createPayPageReader(payDeps).noscript,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,

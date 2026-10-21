@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "Wofür Sie bezahlen"
+  },
+  "noscript": {
+    "title": "Diese Seite braucht JavaScript, um online zu bezahlen."
   }
 } as const;

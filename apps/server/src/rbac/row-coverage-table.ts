@@ -395,6 +395,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/payments/links': rows('visible', 'A pay link is made only for a row the maker reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/links/current': rows('visible', 'The current pay link of a row the asker reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/links/:id/revoke': rows('visible', 'A pay link is revoked only for a row the person reaches.'),
+  'POST /api/v1/payments/panel': rows('visible', 'One record as its reader reaches it; a row their row limits hide answers as one that is not there.'),
+  'POST /api/v1/payments/record-payment': rows('visible', 'Recorded only on a record the person may change and reaches under their own row limits; written into its payments as a payment write.'),
   'POST /api/v1/payments/links/:id/email': rows('visible', 'A pay link is emailed only for a row the sender reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/webhook/:provider/:mode': noRows('A payment service calling back; the event is kept in meta and settled by a job.'),
   'GET /api/v1/payments/activity': noRows('Payment attempts and refunds, kept in meta; the record is named by its label only.'),

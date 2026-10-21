@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "Hvad du betaler for"
+  },
+  "noscript": {
+    "title": "Denne side kræver JavaScript for at betale online."
   }
 } as const;

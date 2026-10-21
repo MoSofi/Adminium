@@ -49,6 +49,8 @@ export interface PayPageDeps {
   networkFeatures: boolean;
   desktop: boolean;
   trustProxy: boolean;
+  /** What a browser with JavaScript off is shown for a link (the bank details, or the shop's contact), as markup. */
+  noscript?: (request: FastifyRequest, token: string) => Promise<string>;
   now?: () => number;
 }
 
@@ -143,13 +145,23 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
       return payload;
     });
 
-    async function page(reply: FastifyReply) {
+    async function page(reply: FastifyReply, noscript: string | null = null) {
       const root = await payRoot(app);
       if (root === null) return reply.status(503).type('text/html; charset=utf-8').send(UNBUILT);
-      return reply.type('text/html; charset=utf-8').send(await readFile(join(root, 'index.html'), 'utf8'));
+      const html = await readFile(join(root, 'index.html'), 'utf8');
+      // The built page's own <noscript> sentence, replaced by what this link can still offer.
+      return reply.type('text/html; charset=utf-8').send(noscript === null ? html : html.replace(/<noscript>[\s\S]*?<\/noscript>/, () => `<noscript>${noscript}</noscript>`));
     }
 
-    app.get('/pay/:token', { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams } }, async (_request, reply) => page(reply));
+    app.get('/pay/:token', { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams } }, async (request, reply) => {
+      let noscript: string | null = null;
+      try {
+        noscript = deps.noscript === undefined ? null : await deps.noscript(request, request.params.token);
+      } catch {
+        // The built sentence stays: the page itself still works.
+      }
+      return page(reply, noscript);
+    });
     app.get('/pay/back/:nonce', { config: { rateLimitBucket: 'pay-page' }, schema: { params: nonceParams } }, async (_request, reply) => page(reply));
     app.get('/pay/demo/:attempt', { config: { rateLimitBucket: 'pay-page' }, schema: { params: attemptParams } }, async (_request, reply) => page(reply));
     // Studio's preview of the pay page settings: staff only, read by the page itself.

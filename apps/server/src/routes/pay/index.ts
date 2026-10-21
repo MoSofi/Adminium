@@ -27,6 +27,8 @@
  * - Nothing is ever cached, and no referrer leaves the page.
  */
 import { subtractAmounts } from '@adminium/add-on-contracts';
+import { localeFromTag, type LocaleId } from '@adminium/i18n';
+import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
 import { paymentAttemptsRepo, paymentCountersRepo, paymentLinksRepo, paymentMethodsRepo, paymentSettingsRepo, publicProofsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -42,6 +44,7 @@ import { waysFor, type WayOffer } from '../../payments/ways.js';
 import { checkProof, issueChallenge, proofKey } from '../../public-api/proof.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
+import { loadOverrideMap } from '../../i18n/server-i18n.js';
 
 export interface PayRoutesDeps {
   meta: MetaDb;
@@ -137,10 +140,6 @@ export function paidSoFar(payable: Pick<ResolvedPayable, 'total' | 'due' | 'curr
   return paid;
 }
 
-/** What the page shows of a payable; never the customer's name, address or email. */
-function shownOf(payable: ResolvedPayable): NonNullable<PageReply['payable']> {
-  return { label: payable.label, currency: payable.currency, due: payable.due, total: payable.total, alreadyPaid: paidSoFar(payable), dueDate: payable.dueDate, lines: null };
-}
 
 /** Whether the request came through a proxy: it carries the headers one adds. */
 function forwardedOf(request: FastifyRequest): boolean {
@@ -150,7 +149,11 @@ function forwardedOf(request: FastifyRequest): boolean {
 /** A payment that was taken, but differs from what was asked: the shop looks at it. */
 const AMOUNT_PROBLEMS: ReadonlySet<string> = new Set(['AMOUNT_DIFFERS', 'CURRENCY_DIFFERS', 'MORE_THAN_DUE']);
 
-export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
+/**
+ * How a pay link's page stands, from scratch, every time: what the API answers
+ * and what the HTML writes for a browser with JavaScript off.
+ */
+export function createPayPageReader(deps: PayRoutesDeps) {
   const { meta } = deps;
   const now = deps.now ?? (() => Date.now());
   const counters = paymentCountersRepo(meta);
@@ -219,6 +222,13 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
     }
   }
 
+  /** What the page shows of a payable: never the customer's name, address or email; its lines only when the shop shows them. */
+  async function shownOf(payable: ResolvedPayable): Promise<NonNullable<PageReply['payable']>> {
+    const settings = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
+    const lines = settings?.showLines === true && deps.sources.lines !== undefined ? await deps.sources.lines(payable.ref) : null;
+    return { label: payable.label, currency: payable.currency, due: payable.due, total: payable.total, alreadyPaid: paidSoFar(payable), dueDate: payable.dueDate, lines };
+  }
+
   /** Whether a receipt went to the customer for this payment (the receipt email's own record). */
   async function receiptSentFor(attempt: PaymentAttempt): Promise<boolean> {
     return deps.receiptSent === undefined ? false : deps.receiptSent(attempt);
@@ -243,7 +253,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
     if (isTestPayable(link.payable) && link.mode === 'live') return base;
     const payable = await resolvePayable(deps.sources, link.payable);
     if (payable === null) return base;
-    const shown = shownOf(payable);
+    const shown = await shownOf(payable);
     const open = await attempts.openFor(payable.ref, link.mode);
     const held = open === null ? null : stateOfAttempt(open);
     if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
@@ -269,6 +279,80 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
       return false;
     }
   }
+
+  // ── With JavaScript off ─────────────────────────────────────────────────
+  // The page cannot run, so the server writes what a customer can still use:
+  // the bank details (no copy buttons), else how to reach the shop. In the
+  // browser's language when it is one of the eight, with Latin digits.
+  const translators = new Map<string, { at: number; i18n: Promise<I18nInstance> }>();
+  function translator(locale: LocaleId): Promise<I18nInstance> {
+    const cached = translators.get(locale);
+    if (cached !== undefined && now() - cached.at < 60_000) return cached.i18n;
+    const i18n = loadOverrideMap(meta, locale).then((overrides) => createServerI18n({ locale, overrides }));
+    translators.set(locale, { at: now(), i18n });
+    return i18n;
+  }
+
+  async function noscript(request: FastifyRequest, token: string): Promise<string> {
+    const answer = await page(request, token);
+    const wanted = String(request.headers['accept-language'] ?? '')
+      .split(',')
+      .map((part) => part.split(';')[0]!.trim())
+      .filter((tag) => tag !== '');
+    const locale = wanted.map((tag) => localeFromTag(tag)).find((found, index) => found !== 'en_US' || wanted[index]!.toLowerCase().startsWith('en')) ?? 'en_US';
+    const i18n = await translator(locale);
+    const t = (key: string, fallback: string, values?: Record<string, string>): string => escapeHtml(i18n.t(key, { defaultValue: fallback, ns: 'pay', ...values }));
+    const tag = locale.replace('_', '-');
+    const money = (amount: string, currency: string): string => {
+      const decimals = (amount.split('.')[1] ?? '').length;
+      try {
+        return new Intl.NumberFormat(`${tag}-u-nu-latn`, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(amount));
+      } catch {
+        return `${currency} ${amount}`;
+      }
+    };
+    const parts: string[] = [`<section class="pp-card pp-status" data-tone="warning"><h1 class="pp-h2">${t('pay:noscript.title', 'This page needs JavaScript to pay online.')}</h1></section>`];
+    const bank = answer.ways.find((way) => way.source === 'manual' && way.method === 'bank-transfer') ?? null;
+    const payable = answer.payable;
+    const accounts = ((bank?.details as { accounts?: Record<string, unknown>[] } | null)?.accounts ?? []).filter((account) => account['currency'] === undefined || account['currency'] === payable?.currency);
+    if (payable !== null && accounts.length > 0) {
+      const rows: string[] = [];
+      const row = (label: string, value: string): void => {
+        rows.push(`<div class="pp-row"><div class="pp-row-text"><dt class="pp-row-label">${label}</dt><dd class="pp-row-value"><bdi dir="ltr">${escapeHtml(value)}</bdi></dd></div></div>`);
+      };
+      const account = accounts[0]!;
+      const text = (key: string): string | null => (typeof account[key] === 'string' && account[key] !== '' ? (account[key] as string) : null);
+      if (text('holder') !== null) row(t('pay:bank.holder', 'Account holder'), text('holder')!);
+      if (text('iban') !== null) row(t('pay:bank.iban', 'IBAN'), text('iban')!.replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim());
+      if (text('bic') !== null) row(t('pay:bank.bic', 'BIC'), text('bic')!);
+      if (text('accountNumber') !== null) row(t('pay:bank.accountNumber', 'Account number'), text('accountNumber')!);
+      if (text('sortCode') !== null) row(t('pay:bank.sortCode', 'Sort code'), text('sortCode')!);
+      if (text('bank') !== null) row(t('pay:bank.bankName', 'Bank'), text('bank')!);
+      row(t('pay:bank.amount', 'Amount'), money(payable.due, payable.currency));
+      row(t('pay:bank.reference', 'Reference'), payable.label);
+      parts.push(
+        `<section class="pp-card pp-bank"><h2 class="pp-h2">${t('pay:bank.title', 'Bank transfer')}</h2><dl class="pp-rows">${rows.join('')}</dl><p class="pp-small">${t('pay:bank.note', 'Use this reference so the shop can find your payment. It shows as paid once the shop has checked.')}</p></section>`,
+      );
+    }
+    const contact: string[] = [];
+    if (answer.shop.email !== null) contact.push(`<a href="mailto:${escapeHtml(answer.shop.email)}"><bdi dir="ltr">${escapeHtml(answer.shop.email)}</bdi></a>`);
+    if (answer.shop.phone !== null) contact.push(`<a href="tel:${escapeHtml(answer.shop.phone.replace(/\s+/g, ''))}"><bdi dir="ltr">${escapeHtml(answer.shop.phone)}</bdi></a>`);
+    if (contact.length > 0) parts.push(`<p class="pp-small">${t('pay:footer.questions', 'Questions? Write to')} ${contact.join(' · ')}</p>`);
+    return `<main class="pp-main" data-solo="" lang="${tag}" dir="${locale === 'ar_EG' ? 'rtl' : 'ltr'}"><div class="pp-col">${parts.join('')}</div></main>`;
+  }
+
+  return { meta, now, counters, attempts, proofs, key, shop, reachable, mayOpen, waysOf, stateOfAttempt, shownOf, receiptSentFor, page, mayPreview, noscript };
+}
+
+/** Text for HTML: the five characters that could open markup, escaped. */
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
+}
+
+export type PayPageReader = ReturnType<typeof createPayPageReader>;
+
+export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
+  const { meta, now, counters, attempts, proofs, key, shop, reachable, mayOpen, stateOfAttempt, shownOf, receiptSentFor, page, mayPreview } = createPayPageReader(deps);
 
   return async (app) => {
     app.get(
@@ -381,7 +465,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         // A link revoked, replaced or expired since still tells its holder how
         // their own payment stands, but no longer what the record asks.
         const payable = linkOpens(link, now()) ? await resolvePayable(deps.sources, attempt.payable) : null;
-        const shown = payable === null ? null : shownOf(payable);
+        const shown = payable === null ? null : await shownOf(payable);
         const test = attempt.mode === 'test';
         const told = {
           ...base,

@@ -159,5 +159,8 @@ export default {
   },
   "lines": {
     "title": "Objet du paiement"
+  },
+  "noscript": {
+    "title": "Cette page a besoin de JavaScript pour payer en ligne."
   }
 } as const;
