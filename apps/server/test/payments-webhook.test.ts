@@ -9,13 +9,14 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createDemoPaymentBackend, type DemoPaymentBackend } from '@adminium/add-on-contracts';
-import { createSqliteMetaDb, firstRun, paymentAttemptsRepo, paymentCountersRepo, paymentEventsRepo, paymentLinksRepo, paymentSettingsRepo, type MetaDb } from '@adminium/meta';
+import { createDemoPaymentBackend, type DemoPaymentBackend, type PaymentProvider } from '@adminium/add-on-contracts';
+import { createSqliteMetaDb, firstRun, paymentAttemptsRepo, paymentCountersRepo, paymentEventsRepo, paymentLinksRepo, paymentSettingsRepo, refundsRepo, type MetaDb } from '@adminium/meta';
 
-import { createCheckoutService, type CheckoutService } from '../src/payments/checkout.js';
+import { SettleUnanswered, createCheckoutService, type CheckoutService } from '../src/payments/checkout.js';
 import type { PayableSources, ResolvedPayable } from '../src/payments/payables.js';
 import { DEMO_CREDENTIALS, paymentProviderFor } from '../src/payments/providers.js';
-import { webhookDocName, webhookHealthSchema, type WebhookDeps } from '../src/payments/webhook.js';
+import { receiveWebhook, registerPaymentsSettleHandler, webhookDocName, webhookHealthSchema, type WebhookDeps } from '../src/payments/webhook.js';
+import type { JobRegistry } from '../src/jobs/registry.js';
 import { paymentWebhookRoutes } from '../src/routes/payments/webhook.js';
 
 const PAY = 'https://pay.crumbandco.test';
@@ -131,4 +132,44 @@ describe('the payment webhook', () => {
     expect(await paymentEventsRepo(meta).unprocessed(Date.now() + 1)).toEqual([]);
     expect((await paymentAttemptsRepo(meta).byId(attemptId))!.state).toBe('open');
   });
+
+  it('does not believe an event whose mode is not the secret\'s', async () => {
+    const lookup: WebhookDeps['providerFor'] = async (key, mode) => ({
+      ok: true,
+      key,
+      mode,
+      redirectHosts: [],
+      provider: { verifyWebhook: async () => ({ ok: true, eventId: 'evt_x', type: 'checkout.session.completed', kind: 'checkout', livemode: true, checkoutRef: 'cs_x', paymentRef: null, refundRef: null }) } as unknown as PaymentProvider,
+    });
+    const answer = await receiveWebhook({ meta, providerFor: lookup, enqueue: async () => undefined }, { provider: 'demo', mode: 'test', rawBody: '{}', headers: {} });
+    expect(answer).toEqual({ status: 400, reason: 'mode' });
+    expect(await paymentCountersRepo(meta).read('webhook-bad:demo:test')).toBe(1);
+  });
+
+  it('keeps an event about a refund only as the record, and never as work', async () => {
+    await refundsRepo(meta).create({ attemptId: null, paymentId: null, paymentRef: 'pi_x', provider: 'demo', mode: 'test', amount: '5.00', currency: 'EUR', reason: 'requested_by_customer', note: null, idempotencyKey: 'rk_1', source: 'staff', requestedBy: null, providerRefundId: 're_1' });
+    const lookup: WebhookDeps['providerFor'] = async (key, mode) => ({
+      ok: true,
+      key,
+      mode,
+      redirectHosts: [],
+      provider: { verifyWebhook: async () => ({ ok: true, eventId: 'evt_r', type: 'refund.updated', kind: 'refund', livemode: false, checkoutRef: null, paymentRef: null, refundRef: 're_1' }) } as unknown as PaymentProvider,
+    });
+    const answer = await receiveWebhook({ meta, providerFor: lookup, enqueue: async () => undefined }, { provider: 'demo', mode: 'test', rawBody: '{}', headers: {} });
+    expect(answer).toEqual({ status: 200, matched: true });
+    expect(await paymentEventsRepo(meta).unprocessed(Date.now() + 1)).toEqual([]);
+  });
+
+  it('fails the settle job and keeps its event as work when the provider cannot be asked', async () => {
+    const { attemptId, checkoutId } = await paidAttempt();
+    const event = [...backend.events()].reverse().find((one) => one.checkoutRef === checkoutId)!;
+    await post(await backend.deliveryFor(event.id, DEMO_CREDENTIALS.webhookSecret));
+    let handler: ((payload: { attemptId: string; eventId?: string }) => Promise<unknown>) | null = null;
+    const registry = { registerJobHandler: (_kind: string, _schema: unknown, run: typeof handler) => (handler = run) } as unknown as JobRegistry;
+    const down = createCheckoutService({ meta, sources: {} as PayableSources, providerFor: async () => ({ ok: false, code: 'NOT_LOADED', message: 'Not loaded.' }), enqueue: async () => undefined });
+    registerPaymentsSettleHandler(registry, { meta, checkout: down });
+    await expect(handler!(settles[0]!)).rejects.toBeInstanceOf(SettleUnanswered);
+    expect((await paymentEventsRepo(meta).unprocessed(Date.now() + 1)).map((one) => one.attemptId)).toEqual([attemptId]);
+  });
 });
+

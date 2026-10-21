@@ -160,18 +160,25 @@ export async function receiveWebhook(
     return { status: 503 };
   }
   if (stored.fresh && attempt !== null) await enqueueSettle(deps.enqueue, attempt.id, stored.event.id);
+  // About a refund only: kept as the record, and nothing here settles it, so it is never left as work.
+  if (stored.fresh && attempt === null) await paymentEventsRepo(deps.meta).markProcessed(stored.event.id, at);
   return { status: 200, matched: true };
 }
 
 const settlePayload = z.object({ attemptId: z.string().min(1), eventId: z.string().min(1).optional() });
 
-/** The settle job: asks the provider how the attempt stands, then marks the event that queued it handled. */
+/**
+ * The settle job: asks the provider how the attempt stands, then marks the
+ * event that queued it handled. When the provider cannot be asked the job
+ * throws, so it is tried again and the event stays work (the sweep queues it
+ * again if every try fails): a taken payment is never let go on a timeout.
+ */
 export function registerPaymentsSettleHandler(registry: JobRegistry, deps: { meta: MetaDb; checkout: CheckoutService; now?: () => number }): void {
   registry.registerJobHandler(
     PAYMENTS_SETTLE_JOB,
     settlePayload,
     async (payload) => {
-      const attempt = await deps.checkout.settle(payload.attemptId);
+      const attempt = await deps.checkout.settle(payload.attemptId, { strict: true, ...(payload.eventId === undefined ? {} : { eventId: payload.eventId }) });
       if (payload.eventId !== undefined) await paymentEventsRepo(deps.meta).markProcessed(payload.eventId, (deps.now ?? Date.now)());
       return { state: attempt?.state ?? 'gone' };
     },

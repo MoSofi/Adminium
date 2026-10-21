@@ -36,16 +36,26 @@
  * amounts once more and writes the payment exactly once.
  *
  * Settling one attempt runs one at a time in this process (the three callers
- * can arrive together), and a provider's capture key is per attempt, so a
- * second process at worst retries.
+ * can arrive together), and a provider's capture key is per capture try, so a
+ * second process at worst retries. When the provider cannot be asked (not
+ * loaded, a timeout), the settle job fails and is tried again; the return page
+ * and the sweep only read and ask again later.
+ *
+ * ─── DECLINES AND THE LINK'S LOCK ──────────────────────────────────────────
+ *
+ * Each decline the provider reports is counted against the pay link once
+ * (through its own event, or the attempt's move to failed). A link with too
+ * many in an hour is locked, and every provider page still open for it is
+ * ended, so a card tester cannot keep trying cards on an open page.
  */
-import { isProviderError, sameAmount, type CheckoutState, type PaymentMode, type PaymentProvider } from '@adminium/add-on-contracts';
-import { paymentAttemptsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
+import { DEMO_PAYMENT_KEY, isProviderError, sameAmount, type CheckoutState, type PaymentMode } from '@adminium/add-on-contracts';
+import { paymentAttemptsRepo, paymentCountersRepo, paymentSettingsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
 import { randomBytes } from 'node:crypto';
 
 import { resolvePayable, type PayableSources, type ResolvedPayable } from './payables.js';
 import { checkoutUrlAllowed, type ProviderLookup } from './providers.js';
 import { enqueueRecord } from './record.js';
+import { mutateServiceState, serviceDocName, serviceStateSchema } from './services.js';
 
 export interface CheckoutDeps {
   meta: MetaDb;
@@ -79,53 +89,120 @@ export type StartOutcome =
 
 const HELD_ELSEWHERE: readonly string[] = ['processing', 'succeeded', 'recording'];
 
+/** Declines on one pay link in an hour before it locks. */
+export const LINK_FAILURES_TO_LOCK = 5;
+
+/** The bucket a pay link's declines are counted in (per hour, in meta). */
+export function linkFailBucket(linkId: string): string {
+  return `link-fail:${linkId}`;
+}
+
+/**
+ * No provider page lives longer than this (a Stripe page lasts a day at
+ * most; Adminium captures a PayPal order within hours or never): an attempt
+ * this old cannot take money any more, whatever its last answer.
+ */
+export const MAX_CHECKOUT_LIFE_MS = 48 * 60 * 60_000;
+
 /** The nonce the return address carries instead of the link's token. */
 export function newAttemptNonce(): string {
   return randomBytes(16).toString('base64url');
 }
 
-const settling = new Map<string, Promise<PaymentAttempt | null>>();
+/** The settle job's provider could not be asked: the job is tried again, and its event is not marked handled. */
+export class SettleUnanswered extends Error {
+  constructor(readonly attemptId: string, readonly reason: string) {
+    super(`The payment service could not be asked about ${attemptId}: ${reason}`);
+    this.name = 'SettleUnanswered';
+  }
+}
+
+export interface SettleOptions {
+  /** Throw {@link SettleUnanswered} when the provider could not be asked (the settle job). */
+  strict?: boolean;
+  /** The stored event that queued this settle: a decline it reports counts once. */
+  eventId?: string;
+}
+
+/** What ending a checkout at the provider came to. */
+type Ended = 'ended' | 'completed' | 'unknown';
+
+interface Settled {
+  attempt: PaymentAttempt | null;
+  /** False when the provider could not be asked. */
+  answered: boolean;
+  reason: string | null;
+}
+
+const settling = new Map<string, Promise<Settled>>();
 
 export function createCheckoutService(deps: CheckoutDeps) {
   const now = deps.now ?? (() => Date.now());
   const attempts = paymentAttemptsRepo(deps.meta);
+  const counters = paymentCountersRepo(deps.meta);
 
-  async function provider(attempt: Pick<PaymentAttempt, 'provider' | 'mode'>): Promise<PaymentProvider | null> {
+  /**
+   * Ends an attempt's checkout at the provider. Only a provider that says so
+   * (or says it never heard of it) counts as ended; one that cannot be asked
+   * right now leaves it `unknown`, and nothing new may start over it.
+   */
+  async function endAtProvider(attempt: PaymentAttempt): Promise<Ended> {
+    if (attempt.providerRef === null) return 'ended';
+    if (attempt.createdAt < now() - MAX_CHECKOUT_LIFE_MS) return 'ended';
     const lookup = await deps.providerFor(attempt.provider, attempt.mode);
-    return lookup.ok ? lookup.provider : null;
+    if (!lookup.ok) return 'unknown';
+    const answer = await lookup.provider.expire(attempt.providerRef);
+    if (isProviderError(answer)) return answer.code === 'ALREADY_COMPLETED' ? 'completed' : answer.code === 'NOT_FOUND' ? 'ended' : 'unknown';
+    if (answer.status === 'succeeded' || answer.status === 'processing') return 'completed';
+    if (answer.status === 'expired' || answer.status === 'cancelled' || answer.status === 'failed') return 'ended';
+    return 'unknown';
   }
 
-  /** Ends an attempt's checkout at the provider. True when ended (or already ended); false when it completed there. */
-  async function endAtProvider(attempt: PaymentAttempt): Promise<boolean> {
-    if (attempt.providerRef === null) return true;
-    const service = await provider(attempt);
-    if (service === null) return true;
-    const answer = await service.expire(attempt.providerRef);
-    if (isProviderError(answer)) return answer.code !== 'ALREADY_COMPLETED';
-    return answer.status !== 'succeeded' && answer.status !== 'processing';
+  /**
+   * Ends the page behind a declined attempt, once: its checkout URL is
+   * cleared when the provider confirms, which is what marks it done.
+   */
+  async function endDeclined(attempt: PaymentAttempt): Promise<Ended> {
+    if (attempt.state !== 'failed' || attempt.providerRef === null || attempt.checkoutUrl === null) return 'ended';
+    const ended = await endAtProvider(attempt);
+    if (ended === 'ended') await attempts.note(attempt.id, 'failed', { checkoutUrl: null }, now());
+    return ended;
   }
 
   async function start(input: StartInput): Promise<StartOutcome> {
     const { payable } = input;
-    const held = await attempts.openFor(payable.ref);
+    const mode = input.link.mode;
+    const held = await attempts.openFor(payable.ref, mode);
     if (held !== null) {
       if (HELD_ELSEWHERE.includes(held.state)) return { kind: 'in-progress', attemptId: held.id };
       if (held.state === 'creating') return { kind: 'busy' };
       // `open`.
-      const same = held.provider === input.provider && held.mode === input.link.mode && held.currency === payable.currency && sameAmount(held.amount, payable.due);
+      const same = held.provider === input.provider && held.currency === payable.currency && sameAmount(held.amount, payable.due);
       if (same && held.checkoutUrl !== null) return { kind: 'redirect', url: held.checkoutUrl, attemptId: held.id, reused: true };
-      if (!(await endAtProvider(held))) {
+      const ended = await endAtProvider(held);
+      if (ended === 'completed') {
         settleInBackground(held.id);
         return { kind: 'in-progress', attemptId: held.id };
       }
+      if (ended === 'unknown') return { kind: 'busy' };
       await attempts.move(held.id, 'expired', {}, now());
     }
 
-    // A page that may still be open behind an attempt that let the payable go.
-    const [last] = await attempts.forPayable(payable.ref, 1);
-    if (last !== undefined && last.state === 'failed' && last.providerRef !== null && !(await endAtProvider(last))) {
-      settleInBackground(last.id);
-      return { kind: 'in-progress', attemptId: last.id };
+    const recent = (await attempts.forPayable(payable.ref, 20)).filter((one) => one.mode === mode);
+    // Money that arrived and is not written down yet, or that a person must
+    // decide about: never a second payment over it.
+    const taken = recent.find((one) => one.state === 'succeeded' || one.state === 'recording' || (one.state === 'record_refused' && one.check === null));
+    if (taken !== undefined) return { kind: 'in-progress', attemptId: taken.id };
+
+    // Pages that may still be open behind attempts that let the payable go (a
+    // declined card keeps the provider's page open for another one).
+    for (const declined of recent.filter((one) => one.state === 'failed' && one.checkoutUrl !== null && one.createdAt >= now() - MAX_CHECKOUT_LIFE_MS)) {
+      const ended = await endDeclined(declined);
+      if (ended === 'completed') {
+        settleInBackground(declined.id);
+        return { kind: 'in-progress', attemptId: declined.id };
+      }
+      if (ended === 'unknown') return { kind: 'busy' };
     }
 
     const lookup = await deps.providerFor(input.provider, input.link.mode);
@@ -172,16 +249,50 @@ export function createCheckoutService(deps: CheckoutDeps) {
     return { kind: 'redirect', url: made.url, attemptId: attempt.id, reused: false };
   }
 
+  /** Counts a decline against the attempt's link, once; locks the link when there are too many. */
+  async function noteDecline(attempt: PaymentAttempt, viaEvent: boolean): Promise<void> {
+    if (attempt.linkId === null) return;
+    const add = await attempts.countFailure(attempt.id, viaEvent);
+    let count = 0;
+    for (let one = 0; one < add; one += 1) count = await counters.hit(linkFailBucket(attempt.linkId), now());
+    if (add > 0 && count >= LINK_FAILURES_TO_LOCK) await endPagesOfLink(attempt);
+  }
+
+  /** A locked link: every provider page still open for it is ended, so no card is tried there again. */
+  async function endPagesOfLink(attempt: PaymentAttempt): Promise<void> {
+    for (const one of await attempts.forPayable(attempt.payable, 20)) {
+      if (one.linkId !== attempt.linkId) continue;
+      const fresh = (await attempts.byId(one.id)) ?? one;
+      if (fresh.state === 'open') {
+        if ((await endAtProvider(fresh)) === 'ended') await attempts.move(fresh.id, 'expired', {}, now());
+      } else if (fresh.state === 'failed') {
+        await endDeclined(fresh);
+      }
+    }
+  }
+
+  /** The setup checklist's payment step: the first real payment a service took in a mode, kept once. */
+  async function noteFirstPayment(attempt: PaymentAttempt, at: number): Promise<void> {
+    if (attempt.provider === DEMO_PAYMENT_KEY) return;
+    const mode = attempt.mode;
+    const saved = await paymentSettingsRepo(deps.meta).get(serviceDocName(attempt.provider), serviceStateSchema);
+    if (saved !== null && saved[mode].firstPaymentAt !== null) return;
+    await mutateServiceState(deps.meta, attempt.provider, (state) => ({
+      state: state[mode].firstPaymentAt === null ? { ...state, [mode]: { ...state[mode], firstPaymentAt: at } } : state,
+    }), at);
+  }
+
   /** Moves an attempt as the provider's own status says. */
-  async function apply(attempt: PaymentAttempt, state: CheckoutState): Promise<void> {
+  async function apply(attempt: PaymentAttempt, state: CheckoutState, viaEvent: boolean): Promise<void> {
     const at = now();
     const moved = (to: Parameters<typeof attempts.move>[1], patch: Parameters<typeof attempts.move>[2] = {}) => attempts.move(attempt.id, to, patch, at);
+    // Money in the other mode is never believed: a test payment for a live attempt, or the reverse.
+    if ((state.status === 'succeeded' || state.status === 'processing') && state.livemode !== (attempt.mode === 'live')) {
+      await attempts.note(attempt.id, attempt.state, { problem: { code: 'MODE_MISMATCH', message: `The payment service reported a ${state.livemode ? 'live' : 'test'} payment for a ${attempt.mode} attempt.` } }, at);
+      await attempts.flag(attempt.id, at);
+      return;
+    }
     if (state.status === 'succeeded') {
-      if (state.livemode !== (attempt.mode === 'live')) {
-        await attempts.note(attempt.id, attempt.state, { problem: { code: 'MODE_MISMATCH', message: `The payment service reported a ${state.livemode ? 'live' : 'test'} payment for a ${attempt.mode} attempt.` } }, at);
-        await attempts.flag(attempt.id, at);
-        return;
-      }
       if (attempt.state === 'succeeded' || attempt.state === 'recording' || attempt.state === 'recorded' || attempt.state === 'record_refused') return;
       const ok = await moved('succeeded', {
         paymentRef: state.paymentRef,
@@ -190,7 +301,10 @@ export function createCheckoutService(deps: CheckoutDeps) {
         paidWith: state.paidWith,
         settledAt: state.settledAt ?? at,
       });
-      if (ok) await enqueueRecord(deps.enqueue, attempt.id);
+      if (ok) {
+        await enqueueRecord(deps.enqueue, attempt.id);
+        await noteFirstPayment(attempt, at);
+      }
       return;
     }
     if (state.status === 'processing' && attempt.state === 'open') {
@@ -201,29 +315,40 @@ export function createCheckoutService(deps: CheckoutDeps) {
     if (state.status in closing && (attempt.state === 'open' || attempt.state === 'processing')) {
       await moved(closing[state.status as keyof typeof closing], state.failureMessage === null ? {} : { problem: { code: state.status.toUpperCase(), message: state.failureMessage } });
     }
+    if (state.status === 'failed' && (attempt.state === 'open' || attempt.state === 'processing' || attempt.state === 'failed')) await noteDecline(attempt, viaEvent);
   }
 
-  async function settleOnce(attemptId: string): Promise<PaymentAttempt | null> {
+  async function settleOnce(attemptId: string, viaEvent: boolean): Promise<Settled> {
     const attempt = await attempts.byId(attemptId);
-    if (attempt === null || attempt.providerRef === null) return attempt;
-    if (attempt.state === 'recorded' || attempt.state === 'recording' || attempt.state === 'record_refused' || attempt.state === 'abandoned') return attempt;
-    const service = await provider(attempt);
-    if (service === null) return attempt;
+    if (attempt === null || attempt.providerRef === null) return { attempt, answered: true, reason: null };
+    if (attempt.state === 'recorded' || attempt.state === 'recording' || attempt.state === 'record_refused' || attempt.state === 'abandoned') return { attempt, answered: true, reason: null };
+    const lookup = await deps.providerFor(attempt.provider, attempt.mode);
+    if (!lookup.ok) return { attempt, answered: false, reason: lookup.code };
+    const service = lookup.provider;
     // ONE call to the provider. An attempt still open may be approved but not
     // taken yet (a two-step provider), so it is completed — but only if the
     // payable, read again here, still owes exactly this; otherwise it is only
-    // read. A one-step provider's `complete` is a read either way.
+    // read. A one-step provider's `complete` is a read either way. Each
+    // capture try has its own key: a provider that keeps a declined
+    // capture's answer under its key would hand the decline back for good.
     let state;
+    let captured = false;
     if (attempt.state === 'open' || attempt.state === 'failed') {
       const payable = await resolvePayable(deps.sources, attempt.payable);
       const owes = payable !== null && payable.refusal === null && payable.currency === attempt.currency && sameAmount(payable.due, attempt.amount);
-      state = owes ? await service.complete(attempt.providerRef, `${attempt.id}:capture`) : await service.status(attempt.providerRef);
+      captured = owes;
+      state = owes ? await service.complete(attempt.providerRef, `${attempt.id}:capture:${String(attempt.captureTry)}`) : await service.status(attempt.providerRef);
     } else {
       state = await service.status(attempt.providerRef);
     }
-    if (isProviderError(state)) return attempt;
-    await apply(attempt, state);
-    return attempts.byId(attempt.id);
+    await attempts.looked(attempt.id, now());
+    if (isProviderError(state)) {
+      // Not there at all is an answer; a timeout or a refusal of the key is not.
+      return { attempt, answered: state.code === 'NOT_FOUND', reason: state.code };
+    }
+    if (captured && state.status === 'failed') await attempts.nextCaptureTry(attempt.id, attempt.captureTry);
+    await apply(attempt, state, viaEvent);
+    return { attempt: await attempts.byId(attempt.id), answered: true, reason: null };
   }
 
   /**
@@ -235,13 +360,26 @@ export function createCheckoutService(deps: CheckoutDeps) {
     settle(attemptId).catch(() => undefined);
   }
 
-  /** Settles one attempt, one call at a time per attempt in this process. */
-  function settle(attemptId: string): Promise<PaymentAttempt | null> {
-    const running = settling.get(attemptId);
-    if (running !== undefined) return running;
-    const run = settleOnce(attemptId).finally(() => settling.delete(attemptId));
-    settling.set(attemptId, run);
-    return run;
+  /**
+   * Settles one attempt, one call at a time per attempt in this process.
+   * Strict (the settle job): throws when the provider could not be asked.
+   */
+  async function settle(attemptId: string, options: SettleOptions = {}): Promise<PaymentAttempt | null> {
+    const viaEvent = options.eventId !== undefined;
+    let running = settling.get(attemptId);
+    // A settle for an event must count that event's decline: it never rides on another caller's run.
+    if (running !== undefined && viaEvent) {
+      await running.catch(() => undefined);
+      running = undefined;
+    }
+    if (running === undefined) {
+      const run = settleOnce(attemptId, viaEvent).finally(() => settling.delete(attemptId));
+      settling.set(attemptId, run);
+      running = run;
+    }
+    const settled = await running;
+    if (options.strict === true && !settled.answered) throw new SettleUnanswered(attemptId, settled.reason ?? 'no answer');
+    return settled.attempt;
   }
 
   return { start, settle };

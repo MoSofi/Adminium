@@ -9,11 +9,15 @@
  *      stored cursor, a few pages at most, and settles the attempts they are
  *      about (stored as `sweep` events: the same row a late webhook finds);
  *   2. asks the provider again about attempts that have sat open or
- *      processing for a while (the events list does not reach everything:
- *      PayPal keeps no list worth trusting, and Stripe's goes back 30 days);
- *   3. lets go of attempts that never got a checkout (`creating` for too long:
- *      nobody holds their page);
- *   4. queues the settle again for stored events nobody processed.
+ *      processing for a while, the longest-unasked first (the events list
+ *      does not reach everything: PayPal keeps no list worth trusting, and
+ *      Stripe's goes back 30 days), and, hourly, about declined attempts
+ *      whose provider page may still be open (a later card may succeed
+ *      there);
+ *   3. queues the settle again for stored events nobody processed.
+ *
+ * Attempts that never got a checkout (`creating` for too long: nobody holds
+ * their page) are let go by the planner, for every service at once.
  *
  * ─── HOW OFTEN, AND THE READ BUDGET ────────────────────────────────────────
  *
@@ -25,12 +29,12 @@
  * `max(10,000, 500 × payments this month)` the per-attempt look-ups run at
  * the slow cadence only, and the setup page warns.
  */
-import { isProviderError, type PaymentMode } from '@adminium/add-on-contracts';
-import { paymentAttemptsRepo, paymentEventsRepo, paymentSettingsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
+import { DEMO_PAYMENT_KEY, isProviderError, type PaymentMode } from '@adminium/add-on-contracts';
+import { paymentAttemptsRepo, paymentEventsRepo, paymentSettingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import type { JobRegistry } from '../jobs/registry.js';
-import type { CheckoutService } from './checkout.js';
+import { MAX_CHECKOUT_LIFE_MS, type CheckoutService } from './checkout.js';
 import type { ProviderLookup } from './providers.js';
 import { enqueueSettle, type WebhookDeps } from './webhook.js';
 
@@ -66,6 +70,8 @@ export const sweepStateSchema = z
     caughtAt: z.number().int().nonnegative().nullable(),
     /** The reads passed the slow share this month. */
     slowed: z.boolean(),
+    /** The last time attempts were looked up one by one (the slow cadence counts from here, not from any run). */
+    lastLookupAt: z.number().int().nonnegative().nullable().default(null),
   })
   .strict();
 export type SweepState = z.infer<typeof sweepStateSchema>;
@@ -89,15 +95,8 @@ export interface SweepDeps {
 export interface SweepResult {
   events: number;
   lookedUp: number;
-  abandoned: number;
   redriven: number;
   reads: number;
-}
-
-/** The attempts of one service and mode still waiting on the provider. */
-async function waiting(meta: MetaDb, key: string, mode: PaymentMode, before: number): Promise<PaymentAttempt[]> {
-  const stale = await paymentAttemptsRepo(meta).stale(['open', 'processing'], before, 200);
-  return stale.filter((attempt) => attempt.provider === key && attempt.mode === mode);
 }
 
 /** Payments recorded this calendar month for one service and mode: what the read allowance grows with. */
@@ -121,9 +120,10 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
   const docs = paymentSettingsRepo(deps.meta);
   const attempts = paymentAttemptsRepo(deps.meta);
   const events = paymentEventsRepo(deps.meta);
-  let state = (await docs.get(sweepDocName(key, mode), sweepStateSchema)) ?? { cursor: null, lastRunAt: null, month: monthOf(at), reads: 0, caughtAt: null, slowed: false };
+  const empty: SweepState = { cursor: null, lastRunAt: null, month: monthOf(at), reads: 0, caughtAt: null, slowed: false, lastLookupAt: null };
+  let state: SweepState = (await docs.get(sweepDocName(key, mode), sweepStateSchema)) ?? empty;
   if (state.month !== monthOf(at)) state = { ...state, month: monthOf(at), reads: 0, slowed: false };
-  const result: SweepResult = { events: 0, lookedUp: 0, abandoned: 0, redriven: 0, reads: 0 };
+  const result: SweepResult = { events: 0, lookedUp: 0, redriven: 0, reads: 0 };
   const lookup = await deps.providerFor(key, mode);
 
   // 1. Missed events, from the cursor.
@@ -154,45 +154,51 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
     state = { ...state, cursor };
   }
 
-  // 2. Attempts waiting on the provider, looked up one by one — unless the reads are past the slow share.
+  // 2. Attempts waiting on the provider, looked up one by one, the longest-unasked first —
+  //    at the slow cadence once the reads are past the slow share.
   const payments = await recordedThisMonth(deps.meta, key, mode, at);
   const allowance = Math.max(READS_FLOOR, READS_PER_TRANSACTION * payments);
   const slowed = state.reads + result.reads > allowance * READS_SLOW_SHARE;
-  const lastRun = state.lastRunAt ?? 0;
-  if (lookup.ok && (!slowed || at - lastRun >= SWEEP_PROCESSING_EVERY_MS)) {
-    for (const attempt of await waiting(deps.meta, key, mode, at - LOOK_UP_AFTER_MS)) {
+  const lastLookup = state.lastLookupAt ?? 0;
+  let lookedUp = false;
+  if (lookup.ok && (!slowed || at - lastLookup >= SWEEP_PROCESSING_EVERY_MS)) {
+    lookedUp = true;
+    const due = await attempts.waitingOn(key, mode, ['open', 'processing'], at - LOOK_UP_AFTER_MS, 200);
+    // A declined attempt's page may still take a later card: asked hourly while it can.
+    const declined = (await attempts.waitingOn(key, mode, ['failed'], at - SWEEP_PROCESSING_EVERY_MS, 100, at - MAX_CHECKOUT_LIFE_MS)).filter((one) => one.checkoutUrl !== null);
+    for (const attempt of [...due, ...declined]) {
       await deps.checkout.settle(attempt.id);
       result.lookedUp += 1;
       result.reads += 1;
     }
   }
 
-  // 3. Attempts that never got a checkout.
-  for (const attempt of await attempts.stale(['creating'], at - ABANDON_AFTER_MS, 200)) {
-    if (attempt.provider !== key || attempt.mode !== mode || attempt.providerRef !== null) continue;
-    if (await attempts.move(attempt.id, 'abandoned', {}, at)) result.abandoned += 1;
-  }
-
-  // 4. Stored events nobody processed.
-  for (const event of await events.unprocessed(at - REDRIVE_AFTER_MS, 200)) {
-    if (event.provider !== key || event.mode !== mode || event.attemptId === null) continue;
+  // 3. Stored events about this service's attempts that nobody processed.
+  for (const event of await events.unprocessed(at - REDRIVE_AFTER_MS, 200, { provider: key, mode })) {
+    if (event.attemptId === null) continue;
     if (await enqueueSettle(deps.enqueue, event.attemptId, event.id)) result.redriven += 1;
   }
 
-  await docs.set(sweepDocName(key, mode), sweepStateSchema, { ...state, lastRunAt: at, reads: state.reads + result.reads, slowed: slowed || state.slowed }, at);
+  await docs.set(
+    sweepDocName(key, mode),
+    sweepStateSchema,
+    { ...state, lastRunAt: at, lastLookupAt: lookedUp ? at : state.lastLookupAt, reads: state.reads + result.reads, slowed: slowed || state.slowed },
+    at,
+  );
   return result;
 }
 
-/** Whether a service and mode is due a run now, by what waits on it. */
+/** Whether a service and mode is due a run now, by what waits on it (counted in the database). */
 export async function sweepDue(meta: MetaDb, key: string, mode: PaymentMode, at: number): Promise<boolean> {
   const state = await paymentSettingsRepo(meta).get(sweepDocName(key, mode), sweepStateSchema);
   const since = at - (state?.lastRunAt ?? 0);
-  const all = (await paymentAttemptsRepo(meta).stale(['creating', 'open', 'processing'], at + 1, 500)).filter((attempt) => attempt.provider === key && attempt.mode === mode);
-  if (all.some((attempt) => attempt.state === 'open' || attempt.state === 'creating')) return since >= SWEEP_OPEN_EVERY_MS;
-  if (all.length > 0) return since >= SWEEP_PROCESSING_EVERY_MS;
+  const attempts = paymentAttemptsRepo(meta);
+  if ((await attempts.countIn(key, mode, ['creating', 'open'])) > 0) return since >= SWEEP_OPEN_EVERY_MS;
   // Unprocessed events still count as work.
-  const unprocessed = (await paymentEventsRepo(meta).unprocessed(at - REDRIVE_AFTER_MS, 1)).length > 0;
-  return unprocessed && since >= SWEEP_OPEN_EVERY_MS;
+  if ((await paymentEventsRepo(meta).unprocessed(at - REDRIVE_AFTER_MS, 1, { provider: key, mode })).length > 0) return since >= SWEEP_OPEN_EVERY_MS;
+  const declined = (await attempts.waitingOn(key, mode, ['failed'], at + 1, 1, at - MAX_CHECKOUT_LIFE_MS)).some((one) => one.checkoutUrl !== null);
+  if (declined || (await attempts.countIn(key, mode, ['processing'])) > 0) return since >= SWEEP_PROCESSING_EVERY_MS;
+  return false;
 }
 
 const sweepPayload = z.object({ key: z.string().min(1), mode: z.enum(['test', 'live']) });
@@ -201,14 +207,21 @@ export function registerPaymentsSweepHandler(registry: JobRegistry, deps: SweepD
   registry.registerJobHandler(PAYMENTS_SWEEP_JOB, sweepPayload, async (payload) => ({ ...(await runSweep(deps, payload.key, payload.mode)) }), { internal: true });
 }
 
-/** Queues a run for every service and mode that is due one. */
+/**
+ * Queues a run for every service and mode that is due one, the demo service
+ * included, and lets go of every attempt that never got a checkout, whatever
+ * its service (one that is switched off or gone included).
+ */
 export async function planSweeps(
   deps: Pick<SweepDeps, 'meta' | 'enqueue' | 'now'>,
   services: readonly { key: string; mode: PaymentMode }[],
 ): Promise<number> {
   const at = (deps.now ?? Date.now)();
+  await paymentAttemptsRepo(deps.meta).abandonStale(at - ABANDON_AFTER_MS, at);
+  const all = [...services];
+  if (!all.some((one) => one.key === DEMO_PAYMENT_KEY)) all.push({ key: DEMO_PAYMENT_KEY, mode: 'test' });
   let queued = 0;
-  for (const { key, mode } of services) {
+  for (const { key, mode } of all) {
     if (!(await sweepDue(deps.meta, key, mode, at))) continue;
     try {
       await deps.enqueue({ kind: PAYMENTS_SWEEP_JOB, payload: { key, mode }, dedupeKey: `payments-sweep:${key}:${mode}`, maxAttempts: 3 });
