@@ -4171,7 +4171,9 @@ export default {
       "unproven": "正式模式已开启，但 webhook 尚未确认。",
       "unprovenBody": "在首个正式事件到达前，Adminium 会更频繁地查询 {provider}。",
       "turnOff": "关闭正式付款",
-      "turnOn": "开启正式付款"
+      "turnOn": "开启正式付款",
+      "confirmTitle": "开启真实付款？",
+      "confirmBody": "客户将通过 {provider} 支付真实款项。所有测试链接将失效，仍打开的测试付款页面将被关闭。"
     },
     "disconnect": {
       "title": "断开 {provider}？",
@@ -4185,7 +4187,8 @@ export default {
       "removeWaiting": "{count, plural, other {# 笔付款}}仍在等待银行。仍要删除密钥吗？这些付款需要手动处理。",
       "settle": "是的，删除密钥并手动处理这 {count, plural, other {# 笔付款}}",
       "roll": "在此删除密钥不会在 {provider} 作废它。为安全起见，请在 {provider} 的控制台中更换密钥。",
-      "cancel": "取消"
+      "cancel": "取消",
+      "typeName": "输入 {provider} 以确认"
     },
     "menu": {
       "check": "再次检查密钥",

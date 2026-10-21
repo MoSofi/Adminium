@@ -4161,7 +4161,9 @@
       "unproven": "正式模式已開啟，但 webhook 尚未確認。",
       "unprovenBody": "在首個正式事件到達前，Adminium 會更頻繁地查詢 {provider}。",
       "turnOff": "關閉正式付款",
-      "turnOn": "開啟正式付款"
+      "turnOn": "開啟正式付款",
+      "confirmTitle": "開啟真實付款？",
+      "confirmBody": "客戶將透過 {provider} 支付真實款項。所有測試連結將失效，仍開啟的測試付款頁面將被關閉。"
     },
     "disconnect": {
       "title": "中斷 {provider}？",
@@ -4175,7 +4177,8 @@
       "removeWaiting": "{count, plural, other {# 筆付款}}仍在等待銀行。仍要刪除金鑰嗎？這些付款需要手動處理。",
       "settle": "是的，刪除金鑰並手動處理這 {count, plural, other {# 筆付款}}",
       "roll": "在此刪除金鑰不會在 {provider} 作廢它。為安全起見，請在 {provider} 的控制台中更換金鑰。",
-      "cancel": "取消"
+      "cancel": "取消",
+      "typeName": "輸入 {provider} 以確認"
     },
     "menu": {
       "check": "再次檢查金鑰",

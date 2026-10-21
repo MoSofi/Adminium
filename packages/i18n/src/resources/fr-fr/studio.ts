@@ -4171,7 +4171,9 @@ export default {
       "unproven": "Le mode réel est activé, mais le webhook n’est pas encore confirmé.",
       "unprovenBody": "Adminium interroge {provider} plus souvent jusqu’à l’arrivée du premier événement réel.",
       "turnOff": "Désactiver les paiements réels",
-      "turnOn": "Activer les paiements réels"
+      "turnOn": "Activer les paiements réels",
+      "confirmTitle": "Activer les paiements réels ?",
+      "confirmBody": "Les clients paieront de l’argent réel avec {provider}. Tous les liens de test cessent de fonctionner, et les pages de paiement test encore ouvertes sont fermées."
     },
     "disconnect": {
       "title": "Déconnecter {provider} ?",
@@ -4185,7 +4187,8 @@ export default {
       "removeWaiting": "{count, plural, one {# paiement attend} other {# paiements attendent}} encore la banque. Supprimer les clés quand même ? Il faudra les régler à la main.",
       "settle": "Oui, supprimer les clés et régler {count, plural, one {le # paiement} other {les # paiements}} à la main",
       "roll": "Supprimer la clé ici ne l’annule pas chez {provider}. Par précaution, renouvelez la clé dans votre tableau de bord {provider}.",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "typeName": "Saisissez {provider} pour confirmer"
     },
     "menu": {
       "check": "Vérifier les clés à nouveau",

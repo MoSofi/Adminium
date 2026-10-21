@@ -18,7 +18,7 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { PageActionsProvider } from '../../shell/PageActionsProvider.js';
 import { jsonResponse } from '../../test/fixtures.js';
 
-import { PaymentsPage } from './PaymentsPage.js';
+import { movedFrom, PaymentsPage } from './PaymentsPage.js';
 import type { ModeView, PaymentsSetup, ServiceView } from './paymentsApi.js';
 
 const CHECKED = { at: 1, ok: true, code: null, message: null, missing: [] };
@@ -93,6 +93,11 @@ describe('Setup: going live, disconnecting, warnings', () => {
     const { calls } = show(stripe());
     expect((await screen.findByTestId('payments-payments-stripe-live-ready')).textContent).toContain('The live key works');
     await user.click(screen.getByTestId('payments-payments-stripe-live-turn-on'));
+    // Real money: asked once more, and nothing is sent before the yes.
+    const ask = await screen.findByRole('dialog');
+    expect(within(ask).getByText('Turn on live payments?')).toBeTruthy();
+    expect(calls.find((call) => call.url.endsWith('/live'))).toBeUndefined();
+    await user.click(within(ask).getByTestId('payments-payments-stripe-live-confirm'));
     await waitFor(() => expect(calls.find((call) => call.url.endsWith('/live'))).toMatchObject({ method: 'PUT', body: { on: true } }));
   });
 
@@ -118,6 +123,9 @@ describe('Setup: going live, disconnecting, warnings', () => {
     const confirm = within(dialog).getByTestId('payments-payments-stripe-disconnect-confirm');
     expect(confirm.hasAttribute('disabled')).toBe(true);
     await user.click(within(dialog).getByRole('checkbox'));
+    // Owned up to, and the service named: only then can the keys go.
+    expect(confirm.hasAttribute('disabled')).toBe(true);
+    await user.type(within(dialog).getByTestId('payments-payments-stripe-disconnect-typed'), 'Stripe');
     expect(confirm.hasAttribute('disabled')).toBe(false);
     await user.click(confirm);
     await waitFor(() => expect(calls.find((call) => call.url.endsWith('/disconnect'))).toMatchObject({ method: 'POST', body: { action: 'remove', settleByHand: true } }));
@@ -127,5 +135,14 @@ describe('Setup: going live, disconnecting, warnings', () => {
     show(stripe({ clockSkewMs: 95_000, live: mode({ check: CHECKED, health: { lastEventAt: 1, lastBadAt: null, badThisHour: 0, caughtAt: null, slowed: false, eventOrigin: 'https://admin.crumbandco.de' } }) }));
     expect((await screen.findByTestId('payments-payments-stripe-live-moved')).textContent).toContain('The webhook address changed. Update it at Stripe:');
     expect(screen.getByTestId('payments-payments-stripe-clock').textContent).toContain("This server's clock is 95 seconds off the Stripe clock.");
+  });
+
+  it('says the address moved only for a live event at another host, never for test or the same host', () => {
+    const health = (eventOrigin: string) => ({ lastEventAt: 1, lastBadAt: null, badThisHour: 0, caughtAt: null, slowed: false, eventOrigin });
+    const at = mode({ webhookUrl: 'https://admin.crumbandco.de/api/v1/payments/webhook/payments-stripe', health: health('https://ADMIN.crumbandco.de') });
+    expect(movedFrom(at, 'live')).toBeNull();
+    expect(movedFrom(mode({ ...at, health: health('admin.crumbandco.de') }), 'live')).toBeNull();
+    expect(movedFrom(mode({ ...at, health: health('old.crumbandco.de') }), 'live')).toBe('old.crumbandco.de');
+    expect(movedFrom(mode({ ...at, health: health('old.crumbandco.de') }), 'test')).toBeNull();
   });
 });

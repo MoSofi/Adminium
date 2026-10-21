@@ -4161,7 +4161,9 @@
       "unproven": "Live er slået til, men webhooken er ikke bekræftet endnu.",
       "unprovenBody": "Adminium spørger {provider} oftere, indtil den første live-hændelse kommer.",
       "turnOff": "Slå live-betalinger fra",
-      "turnOn": "Slå live-betalinger til"
+      "turnOn": "Slå live-betalinger til",
+      "confirmTitle": "Slå rigtige betalinger til?",
+      "confirmBody": "Kunderne betaler rigtige penge med {provider}. Alle testlinks holder op med at virke, og testbetalingssider, der stadig er åbne, lukkes."
     },
     "disconnect": {
       "title": "Afbryd {provider}?",
@@ -4175,7 +4177,8 @@
       "removeWaiting": "{count, plural, one {# betaling venter} other {# betalinger venter}} stadig på banken. Fjern nøglerne alligevel? De skal så afsluttes manuelt.",
       "settle": "Ja, fjern nøglerne og afslut {count, plural, one {den # betaling} other {de # betalinger}} manuelt",
       "roll": "At fjerne nøglen her annullerer den ikke hos {provider}. Forny for en sikkerheds skyld nøglen i dit dashboard hos {provider}.",
-      "cancel": "Annuller"
+      "cancel": "Annuller",
+      "typeName": "Skriv {provider} for at bekræfte"
     },
     "menu": {
       "check": "Tjek nøglerne igen",

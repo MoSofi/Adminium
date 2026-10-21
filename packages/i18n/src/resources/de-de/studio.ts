@@ -4171,7 +4171,9 @@ export default {
       "unproven": "Live ist an, aber der Webhook ist noch nicht bestätigt.",
       "unprovenBody": "Adminium fragt bei {provider} häufiger nach, bis das erste Live-Ereignis ankommt.",
       "turnOff": "Live-Zahlungen ausschalten",
-      "turnOn": "Live-Zahlungen einschalten"
+      "turnOn": "Live-Zahlungen einschalten",
+      "confirmTitle": "Echte Zahlungen einschalten?",
+      "confirmBody": "Kunden zahlen dann echtes Geld über {provider}. Jeder Testlink funktioniert nicht mehr, und noch offene Testzahlungsseiten werden beendet."
     },
     "disconnect": {
       "title": "{provider} trennen?",
@@ -4185,7 +4187,8 @@ export default {
       "removeWaiting": "{count, plural, one {# Zahlung wartet} other {# Zahlungen warten}} noch auf die Bank. Die Schlüssel trotzdem entfernen? Sie müssen dann von Hand abgeschlossen werden.",
       "settle": "Ja, Schlüssel entfernen und {count, plural, one {die # Zahlung} other {die # Zahlungen}} von Hand abschließen",
       "roll": "Das Entfernen hier sperrt den Schlüssel bei {provider} nicht. Erneuern Sie den Schlüssel zur Sicherheit im Dashboard von {provider}.",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "typeName": "Geben Sie zur Bestätigung {provider} ein"
     },
     "menu": {
       "check": "Schlüssel erneut prüfen",

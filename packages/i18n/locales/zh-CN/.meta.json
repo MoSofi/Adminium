@@ -29931,6 +29931,10 @@
     "status": "mt",
     "srcHash": "89754ab2781e"
   },
+  "studio.payments.disconnect.typeName": {
+    "status": "mt",
+    "srcHash": "b7ab5f1db755"
+  },
   "studio.payments.disconnect.waiting": {
     "status": "mt",
     "srcHash": "a56272d23488"
@@ -30014,6 +30018,14 @@
   "studio.payments.forbidden": {
     "status": "mt",
     "srcHash": "4affa766ddf5"
+  },
+  "studio.payments.live.confirmBody": {
+    "status": "mt",
+    "srcHash": "a14c792a4c3e"
+  },
+  "studio.payments.live.confirmTitle": {
+    "status": "mt",
+    "srcHash": "e371666e104c"
   },
   "studio.payments.live.firstPayment": {
     "status": "mt",

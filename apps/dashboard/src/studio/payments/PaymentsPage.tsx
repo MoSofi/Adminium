@@ -38,6 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   IconTile,
+  FormField,
   Input,
   Modal,
   ModalBody,
@@ -579,7 +580,7 @@ function WebhookCard({ service, mode, view, canManage }: { service: ServiceView;
         {view.health?.slowed === true ? (
           <p className="text-fg-muted">{t('studio:payments.webhook.slowed', 'Adminium checks {provider} less often this month: it has used half of the reads {provider} allows.', { provider: name })}</p>
         ) : null}
-        {movedFrom(view) !== null && view.webhookUrl !== null ? (
+        {movedFrom(view, mode) !== null && view.webhookUrl !== null ? (
           <div className="flex flex-col gap-1 text-warn" data-testid={`payments-${service.key}-${mode}-moved`}>
             <p className="font-semibold">{t('studio:payments.webhook.moved', 'The webhook address changed. Update it at {provider}:', { provider: name })}</p>
             <div className="flex flex-wrap items-center gap-2 text-fg">
@@ -595,12 +596,17 @@ function WebhookCard({ service, mode, view, canManage }: { service: ServiceView;
   );
 }
 
-/** Where the last event came, when that is no longer this mode's webhook address. */
-function movedFrom(view: ModeView): string | null {
-  const seen = view.health?.eventOrigin ?? null;
-  if (seen === null || view.webhookUrl === null) return null;
+/**
+ * The host the last live event came to, when that is no longer the live webhook address's host. Hosts only:
+ * a proxy that ends TLS makes the server read its own scheme as http. Test mode never warns (a test webhook is
+ * often a forwarder on a laptop).
+ */
+export function movedFrom(view: ModeView, mode: PaymentMode): string | null {
+  const recorded = view.health?.eventOrigin ?? null;
+  if (mode !== 'live' || recorded === null || view.webhookUrl === null) return null;
   try {
-    return new URL(view.webhookUrl).origin === seen ? null : seen;
+    const seen = recorded.includes('://') ? new URL(recorded).host : recorded;
+    return new URL(view.webhookUrl).host.toLowerCase() === seen.toLowerCase() ? null : seen;
   } catch {
     return null;
   }
@@ -612,9 +618,13 @@ function movedFrom(view: ModeView): string | null {
 function LiveCard({ service, view, canManage }: { service: ServiceView; view: ModeView; canManage: boolean }) {
   const client = useQueryClient();
   const name = providerWord(knownProvider(service.key), service.name);
+  const [confirming, setConfirming] = useState(false);
   const toggle = useMutation({
     mutationFn: (on: boolean) => setLive(service.key, on),
-    onSuccess: async () => client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY }),
+    onSuccess: async () => {
+      setConfirming(false);
+      await client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY });
+    },
   });
   const box = (tone: 'pos' | 'warn' | 'info', title: string, body: string | null, testid: string) => (
     <div
@@ -647,13 +657,29 @@ function LiveCard({ service, view, canManage }: { service: ServiceView; view: Mo
               {t('studio:payments.live.turnOff', 'Turn off live payments')}
             </Button>
           ) : (
-            <Button disabled={toggle.isPending} onClick={() => toggle.mutate(true)} data-testid={`payments-${service.key}-live-turn-on`}>
+            <Button disabled={toggle.isPending} onClick={() => setConfirming(true)} data-testid={`payments-${service.key}-live-turn-on`}>
               {t('studio:payments.live.turnOn', 'Turn on live payments')}
             </Button>
           )}
         </div>
       ) : null}
-      {toggle.isError ? <Alert tone="danger" role="alert" title={errorText(toggle.error)} /> : null}
+      {toggle.isError && !confirming ? <Alert tone="danger" role="alert" title={errorText(toggle.error)} /> : null}
+      {/* Live ends every test link and open test page: said, and asked, before it happens. */}
+      <Modal open={confirming} onOpenChange={(next) => (next ? null : setConfirming(false))}>
+        <ModalHeader title={t('studio:payments.live.confirmTitle', 'Turn on live payments?')} closeLabel={t('studio:payments.close', 'Close')} />
+        <ModalBody className="flex flex-col gap-3 text-[13px]" data-testid={`payments-${service.key}-live-confirm-body`}>
+          <p>{t('studio:payments.live.confirmBody', 'Customers will pay real money with {provider}. Every test link stops working, and test payment pages still open are ended.', { provider: name })}</p>
+          {toggle.isError ? <Alert tone="danger" role="alert" title={errorText(toggle.error)} /> : null}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setConfirming(false)}>
+            {t('studio:payments.disconnect.cancel', 'Cancel')}
+          </Button>
+          <Button disabled={toggle.isPending} onClick={() => toggle.mutate(true)} data-testid={`payments-${service.key}-live-confirm`}>
+            {t('studio:payments.live.turnOn', 'Turn on live payments')}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
@@ -992,6 +1018,7 @@ function DisconnectDialog({ service, open, onClose }: { service: ServiceView; op
   const name = providerWord(knownProvider(service.key), service.name);
   const [choice, setChoice] = useState<'stop' | 'remove'>('stop');
   const [settle, setSettle] = useState(false);
+  const [typed, setTyped] = useState('');
   const waiting = service.waiting ?? 0;
   const refundable = service.refundable ?? 0;
   const run = useMutation({
@@ -1001,7 +1028,9 @@ function DisconnectDialog({ service, open, onClose }: { service: ServiceView; op
       await client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY });
     },
   });
-  const blocked = choice === 'remove' && waiting > 0 && !settle;
+  // Removing the keys is not undone from here: the service's name, typed, says it was meant.
+  const typedOk = typed.trim().toLowerCase() === name.toLowerCase();
+  const blocked = choice === 'remove' && ((waiting > 0 && !settle) || !typedOk);
   return (
     <Modal open={open} onOpenChange={(next) => (next ? null : onClose())}>
       <ModalHeader title={t('studio:payments.disconnect.title', 'Disconnect {provider}?', { provider: name })} closeLabel={t('studio:payments.close', 'Close')} />
@@ -1034,6 +1063,11 @@ function DisconnectDialog({ service, open, onClose }: { service: ServiceView; op
               </label>
             </div>
           </div>
+        ) : null}
+        {choice === 'remove' ? (
+          <FormField label={t('studio:payments.disconnect.typeName', 'Type {provider} to confirm', { provider: name })}>
+            <Input dir="ltr" autoComplete="off" value={typed} onChange={(event) => setTyped(event.target.value)} data-testid={`payments-${service.key}-disconnect-typed`} />
+          </FormField>
         ) : null}
         {choice === 'remove' ? (
           <p className="text-[12.5px] text-fg-muted">{t('studio:payments.disconnect.roll', 'Removing the key here does not cancel it at {provider}. To be safe, roll the key in your {provider} dashboard.', { provider: name })}</p>

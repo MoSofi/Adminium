@@ -4161,7 +4161,9 @@
       "unproven": "Ostrý režim je zapnutý, ale webhook ještě není ověřený.",
       "unprovenBody": "Adminium se službě {provider} ptá častěji, dokud nedorazí první ostrá událost.",
       "turnOff": "Vypnout ostré platby",
-      "turnOn": "Zapnout ostré platby"
+      "turnOn": "Zapnout ostré platby",
+      "confirmTitle": "Zapnout ostré platby?",
+      "confirmBody": "Zákazníci budou platit skutečné peníze přes {provider}. Všechny testovací odkazy přestanou fungovat a ještě otevřené testovací platební stránky se ukončí."
     },
     "disconnect": {
       "title": "Odpojit službu {provider}?",
@@ -4175,7 +4177,8 @@
       "removeWaiting": "{count, plural, one {# platba ještě čeká} few {# platby ještě čekají} other {# plateb ještě čeká}} na banku. Přesto klíče odstranit? Bude je nutné vyřídit ručně.",
       "settle": "Ano, odstranit klíče a vyřídit {count, plural, one {# platbu} few {# platby} other {# plateb}} ručně",
       "roll": "Odstraněním zde se klíč u služby {provider} nezruší. Pro jistotu klíč obnovte v dashboardu služby {provider}.",
-      "cancel": "Zrušit"
+      "cancel": "Zrušit",
+      "typeName": "Pro potvrzení napište {provider}"
     },
     "menu": {
       "check": "Znovu ověřit klíče",

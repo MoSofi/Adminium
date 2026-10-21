@@ -4171,7 +4171,9 @@ export default {
       "unproven": "Live is on, but the webhook is not proven yet.",
       "unprovenBody": "Adminium checks {provider} more often until the first live event arrives.",
       "turnOff": "Turn off live payments",
-      "turnOn": "Turn on live payments"
+      "turnOn": "Turn on live payments",
+      "confirmTitle": "Turn on live payments?",
+      "confirmBody": "Customers will pay real money with {provider}. Every test link stops working, and test payment pages still open are ended."
     },
     "disconnect": {
       "title": "Disconnect {provider}?",
@@ -4185,7 +4187,8 @@ export default {
       "removeWaiting": "{count, plural, one {# payment is} other {# payments are}} still waiting for the bank. Remove the keys anyway? They will need settling by hand.",
       "settle": "Yes, remove the keys and settle {count, plural, one {the # payment} other {the # payments}} by hand",
       "roll": "Removing the key here does not cancel it at {provider}. To be safe, roll the key in your {provider} dashboard.",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "typeName": "Type {provider} to confirm"
     },
     "menu": {
       "check": "Check keys again",
