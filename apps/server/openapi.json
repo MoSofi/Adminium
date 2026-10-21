@@ -113068,6 +113068,272 @@
         }
       }
     },
+    "/api/v1/payments/attempts/{id}/refund": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "provider": {
+                          "type": "string"
+                        },
+                        "test": {
+                          "type": "boolean"
+                        },
+                        "taken": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "refundable": {
+                          "type": "string"
+                        },
+                        "paidWith": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "refusal": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "provider",
+                        "test",
+                        "taken",
+                        "currency",
+                        "refundable",
+                        "paidWith",
+                        "refusal"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/refunds": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attemptId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^\\d{1,15}(\\.\\d{1,6})?$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "requested_by_customer",
+                      "duplicate",
+                      "fraudulent",
+                      "other"
+                    ]
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{16,64}$"
+                  }
+                },
+                "required": [
+                  "attemptId",
+                  "amount",
+                  "reason",
+                  "note",
+                  "key"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "refund": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "attemptId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "amount": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "requested",
+                                "pending",
+                                "requires_action",
+                                "succeeded",
+                                "failed",
+                                "cancelled"
+                              ]
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "staff",
+                                "provider"
+                              ]
+                            },
+                            "failureMessage": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "number"
+                            },
+                            "settledAt": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "attemptId",
+                            "amount",
+                            "currency",
+                            "state",
+                            "source",
+                            "failureMessage",
+                            "createdAt",
+                            "settledAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "fresh": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "refund",
+                        "fresh"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/activity": {
       "get": {
         "parameters": [
@@ -113133,7 +113399,8 @@
                 "failed",
                 "expired",
                 "refunded",
-                "refundFailed"
+                "refundFailed",
+                "disputed"
               ]
             },
             "in": "query",
@@ -113301,7 +113568,8 @@
                                   "failed",
                                   "expired",
                                   "refunded",
-                                  "refundFailed"
+                                  "refundFailed",
+                                  "disputed"
                                 ]
                               },
                               "asked": {
@@ -113439,7 +113707,8 @@
                                           "mode-mismatch",
                                           "paid-twice",
                                           "waiting-long",
-                                          "record-changed"
+                                          "record-changed",
+                                          "disputed"
                                         ]
                                       },
                                       "reason": {
@@ -113526,6 +113795,87 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "refund": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "refundable": {
+                                        "type": "string"
+                                      },
+                                      "refusal": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "code": {
+                                                "type": "string"
+                                              },
+                                              "message": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "code",
+                                              "message"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "refundable",
+                                      "refusal"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "dispute": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "open",
+                                          "closed"
+                                        ]
+                                      },
+                                      "at": {
+                                        "type": "number"
+                                      },
+                                      "closedAt": {
+                                        "anyOf": [
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "state",
+                                      "at",
+                                      "closedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -113546,7 +113896,9 @@
                               "refs",
                               "refundSource",
                               "flag",
-                              "check"
+                              "check",
+                              "refund",
+                              "dispute"
                             ],
                             "additionalProperties": false
                           }
@@ -113696,7 +114048,8 @@
                 "failed",
                 "expired",
                 "refunded",
-                "refundFailed"
+                "refundFailed",
+                "disputed"
               ]
             },
             "in": "query",
@@ -114232,6 +114585,9 @@
                             "mayRecord": {
                               "type": "boolean"
                             },
+                            "mayRefund": {
+                              "type": "boolean"
+                            },
                             "waiting": {
                               "type": "array",
                               "items": {
@@ -114345,6 +114701,160 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "attemptId": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "refundable": {
+                                    "type": "string"
+                                  },
+                                  "refundRefusal": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "code": {
+                                            "type": "string"
+                                          },
+                                          "message": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "code",
+                                          "message"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "refunds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "attemptId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "amount": {
+                                          "type": "string"
+                                        },
+                                        "currency": {
+                                          "type": "string"
+                                        },
+                                        "state": {
+                                          "type": "string",
+                                          "enum": [
+                                            "requested",
+                                            "pending",
+                                            "requires_action",
+                                            "succeeded",
+                                            "failed",
+                                            "cancelled"
+                                          ]
+                                        },
+                                        "source": {
+                                          "type": "string",
+                                          "enum": [
+                                            "staff",
+                                            "provider"
+                                          ]
+                                        },
+                                        "failureMessage": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "createdAt": {
+                                          "type": "number"
+                                        },
+                                        "settledAt": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "attemptId",
+                                        "amount",
+                                        "currency",
+                                        "state",
+                                        "source",
+                                        "failureMessage",
+                                        "createdAt",
+                                        "settledAt"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "dispute": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "state": {
+                                            "type": "string",
+                                            "enum": [
+                                              "open",
+                                              "closed"
+                                            ]
+                                          },
+                                          "at": {
+                                            "type": "number"
+                                          },
+                                          "closedAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "state",
+                                          "at",
+                                          "closedAt"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -114359,7 +114869,12 @@
                                   "test",
                                   "paidOn",
                                   "recordedBy",
-                                  "cardLast4"
+                                  "cardLast4",
+                                  "attemptId",
+                                  "refundable",
+                                  "refundRefusal",
+                                  "refunds",
+                                  "dispute"
                                 ],
                                 "additionalProperties": false
                               }
@@ -114376,6 +114891,7 @@
                             "links",
                             "mayChange",
                             "mayRecord",
+                            "mayRefund",
                             "waiting",
                             "payments"
                           ],
@@ -114871,6 +115387,18 @@
                                 "minLength": 1,
                                 "maxLength": 255
                               },
+                              "refunded": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "amountUnit": {
                                 "default": "units",
                                 "type": "string",
@@ -115291,6 +115819,18 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 255
+                              },
+                              "refunded": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "amountUnit": {
                                 "default": "units",
@@ -115792,6 +116332,18 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 255
+                              },
+                              "refunded": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "amountUnit": {
                                 "default": "units",
