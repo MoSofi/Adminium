@@ -70,6 +70,7 @@ import {
   useProfilesForTable,
 } from '../documents/DocumentsPanel.js';
 import { entityKey } from '../documents/documentsApi.js';
+import { fetchPaymentPanel, panelQueryKey, type PanelRecord } from '../payments-panel/paymentPanelApi.js';
 import { StatePage } from '../states/StatePage.js';
 import { appStreamTransport } from './lmc/stream.js';
 import { ProjectActionButtons, useProjectActions } from './projectActions.js';
@@ -88,6 +89,8 @@ import type { PageTemplateProps } from './template-types.js';
 
 // The tab of an add-on's rows is loaded when a record has one, never with the page.
 const LinkedRowsTab = lazy(() => import('../add-ons/LinkedRowsTab.js'));
+// The Payment panel and its words load only on a record that takes payments.
+const PaymentPanel = lazy(() => import('../payments-panel/PaymentPanel.js'));
 
 export function PageRecordBinding({
   page,
@@ -455,6 +458,44 @@ export function PageRecordBinding({
     ];
   }, [hasProvider, recordId, crud, sourceTable, t]);
 
+  /*
+   * Payment. ABSENT on a table that takes no payments: the server answers
+   * `null` for one nobody marked payable and that is not built on the
+   * invoice shape, and the panel (with its words) is then never loaded.
+   */
+  const panelRecord: PanelRecord | null =
+    connectionId === null || recordId === undefined || crud === null ? null : { connectionId, table: sourceTable ?? crud.table, recordId: String(recordId) };
+  const paymentPanel = useQuery({
+    queryKey: panelRecord === null ? ['payment-panel', 'none'] : panelQueryKey(panelRecord),
+    queryFn: () => fetchPaymentPanel(panelRecord!),
+    enabled: panelRecord !== null,
+    staleTime: 30_000,
+    // A refusal (no read on the table) means no panel, not a retried error.
+    retry: false,
+  });
+  const paymentView = paymentPanel.data ?? null;
+  const paymentPanels = useMemo(() => {
+    if (panelRecord === null || paymentView === null) return [];
+    return [
+      {
+        id: 'payment',
+        title: t('ui:payments.panel.title', 'Payment'),
+        content: (
+          <Suspense fallback={null}>
+            <PaymentPanel
+              record={panelRecord}
+              view={paymentView}
+              onChanged={() => {
+                if (crud !== null) void queryClient.invalidateQueries({ queryKey: ['data', crud.connectionId, crud.table] });
+              }}
+            />
+          </Suspense>
+        ),
+      },
+    ];
+    // The record is named by its three parts; the object itself is new on every render.
+  }, [paymentView, panelRecord?.connectionId, panelRecord?.table, panelRecord?.recordId, crud, queryClient, t]);
+
   const documentActions = useMemo(() => {
     const usable = profiles.data ?? [];
     if (!hasProvider || usable.length === 0 || recordId === undefined) return [];
@@ -737,7 +778,7 @@ export function PageRecordBinding({
          * table — an affordance that cannot do anything is worse than no
          * affordance, because it invites a click and then explains itself.
          */
-        {...(lockedState === null && selfMovePanels.length === 0 && documentPanels.length === 0
+        {...(lockedState === null && selfMovePanels.length === 0 && paymentPanels.length === 0 && documentPanels.length === 0
           ? {}
           : {
               panels: [
@@ -745,6 +786,7 @@ export function PageRecordBinding({
                   ? []
                   : [{ id: 'record-locked', title: t('ui:record.lockedHint', 'Locked once {state}', { state: lockedState }), content: null }]),
                 ...selfMovePanels,
+                ...paymentPanels,
                 ...documentPanels,
               ],
             })}
