@@ -202,6 +202,42 @@ describe.each(LEGS)('the Payment panel — %s', (dialect, available) => {
     expect(answer.json().data).toBeNull();
   });
 
+  it.runIf(available)('answers a record page from meta while the schema is read again: no panel, never an error', async () => {
+    let opened = 0;
+    const real = createPayableSources({ meta: h.meta, manager: h.manager });
+    const refreshing = { ...real, table: async () => {
+      opened += 1;
+      throw new Error('The schema is not ready.');
+    } };
+    const other = Fastify({ logger: false });
+    other.setValidatorCompiler(validatorCompiler);
+    other.setSerializerCompiler(serializerCompiler);
+    other.addHook('onRequest', async (request) => {
+      const user = await usersRepo(h.meta).findById(String(request.headers['x-test-user-id']));
+      if (user !== null) (request as unknown as { user: object }).user = { id: user.id, name: user.name, email: user.email };
+    });
+    await other.register(rbacPlugin, { meta: h.meta });
+    await other.register(async (api) => api.register(paymentPanelRoutes({ meta: h.meta, manager: h.manager, sources: refreshing, networkFeatures: true, desktop: false, trustProxy: false })), { prefix: '/api/v1' });
+    await other.ready();
+    const ask = (connectionId: string, table: string) =>
+      other.inject({ method: 'POST', url: '/api/v1/payments/panel', headers: as(owner), payload: { connectionId, table, recordId: '1' } });
+    try {
+      // A connection with no payable table: decided from meta, the source is never opened.
+      const none = await ask('cnx_takes_no_payments', 'public.anything');
+      expect(none.statusCode, none.payload).toBe(200);
+      expect(none.json().data).toBeNull();
+      expect(opened).toBe(0);
+      // A payable table, and one that is not, while the schema is read again: no panel, no 500.
+      for (const table of [invoicesId, w.targetOf('clients').table.id]) {
+        const answer = await ask(h.connectionId, table);
+        expect(answer.statusCode, answer.payload).toBe(200);
+        expect(answer.json().data).toBeNull();
+      }
+    } finally {
+      await other.close();
+    }
+  });
+
   it.runIf(available)('records a payment by hand into the invoice\'s own payments, once per key, as the person', async () => {
     const invoice = await sentInvoice('120.00');
     const before = (await panel(owner, invoicesId, invoice['id'])).json().data;

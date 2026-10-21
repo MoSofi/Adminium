@@ -201,6 +201,20 @@ describe('mapped CUSTOMER host (D3)', () => {
     expect(publicApi.body).not.toContain('Nothing is served at this address');
   });
 
+  it('answers a pay path it does not know with a plain 404, on a mapped host and the staff host alike', async () => {
+    const { app } = await build();
+    await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
+    for (const host of [CUSTOMER_HOST, 'localhost']) {
+      for (const path of ['/pay', '/pay/x/y', '/pay/api/nope', '/pay/abc?x=1']) {
+        const res = await get(app, path, host, NAVIGATE);
+        expect(res.statusCode, `${host}${path}`).toBe(404);
+        expect(res.body, `${host}${path}`).not.toContain('data-app=');
+      }
+    }
+    // A path that only begins with the same letters is not the pay page's.
+    expect((await get(app, '/payments', CUSTOMER_HOST, NAVIGATE)).body).toContain('clients-customer');
+  });
+
   it('a non-GET verb keeps its normal meaning on a mapped host', async () => {
     const { app } = await build();
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });

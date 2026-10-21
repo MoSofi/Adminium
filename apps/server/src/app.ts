@@ -46,7 +46,7 @@ import { staticPlugin } from './plugins/static.js';
 import { designSessionCookie, registerDesignMode, type DesignModeOptions } from './designer/design-mode.js';
 import { registerSharedHosts, type SharedHostsOptions } from './desktop/shared-hosts.js';
 import { MILO_LOADER_PATH } from './plugins/surface-index.js';
-import { DEV_BUILD_ADDRESS, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
+import { DEV_BUILD_ADDRESS, isHostReservedPath, PAY_PREFIX, surfacesPlugin } from './plugins/surfaces.js';
 import {
   compileProxyTrust,
   DEFAULT_TRUSTED_PROXIES,
@@ -594,6 +594,14 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   app.setNotFoundHandler(async (request, reply) => {
     const isApi = request.url.startsWith('/api/');
     const isDocument = request.method === 'GET' || request.method === 'HEAD';
+    const path = request.url.split('?')[0] ?? request.url;
+
+    // The pay page answers its own paths, on every host. One it does not know
+    // is not there: never a surface's index, never the dashboard's, which a
+    // customer host must not serve and a customer holding a link must not see.
+    if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) {
+      return reply.status(404).send(errorEnvelope('NOT_FOUND', `Route ${request.method}:${path} not found.`, request.id));
+    }
 
     // A MAPPED host's fallback is the mapped surface's index, ahead of every
     // other branch. Normally the root-level serve hook in plugins/surfaces.ts

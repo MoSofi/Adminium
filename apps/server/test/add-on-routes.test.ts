@@ -1203,6 +1203,22 @@ describe('connect and disconnect', () => {
     await app.close();
   });
 
+  it('disconnects an add-on whose stored manifest no longer validates, as before', async () => {
+    await stage('shipping-dhl', undefined, undefined, { kind: 'api-key' }, DHL_SETTINGS);
+    const app = await buildApp();
+    await installDhl(app);
+    await app.inject({ method: 'POST', url: '/api/v1/add-ons/shipping-dhl/connect', payload: { credentials: { api_key: 'k', account_number: '1' } } });
+    // A manifest stored by an older release that today's validator refuses.
+    const installed = (await manifestsRepo(meta, crypto).findByKey('shipping-dhl'))!;
+    await meta.db.updateTable('adminium_manifests').set({ manifest: JSON.stringify({ schemaVersion: 1, key: 'shipping-dhl', stale: true }) } as never).where('id', '=', installed.row.id).execute();
+
+    const res = await app.inject({ method: 'DELETE', url: '/api/v1/add-ons/shipping-dhl/connect' });
+    expect(res.statusCode, res.payload).toBe(200);
+    expect(res.json()).toMatchObject({ key: 'shipping-dhl', credentialsDeleted: true });
+    expect(await meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
+    await app.close();
+  });
+
   it('D5: disconnect deletes the keys and keeps everything else', async () => {
     await stage('shipping-dhl', undefined, undefined, { kind: 'api-key' }, DHL_SETTINGS);
     const app = await buildApp();

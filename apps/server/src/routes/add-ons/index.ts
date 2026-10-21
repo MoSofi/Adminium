@@ -1897,7 +1897,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
         // A payment service's keys are removed in Payments, by someone who may manage payments,
         // so its setup page never shows a key as checked that is gone.
-        if ((parseManifest(installed.document, key).addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) {
+        // Read, never required: a stored manifest that no longer validates is still disconnected,
+        // as it always was; only one that parses and names the payment contract is sent to Payments.
+        const read = validateManifest(installed.document);
+        const provides = read.ok && isAddOnManifest(read.manifest) ? (read.manifest.addOn.provides ?? []) : [];
+        if (provides.some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) {
           throw new ValidationFailedError(`"${key}" is a payment service. Remove its keys in Studio → Payments.`, { reason: 'payments' });
         }
 

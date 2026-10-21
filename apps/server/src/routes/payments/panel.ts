@@ -34,7 +34,7 @@ import { addAmounts, compareAmounts, sameAmount, subtractAmounts } from '@admini
 import { currencyScale } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 
-import { isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, paymentAttemptsRepo, refundsRepo, type KeptPayment, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
+import { appTablesRepo, isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, payableProfilesRepo, paymentAttemptsRepo, refundsRepo, type KeptPayment, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -236,6 +236,12 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     return { found, rowKey: rowKeyOf(table, row as Row) };
   }
 
+  /** Whether any table of the connection can be paid: one built on the invoice shape, or one marked payable. */
+  async function anyPayableOn(connectionId: string): Promise<boolean> {
+    if ((await payableProfilesRepo(meta).list(connectionId)).some((profile) => profile.enabled)) return true;
+    return (await appTablesRepo(meta).forConnection(connectionId)).some((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''));
+  }
+
   /** Which kind of payable the table is, or null when it is none. */
   async function kindOf(connectionId: string, tableId: string): Promise<'shape' | 'profile' | null> {
     if ((await sources.shapeOf(connectionId, tableId)) !== null) return 'shape';
@@ -375,8 +381,17 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
 
   async function panelOf(request: FastifyRequest, input: z.infer<typeof panelBody>): Promise<PanelView | null> {
     if ('documentId' in input) return documentPanelOf(request, input.documentId);
-    // Most record pages are of tables that take no payments: answered from meta alone, before any row is read.
-    const table = await sources.table(input.connectionId, input.table);
+    // Most record pages are of tables that take no payments: answered from meta alone, before the
+    // source is opened. The name as the page sent it first; a connection with no payable table at all
+    // needs nothing more.
+    if ((await kindOf(input.connectionId, input.table)) === null && !(await anyPayableOn(input.connectionId))) return null;
+    let table: Awaited<ReturnType<PayableSources['table']>>;
+    try {
+      table = await sources.table(input.connectionId, input.table);
+    } catch {
+      // The schema is being read again: no panel this time, never an error on the record page.
+      return null;
+    }
     if (table === null || (await kindOf(input.connectionId, table.table.id)) === null) return null;
     const { found, rowKey } = await reach(request, input, 'read');
     const kind = await kindOf(input.connectionId, found.table.id);
