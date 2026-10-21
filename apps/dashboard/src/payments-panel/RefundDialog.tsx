@@ -104,9 +104,10 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
       onOpenChange(false);
     },
     onError: (error: unknown) => {
-      // Refused by the server before anything moved (what is left changed, the key was for another amount):
-      // back to step 1, and a new key for a new confirmation.
-      if (error instanceof ApiError && (error.status === 409 || error.status === 422)) {
+      // Refused by the server before anything moved (what is left changed, the key was for another amount,
+      // the payment out of reach): back to step 1, and a new key for a new confirmation. A timeout or "too
+      // many" is not a refusal: the refund may be on its way.
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) {
         key.current = null;
         keyFor.current = null;
         setStep(1);
