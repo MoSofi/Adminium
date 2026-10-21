@@ -54,6 +54,10 @@
  * built `dist` of the tree that was released (the file the tarball carries),
  * hashed under plain node; 0050 and 0051 read the same out of it.
  *
+ * 0056 to 0060 ship in 0.3.28 and 0061 in 0.3.31. All six were read out of the
+ * published `@adminiumjs/adminium@0.3.31` (`npm pack`, hashed under plain node);
+ * 0056 to 0060 read the same out of the published 0.3.28 and 0.3.30.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -233,6 +237,12 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0053_assistant_use': 'c52380d7db579cf02afc2c5f985729e36db631912bd299dd9931eba82b31f0a4',
   '0054_assistant_abilities': 'ae3cd6e5f7019491012a572bdb7e924a12d3099ce43e641951c7e34972568266',
   '0055_assistant_proposal_claim': '3a040dd38610b5cc9cc88bf238b04d46fe4611a403f48b0e223980df7de2232b',
+  '0056_email_assistant_wrote': 'f77e85d7a6ef1c3e8d4bd0a4c7e433fc2d18035da4ec83b306284e8d7a5329e0',
+  '0057_teams': 'eb8898ac5f7f48e2a3978777a46d6c2f1540f8b16cf5dc69f53248b4917f52a7',
+  '0058_app_modules': '84db5ee402f000e4d245475cf2d62cd1996d2cca743eedbfe36d9cb5d669b7a8',
+  '0059_spells_and_quiet_hours': '7c4847fbfc44ad46327a3f32c082dce15eab1237db2271749765fccc56cccec2',
+  '0060_notification_switches': '8c81ad67b7ba6ba0d23602b566856b9f70c7eeae258ff0753346a7b81a71a9a5',
+  '0061_user_figma_token': '1bb4fc6204984c9a5bf8e222bec93e7a23f4c411f6eb24146ba0edc6747011df',
 });
 
 describe('shipped migration checksums', () => {
