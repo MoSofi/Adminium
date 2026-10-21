@@ -67,6 +67,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useShortcut } from '../shell/ShortcutsProvider.js';
 import { formatSince } from '../team/teamApi.js';
+import { DocumentPaymentPanel } from '../payments-panel/documentPanelDoor.js';
 import { useLocaleTag } from './locale.js';
 import { registerMessages } from './messages.js';
 import {
@@ -96,7 +97,7 @@ export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<vo
         query: { QueryClient, queryOptions, useMutation, useQuery, useQueryClient },
         i18n: { tagForLocale },
         /*
-         * The host itself (O7). These eleven are why an add-on page can BE a
+         * The host itself (O7). These twelve are why an add-on page can BE a
          * dashboard page rather than an iframe with a border: it renders into
          * the shell's own chrome, translates through the running catalogue,
          * and calls the API with the session's CSRF token.
@@ -110,6 +111,7 @@ export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<vo
          */
         app: {
           ApiError,
+          DocumentPaymentPanel,
           PageActions,
           PageSurface,
           api,

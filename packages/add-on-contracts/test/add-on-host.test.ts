@@ -172,7 +172,9 @@ describe('the shims export exactly what their lists promise', () => {
     expect(ADD_ON_APP_EXPORTS).toContain('t');
     expect(ADD_ON_APP_EXPORTS).toContain('api');
     expect(ADD_ON_APP_EXPORTS).toContain('useAppToasts');
-    expect(ADD_ON_APP_EXPORTS).toHaveLength(11);
+    // And the host's own Payment panel for a designer invoice, the twelfth.
+    expect(ADD_ON_APP_EXPORTS).toContain('DocumentPaymentPanel');
+    expect(ADD_ON_APP_EXPORTS).toHaveLength(12);
   });
 
   it('publishes no way to build a route or a second query client', () => {

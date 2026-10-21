@@ -184,8 +184,23 @@ export type AddOnFormatSince = (
 export type AddOnLocaleTag = () => string;
 
 /** The whole `app` namespace, as one type the host can be checked against. */
+/**
+ * The host's Payment panel for an invoice made on the Invoices page: its
+ * balance, its payments and refunds, the pay link and "Record a payment", as
+ * the record page shows them. It loads its own code and words when it first
+ * mounts, and renders nothing for a document that takes no payments.
+ */
+export interface AddOnDocumentPaymentPanelProps {
+  /** The invoice document's id. */
+  documentId: string;
+  /** A payment or refund changed the invoice (its balance, its status): the page reads it again. */
+  onChanged?: (() => void) | undefined;
+}
+
 export interface AddOnAppNamespace {
   ApiError: AddOnApiErrorConstructor;
+  /** Every host from this one on publishes it; a page built for older hosts too checks it is there. */
+  DocumentPaymentPanel: ComponentType<AddOnDocumentPaymentPanelProps>;
   PageActions: ComponentType<AddOnPageActionsProps>;
   PageSurface: ComponentType<AddOnPageSurfaceProps>;
   api: AddOnApiClient;

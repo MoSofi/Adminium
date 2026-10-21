@@ -327,7 +327,7 @@ export type ProjectUiExport = (typeof PROJECT_UI_EXPORTS)[number];
  * THE DASHBOARD'S OWN HELPERS — the fifth namespace (51d, O7).
  *
  * The first four are libraries an add-on could in principle bundle for itself
- * (wrongly, but it could). These eleven are the HOST: its translation function,
+ * (wrongly, but it could). These twelve are the HOST: its translation function,
  * its API client, its toast bus, its page chrome, its icon resolver. An add-on
  * page cannot reimplement them — a second `t()` reads a second catalogue, a
  * second API client misses the CSRF token, a second toast bus renders toasts
@@ -345,6 +345,7 @@ export type ProjectUiExport = (typeof PROJECT_UI_EXPORTS)[number];
  */
 export const ADD_ON_APP_EXPORTS = [
   'ApiError',
+  'DocumentPaymentPanel',
   'PageActions',
   'PageSurface',
   'api',

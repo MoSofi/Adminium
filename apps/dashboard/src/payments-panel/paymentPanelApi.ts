@@ -14,10 +14,19 @@ export interface PanelRecord {
   recordId: string;
 }
 
+/** An invoice made on the Invoices page, whose payments Adminium keeps. */
+export interface PanelDocument {
+  documentId: string;
+}
+
+/** What a Payment panel is for: a table's record or a designer invoice. */
+export type PanelTarget = PanelRecord | PanelDocument;
+
 export interface PanelPayableRef {
-  kind: 'shape' | 'profile';
-  connectionId: string;
-  tableName: string;
+  kind: 'shape' | 'profile' | 'document';
+  /** Null for a designer invoice. */
+  connectionId: string | null;
+  tableName: string | null;
   rowKey: string;
 }
 
@@ -96,7 +105,7 @@ export interface PayLink {
 export const HAND_WAYS = ['bank-transfer', 'cash', 'card', 'cheque', 'other'] as const;
 export type HandWay = (typeof HAND_WAYS)[number];
 
-export interface RecordPaymentInput extends PanelRecord {
+export type RecordPaymentInput = PanelTarget & {
   amount: string;
   way: HandWay;
   paidOn: string;
@@ -104,16 +113,16 @@ export interface RecordPaymentInput extends PanelRecord {
   approvalCode: string | null;
   last4: string | null;
   key: string;
-}
+};
 
 /** Every Payment panel query hangs off this key; one invalidate refreshes them. */
 export const paymentPanelKey = ['payment-panel'] as const;
 
-export function panelQueryKey(record: PanelRecord) {
-  return [...paymentPanelKey, record.connectionId, record.table, record.recordId] as const;
+export function panelQueryKey(record: PanelTarget) {
+  return 'documentId' in record ? ([...paymentPanelKey, 'document', record.documentId] as const) : ([...paymentPanelKey, record.connectionId, record.table, record.recordId] as const);
 }
 
-export async function fetchPaymentPanel(record: PanelRecord): Promise<PaymentPanelView | null> {
+export async function fetchPaymentPanel(record: PanelTarget): Promise<PaymentPanelView | null> {
   return (await api.post<{ data: PaymentPanelView | null }>('/api/v1/payments/panel', record)).data;
 }
 

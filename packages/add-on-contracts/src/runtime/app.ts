@@ -23,6 +23,8 @@ const app = requireAddOnHost().app as unknown as AddOnAppNamespace;
 export const ApiError = app.ApiError;
 /** The same name as a TYPE, so `catch (e: ApiError)` compiles. */
 export type ApiError = AddOnApiError;
+/** Undefined on a host older than it. */
+export const DocumentPaymentPanel = app.DocumentPaymentPanel;
 export const PageActions = app.PageActions;
 export const PageSurface = app.PageSurface;
 export const api = app.api;

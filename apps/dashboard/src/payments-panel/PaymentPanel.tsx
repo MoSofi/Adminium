@@ -18,7 +18,7 @@
  *
  * Loaded lazily, with its words, only on a record that takes payments.
  */
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Tooltip } from '@adminium/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Banknote, CircleCheck, CircleDot, CircleX, Clock, CornerDownLeft, CreditCard, Ellipsis, FileText, Landmark, Link2, Loader, Mail, Package, Plus, RotateCcw, Send, ServerOff, ShieldAlert, type LucideIcon } from 'lucide-react';
@@ -26,7 +26,7 @@ import { Ban, Banknote, CircleCheck, CircleDot, CircleX, Clock, CornerDownLeft, 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
-import { emailLink, fetchCurrentLink, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelPayment, type PanelRecord, type PanelRefund, type PaymentPanelView } from './paymentPanelApi.js';
+import { emailLink, fetchCurrentLink, fetchPaymentPanel, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelDocument, type PanelPayment, type PanelTarget, type PanelRefund, type PaymentPanelView } from './paymentPanelApi.js';
 import { decimalsOf, formatMoney, moreThan, shortDay } from './paymentText.js';
 import { readerLocale, usePaymentsMessages } from './paymentsMessages.js';
 import { RecordPaymentDialog } from './RecordPaymentDialog.js';
@@ -283,7 +283,7 @@ function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { paymen
 }
 
 export interface PaymentPanelProps {
-  record: PanelRecord;
+  record: PanelTarget;
   view: PaymentPanelView;
   /** The record itself changed (its balance, its status): the page reads it again. */
   onChanged?: (() => void) | undefined;
@@ -461,7 +461,7 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
               {t('payments:panel.copyLink', 'Copy pay link')}
             </Button>
           ) : null}
-          {showCopy ? (
+          {showCopy && view.payable.kind !== 'document' ? (
             <Button variant="secondary" iconLeft={<Mail aria-hidden="true" />} loading={email.isPending} onClick={() => email.mutate()}>
               {t('payments:panel.emailLink', 'Email pay link')}
             </Button>
@@ -508,4 +508,28 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
       ) : null}
     </div>
   );
+}
+
+export interface DocumentPaymentPanelProps {
+  documentId: string;
+  onChanged?: (() => void) | undefined;
+}
+
+/**
+ * The Payment panel of an invoice made on the Invoices page, as the add-on's
+ * page shows it through the host: this panel, reading the payments Adminium
+ * keeps for the document. Nothing for a document that takes no payments.
+ * Kept in this file so the host's door loads the panel's own chunk.
+ */
+export function DocumentPaymentPanel({ documentId, onChanged }: DocumentPaymentPanelProps): ReactNode {
+  const target = useMemo<PanelDocument>(() => ({ documentId }), [documentId]);
+  const panel = useQuery({
+    queryKey: panelQueryKey(target),
+    queryFn: () => fetchPaymentPanel(target),
+    staleTime: 30_000,
+    // A refusal means no panel, not a retried error.
+    retry: false,
+  });
+  if (panel.data == null) return null;
+  return <PaymentPanel record={target} view={panel.data} onChanged={onChanged} />;
 }

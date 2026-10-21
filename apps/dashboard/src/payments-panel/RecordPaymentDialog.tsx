@@ -21,7 +21,7 @@ import { TriangleAlert } from 'lucide-react';
 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
-import { HAND_WAYS, recordPayment, type HandWay, type PanelRecord, type PaymentPanelView } from './paymentPanelApi.js';
+import { HAND_WAYS, recordPayment, type HandWay, type PanelTarget, type PaymentPanelView } from './paymentPanelApi.js';
 import { approvalCodeOk, formatMoney, holdsCardNumber, lastFourOk, moreThan, newPaymentKey, today, typedAmount } from './paymentText.js';
 import { readerLocale } from './paymentsMessages.js';
 
@@ -38,7 +38,7 @@ type Field = 'amount' | 'way' | 'paidOn' | 'note' | 'approvalCode' | 'last4';
 export interface RecordPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  record: PanelRecord;
+  record: PanelTarget;
   view: PaymentPanelView;
   /** Called with the amount once the server recorded it. */
   onRecorded: (amount: string) => void;
