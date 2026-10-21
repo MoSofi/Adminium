@@ -40,6 +40,7 @@ import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
 import type { WriteTarget } from '../crud/write-context.js';
+import { isDesignerCurrency } from '../invoices/document.js';
 import { createPublicViews } from '../public-api/runtime.js';
 import { isTestPayable, readTestPayable } from './test-payables.js';
 
@@ -100,6 +101,11 @@ export function fromMinorUnits(value: unknown, scale: number): string | null {
   if (!/^\d+$/.test(whole) || !sameAmount(ratioText(ratio, 12), whole)) return null;
   const padded = whole.padStart(scale + 1, '0');
   return scale === 0 ? whole : `${padded.slice(0, -scale)}.${padded.slice(-scale)}`;
+}
+
+/** A JSON object (not null, not an array): what a stored body is read through. */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // ─── What a payable resolves to ─────────────────────────────────────────────
@@ -215,6 +221,18 @@ export function designerLineAmount(qty: unknown, rate: unknown, scale: number): 
   const r = toRatio(rate);
   if (q === null || r === null) return null;
   return ratioText({ n: q.n * r.n, d: q.d * r.d }, scale);
+}
+
+/**
+ * A designer invoice's total, kept in hundredths, as an amount in a currency
+ * with `scale` decimals (0, 1 or 2), rounded half up the way the sheet prints
+ * it: ¥1,357.40 is due as 1357. Null for a total that is not a whole number
+ * of hundredths at or above zero.
+ */
+export function designerTotal(totalMinor: unknown, scale: number): string | null {
+  if (typeof totalMinor !== 'number' || !Number.isSafeInteger(totalMinor) || totalMinor < 0 || scale > 2) return null;
+  const divisor = 10 ** (2 - scale);
+  return fromMinorUnits(Math.floor((totalMinor + divisor / 2) / divisor), scale);
 }
 
 /** Resolves a payable; null when it no longer exists at all. */
@@ -392,14 +410,16 @@ async function resolveDocument(sources: PayableSources, ref: PayableRef): Promis
   if (document.currency === null || !ISO.test(document.currency)) {
     return { ...base, currency: '', total: '0', due: '0', refusal: refused('NO_CURRENCY', 'Choose the invoice currency first.') };
   }
-  // The designer keeps every total in hundredths, whatever the currency; the
-  // amount must then be exact in the currency's own decimals (no yen cents).
-  const hundredths = fromMinorUnits(document.totalMinor, 2);
-  const total = hundredths === null ? null : exactAmount(hundredths, currencyScale(document.currency));
+  const scale = currencyScale(document.currency);
+  if (!isDesignerCurrency(document.currency) || scale > 2) {
+    return { ...base, currency: document.currency, total: '0', due: '0', refusal: refused('NOT_PAYABLE', `Invoices made here cannot be paid in ${document.currency}.`) };
+  }
+  // The designer keeps every total in hundredths, whatever the currency; a
+  // currency with fewer decimals is due as the sheet prints it (rounded half up).
+  const total = designerTotal(document.totalMinor, scale);
   if (total === null) {
     return { ...base, currency: document.currency, total: '0', due: '0', refusal: refused('AMOUNT_UNCLEAR', "This invoice's total is not clear.") };
   }
-  const scale = currencyScale(document.currency);
   const due = subtractAmounts(total, await sources.keptPaid(ref, document.currency), scale) ?? '0';
   let refusal: PayableRefusal | null = null;
   if (document.status === 'draft') refusal = refused('NOT_SENT', 'Send the invoice first. A payment can only be recorded against a sent invoice.');
@@ -470,11 +490,12 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
       if (ref.kind === 'document') {
         const document = await invoiceDocumentsRepo(deps.meta).findById(ref.rowKey);
         if (document === null || document.kind !== 'invoice') return null;
-        const body = document.body as { items?: unknown; currencyCode?: unknown };
+        const body = (isPlainRecord(document.body) ? document.body : {}) as { items?: unknown; currencyCode?: unknown };
         const currency = typeof body.currencyCode === 'string' && ISO.test(body.currencyCode) ? body.currencyCode : null;
         if (currency === null || !Array.isArray(body.items)) return null;
         const out: PayableLine[] = [];
-        for (const item of body.items.slice(0, PAY_LINES_MAX) as { desc?: unknown; qty?: unknown; rate?: unknown }[]) {
+        for (const item of body.items.slice(0, PAY_LINES_MAX) as unknown[]) {
+          if (!isPlainRecord(item)) continue;
           const amount = designerLineAmount(item.qty, item.rate, currencyScale(currency));
           if (amount === null || typeof item.desc !== 'string' || item.desc.trim() === '') continue;
           out.push({ label: item.desc.trim().slice(0, 200), amount });
@@ -523,8 +544,8 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
     async document(id) {
       const document = await invoiceDocumentsRepo(deps.meta).findById(id);
       if (document === null || document.kind !== 'invoice') return null;
-      const body = document.body as Record<string, unknown>;
-      const summary = (document.summary ?? {}) as Record<string, unknown>;
+      const body: Record<string, unknown> = isPlainRecord(document.body) ? document.body : {};
+      const summary: Record<string, unknown> = isPlainRecord(document.summary) ? document.summary : {};
       const code = typeof body['currencyCode'] === 'string' ? body['currencyCode'] : null;
       return {
         status: document.status,

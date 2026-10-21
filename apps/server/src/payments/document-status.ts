@@ -15,11 +15,14 @@
  * TWO WRITERS, ONE ANSWER. A payment being recorded and a person saving the
  * document can cross: the save carries the status the editor last saw. Both
  * write and THEN derive the status from the balance as it stands, so
- * whichever runs last puts the right status down.
+ * whichever runs last puts the right status down. The status is moved by a
+ * compare-and-set on the status that was read, and read again until it
+ * stands, so a writer that read an older balance never puts its answer over
+ * a newer one. A status the balance moves is in the audit log, by the system.
  */
 import { compareAmounts, sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
 import { currencyScale } from '@adminium/manifest';
-import { invoiceDocumentsRepo, keptPaymentsRepo, type InvoiceStatus, type MetaDb, type PayableRef } from '@adminium/meta';
+import { auditRepo, invoiceDocumentsRepo, keptPaymentsRepo, paymentAttemptsRepo, type InvoiceStatus, type MetaDb, type PayableRef } from '@adminium/meta';
 
 import { resolvePayable, type PayableSources, type ResolvedPayable } from './payables.js';
 import { isTestPayable } from './test-payables.js';
@@ -38,6 +41,12 @@ export interface DocumentBalance {
   settled: boolean;
   /** The currency its live payments were taken in; null when it has none. */
   paidIn: string | null;
+  /**
+   * The currency the invoice is held to: that of its live payments, else that
+   * of a live payment still on its way (a checkout open, a payment being
+   * recorded); null when nothing holds it.
+   */
+  heldIn: string | null;
 }
 
 export function documentRef(id: string): PayableRef {
@@ -66,12 +75,17 @@ export async function documentBalance(deps: DocumentStatusDeps, id: string): Pro
   if (isTestPayable(ref)) return null;
   const live = (await keptPaymentsRepo(deps.meta).forPayable(ref)).filter((row) => !row.voided && row.mode === 'live');
   const paidIn = live[0]?.currency ?? null;
-  if (live.length === 0) return { follows: false, settled: false, paidIn: null };
+  const open = paidIn === null ? await paymentAttemptsRepo(deps.meta).openFor(ref, 'live') : null;
+  const heldIn = paidIn ?? open?.currency ?? null;
+  if (live.length === 0) return { follows: false, settled: false, paidIn: null, heldIn };
   const payable = await resolvePayable(deps.sources, ref);
   if (payable === null) return null;
   // The invoice's currency is no longer the one it was paid in: its balance cannot be read, so it is not settled.
-  return { follows: true, settled: payable.currency === paidIn && settledOf(payable), paidIn };
+  return { follows: true, settled: payable.currency === paidIn && settledOf(payable), paidIn, heldIn };
 }
+
+/** How many times the status is read again while other writers keep moving it. */
+const FOLLOW_TRIES = 6;
 
 /**
  * Puts down the status the balance says, when it differs from the stored one.
@@ -80,12 +94,31 @@ export async function documentBalance(deps: DocumentStatusDeps, id: string): Pro
 export async function followDocumentStatus(deps: DocumentStatusDeps, ref: PayableRef): Promise<InvoiceStatus | null> {
   if (ref.kind !== 'document' || isTestPayable(ref)) return null;
   const documents = invoiceDocumentsRepo(deps.meta);
-  const row = await documents.findById(ref.rowKey);
-  if (row === null || row.kind !== 'invoice') return null;
-  const balance = await documentBalance(deps, row.id);
-  if (balance === null) return row.status;
-  const want = statusAfter(row.status, row.status, balance);
-  if (want === row.status) return row.status;
-  await documents.patch(row.id, { status: want }, (deps.now ?? Date.now)());
-  return want;
+  for (let attempt = 0; attempt < FOLLOW_TRIES; attempt += 1) {
+    const row = await documents.findById(ref.rowKey);
+    if (row === null || row.kind !== 'invoice') return null;
+    const balance = await documentBalance(deps, row.id);
+    if (balance === null) return row.status;
+    const want = statusAfter(row.status, row.status, balance);
+    if (want === row.status) return row.status;
+    const at = (deps.now ?? Date.now)();
+    // Moved only from the status read; then read again either way, until a
+    // read finds the status standing: a writer whose balance was already old
+    // when it moved puts it right on its next read.
+    if (await documents.setStatusIf(row.id, row.status, want, at)) {
+      await auditRepo(deps.meta).append(
+        {
+          actorKind: 'system',
+          actorId: null,
+          actorLabel: 'Payments',
+          category: 'payments',
+          action: 'invoice-document.status.followed',
+          changes: { before: { id: row.id, number: row.number, status: row.status }, after: { id: row.id, number: row.number, status: want } },
+        },
+        at,
+      );
+    }
+  }
+  // Still moving after every try: the writers moving it each read again after their own move.
+  return (await documents.findById(ref.rowKey))?.status ?? null;
 }

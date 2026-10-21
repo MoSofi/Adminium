@@ -215,6 +215,15 @@ for (const dialect of TEST_DIALECTS) {
       await expect(repo.create(input({ name: 'bad', lang: 'xx' as never }), T0)).rejects.toThrow();
     });
 
+    it('setStatusIf moves the status only from the one it was read as', async () => {
+      const row = await repo.create(input({ name: 'Moved' }), T0);
+      expect(await repo.setStatusIf(row.id, 'draft', 'sent', T0 + 5)).toBe(true);
+      // Somebody else moved it first: a writer that read Draft does not win.
+      expect(await repo.setStatusIf(row.id, 'draft', 'paid', T0 + 6)).toBe(false);
+      expect(await repo.findById(row.id)).toMatchObject({ status: 'sent', updatedAt: T0 + 5 });
+      expect(await repo.setStatusIf('inv_missing', 'draft', 'sent', T0)).toBe(false);
+    });
+
     it('removeById is a hard delete and answers whether a row went', async () => {
       const a = await repo.create(input({ name: 'A', number: 'INV-1001', kind: 'invoice', originId: 'inv_TEMPLATE' }), T0);
       expect(a.originId).toBe('inv_TEMPLATE');

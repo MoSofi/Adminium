@@ -138,6 +138,18 @@ describe('save', () => {
     expect(row?.originId).toBe(template.id);
   });
 
+  it('gives an invoice the code its symbol can only mean, and drops a code the page does not offer', async () => {
+    const repo = invoiceDocumentsRepo(meta);
+    const template = await repo.create(
+      { kind: 'template', name: 'Euro work', topic: 'services', lang: 'en', number: 'INV-1000', body: { ...acceptInvoiceBody({}) }, summary: summaryFixture() },
+      AT,
+    );
+    const euros = await act({ action: 'save', context: 'invoices', artefact: { basedOn: template.id, name: 'Euros', body: { currency: '€', number: '', items: [] } } });
+    expect((await repo.findById(euros.created?.id ?? ''))?.body).toMatchObject({ currencyCode: 'EUR' });
+    const dinars = await act({ action: 'save', context: 'invoices', artefact: { basedOn: template.id, name: 'Dinars', body: { currency: 'KD', currencyCode: 'KWD', number: '', items: [] } } });
+    expect((await repo.findById(dinars.created?.id ?? ''))?.body).toMatchObject({ currencyCode: null });
+  });
+
   it('refuses an invoice whose template does not exist', async () => {
     await expect(
       act({ action: 'save', context: 'invoices', artefact: { basedOn: 'inv_nothing', name: 'X', body: {} } }),

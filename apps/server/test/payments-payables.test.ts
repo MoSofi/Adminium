@@ -83,11 +83,13 @@ describe('an invoice made on the Invoices page', () => {
     expect(payable).toMatchObject({ label: 'INV-7', total: '120.00', due: '70.00', refusal: null, recordInto: { kind: 'kept' } });
   });
 
-  it('reads its total in hundredths whatever the currency, exact in the currency\'s decimals', async () => {
+  it('reads its total in hundredths whatever the currency, in the currency\'s decimals as the sheet prints it', async () => {
     const doc = (currency: string, totalMinor: number, status = 'sent') => sources({ document: async () => ({ status, number: 'INV-9', currency, totalMinor }) });
     expect(await resolvePayable(doc('JPY', 100000), DOC)).toMatchObject({ total: '1000', due: '1000', refusal: null });
-    expect((await resolvePayable(doc('JPY', 100050), DOC))?.refusal?.code).toBe('AMOUNT_UNCLEAR');
-    expect(await resolvePayable(doc('KWD', 4525), DOC)).toMatchObject({ total: '45.250' });
+    // ¥1,000.50 prints as ¥1,001 (rounded half up), and is due as that.
+    expect(await resolvePayable(doc('JPY', 100050), DOC)).toMatchObject({ total: '1001', refusal: null });
+    // The page never offers a currency with three decimals: such an invoice is not payable.
+    expect((await resolvePayable(doc('KWD', 4525), DOC))?.refusal?.code).toBe('NOT_PAYABLE');
     expect((await resolvePayable(doc('EUR', 100, 'live'), DOC))?.refusal).toBeNull();
     expect((await resolvePayable(doc('EUR', 100, 'overdue'), DOC))?.refusal).toBeNull();
   });

@@ -315,6 +315,20 @@ export function invoiceDocumentsRepo(meta: MetaDb) {
       return await findById(id);
     },
 
+    /**
+     * Moves the status from `from` to `to` as one compare-and-set: false when
+     * the stored status was no longer `from` (somebody else moved it first).
+     */
+    async setStatusIf(id: string, from: InvoiceStatus, to: InvoiceStatus, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_invoice_documents')
+        .set({ status: invoiceStatusSchema.parse(to), updatedAt: at })
+        .where('id', '=', id)
+        .where('status', '=', invoiceStatusSchema.parse(from))
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
     /** Hard delete — this surface has no archive (the comp's `doDelete`, 1386). */
     async removeById(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_invoice_documents').where('id', '=', id).executeTakeFirst();

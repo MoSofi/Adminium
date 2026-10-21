@@ -30,7 +30,7 @@
  * The dialog sends a key it made when it opened; a second press with the
  * same key (a retry after a lost answer) records nothing new.
  */
-import { compareAmounts, sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
+import { addAmounts, compareAmounts, sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
 import { currencyScale } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 
@@ -425,6 +425,38 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     for (const [key, entry] of recentKeys) if (now - entry.at > KEY_MEMORY_MS) recentKeys.delete(key);
   }
 
+  /**
+   * A payment Adminium keeps, checked again once it is in: two people recording
+   * at once each saw the whole balance, and an invoice's currency may have been
+   * changed while this was on its way. The later of two payments that together
+   * pay more than is due, or one in a currency the record no longer has, is
+   * taken back (voided) and refused, so a kept record is never overpaid.
+   */
+  async function holdKeptPayment(ref: PayableRef, payable: ResolvedPayable, kept: KeptPayment, at: number): Promise<void> {
+    const repo = keptPaymentsRepo(meta);
+    const now = await resolvePayable(sources, ref);
+    if (now === null || now.currency !== payable.currency) {
+      await repo.void(kept.id, 'currency-changed', at);
+      throw new ValidationFailedError("This record's currency changed while the payment was being recorded. Nothing was recorded.", { reason: 'CURRENCY_CHANGED' });
+    }
+    const scale = currencyScale(payable.currency);
+    const standing = (await repo.forPayable(ref))
+      .filter((row) => !row.voided && row.mode === 'live' && row.currency === payable.currency)
+      .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    let sum = '0';
+    for (const row of standing) {
+      sum = addAmounts(sum, subtractAmounts(row.amount, row.refundedAmount, scale) ?? '0', scale) ?? sum;
+      if (compareAmounts(sum, now.total) === 1) {
+        // The first payment that takes the sum past the total, and every one after it, is over.
+        if (standing.indexOf(row) <= standing.findIndex((one) => one.id === kept.id)) {
+          await repo.void(kept.id, 'over-balance', at);
+          throw new ValidationFailedError(`More than the ${payable.due} ${payable.currency} that is due.`, { field: 'amount', reason: 'BALANCE_EXCEEDED', due: payable.due });
+        }
+        return;
+      }
+    }
+  }
+
   return async (app) => {
     app.post(
       '/payments/panel',
@@ -544,6 +576,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
             );
             // The same key already kept its payment: a retry after a lost answer, here or in another process.
             if (kept === null) already = true;
+            else await holdKeptPayment(ref, payable, kept, now);
           }
         } catch (error) {
           // Nothing was written: the key may be tried again.

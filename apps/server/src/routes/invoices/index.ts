@@ -32,9 +32,9 @@ import { z } from 'zod';
 import { invoiceDocumentsRepo, type InvoiceDocument, type MetaDb } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
-import { acceptInvoiceBody, bodyColumn, currencyCodeOf, normalizeInvoiceBody, type InvoiceBody } from '../../invoices/document.js';
+import { acceptInvoiceBody, bodyColumn, currencyCodeForSymbol, currencyCodeOf, isDesignerCurrency, normalizeInvoiceBody, withInferredCode, type InvoiceBody } from '../../invoices/document.js';
 import { isInvoiceLang, languageMeta, localizeBody, type InvoiceLang } from '../../invoices/languages.js';
 import { TEMPLATE_NUMBER, nextInvoiceNumber } from '../../invoices/numbering.js';
 import { blankBody, isInvoiceStarterKey, renderStarter, starterCards } from '../../invoices/starters.js';
@@ -67,6 +67,8 @@ export interface InvoicesRoutesDeps {
    * status is saved as asked.
    */
   paymentSources?: PayableSources;
+  /** Fault injection for tests: called between a save's currency check and its write. */
+  faults?: { afterCheck?: () => Promise<void> | void };
 }
 
 function requireUserId(request: FastifyRequest): string {
@@ -74,6 +76,40 @@ function requireUserId(request: FastifyRequest): string {
   const id = user?.id ?? request.apiKeyPrincipal?.id ?? null;
   if (id === null) throw new UnauthorizedError();
   return id;
+}
+
+/**
+ * The code a save puts down. An editor that knows the code sends it (null
+ * included). One that does not sends none: the stored code stays while the
+ * symbol still says it, else the code the new symbol can only mean (if any).
+ */
+function codeOfSave(accepted: InvoiceBody, sent: unknown, stored: unknown): string | null {
+  if (typeof sent === 'object' && sent !== null && 'currencyCode' in sent) return accepted.currencyCode;
+  const storedBody = typeof stored === 'object' && stored !== null ? (stored as Record<string, unknown>) : {};
+  const storedCode = currencyCodeOf(storedBody['currencyCode']);
+  const sameSymbol = typeof storedBody['currency'] === 'string' && storedBody['currency'].trim() === accepted.currency.trim();
+  const implied = currencyCodeForSymbol(accepted.currency);
+  if (storedCode !== null && (sameSymbol || implied === storedCode)) return storedCode;
+  return implied;
+}
+
+/** A save that would move an invoice off the currency its payments are in. */
+function currencyHeld(currency: string): AppError {
+  return new AppError(422, 'CURRENCY_HAS_PAYMENTS', `This invoice has payments in ${currency}, so its currency stays ${currency}.`, {
+    field: 'currencyCode',
+    currency,
+  });
+}
+
+/** An invoice made here is paid only in a currency the page offers (never one with three decimals). */
+function assertDesignerCurrency(code: string | null): void {
+  if (code !== null && !isDesignerCurrency(code)) {
+    throw new ValidationFailedError(`Invoices made here cannot be paid in ${code}. Choose one of the currencies the page offers.`, {
+      field: 'currencyCode',
+      reason: 'CURRENCY_NOT_OFFERED',
+      currency: code,
+    });
+  }
 }
 
 function summaryView(row: InvoiceDocument): InvoiceSummaryView {
@@ -171,9 +207,10 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
         if (starterKey !== null) {
           const starter = renderStarter(starterKey, ctx);
           name = request.body.name ?? starter.card.name;
-          body = starter.body;
+          body = withInferredCode(starter.body);
           topic = starter.topic;
-          status = starter.status;
+          // An invoice's Paid is set by its balance: a starter drawn as paid (a receipt) starts as a draft.
+          status = kind === 'invoice' && starter.status === 'paid' ? 'draft' : starter.status;
         } else {
           const { t } = await translatorFor(meta, userId);
           name =
@@ -181,7 +218,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
             (kind === 'template'
               ? t('invoices.untitled.template', { defaultValue: 'Untitled template' })
               : t('invoices.untitled.invoice', { defaultValue: 'Untitled invoice' }));
-          body = blankBody(ctx);
+          body = withInferredCode(blankBody(ctx));
           topic = 'other';
           status = 'draft';
         }
@@ -224,46 +261,49 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
         await requireSettingsManage(request, 'edit invoice documents');
         const row = await mustFind(request.params.id);
         const accepted = acceptInvoiceBody(request.body.body);
-        // An editor that does not know the currency code sends none: the stored one stays.
-        const sent = request.body.body as Record<string, unknown>;
-        const body = 'currencyCode' in sent ? accepted : { ...accepted, currencyCode: currencyCodeOf((row.body as Record<string, unknown>)['currencyCode']) ?? accepted.currencyCode };
+        const body: InvoiceBody = { ...accepted, currencyCode: codeOfSave(accepted, request.body.body, row.body) };
+        if (row.kind === 'invoice') assertDesignerCurrency(body.currencyCode);
         const { name, topic, lang } = request.body;
         let status = request.body.status;
         const sources = deps.paymentSources;
-        if (sources !== undefined && row.kind === 'invoice') {
-          const balance = await documentBalance({ meta, sources }, row.id);
+        const balanceOf = async () => (sources === undefined ? null : await documentBalance({ meta, sources }, row.id));
+        if (row.kind === 'invoice') {
+          const balance = await balanceOf();
           if (balance !== null) {
-            // Its payments were taken in one currency: the invoice stays in it.
-            if (balance.paidIn !== null && body.currencyCode !== balance.paidIn) {
-              throw new ValidationFailedError(`This invoice has payments in ${balance.paidIn}, so its currency stays ${balance.paidIn}.`, {
-                code: 'CURRENCY_HAS_PAYMENTS',
-                field: 'currencyCode',
-                currency: balance.paidIn,
-              });
-            }
+            // Its payments (or a payment on its way) are in one currency: the invoice stays in it.
+            if (balance.heldIn !== null && body.currencyCode !== balance.heldIn) throw currencyHeld(balance.heldIn);
             status = statusAfter(row.status, status, balance);
+          } else if (status === 'paid' && row.status !== 'paid') {
+            // Paid is set by the balance, never picked by hand.
+            status = row.status;
           }
-        } else if (row.kind === 'invoice' && status === 'paid' && row.status !== 'paid') {
-          // Paid is set by the balance, never picked by hand.
-          status = row.status;
         }
+        await deps.faults?.afterCheck?.();
         let updated = await repo.patch(
           row.id,
           { name, status, topic, lang, body: bodyColumn(body), summary: summaryOf(body), number: body.number },
           app.rbac.now(),
         );
         if (updated === null) throw new NotFoundError(`Invoice document ${row.id} not found.`);
-        // A payment recorded while this save was on its way: the balance has the last word.
         if (sources !== undefined && row.kind === 'invoice') {
-          const now = await followDocumentStatus({ meta, sources, now: () => app.rbac.now() }, documentRef(row.id));
-          if (now !== null && now !== updated.status) updated = (await repo.findById(row.id)) ?? updated;
+          // A payment that started or landed while this save was on its way, in the currency it replaced:
+          // the save is taken back, so the invoice never reads in another currency than its money.
+          const after = await balanceOf();
+          if (after !== null && after.heldIn !== null && after.heldIn !== body.currencyCode) {
+            await repo.patch(row.id, { name: row.name, topic: row.topic, lang: row.lang, body: bodyColumn(normalizeInvoiceBody(row.body)), summary: row.summary, number: row.number }, app.rbac.now());
+            await followDocumentStatus({ meta, sources, now: () => app.rbac.now() }, documentRef(row.id));
+            throw currencyHeld(after.heldIn);
+          }
+          // A payment recorded while this save was on its way: the balance has the last word.
+          await followDocumentStatus({ meta, sources, now: () => app.rbac.now() }, documentRef(row.id));
+          updated = (await repo.findById(row.id)) ?? updated;
         }
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'invoice-document.update',
           changes: {
             before: { name: row.name, status: row.status, topic: row.topic, lang: row.lang, number: row.number },
-            after: { name, status, topic, lang, number: body.number, items: body.items.length },
+            after: { name, status: updated.status, topic, lang, number: body.number, items: body.items.length },
           },
         });
         return await detailOf(updated);
@@ -338,7 +378,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
             number: row.number,
             starter: row.starter,
             originId: row.originId,
-            body: row.body,
+            body: bodyColumn(withInferredCode(normalizeInvoiceBody(row.body))),
             summary: row.summary,
             createdBy: userId,
           },
@@ -375,7 +415,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
             existingId: existing.id,
           });
         }
-        const body = localizeBody(normalizeInvoiceBody(row.body), lang);
+        const body = withInferredCode(localizeBody(normalizeInvoiceBody(row.body), lang));
         const name = variantName(row.name, lang);
         const created = await repo.create(
           {
@@ -422,7 +462,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
         const number = await nextInvoiceNumber(repo);
         // The row's number is denormalised from the body, so the minted number
         // lands on the sheet too; everything else is the template's, verbatim.
-        const body: InvoiceBody = { ...normalizeInvoiceBody(source.body), number };
+        const body: InvoiceBody = withInferredCode({ ...normalizeInvoiceBody(source.body), number });
         const name = request.body.name ?? source.name;
         const invoice = await repo.create(
           {

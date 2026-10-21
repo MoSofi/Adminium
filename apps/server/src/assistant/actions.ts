@@ -63,7 +63,7 @@ import {
   type EmailLogger,
 } from '../email/send.js';
 import { starterSampleVars } from '../email/starters.js';
-import { bodyColumn as invoiceBodyColumn, normalizeInvoiceBody, type InvoiceBody } from '../invoices/document.js';
+import { bodyColumn as invoiceBodyColumn, isDesignerCurrency, normalizeInvoiceBody, withInferredCode, type InvoiceBody } from '../invoices/document.js';
 import { isInvoiceLang, localizeBody } from '../invoices/languages.js';
 import { nextInvoiceNumber } from '../invoices/numbering.js';
 import { summaryOf as invoiceSummaryOf } from '../invoices/summary.js';
@@ -441,7 +441,9 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     throw new ValidationFailedError('Only a template can start an invoice.', { basedOn });
   }
   const number = await nextInvoiceNumber(repo);
-  const body: InvoiceBody = { ...normalizeInvoiceBody(record(artefact.body)), number };
+  const drafted = withInferredCode({ ...normalizeInvoiceBody(record(artefact.body)), number });
+  // An invoice is paid only in a currency the page offers: a code the model wrote outside it is dropped.
+  const body: InvoiceBody = drafted.currencyCode !== null && !isDesignerCurrency(drafted.currencyCode) ? { ...drafted, currencyCode: null } : drafted;
   const row = await repo.create(
     {
       kind: 'invoice',
@@ -525,7 +527,7 @@ async function addLanguage(input: AssistantActionInput, at: number): Promise<Ass
   if (!isInvoiceLang(lang)) {
     throw new ValidationFailedError(`${lang} is not a language this page writes.`, { lang });
   }
-  const body = localizeBody(normalizeInvoiceBody(record(artefact.body)), lang);
+  const body = withInferredCode(localizeBody(normalizeInvoiceBody(record(artefact.body)), lang));
   const name = text(input.name, text(artefact.name, source.name));
   const row = await repo.create(
     {

@@ -644,6 +644,27 @@ export function currencyCodeForSymbol(symbol: string): string | null {
   return ONE_CODE_SYMBOLS[symbol.trim()] ?? null;
 }
 
+/**
+ * The currencies an invoice made on the Invoices page can be paid in: the
+ * page's picker, exactly (SYNC NOTE: `CURRENCIES` and `MORE_CURRENCIES` in the
+ * Invoices add-on's `page/model/envelope.ts`). The sheet keeps every amount in
+ * hundredths, so a currency with three decimals (KWD, BHD…) is never one.
+ */
+export const DESIGNER_CURRENCY_CODES: readonly string[] = [
+  'USD', 'EUR', 'GBP', 'JPY',
+  'AUD', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'EGP', 'HKD', 'INR', 'NOK', 'NZD', 'PLN', 'SEK', 'SGD', 'TWD', 'AED', 'SAR', 'ZAR',
+];
+
+/** Whether an invoice made on the Invoices page may be paid in this ISO code. */
+export function isDesignerCurrency(code: string): boolean {
+  return DESIGNER_CURRENCY_CODES.includes(code);
+}
+
+/** A body given the code its symbol can only mean, when it has none (€ → EUR, £ → GBP). */
+export function withInferredCode(body: InvoiceBody): InvoiceBody {
+  return body.currencyCode === null ? { ...body, currencyCode: currencyCodeForSymbol(body.currency) } : body;
+}
+
 /** A row's stored body (or anything on the wire) → the complete envelope. Lenient: an unknown value gets its default. */
 export function normalizeInvoiceBody(raw: unknown): InvoiceBody {
   const base = emptyBody();
