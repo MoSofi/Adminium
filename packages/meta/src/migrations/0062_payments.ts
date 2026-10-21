@@ -34,6 +34,15 @@
  * - `payment_settings`: the pay page, the pay address, cursors, counters of
  *   provider reads, webhook health — small documents under a key.
  * - `payment_counters`: card-testing caps per link, IP and install, per hour.
+ *
+ * ─── Two email keys become built-ins ───────────────────────────────────────
+ * `payment-link` and `payment-receipt` are built-in templates from this wave
+ * on. Before it, a template a person named "Payment receipt" could have been
+ * given that key; left alone, it would be read as the built-in (its words
+ * sent as the shop's receipt, "Delete" turned into a reset). So any row
+ * already holding one of them is a person's own and moves to a key of its
+ * own, `<key>-2` (or the next free number), with every automation step that
+ * named it. The built-ins are seeded after migrations, so none exists yet.
  */
 import type { Kysely } from 'kysely';
 
@@ -300,4 +309,45 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('hits', c.int, (col) => col.notNull())
     .addPrimaryKeyConstraint('pk_adminium_payment_counters', ['bucket', 'window_start'])
     .execute();
+
+  // Everything this step decides lives inside `up`: its text is the checksum once released.
+  const NEW_BUILTINS = ['payment-link', 'payment-receipt'];
+  const rows = db as unknown as Kysely<Record<string, Record<string, unknown>>>;
+  for (const key of NEW_BUILTINS) {
+    const own = await rows.selectFrom(metaTable('email_templates')).select(['id']).where('key', '=', key).execute();
+    if (own.length === 0) continue;
+    let n = 2;
+    while ((await rows.selectFrom(metaTable('email_templates')).select(['id']).where('key', '=', `${key}-${String(n)}`).executeTakeFirst()) !== undefined) n += 1;
+    const moved = `${key}-${String(n)}`;
+    await rows.updateTable(metaTable('email_templates')).set({ key: moved }).where('key', '=', key).execute();
+
+    /** The same graph with every `templateKey` that named the old key naming the new one; null when none did. */
+    const renamed = (stored: unknown): string | null => {
+      let doc: unknown = stored;
+      try {
+        if (typeof stored === 'string') doc = JSON.parse(stored) as unknown;
+      } catch {
+        return null;
+      }
+      let changed = false;
+      const walk = (value: unknown): unknown => {
+        if (Array.isArray(value)) return value.map(walk);
+        if (typeof value !== 'object' || value === null) return value;
+        const out: Record<string, unknown> = {};
+        for (const [name, inner] of Object.entries(value as Record<string, unknown>)) {
+          if (name === 'templateKey' && inner === key) {
+            out[name] = moved;
+            changed = true;
+          } else out[name] = walk(inner);
+        }
+        return out;
+      };
+      const next = walk(doc);
+      return changed ? JSON.stringify(next) : null;
+    };
+    for (const rule of await rows.selectFrom(metaTable('automations')).select(['id', 'graph']).execute()) {
+      const graph = renamed(rule['graph']);
+      if (graph !== null) await rows.updateTable(metaTable('automations')).set({ graph }).where('id', '=', rule['id'] as string).execute();
+    }
+  }
 }

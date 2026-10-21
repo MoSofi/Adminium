@@ -141,7 +141,7 @@ export const ID_PREFIXES = {
   // wave 0057 — a team of people. Its members are a junction with no id of their own.
   team: 'adminium_teams',
   /*
-   * wave 0061 — payments. `pat` an attempt, `pev` an event, `pay` a payment
+   * wave 0062 — payments. `pat` an attempt, `pev` an event, `pay` a payment
    * Adminium keeps, `rfd` a refund, `plk` a pay link, `ppf` a payable profile,
    * `pmt` a way to pay. Settings and counters have natural keys and no prefix.
    */
