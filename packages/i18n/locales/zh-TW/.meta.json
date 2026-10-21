@@ -12451,6 +12451,10 @@
     "status": "mt",
     "srcHash": "f41317f197dc"
   },
+  "designer.pictureDialog.resultsFrom": {
+    "status": "mt",
+    "srcHash": "0e59034e3a9c"
+  },
   "designer.pictureDialog.retry": {
     "status": "mt",
     "srcHash": "042c862e4467"

@@ -13,7 +13,10 @@
  * Unsplash with `UNSPLASH_ACCESS_KEY`, whose rules ask that a picture be
  * shown from Unsplash's own address and never copied: such a picture is
  * given to the page as an address, its site is allowed once the person
- * chose one, and Unsplash is told it was chosen.
+ * chose one, and Unsplash is told it was chosen. Pixabay with
+ * `PIXABAY_API_KEY`, whose rules ask the opposite: its addresses only for
+ * showing results for a while, a chosen picture copied, and a search's
+ * answer kept for a day and given again rather than asked again.
  *
  * Every address a source answers with is fetched through the fetch that
  * checks and pins the address it calls, with a size limit, and a file is
@@ -45,7 +48,7 @@ export const PICTURES_PER_PAGE = 20;
 /** The pages a search may go on to with "More". */
 export const PICTURE_PAGES_MAX = 10;
 
-export const SOURCE_NAMES = ['Openverse', 'Pexels', 'Unsplash'] as const;
+export const SOURCE_NAMES = ['Openverse', 'Pexels', 'Unsplash', 'Pixabay'] as const;
 export type SourceName = (typeof SOURCE_NAMES)[number];
 
 export interface FoundPicture {
@@ -63,7 +66,7 @@ export interface FoundPicture {
   /** The source's code for it, which decides its badge. */
   licenceCode: LicenceCode;
   licenceUrl: string;
-  /** "Openverse", "Pexels", "Unsplash". */
+  /** "Openverse", "Pexels", "Unsplash", "Pixabay". */
   source: string;
   /** The picture's own page. */
   page: string;
@@ -95,13 +98,20 @@ export interface PictureSource {
   search(words: string, opts: { count: number; shape?: PictureShape; page?: number; signal?: AbortSignal }): Promise<SearchPage>;
   /** The one site its pictures are shown from, for a source whose pictures are not copied. */
   showsFrom?: string;
+  /**
+   * How long a search's answer is kept and given again instead of asking
+   * the source again, for a source whose rules ask for that (Pixabay: a day).
+   */
+  keepsFor?: number;
   /** Tell the source a picture of its was chosen. Never throws: a picture is not lost for a count. */
   chosen?(picture: FoundPicture, signal?: AbortSignal): Promise<void>;
 }
 
 type Fetcher = (url: string, opts: SafeFetchOptions) => Promise<{ body: Buffer; contentType: string; headers?: Readonly<Record<string, string>> }>;
 
-const id = (): string => `pic_${randomBytes(6).toString('hex')}`;
+/** A new id of ours for a picture: an answer given again gets new ones, so no two pages share one. */
+export const newPictureId = (): string => `pic_${randomBytes(6).toString('hex')}`;
+const id = newPictureId;
 const text = (value: unknown, max: number): string => (typeof value === 'string' ? plainLine(value, max) : '');
 const https = (value: unknown): string => (typeof value === 'string' && /^https:\/\/[^\s"'<>]{1,1000}$/.test(value) ? value : '');
 const pageOf = (page: number | undefined): number => (page !== undefined && Number.isInteger(page) && page >= 1 && page <= PICTURE_PAGES_MAX ? page : 1);
@@ -276,6 +286,69 @@ export function unsplash(key: string, fetcher: Fetcher = safeFetch): PictureSour
       } catch {
         // Unsplash's count of uses, not the picture: the page shows it either way.
       }
+    },
+  };
+}
+
+/** Pixabay's own pages and the hosts its pictures are on. */
+const PIXABAY_HOSTS = ['https://pixabay.com/', 'https://cdn.pixabay.com/'] as const;
+/** How long Pixabay's rules ask that a search's answer be kept: a day. */
+export const PIXABAY_KEEPS_FOR_MS = 24 * 60 * 60_000;
+/** The most results Pixabay gives for one search. */
+const PIXABAY_HITS_MAX = 500;
+
+/**
+ * Pixabay, with the project's own key. Its rules: an address it answers with
+ * is for showing a search's results for a while, never to show a picture
+ * from for good, so a chosen picture is copied into the app (its full
+ * address lasts a day); a search's answer is kept for a day (`keepsFor`);
+ * and the dialog says where its results come from. Its key goes in the
+ * address, as its API asks: the address is never logged or shown.
+ */
+export function pixabay(key: string, fetcher: Fetcher = safeFetch): PictureSource {
+  return {
+    name: 'Pixabay',
+    keepsFor: PIXABAY_KEEPS_FOR_MS,
+    async search(words, opts) {
+      const page = pageOf(opts.page);
+      // Pixabay gives no fewer than 3 a page.
+      const perPage = Math.max(3, Math.min(PICTURES_PER_PAGE, opts.count));
+      const query = new URLSearchParams({ key, q: words.slice(0, 100), image_type: 'photo', safesearch: 'true', per_page: String(perPage), page: String(page) });
+      // It knows no square: a square spot is shown any shape, cut to fit.
+      if (opts.shape === 'wide' || opts.shape === 'tall') query.set('orientation', opts.shape === 'wide' ? 'horizontal' : 'vertical');
+      const reply = await fetcher(`https://pixabay.com/api/?${query.toString()}`, { maxBytes: 512 * 1024, timeoutMs: 12_000, headers: { accept: 'application/json' }, ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
+      const answer = JSON.parse(reply.body.toString('utf8')) as { hits?: unknown; totalHits?: unknown };
+      const hits = answer.hits;
+      if (!Array.isArray(hits)) return { pictures: [], more: false, rate: rateOf(reply.headers) };
+      const pictures = hits.flatMap((entry: unknown): FoundPicture[] => {
+        const row = (entry ?? {}) as Record<string, unknown>;
+        const own = (value: unknown): string => {
+          const url = https(value);
+          return PIXABAY_HOSTS.some((host) => url.startsWith(host)) ? url : '';
+        };
+        const thumb = own(row['webformatURL']);
+        if (thumb === '') return [];
+        const user = text(row['user'], 80);
+        const userId = row['user_id'];
+        return [
+          {
+            id: id(),
+            thumb,
+            files: [own(row['largeImageURL']), thumb].filter((url) => url !== ''),
+            // It has no title: its tags say what is in it.
+            title: text(row['tags'], 120) || 'Untitled',
+            creator: user || 'Unknown',
+            creatorUrl: user !== '' && /^[\w.-]{1,80}$/.test(user) && Number.isSafeInteger(userId) ? `https://pixabay.com/users/${user}-${String(userId)}/` : '',
+            licence: 'Pixabay Content License',
+            licenceCode: 'pixabay',
+            licenceUrl: 'https://pixabay.com/service/license-summary/',
+            source: 'Pixabay',
+            page: own(row['pageURL']),
+          },
+        ];
+      });
+      const total = typeof answer.totalHits === 'number' ? Math.min(answer.totalHits, PIXABAY_HITS_MAX) : 0;
+      return { pictures, more: page * perPage < total && page < PICTURE_PAGES_MAX, rate: rateOf(reply.headers) };
     },
   };
 }

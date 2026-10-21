@@ -7,8 +7,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createPictureSearch, createSourceBudget, PAUSE_WITHOUT_WORD_MS, retryAt, SESSION_SEARCHES_PER_MINUTE, SOURCE_WINDOWS } from '../src/designer/picture-search.js';
-import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type FoundPicture, type PictureSource } from '../src/designer/pictures.js';
+import { createPictureSearch, createSourceBudget, KEPT_ANSWERS_MAX, PAUSE_WITHOUT_WORD_MS, retryAt, SESSION_SEARCHES_PER_MINUTE, SOURCE_WINDOWS } from '../src/designer/picture-search.js';
+import { createPictureShelf, downloadPicture, openverse, pexels, PIXABAY_KEEPS_FOR_MS, pixabay, unsplash, type FoundPicture, type PictureSource } from '../src/designer/pictures.js';
+import { badgeOf, creditAsked, searchLicence } from '../src/designer/licences.js';
 import { createRegistry, registryOf } from '../src/designer/registry.js';
 import { SafeFetchError } from '../src/net/safe-fetch.js';
 
@@ -87,6 +88,85 @@ describe('Pexels', () => {
     expect(found.pictures[0]).toMatchObject({ creator: 'Bo', licence: 'Pexels licence', licenceCode: 'pexels', source: 'Pexels', files: ['https://images.pexels.com/photos/1/l2.jpg', 'https://images.pexels.com/photos/1/m.jpg'] });
     expect(found.more).toBe(true);
     expect(found.rate).toEqual({ remaining: 19684, limit: 20000, resetAt: 1_790_000_000_000 });
+  });
+});
+
+describe('Pixabay', () => {
+  const hit = (n: number, extra: Record<string, unknown> = {}) => ({
+    id: n,
+    pageURL: `https://pixabay.com/photos/cake-${String(n)}/`,
+    tags: 'cake, bakery, sweet',
+    previewURL: `https://cdn.pixabay.com/photo/${String(n)}_150.jpg`,
+    webformatURL: `https://pixabay.com/get/g${String(n)}_640.jpg`,
+    largeImageURL: `https://pixabay.com/get/g${String(n)}_1280.jpg`,
+    user: 'ana_bakes',
+    user_id: 42,
+    ...extra,
+  });
+
+  it('asks for safe photos with the project’s key, reads its answer, and keeps only its own addresses', async () => {
+    const asked: string[] = [];
+    const source = pixabay('PX-KEY', async (url) => {
+      asked.push(url);
+      return {
+        ...json({
+          totalHits: 45,
+          hits: [
+            hit(1),
+            // An address on any other host is not shown, nor tried as a file.
+            hit(2, { webformatURL: 'https://evil.example/g2_640.jpg' }),
+            hit(3, { webformatURL: 'https://pixabay.com.evil.example/x.jpg' }),
+            hit(4, { largeImageURL: 'https://evil.example/big.jpg', user: 'Ana <b>', user_id: 'x' }),
+            'not a row',
+          ],
+        }),
+        headers: { 'x-ratelimit-limit': '100', 'x-ratelimit-remaining': '97', 'x-ratelimit-reset': '42' },
+      };
+    });
+    expect(source.keepsFor).toBe(PIXABAY_KEEPS_FOR_MS);
+    expect(source.showsFrom).toBeUndefined();
+    const found = await source.search('cake on a counter', { count: 20, shape: 'wide', page: 2 });
+    expect(asked).toEqual(['https://pixabay.com/api/?key=PX-KEY&q=cake+on+a+counter&image_type=photo&safesearch=true&per_page=20&page=2&orientation=horizontal']);
+    expect(found.pictures).toHaveLength(2);
+    expect(found.pictures[0]).toMatchObject({
+      thumb: 'https://pixabay.com/get/g1_640.jpg',
+      files: ['https://pixabay.com/get/g1_1280.jpg', 'https://pixabay.com/get/g1_640.jpg'],
+      title: 'cake, bakery, sweet',
+      creator: 'ana_bakes',
+      creatorUrl: 'https://pixabay.com/users/ana_bakes-42/',
+      licence: 'Pixabay Content License',
+      licenceCode: 'pixabay',
+      licenceUrl: 'https://pixabay.com/service/license-summary/',
+      source: 'Pixabay',
+      page: 'https://pixabay.com/photos/cake-1/',
+    });
+    expect(found.pictures[0]?.shown).toBeUndefined();
+    // A name that is no plain name gets no profile address; a full file elsewhere is not tried.
+    expect(found.pictures[1]).toMatchObject({ creatorUrl: '', files: ['https://pixabay.com/get/g4_640.jpg'] });
+    // Page 2 of 20 is 40 of 45: there is more. Its reset is a wait in seconds.
+    expect(found.more).toBe(true);
+    expect(found.rate).toMatchObject({ remaining: 97, limit: 100 });
+    // Copied into the app, as its rules ask: never hotlinked.
+    expect(await downloadPicture(found.pictures[0] as FoundPicture, { fetcher: async () => ({ body: JPEG, contentType: 'image/jpeg' }) })).toMatchObject({ ext: 'jpg', small: false });
+  });
+
+  it('asks no fewer than three, any shape for a square, and no page past its 500', async () => {
+    const asked: string[] = [];
+    const source = pixabay('K', async (url) => (asked.push(url), json({ totalHits: 5000, hits: [hit(1)] })));
+    expect((await source.search('tea', { count: 1, shape: 'square' })).more).toBe(true);
+    expect(asked[0]).toBe('https://pixabay.com/api/?key=K&q=tea&image_type=photo&safesearch=true&per_page=3&page=1');
+    await source.search('tea', { count: 20, shape: 'tall' });
+    expect(asked[1]).toContain('&orientation=vertical');
+    // 500 at most, 20 a page: page 10 is the last the dialog may ask for anyway.
+    expect((await source.search('tea', { count: 20, page: 10 })).more).toBe(false);
+    expect((await pixabay('K', async () => json({ totalHits: 20, hits: [hit(1)] })).search('tea', { count: 20 })).more).toBe(false);
+    expect(await pixabay('K', async () => json({ error: 'nope' })).search('tea', { count: 20 })).toEqual({ pictures: [], more: false, rate: { remaining: null, limit: null, resetAt: null } });
+  });
+
+  it('is a licence of its own, with the host’s badge and no credit asked', () => {
+    expect(searchLicence('Pixabay', undefined)).toEqual({ code: 'pixabay', badge: 'host', name: 'Pixabay Content License' });
+    expect(badgeOf('pixabay')).toBe('host');
+    expect(creditAsked('pixabay')).toBe(false);
   });
 });
 
@@ -240,10 +320,11 @@ describe('a session’s pages of results', () => {
 
 describe('what each source gives this server', () => {
   const found = (n: number): FoundPicture[] => Array.from({ length: n }, (_, index) => ({ id: `pic_${String(index)}`, thumb: 'https://api.openverse.org/t', files: [], title: 't', creator: 'c', creatorUrl: '', licence: 'CC0 1.0', licenceCode: 'cc0', licenceUrl: '', source: 'Openverse', page: '' }));
-  const counting = (name: 'Openverse' | 'Pexels' | 'Unsplash', answer: () => Promise<{ pictures: FoundPicture[]; more: boolean }>) => {
+  const counting = (name: 'Openverse' | 'Pexels' | 'Unsplash' | 'Pixabay', answer: () => Promise<{ pictures: FoundPicture[]; more: boolean }>, keepsFor?: number) => {
     let calls = 0;
     const source: PictureSource = {
       name,
+      ...(keepsFor === undefined ? {} : { keepsFor }),
       search: async () => {
         calls += 1;
         return answer();
@@ -329,6 +410,65 @@ describe('what each source gives this server', () => {
     await search.search('ds_b', { q: 'x y', source: 'Openverse' });
     await search.search('ds_b', { q: 'w x y z', source: 'Openverse', page: 2 });
     expect(asked).toEqual(['x y', 'w x y z']);
+  });
+
+  it('spends Pixabay’s 100 searches a minute, and gives a search asked again within a day what was kept, uncounted', async () => {
+    let at = 1_000_000;
+    const px = counting('Pixabay', async () => ({ pictures: found(2), more: true }), PIXABAY_KEEPS_FOR_MS);
+    const search = createPictureSearch({ sources: () => [px.source], shelf: createPictureShelf({ now: () => at }), now: () => at });
+    const first = await search.search('ds_a', { q: 'Cake  bakery', source: 'Pixabay', shape: 'wide' });
+    if (first.state !== 'ok') throw new Error('not ok');
+    // The same words (any case or spacing), shape and page, from another session: not asked again, new ids, on a page of its own.
+    const again = await search.search('ds_b', { q: 'cake bakery', source: 'Pixabay', shape: 'wide' });
+    if (again.state !== 'ok') throw new Error('not ok');
+    expect(px.calls()).toBe(1);
+    expect(again.pictures.map((picture) => picture.title)).toEqual(first.pictures.map((picture) => picture.title));
+    expect(again.more).toBe(true);
+    expect(again.pictures[0]?.id).toMatch(/^pic_[0-9a-f]{12}$/);
+    expect(again.pictures[0]?.id).not.toBe(first.pictures[0]?.id);
+    expect(again.shelf).not.toBe(first.shelf);
+    // Another shape or page is another search.
+    await search.search('ds_a', { q: 'cake bakery', source: 'Pixabay', shape: 'tall' });
+    await search.search('ds_a', { q: 'cake bakery', source: 'Pixabay', shape: 'wide', page: 2, shelf: first.shelf });
+    expect(px.calls()).toBe(3);
+    // A hundred a minute in all: the 101st waits, and Pixabay is not asked; what was kept is still given.
+    for (let n = 3; n < 100; n += 1) expect((await search.search(`ds_${String(n % 4)}x`, { q: `tea ${String(n)}`, source: 'Pixabay' })).state, String(n)).toBe('ok');
+    expect(px.calls()).toBe(100);
+    expect(await search.search('ds_z', { q: 'coffee', source: 'Pixabay' })).toEqual({ state: 'busy', source: 'Pixabay', minutes: 1 });
+    expect((await search.search('ds_z', { q: 'cake bakery', source: 'Pixabay', shape: 'wide' })).state).toBe('ok');
+    expect(px.calls()).toBe(100);
+    // A day on, the search is asked again.
+    at += PIXABAY_KEEPS_FOR_MS;
+    expect((await search.search('ds_a', { q: 'cake bakery', source: 'Pixabay', shape: 'wide' })).state).toBe('ok');
+    expect(px.calls()).toBe(101);
+    // A failure is never kept.
+    let fails = true;
+    const flaky = counting('Pixabay', async () => (fails ? Promise.reject(new SafeFetchError('network', 'down')) : { pictures: found(1), more: false }), PIXABAY_KEEPS_FOR_MS);
+    const second = createPictureSearch({ sources: () => [flaky.source], shelf: createPictureShelf({ now: () => at }), now: () => at });
+    expect(await second.search('ds_a', { q: 'jam', source: 'Pixabay' })).toEqual({ state: 'failed' });
+    fails = false;
+    expect((await second.search('ds_a', { q: 'jam', source: 'Pixabay' })).state).toBe('ok');
+    expect(flaky.calls()).toBe(2);
+  });
+
+  it('keeps answers only for a source that asks, and no more than it holds', async () => {
+    let at = 0;
+    const pexelsSource = counting('Pexels', async () => ({ pictures: found(1), more: false }));
+    const px = counting('Pixabay', async () => ({ pictures: found(1), more: false }), PIXABAY_KEEPS_FOR_MS);
+    const search = createPictureSearch({ sources: () => [pexelsSource.source, px.source], shelf: createPictureShelf({ now: () => at }), now: () => at });
+    await search.search('ds_a', { q: 'bar', source: 'Pexels' });
+    await search.search('ds_a', { q: 'bar', source: 'Pexels' });
+    expect(pexelsSource.calls()).toBe(2);
+    // One more than it holds, a minute apart (budget and session share refill): the first is let go and asked again.
+    for (let n = 0; n <= KEPT_ANSWERS_MAX; n += 1) {
+      at += 60_000;
+      await search.search(`ds_${String(n)}`, { q: `word ${String(n)}`, source: 'Pixabay' });
+    }
+    expect(px.calls()).toBe(KEPT_ANSWERS_MAX + 1);
+    await search.search('ds_y', { q: `word ${String(KEPT_ANSWERS_MAX)}`, source: 'Pixabay' });
+    expect(px.calls()).toBe(KEPT_ANSWERS_MAX + 1);
+    await search.search('ds_y', { q: 'word 0', source: 'Pixabay' });
+    expect(px.calls()).toBe(KEPT_ANSWERS_MAX + 2);
   });
 
   it('keeps a session to its own share, says when a source is off or failed, and puts “More” on the page it came from', async () => {

@@ -315,8 +315,8 @@ export type PictureShape = 'wide' | 'tall' | 'square';
 /** What a design does with the page's pictures: leaves placeholders, or opens the picture dialog after it. */
 export type PicturesMode = 'placeholders' | 'choose';
 /** A licence's code, as the server reads it from the source: its badge is decided from it. */
-export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'own' | 'template';
-export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash';
+export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'pixabay' | 'own' | 'template';
+export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash' | 'Pixabay';
 
 /** What the picture dialog draws for an app (`GET …/pictures`). */
 export interface PicturesView {

@@ -18,12 +18,16 @@
  *    picture host it does not say it counts;
  *  - Unsplash: 50 an hour for a new key, 1,000 once Unsplash approves it.
  *    Its own headers say which, and the budget follows them. Its pictures'
- *    host is not counted; the "chosen" report is.
+ *    host is not counted; the "chosen" report is;
+ *  - Pixabay: 100 a minute (read 2026-10-21), per key; its headers say a
+ *    larger allowance where Pixabay gave one. Its rules also ask that a
+ *    search's answer be kept for a day: the same search on the same source
+ *    within a day is answered from what was kept, and is not counted.
  * A source's own headers (`x-ratelimit-remaining`) narrow a budget further,
  * never widen what was spent.
  */
 import { SafeFetchError } from '../net/safe-fetch.js';
-import { PICTURES_PER_PAGE, type FoundPicture, type PictureShape, type PictureShelf, type PictureSource, type RateSeen, type SourceName } from './pictures.js';
+import { newPictureId, PICTURES_PER_PAGE, type FoundPicture, type PictureShape, type PictureShelf, type PictureSource, type RateSeen, type SearchPage, type SourceName } from './pictures.js';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -39,6 +43,7 @@ export const SOURCE_WINDOWS: Readonly<Record<SourceName, { search: readonly Budg
   Openverse: { search: [{ size: 20, ms: MINUTE }, { size: 200, ms: DAY }], thumbs: [{ size: 1000, ms: DAY }] },
   Pexels: { search: [{ size: 200, ms: HOUR }, { size: 20_000, ms: 30 * DAY }], thumbs: [] },
   Unsplash: { search: [{ size: 50, ms: HOUR }], thumbs: [] },
+  Pixabay: { search: [{ size: 100, ms: MINUTE }], thumbs: [] },
 };
 
 /** How long a source that said 429 with no time to wait is left alone. */
@@ -47,6 +52,8 @@ export const PAUSE_WITHOUT_WORD_MS = 15 * MINUTE;
 export const SESSION_SEARCHES_PER_MINUTE = 30;
 /** How many times a first page with nothing is asked again with one word fewer. */
 export const FEWER_WORDS_TRIES = 2;
+/** The answers kept for sources that ask for it, across sessions: the oldest goes first. */
+export const KEPT_ANSWERS_MAX = 500;
 
 /** One source's budget on this server. */
 export interface SourceBudget {
@@ -191,6 +198,20 @@ export function createPictureSearch(deps: {
     return found;
   };
   const asked = new Map<string, number[]>();
+  // Answers kept for a source whose rules ask for it (`keepsFor`), by source, words, shape and page.
+  const kept = new Map<string, { until: number; page: SearchPage }>();
+  const keptAnswer = (key: string): SearchPage | null => {
+    const entry = kept.get(key);
+    if (entry === undefined) return null;
+    if (now() < entry.until) return entry.page;
+    kept.delete(key);
+    return null;
+  };
+  const keep = (key: string, page: SearchPage, keepsFor: number): void => {
+    kept.delete(key);
+    kept.set(key, { until: now() + keepsFor, page: { pictures: page.pictures, more: page.more } });
+    while (kept.size > KEPT_ANSWERS_MAX) kept.delete(kept.keys().next().value as string);
+  };
   const minutes = (until: number): number => Math.max(1, Math.ceil((until - now()) / MINUTE));
   return {
     sources: () => deps.sources().map((source) => ({ name: source.name, busy: ((until) => (until === null ? null : minutes(until)))(budget(source.name).pausedUntil()) })),
@@ -208,14 +229,19 @@ export function createPictureSearch(deps: {
       const at = now();
       const recent = (asked.get(sessionId) ?? []).filter((when) => at - when < MINUTE);
       if (recent.length >= SESSION_SEARCHES_PER_MINUTE) return { state: 'busy', source: source.name, minutes: minutes((recent[0] as number) + MINUTE) };
-      const took = budget(source.name).take('search');
-      if (!took.ok) return { state: 'busy', source: source.name, minutes: minutes(took.until) };
-      asked.set(sessionId, [...recent, at]);
       const page = input.page ?? 1;
-      const ask = async (q: string): Promise<Awaited<ReturnType<PictureSource['search']>> | SearchAnswer> => {
+      // A source whose rules ask that an answer be kept (Pixabay) is given it again, not asked again: its allowance is not spent.
+      const keyFor = (q: string): string => `${source.name}\n${q.toLowerCase()}\n${input.shape ?? ''}\n${String(page)}`;
+      const keptFor = (q: string): SearchPage | null => {
+        const hit = source.keepsFor === undefined ? null : keptAnswer(keyFor(q));
+        // New ids of ours: a page of results never shares one with another.
+        return hit === null ? null : { pictures: hit.pictures.map((picture) => ({ ...picture, id: newPictureId() })), more: hit.more };
+      };
+      const ask = async (q: string): Promise<SearchPage | SearchAnswer> => {
         try {
           const answer = await source.search(q, { count: PICTURES_PER_PAGE, ...(input.shape === undefined ? {} : { shape: input.shape }), page, ...(signal === undefined ? {} : { signal }) });
           budget(source.name).seen(answer.rate);
+          if (source.keepsFor !== undefined) keep(keyFor(q), answer, source.keepsFor);
           return answer;
         } catch (error) {
           if (error instanceof SafeFetchError && error.status === 429) {
@@ -228,19 +254,32 @@ export function createPictureSearch(deps: {
         }
       };
       let used = words;
-      let found = await ask(used);
-      if ('state' in found) return found;
+      let found: SearchPage | SearchAnswer | null = keptFor(used);
+      if (found === null) {
+        const took = budget(source.name).take('search');
+        if (!took.ok) return { state: 'busy', source: source.name, minutes: minutes(took.until) };
+        asked.set(sessionId, [...recent, at]);
+        found = await ask(used);
+        if ('state' in found) return found;
+      } else {
+        asked.set(sessionId, [...recent, at]);
+      }
       /*
        * A source matches every word, so a spot's long description ("homemade cake bakery counter") can find
        * nothing where its first words find plenty. A first page with none is asked again without its last word,
-       * down to two words and at most twice, each a search of the allowance like any other.
+       * down to two words and at most twice, each a search of the allowance like any other (a kept answer spends none).
        */
       for (let tries = 0; found.pictures.length === 0 && page === 1 && tries < FEWER_WORDS_TRIES; tries += 1) {
-        const fewer = used.split(' ').slice(0, -1);
-        if (fewer.length < 2 || !budget(source.name).take('search').ok) break;
-        const again = await ask(fewer.join(' '));
-        if ('state' in again) break;
-        used = fewer.join(' ');
+        const fewer = used.split(' ').slice(0, -1).join(' ');
+        if (fewer.split(' ').length < 2) break;
+        let again = keptFor(fewer);
+        if (again === null) {
+          if (!budget(source.name).take('search').ok) break;
+          const answer = await ask(fewer);
+          if ('state' in answer) break;
+          again = answer;
+        }
+        used = fewer;
         found = again;
       }
       // "More" adds to the page of results it came from; a page that is gone starts a new one.

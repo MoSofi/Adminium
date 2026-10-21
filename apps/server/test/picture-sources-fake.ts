@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A fake of the three free-picture sources (Openverse, Pexels, Unsplash) and
+ * A fake of the four free-picture sources (Openverse, Pexels, Unsplash, Pixabay) and
  * the hosts their pictures are on, reached through the safe fetch's own
  * seams: `resolve` answers every name with a public address, `connect`
  * answers here. Nothing listens on a port. It counts the calls by host, so a
@@ -11,7 +11,7 @@ import type { PinnedTarget, RawResponse, SafeFetchOptions } from '../src/net/saf
 /** A small JPEG's first bytes, and some more: what every picture host serves. */
 export const FAKE_JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xd9]);
 
-export type FakeSource = 'openverse' | 'pexels' | 'unsplash';
+export type FakeSource = 'openverse' | 'pexels' | 'unsplash' | 'pixabay';
 
 export interface FakePictures {
   seams: Pick<SafeFetchOptions, 'resolve' | 'connect'>;
@@ -118,5 +118,21 @@ function answer(fake: FakePictures, url: URL): RawResponse {
   }
   if (url.hostname === 'api.unsplash.com' && url.pathname.endsWith('/download')) return json({ url: 'https://images.unsplash.com/x' });
   if (url.hostname === 'images.unsplash.com') return picture('unsplash', url.pathname.slice(1));
+
+  if (url.hostname === 'pixabay.com' && url.pathname === '/api/') {
+    const refused = failing('pixabay');
+    if (refused !== null) return refused;
+    const hits = Array.from({ length: 5 }, (_, index) => ({
+      id: index,
+      pageURL: `https://pixabay.com/photos/${slug}-${String(index)}/`,
+      tags: `${words}, ${String(index + 1)}`,
+      webformatURL: `https://pixabay.com/get/${slug}-${String(index)}_640.jpg`,
+      largeImageURL: `https://pixabay.com/get/${slug}-${String(index)}_1280.jpg`,
+      user: 'cam',
+      user_id: 7,
+    }));
+    return json({ totalHits: 25, hits }, { 'x-ratelimit-limit': '100', 'x-ratelimit-remaining': '99', 'x-ratelimit-reset': '60' });
+  }
+  if (url.hostname === 'pixabay.com' && url.pathname.startsWith('/get/')) return picture('pixabay', url.pathname.slice(5));
   return raw(404, Buffer.from('not here'));
 }

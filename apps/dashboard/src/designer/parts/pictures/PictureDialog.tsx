@@ -780,6 +780,12 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
                                 </button>
                               </div>
                             ) : null}
+                            {/* Where the results come from, whenever they are shown: Pixabay's and Pexels' rules ask for it. */}
+                            {sourceNow === null ? null : (
+                              <p data-part="results-from" className="m-0 text-center text-caption text-fg-subtle">
+                                {t('designer:pictureDialog.resultsFrom', 'Pictures from {source}', { source: sourceNow })}
+                              </p>
+                            )}
                           </>
                         )
                         : null}
@@ -1050,7 +1056,7 @@ function DetailsPane({
           <div className="flex flex-wrap items-center gap-1.5 text-caption text-fg-subtle">
             {web ? <Globe aria-hidden="true" className="size-[13px]" /> : code === 'template' ? <LayoutTemplate aria-hidden="true" className="size-[13px]" /> : <Upload aria-hidden="true" className="size-[13px]" />}
             <span className="font-bold">{sourceName}</span>
-            {web && opened.picture.licence.code !== 'pexels' && opened.picture.licence.code !== 'unsplash' ? (
+            {web && badgeOf(opened.picture.licence.code) !== 'host' ? (
               <>
                 <span aria-hidden="true">·</span>
                 <span dir="ltr" className="font-mono font-semibold">

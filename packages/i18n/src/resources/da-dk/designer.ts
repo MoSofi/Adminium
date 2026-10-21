@@ -1108,6 +1108,7 @@ export default {
     "noneTicked": "Ingen billeder passer til de licenser, du har sat flueben ved.",
     "results": "Billeder til {spot}",
     "more": "Flere",
+    "resultsFrom": "Billeder fra {source}",
     "drop": "Slip et billede her, eller",
     "browse": "gennemse",
     "uploadKinds": "PNG, JPEG, WebP eller GIF, op til 5 MB",

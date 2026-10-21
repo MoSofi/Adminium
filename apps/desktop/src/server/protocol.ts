@@ -99,7 +99,7 @@ export const serverBusyMessageSchema = z.object({
   busy: z.object({ kind: z.string().min(1), sessionId: z.string().nullable() }).nullable(),
 });
 
-/** The names of the keys the app keeps for a project's server: a model's six and the two picture sources'. */
+/** The names of the keys the app keeps for a project's server: a model's six and the three picture sources'. */
 export const KEPT_KEY_NAMES = [
   'ADMINIUM_AI_ANTHROPIC_API_KEY',
   'ADMINIUM_AI_OPENAI_API_KEY',
@@ -109,6 +109,7 @@ export const KEPT_KEY_NAMES = [
   'ADMINIUM_AI_MODEL',
   'PEXELS_API_KEY',
   'UNSPLASH_ACCESS_KEY',
+  'PIXABAY_API_KEY',
 ] as const;
 export type KeptKeyName = (typeof KEPT_KEY_NAMES)[number];
 const keptValue = z.string().min(1).max(4096);
@@ -117,7 +118,7 @@ const keptNames = z.enum(KEPT_KEY_NAMES);
 /**
  * A project's server handing the app what the Designer's model screen saved:
  * the app keeps it (in the system's key store) and answers with `models`.
- * `null` takes a name away. Only the eight names; anything else is not a message.
+ * `null` takes a name away. Only the nine names; anything else is not a message.
  */
 export const serverKeepModelMessageSchema = z.object({
   type: z.literal('keep-model'),

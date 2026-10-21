@@ -1108,6 +1108,7 @@ export default {
     "noneTicked": "No pictures match the licences you ticked.",
     "results": "Pictures for {spot}",
     "more": "More",
+    "resultsFrom": "Pictures from {source}",
     "drop": "Drop a picture here, or",
     "browse": "browse",
     "uploadKinds": "PNG, JPEG, WebP or GIF, up to 5 MB",

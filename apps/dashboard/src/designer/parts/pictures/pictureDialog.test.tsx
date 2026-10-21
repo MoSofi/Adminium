@@ -14,6 +14,8 @@
  *  6. Where the app keeps keys, Pexels and Unsplash are added from the dialog: a key saved puts the
  *     source in the Source list and searches it, with no restart; a key a source refuses is said, and
  *     changed or taken away from there. Elsewhere, nothing offers a key.
+ *  7. Results say which source they come from (Pixabay's rules ask for it); a Pixabay picture has
+ *     the host's badge, "Pixabay licence", with no credit asked.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -196,6 +198,27 @@ describe('the picture dialog', () => {
     expect((screen.getByRole('checkbox', { name: 'Credit + same licence' }) as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Show them' }));
     expect(within(await screen.findByRole('listbox', { name: 'Pictures for Hero' })).getAllByRole('option')).toHaveLength(1);
+  });
+
+  it('says where results come from, and gives a Pixabay picture its own licence badge with no credit asked', async () => {
+    view = { ...VIEW, sources: [{ name: 'Openverse', busy: null }, { name: 'Pixabay', busy: null }] };
+    open();
+    await screen.findByRole('listbox', { name: 'Pictures for Hero' });
+    expect(screen.getByText('Pictures from Openverse')).toBeTruthy();
+    results = [{ id: 'p9', title: 'cake, bakery, sweet', creator: 'ana_bakes', source: 'Pixabay', licence: { code: 'pixabay', name: 'Pixabay Content License' }, page: 'https://pixabay.com/photos/cake-9/' }];
+    fireEvent.change(screen.getByRole('combobox', { name: 'Source' }), { target: { value: 'Pixabay' } });
+    await screen.findByText('Pictures from Pixabay');
+    expect(calls.filter((call) => call.url.includes('/pictures/search')).at(-1)?.url).toContain('source=Pixabay');
+    // The host's licence can be ticked off, by its source's name.
+    expect((screen.getByRole('checkbox', { name: 'Pixabay licence' }) as HTMLInputElement).checked).toBe(true);
+    const grid = screen.getByRole('listbox', { name: 'Pictures for Hero' });
+    expect(within(grid).getAllByRole('option')[0]?.getAttribute('aria-label')).toBe('cake, bakery, sweet by ana_bakes, Pixabay licence');
+    fireEvent.keyDown(grid, { key: 'Enter' });
+    const pane = await screen.findByRole('region', { name: 'cake, bakery, sweet' });
+    expect(within(pane).getByText('Pixabay licence')).toBeTruthy();
+    expect(within(pane).getByText('Use it under Pixabay’s licence. No credit is needed, though it is kind. Do not sell it as it is.')).toBeTruthy();
+    // The badge names the licence: its long name is not said twice.
+    expect(within(pane).queryByText('Pixabay Content License')).toBeNull();
   });
 
   it('waits while a turn runs, says where else to look with search off, and offers to make an old app’s pictures swappable', async () => {

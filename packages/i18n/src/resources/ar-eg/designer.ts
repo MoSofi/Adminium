@@ -1108,6 +1108,7 @@ export default {
     "noneTicked": "لا توجد صور تطابق التراخيص التي حددتها.",
     "results": "صور لـ {spot}",
     "more": "المزيد",
+    "resultsFrom": "صور من {source}",
     "drop": "أفلت صورة هنا، أو",
     "browse": "تصفّح",
     "uploadKinds": "PNG أو JPEG أو WebP أو GIF، حتى 5 MB",

@@ -114,6 +114,7 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
   if (opts.keys !== false) {
     vi.stubEnv('PEXELS_API_KEY', 'pexels-key');
     vi.stubEnv('UNSPLASH_ACCESS_KEY', 'unsplash-key');
+    vi.stubEnv('PIXABAY_API_KEY', 'pixabay-key');
   }
   install = await makeInstall();
   const root = asProject(install.dir);
@@ -209,10 +210,41 @@ describe('searching for a picture', { timeout: 120_000 }, () => {
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Openverse' }))).body).toMatchObject({ state: 'ok' });
   });
 
+  it('searches Pixabay with its key, gives a search asked again within a day what was kept, and copies a chosen picture', async () => {
+    const client = await server();
+    const id = await client.session();
+    const view = await client.call('GET', `/api/v1/designer/sessions/${id}/pictures`);
+    expect((view.body['sources'] as { name: string }[]).map((source) => source.name)).toEqual(['Openverse', 'Pexels', 'Unsplash', 'Pixabay']);
+    const found = await client.call('GET', search(id, { q: 'lemon cake', source: 'Pixabay', shape: 'tall' }));
+    expect(found.body).toMatchObject({ state: 'ok', more: true, page: 1 });
+    expect(client.fake.seen.at(-1)).toBe('https://pixabay.com/api/?key=pixabay-key&q=lemon+cake&image_type=photo&safesearch=true&per_page=20&page=1&orientation=vertical');
+    const pictures = found.body['pictures'] as { id: string; source: string; licence: { code: string; name: string }; page: string; shown?: true }[];
+    expect(pictures).toHaveLength(5);
+    expect(pictures[0]).toMatchObject({ source: 'Pixabay', licence: { code: 'pixabay', name: 'Pixabay Content License' }, page: 'https://pixabay.com/photos/lemon-cake-1-0/' });
+    expect(pictures[0]?.shown).toBeUndefined();
+    // The key and Pixabay's own picture addresses never reach the page.
+    expect(JSON.stringify(found.body)).not.toContain('pixabay-key');
+    expect(JSON.stringify(found.body)).not.toContain('/get/');
+    const asked = client.fake.calls['pixabay.com'];
+    // Another session, the same search: what was kept, with ids of its own; Pixabay is not asked.
+    const other = await client.session();
+    const again = await client.call('GET', search(other, { q: 'lemon cake', source: 'Pixabay', shape: 'tall' }));
+    expect((again.body['pictures'] as { page: string }[]).map((picture) => picture.page)).toEqual(pictures.map((picture) => picture.page));
+    expect((again.body['pictures'] as { id: string }[])[0]?.id).not.toBe(pictures[0]?.id);
+    expect(client.fake.calls['pixabay.com']).toBe(asked);
+    // Its small copy is served by this server; a chosen picture is copied, the full one first.
+    const shelf = again.body['shelf'] as string;
+    const first = (again.body['pictures'] as { id: string }[])[0]?.id as string;
+    expect((await client.call('GET', `/api/v1/designer/sessions/${other}/picture-thumb/${shelf}/${first}`)).headers['content-type']).toBe('image/jpeg');
+    expect((await client.call('POST', `/api/v1/designer/sessions/${other}/pictures/pin`, { shelf, picture: first })).body).toEqual({ state: 'kept', small: false });
+    expect(client.fake.seen).toContain('https://pixabay.com/get/lemon-cake-1-0_1280.jpg');
+  });
+
   it('offers a source only with its key, and none where the server calls nothing outside', async () => {
     const client = await server({ keys: false });
     const id = await client.session();
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Pexels' }))).body).toEqual({ state: 'off' });
+    expect((await client.call('GET', search(id, { q: 'diner', source: 'Pixabay' }))).body).toEqual({ state: 'off' });
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Openverse' }))).body).toMatchObject({ state: 'ok' });
     // A source that is none of the three is no search at all.
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Nowhere' }))).status).toBe(422);

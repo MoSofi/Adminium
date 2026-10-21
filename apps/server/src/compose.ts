@@ -121,7 +121,7 @@ import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
-import { hostModels } from './llm/host-models.js';
+import { hostModels, type PictureKeyName } from './llm/host-models.js';
 import { gitProgram } from './project/programs.js';
 import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
@@ -130,7 +130,7 @@ import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
 import { createPictureDialog, type PictureKeys } from './designer/picture-dialog.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
-import { createPictureShelf, downloadPicture, openverse, pexels, unsplash, type PictureSource } from './designer/pictures.js';
+import { createPictureShelf, downloadPicture, openverse, pexels, pixabay, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
@@ -506,7 +506,7 @@ export interface ComposeServerOptions {
    */
   figmaSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /**
-   * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, and the
+   * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, Pixabay, and the
    * pictures they name), so a fake answers in their place. There is no setting for this either.
    */
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
@@ -2306,8 +2306,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // A package's newest version, asked of the registry the project installs from; nothing is asked where this server calls nothing outside.
         const designerRegistry = createRegistry({ root, allowed: () => addOnCatalog.networkFeaturesAllowed() });
         const designerNeeds = createNeedsAsker({ root, version: APP_VERSION, newestVersion: designerRegistry, ...(pictureSites === undefined ? {} : { pictureSites }) });
-        // Free pictures for an app's pages, in the picture dialog: Openverse, Pexels and Unsplash with the project's own keys; none where this server calls nothing outside.
-        const pictureKey = (name: 'PEXELS_API_KEY' | 'UNSPLASH_ACCESS_KEY'): string => {
+        // Free pictures for an app's pages, in the picture dialog: Openverse, and Pexels, Unsplash and Pixabay with the project's own keys; none where this server calls nothing outside.
+        const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
           const host = hostModels();
           return (host !== null ? (host.read()[name] ?? '') : (process.env[name] ?? readDotEnv(root)?.[name] ?? '')).trim();
@@ -2317,7 +2317,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           if (!addOnCatalog.networkFeaturesAllowed()) return [];
           const pexelsKey = pictureKey('PEXELS_API_KEY');
           const unsplashKey = pictureKey('UNSPLASH_ACCESS_KEY');
-          return [openverse(pictureFetch), ...(pexelsKey === '' ? [] : [pexels(pexelsKey, pictureFetch)]), ...(unsplashKey === '' ? [] : [unsplash(unsplashKey, pictureFetch)])];
+          const pixabayKey = pictureKey('PIXABAY_API_KEY');
+          return [
+            openverse(pictureFetch),
+            ...(pexelsKey === '' ? [] : [pexels(pexelsKey, pictureFetch)]),
+            ...(unsplashKey === '' ? [] : [unsplash(unsplashKey, pictureFetch)]),
+            ...(pixabayKey === '' ? [] : [pixabay(pixabayKey, pictureFetch)]),
+          ];
         };
         // A search's results, kept per session; each source's small copies counted where the source counts them.
         let designerSearch: PictureSearch | null = null;

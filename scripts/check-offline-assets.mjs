@@ -442,7 +442,7 @@ const PROJECT_REACHES = [
     when: 'the person starts from an app in the catalogue: its archive is fetched from the repository the catalogue names, at the version\'s tag (and the pattern that recognizes such an address)',
   },
   {
-    test: /^(api|images|www)\.pexels\.com$|^(api\.)?unsplash\.com$|^api\.openverse\.org$|^\$\{unsplash_host\}$/,
+    test: /^(api|images|www)\.pexels\.com$|^(api\.)?unsplash\.com$|^api\.openverse\.org$|^(cdn\.)?pixabay\.com$|^\$\{unsplash_host\}$/,
     when: 'the Designer looks for pictures for a project\'s screens: only a site the person allowed, with their own key where the site needs one; the licence pages are links',
   },
   {

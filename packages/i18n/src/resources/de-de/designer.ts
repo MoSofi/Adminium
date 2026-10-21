@@ -1108,6 +1108,7 @@ export default {
     "noneTicked": "Keine Bilder passen zu den Lizenzen, die Sie angekreuzt haben.",
     "results": "Bilder für {spot}",
     "more": "Mehr",
+    "resultsFrom": "Bilder von {source}",
     "drop": "Ziehen Sie ein Bild hierher, oder",
     "browse": "durchsuchen",
     "uploadKinds": "PNG, JPEG, WebP oder GIF, bis 5 MB",

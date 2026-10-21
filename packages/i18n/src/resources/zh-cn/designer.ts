@@ -1108,6 +1108,7 @@ export default {
     "noneTicked": "没有图片符合你勾选的许可。",
     "results": "用于 {spot} 的图片",
     "more": "更多",
+    "resultsFrom": "图片来自 {source}",
     "drop": "把图片拖放到这里，或",
     "browse": "浏览",
     "uploadKinds": "PNG、JPEG、WebP 或 GIF，最大 5 MB",

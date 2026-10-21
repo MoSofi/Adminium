@@ -203,6 +203,7 @@ added again with it. A picture you attach to a message can be put in a spot by t
 | [Openverse](https://openverse.org) | By default. Pictures under licences that allow use and change for any purpose; no key. **Credit + same licence** (CC BY-SA) is hidden until you ask for it |
 | [Pexels](https://www.pexels.com) | When your project's `.env` has `PEXELS_API_KEY` (in the desktop app: its key, pasted in the dialog) |
 | [Unsplash](https://unsplash.com) | When your project's `.env` has `UNSPLASH_ACCESS_KEY` (in the desktop app: its key, pasted in the dialog). For a page's spots only |
+| [Pixabay](https://pixabay.com) | When your project's `.env` has `PIXABAY_API_KEY` (free, from [pixabay.com/api/docs](https://pixabay.com/api/docs/)). Photos under the Pixabay Content License: no credit needed |
 
 Unsplash's rules ask that its pictures be shown from Unsplash's own address and never copied. So a
 picture you apply from Unsplash is not copied into your app: the page loads it from
@@ -211,6 +212,13 @@ Unsplash is told the picture was chosen, as it asks. That site then sees each vi
 shows its pictures. On a live server, where the sites pictures may come from are set by whoever runs
 it, Unsplash is not used. On a server set to call nothing outside itself, there is no search; Upload
 and Already in this app still work.
+
+Pixabay's rules ask the opposite of Unsplash's: its addresses are only for showing search results
+for a while, so a picture you apply from Pixabay is copied into your app like any other. They also
+ask that a search's results be kept for a day, so the same search on Pixabay within a day shows the
+same pictures and does not count against your key's 100 searches a minute. The dialog says the
+pictures come from Pixabay, as it asks. Openverse does not search Pixabay: its pictures are under
+Pixabay's own licence, not Creative Commons.
 
 An app made before spots keeps the pictures its screens import. **Make them swappable** in the
 dialog turns them into spots in one turn, with the same pictures and credits.

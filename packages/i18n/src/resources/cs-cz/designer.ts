@@ -1108,6 +1108,7 @@ export default {
     "noneTicked": "Zaškrtnutým licencím neodpovídají žádné obrázky.",
     "results": "Obrázky pro {spot}",
     "more": "Další",
+    "resultsFrom": "Obrázky ze zdroje {source}",
     "drop": "Přetáhněte obrázek sem, nebo",
     "browse": "procházet",
     "uploadKinds": "PNG, JPEG, WebP nebo GIF, nejvýše 5 MB",

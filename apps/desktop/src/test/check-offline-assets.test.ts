@@ -386,8 +386,8 @@ describe('check-offline-assets — a project reaches a written list, and the cla
     ['the npm registry, for a project’s packages', 'const REGISTRY = "https://registry.npmjs.org/";'],
     ['an app’s archive at its tag', 'fetch(`https://codeload.github.com/${owner}/${repo}/tar.gz/refs/tags/v${version}`);'],
     ['the pattern that recognizes a repository’s address', 'const found = /^https:\\/\\/github\\.com\\/([^/]+)\\/([^/]+)/.exec(url);'],
-    ['picture search on a site the person allowed', 'fetch(`https://api.pexels.com/v1/search?${query.toString()}`); fetch("https://api.openverse.org/v1/images/"); fetch("https://api.unsplash.com/search/photos");'],
-    ['the licence pages picture search links to', 'const licences = ["https://www.pexels.com/license/", "https://unsplash.com/license"];'],
+    ['picture search on a site the person allowed', 'fetch(`https://api.pexels.com/v1/search?${query.toString()}`); fetch("https://api.openverse.org/v1/images/"); fetch("https://api.unsplash.com/search/photos"); fetch(`https://pixabay.com/api/?${query.toString()}`);'],
+    ['the licence pages picture search links to', 'const licences = ["https://www.pexels.com/license/", "https://unsplash.com/license", "https://pixabay.com/service/license-summary/"]; const hosts = ["https://cdn.pixabay.com/"];'],
     ['the preview’s own name on this machine', 'const preview = `http://localhost:${String(port)}`;'],
     ['a bare scheme prefix, which is no address', 'const schemes = ["http://", "https://"];'],
   ])('a project’s server may name %s', (_label, code) => {
