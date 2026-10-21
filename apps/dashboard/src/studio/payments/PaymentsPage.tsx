@@ -2,8 +2,8 @@
 /**
  * `/studio/payments` — where a shop sets up taking payments.
  *
- * Today it has one tab, Setup; Ways to pay, What can be paid, Pay page and
- * Activity join it as they are built, never as tabs that open onto nothing.
+ * Four tabs: Setup, Ways to pay, What can be paid and Pay page. Activity
+ * joins them when it is built, never as a tab that opens onto nothing.
  *
  * Setup reads top to bottom the way the work goes:
  *
@@ -53,6 +53,9 @@ import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
+import { PayablesTab } from './PayablesTab.js';
+import { PayPageTab } from './PayPageTab.js';
+import { WaysTab } from './WaysTab.js';
 import {
   PAYMENTS_SETUP_QUERY_KEY,
   checkKeys,
@@ -67,6 +70,7 @@ import {
   type FieldView,
   type KnownProvider,
   type ModeView,
+  type MoneyAlarm,
   type PaymentMode,
   type Reachability,
   type ReachabilityState,
@@ -469,6 +473,19 @@ function CheckLine({ service, mode, view }: { service: ServiceView; mode: Paymen
     );
   }
   if (check.code === 'CREDENTIALS_REFUSED' || check.code === 'PERMISSION_MISSING') return null;
+  if (check.code === 'MODE_MISMATCH') {
+    return (
+      <Alert
+        tone="danger"
+        data-testid={`payments-${service.key}-${mode}-mode-mismatch`}
+        title={
+          mode === 'test'
+            ? t('studio:payments.check.liveInTest', 'This key is for live payments, and this field is for the test key.')
+            : t('studio:payments.check.testInLive', 'This key is for test payments, and this field is for the live key.')
+        }
+      />
+    );
+  }
   return (
     <Alert
       tone="danger"
@@ -525,13 +542,32 @@ function WebhookCard({ service, mode, view, canManage }: { service: ServiceView;
       {provider === 'stripe' ? (
         <p className="text-[12px] text-fg-muted">{t('studio:payments.webhook.stripeListen', 'The secret that stripe listen prints is a different one.')}</p>
       ) : null}
-      <p className="text-[12.5px]" data-testid={`payments-${service.key}-${mode}-log`}>
-        {view.firstEventAt !== null
-          ? t('studio:payments.webhook.arrived', 'The first event arrived {when}, checked.', { when: when(view.firstEventAt) })
-          : mode === 'live'
-            ? t('studio:payments.webhook.noLiveEvent', 'No live event has arrived yet.')
-            : t('studio:payments.webhook.nothing', 'Nothing has reached this address yet. If you made the endpoint, check that your proxy lets it through.')}
-      </p>
+      <div className="flex flex-col gap-1 text-[12.5px]" data-testid={`payments-${service.key}-${mode}-log`}>
+        <p>
+          {view.health?.lastEventAt != null
+            ? t('studio:payments.webhook.last', 'Last event {when}, checked.', { when: when(view.health.lastEventAt) })
+            : view.firstEventAt !== null
+              ? t('studio:payments.webhook.arrived', 'The first event arrived {when}, checked.', { when: when(view.firstEventAt) })
+              : mode === 'live'
+                ? t('studio:payments.webhook.noLiveEvent', 'No live event has arrived yet.')
+                : t('studio:payments.webhook.nothing', 'Nothing has reached this address yet. If you made the endpoint, check that your proxy lets it through.')}
+        </p>
+        {(view.health?.badThisHour ?? 0) > 0 ? (
+          <p className="font-semibold text-danger" data-testid={`payments-${service.key}-${mode}-bad`}>
+            {mode === 'live'
+              ? t('studio:payments.webhook.badLive', '{count, plural, one {# event} other {# events}} arrived in the last hour but the signature did not match. Is this the secret from the endpoint page, for live mode?', { count: view.health?.badThisHour ?? 0 })
+              : t('studio:payments.webhook.badTest', '{count, plural, one {# event} other {# events}} arrived in the last hour but the signature did not match. Is this the secret from the endpoint page, for test mode?', { count: view.health?.badThisHour ?? 0 })}
+          </p>
+        ) : null}
+        {view.health?.caughtAt != null ? (
+          <p className="text-warn" data-testid={`payments-${service.key}-${mode}-caught`}>
+            {t('studio:payments.webhook.caught', 'Adminium found a payment {when} that no webhook had announced. The webhook is not reaching this server.', { when: when(view.health.caughtAt) })}
+          </p>
+        ) : null}
+        {view.health?.slowed === true ? (
+          <p className="text-fg-muted">{t('studio:payments.webhook.slowed', 'Adminium checks {provider} less often this month: it has used half of the reads {provider} allows.', { provider: name })}</p>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -813,6 +849,39 @@ function ServiceCard({ service, canManage, reachable, paypalConnected }: { servi
   );
 }
 
+// ─── Where the money goes: the alarms ───────────────────────────────────────
+
+function alarmTitle(alarm: MoneyAlarm, services: ServiceView[]): string {
+  const service = services.find((one) => one.key === alarm.service);
+  const provider = service === undefined ? (alarm.service ?? '') : providerWord(knownProvider(service.key), service.name);
+  switch (alarm.what) {
+    case 'account':
+      return t('studio:payments.alarm.account', 'The {provider} account changed from {from} to {to} {when}, by {by}.', { provider, from: alarm.from ?? '', to: alarm.to ?? '', when: when(alarm.at), by: alarm.by });
+    case 'bank':
+      return t('studio:payments.alarm.bank', 'The bank details for bank transfers changed {when}, by {by}.', { when: when(alarm.at), by: alarm.by });
+    case 'pay-address':
+      return t('studio:payments.alarm.address', 'Your pay address changed from {from} to {to} {when}, by {by}. Update the webhook address at Stripe and PayPal.', { from: alarm.from ?? '', to: alarm.to ?? '', when: when(alarm.at), by: alarm.by });
+  }
+}
+
+function AlarmsCard({ alarms, services }: { alarms: MoneyAlarm[]; services: ServiceView[] }) {
+  if (alarms.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2" aria-label={t('studio:payments.alarm.heading', 'Where the money goes changed')} data-testid="payments-alarms">
+      {alarms.map((alarm) => (
+        <Alert
+          key={`${alarm.what}-${String(alarm.at)}`}
+          tone="warn"
+          icon={<ShieldAlert />}
+          data-testid={`payments-alarm-${alarm.what}`}
+          title={alarmTitle(alarm, services)}
+          body={t('studio:payments.alarm.emailed', 'Everyone who manages payments was emailed.')}
+        />
+      ))}
+    </section>
+  );
+}
+
 // ─── The page ───────────────────────────────────────────────────────────────
 
 export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
@@ -832,6 +901,9 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
       <Tabs defaultValue="setup">
         <TabsList aria-label={t('studio:payments.title', 'Payments')}>
           <TabsTrigger value="setup">{t('studio:payments.tab.setup', 'Setup')}</TabsTrigger>
+          <TabsTrigger value="ways">{t('studio:payments.tab.ways', 'Ways to pay')}</TabsTrigger>
+          <TabsTrigger value="payables">{t('studio:payments.tab.payables', 'What can be paid')}</TabsTrigger>
+          <TabsTrigger value="page">{t('studio:payments.tab.page', 'Pay page')}</TabsTrigger>
         </TabsList>
         <TabsContent value="setup" className="flex flex-col gap-5 pt-4">
           {setup.isPending ? (
@@ -857,6 +929,7 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
               {!data.canManage ? (
                 <Alert tone="info" data-testid="payments-view-only" title={t('studio:payments.viewOnly', 'You can see how payments are set up, but not change it.')} />
               ) : null}
+              <AlarmsCard alarms={data.alarms ?? []} services={data.services} />
               <ReachabilityCard
                 reach={data.reachability}
                 onOpenSettings={onOpenSettings}
@@ -876,6 +949,15 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
               )}
             </>
           ) : null}
+        </TabsContent>
+        <TabsContent value="ways" className="pt-4">
+          {data !== undefined ? <WaysTab services={data.services} canManage={data.canManage} /> : null}
+        </TabsContent>
+        <TabsContent value="payables" className="pt-4">
+          {data !== undefined ? <PayablesTab canManage={data.canManage} /> : null}
+        </TabsContent>
+        <TabsContent value="page" className="pt-4">
+          {data !== undefined ? <PayPageTab canManage={data.canManage} /> : null}
         </TabsContent>
       </Tabs>
     </PageSurface>

@@ -241,6 +241,44 @@ describe('PaymentsPage', () => {
     expect(isDisabled(within(card).getByRole('switch', { name: 'Stop new payments' }))).toBe(true);
   });
 
+  it('says where the money now goes, and that every manager was emailed', async () => {
+    const at = Date.now() - 3_600_000;
+    renderPage(
+      setup({
+        alarms: [
+          { what: 'account', service: 'payments-stripe', from: 'acct_1Old', to: 'acct_1New', by: 'Ava Reyes', at },
+          { what: 'pay-address', service: null, from: 'https://old.crumbandco.de', to: 'https://pay.crumbandco.de', by: 'Ava Reyes', at },
+        ],
+      }),
+    );
+    const account = await screen.findByTestId('payments-alarm-account');
+    expect(textOf(account)).toContain('acct_1Old');
+    expect(textOf(account)).toContain('acct_1New');
+    expect(textOf(account)).toContain('Ava Reyes');
+    expect(textOf(account)).toContain('Everyone who manages payments was emailed.');
+    expect(textOf(screen.getByTestId('payments-alarm-pay-address'))).toContain('Update the webhook address at Stripe and PayPal.');
+  });
+
+  it('reads the webhook health: bad signatures, a payment no webhook announced, and slowed checks', async () => {
+    const health = { lastEventAt: Date.now() - 120_000, lastBadAt: Date.now() - 60_000, badThisHour: 3, caughtAt: Date.now() - 600_000, slowed: true };
+    renderPage(setup({ services: [stripe({ live: mode({ health }) })] }));
+    const log = await screen.findByTestId('payments-payments-stripe-live-log');
+    expect(textOf(log)).toContain('checked.');
+    expect(textOf(log)).toContain('3 events arrived in the last hour but the signature did not match. Is this the secret from the endpoint page, for live mode?');
+    expect(textOf(log)).toContain('that no webhook had announced. The webhook is not reaching this server.');
+    expect(textOf(log)).toContain('Adminium checks Stripe less often this month');
+  });
+
+  it('says one bad signature in the singular', async () => {
+    renderPage(setup({ services: [stripe({ test: mode({ health: { lastEventAt: null, lastBadAt: 1, badThisHour: 1, caughtAt: null, slowed: false } }) })] }));
+    expect(textOf(await screen.findByTestId('payments-payments-stripe-test-log'))).toContain('1 event arrived in the last hour');
+  });
+
+  it('says a key answering for the other mode is in the wrong field', async () => {
+    renderPage(setup({ services: [stripe({ test: mode({ check: { at: 1, ok: false, code: 'MODE_MISMATCH', message: 'x', missing: [] } }) })] }));
+    expect(textOf(await screen.findByTestId('payments-payments-stripe-test-mode-mismatch'))).toBe('This key is for live payments, and this field is for the test key.');
+  });
+
   it('says when no payment service is installed', async () => {
     renderPage(setup({ services: [] }));
     expect(textOf(await screen.findByTestId('payments-no-services'))).toContain('No payment service is installed.');

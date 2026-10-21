@@ -8,7 +8,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api, ApiError } from '../../app/api.js';
+import { api, ApiError, csrfHeaders } from '../../app/api.js';
 
 export type PaymentMode = 'test' | 'live';
 
@@ -75,6 +75,16 @@ export interface ModeView {
   webhookUrl: string | null;
   firstEventAt: number | null;
   firstPaymentAt: number | null;
+  /** Absent from a server one step behind: read as "nothing known yet". */
+  health?: WebhookHealth;
+}
+
+export interface WebhookHealth {
+  lastEventAt: number | null;
+  lastBadAt: number | null;
+  badThisHour: number;
+  caughtAt: number | null;
+  slowed: boolean;
 }
 
 export interface ServiceView {
@@ -99,10 +109,21 @@ export interface Reachability {
   notPort443: boolean;
 }
 
+export interface MoneyAlarm {
+  what: 'account' | 'bank' | 'pay-address';
+  service: string | null;
+  from: string | null;
+  to: string | null;
+  by: string;
+  at: number;
+}
+
 export interface PaymentsSetup {
   reachability: Reachability;
   canManage: boolean;
   services: ServiceView[];
+  /** Absent from a server one step behind. */
+  alarms?: MoneyAlarm[];
 }
 
 export const PAYMENTS_SETUP_QUERY_KEY = ['payments', 'setup'] as const;
@@ -156,4 +177,269 @@ export function knownProvider(key: string): KnownProvider {
 /** How many steps are done, out of how many. */
 export function checklistProgress(view: ServiceView): { done: number; total: number } {
   return { done: view.checklist.filter((step) => step.done).length, total: view.checklist.length };
+}
+
+// ─── Ways to pay ────────────────────────────────────────────────────────────
+
+/** Mirrors `paymentRulesSchema`: empty lists mean "any". */
+export interface WayRules {
+  countries: string[];
+  currencies: string[];
+  min: string | null;
+  max: string | null;
+  /** Payable profile ids, `shape`, `document`; empty means every payable. */
+  onlyFor: string[];
+}
+
+export const NO_RULES: WayRules = { countries: [], currencies: [], min: null, max: null, onlyFor: [] };
+
+export interface BankAccount {
+  currency: string;
+  holder: string;
+  iban: string | null;
+  accountNumber: string | null;
+  bic: string | null;
+  sortCode: string | null;
+  bank: string | null;
+}
+
+export interface ManualDetails {
+  accounts?: BankAccount[];
+  note?: string | null;
+}
+
+export interface WayView {
+  source: string;
+  method: string;
+  label: Record<string, string> | null;
+  enabled: boolean;
+  rules: WayRules;
+  details: unknown;
+  position: number;
+}
+
+export interface WaysList {
+  ways: WayView[];
+  manualMethods: string[];
+}
+
+export interface ProviderMethod {
+  id: string;
+  label: string;
+  delayed: boolean;
+}
+
+export interface WayOffer {
+  source: string;
+  method: string;
+  label: Record<string, string> | null;
+  details: unknown;
+}
+
+export const PAYMENTS_WAYS_QUERY_KEY = ['payments', 'ways'] as const;
+
+export function paymentsWaysQuery() {
+  return queryOptions({
+    queryKey: PAYMENTS_WAYS_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: WaysList }>('/api/v1/payments/ways')).data,
+    retry: false,
+  });
+}
+
+export function providerMethodsQuery(source: string) {
+  return queryOptions({
+    queryKey: ['payments', 'methods', source] as const,
+    queryFn: async () => (await api.get<{ data: { mode: PaymentMode; methods: ProviderMethod[] } }>(`${service(source)}/methods`)).data,
+    retry: false,
+  });
+}
+
+const way = (source: string, method: string) => `/api/v1/payments/ways/${encodeURIComponent(source)}/${encodeURIComponent(method)}`;
+
+export interface WayInput {
+  enabled: boolean;
+  rules: WayRules;
+  label: Record<string, string> | null;
+  details: ManualDetails | null;
+  position: number;
+}
+
+export async function saveWay(source: string, method: string, input: WayInput): Promise<WayView> {
+  return (await api.put<{ data: WayView }>(way(source, method), input)).data;
+}
+
+export async function removeWay(source: string, method: string): Promise<void> {
+  await api.delete(way(source, method));
+}
+
+export interface PreviewInput {
+  country: string | null;
+  currency: string;
+  amount: string;
+  kind: 'shape' | 'profile' | 'document';
+  profileId: string | null;
+}
+
+export async function previewWays(input: PreviewInput): Promise<WayOffer[]> {
+  return (await api.post<{ data: WayOffer[] }>('/api/v1/payments/ways/preview', input)).data;
+}
+
+// ─── What can be paid ───────────────────────────────────────────────────────
+
+export const PAYABLE_ISSUES = [
+  'TABLE_UNAVAILABLE',
+  'NO_SUCH_COLUMN',
+  'NOT_A_MONEY_COLUMN',
+  'NEEDS_UNIT',
+  'TOO_FEW_DECIMALS',
+  'NO_CURRENCY',
+  'REFERENCE_NOT_UNIQUE',
+  'NO_METHOD_VALUES',
+  'METHOD_VALUE_UNKNOWN',
+  'STATUS_NOT_A_CHOICE',
+  'STATUS_NOT_WRITABLE',
+  'STATUS_VALUE_UNKNOWN',
+  'FIELD_PERSONAL',
+] as const;
+export type PayableIssueCode = (typeof PAYABLE_ISSUES)[number];
+
+export interface PayableIssue {
+  code: PayableIssueCode;
+  path: string;
+  column: string | null;
+}
+
+/** Mirrors `payableMappingSchema` (packages/meta/src/repos/payment-setup.ts). */
+export interface OwnPaymentsMapping {
+  kind: 'table';
+  table: string;
+  link: string;
+  amount: string;
+  date: string;
+  method: { column: string; values: Record<string, string> };
+  note: string | null;
+  voided: string | null;
+  reference: string;
+  amountUnit: 'units' | 'minor';
+}
+
+export interface PayableMapping {
+  label: string | null;
+  amount: { column: string; unit: 'units' | 'minor' | null };
+  currency: { column: string } | { fixed: string } | { connection: true };
+  due: { column: string } | null;
+  payments: { kind: 'kept' } | OwnPaymentsMapping;
+  status: { column: string; paid: string; refunded: string | null } | null;
+  customerEmail: string | null;
+  customerCountry: string | null;
+  pageFields: string[];
+}
+
+export interface PayableProfileView {
+  id: string;
+  connectionId: string;
+  tableName: string;
+  enabled: boolean;
+  valid: boolean;
+  payments: 'kept' | 'table' | null;
+  updatedAt: number;
+}
+
+export interface PayablesList {
+  profiles: PayableProfileView[];
+  shapes: { connectionId: string; tableName: string; version: number }[];
+}
+
+export interface PayableCheck {
+  issues: PayableIssue[];
+  mayMark: { ok: boolean; reason: 'read' | 'update' | 'row-limit' | 'column-limit' | 'payments-create' | null };
+  preview: { rowKey: string; label: string; currency: string; due: string; refusal: { code: string; message: string } | null }[];
+}
+
+export const PAYMENTS_PAYABLES_QUERY_KEY = ['payments', 'payables'] as const;
+
+export function paymentsPayablesQuery() {
+  return queryOptions({
+    queryKey: PAYMENTS_PAYABLES_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: PayablesList }>('/api/v1/payments/payables')).data,
+    retry: false,
+  });
+}
+
+export async function checkPayable(connectionId: string, tableId: string, mapping: PayableMapping): Promise<PayableCheck> {
+  return (await api.post<{ data: PayableCheck }>('/api/v1/payments/payables/check', { connectionId, tableId, mapping })).data;
+}
+
+export async function markPayable(connectionId: string, tableId: string, mapping: PayableMapping): Promise<PayableProfileView> {
+  return (await api.post<{ data: PayableProfileView }>('/api/v1/payments/payables', { connectionId, tableId, mapping })).data;
+}
+
+export async function patchPayable(id: string, patch: { mapping?: PayableMapping; enabled?: boolean }): Promise<PayableProfileView> {
+  return (await api.patch<{ data: PayableProfileView }>(`/api/v1/payments/payables/${encodeURIComponent(id)}`, patch)).data;
+}
+
+export async function stopPayable(id: string): Promise<void> {
+  await api.delete(`/api/v1/payments/payables/${encodeURIComponent(id)}`);
+}
+
+/** The issues a refused save came back with (`details.issues`), or null. */
+export function payableIssuesOf(error: unknown): PayableIssue[] | null {
+  if (!(error instanceof ApiError)) return null;
+  const issues = (error.details as { issues?: unknown } | null | undefined)?.issues;
+  return Array.isArray(issues) ? (issues as PayableIssue[]) : null;
+}
+
+// ─── Pay page ───────────────────────────────────────────────────────────────
+
+export interface PayPageSettings {
+  shopName: string;
+  logoFileId: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  shopCountry: string | null;
+  showLines: boolean;
+}
+
+export const PAYMENTS_PAY_PAGE_QUERY_KEY = ['payments', 'pay-page'] as const;
+
+export function payPageQuery() {
+  return queryOptions({
+    queryKey: PAYMENTS_PAY_PAGE_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: PayPageSettings }>('/api/v1/payments/pay-page')).data,
+    retry: false,
+  });
+}
+
+export async function savePayPage(page: PayPageSettings): Promise<PayPageSettings> {
+  return (await api.put<{ data: PayPageSettings }>('/api/v1/payments/pay-page', page)).data;
+}
+
+/** The logo types a public page may show: never an SVG. */
+export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+
+/**
+ * Uploads the pay page's logo: the image bytes as the body (the server sniffs
+ * them, so the declared type is only a hint). Answers the file id the pay page
+ * settings then name. Not through `api`, which sends JSON only.
+ */
+export async function uploadPayPageLogo(file: File): Promise<string> {
+  const name = file.name === '' ? 'logo' : file.name;
+  const response = await fetch(`/api/v1/payments/pay-page/logo?filename=${encodeURIComponent(name)}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', 'content-type': file.type === '' ? 'application/octet-stream' : file.type, ...csrfHeaders() },
+    body: file,
+  });
+  const body = (await response.json().catch(() => null)) as { data?: { fileId?: unknown }; error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown } } | null;
+  if (!response.ok || typeof body?.data?.fileId !== 'string') {
+    const error = body?.error;
+    throw new ApiError(
+      response.status,
+      typeof error?.code === 'string' ? error.code : 'UPLOAD_FAILED',
+      typeof error?.message === 'string' ? error.message : `Upload failed with status ${String(response.status)}.`,
+      typeof error?.requestId === 'string' ? error.requestId : null,
+      error?.details,
+    );
+  }
+  return body.data.fileId;
 }

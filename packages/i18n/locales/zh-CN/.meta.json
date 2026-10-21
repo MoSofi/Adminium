@@ -26879,6 +26879,26 @@
     "status": "mt",
     "srcHash": "21e2caea4476"
   },
+  "studio.payments.alarm.account": {
+    "status": "mt",
+    "srcHash": "9dc54ef31846"
+  },
+  "studio.payments.alarm.address": {
+    "status": "mt",
+    "srcHash": "a734b3785646"
+  },
+  "studio.payments.alarm.bank": {
+    "status": "mt",
+    "srcHash": "3151dfb12e02"
+  },
+  "studio.payments.alarm.emailed": {
+    "status": "mt",
+    "srcHash": "c9e8399a144f"
+  },
+  "studio.payments.alarm.heading": {
+    "status": "mt",
+    "srcHash": "9443d1599a5c"
+  },
   "studio.payments.alarm.paused": {
     "status": "mt",
     "srcHash": "d5b9ed7e9792"
@@ -26899,6 +26919,10 @@
     "status": "mt",
     "srcHash": "191fd610e306"
   },
+  "studio.payments.check.liveInTest": {
+    "status": "mt",
+    "srcHash": "d2ac25347497"
+  },
   "studio.payments.check.missing": {
     "status": "mt",
     "srcHash": "b90df0fb5d35"
@@ -26906,6 +26930,10 @@
   "studio.payments.check.ok": {
     "status": "mt",
     "srcHash": "4ead66ba81b8"
+  },
+  "studio.payments.check.testInLive": {
+    "status": "mt",
+    "srcHash": "185e73140efb"
   },
   "studio.payments.checklist.done": {
     "status": "mt",
@@ -27015,6 +27043,10 @@
     "status": "mt",
     "srcHash": "a4b96c2048dd"
   },
+  "studio.payments.loading": {
+    "status": "mt",
+    "srcHash": "33ce417454bf"
+  },
   "studio.payments.mode.live": {
     "status": "mt",
     "srcHash": "65c821a596ce"
@@ -27026,6 +27058,86 @@
   "studio.payments.noServices": {
     "status": "mt",
     "srcHash": "7e981352c580"
+  },
+  "studio.payments.page.country": {
+    "status": "mt",
+    "srcHash": "35889fefb998"
+  },
+  "studio.payments.page.countryHelp": {
+    "status": "mt",
+    "srcHash": "3b2387a2220c"
+  },
+  "studio.payments.page.countryInvalid": {
+    "status": "mt",
+    "srcHash": "2669ffd28d21"
+  },
+  "studio.payments.page.email": {
+    "status": "mt",
+    "srcHash": "726a1ceebd2e"
+  },
+  "studio.payments.page.emailInvalid": {
+    "status": "mt",
+    "srcHash": "53e9465b3158"
+  },
+  "studio.payments.page.intro": {
+    "status": "mt",
+    "srcHash": "aa0f5ad2e107"
+  },
+  "studio.payments.page.lines": {
+    "status": "mt",
+    "srcHash": "9012b1099c13"
+  },
+  "studio.payments.page.logo": {
+    "status": "mt",
+    "srcHash": "83fce8327410"
+  },
+  "studio.payments.page.logoHelp": {
+    "status": "mt",
+    "srcHash": "1cb0172790ab"
+  },
+  "studio.payments.page.logoType": {
+    "status": "mt",
+    "srcHash": "ee1224ceac8e"
+  },
+  "studio.payments.page.logoUploaded": {
+    "status": "mt",
+    "srcHash": "1a3b73c79424"
+  },
+  "studio.payments.page.noLogo": {
+    "status": "mt",
+    "srcHash": "109cf7cabd26"
+  },
+  "studio.payments.page.phone": {
+    "status": "mt",
+    "srcHash": "dfeab78cf75a"
+  },
+  "studio.payments.page.providerBranding": {
+    "status": "mt",
+    "srcHash": "d02b37b76520"
+  },
+  "studio.payments.page.removeLogo": {
+    "status": "mt",
+    "srcHash": "717c7d8c0e0f"
+  },
+  "studio.payments.page.saved": {
+    "status": "mt",
+    "srcHash": "072b9eef999a"
+  },
+  "studio.payments.page.shopName": {
+    "status": "mt",
+    "srcHash": "6a5cc02ee49e"
+  },
+  "studio.payments.page.shopNameNeeded": {
+    "status": "mt",
+    "srcHash": "ece99b574095"
+  },
+  "studio.payments.page.title": {
+    "status": "mt",
+    "srcHash": "02ff71c6c682"
+  },
+  "studio.payments.page.upload": {
+    "status": "mt",
+    "srcHash": "67d2e29ce9bb"
   },
   "studio.payments.path.app.desc": {
     "status": "mt",
@@ -27082,6 +27194,414 @@
   "studio.payments.path.hand.title": {
     "status": "mt",
     "srcHash": "65f1ef2805f9"
+  },
+  "studio.payments.payables.actions": {
+    "status": "mt",
+    "srcHash": "c3cd636a585b"
+  },
+  "studio.payments.payables.amount": {
+    "status": "mt",
+    "srcHash": "43dc8532f7e5"
+  },
+  "studio.payments.payables.amountShown": {
+    "status": "mt",
+    "srcHash": "03a14387178c"
+  },
+  "studio.payments.payables.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "studio.payments.payables.balance": {
+    "status": "mt",
+    "srcHash": "f5e88de32678"
+  },
+  "studio.payments.payables.balanceNeeded": {
+    "status": "mt",
+    "srcHash": "692383fe2ee5"
+  },
+  "studio.payments.payables.becomes": {
+    "status": "mt",
+    "srcHash": "6acbfd2d2c89"
+  },
+  "studio.payments.payables.builtOn": {
+    "status": "mt",
+    "srcHash": "f0f48492dc4e"
+  },
+  "studio.payments.payables.canBePaid": {
+    "status": "mt",
+    "srcHash": "cc3810e8fb12"
+  },
+  "studio.payments.payables.cents": {
+    "status": "mt",
+    "srcHash": "a578e655f58b"
+  },
+  "studio.payments.payables.centsHelp": {
+    "status": "mt",
+    "srcHash": "edfb113ad1eb"
+  },
+  "studio.payments.payables.chooseColumn": {
+    "status": "mt",
+    "srcHash": "a6cfd9550a56"
+  },
+  "studio.payments.payables.chooseConnection": {
+    "status": "mt",
+    "srcHash": "42823949fb72"
+  },
+  "studio.payments.payables.chooseTable": {
+    "status": "mt",
+    "srcHash": "d69fe9d79b69"
+  },
+  "studio.payments.payables.chooseTableTitle": {
+    "status": "mt",
+    "srcHash": "d69fe9d79b69"
+  },
+  "studio.payments.payables.connection": {
+    "status": "mt",
+    "srcHash": "6512ee1541e9"
+  },
+  "studio.payments.payables.country": {
+    "status": "mt",
+    "srcHash": "6f4cae199bb5"
+  },
+  "studio.payments.payables.countryHelp": {
+    "status": "mt",
+    "srcHash": "f50e3597bcb9"
+  },
+  "studio.payments.payables.currency": {
+    "status": "mt",
+    "srcHash": "e070de224434"
+  },
+  "studio.payments.payables.currencyCode": {
+    "status": "mt",
+    "srcHash": "28a6fbbe9d2e"
+  },
+  "studio.payments.payables.currencyColumn": {
+    "status": "mt",
+    "srcHash": "9214eef5045c"
+  },
+  "studio.payments.payables.currencyColumnLabel": {
+    "status": "mt",
+    "srcHash": "eef387e9aa77"
+  },
+  "studio.payments.payables.currencyConnection": {
+    "status": "mt",
+    "srcHash": "d1d545c37eae"
+  },
+  "studio.payments.payables.currencyFixed": {
+    "status": "mt",
+    "srcHash": "689608217f69"
+  },
+  "studio.payments.payables.date": {
+    "status": "mt",
+    "srcHash": "eb9a4bc1c0c1"
+  },
+  "studio.payments.payables.done": {
+    "status": "mt",
+    "srcHash": "b6178aa9c689"
+  },
+  "studio.payments.payables.email": {
+    "status": "mt",
+    "srcHash": "6f7a275ff95a"
+  },
+  "studio.payments.payables.empty": {
+    "status": "mt",
+    "srcHash": "73f91b6363ab"
+  },
+  "studio.payments.payables.intoOwn": {
+    "status": "mt",
+    "srcHash": "135590d2686d"
+  },
+  "studio.payments.payables.intro": {
+    "status": "mt",
+    "srcHash": "de41d27cc665"
+  },
+  "studio.payments.payables.issue.currency": {
+    "status": "mt",
+    "srcHash": "4df52021e2a1"
+  },
+  "studio.payments.payables.issue.decimals": {
+    "status": "mt",
+    "srcHash": "c0b1693b2a31"
+  },
+  "studio.payments.payables.issue.methodValueUnknown": {
+    "status": "mt",
+    "srcHash": "6b8c7ad01bc2"
+  },
+  "studio.payments.payables.issue.methodValues": {
+    "status": "mt",
+    "srcHash": "6379e9deb691"
+  },
+  "studio.payments.payables.issue.noColumn": {
+    "status": "mt",
+    "srcHash": "a2d5158bb28a"
+  },
+  "studio.payments.payables.issue.notMoney": {
+    "status": "mt",
+    "srcHash": "2fb563105e9d"
+  },
+  "studio.payments.payables.issue.personal": {
+    "status": "mt",
+    "srcHash": "41d5b77c72df"
+  },
+  "studio.payments.payables.issue.statusChoice": {
+    "status": "mt",
+    "srcHash": "5cd88eb43077"
+  },
+  "studio.payments.payables.issue.statusValue": {
+    "status": "mt",
+    "srcHash": "76064e21f46e"
+  },
+  "studio.payments.payables.issue.statusWritable": {
+    "status": "mt",
+    "srcHash": "65150b1b512f"
+  },
+  "studio.payments.payables.issue.table": {
+    "status": "mt",
+    "srcHash": "04ece5a51b93"
+  },
+  "studio.payments.payables.issue.unique": {
+    "status": "mt",
+    "srcHash": "62501e30dc98"
+  },
+  "studio.payments.payables.issue.unit": {
+    "status": "mt",
+    "srcHash": "4138985ae8a3"
+  },
+  "studio.payments.payables.keep": {
+    "status": "mt",
+    "srcHash": "0e206c54b9d0"
+  },
+  "studio.payments.payables.kept": {
+    "status": "mt",
+    "srcHash": "a5f0f512bc32"
+  },
+  "studio.payments.payables.keptHelp": {
+    "status": "mt",
+    "srcHash": "e3a2130fb536"
+  },
+  "studio.payments.payables.keptShort": {
+    "status": "mt",
+    "srcHash": "a5f0f512bc32"
+  },
+  "studio.payments.payables.label": {
+    "status": "mt",
+    "srcHash": "d8bd095abf21"
+  },
+  "studio.payments.payables.leaveAsIs": {
+    "status": "mt",
+    "srcHash": "28c2d2e04b61"
+  },
+  "studio.payments.payables.link": {
+    "status": "mt",
+    "srcHash": "e23ff1680df4"
+  },
+  "studio.payments.payables.may.columnLimit": {
+    "status": "mt",
+    "srcHash": "d421305de2ee"
+  },
+  "studio.payments.payables.may.create": {
+    "status": "mt",
+    "srcHash": "4ad00aa26210"
+  },
+  "studio.payments.payables.may.read": {
+    "status": "mt",
+    "srcHash": "ea9bf594b658"
+  },
+  "studio.payments.payables.may.rowLimit": {
+    "status": "mt",
+    "srcHash": "c603dd64cf4b"
+  },
+  "studio.payments.payables.may.update": {
+    "status": "mt",
+    "srcHash": "11a080cabd39"
+  },
+  "studio.payments.payables.method.bank": {
+    "status": "mt",
+    "srcHash": "cf3b143b04f1"
+  },
+  "studio.payments.payables.method.card": {
+    "status": "mt",
+    "srcHash": "49d8e06cd454"
+  },
+  "studio.payments.payables.method.other": {
+    "status": "mt",
+    "srcHash": "94742b704c6e"
+  },
+  "studio.payments.payables.methodValues": {
+    "status": "mt",
+    "srcHash": "76cc571c6989"
+  },
+  "studio.payments.payables.needsSaving": {
+    "status": "mt",
+    "srcHash": "c6bbafcca6e7"
+  },
+  "studio.payments.payables.needsUpdate": {
+    "status": "mt",
+    "srcHash": "988cee8c4763"
+  },
+  "studio.payments.payables.next": {
+    "status": "mt",
+    "srcHash": "bc981983e7f5"
+  },
+  "studio.payments.payables.note": {
+    "status": "mt",
+    "srcHash": "2c924e308820"
+  },
+  "studio.payments.payables.on": {
+    "status": "mt",
+    "srcHash": "cc3810e8fb12"
+  },
+  "studio.payments.payables.optional": {
+    "status": "mt",
+    "srcHash": "0c6c4102d4df"
+  },
+  "studio.payments.payables.own": {
+    "status": "mt",
+    "srcHash": "53a1e098ee18"
+  },
+  "studio.payments.payables.ownHelp": {
+    "status": "mt",
+    "srcHash": "e6e57c8a717a"
+  },
+  "studio.payments.payables.ownUnit": {
+    "status": "mt",
+    "srcHash": "94eb38cb88f9"
+  },
+  "studio.payments.payables.pageFields": {
+    "status": "mt",
+    "srcHash": "b06b2531f2ce"
+  },
+  "studio.payments.payables.pauseLabel": {
+    "status": "mt",
+    "srcHash": "3a5b6960e536"
+  },
+  "studio.payments.payables.paused": {
+    "status": "mt",
+    "srcHash": "c7dfb6f1d9c5"
+  },
+  "studio.payments.payables.paymentsTable": {
+    "status": "mt",
+    "srcHash": "f2706dc06440"
+  },
+  "studio.payments.payables.personal": {
+    "status": "mt",
+    "srcHash": "8a97586ccaec"
+  },
+  "studio.payments.payables.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "studio.payments.payables.previewHidden": {
+    "status": "mt",
+    "srcHash": "4600cd0fc06e"
+  },
+  "studio.payments.payables.previewOf": {
+    "status": "mt",
+    "srcHash": "7e5aef99bfa5"
+  },
+  "studio.payments.payables.previewSummary": {
+    "status": "mt",
+    "srcHash": "54470c1847d7"
+  },
+  "studio.payments.payables.previewWaiting": {
+    "status": "mt",
+    "srcHash": "9ea5571e1e74"
+  },
+  "studio.payments.payables.ready": {
+    "status": "mt",
+    "srcHash": "20c7c5522fc2"
+  },
+  "studio.payments.payables.setUp": {
+    "status": "mt",
+    "srcHash": "fee707a18f95"
+  },
+  "studio.payments.payables.setUpTable": {
+    "status": "mt",
+    "srcHash": "fee707a18f95"
+  },
+  "studio.payments.payables.statusColumn": {
+    "status": "mt",
+    "srcHash": "1e3d45e80c59"
+  },
+  "studio.payments.payables.statusPaid": {
+    "status": "mt",
+    "srcHash": "e4af37287d01"
+  },
+  "studio.payments.payables.statusPaidValue": {
+    "status": "mt",
+    "srcHash": "cff0fe6d1b24"
+  },
+  "studio.payments.payables.statusRefunded": {
+    "status": "mt",
+    "srcHash": "13cf101a2d6c"
+  },
+  "studio.payments.payables.step1": {
+    "status": "mt",
+    "srcHash": "fc5134182832"
+  },
+  "studio.payments.payables.step2": {
+    "status": "mt",
+    "srcHash": "c5d924e7e8d8"
+  },
+  "studio.payments.payables.step3": {
+    "status": "mt",
+    "srcHash": "221132b3d619"
+  },
+  "studio.payments.payables.stepOf": {
+    "status": "mt",
+    "srcHash": "1bb44d50cc78"
+  },
+  "studio.payments.payables.stop": {
+    "status": "mt",
+    "srcHash": "9e253470c876"
+  },
+  "studio.payments.payables.stopBody": {
+    "status": "mt",
+    "srcHash": "b1b687158a31"
+  },
+  "studio.payments.payables.stopTitle": {
+    "status": "mt",
+    "srcHash": "a8443a5b35b1"
+  },
+  "studio.payments.payables.table": {
+    "status": "mt",
+    "srcHash": "0424f6e7026f"
+  },
+  "studio.payments.payables.title": {
+    "status": "mt",
+    "srcHash": "52e8d81c16c9"
+  },
+  "studio.payments.payables.turnOn": {
+    "status": "mt",
+    "srcHash": "1c7668c273d1"
+  },
+  "studio.payments.payables.unique": {
+    "status": "mt",
+    "srcHash": "ab6b8d774b7c"
+  },
+  "studio.payments.payables.uniqueHelp": {
+    "status": "mt",
+    "srcHash": "df93e6b25d85"
+  },
+  "studio.payments.payables.unitQuestion": {
+    "status": "mt",
+    "srcHash": "738c8b2fe893"
+  },
+  "studio.payments.payables.voided": {
+    "status": "mt",
+    "srcHash": "c2d1c129e5a6"
+  },
+  "studio.payments.payables.wayToPay": {
+    "status": "mt",
+    "srcHash": "107c02b5f4c5"
+  },
+  "studio.payments.payables.wholeAmounts": {
+    "status": "mt",
+    "srcHash": "a4c21c162cd7"
+  },
+  "studio.payments.payables.wholeHelp": {
+    "status": "mt",
+    "srcHash": "ec66a93e2563"
   },
   "studio.payments.reach.address": {
     "status": "mt",
@@ -27351,9 +27871,21 @@
     "status": "mt",
     "srcHash": "089f3015dd19"
   },
+  "studio.payments.tab.page": {
+    "status": "mt",
+    "srcHash": "dfe9bc362765"
+  },
+  "studio.payments.tab.payables": {
+    "status": "mt",
+    "srcHash": "52e8d81c16c9"
+  },
   "studio.payments.tab.setup": {
     "status": "mt",
     "srcHash": "cdd7bb2816b7"
+  },
+  "studio.payments.tab.ways": {
+    "status": "mt",
+    "srcHash": "705052ddcba9"
   },
   "studio.payments.title": {
     "status": "mt",
@@ -27363,6 +27895,334 @@
     "status": "mt",
     "srcHash": "6a2e86b32903"
   },
+  "studio.payments.way.bankTransfer": {
+    "status": "mt",
+    "srcHash": "ff1d79c5055b"
+  },
+  "studio.payments.way.card": {
+    "status": "mt",
+    "srcHash": "0f830bc25e52"
+  },
+  "studio.payments.way.cashOnDelivery": {
+    "status": "mt",
+    "srcHash": "eda24c6958d5"
+  },
+  "studio.payments.way.other": {
+    "status": "mt",
+    "srcHash": "cdf741044c9f"
+  },
+  "studio.payments.way.sepa": {
+    "status": "mt",
+    "srcHash": "740b177dcd21"
+  },
+  "studio.payments.ways.accountNumber": {
+    "status": "mt",
+    "srcHash": "25d74dd58e6d"
+  },
+  "studio.payments.ways.accountNumberHelp": {
+    "status": "mt",
+    "srcHash": "687027e4d392"
+  },
+  "studio.payments.ways.accounts": {
+    "status": "mt",
+    "srcHash": "f8acfda42bec"
+  },
+  "studio.payments.ways.add": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "studio.payments.ways.addAccount": {
+    "status": "mt",
+    "srcHash": "a2712d153f43"
+  },
+  "studio.payments.ways.addCountry": {
+    "status": "mt",
+    "srcHash": "3c7a6e33f789"
+  },
+  "studio.payments.ways.addCurrency": {
+    "status": "mt",
+    "srcHash": "8d0da63e71fe"
+  },
+  "studio.payments.ways.addFromProvider": {
+    "status": "mt",
+    "srcHash": "7fedf051eef4"
+  },
+  "studio.payments.ways.addHand": {
+    "status": "mt",
+    "srcHash": "b7591abe673e"
+  },
+  "studio.payments.ways.amount": {
+    "status": "mt",
+    "srcHash": "43dc8532f7e5"
+  },
+  "studio.payments.ways.amountInvalid": {
+    "status": "mt",
+    "srcHash": "f6c78129fc24"
+  },
+  "studio.payments.ways.anyCountry": {
+    "status": "mt",
+    "srcHash": "4350890d2e9b"
+  },
+  "studio.payments.ways.anyCurrency": {
+    "status": "mt",
+    "srcHash": "2ed0a8a54f1d"
+  },
+  "studio.payments.ways.bank": {
+    "status": "mt",
+    "srcHash": "9e89988cc3fb"
+  },
+  "studio.payments.ways.bankEach": {
+    "status": "mt",
+    "srcHash": "e92bdfc8658d"
+  },
+  "studio.payments.ways.bankIncomplete": {
+    "status": "mt",
+    "srcHash": "48e7fe01d36e"
+  },
+  "studio.payments.ways.bankKicker": {
+    "status": "mt",
+    "srcHash": "d3958e41f40d"
+  },
+  "studio.payments.ways.bankShown": {
+    "status": "mt",
+    "srcHash": "96322d7e0674"
+  },
+  "studio.payments.ways.bankTitle": {
+    "status": "mt",
+    "srcHash": "ff1d79c5055b"
+  },
+  "studio.payments.ways.between": {
+    "status": "mt",
+    "srcHash": "54bad51a56b3"
+  },
+  "studio.payments.ways.bic": {
+    "status": "src",
+    "srcHash": "7434fa918f1c"
+  },
+  "studio.payments.ways.byHand": {
+    "status": "mt",
+    "srcHash": "14c208d30019"
+  },
+  "studio.payments.ways.byHandNote": {
+    "status": "mt",
+    "srcHash": "c60226fbc64d"
+  },
+  "studio.payments.ways.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.payments.ways.choose": {
+    "status": "mt",
+    "srcHash": "c3b69e661eec"
+  },
+  "studio.payments.ways.countries": {
+    "status": "mt",
+    "srcHash": "8467c0d99c79"
+  },
+  "studio.payments.ways.countriesHelp": {
+    "status": "mt",
+    "srcHash": "7dd51ea0554f"
+  },
+  "studio.payments.ways.country": {
+    "status": "mt",
+    "srcHash": "d523ebbd1014"
+  },
+  "studio.payments.ways.countrySource": {
+    "status": "mt",
+    "srcHash": "ef0efc8f8a94"
+  },
+  "studio.payments.ways.countrySourceNoShop": {
+    "status": "mt",
+    "srcHash": "9f7cb38f932d"
+  },
+  "studio.payments.ways.countrySourceShop": {
+    "status": "mt",
+    "srcHash": "eedde42c780e"
+  },
+  "studio.payments.ways.currencies": {
+    "status": "mt",
+    "srcHash": "a68898efa4d2"
+  },
+  "studio.payments.ways.currenciesHelp": {
+    "status": "mt",
+    "srcHash": "465b5fca9f1d"
+  },
+  "studio.payments.ways.currency": {
+    "status": "mt",
+    "srcHash": "e070de224434"
+  },
+  "studio.payments.ways.editDetails": {
+    "status": "mt",
+    "srcHash": "4173a96a528f"
+  },
+  "studio.payments.ways.editRules": {
+    "status": "mt",
+    "srcHash": "83bf03ddcd32"
+  },
+  "studio.payments.ways.editRulesOf": {
+    "status": "mt",
+    "srcHash": "fe6c74450598"
+  },
+  "studio.payments.ways.emptyBody": {
+    "status": "mt",
+    "srcHash": "aab2d2aef6cb"
+  },
+  "studio.payments.ways.emptyTitle": {
+    "status": "mt",
+    "srcHash": "71a3a657819a"
+  },
+  "studio.payments.ways.followsCards": {
+    "status": "mt",
+    "srcHash": "5026d1f7ad74"
+  },
+  "studio.payments.ways.from": {
+    "status": "mt",
+    "srcHash": "7d4c0663c972"
+  },
+  "studio.payments.ways.fromMin": {
+    "status": "mt",
+    "srcHash": "41819cb8d2bf"
+  },
+  "studio.payments.ways.holder": {
+    "status": "mt",
+    "srcHash": "714ac805d07e"
+  },
+  "studio.payments.ways.iban": {
+    "status": "src",
+    "srcHash": "e81566a5d524"
+  },
+  "studio.payments.ways.largest": {
+    "status": "mt",
+    "srcHash": "e4e1e06ebfbe"
+  },
+  "studio.payments.ways.moveDown": {
+    "status": "mt",
+    "srcHash": "d6b738bcbb55"
+  },
+  "studio.payments.ways.moveUp": {
+    "status": "mt",
+    "srcHash": "28923ce3eab7"
+  },
+  "studio.payments.ways.noAccounts": {
+    "status": "mt",
+    "srcHash": "145ce96dbcc3"
+  },
+  "studio.payments.ways.noManual": {
+    "status": "mt",
+    "srcHash": "fbc50ed32e1e"
+  },
+  "studio.payments.ways.none": {
+    "status": "mt",
+    "srcHash": "6eef6648406c"
+  },
+  "studio.payments.ways.noneFromProvider": {
+    "status": "mt",
+    "srcHash": "e5f30ed933d2"
+  },
+  "studio.payments.ways.note": {
+    "status": "mt",
+    "srcHash": "36be777531c3"
+  },
+  "studio.payments.ways.noteHelp": {
+    "status": "mt",
+    "srcHash": "fd269931f19d"
+  },
+  "studio.payments.ways.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "studio.payments.ways.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "studio.payments.ways.onlyDocument": {
+    "status": "mt",
+    "srcHash": "cc3a78482040"
+  },
+  "studio.payments.ways.onlyFor": {
+    "status": "mt",
+    "srcHash": "01db13811492"
+  },
+  "studio.payments.ways.onlyForHelp": {
+    "status": "mt",
+    "srcHash": "ffe3cca24146"
+  },
+  "studio.payments.ways.onlyForLine": {
+    "status": "mt",
+    "srcHash": "632afe7d00b9"
+  },
+  "studio.payments.ways.onlyShape": {
+    "status": "mt",
+    "srcHash": "05255b4453a2"
+  },
+  "studio.payments.ways.previewChecking": {
+    "status": "mt",
+    "srcHash": "820d6004b037"
+  },
+  "studio.payments.ways.previewHelp": {
+    "status": "mt",
+    "srcHash": "abba32582b9a"
+  },
+  "studio.payments.ways.previewNone": {
+    "status": "mt",
+    "srcHash": "7771d1d402e7"
+  },
+  "studio.payments.ways.previewSees": {
+    "status": "mt",
+    "srcHash": "d8b3fb27f2f1"
+  },
+  "studio.payments.ways.previewTitle": {
+    "status": "mt",
+    "srcHash": "8cb9b5f74f9d"
+  },
+  "studio.payments.ways.providerNote": {
+    "status": "mt",
+    "srcHash": "d841b5499d22"
+  },
+  "studio.payments.ways.remove": {
+    "status": "mt",
+    "srcHash": "797e22a83a85"
+  },
+  "studio.payments.ways.removeAccount": {
+    "status": "mt",
+    "srcHash": "983d31bc7510"
+  },
+  "studio.payments.ways.removeChip": {
+    "status": "mt",
+    "srcHash": "0ae125470113"
+  },
+  "studio.payments.ways.rulesKicker": {
+    "status": "mt",
+    "srcHash": "bb11a8e3f871"
+  },
+  "studio.payments.ways.rulesKickerHand": {
+    "status": "mt",
+    "srcHash": "f41eff1340d8"
+  },
+  "studio.payments.ways.saveBank": {
+    "status": "mt",
+    "srcHash": "95f13c344c63"
+  },
+  "studio.payments.ways.saveRules": {
+    "status": "mt",
+    "srcHash": "a2ce24ee3e9a"
+  },
+  "studio.payments.ways.smallest": {
+    "status": "mt",
+    "srcHash": "fd9f565ccadf"
+  },
+  "studio.payments.ways.sortCode": {
+    "status": "src",
+    "srcHash": "aa8631b04306"
+  },
+  "studio.payments.ways.tagHand": {
+    "status": "mt",
+    "srcHash": "14c208d30019"
+  },
+  "studio.payments.ways.upToMax": {
+    "status": "mt",
+    "srcHash": "fc86786c728a"
+  },
   "studio.payments.webhook.address": {
     "status": "mt",
     "srcHash": "d70f93df5e8f"
@@ -27370,6 +28230,18 @@
   "studio.payments.webhook.arrived": {
     "status": "mt",
     "srcHash": "f3db82a319a5"
+  },
+  "studio.payments.webhook.badLive": {
+    "status": "mt",
+    "srcHash": "453d441f7ced"
+  },
+  "studio.payments.webhook.badTest": {
+    "status": "mt",
+    "srcHash": "3581e1d61eb3"
+  },
+  "studio.payments.webhook.caught": {
+    "status": "mt",
+    "srcHash": "ef57aab24d86"
   },
   "studio.payments.webhook.copyAddress": {
     "status": "mt",
@@ -27391,6 +28263,10 @@
     "status": "mt",
     "srcHash": "ea1045f930c7"
   },
+  "studio.payments.webhook.last": {
+    "status": "mt",
+    "srcHash": "3344573705d6"
+  },
   "studio.payments.webhook.noAddress": {
     "status": "mt",
     "srcHash": "e8cd9425a37f"
@@ -27402,6 +28278,10 @@
   "studio.payments.webhook.nothing": {
     "status": "mt",
     "srcHash": "66fdc82c9965"
+  },
+  "studio.payments.webhook.slowed": {
+    "status": "mt",
+    "srcHash": "5774eb02959d"
   },
   "studio.payments.webhook.snapshot": {
     "status": "mt",
