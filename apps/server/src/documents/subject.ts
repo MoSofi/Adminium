@@ -107,7 +107,7 @@ export interface SubjectSlot {
   type: SlotType;
   required: boolean;
   /** Where the slot's value comes from when nothing fills it (`slotDefault`). */
-  default?: 'sequence' | 'connection' | 'setting' | 'now';
+  default?: 'sequence' | 'connection' | 'setting' | 'now' | 'pay-link';
   columns?: readonly { id: string; type: SlotType }[];
 }
 
@@ -127,6 +127,8 @@ function slotDefault(slot: SubjectSlot, input: SubjectInput, scale: number): unk
   if (slot.default === 'now') raw = input.drawnBefore?.[slot.id] ?? input.now.iso;
   else if (slot.default === 'connection') raw = input.currency;
   else if (slot.default === 'sequence') raw = input.number;
+  // Never kept from an earlier draw: a link is current or it is nothing.
+  else if (slot.default === 'pay-link') raw = input.payLink ?? undefined;
   if (raw === undefined || raw === null || raw === '') return undefined;
   const value = coerceSlot(slot.type, raw, scale, input.now.timezone);
   return value === null || value === '' ? undefined : value;
@@ -255,6 +257,8 @@ export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2, timez
 
 export interface SubjectInput {
   slots: readonly SubjectSlot[];
+  /** The record's live pay link, for a slot whose default is `pay-link`; absent or null leaves it empty. */
+  payLink?: string | null;
   mapping: ProfileMapping;
   /** The source row, already unmasked and read with the caller's grants. */
   row: Readonly<Record<string, unknown>>;

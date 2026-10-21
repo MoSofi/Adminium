@@ -35,7 +35,7 @@ export interface OutlineSlot {
     | 'collection'
     | 'qr';
   required: boolean;
-  default?: 'sequence' | 'connection' | 'setting' | 'now';
+  default?: 'sequence' | 'connection' | 'setting' | 'now' | 'pay-link';
   columns?: readonly OutlineSlot[];
 }
 

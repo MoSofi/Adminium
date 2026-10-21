@@ -31,7 +31,7 @@ import { storedTableRef, tableRefIndex } from '../apps/table-ref.js';
 import type { Dialect } from '@adminium/engine';
 import type { Kysely } from 'kysely';
 
-import { addOnSettingsRepo, settingsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, settingsRepo, type DocumentProfile, type MetaDb, type RecordRef } from '@adminium/meta';
 
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
@@ -496,6 +496,8 @@ export interface DocumentPipelineDeps {
   runtime: () => AddOnRuntimeState | null;
   /** Where delivery reports itself; the outcome is on the row regardless. */
   logger?: EmailLogger | undefined;
+  /** A record's live pay link, for documents that print one. */
+  payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
 }
 
 
@@ -526,6 +528,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
     storage: deps.storage,
     runtime: deps.runtime,
     ...(deps.logger === undefined ? {} : { logger: deps.logger }),
+    ...(deps.payLinkFor === undefined ? {} : { payLinkFor: deps.payLinkFor }),
 
     /**
      * What a render needs from the connection when it reads no row.

@@ -62,6 +62,7 @@ import {
   settingsRepo,
   type EnqueueJobInput,
   type InstalledManifest,
+  type RecordRef,
   snapshotsRepo,
   assistantSessionsRepo,
 } from '@adminium/meta';
@@ -293,6 +294,7 @@ import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay
 import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
+import { createPayLinkFor } from './payments/pay-link-for.js';
 import { anyLiveOn, paymentAddOnKeys, readyInMode } from './payments/ready.js';
 import { DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
@@ -1337,11 +1339,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * profile produces the same document however it was asked for" is one
    * object rather than two that agree today.
    */
+  // A printed invoice's pay link is found once the payment parts exist (below).
+  let documentPayLink: ((entity: RecordRef) => Promise<string | null>) | null = null;
   const documents = createDocumentPipeline({
     meta,
     manager,
     storage,
     runtime: () => addOnRuntime,
+    payLinkFor: async (entity) => (documentPayLink === null ? null : documentPayLink(entity)),
     // Step 8's delivery reports here. The outcome is on the register row
     // either way — this is for whoever is watching the queue.
     logger: app.log,
@@ -1527,6 +1532,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       mode,
     );
   };
+  documentPayLink = createPayLinkFor({
+    meta,
+    sources: paymentSources,
+    secret: env.ADMINIUM_SECRET,
+    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+    desktop: env.ADMINIUM_RUNTIME === 'desktop',
+    trustProxy: env.ADMINIUM_TRUST_PROXY,
+    liveOn: () => anyLiveOn({ meta, manifests: appManifests, runtime: () => addOnRuntime }),
+  });
   // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
   const paymentCheckout = createCheckoutService({
     meta,

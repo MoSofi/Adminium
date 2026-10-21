@@ -160,6 +160,8 @@ export interface RenderDeps {
   }) => Promise<SourceRead | null>;
   /** The add-on's own non-secret settings. */
   settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
+  /** The record's live pay link, for a slot whose default is `pay-link`; null when it cannot be paid online now. */
+  payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
   /**
    * The deployment's business identity, for a profile that maps none.
    *
@@ -714,8 +716,15 @@ async function renderCore(
   // Drawn again, it is the same document: a slot it filled by default (the day it was made) stays as it was.
   const drawnBefore = (await documents.drawnFor(profile.id, source.entity))?.subject?.['fields'];
 
+  // A slot that prints the record's pay link: asked once, and a failure to ask is no link.
+  const payLink =
+    deps.payLinkFor !== undefined && outline.slots.some((slot) => slot.default === 'pay-link')
+      ? await deps.payLinkFor(source.entity).catch(() => null)
+      : null;
+
   const subjectFor = (printed: string | null) =>
     buildSubject({
+      payLink,
       slots: outline.slots,
       mapping: profile.mapping as ProfileMapping,
       row: source.row,
