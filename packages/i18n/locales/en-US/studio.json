@@ -3746,7 +3746,8 @@
       "setup": "Setup",
       "ways": "Ways to pay",
       "payables": "What can be paid",
-      "page": "Pay page"
+      "page": "Pay page",
+      "activity": "Activity"
     },
     "loadFailed": "Payments could not be loaded",
     "forbidden": "Seeing payments needs the “Set up payments” or the “See payment activity” permission.",
@@ -3995,6 +3996,140 @@
       "wouldRecord": "this is what would be recorded: one payment of {amount}.",
       "wouldRecordWith": "this is what would be recorded: one payment of {amount}, {paidWith}.",
       "nothingWritten": "Nothing was written to your tables."
+    },
+    "activity": {
+      "state": {
+        "started": "Started",
+        "paid": "Paid",
+        "waiting": "Waiting for the bank",
+        "failed": "Did not go through",
+        "expired": "Expired",
+        "refunded": "Refunded",
+        "refundFailed": "Refund failed"
+      },
+      "service": {
+        "demo": "Demo service"
+      },
+      "way": {
+        "card": "Card",
+        "sepa": "SEPA Direct Debit"
+      },
+      "noRecord": "a record no longer there",
+      "flag": {
+        "notRecorded": "Paid at {service}, not recorded: {record} · {amount}.",
+        "moreThanDue": "Paid, but more than is now due: {service} took {taken} on {record}.",
+        "otherCurrency": "Paid, but in another currency: {service} took {taken}, the invoice was for {asked}.",
+        "otherCurrencyRecord": "Paid, but in another currency: {service} took {taken}, {record} asked for {asked}.",
+        "amountDiffers": "Paid, but the amount differs: {service} took {taken}, the invoice was for {asked}.",
+        "amountDiffersRecord": "Paid, but the amount differs: {service} took {taken}, {record} asked for {asked}.",
+        "refundedThereNoRecord": "Refunded in the {service} dashboard: {amount}. Recorded.",
+        "refundedThere": "Refunded in the {service} dashboard: {amount} on {record}. Recorded.",
+        "voided": "Paid after the invoice was voided: {record} · {amount}.",
+        "voidedRecord": "Paid after the record was removed or voided: {record} · {amount}.",
+        "modeMismatch": "Not believed: {service} answered in the other mode (test or live) for {record} · {amount}. Nothing was recorded.",
+        "paidTwice": "Paid twice: a payment for {record} · {amount} arrived while another was on its way. Both are recorded.",
+        "waitingLong": "Waiting for the bank for {days} days: {record} · {amount}.",
+        "waitingLongWay": "Waiting for the bank for {days} days: {record} · {amount} ({way}).",
+        "recordChanged": "A recorded payment changed: {record} · {amount} is no longer written down as it was."
+      },
+      "why": {
+        "alreadyPaid": "The invoice was already paid in full.",
+        "alreadyPaidRecord": "The record was already paid in full.",
+        "notTaken": "{service} did not say what it took.",
+        "notSent": "The invoice was not sent yet.",
+        "refused": "Its table did not take the payment."
+      },
+      "story": {
+        "refundThere": "Refunded in the {service} dashboard: {amount}",
+        "refundStarted": "Refund of {amount} started",
+        "refunded": "{service} says refunded",
+        "refundFailed": "{service} says the refund failed",
+        "refundApplied": "The record’s balance follows it",
+        "startedFor": "Started for {amount}",
+        "started": "Started",
+        "onPayPage": "Waiting for the customer to finish on the {service} page",
+        "waiting": "{service} says it is waiting for the bank",
+        "failed": "{service} says it did not go through",
+        "nothingTaken": "Nothing was taken",
+        "expired": "The {service} checkout expired before it was paid",
+        "left": "The customer left the {service} page",
+        "abandoned": "The checkout was never opened",
+        "paidAmount": "{service} says paid {amount}",
+        "paid": "{service} says paid",
+        "recorded": "Recorded",
+        "notRecorded": "Not recorded: it needs a look"
+      },
+      "checkedBy": "Checked by {name}",
+      "someone": "someone",
+      "checkedByNote": "Checked by {name} · {note}",
+      "checkedByYou": "Checked by you",
+      "checkedByYouNote": "Checked by you · {note}",
+      "markChecked": "Mark as checked",
+      "toast": {
+        "checked": "Marked as checked",
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the text and copy it.",
+        "downloaded": "Downloaded {file}",
+        "exportFailed": "Could not export. Try again."
+      },
+      "cancel": "Cancel",
+      "noteRequired": "Note (required)",
+      "note": "Note",
+      "noteHelp": "The note stays on this row for everyone who can see Activity.",
+      "notePlaceholder": "What did you check?",
+      "noteNeeded": "Say what you checked.",
+      "needsLook": "Needs a look",
+      "nothingNeedsLook": "Nothing needs a look.",
+      "silentNever": "No webhook from {service} has arrived yet. Adminium found a payment by checking {service}.",
+      "silent": "No webhook from {service} for {hours, plural, one {# hour} other {# hours}}. Adminium found a payment by checking {service}.",
+      "openSetup": "Open setup",
+      "loadFailed": "Could not load payments",
+      "tryAgain": "Try again",
+      "refundOf": "Refund",
+      "id": {
+        "attempt": "Attempt id",
+        "checkout": "{service} checkout id",
+        "payment": "{service} payment id",
+        "refund": "{service} refund id"
+      },
+      "payment": "Payment",
+      "close": "Close",
+      "col": {
+        "way": "Way to pay",
+        "service": "Service",
+        "record": "Record",
+        "when": "When",
+        "what": "What",
+        "amount": "Amount",
+        "state": "State",
+        "mode": "Test or live"
+      },
+      "whatHappened": "What happened",
+      "ids": "Ids",
+      "copyId": "Copy {label}",
+      "all": "All activity",
+      "allSub": "Payment attempts, payments and refunds",
+      "filter": {
+        "state": "State",
+        "allStates": "All states",
+        "service": "Service",
+        "allServices": "All services",
+        "way": "Way to pay",
+        "allWays": "All ways",
+        "mode": "Test / Live",
+        "allModes": "Test and live",
+        "from": "From",
+        "to": "To"
+      },
+      "export": "Export CSV",
+      "loading": "Loading payments",
+      "noMatch": "No payments match these filters.",
+      "clearFilters": "Clear filters",
+      "emptyTitle": "No payments yet.",
+      "emptyBody": "When customers pay, they appear here.",
+      "older": "Load older payments",
+      "viewOnly": "You can view payments. Ask someone who manages payments to act.",
+      "countLabel": "{count, plural, one {# needs a look} other {# need a look}}"
     }
   }
 }

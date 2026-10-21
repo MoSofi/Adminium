@@ -3756,7 +3756,8 @@ export default {
       "setup": "Nastavení",
       "ways": "Způsoby platby",
       "payables": "Co lze zaplatit",
-      "page": "Platební stránka"
+      "page": "Platební stránka",
+      "activity": "Aktivita"
     },
     "loadFailed": "Platby se nepodařilo načíst",
     "forbidden": "K zobrazení plateb potřebujete oprávnění „Nastavit platby“ nebo „Zobrazit aktivitu plateb“.",
@@ -4005,6 +4006,140 @@ export default {
       "wouldRecord": "toto by se zaznamenalo: jedna platba ve výši {amount}.",
       "wouldRecordWith": "toto by se zaznamenalo: jedna platba ve výši {amount}, {paidWith}.",
       "nothingWritten": "Do vašich tabulek se nic nezapsalo."
+    },
+    "activity": {
+      "state": {
+        "started": "Zahájeno",
+        "paid": "Zaplaceno",
+        "waiting": "Čeká na banku",
+        "failed": "Neprošlo",
+        "expired": "Vypršelo",
+        "refunded": "Vráceno",
+        "refundFailed": "Vrácení selhalo"
+      },
+      "service": {
+        "demo": "Ukázková služba"
+      },
+      "way": {
+        "card": "Karta",
+        "sepa": "Inkaso SEPA"
+      },
+      "noRecord": "záznam, který už neexistuje",
+      "flag": {
+        "notRecorded": "Zaplaceno přes {service}, nezaznamenáno: {record} · {amount}.",
+        "moreThanDue": "Zaplaceno, ale víc, než je teď splatné: služba {service} strhla {taken} za {record}.",
+        "otherCurrency": "Zaplaceno, ale v jiné měně: služba {service} strhla {taken}, faktura zněla na {asked}.",
+        "otherCurrencyRecord": "Zaplaceno, ale v jiné měně: služba {service} strhla {taken}, {record} žádal {asked}.",
+        "amountDiffers": "Zaplaceno, ale částka se liší: služba {service} strhla {taken}, faktura zněla na {asked}.",
+        "amountDiffersRecord": "Zaplaceno, ale částka se liší: služba {service} strhla {taken}, {record} žádal {asked}.",
+        "refundedThereNoRecord": "Vráceno v přehledu služby {service}: {amount}. Zaznamenáno.",
+        "refundedThere": "Vráceno v přehledu služby {service}: {amount} k {record}. Zaznamenáno.",
+        "voided": "Zaplaceno po zrušení faktury: {record} · {amount}.",
+        "voidedRecord": "Zaplaceno po odstranění nebo zrušení záznamu: {record} · {amount}.",
+        "modeMismatch": "Nepřijato: služba {service} odpověděla v jiném režimu (testovacím nebo ostrém) pro {record} · {amount}. Nic nebylo zaznamenáno.",
+        "paidTwice": "Zaplaceno dvakrát: platba za {record} · {amount} přišla, když už byla na cestě jiná. Obě jsou zaznamenány.",
+        "waitingLong": "Čeká na banku už {days} dní: {record} · {amount}.",
+        "waitingLongWay": "Čeká na banku už {days} dní: {record} · {amount} ({way}).",
+        "recordChanged": "Zaznamenaná platba se změnila: {record} · {amount} už není zaznamenána jako předtím."
+      },
+      "why": {
+        "alreadyPaid": "Faktura už byla zaplacena v plné výši.",
+        "alreadyPaidRecord": "Záznam už byl zaplacen v plné výši.",
+        "notTaken": "Služba {service} neuvedla, kolik strhla.",
+        "notSent": "Faktura ještě nebyla odeslána.",
+        "refused": "Jeho tabulka platbu nepřijala."
+      },
+      "story": {
+        "refundThere": "Vráceno v přehledu služby {service}: {amount}",
+        "refundStarted": "Vrácení {amount} zahájeno",
+        "refunded": "Služba {service} hlásí: vráceno",
+        "refundFailed": "Služba {service} hlásí: vrácení selhalo",
+        "refundApplied": "Zůstatek záznamu se podle něj upravil",
+        "startedFor": "Zahájeno na {amount}",
+        "started": "Zahájeno",
+        "onPayPage": "Čeká se, až zákazník dokončí platbu na stránce {service}",
+        "waiting": "Služba {service} hlásí: čeká na banku",
+        "failed": "Služba {service} hlásí: neprošlo",
+        "nothingTaken": "Nic nebylo strženo",
+        "expired": "Platba u služby {service} vypršela dřív, než byla zaplacena",
+        "left": "Zákazník opustil stránku {service}",
+        "abandoned": "Platba nebyla nikdy otevřena",
+        "paidAmount": "Služba {service} hlásí: zaplaceno {amount}",
+        "paid": "Služba {service} hlásí: zaplaceno",
+        "recorded": "Zaznamenáno",
+        "notRecorded": "Nezaznamenáno: je potřeba se podívat"
+      },
+      "checkedBy": "Zkontroloval(a) {name}",
+      "someone": "někdo",
+      "checkedByNote": "Zkontroloval(a) {name} · {note}",
+      "checkedByYou": "Zkontrolovali jste vy",
+      "checkedByYouNote": "Zkontrolovali jste vy · {note}",
+      "markChecked": "Označit jako zkontrolované",
+      "toast": {
+        "checked": "Označeno jako zkontrolované",
+        "copied": "Zkopírováno",
+        "copyFailed": "Nelze zkopírovat. Označte text a zkopírujte ho.",
+        "downloaded": "Staženo: {file}",
+        "exportFailed": "Export se nepodařil. Zkuste to znovu."
+      },
+      "cancel": "Zrušit",
+      "noteRequired": "Poznámka (povinná)",
+      "note": "Poznámka",
+      "noteHelp": "Poznámka zůstane u tohoto řádku pro každého, kdo vidí aktivitu.",
+      "notePlaceholder": "Co jste zkontrolovali?",
+      "noteNeeded": "Napište, co jste zkontrolovali.",
+      "needsLook": "Je potřeba se podívat",
+      "nothingNeedsLook": "Není potřeba se na nic dívat.",
+      "silentNever": "Od služby {service} zatím nepřišel žádný webhook. Adminium našel platbu dotazem u služby {service}.",
+      "silent": "Od služby {service} nepřišel webhook už {hours, plural, one {# hodinu} few {# hodiny} many {# hodiny} other {# hodin}}. Adminium našel platbu dotazem u služby {service}.",
+      "openSetup": "Otevřít nastavení",
+      "loadFailed": "Platby se nepodařilo načíst",
+      "tryAgain": "Zkusit znovu",
+      "refundOf": "Vrácení",
+      "id": {
+        "attempt": "ID pokusu",
+        "checkout": "ID pokladny {service}",
+        "payment": "ID platby {service}",
+        "refund": "ID vrácení {service}"
+      },
+      "payment": "Platba",
+      "close": "Zavřít",
+      "col": {
+        "way": "Způsob platby",
+        "service": "Služba",
+        "record": "Záznam",
+        "when": "Kdy",
+        "what": "Co",
+        "amount": "Částka",
+        "state": "Stav",
+        "mode": "Test nebo ostrý"
+      },
+      "whatHappened": "Co se stalo",
+      "ids": "ID",
+      "copyId": "Kopírovat {label}",
+      "all": "Veškerá aktivita",
+      "allSub": "Pokusy o platbu, platby a vrácení",
+      "filter": {
+        "state": "Stav",
+        "allStates": "Všechny stavy",
+        "service": "Služba",
+        "allServices": "Všechny služby",
+        "way": "Způsob platby",
+        "allWays": "Všechny způsoby",
+        "mode": "Test / Ostrý",
+        "allModes": "Test i ostrý",
+        "from": "Od",
+        "to": "Do"
+      },
+      "export": "Exportovat CSV",
+      "loading": "Načítají se platby",
+      "noMatch": "Těmto filtrům neodpovídají žádné platby.",
+      "clearFilters": "Zrušit filtry",
+      "emptyTitle": "Zatím žádné platby.",
+      "emptyBody": "Až zákazníci zaplatí, objeví se tady.",
+      "older": "Načíst starší platby",
+      "viewOnly": "Platby můžete prohlížet. Požádejte někoho, kdo platby spravuje, aby jednal.",
+      "countLabel": "K prohlédnutí: {count, plural, one {#} few {#} many {#} other {#}}"
     }
   }
 } as const;

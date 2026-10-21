@@ -3756,7 +3756,8 @@ export default {
       "setup": "Einrichtung",
       "ways": "Zahlungsarten",
       "payables": "Was bezahlt werden kann",
-      "page": "Zahlungsseite"
+      "page": "Zahlungsseite",
+      "activity": "Aktivität"
     },
     "loadFailed": "Zahlungen konnten nicht geladen werden",
     "forbidden": "Um Zahlungen zu sehen, brauchen Sie die Berechtigung „Zahlungen einrichten“ oder „Zahlungsaktivität sehen“.",
@@ -4005,6 +4006,140 @@ export default {
       "wouldRecord": "das würde erfasst: eine Zahlung über {amount}.",
       "wouldRecordWith": "das würde erfasst: eine Zahlung über {amount}, {paidWith}.",
       "nothingWritten": "In Ihre Tabellen wurde nichts geschrieben."
+    },
+    "activity": {
+      "state": {
+        "started": "Begonnen",
+        "paid": "Bezahlt",
+        "waiting": "Wartet auf die Bank",
+        "failed": "Nicht durchgegangen",
+        "expired": "Abgelaufen",
+        "refunded": "Erstattet",
+        "refundFailed": "Erstattung fehlgeschlagen"
+      },
+      "service": {
+        "demo": "Demo-Dienst"
+      },
+      "way": {
+        "card": "Karte",
+        "sepa": "SEPA-Lastschrift"
+      },
+      "noRecord": "ein Datensatz, den es nicht mehr gibt",
+      "flag": {
+        "notRecorded": "Bei {service} bezahlt, nicht erfasst: {record} · {amount}.",
+        "moreThanDue": "Bezahlt, aber mehr als jetzt fällig: {service} hat {taken} für {record} eingezogen.",
+        "otherCurrency": "Bezahlt, aber in einer anderen Währung: {service} hat {taken} eingezogen, die Rechnung lautete auf {asked}.",
+        "otherCurrencyRecord": "Bezahlt, aber in einer anderen Währung: {service} hat {taken} eingezogen, {record} verlangte {asked}.",
+        "amountDiffers": "Bezahlt, aber der Betrag weicht ab: {service} hat {taken} eingezogen, die Rechnung lautete auf {asked}.",
+        "amountDiffersRecord": "Bezahlt, aber der Betrag weicht ab: {service} hat {taken} eingezogen, {record} verlangte {asked}.",
+        "refundedThereNoRecord": "Im Dashboard von {service} erstattet: {amount}. Erfasst.",
+        "refundedThere": "Im Dashboard von {service} erstattet: {amount} für {record}. Erfasst.",
+        "voided": "Bezahlt, nachdem die Rechnung storniert wurde: {record} · {amount}.",
+        "voidedRecord": "Bezahlt, nachdem der Datensatz entfernt oder storniert wurde: {record} · {amount}.",
+        "modeMismatch": "Nicht übernommen: {service} hat für {record} · {amount} im anderen Modus (Test oder Live) geantwortet. Es wurde nichts erfasst.",
+        "paidTwice": "Doppelt bezahlt: Eine Zahlung für {record} · {amount} kam an, während eine andere unterwegs war. Beide sind erfasst.",
+        "waitingLong": "Wartet seit {days} Tagen auf die Bank: {record} · {amount}.",
+        "waitingLongWay": "Wartet seit {days} Tagen auf die Bank: {record} · {amount} ({way}).",
+        "recordChanged": "Eine erfasste Zahlung hat sich geändert: {record} · {amount} ist nicht mehr so erfasst wie zuvor."
+      },
+      "why": {
+        "alreadyPaid": "Die Rechnung war bereits vollständig bezahlt.",
+        "alreadyPaidRecord": "Der Datensatz war bereits vollständig bezahlt.",
+        "notTaken": "{service} hat nicht gesagt, welcher Betrag eingezogen wurde.",
+        "notSent": "Die Rechnung war noch nicht versendet.",
+        "refused": "Ihre Tabelle hat die Zahlung nicht angenommen."
+      },
+      "story": {
+        "refundThere": "Im Dashboard von {service} erstattet: {amount}",
+        "refundStarted": "Erstattung über {amount} begonnen",
+        "refunded": "{service} meldet: erstattet",
+        "refundFailed": "{service} meldet: Erstattung fehlgeschlagen",
+        "refundApplied": "Der Saldo des Datensatzes folgt ihr",
+        "startedFor": "Begonnen über {amount}",
+        "started": "Begonnen",
+        "onPayPage": "Wartet darauf, dass die Kundin oder der Kunde auf der Seite von {service} abschließt",
+        "waiting": "{service} meldet: wartet auf die Bank",
+        "failed": "{service} meldet: nicht durchgegangen",
+        "nothingTaken": "Es wurde nichts eingezogen",
+        "expired": "Der Checkout bei {service} ist abgelaufen, bevor bezahlt wurde",
+        "left": "Die Kundin oder der Kunde hat die Seite von {service} verlassen",
+        "abandoned": "Der Checkout wurde nie geöffnet",
+        "paidAmount": "{service} meldet: {amount} bezahlt",
+        "paid": "{service} meldet: bezahlt",
+        "recorded": "Erfasst",
+        "notRecorded": "Nicht erfasst: muss angesehen werden"
+      },
+      "checkedBy": "Geprüft von {name}",
+      "someone": "jemandem",
+      "checkedByNote": "Geprüft von {name} · {note}",
+      "checkedByYou": "Von Ihnen geprüft",
+      "checkedByYouNote": "Von Ihnen geprüft · {note}",
+      "markChecked": "Als geprüft markieren",
+      "toast": {
+        "checked": "Als geprüft markiert",
+        "copied": "Kopiert",
+        "copyFailed": "Kopieren nicht möglich. Markieren Sie den Text und kopieren Sie ihn.",
+        "downloaded": "{file} heruntergeladen",
+        "exportFailed": "Export nicht möglich. Versuchen Sie es erneut."
+      },
+      "cancel": "Abbrechen",
+      "noteRequired": "Notiz (erforderlich)",
+      "note": "Notiz",
+      "noteHelp": "Die Notiz bleibt an dieser Zeile, für alle, die die Aktivität sehen können.",
+      "notePlaceholder": "Was haben Sie geprüft?",
+      "noteNeeded": "Schreiben Sie, was Sie geprüft haben.",
+      "needsLook": "Muss angesehen werden",
+      "nothingNeedsLook": "Nichts muss angesehen werden.",
+      "silentNever": "Von {service} ist noch kein Webhook angekommen. Adminium hat eine Zahlung gefunden, indem es bei {service} nachgefragt hat.",
+      "silent": "Seit {hours, plural, one {# Stunde} other {# Stunden}} kein Webhook von {service}. Adminium hat eine Zahlung gefunden, indem es bei {service} nachgefragt hat.",
+      "openSetup": "Einrichtung öffnen",
+      "loadFailed": "Zahlungen konnten nicht geladen werden",
+      "tryAgain": "Erneut versuchen",
+      "refundOf": "Erstattung",
+      "id": {
+        "attempt": "Versuchs-ID",
+        "checkout": "Checkout-ID bei {service}",
+        "payment": "Zahlungs-ID bei {service}",
+        "refund": "Erstattungs-ID bei {service}"
+      },
+      "payment": "Zahlung",
+      "close": "Schließen",
+      "col": {
+        "way": "Zahlungsweg",
+        "service": "Dienst",
+        "record": "Datensatz",
+        "when": "Wann",
+        "what": "Was",
+        "amount": "Betrag",
+        "state": "Status",
+        "mode": "Test oder Live"
+      },
+      "whatHappened": "Was passiert ist",
+      "ids": "IDs",
+      "copyId": "{label} kopieren",
+      "all": "Alle Aktivitäten",
+      "allSub": "Zahlungsversuche, Zahlungen und Erstattungen",
+      "filter": {
+        "state": "Status",
+        "allStates": "Alle Status",
+        "service": "Dienst",
+        "allServices": "Alle Dienste",
+        "way": "Zahlungsweg",
+        "allWays": "Alle Wege",
+        "mode": "Test / Live",
+        "allModes": "Test und Live",
+        "from": "Von",
+        "to": "Bis"
+      },
+      "export": "CSV exportieren",
+      "loading": "Zahlungen werden geladen",
+      "noMatch": "Keine Zahlungen passen zu diesen Filtern.",
+      "clearFilters": "Filter zurücksetzen",
+      "emptyTitle": "Noch keine Zahlungen.",
+      "emptyBody": "Wenn Kundinnen und Kunden bezahlen, erscheinen die Zahlungen hier.",
+      "older": "Ältere Zahlungen laden",
+      "viewOnly": "Sie können Zahlungen ansehen. Bitten Sie jemanden, der Zahlungen verwaltet, zu handeln.",
+      "countLabel": "{count, plural, one {# muss angesehen werden} other {# müssen angesehen werden}}"
     }
   }
 } as const;

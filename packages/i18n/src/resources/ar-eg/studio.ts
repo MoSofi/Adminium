@@ -3756,7 +3756,8 @@ export default {
       "setup": "الإعداد",
       "ways": "طرق الدفع",
       "payables": "ما يمكن دفعه",
-      "page": "صفحة الدفع"
+      "page": "صفحة الدفع",
+      "activity": "النشاط"
     },
     "loadFailed": "تعذّر تحميل المدفوعات",
     "forbidden": "لرؤية المدفوعات تحتاج إذن «إعداد المدفوعات» أو «رؤية نشاط المدفوعات».",
@@ -4005,6 +4006,140 @@ export default {
       "wouldRecord": "هذا ما سيُسجَّل: دفعة واحدة بقيمة {amount}.",
       "wouldRecordWith": "هذا ما سيُسجَّل: دفعة واحدة بقيمة {amount}، {paidWith}.",
       "nothingWritten": "لم يُكتب شيء في جداولك."
+    },
+    "activity": {
+      "state": {
+        "started": "بدأت",
+        "paid": "مدفوعة",
+        "waiting": "بانتظار البنك",
+        "failed": "لم تتم",
+        "expired": "انتهت صلاحيتها",
+        "refunded": "تم ردّها",
+        "refundFailed": "تعذّر الرد"
+      },
+      "service": {
+        "demo": "خدمة تجريبية"
+      },
+      "way": {
+        "card": "بطاقة",
+        "sepa": "خصم مباشر SEPA"
+      },
+      "noRecord": "سجل لم يعد موجودًا",
+      "flag": {
+        "notRecorded": "دُفعت عبر {service} ولم تُسجَّل: {record} · {amount}.",
+        "moreThanDue": "دُفعت، لكن بأكثر من المستحق الآن: أخذت {service} مبلغ {taken} على {record}.",
+        "otherCurrency": "دُفعت، لكن بعملة أخرى: أخذت {service} مبلغ {taken}، وكانت الفاتورة بمبلغ {asked}.",
+        "otherCurrencyRecord": "دُفعت، لكن بعملة أخرى: أخذت {service} مبلغ {taken}، وطلب {record} مبلغ {asked}.",
+        "amountDiffers": "دُفعت، لكن المبلغ مختلف: أخذت {service} مبلغ {taken}، وكانت الفاتورة بمبلغ {asked}.",
+        "amountDiffersRecord": "دُفعت، لكن المبلغ مختلف: أخذت {service} مبلغ {taken}، وطلب {record} مبلغ {asked}.",
+        "refundedThereNoRecord": "تم الرد في لوحة تحكم {service}: {amount}. سُجِّل.",
+        "refundedThere": "تم الرد في لوحة تحكم {service}: {amount} على {record}. سُجِّل.",
+        "voided": "دُفعت بعد إلغاء الفاتورة: {record} · {amount}.",
+        "voidedRecord": "دُفعت بعد حذف السجل أو إلغائه: {record} · {amount}.",
+        "modeMismatch": "لم تُعتمد: أجابت {service} بالوضع الآخر (اختبار أو حقيقي) عن {record} · {amount}. لم يُسجَّل شيء.",
+        "paidTwice": "دُفعت مرتين: وصلت دفعة عن {record} · {amount} بينما كانت دفعة أخرى في الطريق. سُجِّلت الدفعتان.",
+        "waitingLong": "بانتظار البنك منذ {days} يومًا: {record} · {amount}.",
+        "waitingLongWay": "بانتظار البنك منذ {days} يومًا: {record} · {amount} ({way}).",
+        "recordChanged": "تغيّرت دفعة مسجّلة: لم تعد {record} · {amount} مسجّلة كما كانت."
+      },
+      "why": {
+        "alreadyPaid": "كانت الفاتورة مدفوعة بالكامل.",
+        "alreadyPaidRecord": "كان السجل مدفوعًا بالكامل.",
+        "notTaken": "لم تذكر {service} المبلغ الذي أخذته.",
+        "notSent": "لم تكن الفاتورة قد أُرسلت بعد.",
+        "refused": "لم يقبل جدوله الدفعة."
+      },
+      "story": {
+        "refundThere": "تم الرد في لوحة تحكم {service}: {amount}",
+        "refundStarted": "بدأ رد مبلغ {amount}",
+        "refunded": "تقول {service}: تم الرد",
+        "refundFailed": "تقول {service}: تعذّر الرد",
+        "refundApplied": "يتبعه رصيد السجل",
+        "startedFor": "بدأت بمبلغ {amount}",
+        "started": "بدأت",
+        "onPayPage": "بانتظار أن يُنهي العميل الدفع على صفحة {service}",
+        "waiting": "تقول {service}: بانتظار البنك",
+        "failed": "تقول {service}: لم تتم",
+        "nothingTaken": "لم يُؤخذ أي مبلغ",
+        "expired": "انتهت صلاحية الدفع عبر {service} قبل إتمامه",
+        "left": "غادر العميل صفحة {service}",
+        "abandoned": "لم تُفتح صفحة الدفع قط",
+        "paidAmount": "تقول {service}: دُفع {amount}",
+        "paid": "تقول {service}: مدفوعة",
+        "recorded": "سُجِّلت",
+        "notRecorded": "لم تُسجَّل: تحتاج إلى نظرة"
+      },
+      "checkedBy": "راجعها {name}",
+      "someone": "شخص ما",
+      "checkedByNote": "راجعها {name} · {note}",
+      "checkedByYou": "راجعتها أنت",
+      "checkedByYouNote": "راجعتها أنت · {note}",
+      "markChecked": "تحديد كمُراجَعة",
+      "toast": {
+        "checked": "تم التحديد كمُراجَعة",
+        "copied": "تم النسخ",
+        "copyFailed": "تعذّر النسخ. حدّد النص وانسخه.",
+        "downloaded": "تم تنزيل {file}",
+        "exportFailed": "تعذّر التصدير. أعد المحاولة."
+      },
+      "cancel": "إلغاء",
+      "noteRequired": "ملاحظة (مطلوبة)",
+      "note": "ملاحظة",
+      "noteHelp": "تبقى الملاحظة على هذا الصف لكل من يرى النشاط.",
+      "notePlaceholder": "ماذا راجعت؟",
+      "noteNeeded": "اكتب ما راجعته.",
+      "needsLook": "تحتاج إلى نظرة",
+      "nothingNeedsLook": "لا شيء يحتاج إلى نظرة.",
+      "silentNever": "لم يصل أي webhook من {service} بعد. عثر Adminium على دفعة بالاستعلام من {service}.",
+      "silent": "لا webhook من {service} منذ {hours, plural, zero {# ساعة} one {# ساعة} two {# ساعتين} few {# ساعات} many {# ساعة} other {# ساعة}}. عثر Adminium على دفعة بالاستعلام من {service}.",
+      "openSetup": "فتح الإعداد",
+      "loadFailed": "تعذّر تحميل المدفوعات",
+      "tryAgain": "إعادة المحاولة",
+      "refundOf": "رد",
+      "id": {
+        "attempt": "معرّف المحاولة",
+        "checkout": "معرّف صفحة الدفع في {service}",
+        "payment": "معرّف الدفعة في {service}",
+        "refund": "معرّف الرد في {service}"
+      },
+      "payment": "دفعة",
+      "close": "إغلاق",
+      "col": {
+        "way": "طريقة الدفع",
+        "service": "الخدمة",
+        "record": "السجل",
+        "when": "متى",
+        "what": "ماذا",
+        "amount": "المبلغ",
+        "state": "الحالة",
+        "mode": "اختبار أو حقيقي"
+      },
+      "whatHappened": "ما الذي حدث",
+      "ids": "المعرّفات",
+      "copyId": "نسخ {label}",
+      "all": "كل النشاط",
+      "allSub": "محاولات الدفع والمدفوعات والردود",
+      "filter": {
+        "state": "الحالة",
+        "allStates": "كل الحالات",
+        "service": "الخدمة",
+        "allServices": "كل الخدمات",
+        "way": "طريقة الدفع",
+        "allWays": "كل الطرق",
+        "mode": "اختبار / حقيقي",
+        "allModes": "اختبار وحقيقي",
+        "from": "من",
+        "to": "إلى"
+      },
+      "export": "تصدير CSV",
+      "loading": "جارٍ تحميل المدفوعات",
+      "noMatch": "لا توجد مدفوعات تطابق عوامل التصفية هذه.",
+      "clearFilters": "مسح عوامل التصفية",
+      "emptyTitle": "لا مدفوعات بعد.",
+      "emptyBody": "عندما يدفع العملاء، تظهر المدفوعات هنا.",
+      "older": "تحميل مدفوعات أقدم",
+      "viewOnly": "يمكنك عرض المدفوعات. اطلب من أحد مديري المدفوعات اتخاذ الإجراء.",
+      "countLabel": "تحتاج إلى نظرة: {count, plural, zero {#} one {#} two {#} few {#} many {#} other {#}}"
     }
   }
 } as const;

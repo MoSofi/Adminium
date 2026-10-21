@@ -3746,7 +3746,8 @@
       "setup": "設定",
       "ways": "付款方式",
       "payables": "可付款的內容",
-      "page": "付款頁面"
+      "page": "付款頁面",
+      "activity": "動態"
     },
     "loadFailed": "無法載入付款",
     "forbidden": "查看付款需要「設定付款」或「查看付款活動」權限。",
@@ -3995,6 +3996,140 @@
       "wouldRecord": "將會記錄的內容：一筆 {amount} 的付款。",
       "wouldRecordWith": "將會記錄的內容：一筆 {amount} 的付款，{paidWith}。",
       "nothingWritten": "沒有在您的資料表中寫入任何內容。"
+    },
+    "activity": {
+      "state": {
+        "started": "已開始",
+        "paid": "已付款",
+        "waiting": "等待銀行確認",
+        "failed": "未成功",
+        "expired": "已過期",
+        "refunded": "已退款",
+        "refundFailed": "退款失敗"
+      },
+      "service": {
+        "demo": "示範服務"
+      },
+      "way": {
+        "card": "信用卡",
+        "sepa": "SEPA 直接扣款"
+      },
+      "noRecord": "已不存在的紀錄",
+      "flag": {
+        "notRecorded": "已在 {service} 付款，但未記錄：{record} · {amount}。",
+        "moreThanDue": "已付款，但超過目前應付金額：{service} 就 {record} 扣取了 {taken}。",
+        "otherCurrency": "已付款，但幣別不同：{service} 扣取了 {taken}，發票金額為 {asked}。",
+        "otherCurrencyRecord": "已付款，但幣別不同：{service} 扣取了 {taken}，{record} 要求 {asked}。",
+        "amountDiffers": "已付款，但金額不符：{service} 扣取了 {taken}，發票金額為 {asked}。",
+        "amountDiffersRecord": "已付款，但金額不符：{service} 扣取了 {taken}，{record} 要求 {asked}。",
+        "refundedThereNoRecord": "已在 {service} 主控台中退款：{amount}。已記錄。",
+        "refundedThere": "已在 {service} 主控台中退款：{record} 的 {amount}。已記錄。",
+        "voided": "發票作廢後才付款：{record} · {amount}。",
+        "voidedRecord": "紀錄刪除或作廢後才付款：{record} · {amount}。",
+        "modeMismatch": "未採信：{service} 對 {record} · {amount} 的回應來自另一種模式（測試或正式）。未記錄任何內容。",
+        "paidTwice": "重複付款：{record} · {amount} 的一筆付款抵達時，另一筆付款正在處理中。兩筆都已記錄。",
+        "waitingLong": "已等待銀行確認 {days} 天：{record} · {amount}。",
+        "waitingLongWay": "已等待銀行確認 {days} 天：{record} · {amount}（{way}）。",
+        "recordChanged": "一筆已記錄的付款有了變化：{record} · {amount} 的紀錄已與先前不同。"
+      },
+      "why": {
+        "alreadyPaid": "該發票已全額付清。",
+        "alreadyPaidRecord": "該紀錄已全額付清。",
+        "notTaken": "{service} 未說明扣取的金額。",
+        "notSent": "該發票尚未寄出。",
+        "refused": "其資料表未接受這筆付款。"
+      },
+      "story": {
+        "refundThere": "已在 {service} 主控台中退款：{amount}",
+        "refundStarted": "已開始退款 {amount}",
+        "refunded": "{service} 顯示：已退款",
+        "refundFailed": "{service} 顯示：退款失敗",
+        "refundApplied": "紀錄的餘額已隨之更新",
+        "startedFor": "以 {amount} 開始",
+        "started": "已開始",
+        "onPayPage": "等待客戶在 {service} 頁面上完成付款",
+        "waiting": "{service} 顯示：等待銀行確認",
+        "failed": "{service} 顯示：未成功",
+        "nothingTaken": "未扣取任何款項",
+        "expired": "{service} 付款在完成前已過期",
+        "left": "客戶離開了 {service} 頁面",
+        "abandoned": "付款頁面從未被開啟",
+        "paidAmount": "{service} 顯示：已付 {amount}",
+        "paid": "{service} 顯示：已付款",
+        "recorded": "已記錄",
+        "notRecorded": "未記錄：需要查看"
+      },
+      "checkedBy": "由 {name} 核對",
+      "someone": "某人",
+      "checkedByNote": "由 {name} 核對 · {note}",
+      "checkedByYou": "由您核對",
+      "checkedByYouNote": "由您核對 · {note}",
+      "markChecked": "標記為已核對",
+      "toast": {
+        "checked": "已標記為已核對",
+        "copied": "已複製",
+        "copyFailed": "無法複製。請選取文字後複製。",
+        "downloaded": "已下載 {file}",
+        "exportFailed": "無法匯出。請重試。"
+      },
+      "cancel": "取消",
+      "noteRequired": "備註（必填）",
+      "note": "備註",
+      "noteHelp": "此備註會保留在這一列，所有能查看動態的人都看得到。",
+      "notePlaceholder": "您核對了什麼？",
+      "noteNeeded": "請寫下您核對了什麼。",
+      "needsLook": "需要查看",
+      "nothingNeedsLook": "沒有需要查看的項目。",
+      "silentNever": "尚未收到來自 {service} 的 webhook。Adminium 透過向 {service} 查詢找到了一筆付款。",
+      "silent": "已有 {hours, plural, other {#}} 小時未收到來自 {service} 的 webhook。Adminium 透過向 {service} 查詢找到了一筆付款。",
+      "openSetup": "開啟設定",
+      "loadFailed": "無法載入付款",
+      "tryAgain": "重試",
+      "refundOf": "退款",
+      "id": {
+        "attempt": "嘗試 ID",
+        "checkout": "{service} 結帳 ID",
+        "payment": "{service} 付款 ID",
+        "refund": "{service} 退款 ID"
+      },
+      "payment": "付款",
+      "close": "關閉",
+      "col": {
+        "way": "付款方式",
+        "service": "服務",
+        "record": "紀錄",
+        "when": "時間",
+        "what": "內容",
+        "amount": "金額",
+        "state": "狀態",
+        "mode": "測試或正式"
+      },
+      "whatHappened": "經過",
+      "ids": "ID",
+      "copyId": "複製{label}",
+      "all": "全部動態",
+      "allSub": "付款嘗試、付款與退款",
+      "filter": {
+        "state": "狀態",
+        "allStates": "全部狀態",
+        "service": "服務",
+        "allServices": "全部服務",
+        "way": "付款方式",
+        "allWays": "全部方式",
+        "mode": "測試 / 正式",
+        "allModes": "測試與正式",
+        "from": "從",
+        "to": "至"
+      },
+      "export": "匯出 CSV",
+      "loading": "正在載入付款",
+      "noMatch": "沒有符合這些篩選條件的付款。",
+      "clearFilters": "清除篩選",
+      "emptyTitle": "尚無付款。",
+      "emptyBody": "客戶付款後，會顯示在這裡。",
+      "older": "載入較早的付款",
+      "viewOnly": "您可以檢視付款。如需處理，請聯絡管理付款的人員。",
+      "countLabel": "{count, plural, other {# 項需要查看}}"
     }
   }
 }

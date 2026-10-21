@@ -3746,7 +3746,8 @@
       "setup": "Opsætning",
       "ways": "Betalingsmåder",
       "payables": "Hvad der kan betales",
-      "page": "Betalingsside"
+      "page": "Betalingsside",
+      "activity": "Aktivitet"
     },
     "loadFailed": "Betalinger kunne ikke indlæses",
     "forbidden": "For at se betalinger skal du have tilladelsen »Opsæt betalinger« eller »Se betalingsaktivitet«.",
@@ -3995,6 +3996,140 @@
       "wouldRecord": "dette ville blive registreret: én betaling på {amount}.",
       "wouldRecordWith": "dette ville blive registreret: én betaling på {amount}, {paidWith}.",
       "nothingWritten": "Der blev ikke skrevet noget i dine tabeller."
+    },
+    "activity": {
+      "state": {
+        "started": "Startet",
+        "paid": "Betalt",
+        "waiting": "Venter på banken",
+        "failed": "Gik ikke igennem",
+        "expired": "Udløbet",
+        "refunded": "Refunderet",
+        "refundFailed": "Refundering mislykkedes"
+      },
+      "service": {
+        "demo": "Demotjeneste"
+      },
+      "way": {
+        "card": "Kort",
+        "sepa": "SEPA-direkte debitering"
+      },
+      "noRecord": "en post, der ikke findes længere",
+      "flag": {
+        "notRecorded": "Betalt hos {service}, ikke registreret: {record} · {amount}.",
+        "moreThanDue": "Betalt, men mere end der nu skyldes: {service} trak {taken} for {record}.",
+        "otherCurrency": "Betalt, men i en anden valuta: {service} trak {taken}, fakturaen lød på {asked}.",
+        "otherCurrencyRecord": "Betalt, men i en anden valuta: {service} trak {taken}, {record} bad om {asked}.",
+        "amountDiffers": "Betalt, men beløbet afviger: {service} trak {taken}, fakturaen lød på {asked}.",
+        "amountDiffersRecord": "Betalt, men beløbet afviger: {service} trak {taken}, {record} bad om {asked}.",
+        "refundedThereNoRecord": "Refunderet i dashboardet hos {service}: {amount}. Registreret.",
+        "refundedThere": "Refunderet i dashboardet hos {service}: {amount} på {record}. Registreret.",
+        "voided": "Betalt efter at fakturaen blev annulleret: {record} · {amount}.",
+        "voidedRecord": "Betalt efter at posten blev fjernet eller annulleret: {record} · {amount}.",
+        "modeMismatch": "Ikke godtaget: {service} svarede i den anden tilstand (test eller live) for {record} · {amount}. Intet blev registreret.",
+        "paidTwice": "Betalt to gange: en betaling for {record} · {amount} kom, mens en anden var på vej. Begge er registreret.",
+        "waitingLong": "Har ventet på banken i {days} dage: {record} · {amount}.",
+        "waitingLongWay": "Har ventet på banken i {days} dage: {record} · {amount} ({way}).",
+        "recordChanged": "En registreret betaling er ændret: {record} · {amount} står ikke længere som før."
+      },
+      "why": {
+        "alreadyPaid": "Fakturaen var allerede betalt fuldt ud.",
+        "alreadyPaidRecord": "Posten var allerede betalt fuldt ud.",
+        "notTaken": "{service} oplyste ikke, hvad der blev trukket.",
+        "notSent": "Fakturaen var ikke sendt endnu.",
+        "refused": "Dens tabel tog ikke imod betalingen."
+      },
+      "story": {
+        "refundThere": "Refunderet i dashboardet hos {service}: {amount}",
+        "refundStarted": "Refundering af {amount} startet",
+        "refunded": "{service} melder: refunderet",
+        "refundFailed": "{service} melder: refunderingen mislykkedes",
+        "refundApplied": "Postens saldo følger den",
+        "startedFor": "Startet på {amount}",
+        "started": "Startet",
+        "onPayPage": "Venter på, at kunden bliver færdig på siden hos {service}",
+        "waiting": "{service} melder: venter på banken",
+        "failed": "{service} melder: gik ikke igennem",
+        "nothingTaken": "Der blev ikke trukket noget",
+        "expired": "Betalingen hos {service} udløb, før den blev betalt",
+        "left": "Kunden forlod siden hos {service}",
+        "abandoned": "Betalingen blev aldrig åbnet",
+        "paidAmount": "{service} melder: {amount} betalt",
+        "paid": "{service} melder: betalt",
+        "recorded": "Registreret",
+        "notRecorded": "Ikke registreret: skal ses på"
+      },
+      "checkedBy": "Tjekket af {name}",
+      "someone": "nogen",
+      "checkedByNote": "Tjekket af {name} · {note}",
+      "checkedByYou": "Tjekket af dig",
+      "checkedByYouNote": "Tjekket af dig · {note}",
+      "markChecked": "Markér som tjekket",
+      "toast": {
+        "checked": "Markeret som tjekket",
+        "copied": "Kopieret",
+        "copyFailed": "Kunne ikke kopiere. Markér teksten, og kopiér den.",
+        "downloaded": "{file} hentet",
+        "exportFailed": "Kunne ikke eksportere. Prøv igen."
+      },
+      "cancel": "Annuller",
+      "noteRequired": "Note (påkrævet)",
+      "note": "Note",
+      "noteHelp": "Noten bliver på denne række for alle, der kan se aktiviteten.",
+      "notePlaceholder": "Hvad tjekkede du?",
+      "noteNeeded": "Skriv, hvad du tjekkede.",
+      "needsLook": "Skal ses på",
+      "nothingNeedsLook": "Intet skal ses på.",
+      "silentNever": "Der er endnu ikke kommet nogen webhook fra {service}. Adminium fandt en betaling ved at spørge {service}.",
+      "silent": "Ingen webhook fra {service} i {hours, plural, one {# time} other {# timer}}. Adminium fandt en betaling ved at spørge {service}.",
+      "openSetup": "Åbn opsætning",
+      "loadFailed": "Betalingerne kunne ikke indlæses",
+      "tryAgain": "Prøv igen",
+      "refundOf": "Refundering",
+      "id": {
+        "attempt": "Forsøgs-id",
+        "checkout": "Checkout-id hos {service}",
+        "payment": "Betalings-id hos {service}",
+        "refund": "Refunderings-id hos {service}"
+      },
+      "payment": "Betaling",
+      "close": "Luk",
+      "col": {
+        "way": "Betalingsmåde",
+        "service": "Tjeneste",
+        "record": "Post",
+        "when": "Hvornår",
+        "what": "Hvad",
+        "amount": "Beløb",
+        "state": "Status",
+        "mode": "Test eller live"
+      },
+      "whatHappened": "Hvad der skete",
+      "ids": "Id'er",
+      "copyId": "Kopiér {label}",
+      "all": "Al aktivitet",
+      "allSub": "Betalingsforsøg, betalinger og refunderinger",
+      "filter": {
+        "state": "Status",
+        "allStates": "Alle statusser",
+        "service": "Tjeneste",
+        "allServices": "Alle tjenester",
+        "way": "Betalingsmåde",
+        "allWays": "Alle måder",
+        "mode": "Test / Live",
+        "allModes": "Test og live",
+        "from": "Fra",
+        "to": "Til"
+      },
+      "export": "Eksportér CSV",
+      "loading": "Indlæser betalinger",
+      "noMatch": "Ingen betalinger passer til disse filtre.",
+      "clearFilters": "Ryd filtre",
+      "emptyTitle": "Ingen betalinger endnu.",
+      "emptyBody": "Når kunder betaler, vises det her.",
+      "older": "Indlæs ældre betalinger",
+      "viewOnly": "Du kan se betalinger. Bed en, der administrerer betalinger, om at handle.",
+      "countLabel": "{count, plural, one {# skal ses på} other {# skal ses på}}"
     }
   }
 }

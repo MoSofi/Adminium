@@ -3746,7 +3746,8 @@
       "setup": "Configuration",
       "ways": "Moyens de paiement",
       "payables": "Ce qui peut être payé",
-      "page": "Page de paiement"
+      "page": "Page de paiement",
+      "activity": "Activité"
     },
     "loadFailed": "Les paiements n’ont pas pu être chargés",
     "forbidden": "Pour voir les paiements, il faut l’autorisation « Configurer les paiements » ou « Voir l’activité des paiements ».",
@@ -3995,6 +3996,140 @@
       "wouldRecord": "voici ce qui serait enregistré : un paiement de {amount}.",
       "wouldRecordWith": "voici ce qui serait enregistré : un paiement de {amount}, {paidWith}.",
       "nothingWritten": "Rien n’a été écrit dans vos tables."
+    },
+    "activity": {
+      "state": {
+        "started": "Commencé",
+        "paid": "Payé",
+        "waiting": "En attente de la banque",
+        "failed": "N'a pas abouti",
+        "expired": "Expiré",
+        "refunded": "Remboursé",
+        "refundFailed": "Remboursement échoué"
+      },
+      "service": {
+        "demo": "Service de démonstration"
+      },
+      "way": {
+        "card": "Carte",
+        "sepa": "Prélèvement SEPA"
+      },
+      "noRecord": "un enregistrement qui n'existe plus",
+      "flag": {
+        "notRecorded": "Payé chez {service}, non enregistré : {record} · {amount}.",
+        "moreThanDue": "Payé, mais plus que ce qui est dû : {service} a prélevé {taken} pour {record}.",
+        "otherCurrency": "Payé, mais dans une autre devise : {service} a prélevé {taken}, la facture était de {asked}.",
+        "otherCurrencyRecord": "Payé, mais dans une autre devise : {service} a prélevé {taken}, {record} demandait {asked}.",
+        "amountDiffers": "Payé, mais le montant diffère : {service} a prélevé {taken}, la facture était de {asked}.",
+        "amountDiffersRecord": "Payé, mais le montant diffère : {service} a prélevé {taken}, {record} demandait {asked}.",
+        "refundedThereNoRecord": "Remboursé dans le tableau de bord {service} : {amount}. Enregistré.",
+        "refundedThere": "Remboursé dans le tableau de bord {service} : {amount} sur {record}. Enregistré.",
+        "voided": "Payé après l'annulation de la facture : {record} · {amount}.",
+        "voidedRecord": "Payé après la suppression ou l'annulation de l'enregistrement : {record} · {amount}.",
+        "modeMismatch": "Non retenu : {service} a répondu dans l'autre mode (test ou en direct) pour {record} · {amount}. Rien n'a été enregistré.",
+        "paidTwice": "Payé deux fois : un paiement pour {record} · {amount} est arrivé alors qu'un autre était en cours. Les deux sont enregistrés.",
+        "waitingLong": "En attente de la banque depuis {days} jours : {record} · {amount}.",
+        "waitingLongWay": "En attente de la banque depuis {days} jours : {record} · {amount} ({way}).",
+        "recordChanged": "Un paiement enregistré a changé : {record} · {amount} n'est plus enregistré comme avant."
+      },
+      "why": {
+        "alreadyPaid": "La facture était déjà entièrement payée.",
+        "alreadyPaidRecord": "L'enregistrement était déjà entièrement payé.",
+        "notTaken": "{service} n'a pas indiqué le montant prélevé.",
+        "notSent": "La facture n'avait pas encore été envoyée.",
+        "refused": "Sa table n'a pas accepté le paiement."
+      },
+      "story": {
+        "refundThere": "Remboursé dans le tableau de bord {service} : {amount}",
+        "refundStarted": "Remboursement de {amount} commencé",
+        "refunded": "{service} indique : remboursé",
+        "refundFailed": "{service} indique : le remboursement a échoué",
+        "refundApplied": "Le solde de l'enregistrement en tient compte",
+        "startedFor": "Commencé pour {amount}",
+        "started": "Commencé",
+        "onPayPage": "En attente que le client termine sur la page {service}",
+        "waiting": "{service} indique : en attente de la banque",
+        "failed": "{service} indique : n'a pas abouti",
+        "nothingTaken": "Rien n'a été prélevé",
+        "expired": "Le paiement {service} a expiré avant d'être réglé",
+        "left": "Le client a quitté la page {service}",
+        "abandoned": "Le paiement n'a jamais été ouvert",
+        "paidAmount": "{service} indique : {amount} payé",
+        "paid": "{service} indique : payé",
+        "recorded": "Enregistré",
+        "notRecorded": "Non enregistré : à examiner"
+      },
+      "checkedBy": "Vérifié par {name}",
+      "someone": "quelqu'un",
+      "checkedByNote": "Vérifié par {name} · {note}",
+      "checkedByYou": "Vérifié par vous",
+      "checkedByYouNote": "Vérifié par vous · {note}",
+      "markChecked": "Marquer comme vérifié",
+      "toast": {
+        "checked": "Marqué comme vérifié",
+        "copied": "Copié",
+        "copyFailed": "Impossible de copier. Sélectionnez le texte et copiez-le.",
+        "downloaded": "{file} téléchargé",
+        "exportFailed": "Impossible d'exporter. Réessayez."
+      },
+      "cancel": "Annuler",
+      "noteRequired": "Note (obligatoire)",
+      "note": "Note",
+      "noteHelp": "La note reste sur cette ligne pour toute personne qui peut voir l'activité.",
+      "notePlaceholder": "Qu'avez-vous vérifié ?",
+      "noteNeeded": "Indiquez ce que vous avez vérifié.",
+      "needsLook": "À examiner",
+      "nothingNeedsLook": "Rien à examiner.",
+      "silentNever": "Aucun webhook de {service} n'est encore arrivé. Adminium a trouvé un paiement en interrogeant {service}.",
+      "silent": "Aucun webhook de {service} depuis {hours, plural, one {# heure} other {# heures}}. Adminium a trouvé un paiement en interrogeant {service}.",
+      "openSetup": "Ouvrir la configuration",
+      "loadFailed": "Impossible de charger les paiements",
+      "tryAgain": "Réessayer",
+      "refundOf": "Remboursement",
+      "id": {
+        "attempt": "Identifiant de tentative",
+        "checkout": "Identifiant de paiement en ligne {service}",
+        "payment": "Identifiant de paiement {service}",
+        "refund": "Identifiant de remboursement {service}"
+      },
+      "payment": "Paiement",
+      "close": "Fermer",
+      "col": {
+        "way": "Moyen de paiement",
+        "service": "Service",
+        "record": "Enregistrement",
+        "when": "Quand",
+        "what": "Quoi",
+        "amount": "Montant",
+        "state": "État",
+        "mode": "Test ou en direct"
+      },
+      "whatHappened": "Ce qui s'est passé",
+      "ids": "Identifiants",
+      "copyId": "Copier {label}",
+      "all": "Toute l'activité",
+      "allSub": "Tentatives de paiement, paiements et remboursements",
+      "filter": {
+        "state": "État",
+        "allStates": "Tous les états",
+        "service": "Service",
+        "allServices": "Tous les services",
+        "way": "Moyen de paiement",
+        "allWays": "Tous les moyens",
+        "mode": "Test / En direct",
+        "allModes": "Test et en direct",
+        "from": "Du",
+        "to": "Au"
+      },
+      "export": "Exporter en CSV",
+      "loading": "Chargement des paiements",
+      "noMatch": "Aucun paiement ne correspond à ces filtres.",
+      "clearFilters": "Effacer les filtres",
+      "emptyTitle": "Aucun paiement pour l'instant.",
+      "emptyBody": "Quand des clients paient, les paiements apparaissent ici.",
+      "older": "Charger des paiements plus anciens",
+      "viewOnly": "Vous pouvez consulter les paiements. Demandez à une personne qui gère les paiements d'agir.",
+      "countLabel": "{count, plural, one {# à examiner} other {# à examiner}}"
     }
   }
 }
