@@ -912,5 +912,31 @@ export default {
   "appFilter": {
     "note": "仅显示 {app} 的邮件。",
     "clear": "显示全部邮件"
+  },
+  "paymentLink": {
+    "name": "付款链接",
+    "subject": "{shop} 发来的 {number} 付款链接",
+    "preheader": "在线支付 {amount}。",
+    "heading": "在线支付 {number}",
+    "intro": "{shop} 向您发送了在线支付 {number} 的链接。",
+    "amountLabel": "应付金额",
+    "due": "付款截止日期：{date}。",
+    "action": "打开付款页面",
+    "notice": "您将在安全页面上付款；{shop} 不会看到您的银行卡信息。此链接有效期至 {expiresOn}。",
+    "contact": "有疑问？请写信至 {contact}。"
+  },
+  "paymentReceipt": {
+    "name": "付款收据",
+    "subject": "{shop} 关于 {number} 的收据",
+    "preheader": "已于 {paidOn} 支付 {amount}。",
+    "heading": "感谢您的付款",
+    "intro": "{shop} 已收到您对 {number} 的付款。",
+    "amountLabel": "已付金额",
+    "paidOn": "付款日期：{paidOn}",
+    "method": "付款方式：{method}",
+    "online": "在线付款（{service}）",
+    "balance": "{number} 尚有 {amount} 待付。",
+    "notice": "请保留此邮件作为记录。",
+    "footer": "{shop}"
   }
 } as const;

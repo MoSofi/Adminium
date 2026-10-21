@@ -912,5 +912,31 @@ export default {
   "appFilter": {
     "note": "تُعرض رسائل {app} فقط.",
     "clear": "عرض كل الرسائل"
+  },
+  "paymentLink": {
+    "name": "رابط الدفع",
+    "subject": "رابط الدفع الخاص بـ {number} من {shop}",
+    "preheader": "المبلغ المطلوب دفعه عبر الإنترنت: {amount}.",
+    "heading": "ادفع {number} عبر الإنترنت",
+    "intro": "أرسل إليك {shop} رابطًا لدفع {number} عبر الإنترنت.",
+    "amountLabel": "المبلغ المستحق",
+    "due": "تاريخ الاستحقاق: {date}.",
+    "action": "افتح صفحة الدفع",
+    "notice": "يتم الدفع على صفحة آمنة؛ ولا يرى {shop} بيانات بطاقتك أبدًا. يعمل الرابط حتى {expiresOn}.",
+    "contact": "لديك سؤال؟ راسِل {contact}."
+  },
+  "paymentReceipt": {
+    "name": "إيصال الدفع",
+    "subject": "إيصال {number} من {shop}",
+    "preheader": "تم دفع {amount} في {paidOn}.",
+    "heading": "شكرًا على دفعتك",
+    "intro": "استلم {shop} دفعتك عن {number}.",
+    "amountLabel": "المبلغ المدفوع",
+    "paidOn": "تاريخ الدفع: {paidOn}",
+    "method": "طريقة الدفع: {method}",
+    "online": "دفع عبر الإنترنت ({service})",
+    "balance": "لا يزال مستحقًا على {number} مبلغ {amount}.",
+    "notice": "يُرجى الاحتفاظ بهذه الرسالة في سجلاتك.",
+    "footer": "{shop}"
   }
 } as const;

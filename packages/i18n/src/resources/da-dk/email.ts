@@ -912,5 +912,31 @@ export default {
   "appFilter": {
     "note": "Kun e-mails fra {app} vises.",
     "clear": "Vis alle e-mails"
+  },
+  "paymentLink": {
+    "name": "Betalingslink",
+    "subject": "Dit betalingslink til {number} fra {shop}",
+    "preheader": "{amount} at betale online.",
+    "heading": "Betal {number} online",
+    "intro": "{shop} har sendt dig et link, så du kan betale {number} online.",
+    "amountLabel": "Beløb at betale",
+    "due": "Forfalder den {date}.",
+    "action": "Åbn betalingssiden",
+    "notice": "Du betaler på en sikker side; {shop} ser aldrig dit kort. Linket virker indtil {expiresOn}.",
+    "contact": "Spørgsmål? Skriv til {contact}."
+  },
+  "paymentReceipt": {
+    "name": "Betalingskvittering",
+    "subject": "Kvittering for {number} fra {shop}",
+    "preheader": "{amount} betalt den {paidOn}.",
+    "heading": "Tak for din betaling",
+    "intro": "{shop} har modtaget din betaling for {number}.",
+    "amountLabel": "Betalt beløb",
+    "paidOn": "Betalt den: {paidOn}",
+    "method": "Betalt med: {method}",
+    "online": "Onlinebetaling ({service})",
+    "balance": "Der mangler stadig {amount} på {number}.",
+    "notice": "Gem denne e-mail til dine papirer.",
+    "footer": "{shop}"
   }
 } as const;

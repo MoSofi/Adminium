@@ -902,5 +902,31 @@
   "appFilter": {
     "note": "Only the emails of {app} are shown.",
     "clear": "Show all emails"
+  },
+  "paymentLink": {
+    "name": "Pay link",
+    "subject": "Your pay link for {number} from {shop}",
+    "preheader": "{amount} to pay online.",
+    "heading": "Pay {number} online",
+    "intro": "{shop} sent you a link to pay {number} online.",
+    "amountLabel": "Amount due",
+    "due": "It is due on {date}.",
+    "action": "Open the pay page",
+    "notice": "You pay on a secure page; {shop} never sees your card. The link works until {expiresOn}.",
+    "contact": "Questions? Write to {contact}."
+  },
+  "paymentReceipt": {
+    "name": "Payment receipt",
+    "subject": "Receipt for {number} from {shop}",
+    "preheader": "{amount} paid on {paidOn}.",
+    "heading": "Thank you for your payment",
+    "intro": "{shop} received your payment for {number}.",
+    "amountLabel": "Amount paid",
+    "paidOn": "Paid on: {paidOn}",
+    "method": "Paid with: {method}",
+    "online": "Online payment ({service})",
+    "balance": "{amount} is still due on {number}.",
+    "notice": "Keep this email for your records.",
+    "footer": "{shop}"
   }
 }

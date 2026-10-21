@@ -912,5 +912,31 @@ export default {
   "appFilter": {
     "note": "Zobrazují se jen e-maily aplikace {app}.",
     "clear": "Zobrazit všechny e-maily"
+  },
+  "paymentLink": {
+    "name": "Platební odkaz",
+    "subject": "Váš platební odkaz pro {number} od {shop}",
+    "preheader": "Zaplatit online: {amount}.",
+    "heading": "Zaplaťte {number} online",
+    "intro": "{shop} vám poslal odkaz, kterým zaplatíte {number} online.",
+    "amountLabel": "Částka k úhradě",
+    "due": "Splatnost: {date}.",
+    "action": "Otevřít platební stránku",
+    "notice": "Platíte na zabezpečené stránce; {shop} vaši kartu nikdy neuvidí. Odkaz platí do {expiresOn}.",
+    "contact": "Máte dotaz? Napište na {contact}."
+  },
+  "paymentReceipt": {
+    "name": "Potvrzení o platbě",
+    "subject": "Potvrzení pro {number} od {shop}",
+    "preheader": "Zaplaceno {paidOn}: {amount}.",
+    "heading": "Děkujeme za vaši platbu",
+    "intro": "{shop} přijal vaši platbu za {number}.",
+    "amountLabel": "Zaplacená částka",
+    "paidOn": "Zaplaceno: {paidOn}",
+    "method": "Způsob platby: {method}",
+    "online": "Online platba ({service})",
+    "balance": "Na {number} zbývá uhradit {amount}.",
+    "notice": "Tento e-mail si uschovejte.",
+    "footer": "{shop}"
   }
 } as const;

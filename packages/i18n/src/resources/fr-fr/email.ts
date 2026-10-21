@@ -912,5 +912,31 @@ export default {
   "appFilter": {
     "note": "Seuls les e-mails de {app} sont affichés.",
     "clear": "Afficher tous les e-mails"
+  },
+  "paymentLink": {
+    "name": "Lien de paiement",
+    "subject": "Votre lien de paiement pour {number} de {shop}",
+    "preheader": "{amount} à payer en ligne.",
+    "heading": "Payer {number} en ligne",
+    "intro": "{shop} vous a envoyé un lien pour payer {number} en ligne.",
+    "amountLabel": "Montant dû",
+    "due": "À régler au plus tard le {date}.",
+    "action": "Ouvrir la page de paiement",
+    "notice": "Vous payez sur une page sécurisée ; {shop} ne voit jamais votre carte. Le lien est valable jusqu’au {expiresOn}.",
+    "contact": "Des questions ? Écrivez à {contact}."
+  },
+  "paymentReceipt": {
+    "name": "Reçu de paiement",
+    "subject": "Reçu pour {number} de {shop}",
+    "preheader": "{amount} payé le {paidOn}.",
+    "heading": "Merci pour votre paiement",
+    "intro": "{shop} a bien reçu votre paiement pour {number}.",
+    "amountLabel": "Montant payé",
+    "paidOn": "Payé le : {paidOn}",
+    "method": "Payé par : {method}",
+    "online": "Paiement en ligne ({service})",
+    "balance": "Il reste {amount} à payer sur {number}.",
+    "notice": "Conservez cet e-mail pour vos dossiers.",
+    "footer": "{shop}"
   }
 } as const;

@@ -912,5 +912,31 @@ export default {
   "appFilter": {
     "note": "僅顯示 {app} 的郵件。",
     "clear": "顯示全部郵件"
+  },
+  "paymentLink": {
+    "name": "付款連結",
+    "subject": "{shop} 寄來的 {number} 付款連結",
+    "preheader": "線上支付 {amount}。",
+    "heading": "線上支付 {number}",
+    "intro": "{shop} 寄給您線上支付 {number} 的連結。",
+    "amountLabel": "應付金額",
+    "due": "付款截止日期：{date}。",
+    "action": "開啟付款頁面",
+    "notice": "您將在安全的頁面上付款；{shop} 不會看到您的卡片資料。此連結有效至 {expiresOn}。",
+    "contact": "有疑問？請寫信至 {contact}。"
+  },
+  "paymentReceipt": {
+    "name": "付款收據",
+    "subject": "{shop} 關於 {number} 的收據",
+    "preheader": "已於 {paidOn} 支付 {amount}。",
+    "heading": "感謝您的付款",
+    "intro": "{shop} 已收到您對 {number} 的付款。",
+    "amountLabel": "已付金額",
+    "paidOn": "付款日期：{paidOn}",
+    "method": "付款方式：{method}",
+    "online": "線上付款（{service}）",
+    "balance": "{number} 尚有 {amount} 待付。",
+    "notice": "請保留此郵件作為紀錄。",
+    "footer": "{shop}"
   }
 } as const;
