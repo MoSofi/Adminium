@@ -78,7 +78,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     } catch {
       // Not written yet.
     }
-    if (now === next) continue;
+    // A checkout on Windows may carry the file with CRLF line ends: the words are the same.
+    if (now.replace(/\r\n/g, '\n') === next) continue;
     stale += 1;
     if (check) console.error(`gen-kit-words: ${tag}.ts is out of date`);
     else writeFileSync(file, next);
