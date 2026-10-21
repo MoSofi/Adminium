@@ -284,6 +284,7 @@ import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
 import { paymentsRoutes } from './routes/payments/index.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
+import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -1965,6 +1966,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       await api.register(paymentPayablesRoutes({ meta, manager }));
+      await api.register(paymentWaysRoutes({ meta, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
