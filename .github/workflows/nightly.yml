@@ -18,6 +18,24 @@ jobs:
     runs-on: ubuntu-latest
     # The server's suite alone is about 35 minutes in ci's own job; at 30 this job was cancelled before it ended.
     timeout-minutes: 90
+    # The same Postgres as ci's verify job. Without it the live Postgres suites skip,
+    # and @adminium/meta fell under its 93 % statement floor (92.75 %) every night.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          # The psql harnesses reconnect as throwaway roles with no password (see ci.yml).
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -37,6 +55,10 @@ jobs:
       - name: Full build without any turbo cache
         # Two tasks at a time, as the preflight runs them: every package's tests at once starve a four-core runner, and a test then passes its own time limit.
         run: pnpm turbo run lint typecheck build test --force --concurrency=2
+        env:
+          TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          PGUSER: postgres
+          PGPASSWORD: postgres
 
       - name: Check dependency graph boundaries
         run: pnpm run check-deps
