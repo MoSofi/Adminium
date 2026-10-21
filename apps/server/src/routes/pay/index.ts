@@ -193,12 +193,14 @@ export function createPayPageReader(deps: PayRoutesDeps) {
       const methods = (await paymentMethodsRepo(meta).list()).filter((one) => one.source === payable.onlyProvider && one.enabled);
       return methods.length === 0 ? [{ source: payable.onlyProvider, method: 'card', label: null, details: null }] : methods.map((one) => ({ source: one.source, method: one.method, label: null, details: null }));
     }
-    return waysFor({
+    const ways = waysFor({
       methods: await paymentMethodsRepo(meta).list(),
       payable: { kind: payable.ref.kind, profileId: payable.ref.kind === 'profile' ? await profileIdOf(payable) : null, currency: payable.currency, due: payable.due, customerCountry: payable.customerCountry },
       shopCountry: country,
       providers: await deps.readyProviders(mode),
     });
+    // A test link opens only for staff: it also offers the demo service, so a test payment needs no account.
+    return mode === 'test' && !ways.some((way) => way.source === 'demo') ? [...ways, { source: 'demo', method: 'card', label: null, details: null }] : ways;
   }
 
   async function profileIdOf(payable: ResolvedPayable): Promise<string | null> {
