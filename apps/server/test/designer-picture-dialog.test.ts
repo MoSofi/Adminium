@@ -260,12 +260,12 @@ describe('the keys of Pexels and Unsplash, given in the dialog', { timeout: 120_
     const client = await server({ keys: false });
     const id = await client.session();
     const view = async () => (await client.call('GET', `/api/v1/designer/sessions/${id}/pictures`)).body as { sources: { name: string }[]; keys: unknown };
-    expect(await view()).toMatchObject({ sources: [{ name: 'Openverse' }], keys: { Pexels: false, Unsplash: false, keeping: 'key-store' } });
+    expect(await view()).toMatchObject({ sources: [{ name: 'Openverse' }], keys: { Pexels: false, Unsplash: false, keeping: 'key-store', pages: { Pexels: 'https://www.pexels.com/api/', Unsplash: 'https://unsplash.com/developers' } } });
     expect((await client.call('GET', search(id, { q: 'diner', source: 'Pexels' }))).body).toEqual({ state: 'off' });
 
     const saved = await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Pexels', key: ' pexels-key-0001 ' });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
-    expect(saved.body).toEqual({ keys: { Pexels: true, Unsplash: false, keeping: 'key-store' } });
+    expect(saved.body).toEqual({ keys: { Pexels: true, Unsplash: false, keeping: 'key-store', pages: { Pexels: 'https://www.pexels.com/api/', Unsplash: 'https://unsplash.com/developers' } } });
     expect(kept).toEqual([{ PEXELS_API_KEY: 'pexels-key-0001' }]);
     // No restart: the next read lists it, and the next search asks it with that key.
     expect((await view()).sources.map((source) => source.name)).toEqual(['Openverse', 'Pexels']);
@@ -276,7 +276,7 @@ describe('the keys of Pexels and Unsplash, given in the dialog', { timeout: 120_
     expect((await view()).sources.map((source) => source.name)).toEqual(['Openverse', 'Pexels', 'Unsplash']);
 
     // Taken away: gone from the list at once.
-    expect((await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Pexels', key: null })).body).toEqual({ keys: { Pexels: false, Unsplash: true, keeping: 'key-store' } });
+    expect((await client.call('PUT', '/api/v1/designer/picture-keys', { source: 'Pexels', key: null })).body).toEqual({ keys: { Pexels: false, Unsplash: true, keeping: 'key-store', pages: { Pexels: 'https://www.pexels.com/api/', Unsplash: 'https://unsplash.com/developers' } } });
     expect(kept.at(-1)).toEqual({ PEXELS_API_KEY: null });
     expect((await view()).sources.map((source) => source.name)).toEqual(['Openverse', 'Unsplash']);
 

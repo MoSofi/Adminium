@@ -44,6 +44,18 @@ export const KEYED_SOURCES = ['Pexels', 'Unsplash'] as const;
 export type KeyedSource = (typeof KEYED_SOURCES)[number];
 
 /**
+ * Where each source gives a key, for the dialog's "Get a key" link. Said by the server: the
+ * desktop app's own pages name no outside address (its offline gate checks the built bundle).
+ */
+export const KEY_PAGES: Readonly<Record<KeyedSource, string>> = {
+  Pexels: 'https://www.pexels.com/api/',
+  Unsplash: 'https://unsplash.com/developers',
+};
+
+/** The keys as the dialog is told them: which are kept, how, and where to get each. */
+export type PictureKeysView = { Pexels: boolean; Unsplash: boolean; keeping: 'key-store' | 'plain'; pages: Readonly<Record<KeyedSource, string>> };
+
+/**
  * The keys of Pexels and Unsplash, where the dialog may take them: only where
  * a host keeps keys (the desktop app, in the system's key store, one set for
  * every project). A server reads them from its environment and its `.env`,
@@ -68,7 +80,7 @@ export interface PictureDialogDeps {
 export interface PictureDialog {
   search: PictureSearch['search'];
   sources: PictureSearch['sources'];
-  keys: PictureKeys['state'];
+  keys(): PictureKeysView | null;
   /** Keep or take away a source's key. Throws where no key can be given here. */
   keepKey: PictureKeys['keep'];
   /** Keep a picture the person put in "what changes", and fetch its bytes now. */
@@ -131,7 +143,10 @@ export function createPictureDialog(deps: PictureDialogDeps): PictureDialog {
   return {
     search: (sessionId, input, signal): Promise<SearchAnswer> => deps.search.search(sessionId, input, signal),
     sources: () => deps.search.sources(),
-    keys: () => deps.keys?.state() ?? null,
+    keys: () => {
+      const kept = deps.keys?.state() ?? null;
+      return kept === null ? null : { ...kept, pages: KEY_PAGES };
+    },
     keepKey: (source, key) => {
       if (deps.keys === undefined || deps.keys.state() === null) throw new Error('Picture keys are not kept here.');
       deps.keys.keep(source, key);

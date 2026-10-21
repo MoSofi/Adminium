@@ -344,6 +344,8 @@ export interface PictureKeys {
   Pexels: boolean;
   Unsplash: boolean;
   keeping: 'key-store' | 'plain';
+  /** Where each source gives a key: said by the server, so the app's own pages name no outside address. */
+  pages: Readonly<Record<KeyedPictureSource, string>>;
 }
 /** A picture a search found, named by the server's own ids. */
 export interface FoundPicture {

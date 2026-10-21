@@ -102,7 +102,7 @@ export type PicturesView = ReturnType<typeof picturesState> & {
   /** Whether a page may be let load pictures from Unsplash here: `closed` where the server cannot allow a site. */
   unsplash: 'ok' | 'closed';
   /** Which picture keys are kept, where the dialog may take one (the desktop app); `null` elsewhere. */
-  keys: { Pexels: boolean; Unsplash: boolean; keeping: 'key-store' | 'plain' } | null;
+  keys: { Pexels: boolean; Unsplash: boolean; keeping: 'key-store' | 'plain'; pages: { Pexels: string; Unsplash: string } } | null;
   /** The session's version now: an Apply's Undo goes back from it. */
   version: number | null;
 };

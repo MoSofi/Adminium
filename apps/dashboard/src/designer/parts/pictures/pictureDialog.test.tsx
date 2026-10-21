@@ -74,7 +74,7 @@ beforeEach(() => {
         // As the server does: the key is kept at once, and the next read of the pictures has the source (or not).
         const { source, key } = JSON.parse(String(init?.body)) as { source: 'Pexels' | 'Unsplash'; key: string | null };
         if (key !== null && key.includes(' ')) return jsonResponse(422, { error: { code: 'VALIDATION_FAILED', message: 'Invalid' } });
-        const keys = { ...(view.keys ?? { Pexels: false, Unsplash: false, keeping: 'key-store' as const }), [source]: key !== null };
+        const keys = { ...(view.keys ?? { Pexels: false, Unsplash: false, keeping: 'key-store' as const, pages: { Pexels: 'https://keys.test/pexels', Unsplash: 'https://keys.test/unsplash' } }), [source]: key !== null };
         const names = (['Openverse', 'Pexels', 'Unsplash'] as const).filter((name) => name === 'Openverse' || keys[name]);
         view = { ...view, keys, sources: names.map((name) => ({ name, busy: null })) };
         return jsonResponse(200, { keys });
@@ -242,7 +242,7 @@ describe('the picture dialog', () => {
 });
 
 describe('the keys of Pexels and Unsplash', () => {
-  const KEYS = { Pexels: false, Unsplash: false, keeping: 'key-store' as const };
+  const KEYS = { Pexels: false, Unsplash: false, keeping: 'key-store' as const, pages: { Pexels: 'https://keys.test/pexels', Unsplash: 'https://keys.test/unsplash' } };
 
   it('adds a source from its key: the source is listed and searched at once, with no restart', async () => {
     view = { ...VIEW, keys: KEYS };
@@ -256,7 +256,8 @@ describe('the keys of Pexels and Unsplash', () => {
     // Each source's terms, in a line, and where to get a key.
     expect(within(panel).getByText('A demo key gets 50 searches an hour. Its pictures are shown from Unsplash’s own site, never copied into your app.')).toBeTruthy();
     expect(within(panel).getByText(/^A free key gets 200 searches an hour/)).toBeTruthy();
-    expect(within(panel).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['https://www.pexels.com/api/', 'https://unsplash.com/developers']);
+    // Where to get each key is the server's to say: the app's own bundle names no outside address.
+    expect(within(panel).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['https://keys.test/pexels', 'https://keys.test/unsplash']);
     expect(within(panel).getByText(/encrypted by/)).toBeTruthy();
 
     const save = within(panel).getAllByRole('button', { name: 'Save the key' })[0] as HTMLButtonElement;

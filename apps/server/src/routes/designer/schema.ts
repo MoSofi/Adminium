@@ -280,7 +280,7 @@ export const designerPicturesReply = z.object({
   sources: z.array(z.object({ name: z.string(), busy: z.number().int().nullable() })),
   unsplash: z.enum(['ok', 'closed']),
   /** Which picture keys are kept, where the dialog may take one (the desktop app); null elsewhere. Never a key itself. */
-  keys: z.object({ Pexels: z.boolean(), Unsplash: z.boolean(), keeping: z.enum(['key-store', 'plain']) }).nullable(),
+  keys: z.object({ Pexels: z.boolean(), Unsplash: z.boolean(), keeping: z.enum(['key-store', 'plain']), pages: z.object({ Pexels: z.string(), Unsplash: z.string() }) }).nullable(),
   version: z.number().int().nullable(),
 });
 /** A picture source's key, given in the dialog: `null` takes it away. A key is letters, digits, `-` and `_`. */
@@ -294,7 +294,7 @@ export const designerPictureKeyBody = z
       .nullable(),
   })
   .strict();
-export const designerPictureKeyReply = z.object({ keys: z.object({ Pexels: z.boolean(), Unsplash: z.boolean(), keeping: z.enum(['key-store', 'plain']) }) });
+export const designerPictureKeyReply = z.object({ keys: z.object({ Pexels: z.boolean(), Unsplash: z.boolean(), keeping: z.enum(['key-store', 'plain']), pages: z.object({ Pexels: z.string(), Unsplash: z.string() }) }) });
 export const designerPictureFileQuery = z.object({ path: z.string().min(1).max(300) });
 const designerFillFrom = z.union([
   z.object({ shelf: designerShelfId, picture: designerPictureId }).strict(),

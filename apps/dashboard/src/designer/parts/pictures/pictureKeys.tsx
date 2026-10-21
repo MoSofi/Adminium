@@ -22,12 +22,6 @@ import { keptByAppWords } from '../../models/AddModelDialog.js';
 
 export const KEYED_SOURCES: readonly KeyedPictureSource[] = ['Pexels', 'Unsplash'];
 
-/** Where each source gives a key. */
-const KEY_PAGE: Readonly<Record<KeyedPictureSource, string>> = {
-  Pexels: 'https://www.pexels.com/api/',
-  Unsplash: 'https://unsplash.com/developers',
-};
-
 /** A source's terms, in a line. */
 const termsOf = (source: KeyedPictureSource): string =>
   source === 'Pexels'
@@ -68,7 +62,7 @@ export function PictureKeysPanel({ keys, headingId, onSaved, onClose }: PictureK
         </button>
       </div>
       {KEYED_SOURCES.map((source) => (
-        <KeyRow key={source} source={source} added={keys[source]} onSaved={onSaved} />
+        <KeyRow key={source} source={source} added={keys[source]} page={keys.pages[source]} onSaved={onSaved} />
       ))}
       <div className={`flex items-start gap-2.5 rounded-[12px] border px-3.5 py-3 ${keys.keeping === 'plain' ? 'border-warn/30 bg-warn-soft' : 'border-border bg-surface'}`}>
         <FileText aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
@@ -80,7 +74,7 @@ export function PictureKeysPanel({ keys, headingId, onSaved, onClose }: PictureK
   );
 }
 
-function KeyRow({ source, added, onSaved }: { source: KeyedPictureSource; added: boolean; onSaved: PictureKeysPanelProps['onSaved'] }): ReactNode {
+function KeyRow({ source, added, page, onSaved }: { source: KeyedPictureSource; added: boolean; page: string; onSaved: PictureKeysPanelProps['onSaved'] }): ReactNode {
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState<'save' | 'remove' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +117,7 @@ function KeyRow({ source, added, onSaved }: { source: KeyedPictureSource; added:
         ) : (
           <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[11.5px] font-bold text-fg-muted">{t('designer:pictureKeys.noKey', 'No key')}</span>
         )}
-        <a href={KEY_PAGE[source]} target="_blank" rel="noopener noreferrer" className="ms-auto text-body-sm font-bold text-accent hover:underline">
+        <a href={page} target="_blank" rel="noopener noreferrer" className="ms-auto text-body-sm font-bold text-accent hover:underline">
           {t('designer:pictureKeys.getKey', 'Get a key')}
           <span className="sr-only"> {t('designer:pictureKeys.getKeyAt', 'at {source}, in your browser', { source })}</span>
         </a>
