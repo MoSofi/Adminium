@@ -318,6 +318,9 @@ export const RATE_BUCKETS = {
   // link and per install in meta (`routes/pay`), where every process counts.
   'pay-page': { max: 120, timeWindowMs: 60_000, keyBy: 'ip' },
   'pay-checkout': { max: 20, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A payment service calling back: few addresses, many events at once (a
+  // retry storm after an outage). Generous; the signature is the real gate.
+  'payment-webhook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**
