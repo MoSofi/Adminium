@@ -63,8 +63,11 @@ const ASSET_TYPES: Readonly<Record<string, string>> = {
   '.png': 'image/png',
 };
 
-/** The policy every pay answer carries, for the origin it was asked on. */
-export function payContentPolicy(origin: string): string {
+/**
+ * The policy every pay answer carries, for the origin it was asked on. The
+ * staff preview alone may be framed, by this server's own Studio.
+ */
+export function payContentPolicy(origin: string, framedBySelf = false): string {
   const assets = `${origin}/pay/assets/`;
   return [
     "default-src 'none'",
@@ -73,7 +76,7 @@ export function payContentPolicy(origin: string): string {
     `font-src ${assets}`,
     "img-src 'self' data:",
     "connect-src 'self'",
-    "frame-ancestors 'none'",
+    framedBySelf ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "base-uri 'none'",
     "form-action 'none'",
   ].join('; ');
@@ -112,6 +115,15 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
     return (await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded: false })).state === 'reachable';
   }
 
+  async function mayPreview(request: FastifyRequest): Promise<boolean> {
+    if (request.apiKeyPrincipal != null) return false;
+    try {
+      return (await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView));
+    } catch {
+      return false;
+    }
+  }
+
   async function mayDriveDemo(request: FastifyRequest): Promise<boolean> {
     if (request.apiKeyPrincipal != null) return false;
     try {
@@ -124,7 +136,7 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
   return async (app) => {
     // Last word on the headers of everything this plugin answers.
     app.addHook('onSend', async (request, reply, payload) => {
-      void reply.header('content-security-policy', payContentPolicy(originOf(request)));
+      void reply.header('content-security-policy', payContentPolicy(originOf(request), request.url === '/pay/preview' || request.url.startsWith('/pay/preview?')));
       void reply.header('referrer-policy', 'no-referrer');
       void reply.header('x-content-type-options', 'nosniff');
       if (!request.url.startsWith('/pay/assets/')) void reply.header('cache-control', 'no-store');
@@ -140,6 +152,19 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
     app.get('/pay/:token', { config: { rateLimitBucket: 'pay-page' }, schema: { params: tokenParams } }, async (_request, reply) => page(reply));
     app.get('/pay/back/:nonce', { config: { rateLimitBucket: 'pay-page' }, schema: { params: nonceParams } }, async (_request, reply) => page(reply));
     app.get('/pay/demo/:attempt', { config: { rateLimitBucket: 'pay-page' }, schema: { params: attemptParams } }, async (_request, reply) => page(reply));
+    // Studio's preview of the pay page settings: staff only, read by the page itself.
+    app.get('/pay/preview', { config: { rateLimitBucket: 'pay-page' } }, async (_request, reply) => page(reply));
+
+    // The logo the preview shows: the saved one, or one just uploaded and not saved yet.
+    app.get('/pay/api/preview/logo', { config: { rateLimitBucket: 'pay-page' }, schema: { querystring: z.object({ file: z.string().max(64).optional() }) } }, async (request, reply) => {
+      if (!(await mayPreview(request))) return reply.status(404).send();
+      const settings = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
+      const id = request.query.file ?? settings?.logoFileId ?? null;
+      if (id === null) return reply.status(404).send();
+      const file = await filesRepo(meta).findById(id);
+      if (file === null || !LOGO_TYPES.has(file.mime) || file.deletedAt !== null || file.kind !== 'branding') return reply.status(404).send();
+      return reply.type(file.mime).send(await deps.storage.read(file));
+    });
 
     app.get('/pay/assets/*', { config: { rateLimitBucket: 'pay-page' } }, async (request, reply) => {
       const root = await payRoot(app);

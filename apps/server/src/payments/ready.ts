@@ -46,6 +46,23 @@ export async function readyPaymentProviders(deps: ReadyDeps): Promise<{ key: str
   return ready;
 }
 
+/**
+ * The services that can take a checkout in one mode: loaded, not stopped, and
+ * that mode's key checked. Live also needs live payments switched on; test
+ * stays open after that, for staff's test payments and test links.
+ */
+export async function readyInMode(deps: ReadyDeps, mode: PaymentMode): Promise<string[]> {
+  const runtime = deps.runtime();
+  const docs = paymentSettingsRepo(deps.meta);
+  const ready: string[] = [];
+  for (const key of await paymentAddOnKeys(deps)) {
+    const state = (await docs.get(serviceDocName(key), serviceStateSchema)) ?? emptyServiceState();
+    const loaded = runtime !== null && providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, key) !== null;
+    if (loaded && !state.stopped && state[mode].check?.ok === true && (mode === 'test' || state.liveOn)) ready.push(key);
+  }
+  return ready;
+}
+
 /** Whether live payments are on for any service. */
 export async function anyLiveOn(deps: ReadyDeps): Promise<boolean> {
   const docs = paymentSettingsRepo(deps.meta);

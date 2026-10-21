@@ -395,12 +395,15 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/payments/links': rows('visible', 'A pay link is made only for a row the maker reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/links/current': rows('visible', 'The current pay link of a row the asker reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/links/:id/revoke': rows('visible', 'A pay link is revoked only for a row the person reaches.'),
+  'POST /api/v1/payments/links/:id/email': rows('visible', 'A pay link is emailed only for a row the sender reaches; one they do not reach answers as one that is not there.'),
   'POST /api/v1/payments/webhook/:provider/:mode': noRows('A payment service calling back; the event is kept in meta and settled by a job.'),
   'GET /api/v1/payments/activity': noRows('Payment attempts and refunds, kept in meta; the record is named by its label only.'),
   'GET /api/v1/payments/activity/count': noRows('A count of payment attempts and refunds that need a look, kept in meta.'),
   'GET /api/v1/payments/activity.csv': noRows('Payment attempts and refunds, kept in meta; the record is named by its label only.'),
   'POST /api/v1/payments/activity/attempts/:id/check': noRows('Marks a payment attempt kept in meta as checked.'),
   'POST /api/v1/payments/activity/refunds/:id/check': noRows('Marks a refund kept in meta as checked.'),
+  'POST /api/v1/payments/test-payments': noRows('A throwaway test payable and its test link, kept in meta; no source table.'),
+  'GET /api/v1/payments/test-payments/:rowKey': noRows('How a test payment went, kept in meta; no source table.'),
   // --- /people
   'GET /api/v1/people': noRows('Names and ids of staff, to pick somebody.'),
   // --- /permissions

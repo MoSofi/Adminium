@@ -27,7 +27,7 @@ import {
 
 import { errorEnvelope } from '../src/errors.js';
 import { createCheckoutService } from '../src/payments/checkout.js';
-import { PAY_ADDRESS_DOC, payAddressSchema } from '../src/payments/links.js';
+import { PAY_ADDRESS_DOC, linkSealFromSecret, mintLink, payAddressSchema } from '../src/payments/links.js';
 import type { PayableSources } from '../src/payments/payables.js';
 import { paymentProviderFor } from '../src/payments/providers.js';
 import { recordAttempt } from '../src/payments/record.js';
@@ -188,10 +188,13 @@ describe('a pay link, end to end', () => {
     expect(revoked.state).toBe('unknown');
   });
 
-  it('opens no link and makes none while customers cannot reach the pay address', async () => {
+  it('opens no live link and makes none while customers cannot reach the pay address; a test link still opens for staff', async () => {
     const { token } = await mint();
+    const live = await mintLink(meta, linkSealFromSecret(TEST_SECRET), { payable: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0043' }, mode: 'live', createdBy: owner.id });
     await paymentSettingsRepo(meta).set(PAY_ADDRESS_DOC, payAddressSchema, { origin: 'http://192.168.1.20:4600' });
-    expect((await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: staff() })).json().state).toBe('unavailable');
+    expect((await app.inject({ method: 'GET', url: `/pay/api/${live.token}` })).json().state).toBe('unavailable');
+    // A test link is staff's own: it needs no address customers can reach.
+    expect((await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: staff() })).json().state).toBe('ready');
     const refused = await app.inject({ method: 'POST', url: '/api/v1/payments/links', headers: staff(), payload: { kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_inv0042' } });
     expect(refused.statusCode).toBe(422);
     expect(refused.json().error.details).toEqual({ reason: 'private-network' });

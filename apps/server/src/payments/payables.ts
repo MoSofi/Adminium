@@ -16,6 +16,9 @@
  *     own payments table (mapped, with a unique reference column) or are kept
  *     by Adminium; due = a balance column, or amount − the kept payments.
  *
+ * And staff's throwaway test payables (`test-payables.ts`), named as documents:
+ * due = the pretend amount − the test payments kept on it.
+ *
  * An amount that is not exact at its currency's decimals is refused, never
  * rounded: the customer would be asked for a different amount.
  */
@@ -38,6 +41,7 @@ import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
 import type { WriteTarget } from '../crud/write-context.js';
 import { createPublicViews } from '../public-api/runtime.js';
+import { isTestPayable, readTestPayable } from './test-payables.js';
 
 // ─── Row keys ───────────────────────────────────────────────────────────────
 
@@ -147,6 +151,8 @@ export interface ResolvedPayable {
   due: string;
   /** When it is due (`YYYY-MM-DD`), when the record says so plainly. */
   dueDate: string | null;
+  /** A staff test payable: the one service the pay page offers for it. */
+  onlyProvider?: string;
   /** Null when it can take an online payment now. */
   refusal: PayableRefusal | null;
   /** True when manual payments are possible even though online ones are not (a `@1` table). */
@@ -169,6 +175,8 @@ export interface PayableSources {
   profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: ParsedPayableMapping | null } | null>;
   /** What Adminium keeps as paid on a payable, live payments only. */
   keptPaid(ref: PayableRef, currency: string): Promise<string>;
+  /** A staff test payable, and the test payments kept on it; null when there is none. */
+  testPayable?(rowKey: string): Promise<{ label: string; currency: string; amount: string; provider: string; paid: string } | null>;
   /** A designer invoice's money, as stored. */
   document(id: string): Promise<{ status: string; number: string; currency: string | null; totalMinor: number | null; due?: string | null } | null>;
 }
@@ -189,6 +197,7 @@ const ISO = /^[A-Z]{3}$/;
 
 /** Resolves a payable; null when it no longer exists at all. */
 export async function resolvePayable(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
+  if (isTestPayable(ref)) return resolveTest(sources, ref);
   if (ref.kind === 'document') return resolveDocument(sources, ref);
   if (ref.connectionId === null || ref.tableName === null) return null;
   if (ref.kind === 'shape') return resolveShape(sources, ref, ref.connectionId, ref.tableName);
@@ -339,6 +348,17 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
   return { ...base, ...people, currency, total, due, refusal, status: mapping.status, recordInto };
 }
 
+async function resolveTest(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
+  const test = sources.testPayable === undefined ? null : await sources.testPayable(ref.rowKey);
+  if (test === null) return null;
+  const scale = currencyScale(test.currency);
+  const total = exactAmount(test.amount, scale);
+  const due = total === null ? null : subtractAmounts(total, test.paid, scale);
+  const base = { ref, label: test.label, dueDate: null, onlyProvider: test.provider, manualOnly: false, customerEmail: null, customerCountry: null, status: null, recordInto: { kind: 'kept' as const } };
+  if (total === null || due === null) return { ...base, currency: test.currency, total: '0', due: '0', refusal: refused('AMOUNT_UNCLEAR', 'This test payment is not exact.') };
+  return { ...base, currency: test.currency, total, due, refusal: positive(due) ? null : refused('NOTHING_DUE', 'This test payment is paid.') };
+}
+
 async function resolveDocument(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
   const document = await sources.document(ref.rowKey);
   if (document === null) return null;
@@ -420,6 +440,12 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
       return profile === null ? null : { id: profile.id, enabled: profile.enabled, mapping: profile.mapping };
     },
     keptPaid: (ref, currency) => keptPaymentsRepo(deps.meta).paid(ref, currency, 'live'),
+    async testPayable(rowKey) {
+      const test = await readTestPayable(deps.meta, rowKey);
+      if (test === null) return null;
+      const ref: PayableRef = { kind: 'document', connectionId: null, tableName: null, rowKey };
+      return { label: test.label, currency: test.currency, amount: test.amount, provider: test.provider, paid: await keptPaymentsRepo(deps.meta).paid(ref, test.currency, 'test') };
+    },
     async document(id) {
       const document = await invoiceDocumentsRepo(deps.meta).findById(id);
       if (document === null || document.kind !== 'invoice') return null;

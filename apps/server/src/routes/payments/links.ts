@@ -28,6 +28,7 @@ import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError
 import { PAY_ADDRESS_DOC, linkSealFromSecret, mintLink, payAddress, payAddressSchema, payReachable, payUrl } from '../../payments/links.js';
 import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { pkOfRowKey, type PayableSources } from '../../payments/payables.js';
+import { isTestPayable } from '../../payments/test-payables.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
@@ -70,32 +71,17 @@ function requirePerson(request: FastifyRequest): string {
   return id;
 }
 
-export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZod {
+/**
+ * Who may make, read or email a payable's pay link: the row as the person may
+ * change and see it, refused otherwise. A staff test payable never gets a
+ * link here (its own route makes its test link).
+ */
+export function createLinkRights(deps: Pick<PaymentLinksDeps, 'meta' | 'sources'>): (request: FastifyRequest, payable: PayableRef) => Promise<void> {
   const { meta } = deps;
-  const seal = linkSealFromSecret(deps.secret);
   const views = createPublicViews(meta);
-  const links = paymentLinksRepo(meta);
-
-  async function staffOrigin(): Promise<string | null> {
-    const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
-    return typeof publicOrigin === 'string' ? normalizePublicOrigin(publicOrigin) : null;
-  }
-
-  async function choices(): Promise<string[]> {
-    const out: string[] = [];
-    const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
-    if (typeof publicOrigin === 'string' && normalizePublicOrigin(publicOrigin) !== null) out.push(normalizePublicOrigin(publicOrigin)!);
-    const domains = ((await settingsRepo(meta).get('surfaces.domains')) ?? {}) as Record<string, DomainMapping>;
-    for (const [host, mapping] of Object.entries(domains)) {
-      if (mapping.side !== 'customer') continue;
-      const origin = normalizePublicOrigin(`https://${host}`);
-      if (origin !== null && !out.includes(origin)) out.push(origin);
-    }
-    return out;
-  }
-
   /** The row a payable names, as this person may change and see it; refuses otherwise. */
   async function assertMayLink(request: FastifyRequest, payable: PayableRef): Promise<void> {
+    if (isTestPayable(payable)) throw new NotFoundError('No such record.');
     if (payable.kind === 'document') {
       // An invoice made on the Invoices page: whoever may change the workspace's documents.
       if (!(await request.can(PERMISSIONS.settingsManage))) throw new ForbiddenError('You may not make a pay link for this invoice.');
@@ -124,6 +110,33 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
     // A row this person cannot see answers as one that is not there.
     if (row === undefined) throw new NotFoundError('No such record.');
   }
+  return assertMayLink;
+}
+
+export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZod {
+  const { meta } = deps;
+  const seal = linkSealFromSecret(deps.secret);
+  const links = paymentLinksRepo(meta);
+
+  async function staffOrigin(): Promise<string | null> {
+    const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
+    return typeof publicOrigin === 'string' ? normalizePublicOrigin(publicOrigin) : null;
+  }
+
+  async function choices(): Promise<string[]> {
+    const out: string[] = [];
+    const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
+    if (typeof publicOrigin === 'string' && normalizePublicOrigin(publicOrigin) !== null) out.push(normalizePublicOrigin(publicOrigin)!);
+    const domains = ((await settingsRepo(meta).get('surfaces.domains')) ?? {}) as Record<string, DomainMapping>;
+    for (const [host, mapping] of Object.entries(domains)) {
+      if (mapping.side !== 'customer') continue;
+      const origin = normalizePublicOrigin(`https://${host}`);
+      if (origin !== null && !out.includes(origin)) out.push(origin);
+    }
+    return out;
+  }
+
+  const assertMayLink = createLinkRights(deps);
 
   function viewOf(link: { id: string; tokenSealed: string; mode: 'test' | 'live'; expiresAt: number; createdAt: number }, address: string) {
     return { id: link.id, url: payUrl(address, seal.unseal(link.tokenSealed)), mode: link.mode, expiresAt: link.expiresAt, createdAt: link.createdAt };

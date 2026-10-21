@@ -7,6 +7,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 
 import BetterSqlite3 from 'better-sqlite3';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -39,7 +40,7 @@ describe('the pay page routes', () => {
     await app.register(
       payPageRoutes({
         meta,
-        storage: { read: async () => Buffer.from('') },
+        storage: { read: async () => Readable.from([]) },
         demo: createDemoPaymentBackend(),
         networkFeatures: true,
         desktop: false,

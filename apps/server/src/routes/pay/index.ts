@@ -33,10 +33,11 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
-import type { CheckoutService } from '../../payments/checkout.js';
+import { LINK_FAILURES_TO_LOCK, linkFailBucket, type CheckoutService } from '../../payments/checkout.js';
 import { linkForToken, linkOpens, linkStateForToken, payAddress, payReachable } from '../../payments/links.js';
 import { currencyScale } from '@adminium/manifest';
 import { resolvePayable, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
+import { isTestPayable } from '../../payments/test-payables.js';
 import { waysFor, type WayOffer } from '../../payments/ways.js';
 import { checkProof, issueChallenge, proofKey } from '../../public-api/proof.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -63,8 +64,6 @@ export const LINK_CHECKOUTS_PER_HOUR = 20;
 export const ADDRESS_CHECKOUTS_PER_HOUR = 60;
 /** Checkouts one install may start in an hour, every link together. */
 export const INSTALL_CHECKOUTS_PER_HOUR = 600;
-/** Failed payments on one link in an hour before it locks. */
-export const LINK_FAILURES_TO_LOCK = 5;
 
 export const PAY_STATES = [
   'ready',
@@ -182,6 +181,14 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
   }
 
   async function waysOf(payable: ResolvedPayable, country: string | null, mode: 'test' | 'live'): Promise<WayOffer[]> {
+    // A staff test payable offers its one service, whatever the ways' rules say:
+    // the demo service always (it needs no account), any other when it is ready.
+    if (payable.onlyProvider !== undefined) {
+      if (payable.onlyProvider === 'demo') return mode === 'test' ? [{ source: 'demo', method: 'card', label: null, details: null }] : [];
+      if (!(await deps.readyProviders(mode)).includes(payable.onlyProvider)) return [];
+      const methods = (await paymentMethodsRepo(meta).list()).filter((one) => one.source === payable.onlyProvider && one.enabled);
+      return methods.length === 0 ? [{ source: payable.onlyProvider, method: 'card', label: null, details: null }] : methods.map((one) => ({ source: one.source, method: one.method, label: null, details: null }));
+    }
     return waysFor({
       methods: await paymentMethodsRepo(meta).list(),
       payable: { kind: payable.ref.kind, profileId: payable.ref.kind === 'profile' ? await profileIdOf(payable) : null, currency: payable.currency, due: payable.due, customerCountry: payable.customerCountry },
@@ -222,16 +229,22 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
     const shopInfo = await shop();
     const { country, ...shopView } = shopInfo;
     const base: PageReply = { state: 'unknown', test: false, shop: shopView, payable: null, ways: [], processing: null, attempt: null };
-    if (!(await reachable(request))) return { ...base, state: 'unavailable' };
     const opened = await linkStateForToken(meta, token, now());
+    // A test link opens for signed-in staff only, so it needs no public
+    // address: the staff preview and a test payment work on every install.
+    // Everything else stops while customers cannot reach the pay address.
+    const staffTest = opened.state === 'open' && opened.link.mode === 'test';
+    if (!staffTest && !(await reachable(request))) return { ...base, state: 'unavailable' };
     if (opened.state === 'expired') return { ...base, state: 'expired' };
     if (opened.state !== 'open') return base;
     const { link } = opened;
     if (!(await mayOpen(request, link))) return { ...base, state: 'test-staff-only', test: true };
+    // A staff test payable is never paid through a live link.
+    if (isTestPayable(link.payable) && link.mode === 'live') return base;
     const payable = await resolvePayable(deps.sources, link.payable);
     if (payable === null) return base;
     const shown = shownOf(payable);
-    const open = await attempts.openFor(payable.ref);
+    const open = await attempts.openFor(payable.ref, link.mode);
     const held = open === null ? null : stateOfAttempt(open);
     if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
     if (held === 'paid' || held === 'shop-checks') return { ...base, state: held, test: link.mode === 'test', payable: shown };
@@ -241,13 +254,44 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
     }
     const ways = await waysOf(payable, country, link.mode);
     if (ways.length === 0) return { ...base, state: 'no-ways', test: link.mode === 'test', payable: shown };
-    const locked = (await counters.read(`link-fail:${link.id}`, now())) >= LINK_FAILURES_TO_LOCK;
+    const locked = (await counters.read(linkFailBucket(link.id), now())) >= LINK_FAILURES_TO_LOCK;
     // A locked link still shows the ways to pay by hand.
     if (locked) return { ...base, state: 'locked', test: link.mode === 'test', payable: shown, ways: ways.filter((way) => way.source === 'manual') };
     return { ...base, state: 'ready', test: link.mode === 'test', payable: shown, ways };
   }
 
+  /** Staff only: the pay page settings' preview (a made-up invoice, as a customer would see it). */
+  async function mayPreview(request: FastifyRequest): Promise<boolean> {
+    if (request.apiKeyPrincipal != null) return false;
+    try {
+      return (await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView));
+    } catch {
+      return false;
+    }
+  }
+
   return async (app) => {
+    app.get(
+      '/pay/api/preview',
+      { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, response: { 200: pageReply } } },
+      async (request, reply): Promise<PageReply> => {
+        noStore(reply);
+        const { country, ...shopView } = await shop();
+        if (!(await mayPreview(request))) return { state: 'unknown', test: false, shop: shopView, payable: null, ways: [], processing: null, attempt: null };
+        const settings = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
+        const due = new Date(now() + 14 * 86_400_000).toISOString().slice(0, 10);
+        const sample = { label: 'INV-0042', currency: 'EUR', due: '120.00', total: '120.00', alreadyPaid: null, dueDate: due };
+        const lines = settings?.showLines === true ? [{ label: 'Sourdough loaves × 24', amount: '96.00' }, { label: 'Delivery', amount: '24.00' }] : null;
+        const ways = waysFor({
+          methods: await paymentMethodsRepo(meta).list(),
+          payable: { kind: 'document', profileId: null, currency: sample.currency, due: sample.due, customerCountry: null },
+          shopCountry: country,
+          providers: await deps.readyProviders('live').then(async (live) => (live.length > 0 ? live : deps.readyProviders('test'))),
+        });
+        return { state: 'ready', test: true, shop: shopView, payable: { ...sample, lines }, ways: ways.length > 0 ? ways : [{ source: 'demo', method: 'card', label: null, details: null }], processing: null, attempt: null };
+      },
+    );
+
     app.get(
       '/pay/api/:token',
       { config: { rateLimitBucket: 'pay-page' }, schema: { hide: true, params: tokenParams, response: { 200: pageReply } } },
@@ -328,11 +372,10 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         noStore(reply);
         const { name, email, phone, hasLogo } = await shop();
         const base: PageReply = { state: 'unknown', test: false, shop: { name, email, phone, hasLogo }, payable: null, ways: [], processing: null, attempt: null };
-        if (!(await reachable(request))) return { ...base, state: 'unavailable' };
         const found = await attempts.byNonce(request.params.nonce);
-        if (found === null) return base;
-        const link = found.linkId === null ? null : await paymentLinksRepo(meta).byId(found.linkId);
-        if (link === null || !(await mayOpen(request, link))) return base;
+        const link = found?.linkId == null ? null : await paymentLinksRepo(meta).byId(found.linkId);
+        if (link?.mode !== 'test' && !(await reachable(request))) return { ...base, state: 'unavailable' };
+        if (found === null || link === null || !(await mayOpen(request, link))) return base;
         // Asked of the provider, once; never decided by the redirect.
         const attempt = (await deps.checkout.settle(found.id)) ?? found;
         // A link revoked, replaced or expired since still tells its holder how

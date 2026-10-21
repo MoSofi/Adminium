@@ -285,17 +285,20 @@ import { geoRoutes } from './routes/geo/index.js';
 import { paymentsRoutes } from './routes/payments/index.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
-import { paymentLinksRoutes } from './routes/payments/links.js';
+import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
+import { paymentLinkEmailRoutes } from './routes/payments/link-email.js';
+import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { payRoutes } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
-import { anyLiveOn, paymentAddOnKeys, readyPaymentProviders } from './payments/ready.js';
+import { anyLiveOn, paymentAddOnKeys, readyInMode } from './payments/ready.js';
 import { DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
+import { testPaymentsRoutes } from './routes/payments/test-payments.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -1500,7 +1503,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // Payments: the job that records a payment exactly once, and the
   // pickup that queues it again for any attempt a dead job left behind.
   const paymentSources = createPayableSources({ meta, manager });
-  registerPaymentsRecordHandler(jobs.registry, { meta, sources: paymentSources, writes: recordWrites, app, log: app.log });
+  // A recorded live payment emails its receipt once, to the record's customer.
+  registerPaymentsRecordHandler(jobs.registry, {
+    meta,
+    sources: paymentSources,
+    writes: recordWrites,
+    app,
+    log: app.log,
+    onRecorded: (attempt) => queuePaymentReceipt({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, logger: app.log }, attempt),
+  });
   // ── The demo payment service ─────────────────────────────────────────────
   // Pretend money in test mode, with no account: the staff preview and a test
   // payment work on every install. Its hosted page is this server's own
@@ -2016,6 +2027,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) }));
       await api.register(paymentActivityRoutes({ meta }));
+      // Email a record's pay link to its customer, under the links' own rights.
+      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log }));
+      // Send a test payment, and the pay page's full preview: a throwaway payable and a test link.
+      await api.register(
+        testPaymentsRoutes({
+          meta,
+          secret: env.ADMINIUM_SECRET,
+          readyInTest: () => readyInMode({ meta, manifests: appManifests, runtime: () => addOnRuntime }, 'test'),
+        }),
+      );
       await api.register(paymentPayablesRoutes({ meta, manager }));
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
@@ -2692,12 +2713,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       meta,
       sources: paymentSources,
       checkout: paymentCheckout,
-      readyProviders: async (mode) =>
-        (await readyPaymentProviders({ meta, manifests: appManifests, runtime: () => addOnRuntime })).filter((one) => one.mode === mode).map((one) => one.key),
+      readyProviders: (mode) => readyInMode({ meta, manifests: appManifests, runtime: () => addOnRuntime }, mode),
       secret: env.ADMINIUM_SECRET,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
+      receiptSent: (attempt) => receiptSentFor(meta, attempt),
     }),
   );
   // The pay page's HTML, its own files and the demo's hosted page, each with
