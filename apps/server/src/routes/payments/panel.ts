@@ -29,7 +29,7 @@ import { compareAmounts, sameAmount, subtractAmounts } from '@adminium/add-on-co
 import { currencyScale } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 
-import { isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, paymentAttemptsRepo, type KeptPayment, type MetaDb, type PayableRef } from '@adminium/meta';
+import { isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, paymentAttemptsRepo, refundsRepo, type KeptPayment, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -46,8 +46,11 @@ import { holdsCardNumber } from '../../payments/card-number.js';
 import { payAddress, payReachable } from '../../payments/links.js';
 import { exactAmount, fromMinorUnits, pkOfRowKey, resolvePayable, rowKeyOf, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
 import { recordedByOf, setPaidStatus, writePaymentRow, type PaymentActor } from '../../payments/record.js';
+import { refundableOf, refundRefusalOf } from '../../payments/refunds.js';
+import { PERMISSIONS } from '../../rbac/permissions.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
+import { refundView, refundViewOf } from './refunds.js';
 
 export interface PaymentPanelDeps {
   meta: MetaDb;
@@ -100,6 +103,15 @@ const paymentView = z.object({
   paidOn: z.string(),
   recordedBy: z.string().nullable(),
   cardLast4: z.string().nullable(),
+  /** The online payment behind it (what a refund is asked against); null when recorded by hand. */
+  attemptId: z.string().nullable(),
+  /** What may still be refunded online, and why not when nothing may. */
+  refundable: z.string(),
+  refundRefusal: refusalView.nullable(),
+  /** Its refunds, oldest first: asked here or made in the provider's dashboard. */
+  refunds: z.array(refundView),
+  /** A dispute the provider told of. Its deadline, amount and outcome are read in the provider's dashboard. */
+  dispute: z.object({ state: z.enum(['open', 'closed']), at: z.number(), closedAt: z.number().nullable() }).nullable(),
 });
 const waitingView = z.object({ id: z.string(), provider: z.string(), wayLabel: z.string().nullable(), startedAt: z.number(), test: z.boolean() });
 const panelView = z.object({
@@ -117,6 +129,8 @@ const panelView = z.object({
   mayChange: z.boolean(),
   /** A payment can be recorded by hand now. */
   mayRecord: z.boolean(),
+  /** May refund online payments: a signed-in person holding the refund permission. */
+  mayRefund: z.boolean(),
   waiting: z.array(waitingView),
   payments: z.array(paymentView),
 });
@@ -154,7 +168,10 @@ function textOf(value: unknown): string | null {
   return text === '' ? null : text;
 }
 
-function keptView(row: KeptPayment): PaymentView {
+/** The online fields of a payment: none for one recorded by hand. */
+const BY_HAND = { attemptId: null, refundable: '0', refundRefusal: null, refunds: [], dispute: null } as const;
+
+function keptView(row: KeptPayment): Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null } {
   return {
     id: `kept:${row.id}`,
     number: row.number,
@@ -168,6 +185,7 @@ function keptView(row: KeptPayment): PaymentView {
     paidOn: new Date(row.paidOn).toISOString().slice(0, 10),
     recordedBy: row.recordedByUser !== null ? row.recordedBy : row.provider === null ? row.recordedBy : recordedByOf(row.provider),
     cardLast4: row.cardLast4,
+    attemptId: row.attemptId,
   };
 }
 
@@ -222,7 +240,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
   }
 
   /** The payments in the record's own payments table (live, online and by hand). */
-  async function tablePayments(request: FastifyRequest, payable: ResolvedPayable): Promise<PaymentView[]> {
+  async function tablePayments(request: FastifyRequest, payable: ResolvedPayable): Promise<(Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null })[]> {
     const into = payable.recordInto;
     if (into.kind !== 'table' || payable.ref.connectionId === null) return [];
     const found = await sources.table(payable.ref.connectionId, into.tableName);
@@ -237,13 +255,14 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
       .limit(200)
       .execute()) as Row[];
     const scale = currencyScale(payable.currency);
-    const out: PaymentView[] = [];
+    const out: (Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null })[] = [];
     for (const row of rows) {
       if (into.shapeColumns && (row['voided'] === true || row['voided'] === 1 || row['voided'] === '1')) continue;
       const raw = row[into.amount];
       const amount = into.amountUnit === 'minor' ? fromMinorUnits(raw, scale) : exactAmount(raw, scale);
       if (amount === null) continue;
-      const refunded = into.shapeColumns && has('refunded_amount') ? (exactAmount(row['refunded_amount'] ?? 0, scale) ?? '0') : '0';
+      const rawRefunded = has(into.refunded) ? (row[into.refunded] ?? 0) : 0;
+      const refunded = (into.amountUnit === 'minor' ? fromMinorUnits(rawRefunded, scale) : exactAmount(rawRefunded, scale)) ?? '0';
       const provider = into.shapeColumns ? textOf(row['provider']) : null;
       out.push({
         id: `row:${String(row[found.table.primaryKey[0] ?? 'id'])}`,
@@ -258,9 +277,33 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         paidOn: (into.date === null ? null : textOf(row[into.date])) ?? '',
         recordedBy: into.shapeColumns ? textOf(row['recorded_by']) : null,
         cardLast4: into.shapeColumns ? textOf(row['card_last4']) : null,
+        attemptId: into.reference === null ? null : textOf(row[into.reference]),
       });
     }
     return out.sort((a, b) => (a.paidOn < b.paidOn ? -1 : a.paidOn > b.paidOn ? 1 : 0));
+  }
+
+  /** Each online payment with what may still be refunded, its refunds and any dispute. */
+  async function withRefunds(attempts: PaymentAttempt[], rows: (Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null })[]): Promise<PaymentView[]> {
+    const byId = new Map(attempts.map((attempt) => [attempt.id, attempt]));
+    const out: PaymentView[] = [];
+    for (const row of rows) {
+      // A reference that is not one of this record's attempts was written by someone else: shown as by hand.
+      const attempt = row.attemptId === null ? undefined : byId.get(row.attemptId);
+      if (attempt === undefined) {
+        out.push({ ...row, ...BY_HAND, refunds: [] });
+        continue;
+      }
+      out.push({
+        ...row,
+        attemptId: attempt.id,
+        refundable: refundableOf(attempt),
+        refundRefusal: refundRefusalOf(attempt),
+        refunds: (await refundsRepo(meta).forAttempt(attempt.id)).map(refundViewOf),
+        dispute: attempt.dispute,
+      });
+    }
+    return out;
   }
 
   async function panelOf(request: FastifyRequest, input: z.infer<typeof recordQuery>): Promise<PanelView | null> {
@@ -278,7 +321,8 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     const paid = subtractAmounts(payable.total, payable.due, scale) ?? '0';
     const attempts = await paymentAttemptsRepo(meta).forPayable(ref);
     const kept = (await keptPaymentsRepo(meta).forPayable(ref)).filter((row) => !row.voided);
-    const payments = [...(await tablePayments(request, payable)), ...kept.map(keptView)];
+    const payments = await withRefunds(attempts, [...(await tablePayments(request, payable)), ...kept.map(keptView)]);
+    const mayRefund = request.apiKeyPrincipal == null && (await request.can(PERMISSIONS.paymentsRefund));
     const handOk = payable.refusal === null || payable.refusal.code === 'NEEDS_UPDATE';
     return {
       payable: { kind, connectionId: input.connectionId, tableName: found.table.id, rowKey },
@@ -291,6 +335,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
       links: await linksOn(request),
       mayChange,
       mayRecord: mayChange && handOk && payable.currency !== '' && positive(payable.due),
+      mayRefund,
       waiting: attempts
         .filter((attempt) => attempt.state === 'processing')
         .map((attempt) => ({ id: attempt.id, provider: attempt.provider, wayLabel: (attempt.paidWith as { label?: string } | null)?.label ?? null, startedAt: attempt.createdAt, test: attempt.mode === 'test' })),

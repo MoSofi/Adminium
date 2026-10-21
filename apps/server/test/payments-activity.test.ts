@@ -117,6 +117,27 @@ describe('payments activity', () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(4);
   });
 
+  it('shows a disputed payment as disputed, flags it until checked, and again when a dispute opens anew', async () => {
+    const id = await attempt(['open', 'succeeded', 'recording', 'recorded'], { takenAmount: '120.00', takenCurrency: 'EUR', paymentRef: 'pi_d' });
+    const repo = paymentAttemptsRepo(meta);
+    const row = async () => (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(owner) })).json().data.rows.find((one: { id: string }) => one.id === id);
+    expect(await row()).toMatchObject({ group: 'paid', flag: null, dispute: null, refund: { refundable: '120.00', refusal: null } });
+    await repo.noteDispute(id, 'open', 5000);
+    expect(await row()).toMatchObject({ group: 'disputed', flag: { code: 'disputed' }, check: null, dispute: { state: 'open', at: 5000 }, refund: { refundable: '120.00', refusal: { code: 'DISPUTED' } } });
+    const disputed = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?state=disputed', headers: as(owner) })).json().data.rows;
+    expect(disputed.map((one: { id: string }) => one.id)).toEqual([id]);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity?state=paid', headers: as(owner) })).json().data.rows.map((one: { id: string }) => one.id)).not.toContain(id);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(1);
+    // Checked without a note: what to answer is in the service's dashboard.
+    expect((await app.inject({ method: 'POST', url: `/api/v1/payments/activity/attempts/${id}/check`, headers: as(owner), payload: { note: null } })).statusCode).toBe(204);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(0);
+    await repo.noteDispute(id, 'closed', Date.now() + 1000);
+    expect(await row()).toMatchObject({ group: 'paid', flag: null, dispute: { state: 'closed' } });
+    await repo.noteDispute(id, 'open', Date.now() + 2000);
+    expect(await row()).toMatchObject({ group: 'disputed', flag: { code: 'disputed' }, check: null });
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows.map((one: { id: string }) => one.id)).toEqual([id]);
+  });
+
   it('pages on the time and the id, so rows made in the same millisecond are never skipped', async () => {
     const repo = paymentAttemptsRepo(meta);
     const ids: string[] = [];

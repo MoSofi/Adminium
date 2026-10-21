@@ -20,7 +20,10 @@
  *   - `waiting-long`       a payment has waited for the bank longer than
  *                          `WAITING_LONG_MS` (a direct debit's few days became weeks);
  *   - `record-changed`     a payment that was written down changed or went
- *                          missing afterwards (the integrity check flags it).
+ *                          missing afterwards (the integrity check flags it);
+ *   - `disputed`           the customer's bank opened a dispute: it is answered
+ *                          in the provider's own dashboard. Checked once per
+ *                          dispute: one opened again needs a look again.
  *
  * Each row carries what a person needs to read its story without another
  * call: what was asked and what was taken, when it started, settled and was
@@ -37,13 +40,14 @@ import { z } from 'zod';
 
 import { audited } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { refundableOf, refundRefusalOf } from '../../payments/refunds.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 
 export interface PaymentActivityDeps {
   meta: MetaDb;
 }
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found. */
@@ -53,7 +57,7 @@ export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recor
 export const WAITING_LONG_MS = 14 * 86_400_000;
 
 /** The state groups a person reads and filters by. */
-export const STATE_GROUPS = ['started', 'paid', 'waiting', 'failed', 'expired', 'refunded', 'refundFailed'] as const;
+export const STATE_GROUPS = ['started', 'paid', 'waiting', 'failed', 'expired', 'refunded', 'refundFailed', 'disputed'] as const;
 export type StateGroup = (typeof STATE_GROUPS)[number];
 
 const ATTEMPT_GROUP: Readonly<Record<AttemptState, StateGroup>> = {
@@ -88,6 +92,8 @@ const ATTEMPT_STATES_OF: Readonly<Record<StateGroup, readonly AttemptState[]>> =
   expired: ['expired', 'cancelled', 'abandoned'],
   refunded: [],
   refundFailed: [],
+  // An attempt reads as disputed while its dispute is open, whatever its state: asked of the database apart.
+  disputed: [],
 };
 
 const query = z.object({
@@ -133,6 +139,10 @@ const rowView = z.object({
   refundSource: z.enum(['staff', 'provider']).nullable(),
   flag: z.object({ code: z.enum(ACTIVITY_FLAGS), reason: z.string().nullable(), message: z.string().nullable() }).nullable(),
   check: z.object({ at: z.number(), by: z.string().nullable(), byName: z.string().nullable(), note: z.string().nullable() }).nullable(),
+  /** An attempt that took money: what may still be refunded, and why nothing may now. Null on a refund row. */
+  refund: z.object({ refundable: z.string(), refusal: z.object({ code: z.string(), message: z.string() }).nullable() }).nullable(),
+  /** A dispute the provider told of. Its deadline, amount and outcome are read in the provider's dashboard. */
+  dispute: z.object({ state: z.enum(['open', 'closed']), at: z.number(), closedAt: z.number().nullable() }).nullable(),
 });
 type RowView = z.infer<typeof rowView>;
 const listReply = z.object({ data: z.object({ rows: z.array(rowView), more: z.boolean(), next: z.object({ before: z.number(), beforeId: z.string() }).nullable() }) });
@@ -143,6 +153,7 @@ const PAGE = 50;
 /** The flag an attempt carries, if any; `now` decides how long a payment has waited for the bank. */
 export function attemptFlag(attempt: PaymentAttempt, now: number = Date.now()): RowView['flag'] {
   const problem = attempt.problem;
+  if (attempt.dispute?.state === 'open') return { code: 'disputed', reason: null, message: null };
   if (problem?.code === 'MODE_MISMATCH') return { code: 'mode-mismatch', reason: problem.code, message: problem.message };
   if (attempt.flaggedAt !== null && attempt.state !== 'record_refused') {
     if (problem?.code === 'TWO_AT_ONCE') return { code: 'paid-twice', reason: problem.code, message: problem.message };
@@ -162,8 +173,14 @@ function checkView(check: PaymentAttempt['check'], names: Names): RowView['check
   return check === null ? null : { ...check, byName: check.by === null ? null : (names.get(check.by) ?? null) };
 }
 
+/** The states in which an attempt took money. */
+const TOOK_MONEY: ReadonlySet<AttemptState> = new Set(['succeeded', 'recording', 'recorded', 'record_refused']);
+
 function attemptRow(attempt: PaymentAttempt, names: Names, now: number): RowView {
   const paidWith = attempt.paidWith as { label?: string; method?: string } | null;
+  const flag = attemptFlag(attempt, now);
+  // A check from before the dispute opened is not a look at the dispute.
+  const check = flag?.code === 'disputed' && attempt.check !== null && attempt.check.at < (attempt.dispute?.at ?? 0) ? null : checkView(attempt.check, names);
   return {
     id: attempt.id,
     kind: 'attempt',
@@ -176,13 +193,15 @@ function attemptRow(attempt: PaymentAttempt, names: Names, now: number): RowView
     state: attempt.state,
     paidWith: paidWith?.label ?? null,
     way: paidWith?.method ?? null,
-    group: ATTEMPT_GROUP[attempt.state],
+    group: attempt.dispute?.state === 'open' ? 'disputed' : ATTEMPT_GROUP[attempt.state],
     asked: { amount: attempt.amount, currency: attempt.currency },
     times: { started: attempt.createdAt, settled: attempt.settledAt, recorded: attempt.recordedAt, updated: attempt.updatedAt },
     refs: { attempt: attempt.id, checkout: attempt.providerRef, payment: attempt.paymentRef, refund: null },
     refundSource: null,
-    flag: attemptFlag(attempt, now),
-    check: checkView(attempt.check, names),
+    flag,
+    check,
+    refund: TOOK_MONEY.has(attempt.state) && attempt.takenAmount !== null ? { refundable: refundableOf(attempt), refusal: refundRefusalOf(attempt) } : null,
+    dispute: attempt.dispute,
   };
 }
 
@@ -207,6 +226,8 @@ function refundRow(refund: RefundRow, of: PaymentAttempt | null, names: Names): 
     refundSource: refund.source,
     flag: refund.source === 'provider' ? { code: 'refunded-at-provider', reason: null, message: null } : null,
     check: checkView(refund.check, names),
+    refund: null,
+    dispute: null,
   };
 }
 
@@ -260,6 +281,16 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
     return out;
   }
 
+  /** Payments with a dispute open (few, ever): asked of the database apart, narrowed here. */
+  async function disputedNow(filter: { mode?: 'test' | 'live'; provider?: string }, before: { at: number; id: string } | undefined): Promise<PaymentAttempt[]> {
+    return (await attempts.disputed('open', 500)).filter(
+      (attempt) =>
+        (filter.mode === undefined || attempt.mode === filter.mode) &&
+        (filter.provider === undefined || attempt.provider === filter.provider) &&
+        (before === undefined || attempt.createdAt < before.at || (attempt.createdAt === before.at && attempt.id < before.id)),
+    );
+  }
+
   /** Payments waiting for the bank so long they need a look, unchecked: asked of the database by state. */
   async function waitingLong(filter: { mode?: 'test' | 'live'; provider?: string }, now: number): Promise<PaymentAttempt[]> {
     const waiting = await attempts.list({ ...filter, states: ['processing'], before: now - WAITING_LONG_MS, limit: 500 });
@@ -280,7 +311,7 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
       ...(filter.service === undefined ? {} : { provider: filter.service }),
     };
     const group = filter.state;
-    const wantAttempts = group === undefined || ATTEMPT_STATES_OF[group].length > 0;
+    const wantAttempts = group === undefined || group === 'disputed' || ATTEMPT_STATES_OF[group].length > 0;
     const wantRefunds = group === undefined || group === 'refunded' || group === 'refundFailed' || group === 'started';
     let cursor: { at: number; id: string } | null =
       filter.before !== undefined ? { at: filter.before, id: filter.beforeId ?? '' } : filter.to !== undefined ? { at: dayStart(filter.to, true), id: '' } : null;
@@ -298,9 +329,11 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
       const states = group === undefined ? undefined : ATTEMPT_STATES_OF[group];
       const attemptRows = !wantAttempts
         ? []
-        : open
+        : group === 'disputed'
+          ? await disputedNow(scope, before)
+          : open
           ? [...(await attempts.needingLook({ ...scope, ...(before === undefined ? {} : { before }), limit: batch })), ...(await waitingLong(scope, now))]
-          : await attempts.list({ ...scope, ...(states === undefined ? {} : { states }), ...(before === undefined ? {} : { before }), limit: batch });
+            : await attempts.list({ ...scope, ...(states === undefined ? {} : { states }), ...(before === undefined ? {} : { before }), limit: batch });
       const refundRows = wantRefunds ? await refunds.list({ ...scope, ...(before === undefined ? {} : { before }), ...(open ? { needingLook: true } : {}), limit: batch }) : [];
       const from = await attemptsOf(refundRows);
       const names = await namesOf([...attemptRows.map((one) => one.check?.by ?? null), ...refundRows.map((one) => one.check?.by ?? null)]);

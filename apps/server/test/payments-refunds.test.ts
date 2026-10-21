@@ -20,6 +20,7 @@ import { errorEnvelope } from '../src/errors.js';
 import { createPayableSources, resolvePayable, type PayableSources } from '../src/payments/payables.js';
 import { recordAttempt } from '../src/payments/record.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { paymentPanelRoutes } from '../src/routes/payments/panel.js';
 import { paymentRefundRoutes } from '../src/routes/payments/refunds.js';
 import { disputeEvent, followRecord, refundableOf, refundEvent, refundRefusalOf, requestRefund, settleRefund, type RefundDeps } from '../src/payments/refunds.js';
 import { installInvoicing, invoicingManifest, invoicingTables, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -313,6 +314,9 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
     const roleWith = async (slug: string, actions: string[]): Promise<User> => {
       const role = await roles.create({ slug: `${slug}-${dialect}`, name: slug });
       for (const action of actions) await permissionsRepo(h.meta).grant(role.id, 'system', action, { allowed: true });
+      for (const id of [invoicesId, paymentsId]) {
+        await permissionsRepo(h.meta).grant(role.id, 'table', `${h.connectionId}/${id}`, { read: true, create: false, update: false, delete: false, export: false, import: false } as never);
+      }
       const user = await users.create({ email: `${slug}-${dialect}@adminium.test`, name: slug, status: 'active' });
       await roles.assignToUser(user.id, role.id);
       return user;
@@ -332,7 +336,13 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
       if (user !== null) (request as unknown as { user: object }).user = { id: user.id, name: user.name, email: user.email };
     });
     await app.register(rbacPlugin, { meta: h.meta });
-    await app.register(async (api) => api.register(paymentRefundRoutes(deps)), { prefix: '/api/v1' });
+    await app.register(
+      async (api) => {
+        await api.register(paymentRefundRoutes(deps));
+        await api.register(paymentPanelRoutes({ meta: h.meta, manager: h.manager, sources, networkFeatures: true, desktop: false, trustProxy: false }));
+      },
+      { prefix: '/api/v1' },
+    );
     await app.ready();
     try {
       const invoice = await sentInvoice('42.00');
@@ -361,6 +371,14 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
       expect(tooMuch.statusCode).toBe(422);
       expect(tooMuch.json().error.details).toMatchObject({ reason: 'MORE_THAN_REFUNDABLE', field: 'amount' });
       expect((await preview(refunder)).json().data).toMatchObject({ refundable: '30.00', refusal: null });
+
+      // The record's Payment panel shows the refund on its payment, and the action only to who may refund.
+      const panel = (user: User) => app.inject({ method: 'POST', url: '/api/v1/payments/panel', headers: as(user), payload: { connectionId: h.connectionId, table: invoicesId, recordId: String(invoice['id']) } });
+      const shown = (await panel(refunder)).json().data;
+      expect(shown.mayRefund).toBe(true);
+      expect(shown.payments).toHaveLength(1);
+      expect(shown.payments[0]).toMatchObject({ attemptId, amount: '42.00', refunded: '12.00', refundable: '30.00', refundRefusal: null, dispute: null, refunds: [{ amount: '12.00', state: 'succeeded', source: 'staff' }] });
+      expect((await panel(manager)).json().data).toMatchObject({ mayRefund: false, payments: [{ attemptId, refundable: '30.00' }] });
       // Nobody signed in: refused before anything is read.
       expect((await app.inject({ method: 'GET', url: `/api/v1/payments/attempts/${attemptId}/refund` })).statusCode).toBe(401);
     } finally {
