@@ -13,7 +13,10 @@
  *   - `refunded-at-provider` a refund made in the provider's own dashboard: it is
  *                          recorded, and someone should know;
  *   - `mode-mismatch`      the provider reported a test payment for a live attempt
- *                          (or the reverse): not believed, not written.
+ *                          (or the reverse): not believed, not written;
+ *   - `paid-twice`         a payment arrived while another for the same record
+ *                          was already on its way: both are written down, and
+ *                          someone should see whether one is to be refunded.
  *
  * "Mark as checked" keeps who looked, when and what they wrote; the flag stays
  * visible as checked, never deleted. `payments.view` sees everything and may
@@ -32,11 +35,11 @@ export interface PaymentActivityDeps {
   meta: MetaDb;
 }
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'mode-mismatch'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'mode-mismatch', 'paid-twice'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found. */
-const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'mode-mismatch']);
+const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'mode-mismatch', 'paid-twice']);
 
 const query = z.object({
   mode: z.enum(['test', 'live']).optional(),
@@ -44,6 +47,8 @@ const query = z.object({
   /** Only the rows that still need a look. */
   open: z.enum(['1']).optional(),
   before: z.coerce.number().int().positive().optional(),
+  /** With `before`: the id of the last row seen, so rows made in the same millisecond are not skipped. */
+  beforeId: z.string().min(1).max(64).optional(),
 });
 const idParams = z.object({ id: z.string().min(1).max(64) });
 const checkBody = z.object({ note: z.string().trim().max(500).nullable() });
@@ -63,7 +68,7 @@ const rowView = z.object({
   check: z.object({ at: z.number(), by: z.string().nullable(), note: z.string().nullable() }).nullable(),
 });
 type RowView = z.infer<typeof rowView>;
-const listReply = z.object({ data: z.object({ rows: z.array(rowView), more: z.boolean() }) });
+const listReply = z.object({ data: z.object({ rows: z.array(rowView), more: z.boolean(), next: z.object({ before: z.number(), beforeId: z.string() }).nullable() }) });
 const countReply = z.object({ data: z.object({ open: z.number() }) });
 
 const PAGE = 50;
@@ -72,6 +77,7 @@ const PAGE = 50;
 export function attemptFlag(attempt: PaymentAttempt): RowView['flag'] {
   const problem = attempt.problem;
   if (problem?.code === 'MODE_MISMATCH') return { code: 'mode-mismatch', reason: problem.code, message: problem.message };
+  if (attempt.flaggedAt !== null && attempt.state !== 'record_refused') return { code: 'paid-twice', reason: problem?.code ?? null, message: problem?.message ?? null };
   if (attempt.state !== 'record_refused') return null;
   const code = problem?.code ?? '';
   if (code === 'AMOUNT_DIFFERS' || code === 'CURRENCY_DIFFERS' || code === 'MORE_THAN_DUE') return { code: 'amount-differs', reason: code, message: problem?.message ?? null };
@@ -138,15 +144,28 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
     }
   }
 
-  async function rows(filter: z.infer<typeof query>, limit: number): Promise<{ rows: RowView[]; more: boolean }> {
-    const common = { ...(filter.mode === undefined ? {} : { mode: filter.mode }), ...(filter.before === undefined ? {} : { before: filter.before }), limit: limit + 1 };
-    const found = [
-      ...(await attempts.list({ ...common, ...(filter.service === undefined ? {} : { provider: filter.service }) })).map(attemptRow),
-      ...(await refunds.list(common)).filter((refund) => filter.service === undefined || refund.provider === filter.service).map(refundRow),
-    ]
-      .filter((row) => filter.open === undefined || (row.flag !== null && row.check === null))
+  /**
+   * One page, newest first, from a `(at, id)` cursor. "Needs a look" is asked
+   * of the database, so a flagged row is never lost behind a page of others.
+   */
+  async function rows(filter: z.infer<typeof query>, limit: number): Promise<{ rows: RowView[]; more: boolean; next: { before: number; beforeId: string } | null }> {
+    const before = filter.before === undefined ? undefined : filter.beforeId === undefined ? filter.before : { at: filter.before, id: filter.beforeId };
+    const scope = {
+      ...(filter.mode === undefined ? {} : { mode: filter.mode }),
+      ...(filter.service === undefined ? {} : { provider: filter.service }),
+      limit: limit + 1,
+    };
+    const open = filter.open !== undefined;
+    const cursor = before === undefined ? {} : { before: typeof before === 'number' ? { at: before, id: '' } : before };
+    const attemptRows = open ? await attempts.needingLook({ ...scope, ...cursor }) : await attempts.list({ ...scope, ...(before === undefined ? {} : { before }) });
+    const refundRows = await refunds.list({ ...scope, ...(before === undefined ? {} : { before }), ...(open ? { needingLook: true } : {}) });
+    const found = [...attemptRows.map(attemptRow), ...refundRows.map(refundRow)]
+      .filter((row) => !open || row.flag !== null)
       .sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : -1));
-    return { rows: found.slice(0, limit), more: found.length > limit };
+    const page = found.slice(0, limit);
+    const last = page.at(-1);
+    const more = found.length > limit;
+    return { rows: page, more, next: more && last !== undefined ? { before: last.at, beforeId: last.id } : null };
   }
 
   return async (app) => {
@@ -157,8 +176,8 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
 
     app.get('/payments/activity/count', { schema: { response: { 200: countReply } } }, async (request) => {
       await mayRead(request);
-      // The badge on the Payments entry: rows that still need a look, live ones first and test ones too.
-      const open = (await rows({ open: '1' }, 500)).rows.length;
+      // The badge on the Payments entry: every row that still needs a look, test ones too, counted in the database.
+      const open = (await attempts.countNeedingLook()) + (await refunds.countNeedingLook());
       return { data: { open } };
     });
 
@@ -166,9 +185,9 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
       await mayRead(request);
       const header = ['when', 'kind', 'service', 'mode', 'record', 'amount', 'currency', 'state', 'paid with', 'needs a look', 'checked', 'note'];
       const lines = [header.join(',')];
-      let before = request.query.before;
+      let cursor: { before: number; beforeId?: string } | null = request.query.before === undefined ? null : { before: request.query.before, ...(request.query.beforeId === undefined ? {} : { beforeId: request.query.beforeId }) };
       for (let page = 0; page < 200; page += 1) {
-        const { rows: found, more } = await rows({ ...request.query, ...(before === undefined ? {} : { before }) }, 500);
+        const { rows: found, more, next } = await rows({ ...request.query, ...(cursor ?? {}) }, 500);
         for (const row of found) {
           lines.push(
             [new Date(row.at).toISOString(), row.kind, row.service, row.mode, row.payable?.label ?? null, row.amount, row.currency, row.state, row.paidWith, row.flag?.code ?? null, row.check === null ? null : new Date(row.check.at).toISOString(), row.check?.note ?? null]
@@ -176,8 +195,8 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
               .join(','),
           );
         }
-        if (!more || found.length === 0) break;
-        before = found.at(-1)!.at;
+        if (!more || next === null) break;
+        cursor = next;
       }
       await app.rbac.audit(request, { category: 'payments', action: 'payments.activity.exported', changes: { after: { rows: lines.length - 1, mode: request.query.mode ?? null } } });
       return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="payments-activity.csv"').header('cache-control', 'no-store').send(`${lines.join('\r\n')}\r\n`);

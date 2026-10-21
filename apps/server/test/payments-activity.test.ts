@@ -105,4 +105,42 @@ describe('payments activity', () => {
     expect(header).toBe('when,kind,service,mode,record,amount,currency,state,paid with,needs a look,checked,note');
     expect(line).toContain(`"'=HYPERLINK(""https://evil.test"",""pay"")"`);
   });
+
+  it('finds a row that needs a look behind any number of newer ones, and counts every one', async () => {
+    const flagged = await attempt(REFUSED, { problem: { code: 'VOIDED', message: 'Voided.' } });
+    for (let one = 0; one < 60; one += 1) await attempt(['open', 'succeeded', 'recording', 'recorded']);
+    const open = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data;
+    expect(open.rows.map((row: { id: string }) => row.id)).toEqual([flagged]);
+    expect(open.more).toBe(false);
+    // The badge is counted in the database, not from a first page.
+    for (let one = 0; one < 3; one += 1) await attempt(REFUSED, { problem: { code: 'VOIDED', message: 'Voided.' } });
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity/count', headers: as(owner) })).json().data.open).toBe(4);
+  });
+
+  it('pages on the time and the id, so rows made in the same millisecond are never skipped', async () => {
+    const repo = paymentAttemptsRepo(meta);
+    const ids: string[] = [];
+    for (let one = 0; one < 55; one += 1) {
+      const made = (await repo.create({ provider: 'payments-stripe', mode: 'live', accountId: null, payable: { kind: 'document', connectionId: null, tableName: null, rowKey: `same_${one}` }, payableLabel: 'X', amount: '1.00', currency: 'EUR', linkId: null, nonce: `s${one}`.padEnd(22, 'x'), createdBy: null }, 5000))!;
+      ids.push(made.id);
+    }
+    const first = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(owner) })).json().data;
+    expect(first.rows).toHaveLength(50);
+    expect(first.more).toBe(true);
+    const second = (await app.inject({ method: 'GET', url: `/api/v1/payments/activity?before=${first.next.before}&beforeId=${first.next.beforeId}`, headers: as(owner) })).json().data;
+    const seen = [...first.rows, ...second.rows].map((row: { id: string }) => row.id);
+    expect(new Set(seen).size).toBe(55);
+    expect([...seen].sort()).toEqual([...ids].sort());
+    const csv = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity.csv', headers: as(owner) })).payload.trim().split('\r\n');
+    expect(csv).toHaveLength(56);
+  });
+
+  it('flags a payment that arrived while another for the same record was on its way', async () => {
+    await attempt(['open', 'succeeded'], { problem: { code: 'TWO_AT_ONCE', message: 'Two at once.' } });
+    const id = (await paymentAttemptsRepo(meta).list())[0]!.id;
+    await paymentAttemptsRepo(meta).flag(id, 9999);
+    const rows = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows;
+    expect(rows.map((row: { flag: { code: string } }) => row.flag.code)).toEqual(['paid-twice']);
+  });
 });
+
