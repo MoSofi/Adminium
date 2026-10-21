@@ -123,7 +123,12 @@ const recordReply = z.object({ data: z.object({ key: z.string(), already: z.bool
 type PanelView = z.infer<typeof panelView>;
 type PaymentView = z.infer<typeof paymentView>;
 
-/** How long a key is remembered for a payment kept by Adminium (whose rows carry no key). */
+/**
+ * How long a key is remembered in this process, for a table whose payments
+ * carry no unique reference (an `@1` invoice table). A payment kept by
+ * Adminium carries its key in a unique column, so a retry there is caught by
+ * the database in every process and for good.
+ */
 const KEY_MEMORY_MS = 15 * 60_000;
 
 function personOf(request: FastifyRequest): { id: string; label: string } {
@@ -364,9 +369,10 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
             already = true;
           }
         } else {
-          await keptPaymentsRepo(meta).insert(
+          const kept = await keptPaymentsRepo(meta).insert(
             {
               payable: ref,
+              requestKey: body.key,
               number: null,
               amount,
               currency: payable.currency,
@@ -384,6 +390,8 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
             },
             now,
           );
+          // The same key already kept its payment: a retry after a lost answer, here or in another process.
+          if (kept === null) already = true;
         }
         if (!already) await setPaidStatus(recordDeps, ref, payable, actor, request);
         const after = await resolvePayable(sources, ref);

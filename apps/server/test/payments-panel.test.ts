@@ -265,6 +265,38 @@ describe.each(LEGS)('the Payment panel — %s', (dialect, available) => {
     expect(await paymentsOf(invoice)).toHaveLength(1);
   });
 
+  it.runIf(available)('keeps one payment for one key, even when another process gets the retry', async () => {
+    const deposit = await w.create('deposits', { label: 'DEP-8', amount: '30.00', currency: 'EUR' });
+    const once = key();
+    const first = await record(owner, depositsId, deposit['id'], { amount: '10.00', key: once });
+    expect(first.json().data).toMatchObject({ already: false, due: '20.00' });
+    // A second server process: none of the first one's memory, the same meta store.
+    const other = Fastify({ logger: false });
+    other.setValidatorCompiler(validatorCompiler);
+    other.setSerializerCompiler(serializerCompiler);
+    other.addHook('onRequest', async (request) => {
+      const user = await usersRepo(h.meta).findById(String(request.headers['x-test-user-id']));
+      if (user !== null) (request as unknown as { user: object }).user = { id: user.id, name: user.name, email: user.email };
+    });
+    await other.register(rbacPlugin, { meta: h.meta });
+    await other.register(async (api) => api.register(paymentPanelRoutes({ meta: h.meta, manager: h.manager, sources: createPayableSources({ meta: h.meta, manager: h.manager }), networkFeatures: true, desktop: false, trustProxy: false })), { prefix: '/api/v1' });
+    await other.ready();
+    try {
+      const again = await other.inject({
+        method: 'POST',
+        url: '/api/v1/payments/record-payment',
+        headers: as(owner),
+        payload: { connectionId: h.connectionId, table: depositsId, recordId: String(deposit['id']), amount: '10.00', way: 'cash', paidOn: '2026-10-20', note: null, approvalCode: null, last4: null, key: once },
+      });
+      expect(again.statusCode, again.payload).toBe(200);
+      expect(again.json().data).toMatchObject({ already: true, due: '20.00' });
+    } finally {
+      await other.close();
+    }
+    const kept = await keptPaymentsRepo(h.meta).forPayable({ kind: 'profile', connectionId: h.connectionId, tableName: depositsId, rowKey: String(deposit['id']) });
+    expect(kept).toHaveLength(1);
+  });
+
   it.runIf(available)('keeps a deposit\'s payment in Adminium, and marks it paid once nothing is due', async () => {
     const deposit = await w.create('deposits', { label: 'DEP-7', amount: '25.00', currency: 'EUR' });
     const recorded = await record(owner, depositsId, deposit['id'], { amount: '25.00', way: 'bank-transfer' });

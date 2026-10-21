@@ -152,6 +152,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('mode', c.str(8), (col) => col.notNull())
     // The attempt it came from; unique, so recording an online payment is insert-first.
     .addColumn('attempt_id', c.id)
+    // A payment recorded by hand: the key its form sent; unique, so a retried save is the same payment.
+    .addColumn('request_key', c.str(64))
     .addColumn('approval_code', c.str(12))
     .addColumn('card_last4', c.str(4))
     .addColumn('note', c.str(500))
@@ -164,6 +166,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .execute();
   await db.schema.createIndex('uq_adminium_payments_attempt').on(metaTable('payments')).columns(['attempt_id']).unique().execute();
+  await db.schema.createIndex('uq_adminium_payments_request').on(metaTable('payments')).columns(['request_key']).unique().execute();
   await db.schema.createIndex('ix_adminium_payments_payable').on(metaTable('payments')).columns(['payable_key']).execute();
 
   await db.schema

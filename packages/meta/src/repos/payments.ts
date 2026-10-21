@@ -815,6 +815,8 @@ export interface InsertKeptPaymentInput {
   provider: string | null;
   mode: 'test' | 'live';
   attemptId: string | null;
+  /** For a payment recorded by hand: the key its form sent; a second insert with it is refused. */
+  requestKey?: string | null;
   approvalCode: string | null;
   cardLast4: string | null;
   note: string | null;
@@ -880,6 +882,7 @@ export function keptPaymentsRepo(meta: MetaDb) {
         provider: input.provider,
         mode: input.mode,
         attemptId: input.attemptId,
+        requestKey: input.requestKey ?? null,
         approvalCode: input.approvalCode,
         cardLast4: input.cardLast4,
         note: input.note,
@@ -894,7 +897,7 @@ export function keptPaymentsRepo(meta: MetaDb) {
       try {
         await db.insertInto('adminium_payments').values(row).execute();
       } catch (error) {
-        if (input.attemptId !== null && isDuplicateKeyError(error)) return null;
+        if ((input.attemptId !== null || (input.requestKey ?? null) !== null) && isDuplicateKeyError(error)) return null;
         throw error;
       }
       return decodeKept(row);

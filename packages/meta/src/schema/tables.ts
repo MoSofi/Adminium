@@ -1605,6 +1605,7 @@ export interface AdminiumPaymentsTable {
   provider: string | null;
   mode: string;
   attemptId: Id | null;
+  requestKey: ColumnType<string | null, string | null | undefined, string | null>;
   approvalCode: string | null;
   cardLast4: string | null;
   note: string | null;
