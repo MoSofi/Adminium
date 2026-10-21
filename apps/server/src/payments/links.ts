@@ -103,9 +103,11 @@ export async function linkForToken(meta: MetaDb, token: string, at: number = Dat
  * says so (its holder had it from the shop); unknown, revoked and replaced
  * answer alike, so the page tells nobody which tokens ever existed.
  */
-export async function linkStateForToken(meta: MetaDb, token: string, at: number = Date.now()): Promise<{ state: 'open'; link: PaymentLink } | { state: 'expired' } | { state: 'unknown' }> {
+export async function linkStateForToken(meta: MetaDb, token: string, at: number = Date.now()): Promise<{ state: 'open'; link: PaymentLink } | { state: 'expired' } | { state: 'test-ended' } | { state: 'unknown' }> {
   if (!looksLikeToken(token)) return { state: 'unknown' };
   const link = await paymentLinksRepo(meta).byHash(linkTokenHash(token));
+  // A test link the shop's going live ended: its holder was staff, and may be told so.
+  if (link !== null && link.revokedAt !== null && link.revokeReason === 'test-ended') return { state: 'test-ended' };
   if (link === null || !link.current || link.revokedAt !== null) return { state: 'unknown' };
   if (link.expiresAt <= at) return { state: 'expired' };
   return { state: 'open', link };

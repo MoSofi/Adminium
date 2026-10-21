@@ -17,6 +17,7 @@ import {
   firstRun,
   keptPaymentsRepo,
   paymentAttemptsRepo,
+  paymentLinksRepo,
   paymentMethodsRepo,
   paymentSettingsRepo,
   rolesRepo,
@@ -231,6 +232,12 @@ describe('a pay link, end to end', () => {
   it('shows the pay page preview to staff only', async () => {
     expect((await app.inject({ method: 'GET', url: '/pay/api/preview' })).json()).toMatchObject({ state: 'unknown', payable: null, ways: [] });
     expect((await app.inject({ method: 'GET', url: '/pay/api/preview', headers: staff() })).json()).toMatchObject({ state: 'ready', test: false, payable: { label: 'INV-0042' } });
+  });
+
+  it('tells the holder of a test link that going live ended it', async () => {
+    const { token } = await mint();
+    await paymentLinksRepo(meta).revokeTestLinks(Date.now());
+    expect((await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: staff() })).json()).toMatchObject({ state: 'test-ended', payable: null, ways: [] });
   });
 
   it('never spends one proof twice', async () => {

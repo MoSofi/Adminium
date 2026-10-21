@@ -84,6 +84,7 @@ export const PAY_STATES = [
   'locked',
   'expired',
   'shop-checks',
+  'test-ended',
 ] as const;
 export type PayState = (typeof PAY_STATES)[number];
 
@@ -246,6 +247,7 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     const staffTest = opened.state === 'open' && opened.link.mode === 'test';
     if (!staffTest && !(await reachable(request))) return { ...base, state: 'unavailable' };
     if (opened.state === 'expired') return { ...base, state: 'expired' };
+    if (opened.state === 'test-ended') return { ...base, state: 'test-ended', test: true };
     if (opened.state !== 'open') return base;
     const { link } = opened;
     if (!(await mayOpen(request, link))) return { ...base, state: 'test-staff-only', test: true };

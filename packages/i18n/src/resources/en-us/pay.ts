@@ -94,6 +94,10 @@ export default {
     "title": "This pay link has expired.",
     "body": "Ask {shop} for a new one."
   },
+  "testEnded": {
+    "title": "This was a test link.",
+    "body": "{shop} now takes real payments. Ask them for the link to pay."
+  },
   "unknown": {
     "title": "This link doesn't work.",
     "body": "Ask {shop} for a new one."

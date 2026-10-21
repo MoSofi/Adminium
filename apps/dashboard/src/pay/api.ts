@@ -26,6 +26,7 @@ export const PAY_STATES = [
   'locked',
   'expired',
   'shop-checks',
+  'test-ended',
 ] as const;
 export type PayState = (typeof PAY_STATES)[number];
 

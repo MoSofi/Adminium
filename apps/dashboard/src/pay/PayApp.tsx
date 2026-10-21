@@ -342,6 +342,8 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
         return contactWith(Ban, t('pay:voided.title', 'This can no longer be paid here.'), t('pay:voided.body', 'Please contact {shop}.', { shop: shop.name }));
       case 'expired':
         return contactWith(Hourglass, t('pay:expired.title', 'This pay link has expired.'), t('pay:expired.body', 'Ask {shop} for a new one.', { shop: shop.name }), 'warning');
+      case 'test-ended':
+        return contactWith(FlaskConical, t('pay:testEnded.title', 'This was a test link.'), t('pay:testEnded.body', '{shop} now takes real payments. Ask them for the link to pay.', { shop: shop.name }));
       case 'unknown':
         return contactWith(Link2Off, t('pay:unknown.title', "This link doesn't work."), t('pay:unknown.body', 'Ask {shop} for a new one.', { shop: shop.name }));
       case 'locked': {
@@ -360,7 +362,7 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
   const current = status();
   const state = page?.state ?? null;
   // A dead link shows nothing about what it was for: the page is no oracle.
-  const solo = state === 'unknown' || state === 'expired' || state === 'test-staff-only';
+  const solo = state === 'unknown' || state === 'expired' || state === 'test-staff-only' || state === 'test-ended';
   const showWays = page !== null && !offline && (state === 'ready' || state === 'locked' || (state === 'cancelled' && route.kind === 'link')) && phase.kind !== 'redirecting' && phase.kind !== 'bank';
   const showHero = payable !== null && !solo && state !== 'voided';
   const ways = page?.ways ?? [];

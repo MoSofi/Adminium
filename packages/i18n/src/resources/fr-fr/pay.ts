@@ -94,6 +94,10 @@ export default {
     "title": "Ce lien de paiement a expiré.",
     "body": "Demandez-en un nouveau à {shop}."
   },
+  "testEnded": {
+    "title": "C’était un lien de test.",
+    "body": "{shop} accepte désormais de vrais paiements. Demandez-lui le lien pour payer."
+  },
   "unknown": {
     "title": "Ce lien ne fonctionne pas.",
     "body": "Demandez-en un nouveau à {shop}."

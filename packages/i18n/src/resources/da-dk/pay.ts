@@ -94,6 +94,10 @@ export default {
     "title": "Dette betalingslink er udløbet.",
     "body": "Bed {shop} om et nyt."
   },
+  "testEnded": {
+    "title": "Det var et testlink.",
+    "body": "{shop} tager nu imod rigtige betalinger. Bed om linket til at betale."
+  },
   "unknown": {
     "title": "Dette link virker ikke.",
     "body": "Bed {shop} om et nyt."

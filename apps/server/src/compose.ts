@@ -295,6 +295,9 @@ import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
 import { createPayLinkFor } from './payments/pay-link-for.js';
+import { PAYMENTS_INTEGRITY_CRON, PAYMENTS_INTEGRITY_NAME, PAYMENTS_WATCH_CRON, PAYMENTS_WATCH_NAME, runPaymentIntegrity, runPaymentWatch } from './payments/watch.js';
+import { gcNoticeClaims } from './payments/notices.js';
+import { endPaymentsForRows } from './payments/going-live.js';
 import { anyLiveOn, paymentAddOnKeys, readyInMode } from './payments/ready.js';
 import { DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
@@ -869,9 +872,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * library, and tells open dashboards when it lands. The Files library's store
    * is created just below, so it is read lazily.
    */
+  // Removed sample rows end their pay links and open checkouts (the payment parts are made further down).
+  let endPaymentsOnRows: ((connectionId: string, rows: Parameters<NonNullable<SampleDataDeps['onRowsRemoved']>>[1]) => Promise<void>) | null = null;
   const sampleDataDeps: SampleDataDeps = {
     meta,
     manager,
+    onRowsRemoved: async (connectionId, rows) => {
+      if (endPaymentsOnRows !== null) await endPaymentsOnRows(connectionId, rows);
+    },
     store: appStore,
     appFiles,
     // An add-on's own sample is read from its package (made further down; read only when a sample is asked for).
@@ -1541,6 +1549,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     trustProxy: env.ADMINIUM_TRUST_PROXY,
     liveOn: () => anyLiveOn({ meta, manifests: appManifests, runtime: () => addOnRuntime }),
   });
+  endPaymentsOnRows = async (connectionId, rows) => {
+    await endPaymentsForRows({ meta, providerFor: paymentProviderLookup }, connectionId, rows);
+  };
   // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
   const paymentCheckout = createCheckoutService({
     meta,
@@ -1563,6 +1574,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     { jitterMs: 30_000 },
   );
+  // Telling payment managers what needs them (every 5 minutes), and the daily check that recorded payments are still there.
+  const paymentWatchDeps = {
+    meta,
+    sources: paymentSources,
+    serviceKeys: () => paymentAddOnKeys({ manifests: appManifests }),
+    hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) },
+  };
+  jobs.scheduler.registerSchedule(PAYMENTS_WATCH_NAME, PAYMENTS_WATCH_CRON, async () => {
+    await runPaymentWatch(paymentWatchDeps);
+  }, { jitterMs: 30_000 });
+  jobs.scheduler.registerSchedule(PAYMENTS_INTEGRITY_NAME, PAYMENTS_INTEGRITY_CRON, async () => {
+    await runPaymentIntegrity(paymentWatchDeps);
+  }, { jitterMs: 60_000 });
   jobs.scheduler.registerSchedule(
     PAYMENTS_RECORD_PICKUP_NAME,
     PAYMENTS_RECORD_PICKUP_CRON,
@@ -3346,6 +3370,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       const days = await settings.get('retention.paymentEventsDays');
       paymentEvents = await paymentEventsRepo(meta).gc(at, days);
       paymentEvents += await paymentCountersRepo(meta).gc(at);
+      paymentEvents += await gcNoticeClaims(meta, at);
     } catch (error) {
       app.log.warn({ err: error }, 'retention sweep: payment event purge failed');
     }

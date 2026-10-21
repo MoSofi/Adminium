@@ -94,6 +94,10 @@ export default {
     "title": "此付款連結已過期。",
     "body": "請向 {shop} 索取新的連結。"
   },
+  "testEnded": {
+    "title": "這是一個測試連結。",
+    "body": "{shop} 現已接受真實付款。請向其索取付款連結。"
+  },
   "unknown": {
     "title": "此連結無法使用。",
     "body": "請向 {shop} 索取新的連結。"

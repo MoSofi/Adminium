@@ -94,6 +94,10 @@ export default {
     "title": "Dieser Zahlungslink ist abgelaufen.",
     "body": "Bitten Sie {shop} um einen neuen."
   },
+  "testEnded": {
+    "title": "Das war ein Testlink.",
+    "body": "{shop} nimmt jetzt echte Zahlungen an. Bitten Sie um den Link zum Bezahlen."
+  },
   "unknown": {
     "title": "Dieser Link funktioniert nicht.",
     "body": "Bitten Sie {shop} um einen neuen."

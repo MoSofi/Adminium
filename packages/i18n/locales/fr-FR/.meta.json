@@ -18099,6 +18099,14 @@
     "status": "mt",
     "srcHash": "666999802412"
   },
+  "pay.testEnded.body": {
+    "status": "mt",
+    "srcHash": "08f273f03c80"
+  },
+  "pay.testEnded.title": {
+    "status": "mt",
+    "srcHash": "837797634c7c"
+  },
   "pay.testStaffOnly.body": {
     "status": "mt",
     "srcHash": "e7065c335529"
@@ -18186,6 +18194,126 @@
   "pay.ways.title": {
     "status": "mt",
     "srcHash": "705052ddcba9"
+  },
+  "payments.notice.dispute.body": {
+    "status": "mt",
+    "srcHash": "05fcf84c296a"
+  },
+  "payments.notice.dispute.title": {
+    "status": "mt",
+    "srcHash": "dc478969836e"
+  },
+  "payments.notice.key.body": {
+    "status": "mt",
+    "srcHash": "d5b9ed7e9792"
+  },
+  "payments.notice.key.title": {
+    "status": "mt",
+    "srcHash": "40c90d918642"
+  },
+  "payments.notice.keysRemoved.body": {
+    "status": "mt",
+    "srcHash": "5b3873d65ee8"
+  },
+  "payments.notice.keysRemoved.title": {
+    "status": "mt",
+    "srcHash": "f4e0aa9701c1"
+  },
+  "payments.notice.landed.body": {
+    "status": "mt",
+    "srcHash": "402f9f4c1019"
+  },
+  "payments.notice.landed.bodyWith": {
+    "status": "mt",
+    "srcHash": "042916214f64"
+  },
+  "payments.notice.landed.title": {
+    "status": "mt",
+    "srcHash": "2608ccfb8867"
+  },
+  "payments.notice.look.amount": {
+    "status": "mt",
+    "srcHash": "ae0c10634a9e"
+  },
+  "payments.notice.look.missing": {
+    "status": "mt",
+    "srcHash": "e5b1290f40ff"
+  },
+  "payments.notice.look.mode": {
+    "status": "mt",
+    "srcHash": "d79d8b0bcccf"
+  },
+  "payments.notice.look.notRecorded": {
+    "status": "mt",
+    "srcHash": "5c02e35eb588"
+  },
+  "payments.notice.look.notYet": {
+    "status": "mt",
+    "srcHash": "dda4a2ffa09a"
+  },
+  "payments.notice.look.title": {
+    "status": "mt",
+    "srcHash": "91de330dd0a0"
+  },
+  "payments.notice.look.twice": {
+    "status": "mt",
+    "srcHash": "b468c9cfa928"
+  },
+  "payments.notice.look.voided": {
+    "status": "mt",
+    "srcHash": "74b98ddcb890"
+  },
+  "payments.notice.reads.body": {
+    "status": "mt",
+    "srcHash": "7d7d58c51258"
+  },
+  "payments.notice.reads.title": {
+    "status": "mt",
+    "srcHash": "d4318b80a82b"
+  },
+  "payments.notice.redirect.account": {
+    "status": "mt",
+    "srcHash": "7ebc4f563314"
+  },
+  "payments.notice.redirect.bank": {
+    "status": "mt",
+    "srcHash": "0f6664116e93"
+  },
+  "payments.notice.redirect.body": {
+    "status": "mt",
+    "srcHash": "35cccdec9bd8"
+  },
+  "payments.notice.redirect.byOnly": {
+    "status": "mt",
+    "srcHash": "e2bdd0d4f600"
+  },
+  "payments.notice.redirect.byTo": {
+    "status": "mt",
+    "srcHash": "b9e532457696"
+  },
+  "payments.notice.redirect.payAddress": {
+    "status": "mt",
+    "srcHash": "3cdf24a843b2"
+  },
+  "payments.notice.refundFailed.body": {
+    "status": "mt",
+    "srcHash": "99d6d0984ce3"
+  },
+  "payments.notice.refundFailed.title": {
+    "status": "mt",
+    "srcHash": "901ba670fa6e"
+  },
+  "payments.notice.webhook.body": {
+    "status": "mt",
+    "srcHash": "4597beec883e"
+  },
+  "payments.notice.webhook.bodyNever": {
+    "status": "mt",
+    "srcHash": "552f1753f41c"
+  },
+  "payments.notice.webhook.title": {
+    "status": "mt",
+    "srcHash": "aa7fcff3605e"
   },
   "payments.panel.balanceDue": {
     "status": "mt",
@@ -27631,6 +27759,454 @@
     "status": "mt",
     "srcHash": "21e2caea4476"
   },
+  "studio.payments.activity.all": {
+    "status": "mt",
+    "srcHash": "18524b8392df"
+  },
+  "studio.payments.activity.allSub": {
+    "status": "mt",
+    "srcHash": "81aa1f410dd5"
+  },
+  "studio.payments.activity.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.payments.activity.checkedBy": {
+    "status": "mt",
+    "srcHash": "48f01b7480eb"
+  },
+  "studio.payments.activity.checkedByNote": {
+    "status": "mt",
+    "srcHash": "f12ab9626caf"
+  },
+  "studio.payments.activity.checkedByYou": {
+    "status": "mt",
+    "srcHash": "b1759d1e0156"
+  },
+  "studio.payments.activity.checkedByYouNote": {
+    "status": "mt",
+    "srcHash": "6342591a255a"
+  },
+  "studio.payments.activity.clearFilters": {
+    "status": "mt",
+    "srcHash": "412226715c56"
+  },
+  "studio.payments.activity.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.payments.activity.col.amount": {
+    "status": "mt",
+    "srcHash": "43dc8532f7e5"
+  },
+  "studio.payments.activity.col.mode": {
+    "status": "mt",
+    "srcHash": "e4d17ae0f4fb"
+  },
+  "studio.payments.activity.col.record": {
+    "status": "mt",
+    "srcHash": "1c54132b8e5a"
+  },
+  "studio.payments.activity.col.service": {
+    "status": "src",
+    "srcHash": "329cb8b6ba8c"
+  },
+  "studio.payments.activity.col.state": {
+    "status": "mt",
+    "srcHash": "a72502067518"
+  },
+  "studio.payments.activity.col.way": {
+    "status": "mt",
+    "srcHash": "107c02b5f4c5"
+  },
+  "studio.payments.activity.col.what": {
+    "status": "mt",
+    "srcHash": "97211a888812"
+  },
+  "studio.payments.activity.col.when": {
+    "status": "mt",
+    "srcHash": "769bb19e615b"
+  },
+  "studio.payments.activity.copyId": {
+    "status": "mt",
+    "srcHash": "371625fcd003"
+  },
+  "studio.payments.activity.countLabel": {
+    "status": "mt",
+    "srcHash": "08f13d4fe1ac"
+  },
+  "studio.payments.activity.emptyBody": {
+    "status": "mt",
+    "srcHash": "3dba850d23d1"
+  },
+  "studio.payments.activity.emptyTitle": {
+    "status": "mt",
+    "srcHash": "f4b4a77098f3"
+  },
+  "studio.payments.activity.export": {
+    "status": "mt",
+    "srcHash": "5755f9ac0aa1"
+  },
+  "studio.payments.activity.filter.allModes": {
+    "status": "mt",
+    "srcHash": "968c2b95d49a"
+  },
+  "studio.payments.activity.filter.allServices": {
+    "status": "mt",
+    "srcHash": "53840e9c7fd0"
+  },
+  "studio.payments.activity.filter.allStates": {
+    "status": "mt",
+    "srcHash": "1740d80893cd"
+  },
+  "studio.payments.activity.filter.allWays": {
+    "status": "mt",
+    "srcHash": "cc1d8242276d"
+  },
+  "studio.payments.activity.filter.from": {
+    "status": "mt",
+    "srcHash": "3f66052a107e"
+  },
+  "studio.payments.activity.filter.mode": {
+    "status": "mt",
+    "srcHash": "e8a7c7f0f7a1"
+  },
+  "studio.payments.activity.filter.service": {
+    "status": "src",
+    "srcHash": "329cb8b6ba8c"
+  },
+  "studio.payments.activity.filter.state": {
+    "status": "mt",
+    "srcHash": "a72502067518"
+  },
+  "studio.payments.activity.filter.to": {
+    "status": "mt",
+    "srcHash": "ae79ea1e9c63"
+  },
+  "studio.payments.activity.filter.way": {
+    "status": "mt",
+    "srcHash": "107c02b5f4c5"
+  },
+  "studio.payments.activity.flag.amountDiffers": {
+    "status": "mt",
+    "srcHash": "a2de0ccdcf95"
+  },
+  "studio.payments.activity.flag.amountDiffersRecord": {
+    "status": "mt",
+    "srcHash": "ba4b92578d03"
+  },
+  "studio.payments.activity.flag.modeMismatch": {
+    "status": "mt",
+    "srcHash": "8da3b4f3fd27"
+  },
+  "studio.payments.activity.flag.moreThanDue": {
+    "status": "mt",
+    "srcHash": "6e911a724f33"
+  },
+  "studio.payments.activity.flag.notRecorded": {
+    "status": "mt",
+    "srcHash": "a641ab226b4a"
+  },
+  "studio.payments.activity.flag.otherCurrency": {
+    "status": "mt",
+    "srcHash": "95e80d55d0dd"
+  },
+  "studio.payments.activity.flag.otherCurrencyRecord": {
+    "status": "mt",
+    "srcHash": "44f215531c85"
+  },
+  "studio.payments.activity.flag.paidTwice": {
+    "status": "mt",
+    "srcHash": "dc02f00c972e"
+  },
+  "studio.payments.activity.flag.recordChanged": {
+    "status": "mt",
+    "srcHash": "c4aa73a74d72"
+  },
+  "studio.payments.activity.flag.refundedThere": {
+    "status": "mt",
+    "srcHash": "6ce9ec1e3c77"
+  },
+  "studio.payments.activity.flag.refundedThereNoRecord": {
+    "status": "mt",
+    "srcHash": "874d2a88d160"
+  },
+  "studio.payments.activity.flag.voided": {
+    "status": "mt",
+    "srcHash": "f89fad4e4730"
+  },
+  "studio.payments.activity.flag.voidedRecord": {
+    "status": "mt",
+    "srcHash": "c444d0887544"
+  },
+  "studio.payments.activity.flag.waitingLong": {
+    "status": "mt",
+    "srcHash": "9c24f0607743"
+  },
+  "studio.payments.activity.flag.waitingLongWay": {
+    "status": "mt",
+    "srcHash": "4f8b6e1f75e6"
+  },
+  "studio.payments.activity.id.attempt": {
+    "status": "mt",
+    "srcHash": "5ddb79b80d96"
+  },
+  "studio.payments.activity.id.checkout": {
+    "status": "mt",
+    "srcHash": "8d08eea33cb4"
+  },
+  "studio.payments.activity.id.payment": {
+    "status": "mt",
+    "srcHash": "aabf12f32342"
+  },
+  "studio.payments.activity.id.refund": {
+    "status": "mt",
+    "srcHash": "99e804ac5a77"
+  },
+  "studio.payments.activity.ids": {
+    "status": "mt",
+    "srcHash": "f649c4f25cb9"
+  },
+  "studio.payments.activity.loadFailed": {
+    "status": "mt",
+    "srcHash": "2279b9ad04d0"
+  },
+  "studio.payments.activity.loading": {
+    "status": "mt",
+    "srcHash": "bc48c5522600"
+  },
+  "studio.payments.activity.markChecked": {
+    "status": "mt",
+    "srcHash": "01587682a893"
+  },
+  "studio.payments.activity.needsLook": {
+    "status": "mt",
+    "srcHash": "ddb0e5f4b539"
+  },
+  "studio.payments.activity.noMatch": {
+    "status": "mt",
+    "srcHash": "72109e1ccec0"
+  },
+  "studio.payments.activity.noRecord": {
+    "status": "mt",
+    "srcHash": "39d446fb3cef"
+  },
+  "studio.payments.activity.note": {
+    "status": "src",
+    "srcHash": "2c924e308820"
+  },
+  "studio.payments.activity.noteHelp": {
+    "status": "mt",
+    "srcHash": "bc2d49a0837e"
+  },
+  "studio.payments.activity.noteNeeded": {
+    "status": "mt",
+    "srcHash": "409a4d91844d"
+  },
+  "studio.payments.activity.notePlaceholder": {
+    "status": "mt",
+    "srcHash": "05191ab2cfe6"
+  },
+  "studio.payments.activity.noteRequired": {
+    "status": "mt",
+    "srcHash": "44b164b556fa"
+  },
+  "studio.payments.activity.nothingNeedsLook": {
+    "status": "mt",
+    "srcHash": "b1300d4e6dc8"
+  },
+  "studio.payments.activity.older": {
+    "status": "mt",
+    "srcHash": "f6195a4f4faf"
+  },
+  "studio.payments.activity.openSetup": {
+    "status": "mt",
+    "srcHash": "0ba8746565a6"
+  },
+  "studio.payments.activity.payment": {
+    "status": "mt",
+    "srcHash": "b41a92bed032"
+  },
+  "studio.payments.activity.refundOf": {
+    "status": "mt",
+    "srcHash": "e17c8ad0dc2e"
+  },
+  "studio.payments.activity.service.demo": {
+    "status": "mt",
+    "srcHash": "bafc9316b1b7"
+  },
+  "studio.payments.activity.silent": {
+    "status": "mt",
+    "srcHash": "9ecbc8a94fff"
+  },
+  "studio.payments.activity.silentNever": {
+    "status": "mt",
+    "srcHash": "0af0a482cf1e"
+  },
+  "studio.payments.activity.someone": {
+    "status": "mt",
+    "srcHash": "ca29f2909574"
+  },
+  "studio.payments.activity.state.expired": {
+    "status": "mt",
+    "srcHash": "a689a999a5e6"
+  },
+  "studio.payments.activity.state.failed": {
+    "status": "mt",
+    "srcHash": "4680eb1576e5"
+  },
+  "studio.payments.activity.state.paid": {
+    "status": "mt",
+    "srcHash": "dc9d4584a554"
+  },
+  "studio.payments.activity.state.refundFailed": {
+    "status": "mt",
+    "srcHash": "901ba670fa6e"
+  },
+  "studio.payments.activity.state.refunded": {
+    "status": "mt",
+    "srcHash": "d6fbc7a82d1c"
+  },
+  "studio.payments.activity.state.started": {
+    "status": "mt",
+    "srcHash": "faa9e7e7ef5a"
+  },
+  "studio.payments.activity.state.waiting": {
+    "status": "mt",
+    "srcHash": "cdc6d77b3306"
+  },
+  "studio.payments.activity.story.abandoned": {
+    "status": "mt",
+    "srcHash": "efa6e935b2cb"
+  },
+  "studio.payments.activity.story.expired": {
+    "status": "mt",
+    "srcHash": "a269d2c12d44"
+  },
+  "studio.payments.activity.story.failed": {
+    "status": "mt",
+    "srcHash": "73884b32a66e"
+  },
+  "studio.payments.activity.story.left": {
+    "status": "mt",
+    "srcHash": "8a11d6fb61a9"
+  },
+  "studio.payments.activity.story.notRecorded": {
+    "status": "mt",
+    "srcHash": "99c7138f648f"
+  },
+  "studio.payments.activity.story.nothingTaken": {
+    "status": "mt",
+    "srcHash": "498ecde514e4"
+  },
+  "studio.payments.activity.story.onPayPage": {
+    "status": "mt",
+    "srcHash": "a71e31603a51"
+  },
+  "studio.payments.activity.story.paid": {
+    "status": "mt",
+    "srcHash": "6c2cd2dfe67a"
+  },
+  "studio.payments.activity.story.paidAmount": {
+    "status": "mt",
+    "srcHash": "27ef9ff383c5"
+  },
+  "studio.payments.activity.story.recorded": {
+    "status": "mt",
+    "srcHash": "d5383ea7af4c"
+  },
+  "studio.payments.activity.story.refundApplied": {
+    "status": "mt",
+    "srcHash": "5dcd26339c7c"
+  },
+  "studio.payments.activity.story.refundFailed": {
+    "status": "mt",
+    "srcHash": "b491f8ec7193"
+  },
+  "studio.payments.activity.story.refundStarted": {
+    "status": "mt",
+    "srcHash": "ab0654a4ba73"
+  },
+  "studio.payments.activity.story.refundThere": {
+    "status": "mt",
+    "srcHash": "8c656ad509a0"
+  },
+  "studio.payments.activity.story.refunded": {
+    "status": "mt",
+    "srcHash": "2eca53e844e0"
+  },
+  "studio.payments.activity.story.started": {
+    "status": "mt",
+    "srcHash": "faa9e7e7ef5a"
+  },
+  "studio.payments.activity.story.startedFor": {
+    "status": "mt",
+    "srcHash": "d8e3a74ec071"
+  },
+  "studio.payments.activity.story.waiting": {
+    "status": "mt",
+    "srcHash": "b5acea6a0dba"
+  },
+  "studio.payments.activity.toast.checked": {
+    "status": "mt",
+    "srcHash": "1800ddfd7762"
+  },
+  "studio.payments.activity.toast.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "studio.payments.activity.toast.copyFailed": {
+    "status": "mt",
+    "srcHash": "8a36f1943f11"
+  },
+  "studio.payments.activity.toast.downloaded": {
+    "status": "mt",
+    "srcHash": "eb8ce11a0eb2"
+  },
+  "studio.payments.activity.toast.exportFailed": {
+    "status": "mt",
+    "srcHash": "c62585eb7df5"
+  },
+  "studio.payments.activity.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "studio.payments.activity.viewOnly": {
+    "status": "mt",
+    "srcHash": "522567df1eb0"
+  },
+  "studio.payments.activity.way.card": {
+    "status": "mt",
+    "srcHash": "4d4ce73b1566"
+  },
+  "studio.payments.activity.way.sepa": {
+    "status": "mt",
+    "srcHash": "740b177dcd21"
+  },
+  "studio.payments.activity.whatHappened": {
+    "status": "mt",
+    "srcHash": "7661e6591fd9"
+  },
+  "studio.payments.activity.why.alreadyPaid": {
+    "status": "mt",
+    "srcHash": "dddae303c008"
+  },
+  "studio.payments.activity.why.alreadyPaidRecord": {
+    "status": "mt",
+    "srcHash": "28e5e1ccb746"
+  },
+  "studio.payments.activity.why.notSent": {
+    "status": "mt",
+    "srcHash": "706fe5c02246"
+  },
+  "studio.payments.activity.why.notTaken": {
+    "status": "mt",
+    "srcHash": "f9d2f6fb95e9"
+  },
+  "studio.payments.activity.why.refused": {
+    "status": "mt",
+    "srcHash": "5de9f4572e06"
+  },
   "studio.payments.alarm.account": {
     "status": "mt",
     "srcHash": "9dc54ef31846"
@@ -27699,6 +28275,14 @@
     "status": "mt",
     "srcHash": "efe336c580b9"
   },
+  "studio.payments.clock.body": {
+    "status": "mt",
+    "srcHash": "5669ee4f5a20"
+  },
+  "studio.payments.clock.title": {
+    "status": "mt",
+    "srcHash": "69f2e8f87803"
+  },
   "studio.payments.close": {
     "status": "mt",
     "srcHash": "bbfa773e5a63"
@@ -27710,6 +28294,54 @@
   "studio.payments.copy": {
     "status": "mt",
     "srcHash": "af74f7c5362a"
+  },
+  "studio.payments.disconnect.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.payments.disconnect.choice": {
+    "status": "mt",
+    "srcHash": "779b1d581eb9"
+  },
+  "studio.payments.disconnect.refundable": {
+    "status": "mt",
+    "srcHash": "feb9e889d6f2"
+  },
+  "studio.payments.disconnect.remove": {
+    "status": "mt",
+    "srcHash": "65a1cdd4075f"
+  },
+  "studio.payments.disconnect.removeBody": {
+    "status": "mt",
+    "srcHash": "ee4fe71b4c3a"
+  },
+  "studio.payments.disconnect.removeWaiting": {
+    "status": "mt",
+    "srcHash": "a33407a40363"
+  },
+  "studio.payments.disconnect.roll": {
+    "status": "mt",
+    "srcHash": "76e894f08f3b"
+  },
+  "studio.payments.disconnect.settle": {
+    "status": "mt",
+    "srcHash": "0449582fce5d"
+  },
+  "studio.payments.disconnect.stop": {
+    "status": "mt",
+    "srcHash": "f6c9927a4823"
+  },
+  "studio.payments.disconnect.stopBody": {
+    "status": "mt",
+    "srcHash": "4fa9d22c2c3e"
+  },
+  "studio.payments.disconnect.title": {
+    "status": "mt",
+    "srcHash": "89754ab2781e"
+  },
+  "studio.payments.disconnect.waiting": {
+    "status": "mt",
+    "srcHash": "a56272d23488"
   },
   "studio.payments.error.unknown": {
     "status": "mt",
@@ -27791,6 +28423,38 @@
     "status": "mt",
     "srcHash": "4affa766ddf5"
   },
+  "studio.payments.live.firstPayment": {
+    "status": "mt",
+    "srcHash": "702df6bd0483"
+  },
+  "studio.payments.live.on": {
+    "status": "mt",
+    "srcHash": "7c2544e82a55"
+  },
+  "studio.payments.live.ready": {
+    "status": "mt",
+    "srcHash": "0788a164ad3f"
+  },
+  "studio.payments.live.readyBody": {
+    "status": "mt",
+    "srcHash": "951dbc015626"
+  },
+  "studio.payments.live.turnOff": {
+    "status": "mt",
+    "srcHash": "872f4cb19b81"
+  },
+  "studio.payments.live.turnOn": {
+    "status": "mt",
+    "srcHash": "bdc5d2667f8f"
+  },
+  "studio.payments.live.unproven": {
+    "status": "mt",
+    "srcHash": "f3a8b0d0e65d"
+  },
+  "studio.payments.live.unprovenBody": {
+    "status": "mt",
+    "srcHash": "951a909cc390"
+  },
   "studio.payments.loadFailed": {
     "status": "mt",
     "srcHash": "a4b96c2048dd"
@@ -27798,6 +28462,18 @@
   "studio.payments.loading": {
     "status": "mt",
     "srcHash": "33ce417454bf"
+  },
+  "studio.payments.menu.check": {
+    "status": "mt",
+    "srcHash": "e835bd1811c6"
+  },
+  "studio.payments.menu.disconnect": {
+    "status": "mt",
+    "srcHash": "22fe655baffb"
+  },
+  "studio.payments.menuLabel": {
+    "status": "mt",
+    "srcHash": "f50a64ace022"
   },
   "studio.payments.mode.live": {
     "status": "mt",
@@ -28667,6 +29343,10 @@
     "status": "mt",
     "srcHash": "089f3015dd19"
   },
+  "studio.payments.tab.activity": {
+    "status": "mt",
+    "srcHash": "81c0d915fa6d"
+  },
   "studio.payments.tab.page": {
     "status": "mt",
     "srcHash": "dfe9bc362765"
@@ -29110,6 +29790,10 @@
   "studio.payments.webhook.last": {
     "status": "mt",
     "srcHash": "3344573705d6"
+  },
+  "studio.payments.webhook.moved": {
+    "status": "mt",
+    "srcHash": "599b02d0ec92"
   },
   "studio.payments.webhook.noAddress": {
     "status": "mt",
