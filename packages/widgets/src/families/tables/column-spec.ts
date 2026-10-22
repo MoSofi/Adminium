@@ -161,15 +161,27 @@ function isWholeInput(value: number | string): boolean {
   return typeof value === 'number' ? Number.isInteger(value) : !/\.\d*[1-9]/.test(value);
 }
 
+/** A well-formed ISO 4217 code, upper-cased; undefined for anything else (`''`, `'€'`, `null`). */
+export function currencyCodeOf(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const code = value.trim();
+  return /^[A-Za-z]{3}$/.test(code) ? code.toUpperCase() : undefined;
+}
+
 /**
  * Locale/currency formatting for money cells (Intl, config override wins).
  *
  * `decimals` is OPTIONAL and its absence keeps the historical behaviour
  * exactly: fraction digits flip per value (`Number.isInteger(x) ? 0: 2`),
  * which is how one column renders `$1,234` directly above `$1,234.50`.
- * `GroupedSummaryTable` calls this with `{locale}` only and must not move, so
+ * `GroupedSummaryTable` calls this without `decimals` and must not move, so
  * the flip stays the default rather than becoming a special case. A column
  * that wants a stable width says so.
+ *
+ * NO CURRENCY, NO SYMBOL. Until walk fix E3 a missing currency read as US
+ * dollars, so every money column on a connection with no currency set, and
+ * every EUR row in a mixed table, said "$". A number in an unknown currency is
+ * now the plain number: true, where a guessed symbol is not.
  */
 export function formatMoney(
   value: unknown,
@@ -182,16 +194,122 @@ export function formatMoney(
   const amount = numericInput(value);
   if (amount === null) return String(value ?? '');
   const decimals = options?.decimals;
+  const currency = currencyCodeOf(options?.currency);
   // Money is a mono grid cell → data context (latn digits) via the format layer.
-  // `|| 'USD'` (not `??`) so a schema-valid empty currency code coalesces too —
-  // `{ style: 'currency', currency: '' }` would otherwise throw a RangeError.
   return getFormatters(options?.locale ?? 'en-US').number(amount, {
-    style: 'currency',
-    currency: options?.currency || 'USD',
+    ...(currency === undefined ? {} : { style: 'currency' as const, currency }),
     ...(decimals === undefined
-      ? { maximumFractionDigits: isWholeInput(amount) ? 0 : 2 }
+      ? isWholeInput(amount)
+        ? { minimumFractionDigits: 0, maximumFractionDigits: 0 }
+        : { minimumFractionDigits: 2, maximumFractionDigits: 2 }
       : { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
   });
+}
+
+/**
+ * The `format` the classifier stamps on money held in the currency's MINOR
+ * unit (`amount_cents`, `price_minor`): 4900 is €49.00. Named for cents, read
+ * as minor units — the exponent comes from the row's currency.
+ *
+ * Read only together with `semantic: 'money'`: a person who retags the column
+ * keeps the stored format, and a column that is no longer money is no longer
+ * divided.
+ */
+export const MINOR_UNIT_MONEY_FORMAT = 'currency-cents';
+
+/** Whether this column's money is stored in minor units (see {@link MINOR_UNIT_MONEY_FORMAT}). */
+export function isMinorUnitMoney(column: Pick<GridColumnSpec, 'semantic' | 'format'>): boolean {
+  return column.semantic === 'money' && column.format === MINOR_UNIT_MONEY_FORMAT;
+}
+
+/**
+ * A currency's minor-unit exponent as `Intl` knows it: EUR 2, JPY 0, KWD 3.
+ * Two when there is no currency — cents, the overwhelmingly common case and
+ * the one a `_cents` name states outright.
+ */
+export function currencyExponent(currency: string | undefined): number {
+  const code = currencyCodeOf(currency);
+  if (code === undefined) return 2;
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    return 2;
+  }
+}
+
+/**
+ * A minor-unit amount in major units, as an exact decimal string: (4900, 2) →
+ * `'49.00'`, (15000, 3) → `'15.000'`, (4900, 0) → `'4900'`. A string shift,
+ * never a float division, so a `bigint` cent count past 2^53 keeps its digits.
+ * Null when the value is not a number.
+ */
+export function minorToMajor(value: unknown, exponent: number): string | null {
+  const input = numericInput(value);
+  if (input === null) return null;
+  const text = typeof input === 'number' ? (Number.isSafeInteger(input) ? String(input) : null) : input;
+  const parts = text === null ? null : /^([+-]?)(\d*)(?:\.(\d*))?$/.exec(text);
+  if (parts === null) return String(Number(input) / 10 ** exponent);
+  const [, sign = '', whole = '', fraction = ''] = parts;
+  const digits = `${whole}${fraction}`.padStart(exponent + fraction.length + 1, '0');
+  const point = digits.length - fraction.length - exponent;
+  const integer = digits.slice(0, point).replace(/^0+(?=\d)/, '');
+  const rest = digits.slice(point);
+  return `${sign}${integer}${rest === '' ? '' : `.${rest}`}`;
+}
+
+/** `amountCurrency` → `amount_currency`: the classifier's name form, for row keys. */
+function snakeName(name: string): string {
+  return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
+const CURRENCY_KEY = /(^|_)(currency|currency_code|curr_code)$/;
+
+/**
+ * The currency a ROW says its money is in — the sibling column the classifier
+ * names as the currency source (`currency`, `currency_code`, `*_currency`).
+ *
+ * A column's own `amount_currency` beside `amount_cents` is asked first, then
+ * a plain `currency`/`currency_code`, then any other `*_currency`. Only an ISO
+ * 4217 value counts: a `currency_id` key or an empty cell says nothing.
+ */
+export function rowCurrencyOf(row: GridRow, columnName: string): string | undefined {
+  const stem = snakeName(columnName).replace(/_(in_)?(cents|minor(_units?)?)$/, '');
+  const keys = Object.keys(row).filter((key) => key !== columnName && CURRENCY_KEY.test(snakeName(key)));
+  const rank = (key: string): number => {
+    const name = snakeName(key);
+    if (name === `${stem}_currency` || name === `${stem}_currency_code`) return 0;
+    if (name === 'currency' || name === 'currency_code') return 1;
+    return 2;
+  };
+  for (const key of [...keys].sort((a, b) => rank(a) - rank(b))) {
+    const code = currencyCodeOf(row[key]);
+    if (code !== undefined) return code;
+  }
+  return undefined;
+}
+
+/**
+ * One money cell's text, the way every column-spec surface draws it (grid,
+ * record view, detail list).
+ *
+ * The currency: the row's own currency column, else the page's (the
+ * connection's, or the widget's `format.currency`), else the column spec's,
+ * else none — a plain number. A minor-unit column is divided by THAT
+ * currency's exponent and shown at exactly that many digits: EUR 4900 →
+ * €49.00, JPY 4900 → ¥4,900, KWD 15000 → KWD 15.000.
+ */
+export function formatMoneyCell(
+  column: Pick<GridColumnSpec, 'name' | 'semantic' | 'format' | 'currency'>,
+  row: GridRow,
+  options?: { locale?: string | undefined; currency?: string | undefined },
+): string {
+  const value = row[column.name];
+  const currency = rowCurrencyOf(row, column.name) ?? currencyCodeOf(options?.currency) ?? currencyCodeOf(column.currency);
+  if (!isMinorUnitMoney(column)) return formatMoney(value, { locale: options?.locale, currency });
+  const exponent = currencyExponent(currency);
+  const major = minorToMajor(value, exponent);
+  if (major === null) return String(value ?? '');
+  return formatMoney(major, { locale: options?.locale, currency, decimals: exponent });
 }
 
 /** Digits a `display` block shows when it does not say. */

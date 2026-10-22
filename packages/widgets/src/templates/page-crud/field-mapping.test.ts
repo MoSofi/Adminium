@@ -88,6 +88,8 @@ describe('controlForColumn — the one mapping', () => {
     // Money gets the currency prefix (Appendix C), which a plain number has no
     // room for.
     expect(controlForColumn(spec({ name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money' }))).toBe('currency');
+    // …except money kept in minor units: a symbol before 4900 reads €4,900 (walk fix E3).
+    expect(controlForColumn(spec({ name: 'amount_cents', label: 'Amount Cents', logicalType: 'integer', semantic: 'money', format: 'currency-cents' }))).toBe('number');
     expect(controlForColumn(spec({ name: 'day', label: 'Day', logicalType: 'date' }))).toBe('date');
     expect(controlForColumn(spec({ name: 'at', label: 'At', logicalType: 'time' }))).toBe('time');
     expect(controlForColumn(spec({ name: 'when', label: 'When', logicalType: 'timestamptz' }))).toBe('datetime');

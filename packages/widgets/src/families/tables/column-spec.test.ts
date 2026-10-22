@@ -8,11 +8,16 @@ import {
   displayValueOf,
   formatCalendarDate,
   formatDisplayValue,
+  currencyExponent,
   formatMoney,
+  formatMoneyCell,
   formatRelativeTime,
   gridColumnSpecSchema,
   isNumericColumn,
+  isMinorUnitMoney,
   maskedColumnsOf,
+  minorToMajor,
+  rowCurrencyOf,
   rowIdOf,
 } from './column-spec.js';
 import type { GridColumnSpec, GridColumnSpecInput } from './column-spec.js';
@@ -161,21 +166,21 @@ describe('formatMoney with an explicit decimals', () => {
   it('renders a whole and a fractional value at the SAME width', () => {
     // The defect: `maximumFractionDigits: Number.isInteger(x) ? 0 : 2` makes
     // one money column render `$1,234` directly above `$1,234.50`.
-    expect(formatMoney('1234', { locale: 'en-US', decimals: 2 })).toBe('$1,234.00');
-    expect(formatMoney('1234.50', { locale: 'en-US', decimals: 2 })).toBe('$1,234.50');
+    expect(formatMoney('1234', { locale: 'en-US', currency: 'USD', decimals: 2 })).toBe('$1,234.00');
+    expect(formatMoney('1234.50', { locale: 'en-US', currency: 'USD', decimals: 2 })).toBe('$1,234.50');
   });
 
   it('keeps the historical per-value flip when decimals is absent', () => {
     // `GroupedSummaryTable` calls formatMoney with `{locale}` only.
-    expect(formatMoney(1234, { locale: 'en-US' })).toBe('$1,234');
-    expect(formatMoney(1234.5, { locale: 'en-US' })).toBe('$1,234.50');
-    expect(formatMoney('1234', { locale: 'en-US' })).toBe('$1,234');
-    expect(formatMoney('1234.00', { locale: 'en-US' })).toBe('$1,234');
+    expect(formatMoney(1234, { locale: 'en-US', currency: 'USD' })).toBe('$1,234');
+    expect(formatMoney(1234.5, { locale: 'en-US', currency: 'USD' })).toBe('$1,234.50');
+    expect(formatMoney('1234', { locale: 'en-US', currency: 'USD' })).toBe('$1,234');
+    expect(formatMoney('1234.00', { locale: 'en-US', currency: 'USD' })).toBe('$1,234');
   });
 
   it('formats a decimal STRING exactly, where Number() would lose digits', () => {
     // Measured: the same value through `Number()` renders ...800.00.
-    expect(formatMoney('1234567890123456789.55', { locale: 'en-US', decimals: 2 })).toBe(
+    expect(formatMoney('1234567890123456789.55', { locale: 'en-US', currency: 'USD', decimals: 2 })).toBe(
       '$1,234,567,890,123,456,789.55',
     );
   });
@@ -194,7 +199,7 @@ describe('formatMoney with an explicit decimals', () => {
 
 describe('formatDisplayValue — the opt-in display block (D8/D9)', () => {
   it('renders each kind', () => {
-    expect(formatDisplayValue('1367.28', { kind: 'currency', decimals: 2 }, { locale: 'en-US' })).toBe(
+    expect(formatDisplayValue('1367.28', { kind: 'currency', decimals: 2 }, { locale: 'en-US', currency: 'USD' })).toBe(
       '$1,367.28',
     );
     expect(formatDisplayValue('1266', { kind: 'decimal', decimals: 3 }, { locale: 'en-US' })).toBe(
@@ -224,7 +229,8 @@ describe('formatDisplayValue — the opt-in display block (D8/D9)', () => {
     expect(formatDisplayValue('10', { kind: 'currency' }, { locale: 'en-US', currency: 'EUR' })).toBe(
       '€10.00',
     );
-    expect(formatDisplayValue('10', { kind: 'currency' }, { locale: 'en-US' })).toBe('$10.00');
+    // No currency anywhere: the number, never a guessed dollar (walk fix E3).
+    expect(formatDisplayValue('10', { kind: 'currency' }, { locale: 'en-US' })).toBe('10.00');
   });
 
   it('leaves a value it cannot read alone', () => {
@@ -286,5 +292,76 @@ describe('row identity helpers', () => {
   it('maskedColumnsOf reads the server _masked marker', () => {
     expect(maskedColumnsOf({ phone: null, _masked: ['phone'] })).toEqual(['phone']);
     expect(maskedColumnsOf({ phone: '+1' })).toEqual([]);
+  });
+});
+
+/**
+ * Walk fix E3 (2026-10-22): an `orders.amount_cents` of 4900 on an EUR row
+ * read "$4,900" — no minor-unit scale, the row's own currency ignored, and a
+ * US dollar nobody chose.
+ */
+describe('money in minor units and the row currency (walk fix E3)', () => {
+  const cents = spec({ name: 'amount_cents', label: 'Amount Cents', logicalType: 'integer', semantic: 'money', format: 'currency-cents' });
+  const total = spec({ name: 'total', label: 'Total', logicalType: 'decimal', semantic: 'money', format: 'currency' });
+
+  it('reads the owner\'s row as €49.00', () => {
+    expect(formatMoneyCell(cents, { amount_cents: 4900, currency: 'EUR' }, { locale: 'en-US' })).toBe('€49.00');
+  });
+
+  it('scales by the currency\'s own exponent: JPY 0, KWD 3', () => {
+    expect(formatMoneyCell(cents, { amount_cents: 4900, currency: 'JPY' }, { locale: 'en-US' })).toBe('¥4,900');
+    expect(formatMoneyCell(cents, { amount_cents: 15000, currency: 'KWD' }, { locale: 'en-US' })).toMatch(/^KWD\s15\.000$/);
+    expect(formatMoneyCell(cents, { amount_cents: '4900', currency: 'usd' }, { locale: 'en-US' })).toBe('$49.00');
+  });
+
+  it('the row currency beats the page\'s; the page\'s is used when the row has none', () => {
+    expect(formatMoneyCell(cents, { amount_cents: 4900, currency: 'EUR' }, { locale: 'en-US', currency: 'USD' })).toBe('€49.00');
+    expect(formatMoneyCell(cents, { amount_cents: 4900 }, { locale: 'en-US', currency: 'GBP' })).toBe('£49.00');
+    expect(formatMoneyCell(cents, { amount_cents: 4900, currency: '' }, { locale: 'en-US', currency: 'GBP' })).toBe('£49.00');
+  });
+
+  it('with no currency anywhere: the plain number, scaled, never a "$"', () => {
+    expect(formatMoneyCell(cents, { amount_cents: 4900 }, { locale: 'en-US' })).toBe('49.00');
+    expect(formatMoneyCell(total, { total: 1234.5 }, { locale: 'en-US' })).toBe('1,234.50');
+    expect(formatMoney(1234, { locale: 'en-US' })).toBe('1,234');
+    expect(formatMoney(1234, { locale: 'en-US', currency: '' })).toBe('1,234');
+  });
+
+  it('money in major units is not rescaled, but takes the row currency too', () => {
+    expect(formatMoneyCell(total, { total: '49.5', currency: 'EUR' }, { locale: 'en-US' })).toBe('€49.50');
+  });
+
+  it('a column retagged away from money, or one without the minor format, is never divided', () => {
+    // An override keeps the stored format but changes the tag: the tag decides.
+    expect(isMinorUnitMoney({ semantic: 'plain', format: 'currency-cents' })).toBe(false);
+    expect(isMinorUnitMoney({ semantic: 'money', format: 'currency' })).toBe(false);
+    expect(isMinorUnitMoney({ semantic: 'money', format: null })).toBe(false);
+    expect(isMinorUnitMoney(cents)).toBe(true);
+  });
+
+  it('prefers the column\'s own *_currency, then currency/currency_code, and only an ISO code', () => {
+    expect(rowCurrencyOf({ amount_cents: 1, amount_currency: 'JPY', currency: 'EUR' }, 'amount_cents')).toBe('JPY');
+    expect(rowCurrencyOf({ amount_cents: 1, fee_currency: 'JPY', currency: 'EUR' }, 'amount_cents')).toBe('EUR');
+    expect(rowCurrencyOf({ amount_cents: 1, currency_code: 'kwd' }, 'amount_cents')).toBe('KWD');
+    expect(rowCurrencyOf({ amount_cents: 1, currencyCode: 'CHF' }, 'amount_cents')).toBe('CHF');
+    expect(rowCurrencyOf({ amount_cents: 1, currency_id: 'EUR' }, 'amount_cents')).toBeUndefined();
+    expect(rowCurrencyOf({ amount_cents: 1, currency: 7 }, 'amount_cents')).toBeUndefined();
+    expect(rowCurrencyOf({ amount_cents: 1, currency: 'euro' }, 'amount_cents')).toBeUndefined();
+  });
+
+  it('shifts the decimal point exactly, bigint strings included', () => {
+    expect(minorToMajor(4900, 2)).toBe('49.00');
+    expect(minorToMajor(5, 2)).toBe('0.05');
+    expect(minorToMajor(-125, 2)).toBe('-1.25');
+    expect(minorToMajor(15000, 3)).toBe('15.000');
+    expect(minorToMajor(4900, 0)).toBe('4900');
+    expect(minorToMajor('123456789012345678901', 2)).toBe('1234567890123456789.01');
+    expect(minorToMajor('n/a', 2)).toBeNull();
+  });
+
+  it('knows each currency\'s exponent from Intl', () => {
+    expect([currencyExponent('EUR'), currencyExponent('USD'), currencyExponent('JPY')]).toEqual([2, 2, 0]);
+    expect(['KWD', 'BHD', 'JOD', 'OMR', 'TND'].map(currencyExponent)).toEqual([3, 3, 3, 3, 3]);
+    expect(currencyExponent(undefined)).toBe(2);
   });
 });

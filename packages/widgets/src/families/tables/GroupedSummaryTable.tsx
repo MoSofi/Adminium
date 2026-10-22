@@ -33,7 +33,9 @@ function formatCell(value: number | string | undefined, column: AggColumn, local
   const fmt = getFormatters(locale ?? 'en-US');
   switch (column.format) {
     case 'currency':
-      return formatMoney(value, { locale });
+      // Still this widget's own US-dollar default, as the KPI cards' is
+      // (lib/format.ts): `formatMoney` no longer guesses one (walk fix E3).
+      return formatMoney(value, { locale, currency: 'USD' });
     case 'percent':
       return `${fmt.number(value, { maximumFractionDigits: 1 })}%`;
     case 'number':
