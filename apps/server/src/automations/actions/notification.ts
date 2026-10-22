@@ -23,6 +23,7 @@
 
 import { pagesRepo, rolesRepo, teamsRepo, usersRepo, type AutomationAction } from '@adminium/meta';
 
+import { recipientLocale } from '../../i18n/server-i18n.js';
 import { notify } from '../../notifications/notify.js';
 import { opensRecord, readerOfRecord, tokensAs } from '../record-link.js';
 import { substitute, type TokenMap } from '../templating.js';
@@ -132,24 +133,45 @@ async function actionUrlFor(ctx: ActionContext): Promise<string> {
   return `/p/${page.slug}/r/${encodeURIComponent(recordId)}`;
 }
 
-function renderText(action: NotificationAction, tokens: TokenMap, fallback?: string): { title: string; body: string | null } {
-  const title = substitute(action.title, tokens).trim();
+type Words = { title: string; body: string | null };
+
+function renderText(words: Words, tokens: TokenMap, fallback?: string): { title: string; body: string | null } {
+  const title = substitute(words.title, tokens).trim();
   if (title === '' && fallback === undefined) throw new ActionFailure('This step has no title.');
-  const body = action.body === null ? null : substitute(action.body, tokens);
+  const body = words.body === null ? null : substitute(words.body, tokens);
   return { title: title === '' ? fallback! : title, body };
 }
 
 /**
- * The notice as this person reads the record: a column their role is not
- * shown is empty in theirs. A rule about no record says the same to all; on
- * one about a record, somebody who cannot open it is told nothing (null).
+ * The step's words in the reader's language: their own tag, else another of
+ * the same language (`de-AT` for `de-DE`), else the step's own `title` and
+ * `body` — the instance's language, as the rule was installed or written.
+ * Picked here, as the notice is written: one row per reader, read back as it
+ * was told (an email copy of it says the same).
+ */
+export function wordsFor(action: Pick<NotificationAction, 'title' | 'body' | 'locales'>, locale: string): Words {
+  const own = { title: action.title, body: action.body };
+  const locales = action.locales;
+  if (locales === undefined) return own;
+  const tag = locale.replace('_', '-');
+  const language = tag.split('-')[0];
+  const found = locales[tag] ?? Object.entries(locales).find(([key]) => key.split('-')[0] === language)?.[1];
+  return found === undefined ? own : { title: found.title, body: found.body ?? null };
+}
+
+/**
+ * The notice as this person reads the record, in their language: a column
+ * their role is not shown is empty in theirs. A rule about no record says the
+ * same to all; on one about a record, somebody who cannot open it is told
+ * nothing (null).
  */
 async function textFor(action: NotificationAction, ctx: ActionContext, userId: string): Promise<{ title: string; body: string | null } | null> {
-  if (ctx.source === null) return renderText(action, ctx.tokens);
+  const words = action.locales === undefined ? action : wordsFor(action, await recipientLocale(ctx.meta, userId));
+  if (ctx.source === null) return renderText(words, ctx.tokens);
   const reader = await readerOfRecord(ctx, userId);
   if (reader === null) return null;
   // A title that is all columns this reader is not shown is the rule's name, never an empty notice.
-  return renderText(action, await tokensAs(ctx, reader), ctx.rule.name);
+  return renderText(words, await tokensAs(ctx, reader), ctx.rule.name);
 }
 
 export async function runNotificationAction(

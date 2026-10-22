@@ -301,7 +301,8 @@
     "columnNone": "Denne tabel har ingen kolonne, der indeholder en medarbejder.",
     "columnEmpty": "En post uden nogen i den kolonne giver ingen besked, og kørslen siger det.",
     "urgent": "Haster",
-    "urgentBody": "Gives med det samme, også i en persons stilletimer"
+    "urgentBody": "Gives med det samme, også i en persons stilletimer",
+    "languages": "Også skrevet på {languages}: hver person får den på sit eget sprog. Ændrer du titlen eller beskeden her, bliver den skrevet på ét sprog for alle."
   },
   "rec": {
     "table": "Tabel",

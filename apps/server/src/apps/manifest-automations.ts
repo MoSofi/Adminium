@@ -70,6 +70,17 @@ export interface Binding {
 
 const one = (words: Words, language: string): string => (typeof words === 'string' ? words : (words[language] ?? words['en-US'] ?? Object.values(words)[0] ?? ''));
 
+/**
+ * A notice's words in every language the manifest gives them, kept beside the
+ * instance's own (`title`, `body`): each reader is told in theirs when the
+ * notice is written. Nothing when the step gives one text for everybody.
+ */
+function noticeLocales(title: Words, body: Words | undefined): Record<string, { title: string; body: string | null }> | undefined {
+  const tags = [...new Set([...(typeof title === 'string' ? [] : Object.keys(title)), ...(body === undefined || typeof body === 'string' ? [] : Object.keys(body))])].sort();
+  if (tags.length === 0) return undefined;
+  return Object.fromEntries(tags.map((tag) => [tag, { title: one(title, tag), body: body === undefined ? null : one(body, tag) }]));
+}
+
 function boundCondition(condition: ManifestCondition, b: Binding): unknown {
   // An amount read from a setting: from the settings table as it is named here.
   const right = condition.right;
@@ -102,7 +113,10 @@ export function boundNode(node: unknown, b: Binding): unknown {
     // To the people a listing names: the listing's table as it is named here.
     const to = action['to'] as { roles: string[] } | { listed: string } | { column: string; lead?: true; else?: { roles: string[] } };
     const bound = 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : 'listed' in to ? { listed: b.realId(to.listed) } : to.else === undefined ? to : { ...to, else: { roles: to.else.roles.map((key) => b.roleId(key)) } };
-    return { ...base, action: { ...action, to: bound, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
+    const title = action['title'] as Words;
+    const body = action['body'] as Words | undefined;
+    const locales = noticeLocales(title, body);
+    return { ...base, action: { ...action, to: bound, title: one(title, b.language), ...(body === undefined ? {} : { body: one(body, b.language) }), ...(locales === undefined ? {} : { locales }) } };
   }
   if (action.kind === 'digest') {
     const to = action['to'] as { roles: string[] };

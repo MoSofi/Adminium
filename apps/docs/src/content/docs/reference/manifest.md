@@ -214,6 +214,19 @@ rows that point at nothing, `LINK_ORPHANS`, and nothing changes until they are p
 `id`, `fk` or `blob` column cannot be added to an existing table, and a column whose type cannot
 hold the app's values is refused by name.
 
+A column an update adds starts empty on the rows already there, or holds the manifest's fixed
+`default`, except a column Adminium works out: a [`copy`](#copies-that-follow) of the linked row, a
+[`formula`](#formulas), a [`rollup`](#totals-and-balances) and its `balance`. The update works
+each of those out for every row already there, as the next save of the row would: a quote's copy
+of its deal's state, a line's amount, a deal's total. So does a column the new version derives
+another way than the one before (a changed formula), and every derived column that reads one of
+them, each after what it reads (the total after the line amounts it adds up). It reads the rule as
+it stands on the connection (the operator's own, where they keep one); a copy that only fills a
+blank (`mode` `default`) fills only the rows still blank. It runs in one transaction of the
+database, before the new version is recorded: a failure stops the update (`APP_UPDATE_INCOMPLETE`,
+stage `derived-columns`), the running version stays, and updating again finishes it. Applying an
+app from its project folder fills them the same way. Needs Adminium 0.3.33.
+
 A foreign key's target must be one of the package's own tables or a table that already exists in
 the database.
 
@@ -1000,6 +1013,11 @@ More than 500 rows following one changed row refuse the whole write, `409` `FOLL
 public batch that would move a paid balance below zero through its followers, or could not write
 them under the caller's role, or would move more than 500, is refused before anything is written:
 `409` `BALANCE_ONE_AT_A_TIME`. Make such changes one row at a time.
+
+A row put back by an undo of its removal takes each copy that always wins (`"mode": "always"`)
+again from the row it copies, as that row is now, with the formulas that read it: a deal's member
+removed and brought back after the deal changed hands names the deal's owner now, not the one it
+was removed under. A copy that only fills a blank comes back as it was. Needs Adminium 0.3.33.
 
 #### Prices by the night
 
@@ -4528,7 +4546,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | Field | Rule |
 |---|---|
 | `key` | kebab-case, up to 80 characters, unique in the manifest. It is how an update finds the rule it shipped before. |
-| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`, and a notice's `title` and `body`. |
+| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`. A notice's `title` and `body` keep every language: each person is told [in their own language](#a-notice-in-the-readers-language). |
 | `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
 | `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |
@@ -4564,6 +4582,28 @@ ask. A rule that runs for no record (a clock with no rows to visit) tells everyb
 Each of them is told the record **as they read it**: a column their role is not shown is empty in
 their notice (`{{record.<column>}}`, `{{was.<column>}}` and the name a staff column names alike),
 so give such a placeholder a backup, `{{record.cost|-}}`.
+
+### A notice in the reader's language
+
+A notice's `title` and `body` may each be given in several languages, `en-US` among them, as an
+email template's `locales` are. The install keeps them all on the rule, beside the text in the
+workspace's language, and each person is told in their own language as the notice is written: their
+language's text (`de-DE`), else another of the same language (`de-AT` reads `de-DE`), else the
+rule's own text in the workspace's language. Their bell shows what they were told, and an email
+copy of the notice says the same. A notice already in the bell keeps the words it was told in when
+the person later changes language.
+
+```json
+{ "kind": "notification", "to": { "roles": ["manager"] },
+  "title": { "en-US": "{{record.name}} is running low", "de-DE": "{{record.name}} wird knapp" },
+  "body": { "en-US": "Order more.", "de-DE": "Bitte nachbestellen." } }
+```
+
+A title and a body both given in several languages give the same ones (a reader is never told half
+a notice in theirs); one text on either side is the same for everybody. Each language's text is
+held to the same placeholders. The rules page shows that a step carries other languages; a title or
+message changed there is one text for everybody from then on. Needs Adminium 0.3.33 to be told per
+language; an older server tells everybody in the workspace's language.
 
 ### The lead of the person on the row
 

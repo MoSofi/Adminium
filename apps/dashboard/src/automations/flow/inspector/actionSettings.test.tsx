@@ -380,3 +380,18 @@ describe('ActionSettings — a summary section held to this year, or to the last
     expect(sections[0]).toEqual({ key: 'won', table: 'main.orders', owner: '', where: [], orderBy: null, limit: 20 });
   });
 });
+
+describe('ActionSettings — a notice an app tells in several languages', () => {
+  const NOTICE: Action = { kind: 'notification', to: { roles: [] }, title: 'Won: {{record.name}}', body: 'Card.', locales: { 'en-US': { title: 'Won', body: 'Card.' }, 'de-DE': { title: 'Gewonnen', body: 'Karte.' } } };
+
+  it('says which languages it carries, and a change of its words makes one text for everybody', async () => {
+    const { user, onChange } = renderSettings(NOTICE);
+    expect(screen.getByTestId('notif-languages').textContent).toContain('German');
+    await user.type(screen.getByTestId('notif-title'), '!');
+    expect(onChange).toHaveBeenLastCalledWith({ title: 'Won: {{record.name}}!', locales: undefined });
+    cleanup();
+    // A step written here carries no other language, and says nothing of it.
+    renderSettings({ kind: 'notification', to: { roles: [] }, title: 'Hello', body: null });
+    expect(screen.queryByTestId('notif-languages')).toBeNull();
+  });
+});

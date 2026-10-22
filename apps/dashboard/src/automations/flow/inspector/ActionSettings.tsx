@@ -25,7 +25,7 @@ import { AtSign, CircleAlert, Columns3, Link2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 
-import { t } from '../../../i18n/t.js';
+import { getI18nInstance, t } from '../../../i18n/t.js';
 import { createCrudApi } from '../../../api/crud.js';
 import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
 import { addOnNameOf, columnOfInput, inLanguage, inputMode, stepOf, type StepAction } from '../../model/addOnSteps.js';
@@ -569,11 +569,17 @@ function NotificationSettings(props: ActionSettingsProps & { action: Extract<Act
         </Field>
       ) : null}
 
+      {/* An app's rule tells each person in their language; words typed here are one text for everybody. */}
+      {action.locales !== undefined && Object.keys(action.locales).length > 0 ? (
+        <p className="text-[11px] leading-[1.45] text-fg-subtle" data-testid="notif-languages">
+          {t('automations:notif.languages', 'Also written in {languages}: each person is told in theirs. Changing the title or the message here writes it in one language for everybody.', { languages: languageNames(Object.keys(action.locales)) })}
+        </p>
+      ) : null}
       <Field label={t('automations:notif.title', 'Title')}>
         <Input
           value={action.title}
           onChange={(event) => {
-            onChange({ title: event.target.value });
+            onChange({ title: event.target.value, locales: undefined });
           }}
           data-testid="notif-title"
         />
@@ -583,7 +589,7 @@ function NotificationSettings(props: ActionSettingsProps & { action: Extract<Act
           rows={3}
           value={action.body ?? ''}
           onChange={(event) => {
-            onChange({ body: event.target.value === '' ? null : event.target.value });
+            onChange({ body: event.target.value === '' ? null : event.target.value, locales: undefined });
           }}
           data-testid="notif-body"
         />
@@ -613,6 +619,23 @@ export function staffColumnOptions(table: SourceTable | null): { value: string; 
     return link.columns.filter((column) => column.staff === true).map((column) => ({ value: `${link.column}.${column.name}`, label: `${through} → ${column.label}` }));
   });
   return [...own, ...linked];
+}
+
+/** Languages by tag, named in the reader's own language (`de-DE` → German). */
+function languageNames(tags: readonly string[]): string {
+  const language = getI18nInstance()?.language ?? 'en-US';
+  const names = tags.map((tag) => {
+    try {
+      return new Intl.DisplayNames([language], { type: 'language' }).of(tag) ?? tag;
+    } catch {
+      return tag;
+    }
+  });
+  try {
+    return new Intl.ListFormat([language], { type: 'conjunction' }).format(names);
+  } catch {
+    return names.join(', ');
+  }
 }
 
 /** Which person of the record a step tells: one of its staff columns. An empty one tells nobody, and the run says so. */

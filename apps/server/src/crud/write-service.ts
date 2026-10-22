@@ -387,6 +387,11 @@ function storable(table: ResolvedTable, values: CheckedRow, dialect: Dialect): C
   return (out ?? values) as CheckedRow;
 }
 
+/** Values as their columns store them (see {@link storable}), for a statement of Adminium's own outside a write: an update filling the columns it added. */
+export function storableValues(table: ResolvedTable, values: Row, dialect: Dialect): Row {
+  return storable(table, values as CheckedRow, dialect);
+}
+
 export async function insertRow(
   db: Db,
   dialect: Dialect,

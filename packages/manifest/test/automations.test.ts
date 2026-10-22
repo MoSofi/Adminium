@@ -95,6 +95,19 @@ describe('the vocabulary', () => {
     expect(issuesOf(kit([steps(notify('n', { 'en-US': 'Low: {{record.name}}', 'ar-EG': 'منخفض: {{record.name}}' }))]))).toEqual([]);
     expect(manifestAutomationsSchema.safeParse([{ ...LOW, name: { 'de-DE': 'Wird knapp' } }]).success).toBe(false);
   });
+
+  it('a notice told in several languages gives its title and its message in the same ones', () => {
+    const notice = (title: unknown, body: unknown) => steps(node('n', 'action', { action: { kind: 'notification', to: { roles: ['manager'] }, title, body } }));
+    const both = { 'en-US': 'Low: {{record.name}}', 'de-DE': 'Knapp: {{record.name}}' };
+    expect(one(notice(both, { 'en-US': 'Order more.', 'de-DE': 'Nachbestellen.' }))).toBe('');
+    // One text is the same for everybody, beside either side in several languages.
+    expect(one(notice(both, 'Order more.'))).toBe('');
+    expect(one(notice('Low: {{record.name}}', { 'en-US': 'Order more.', 'de-DE': 'Nachbestellen.' }))).toBe('');
+    expect(one(notice(both, { 'en-US': 'Order more.' }))).toContain("automations.0.graph.nodes.1.action.body: a notice's title and message are given in the same languages: the message has no de-DE");
+    expect(one(notice({ 'en-US': 'Low' }, { 'en-US': 'Order more.', 'fr-FR': 'Commander.' }))).toContain('the title has no fr-FR');
+    // Each language's words are held to the same placeholders.
+    expect(one(notice(both, { 'en-US': 'Order more.', 'de-DE': 'Nur {{record.colour}}' }))).toContain('{{record.colour}}: "accounts" has no column "colour"');
+  });
 });
 
 describe('what a rule names is the manifest\'s own', () => {

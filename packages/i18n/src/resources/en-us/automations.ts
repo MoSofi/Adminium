@@ -311,7 +311,8 @@ export default {
     "columnNone": "This table has no column that holds a staff member.",
     "columnEmpty": "A record with nobody in that column tells nobody, and the run says so.",
     "urgent": "Urgent",
-    "urgentBody": "Told at once, also in a person’s quiet hours"
+    "urgentBody": "Told at once, also in a person’s quiet hours",
+    "languages": "Also written in {languages}: each person is told in theirs. Changing the title or the message here writes it in one language for everybody."
   },
   "rec": {
     "table": "Table",

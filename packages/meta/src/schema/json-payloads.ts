@@ -2151,6 +2151,16 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
       .default(null),
     title: z.string().max(200).default(''),
     body: z.string().max(2000).nullable().default(null),
+    /**
+     * The notice in other languages, by BCP 47 tag (`de-DE`), as an app's
+     * manifest ships it: each person is told in their own language when it is
+     * here (or another of the same language), and in `title` and `body`
+     * otherwise. Picked when the notice is written, one row per reader.
+     */
+    locales: z
+      .record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.object({ title: z.string().min(1).max(200), body: z.string().max(2000).nullable().default(null) }))
+      .refine((value) => Object.keys(value).length <= 40, 'At most 40 languages')
+      .optional(),
     /** Told at once, also in the person's quiet hours. */
     urgent: z.boolean().optional(),
   }),

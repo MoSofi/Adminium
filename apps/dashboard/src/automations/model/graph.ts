@@ -110,6 +110,8 @@ export type Action =
       to: NotificationAudience | null;
       title: string;
       body: string | null;
+      /** The notice in other languages, by tag, as an app's rule ships it: each person is told in theirs. */
+      locales?: Record<string, { title: string; body: string | null }> | undefined;
       /** Told at once, also in the person's quiet hours. */
       urgent?: boolean | undefined;
     }

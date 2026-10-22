@@ -50,6 +50,7 @@ import {
   CUSTOMER_KEY_PURPOSE,
   auditRepo,
   connectionsRepo,
+  connectionTenantConfig,
   publicEndpointsRepo,
   publicKeysRepo,
   manifestsRepo,
@@ -91,6 +92,7 @@ import {
 import { createAppFiles, type AppFiles } from './app-files.js';
 import type { InstallActor, InstallCore, InstallHost } from '../add-ons/install-core.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { addedDerivedColumns, fillDerivedColumns, type DerivedFillResult } from './derived-fill.js';
 import { writeManifestSeeds } from './manifest-seeds.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { createRemovals } from './removal.js';
@@ -2173,7 +2175,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
     const from = installed.row.version;
 
-    let stage: 'check' | 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'finish' | 'pages' = 'check';
+    let stage: 'check' | 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'derived-columns' | 'finish' | 'pages' = 'check';
+    let derived: Awaited<ReturnType<typeof fillAddedDerived>> = undefined;
     const stopped = (error: unknown): AppError => {
       const message = error instanceof Error ? error.message : String(error);
       const details = error instanceof AppError ? (error.details as Record<string, unknown> | undefined) : undefined;
@@ -2282,6 +2285,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           access.onChange?.();
         }
       }
+      // What this manifest works out that the one before did not, filled for the rows already there.
+      stage = 'derived-columns';
+      if (connectionId !== null) derived = await fillAddedDerived(manifest, installed.document, connectionId, userId, names, host);
       stage = 'finish';
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
       // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
@@ -2345,6 +2351,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         sides: surfaces.map((s) => s.side),
         ...(connectionId === null ? {} : { connectionId }),
         ...(applied === undefined ? {} : { created: applied.created, reused: applied.reused }),
+        ...(derived === undefined ? {} : { derived: derived.fill }),
       },
       userId,
       userLabel,
@@ -2936,7 +2943,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         attached: [...(addOnsDone?.attached ?? []), ...done.attached],
       };
     };
-    let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'finish' = 'add-ons';
+    let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'derived-columns' | 'finish' = 'add-ons';
+    let derived: Awaited<ReturnType<typeof fillAddedDerived>> = undefined;
     try {
       await runSteps(earlySteps);
       stage = 'tables';
@@ -2983,6 +2991,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           access.onChange?.();
         }
       }
+      // What this version works out that the one before did not, filled for the rows already there.
+      stage = 'derived-columns';
+      if (connectionId !== null) derived = await fillAddedDerived(manifest, installed.document, connectionId, userId, names, host);
       stage = 'finish';
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
       // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
@@ -3092,6 +3103,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         sides: surfaces.map((s) => s.side),
         ...(connectionId === null ? {} : { connectionId }),
         ...(applied === undefined ? {} : { created: applied.created, reused: applied.reused }),
+        ...(derived === undefined ? {} : { derived: derived.fill }),
       },
       userId,
       userLabel,
@@ -3113,7 +3125,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         })),
         missing: surfaces.length === 0 && !servesNothingByDesign(manifest),
         ...(writtenPages === undefined ? {} : { pages: writtenPages.pages }),
-        ...(writtenPages?.rules === undefined ? {} : { rules: writtenPages.rules }),
+        ...(bothRules(derived?.rules, writtenPages?.rules) === undefined ? {} : { rules: bothRules(derived?.rules, writtenPages?.rules) }),
         ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
         ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
         ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
@@ -3153,6 +3165,48 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       readFile: input.readFile,
       ...(input.only === undefined ? {} : { only: input.only }),
     });
+  }
+
+  /**
+   * THE COLUMNS THIS VERSION WORKS OUT THAT THE ONE BEFORE DID NOT — a copy, a
+   * formula, a total, a balance — filled for the rows already there
+   * (`derived-fill.ts`), as a stage of an update or an apply, before the new
+   * version is recorded: a failure is an update to finish, and finishing it
+   * works the same columns out again. The new version's rules are written
+   * first (the later write of them finds them there), since the fill reads
+   * each rule as the write path does. Nothing to fill: nothing is written here.
+   */
+  async function fillAddedDerived(
+    manifest: Manifest,
+    previous: unknown,
+    connectionId: string,
+    userId: string | null,
+    names: Readonly<Record<string, string>> | undefined,
+    host: InstallHost,
+  ): Promise<{ rules: RulesResult; fill: DerivedFillResult } | undefined> {
+    const columns = addedDerivedColumns(previous, manifest);
+    if (columns.length === 0) return undefined;
+    if (deps.schemaTarget?.data === undefined) {
+      host.log.warn({ app: manifest.key, columns }, 'the columns this version works out were not filled for the rows already there: no database handle is wired into the install here');
+      return undefined;
+    }
+    const rules = await writeManifestRules({ meta: deps.meta, manifest, connectionId, createdBy: userId, refuse: false });
+    const source = (await deps.schemaTarget.data(connectionId)) as Pick<Parameters<typeof fillDerivedColumns>[0], 'db' | 'dialect'>;
+    const view = await loadSnapshotView(deps.meta, connectionId, { lists: true });
+    const real = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+    const currency = async (): Promise<string | null> => (await connectionTenantConfig(deps.meta, connectionId))?.currency ?? null;
+    const fill = await source.db.transaction().execute((trx) =>
+      fillDerivedColumns({ db: trx, dialect: source.dialect, view, columns, realName: (ref) => real[ref] ?? ref, currency }),
+    );
+    if (fill.skipped.length > 0) host.log.info({ app: manifest.key, skipped: fill.skipped }, 'columns this version works out, left as they were');
+    return { rules, fill };
+  }
+
+  /** The rules an update wrote before its fill, and those its pages' write wrote after: one count for the reply. */
+  function bothRules(early: RulesResult | undefined, late: RulesResult | undefined): RulesResult | undefined {
+    if (early === undefined) return late;
+    if (late === undefined) return early;
+    return { written: early.written + late.written, skipped: late.skipped, removed: early.removed + late.removed, lists: [...early.lists, ...late.lists] };
   }
 
   /** An app installed in this database: its stored manifest, or `unreadable` when the stored document no longer reads. Null when it is not here. */

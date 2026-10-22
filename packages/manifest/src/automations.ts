@@ -695,6 +695,13 @@ export function automationIssues(m: {
           }
           tokens(action.title, here('title'));
           tokens(action.body, here('body'));
+          // Each reader is told in their language: a title and a message given in several languages give the same ones, never half a notice in theirs.
+          if (typeof action.title === 'object' && typeof action.body === 'object') {
+            const titled = Object.keys(action.title).sort();
+            const said = Object.keys(action.body).sort();
+            const missing = [...titled.filter((tag) => !said.includes(tag)).map((tag) => `the message has no ${tag}`), ...said.filter((tag) => !titled.includes(tag)).map((tag) => `the title has no ${tag}`)];
+            if (missing.length > 0) out.push({ path: here('body'), message: `a notice's title and message are given in the same languages: ${missing.join(', ')}` });
+          }
           return;
         }
         if (action.kind === 'record.create') {
