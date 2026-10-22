@@ -73,6 +73,7 @@ import {
 import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
+import { copiesAgain } from '../../crud/copies-again.js';
 import { sealRows, sealsOf } from '../../crud/seal.js';
 import { batchNeedsGuard } from '../../crud/capacity/door.js';
 import type { JudgedRow, LockNameRow } from '../../crud/capacity/types.js';
@@ -2117,8 +2118,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (record !== undefined) gone.push({ record, before: null });
         }
         for (const row of children.removed) {
-          await insertRows(db, target.dialect, child, [await judge('create', { values: row })]);
-          back.push({ record: row, before: null });
+          // Put back as it was, but for a copy that always wins: taken again from its row as it is now.
+          const again = await takenAgain(db, childTarget, await judge('create', { values: row }));
+          await insertRows(db, target.dialect, child, [again]);
+          back.push({ record: { ...row, ...again }, before: null });
         }
         for (const change of children.changed) {
           await still(change.key, change.after);
@@ -2143,6 +2146,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     async function settleUndone(moved: readonly UndoneRows[]): Promise<void> {
       for (const { target, action, rows } of moved) if (rows.length > 0) await writes.settle(action, target, rows);
+    }
+
+    /**
+     * A row an undo puts back, with each copy that always wins taken again
+     * from its linked row as it is now (`crud/copies-again.ts`): a member
+     * row restored after its deal changed hands names the deal's owner now.
+     */
+    async function takenAgain(db: Kysely<SourceDatabase>, target: WriteTarget, values: CheckedRow): Promise<CheckedRow> {
+      const again = await copiesAgain({ db, dialect: target.dialect, rules: tableRulesFor(target), values, currency: async () => (await connectionTenantConfig(meta, target.connectionId))?.currency ?? null });
+      return again === values ? values : uncheckedForUndo([again])[0]!;
     }
 
     async function executeUndo(
@@ -2179,7 +2192,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           for (const [i, before] of entry.before.entries()) {
             const existing = await fetchByPk(tdb, table, pkOf(before));
             if (existing !== undefined) conflict();
-            await insertRows(tdb, target.dialect, table, [prepared[i]?.values ?? uncheckedForUndo([before])[0]!]);
+            // As it was, but for a copy that always wins: taken again from its row as it is now.
+            await insertRows(tdb, target.dialect, table, [await takenAgain(tdb, target, prepared[i]?.values ?? uncheckedForUndo([before])[0]!)]);
             await theirs(pkOf(before), 'update');
             restored.push(pkLabel(table, pkOf(before)));
             written.push({ pk: pkOf(before), before: null, record: null });
