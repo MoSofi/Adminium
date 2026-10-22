@@ -2,12 +2,12 @@
 /**
  * A figure over a date or a time, on a real database of each engine.
  *
- * A figure is a number: every card reads `value` as one. The earliest or the
- * latest of a date column is a date, and used to be answered as `0`, a
- * figure that looked like one and meant nothing. It is refused now (`422`),
- * with the column and what to ask instead: the row itself, a list in the
- * column's order with a limit of one, which is read as its reader reaches
- * the rows. Counting the dates is still a figure.
+ * A sum or an average of a date column used to be answered as `0`, a figure
+ * that looked like one and meant nothing. It is refused (`422`), with the
+ * column and what to ask instead. The earliest, the latest and the middle of
+ * one answer a day (`widget-median.test.ts`), where the envelope can say one;
+ * a ranking by a day, and a day where a chart draws numbers, are refused.
+ * Counting the dates is still a figure.
  *
  * Dana reaches deals 1, 2, 5 and 9 (her own two, and Lena's two that she
  * covers); each deal closes on its own day of November 2026.
@@ -47,7 +47,7 @@ for (const [dialect, available] of ENGINES) {
       await w?.close();
     });
 
-    for (const fn of ['min', 'max', 'sum', 'avg'] as const) {
+    for (const fn of ['sum', 'avg'] as const) {
       for (const column of ['close_on', 'touched_at'] as const) {
         it(`refuses the ${fn} of ${column} with the column and what to ask instead, never a 0`, async () => {
           for (const who of ['owner', 'dana'] as const) {
@@ -62,12 +62,17 @@ for (const [dialect, available] of ENGINES) {
       }
     }
 
-    it('refuses it in a chart by group and by month too', async () => {
+    it('refuses a ranking by a day, and a day where a chart draws numbers; a day beside a count is answered', async () => {
       const grouped = await card('owner', { shape: 'categorical', groupBy: ['state'], aggregations: [{ fn: 'min', column: 'close_on', alias: 'first' }] });
       expect(grouped.statusCode, grouped.body).toBe(422);
-      const second = await card('owner', { shape: 'categorical', groupBy: ['state'], aggregations: [{ fn: 'count', alias: 'n' }, { fn: 'max', column: 'touched_at', alias: 'last' }] });
-      expect(second.statusCode, second.body).toBe(422);
-      expect(json<Refusal>(second).error.details).toMatchObject({ aggregation: 'last', column: 'touched_at' });
+      expect(json<Refusal>(grouped).error.details).toMatchObject({ aggregation: 'first', reason: 'date-figure-first' });
+      const charted = await card('owner', { shape: 'timeseries', bucket: { column: 'touched_at', unit: 'month' }, aggregations: [{ fn: 'max', column: 'touched_at', alias: 'last' }] });
+      expect(charted.statusCode, charted.body).toBe(422);
+      expect(json<Refusal>(charted).error.details).toMatchObject({ aggregation: 'last', column: 'touched_at', reason: 'date-figure-shape' });
+      const second = await card('owner', { shape: 'categorical', groupBy: ['state'], aggregations: [{ fn: 'count', alias: 'n' }, { fn: 'max', column: 'close_on', alias: 'last' }] });
+      expect(second.statusCode, second.body).toBe(200);
+      const items = json<{ result: { items: { key: string; values: Record<string, unknown> }[] } }>(second).result.items;
+      expect(items.find((item) => item.key === 'lost')?.values).toEqual({ n: 1, last: '2026-11-04' });
     });
 
     it('still counts dates, and adds up and compares numbers', async () => {

@@ -587,6 +587,18 @@ describe('map-bubble', () => {
     expect(container.querySelector('[data-part="geo-ranking"]')?.getAttribute('aria-label')).toBe('Stops');
   });
 
+  it('says why a leg between two stops pinned to one town has no length', () => {
+    const stops = [
+      { name: 'Ana', lat: -22.9, lng: -47.06, by: 'town' as const, placeId: 7, values: {} },
+      { name: 'Bia', lat: -22.9, lng: -47.06, by: 'town' as const, placeId: 7, values: {} },
+    ];
+    const route = { legs: [{ distanceM: null, durationS: null, estimate: true, unknown: true as const, why: 'same-town' as const }] };
+    const { container } = render(<MapBubble points={stops} route={route} />);
+    const notes = [...container.querySelectorAll('[data-part="geo-ranking"] > li')].map((row) => row.querySelector('[data-part="geo-row-note"]')?.textContent ?? null);
+    expect(notes[1]).toBe('both stops are pinned to the town; place them to measure · 2 places are known only by this town');
+    expect(container.querySelector('[data-part="geo-route-total"]')).toBeNull();
+  });
+
   it('says a route\'s legs in miles when asked', () => {
     const stops = [
       { name: 'A', lat: 1, lng: 1, values: {} },

@@ -43,7 +43,7 @@ import {
  * rejects `aggregations` on it entirely), and a caller-spelled percentile may
  * not share a descriptor with any other function. Neither is a form field.
  */
-export const MEASURE_FNS = ['count', 'count_distinct', 'sum', 'avg', 'min', 'max'] as const;
+export const MEASURE_FNS = ['count', 'count_distinct', 'sum', 'avg', 'median', 'min', 'max'] as const;
 export type MeasureFn = (typeof MEASURE_FNS)[number];
 
 export const FILTER_OPS = [

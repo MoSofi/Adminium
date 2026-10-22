@@ -495,6 +495,8 @@ export default {
     "chooseTable": "Vyberte tabulku…",
     "owner": "Řádky, kde je tato osoba jako",
     "conditions": "{count, plural, one {A # další podmínka, ponechaná beze změny.} few {A # další podmínky, ponechané beze změny.} many {A # další podmínky, ponechané beze změny.} other {A # dalších podmínek, ponechaných beze změny.}}",
+    "withinYear": "Jen řádky z letošního roku podle {column}, podle kalendáře firmy. Ponecháno beze změny.",
+    "withinDays": "{count, plural, one {Jen řádky z dneška podle {column}, podle kalendáře firmy. Ponecháno beze změny.} few {Jen řádky z posledních # dnů podle {column}, podle kalendáře firmy. Ponecháno beze změny.} many {Jen řádky z posledních # dne podle {column}, podle kalendáře firmy. Ponecháno beze změny.} other {Jen řádky z posledních # dnů podle {column}, podle kalendáře firmy. Ponecháno beze změny.}}",
     "limit": "Nejvýše tolik řádků",
     "removeSection": "Odebrat tento oddíl",
     "addSection": "Přidat oddíl",

@@ -162,21 +162,41 @@ of times are now the venue's on all three, as an hour and a day already were; th
 UTC's.
 :::
 
-## A figure is a number
+## A figure is a number, or a day
 
-`count` and `count_distinct` count anything. `sum`, `avg`, `min`, `max` and `percentile` take a
-number column. Over a `date` or a time column they are refused with `422`
-(`details.reason: "not-a-number"`, with the `column` and the aggregation's alias): the earliest
-of a date column is a day, and a card reads a figure as a number. Ask for the row instead, which
-is read as its reader reaches the rows:
+`count` and `count_distinct` count anything. `sum`, `avg` and `percentile` take a number column;
+over a `date` or a time column they are refused with `422` (`details.reason: "not-a-number"`, with
+the `column` and the aggregation's alias). `min`, `max` and `median` take a number column, or a
+date or a time column, whose earliest, latest and middle value is a day (or a moment):
+
+- **`median`** is the middle value of the rows, empty values left out. Of an odd count it is the
+  middle one; of an even count of numbers, the mean of the two middle ones (12, 15, 20, 30 has
+  17.5); of an even count of days or times, the **earlier** of the two middle ones. A day's middle
+  is so always one of the column's own days, never a noon between two of them, and it is the same
+  day on every engine and in every time zone. Postgres reads it with `percentile_cont` (a day's
+  with `percentile_disc`); SQLite and MySQL with window functions, in the same query as the other
+  figures. It stands beside any of them: a count, a sum and a median in one ranking.
+- **A figure that is a day** is answered as one: `"value": "2026-11-04"` for a `date` column, an
+  ISO 8601 instant (`"2026-07-05T12:00:00.000Z"`) for a timestamp, the time of day for a `time`,
+  with `"date": "date"`, `"instant"` or `"time"` beside it, and `"value": null` where there is no
+  row to have one (never a `0`). A `single-metric` and a `metric+delta` carry it (`prior` too, with
+  no `deltaPct`: two days have a distance, not a percentage). A `categorical` carries it beside a
+  first figure that is a number, in each item's `values`, and names those figures in `"dates"`:
 
 ```json
-{ "shape": "record-list", "source": { "name": "followups" },
-  "select": ["id", "due_on"], "orderBy": [{ "column": "due_on", "dir": "asc" }], "limit": 1 }
+{ "shape": "categorical", "source": { "name": "deals" }, "groupBy": ["stage_id"],
+  "aggregations": [{ "fn": "count", "alias": "n" }, { "fn": "median", "column": "entered_on", "alias": "typical" }] }
 ```
 
+  answers `{ "key": "3", "value": 5, "values": { "n": 5, "typical": "2026-09-14" } }` for each
+  stage, with `"dates": { "typical": "date" }`. A ranking whose first figure is a day is refused
+  (`details.reason: "date-figure-first"`): its bars, total and shares are of the first figure. So
+  is a day in any other shape, which draws numbers (`"date-figure-shape"`).
+
 :::note[Upgrading]
-Such a figure used to answer `0` (and a sum of dates whatever the database made of them).
+`min` and `max` of a date or a time column were refused before 0.3.33 (ask for the row with a
+`record-list` in the column's order and a limit of one), and before that answered `0`. They now
+answer the day. `median` is new in 0.3.33.
 :::
 
 ## KPIs over a limit
@@ -361,7 +381,7 @@ Every chart and map card also carries its figures as a table: hidden from sight,
 reader, captioned with the card's title and subtitle. Its **Show data** button swaps the chart for
 that table in place, and back. The figures are formatted as the card formats its own, a money
 card's in its currency, and periods as the axis reads them. A figure that is a sum (an average,
-the least, the most, a percentile) of a money column is written in the card's currency whatever
+the least, the most, the middle one, a percentile) of a money column is written in the card's currency whatever
 the card says: a column Adminium takes for money by its name (`amount`, `total`), or one the app
 declares money (`"semantic": "money"`, a `money` column or `"scale": "currency"`), so a pair of
 the deals' count and their weighted value reads `3` and `£3,635`. A count is a number. A pair has

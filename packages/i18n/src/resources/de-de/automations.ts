@@ -495,6 +495,8 @@ export default {
     "chooseTable": "Tabelle wählen…",
     "owner": "Zeilen, in denen diese Person steht als",
     "conditions": "{count, plural, one {Und # weitere Bedingung, unverändert übernommen.} other {Und # weitere Bedingungen, unverändert übernommen.}}",
+    "withinYear": "Nur die Zeilen dieses Jahres nach {column}, nach dem Kalender des Unternehmens. Bleibt unverändert.",
+    "withinDays": "{count, plural, one {Nur die Zeilen von heute nach {column}, nach dem Kalender des Unternehmens. Bleibt unverändert.} other {Nur die Zeilen der letzten # Tage nach {column}, nach dem Kalender des Unternehmens. Bleibt unverändert.}}",
     "limit": "Höchstens so viele Zeilen",
     "removeSection": "Diesen Abschnitt entfernen",
     "addSection": "Abschnitt hinzufügen",

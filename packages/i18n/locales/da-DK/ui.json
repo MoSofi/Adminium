@@ -800,6 +800,7 @@
         "legAbout": "cirka {distance} fra forrige stop",
         "legExact": "{distance} fra forrige stop",
         "legUnknown": "afstand fra forrige stop ukendt",
+        "legSameTown": "begge stop er sat på byen; placer dem for at måle",
         "openInMaps": "Åbn i min kort-app",
         "openOnMapsSite": "Åbn på OpenStreetMap (ny fane)",
         "legDrive": "{duration} i bil",

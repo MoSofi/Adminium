@@ -26,7 +26,9 @@
  * this route is told only that the roads could not be asked.
  *
  * A leg between two stops known only as the SAME TOWN has no length anybody
- * can honestly give: it is `unknown`, never 0, whoever answers.
+ * can honestly give: it is `unknown`, never 0, whoever answers, and it says
+ * why (`why: 'same-town'`): both stops are pinned to the town; placing them
+ * lets it be measured.
  */
 import { guardOutboundUrl } from '../connections/dsn.js';
 import type { MapState } from './map-policy.js';
@@ -47,7 +49,16 @@ export interface RouteLeg {
   estimate: boolean;
   /** Both ends are known only as the same town. */
   unknown?: true;
+  /**
+   * Why a leg has no length. `same-town`: both stops are pinned to the same
+   * town, not to a place in it; placing them (a dragged or picked pin) lets
+   * the leg be measured. Set exactly when `unknown` is.
+   */
+  why?: LegUnknownWhy;
 }
+
+/** Why a leg is unknown: the one reason there is today. */
+export type LegUnknownWhy = 'same-town';
 
 export interface RouteAnswer {
   source: 'straight' | 'server';
@@ -91,7 +102,7 @@ export function sameTown(a: RouteStop, b: RouteStop): boolean {
   return a.lat === b.lat && a.lng === b.lng;
 }
 
-const UNKNOWN_LEG: RouteLeg = { distanceM: null, durationS: null, estimate: true, unknown: true };
+const UNKNOWN_LEG: RouteLeg = { distanceM: null, durationS: null, estimate: true, unknown: true, why: 'same-town' };
 
 export function straightRoute(stops: readonly RouteStop[]): RouteAnswer {
   const legs: RouteLeg[] = [];

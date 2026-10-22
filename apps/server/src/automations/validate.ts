@@ -385,6 +385,14 @@ function checkAction(
         if (section.orderBy !== null && readColumn(of, section.orderBy.column, where) === undefined) {
           throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.orderBy.column}.`, { column: section.orderBy.column });
         }
+        // This year, or the last days: by a column that keeps a day or a moment.
+        if (section.within !== undefined) {
+          const dated = readColumn(of, section.within.column, where);
+          if (dated === undefined) throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.within.column}.`, { column: section.within.column });
+          if (!['date', 'timestamp', 'timestamptz'].includes(dated.logicalType)) {
+            throw new ValidationFailedError(`${where}: ${of.id}.${section.within.column} keeps no date, so the section "${section.key}" cannot be held to a year or to days by it.`, { column: section.within.column, reason: 'not-a-date' });
+          }
+        }
         // A figure is the author's to ask for only over what the author reads; each reader is then judged again, as themselves.
         const number = (table: ResolvedTable, name: string): void => {
           const column = readColumn(table, name, where);

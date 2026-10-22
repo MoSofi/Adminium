@@ -810,6 +810,7 @@ export default {
         "legAbout": "asi {distance} od předchozí zastávky",
         "legExact": "{distance} od předchozí zastávky",
         "legUnknown": "vzdálenost od předchozí zastávky není známá",
+        "legSameTown": "obě zastávky jsou připnuté jen k obci; umístěte je, aby šlo měřit",
         "openInMaps": "Otevřít v mé aplikaci s mapami",
         "openOnMapsSite": "Otevřít na OpenStreetMap (nová karta)",
         "legDrive": "{duration} jízdy",

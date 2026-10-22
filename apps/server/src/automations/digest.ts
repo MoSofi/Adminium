@@ -30,6 +30,10 @@
  *
  * What a section counts as "this week" is the rule's condition, cut on the
  * business's clock like every other rule: only the hour of delivery is the
+ * reader's. A section held to "this year" (`within`) counts the calendar year
+ * the business was in when the rule ran, from its own midnight on the first of
+ * January in its time zone; "the last N days" are that day and the N − 1
+ * before it, from the business's midnight. Never the server's year, nor the
  * reader's.
  */
 import { sql } from 'kysely';
@@ -63,6 +67,7 @@ import { recipientLocale, translatorFor } from '../i18n/server-i18n.js';
 import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
 import { digestAt } from '../notifications/quiet.js';
 import { valueForms } from '../outbox/sender.js';
+import { calendarBounds } from '../widget-data/compiler.js';
 import { offeredRoles, rulePartOff } from '../rbac/app-parts.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './actions/types.js';
@@ -193,7 +198,7 @@ export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayloa
   for (const section of payload.sections) {
     // A section that cannot be read as this person (it sorts or chooses by a column their roles do not show)
     // lists nothing for them: their other sections, and everybody else's summary, are not lost with it.
-    const read = await sectionRows({ section, view, whole, set, reach, db, dialect, meta, userId: user.id, led, year, connectionId: payload.connectionId, madeAt: payload.madeAt, forms }).catch(() => ({ rows: [], total: 0, figures: {} }));
+    const read = await sectionRows({ section, view, whole, set, reach, db, dialect, meta, userId: user.id, led, year, zone: tenant?.timezone ?? 'UTC', connectionId: payload.connectionId, madeAt: payload.madeAt, forms }).catch(() => ({ rows: [], total: 0, figures: {} }));
     listed.set(section.key, read.rows);
     // How many there are, not how many of them the e-mail lists.
     counts[section.key] = read.total;
@@ -352,6 +357,8 @@ async function sectionRows(input: Reader & {
   led: readonly string[];
   /** The calendar year on the business's clock, when the rule ran. */
   year: number;
+  /** The business's time zone: where its days and years begin. */
+  zone: string;
   madeAt: number;
   forms: Forms;
 }): Promise<{ rows: Record<string, string>[]; total: number; figures: Record<string, string> }> {
@@ -366,7 +373,8 @@ async function sectionRows(input: Reader & {
   const ids = section.reach === 'team' ? [userId, ...input.led.filter((id) => id !== userId)] : [userId];
   const theirs = namesOneOf(section.owner, ids);
   const where = toRecordFilterAll(section.where, { table: base, dialect, now: madeAt });
-  const mandatory: RecordFilter = where === null ? theirs : { and: [where, theirs] };
+  const within = section.within === undefined ? null : withinFilter(section.within, base, input.zone, madeAt);
+  const mandatory: RecordFilter = { and: [...(where === null ? [] : [where]), ...(within === null ? [] : [within]), theirs] };
   const rowTest = rowTestOf(reach, base.id, 'read');
   const money = (name: string): boolean => (base.table.columns.find((candidate: { name: string }) => candidate.name === name) as { semantics?: { primary?: string } } | undefined)?.semantics?.primary === 'money';
   /** A sum as the mail writes it: money in the rows' own currency, else a number. */
@@ -464,6 +472,22 @@ async function sectionRows(input: Reader & {
   const collator = new Intl.Collator(formatTag(null, forms.locale));
   lines.sort((a, b) => collator.compare(a.name, b.name));
   return { rows: lines.slice(0, section.limit).map((line) => line.out), total, figures };
+}
+
+/**
+ * A section's `within` as a filter: its date column from the start of the
+ * business's current year (or of the first of its last days) to the start of
+ * the next, as the business's calendar has them when the rule ran. A date
+ * column is compared with the business's days; a time column with the
+ * instants of its midnights, spelled as a write would store them.
+ */
+export function withinFilter(within: NonNullable<AutomationDigestSection['within']>, table: Pick<ResolvedTable, 'id' | 'columns'>, zone: string, madeAt: number): RecordFilter {
+  const column = table.columns.get(within.column);
+  if (column === undefined) throw new ActionFailure(`${table.id} has no column ${within.column}.`);
+  const at = new Date(madeAt);
+  const bounds = 'this' in within ? calendarBounds(1, 'year', 0, at, zone) : calendarBounds(within.lastDays, 'day', 0, at, zone);
+  const spell = (instant: Date): string => (column.logicalType === 'date' ? venueClock(instant, zone).day : instant.toISOString());
+  return { and: [{ column: column.name, op: 'gte', value: spell(bounds.start) }, { column: column.name, op: 'lt', value: spell(bounds.end) }] };
 }
 
 /**

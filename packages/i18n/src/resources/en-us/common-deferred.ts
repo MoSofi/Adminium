@@ -112,6 +112,7 @@ export default {
         "countDistinct": "Count of distinct values",
         "count": "Count of rows",
         "max": "Maximum",
+        "median": "Median",
         "min": "Minimum",
         "sum": "Sum"
       },

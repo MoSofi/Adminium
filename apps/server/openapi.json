@@ -26149,6 +26149,49 @@
                                                               "of"
                                                             ],
                                                             "additionalProperties": false
+                                                          },
+                                                          "within": {
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "column": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  },
+                                                                  "this": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "year"
+                                                                    ]
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "column",
+                                                                  "this"
+                                                                ],
+                                                                "additionalProperties": false
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "column": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  },
+                                                                  "lastDays": {
+                                                                    "type": "integer",
+                                                                    "minimum": 1,
+                                                                    "maximum": 366
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "column",
+                                                                  "lastDays"
+                                                                ],
+                                                                "additionalProperties": false
+                                                              }
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -27861,6 +27904,49 @@
                                                                                     "of"
                                                                                   ],
                                                                                   "additionalProperties": false
+                                                                                },
+                                                                                "within": {
+                                                                                  "anyOf": [
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "column": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        },
+                                                                                        "this": {
+                                                                                          "type": "string",
+                                                                                          "enum": [
+                                                                                            "year"
+                                                                                          ]
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "column",
+                                                                                        "this"
+                                                                                      ],
+                                                                                      "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "column": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        },
+                                                                                        "lastDays": {
+                                                                                          "type": "integer",
+                                                                                          "minimum": 1,
+                                                                                          "maximum": 366
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "column",
+                                                                                        "lastDays"
+                                                                                      ],
+                                                                                      "additionalProperties": false
+                                                                                    }
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -29406,6 +29492,49 @@
                                                                                     "of"
                                                                                   ],
                                                                                   "additionalProperties": false
+                                                                                },
+                                                                                "within": {
+                                                                                  "anyOf": [
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "column": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        },
+                                                                                        "this": {
+                                                                                          "type": "string",
+                                                                                          "enum": [
+                                                                                            "year"
+                                                                                          ]
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "column",
+                                                                                        "this"
+                                                                                      ],
+                                                                                      "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "column": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        },
+                                                                                        "lastDays": {
+                                                                                          "type": "integer",
+                                                                                          "minimum": 1,
+                                                                                          "maximum": 366
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "column",
+                                                                                        "lastDays"
+                                                                                      ],
+                                                                                      "additionalProperties": false
+                                                                                    }
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -31806,6 +31935,49 @@
                                                       "column",
                                                       "of"
                                                     ]
+                                                  },
+                                                  "within": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "column": {
+                                                            "type": "string",
+                                                            "maxLength": 128
+                                                          },
+                                                          "this": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                              "year"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "column",
+                                                          "this"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      },
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "column": {
+                                                            "type": "string",
+                                                            "maxLength": 128
+                                                          },
+                                                          "lastDays": {
+                                                            "type": "integer",
+                                                            "minimum": 1,
+                                                            "maximum": 366
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "column",
+                                                          "lastDays"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    ]
                                                   }
                                                 },
                                                 "required": [
@@ -33435,6 +33607,49 @@
                                                                             "column",
                                                                             "of"
                                                                           ]
+                                                                        },
+                                                                        "within": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "this": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "year"
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "this"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            },
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "lastDays": {
+                                                                                  "type": "integer",
+                                                                                  "minimum": 1,
+                                                                                  "maximum": 366
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "lastDays"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -34903,6 +35118,49 @@
                                                                             "owner",
                                                                             "column",
                                                                             "of"
+                                                                          ]
+                                                                        },
+                                                                        "within": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "this": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "year"
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "this"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            },
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "lastDays": {
+                                                                                  "type": "integer",
+                                                                                  "minimum": 1,
+                                                                                  "maximum": 366
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "lastDays"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
                                                                           ]
                                                                         }
                                                                       },
@@ -37187,6 +37445,49 @@
                                                         "of"
                                                       ],
                                                       "additionalProperties": false
+                                                    },
+                                                    "within": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "this": {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "year"
+                                                              ]
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "this"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        },
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "lastDays": {
+                                                              "type": "integer",
+                                                              "minimum": 1,
+                                                              "maximum": 366
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "lastDays"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        }
+                                                      ]
                                                     }
                                                   },
                                                   "required": [
@@ -38899,6 +39200,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -40444,6 +40788,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -43500,6 +43887,49 @@
                                                         "of"
                                                       ],
                                                       "additionalProperties": false
+                                                    },
+                                                    "within": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "this": {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "year"
+                                                              ]
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "this"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        },
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "lastDays": {
+                                                              "type": "integer",
+                                                              "minimum": 1,
+                                                              "maximum": 366
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "lastDays"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        }
+                                                      ]
                                                     }
                                                   },
                                                   "required": [
@@ -45212,6 +45642,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -46757,6 +47230,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -49140,6 +49656,49 @@
                                                       "column",
                                                       "of"
                                                     ]
+                                                  },
+                                                  "within": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "column": {
+                                                            "type": "string",
+                                                            "maxLength": 128
+                                                          },
+                                                          "this": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                              "year"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "column",
+                                                          "this"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      },
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "column": {
+                                                            "type": "string",
+                                                            "maxLength": 128
+                                                          },
+                                                          "lastDays": {
+                                                            "type": "integer",
+                                                            "minimum": 1,
+                                                            "maximum": 366
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "column",
+                                                          "lastDays"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    ]
                                                   }
                                                 },
                                                 "required": [
@@ -50769,6 +51328,49 @@
                                                                             "column",
                                                                             "of"
                                                                           ]
+                                                                        },
+                                                                        "within": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "this": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "year"
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "this"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            },
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "lastDays": {
+                                                                                  "type": "integer",
+                                                                                  "minimum": 1,
+                                                                                  "maximum": 366
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "lastDays"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -52237,6 +52839,49 @@
                                                                             "owner",
                                                                             "column",
                                                                             "of"
+                                                                          ]
+                                                                        },
+                                                                        "within": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "this": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "year"
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "this"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            },
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "lastDays": {
+                                                                                  "type": "integer",
+                                                                                  "minimum": 1,
+                                                                                  "maximum": 366
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "lastDays"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
                                                                           ]
                                                                         }
                                                                       },
@@ -54526,6 +55171,49 @@
                                                         "of"
                                                       ],
                                                       "additionalProperties": false
+                                                    },
+                                                    "within": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "this": {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "year"
+                                                              ]
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "this"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        },
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "lastDays": {
+                                                              "type": "integer",
+                                                              "minimum": 1,
+                                                              "maximum": 366
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "lastDays"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        }
+                                                      ]
                                                     }
                                                   },
                                                   "required": [
@@ -56238,6 +56926,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -57783,6 +58514,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -60302,6 +61076,49 @@
                                                         "of"
                                                       ],
                                                       "additionalProperties": false
+                                                    },
+                                                    "within": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "this": {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "year"
+                                                              ]
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "this"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        },
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            },
+                                                            "lastDays": {
+                                                              "type": "integer",
+                                                              "minimum": 1,
+                                                              "maximum": 366
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "column",
+                                                            "lastDays"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        }
+                                                      ]
                                                     }
                                                   },
                                                   "required": [
@@ -62014,6 +62831,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -63559,6 +64419,49 @@
                                                                               "of"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          "within": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "this": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "year"
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "this"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  },
+                                                                                  "lastDays": {
+                                                                                    "type": "integer",
+                                                                                    "minimum": 1,
+                                                                                    "maximum": 366
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "column",
+                                                                                  "lastDays"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
                                                                           }
                                                                         },
                                                                         "required": [
@@ -65939,6 +66842,49 @@
                                                       "column",
                                                       "of"
                                                     ]
+                                                  },
+                                                  "within": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "column": {
+                                                            "type": "string",
+                                                            "maxLength": 128
+                                                          },
+                                                          "this": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                              "year"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "column",
+                                                          "this"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      },
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "column": {
+                                                            "type": "string",
+                                                            "maxLength": 128
+                                                          },
+                                                          "lastDays": {
+                                                            "type": "integer",
+                                                            "minimum": 1,
+                                                            "maximum": 366
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "column",
+                                                          "lastDays"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    ]
                                                   }
                                                 },
                                                 "required": [
@@ -67568,6 +68514,49 @@
                                                                             "column",
                                                                             "of"
                                                                           ]
+                                                                        },
+                                                                        "within": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "this": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "year"
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "this"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            },
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "lastDays": {
+                                                                                  "type": "integer",
+                                                                                  "minimum": 1,
+                                                                                  "maximum": 366
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "lastDays"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -69036,6 +70025,49 @@
                                                                             "owner",
                                                                             "column",
                                                                             "of"
+                                                                          ]
+                                                                        },
+                                                                        "within": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "this": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "year"
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "this"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            },
+                                                                            {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "column": {
+                                                                                  "type": "string",
+                                                                                  "maxLength": 128
+                                                                                },
+                                                                                "lastDays": {
+                                                                                  "type": "integer",
+                                                                                  "minimum": 1,
+                                                                                  "maximum": 366
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "column",
+                                                                                "lastDays"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
                                                                           ]
                                                                         }
                                                                       },
@@ -97984,6 +99016,12 @@
                                 "enum": [
                                   true
                                 ]
+                              },
+                              "why": {
+                                "type": "string",
+                                "enum": [
+                                  "same-town"
+                                ]
                               }
                             },
                             "required": [
@@ -98158,6 +99196,7 @@
                                 "avg",
                                 "min",
                                 "max",
+                                "median",
                                 "count_distinct",
                                 "percentile"
                               ]
@@ -99079,6 +100118,7 @@
                                       "avg",
                                       "min",
                                       "max",
+                                      "median",
                                       "count_distinct",
                                       "percentile"
                                     ]

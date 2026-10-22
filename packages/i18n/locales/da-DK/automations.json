@@ -485,6 +485,8 @@
     "chooseTable": "Vælg en tabel…",
     "owner": "Rækker, hvor denne person er",
     "conditions": "{count, plural, one {Og # betingelse mere, bevaret som den er.} other {Og # betingelser mere, bevaret som de er.}}",
+    "withinYear": "Kun rækkerne fra i år efter {column}, efter virksomhedens kalender. Beholdes som den er.",
+    "withinDays": "{count, plural, one {Kun rækkerne fra i dag efter {column}, efter virksomhedens kalender. Beholdes som den er.} other {Kun rækkerne fra de seneste # dage efter {column}, efter virksomhedens kalender. Beholdes som den er.}}",
     "limit": "Højst så mange rækker",
     "removeSection": "Fjern denne sektion",
     "addSection": "Tilføj en sektion",

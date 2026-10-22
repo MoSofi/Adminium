@@ -800,6 +800,7 @@
         "legAbout": "about {distance} from the stop before",
         "legExact": "{distance} from the stop before",
         "legUnknown": "distance from the stop before unknown",
+        "legSameTown": "both stops are pinned to the town; place them to measure",
         "openInMaps": "Open in my maps app",
         "openOnMapsSite": "Open on OpenStreetMap (new tab)",
         "legDrive": "{duration} drive",

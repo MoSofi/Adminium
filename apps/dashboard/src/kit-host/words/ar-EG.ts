@@ -54,6 +54,7 @@ const words: KitWords = {
     "ui:widgets.geo.mapBubble.legAbout": "نحو {distance} من المحطة السابقة",
     "ui:widgets.geo.mapBubble.legDrive": "{duration} بالسيارة",
     "ui:widgets.geo.mapBubble.legExact": "{distance} من المحطة السابقة",
+    "ui:widgets.geo.mapBubble.legSameTown": "المحطتان مثبتتان على المدينة فقط؛ ضعهما في مكانهما لقياس المسافة",
     "ui:widgets.geo.mapBubble.legUnknown": "المسافة من المحطة السابقة غير معروفة",
     "ui:widgets.geo.mapBubble.listMore": "{count, plural, zero {ولا شيء آخر} one {وواحد آخر} two {واثنان آخران} few {و# أخرى} many {و# آخر} other {و# آخر}}",
     "ui:widgets.geo.mapBubble.mapLabel": "خريطة",

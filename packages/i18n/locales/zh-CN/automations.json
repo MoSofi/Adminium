@@ -485,6 +485,8 @@
     "chooseTable": "选择一个表…",
     "owner": "此人在以下列中的行",
     "conditions": "{count, plural, other {另有 # 个条件，保持不变。}}",
+    "withinYear": "仅限按 {column} 计今年的行，以企业日历为准。保持不变。",
+    "withinDays": "{count, plural, other {仅限按 {column} 计最近 # 天的行，以企业日历为准。保持不变。}}",
     "limit": "最多显示的行数",
     "removeSection": "移除此分区",
     "addSection": "添加分区",

@@ -706,7 +706,12 @@ function DigestSettings({ action, sources, connectionId, onChange }: ActionSetti
               <Input value={section.key} onChange={(event) => patch(index, { key: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} data-testid={`digest-key-${String(index)}`} />
             </Field>
             <Field label={t('automations:rec.table', 'Table')}>
-              <Select value={section.table} onChange={(event) => patch(index, { table: event.target.value, owner: '', where: [], orderBy: null })} data-testid={`digest-table-${String(index)}`}>
+              <Select
+                value={section.table}
+                // Another table has other columns: what chose this one's rows goes with it.
+                onChange={(event) => setSections(action.sections.map(({ within: _within, ...kept }, i) => (i === index ? { ...kept, table: event.target.value, owner: '', where: [], orderBy: null } : action.sections[i]!)))}
+                data-testid={`digest-table-${String(index)}`}
+              >
                 <option value="">{t('automations:digest.chooseTable', 'Choose a table…')}</option>
                 {tables
                   .filter((row) => row.canRead && row.columns.some((column) => column.staff === true))
@@ -732,6 +737,16 @@ function DigestSettings({ action, sources, connectionId, onChange }: ActionSetti
             {section.where.length === 0 ? null : (
               <p className="text-[11px] leading-[1.45] text-fg-subtle" data-testid={`digest-where-${String(index)}`}>
                 {t('automations:digest.conditions', '{count, plural, one {And # more condition, kept as it is.} other {And # more conditions, kept as they are.}}', { count: section.where.length })}
+              </p>
+            )}
+            {section.within === undefined ? null : (
+              <p className="text-[11px] leading-[1.45] text-fg-subtle" data-testid={`digest-within-${String(index)}`}>
+                {'this' in section.within
+                  ? t('automations:digest.withinYear', 'Only the rows of this year by {column}, on the business’s calendar. Kept as it is.', { column: of?.columns.find((column) => column.name === section.within?.column)?.label ?? section.within.column })
+                  : t('automations:digest.withinDays', '{count, plural, one {Only the rows of today by {column}, on the business’s calendar. Kept as it is.} other {Only the rows of the last # days by {column}, on the business’s calendar. Kept as it is.}}', {
+                      count: section.within.lastDays,
+                      column: of?.columns.find((column) => column.name === section.within?.column)?.label ?? section.within.column,
+                    })}
               </p>
             )}
             <Field label={t('automations:digest.limit', 'At most this many rows')}>

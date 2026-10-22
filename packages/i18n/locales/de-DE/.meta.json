@@ -2015,6 +2015,14 @@
     "status": "mt",
     "srcHash": "71ea415d8a9c"
   },
+  "automations.digest.withinDays": {
+    "status": "mt",
+    "srcHash": "06f3bf1e1147"
+  },
+  "automations.digest.withinYear": {
+    "status": "mt",
+    "srcHash": "0afe95df23a5"
+  },
   "automations.dur.ms": {
     "status": "mt",
     "srcHash": "72ba33f24d44"
@@ -4370,6 +4378,10 @@
   "common.builder.binding.fn.max": {
     "status": "src",
     "srcHash": "a8df2fec28d8"
+  },
+  "common.builder.binding.fn.median": {
+    "status": "src",
+    "srcHash": "b887ba2a5f48"
   },
   "common.builder.binding.fn.min": {
     "status": "src",
@@ -40954,6 +40966,10 @@
   "ui.widgets.geo.mapBubble.legExact": {
     "status": "mt",
     "srcHash": "7afa354a7561"
+  },
+  "ui.widgets.geo.mapBubble.legSameTown": {
+    "status": "mt",
+    "srcHash": "db479d4ae8d0"
   },
   "ui.widgets.geo.mapBubble.legUnknown": {
     "status": "mt",

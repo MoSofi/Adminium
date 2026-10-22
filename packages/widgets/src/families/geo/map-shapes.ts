@@ -47,6 +47,8 @@ export interface RouteLeg {
   estimate: boolean;
   /** Both ends are known only as the same town: no length can be given. */
   unknown?: true | undefined;
+  /** Why the leg has no length. `same-town`: both stops are pinned to the town, not placed in it. */
+  why?: 'same-town' | undefined;
 }
 
 /** The way through the points, in their order. Without `line`, straight legs are drawn. */

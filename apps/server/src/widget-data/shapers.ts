@@ -34,6 +34,7 @@ import {
   GROUP_ALIAS,
   GROUP_BUCKET_CAP,
   type CompiledWidgetQuery,
+  type DateFigureKind,
   type PercentileScan,
 } from './compiler.js';
 
@@ -43,16 +44,29 @@ export interface TsPoint {
   v: number;
 }
 
+/**
+ * A figure. A number, but for the earliest, the latest or the middle of a
+ * date or a time column (`date` says which kind): then the day as
+ * `YYYY-MM-DD`, the instant as ISO 8601, or the time of day as `HH:MM:SS`,
+ * and `null` where there is no row to have one (never a `0`).
+ */
+export type Figure = number | string | null;
+
 export interface ShapedSingleMetric {
   shape: 'single-metric';
-  value: number;
+  /** A number; text or `null` when `date` is set. */
+  value: Figure;
+  /** Set when the figure is a day or a time: how `value` is written. */
+  date?: DateFigureKind;
 }
 
 export interface ShapedMetricDelta {
   shape: 'metric+delta';
-  value: number;
-  prior?: number;
+  value: Figure;
+  prior?: Figure;
+  /** Never set for a day: two days have a distance, not a percentage. */
   deltaPct?: number;
+  date?: DateFigureKind;
 }
 
 export interface ShapedTimeseries {
@@ -75,10 +89,12 @@ export interface ShapedCategorical {
    * holds each, by alias, in `aggregates` order: paired bars (received and
    * still owed, per show).
    */
-  items: { key: string; label: string; value: number; values?: Record<string, number> }[];
+  items: { key: string; label: string; value: number; values?: Record<string, Figure> }[];
   total: number;
   /** The aggregates' aliases, in the descriptor's order, when there is more than one. */
   aggregates?: string[];
+  /** The figures beside the first that are a day or a time, by alias: how each of their `values` is written. */
+  dates?: Record<string, DateFigureKind>;
   /** The aliases of the figures that are money (`moneyFiguresOf`): a chart's table writes them in the currency. */
   money?: string[];
 }
@@ -301,6 +317,28 @@ function firstAlias(compiled: CompiledWidgetQuery): string {
 
 function metricOf(rows: Row[], alias: string): number {
   return toNumber(rows[0]?.[alias]);
+}
+
+/**
+ * A figure that is a day or a time, as the envelope writes it: the day's
+ * `YYYY-MM-DD` (every engine hands a date back as that text), the instant in
+ * ISO 8601, the time of day as the engine spells it. `null` for no value.
+ */
+export function dateFigureText(value: unknown, kind: DateFigureKind): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (kind === 'date') {
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+    const text = String(value);
+    return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
+  }
+  if (kind === 'time') return value instanceof Date ? value.toISOString().slice(11, 19) : String(value);
+  return toIso(value);
+}
+
+/** One figure of a row: a number, or a day or a time where the compiler says the alias is one. */
+function figureOf(compiled: CompiledWidgetQuery, row: Row | undefined, alias: string): Figure {
+  const kind = compiled.dateFigures?.[alias];
+  return kind === undefined ? toNumber(row?.[alias]) : dateFigureText(row?.[alias], kind);
 }
 
 function pointsOf(rows: Row[], bucketAlias: string, valueAlias: string): TsPoint[] {
@@ -604,11 +642,20 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
   const colNames = labelsOf(compiled, 1, input.colLabels);
 
   switch (compiled.shape) {
-    case 'single-metric':
-      return { shape: 'single-metric', value: metricOf(rows, firstAlias(compiled)) };
+    case 'single-metric': {
+      const alias = firstAlias(compiled);
+      const date = compiled.dateFigures?.[alias];
+      if (date !== undefined) return { shape: 'single-metric', value: figureOf(compiled, rows[0], alias), date };
+      return { shape: 'single-metric', value: metricOf(rows, alias) };
+    }
 
     case 'metric+delta': {
       const alias = firstAlias(compiled);
+      const date = compiled.dateFigures?.[alias];
+      if (date !== undefined) {
+        const value = figureOf(compiled, rows[0], alias);
+        return priorRows === undefined ? { shape: 'metric+delta', value, date } : { shape: 'metric+delta', value, prior: figureOf(compiled, priorRows[0], alias), date };
+      }
       const value = metricOf(rows, alias);
       if (priorRows === undefined) return { shape: 'metric+delta', value };
       const prior = metricOf(priorRows, alias);
@@ -918,10 +965,12 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       const groupAlias = compiled.groupAlias ?? '__group';
       const aliases = compiled.aggregationAliases;
       const paired = aliases.length > 1;
+      // The first figure is always a number (a ranking is of one); a day may stand beside it.
+      const dates = compiled.dateFigures === undefined || Object.keys(compiled.dateFigures).length === 0 ? undefined : { ...compiled.dateFigures };
       const items = rows.map((row) => ({
         ...keyOf(row[groupAlias], groupNames),
         value: toNumber(row[alias]),
-        ...(paired ? { values: Object.fromEntries(aliases.map((name) => [name, toNumber(row[name])])) } : {}),
+        ...(paired ? { values: Object.fromEntries(aliases.map((name) => [name, figureOf(compiled, row, name)])) } : {}),
       }));
       // Cardinality cap: rows arrive ordered by value desc (compiler); fold
       // the tail into `__other` (guardrails — fold is over fetched
@@ -931,11 +980,12 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
         const head = items.slice(0, GROUP_BUCKET_CAP);
         const otherValue = items.slice(GROUP_BUCKET_CAP).reduce((sum, item) => sum + item.value, 0);
         const tail = items.slice(GROUP_BUCKET_CAP);
-        const otherValues = paired ? { values: Object.fromEntries(aliases.map((name) => [name, tail.reduce((sum, item) => sum + (item.values?.[name] ?? 0), 0)])) } : {};
+        // The rest added up, figure by figure; a day of the rest is no one day.
+        const otherValues = paired ? { values: Object.fromEntries(aliases.map((name) => [name, dates?.[name] !== undefined ? null : tail.reduce<number>((sum, item) => sum + toNumber(item.values?.[name]), 0)])) } : {};
         capped = [...head, { key: '__other', label: 'Other', value: otherValue, ...otherValues }];
       }
       const total = capped.reduce((sum, item) => sum + item.value, 0);
-      return { shape: 'categorical', items: capped, total, ...(paired ? { aggregates: [...aliases] } : {}) };
+      return { shape: 'categorical', items: capped, total, ...(paired ? { aggregates: [...aliases] } : {}), ...(dates === undefined ? {} : { dates }) };
     }
 
     case 'record': {
@@ -978,11 +1028,11 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
 }
 
 /** The aggregates that keep a column's unit: a sum or a median of money is money, a count of it is not. */
-const MONEY_KEEPING = new Set(['sum', 'avg', 'min', 'max', 'percentile']);
+const MONEY_KEEPING = new Set(['sum', 'avg', 'min', 'max', 'median', 'percentile']);
 
 /**
  * Which of a query's figures are amounts of money, by alias: a sum (an
- * average, the least, the most, a percentile) of a column the table holds money in — one
+ * average, the least, the most, the middle one, a percentile) of a column the table holds money in — one
  * its app declares as money (`semantic`, `type` or `scale: "currency"`), or
  * one Adminium took for money by its name. A chart's "Show data" table
  * writes these in the currency, as a money card does.

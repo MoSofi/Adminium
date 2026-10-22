@@ -348,3 +348,35 @@ describe('ActionSettings — the people listed on the record', () => {
     expect((screen.getByTestId('notif-listed') as HTMLSelectElement).value).toBe('main.gone');
   });
 });
+
+describe('ActionSettings — a summary section held to this year, or to the last days', () => {
+  const DEALS = table('main.deals', 'Deals', { columns: [column('owner_id', { staff: true }), column('closed_on', { label: 'Closed on', logicalType: 'date' })] });
+  const sources: Sources = { ...SOURCES, connections: [connection('cnx_1', 'Northwind', [DEALS, table('main.orders', 'orders', { columns: [column('rep_id', { staff: true })] })])] };
+  const digest = (within: { column: string; this: 'year' } | { column: string; lastDays: number }): Extract<Action, { kind: 'digest' }> => ({
+    kind: 'digest',
+    templateKey: null,
+    to: null,
+    sections: [{ key: 'won', table: 'main.deals', owner: 'owner_id', where: [], orderBy: null, limit: 20, within }],
+    sendEmpty: false,
+  });
+  const show = (action: Action) => {
+    const onChange = vi.fn();
+    render(<ActionSettings action={action} sources={sources} table={null} connectionId="cnx_1" onChange={onChange} />);
+    return { onChange, user: userEvent.setup() };
+  };
+
+  it('says the section keeps only this year’s rows, or the last days’, by the column’s name, and keeps it', () => {
+    show(digest({ column: 'closed_on', this: 'year' }));
+    expect(screen.getByTestId('digest-within-0').textContent).toBe('Only the rows of this year by Closed on, on the business’s calendar. Kept as it is.');
+    cleanup();
+    show(digest({ column: 'closed_on', lastDays: 30 }));
+    expect(screen.getByTestId('digest-within-0').textContent).toBe('Only the rows of the last 30 days by Closed on, on the business’s calendar. Kept as it is.');
+  });
+
+  it('lets it go with the table: another table has other columns', async () => {
+    const { onChange, user } = show(digest({ column: 'closed_on', this: 'year' }));
+    await user.selectOptions(screen.getByTestId('digest-table-0'), 'main.orders');
+    const sections = (onChange.mock.calls.at(-1)?.[0] as { sections: Record<string, unknown>[] }).sections;
+    expect(sections[0]).toEqual({ key: 'won', table: 'main.orders', owner: '', where: [], orderBy: null, limit: 20 });
+  });
+});

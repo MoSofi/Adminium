@@ -54,6 +54,7 @@ const words: KitWords = {
     "ui:widgets.geo.mapBubble.legAbout": "距上一站约 {distance}",
     "ui:widgets.geo.mapBubble.legDrive": "车程 {duration}",
     "ui:widgets.geo.mapBubble.legExact": "距上一站 {distance}",
+    "ui:widgets.geo.mapBubble.legSameTown": "两站都只标在城镇上；请放置它们以便测量",
     "ui:widgets.geo.mapBubble.legUnknown": "距上一站的距离未知",
     "ui:widgets.geo.mapBubble.listMore": "{count, plural, other {还有 # 个}}",
     "ui:widgets.geo.mapBubble.mapLabel": "地图",

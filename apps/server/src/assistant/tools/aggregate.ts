@@ -58,7 +58,7 @@ const DESCRIPTOR_FIELDS = [
   'A query descriptor. Its fields:',
   '- `shape`: "single-metric" for one total, "categorical" for a breakdown by `groupBy`, "timeseries" for a series over `bucket`.',
   '- `source`: an OBJECT `{ "schema": …, "name": … }` — a table id `main.orders` from describe_schema is `{ "schema": "main", "name": "orders" }`. Never a string.',
-  '- `aggregations`: up to 8 of `{ "fn", "column", "alias" }`. `fn` is one of count, sum, avg, min, max, count_distinct; `column` is omitted for a plain count; `alias` is required and is an identifier like `order_count` (letters, digits, underscores — no spaces).',
+  '- `aggregations`: up to 8 of `{ "fn", "column", "alias" }`. `fn` is one of count, sum, avg, min, max, median, count_distinct (min, max and median of a date column answer a date); `column` is omitted for a plain count; `alias` is required and is an identifier like `order_count` (letters, digits, underscores — no spaces).',
   '- `groupBy`: up to 2 column names. `bucket`: `{ "column", "unit" }` with unit hour, day, week, month, quarter or year.',
   '- `filters`: an ARRAY of `{ "column", "op", "value" }` (all of them must hold), with op eq, neq, gt, gte, lt, lte, in, like, is_null, not_null or between. One condition is still an array: `[{ … }]`.',
   '- `orderBy`: `{ "column", "dir" }` with dir asc or desc; `column` may be an alias. `limit`: how many groups.',

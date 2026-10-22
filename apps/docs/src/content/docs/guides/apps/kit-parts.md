@@ -505,7 +505,8 @@ Until the answer is in, and when it does not come, the legs are drawn as straigh
 and their lengths read "unknown". When it does not come (your `route` rejects, or answers
 something that is not a route) the map says so above itself, with **Try again**, which calls
 `route` once more with the same stops. A leg the server measured as a straight line reads
-"about". That route takes 2 to 50 stops.
+"about". A leg the server answers as unknown with `why: "same-town"` says so: "both stops are
+pinned to the town; place them to measure". That route takes 2 to 50 stops.
 
 ### Open in my maps app
 

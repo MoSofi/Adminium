@@ -97,6 +97,8 @@ export const routeReply = z.object({
         estimate: z.boolean(),
         /** Both ends are known only as the same town: no length can be given. */
         unknown: z.literal(true).optional(),
+        /** Why the leg has no length. `same-town`: both stops are pinned to the town; place them to measure. */
+        why: z.enum(['same-town']).optional(),
       }),
     ),
     line: z.object({ type: z.literal('LineString'), coordinates: z.array(z.tuple([z.number(), z.number()])) }).optional(),

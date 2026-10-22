@@ -267,6 +267,17 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
               by: z.literal('owner').optional(),
               /** What the sum `of` is measured against: `column` of the rows of `table` whose `owner` names the same people. */
               target: z.object({ table: refSchema, owner: refSchema, column: refSchema, year: refSchema.optional(), of: refSchema }).strict().optional(),
+              /**
+               * Only the rows whose date `column` falls in this calendar year (`"this": "year"`), or in the last
+               * `lastDays` days (today and the days before it), on the business's calendar: its time zone, from
+               * its midnight. Counted when the summary is made, like every condition of a section.
+               */
+              within: z
+                .union([
+                  z.object({ column: refSchema, this: z.literal('year') }).strict(),
+                  z.object({ column: refSchema, lastDays: z.number().int().min(1).max(366) }).strict(),
+                ])
+                .optional(),
             })
             .strict(),
         )
@@ -688,6 +699,11 @@ export function automationIssues(m: {
             }
             (section.where ?? []).forEach((condition, c) => conditionIssues(of, condition, here('sections', s, 'where', c), true));
             if (section.orderBy !== undefined) column(of, section.orderBy.column, here('sections', s, 'orderBy', 'column'));
+            // "This year" is a date's: a day, or a moment.
+            if (section.within !== undefined) {
+              const dated = column(of, section.within.column, here('sections', s, 'within', 'column'));
+              if (dated !== undefined && !DATES.includes(dated.type)) out.push({ path: here('sections', s, 'within', 'column'), message: `"${section.table}.${section.within.column}" is ${dated.type}: a section is held to a year or to days by a date column (date or timestamptz)` });
+            }
             // A sum adds up numbers; the same column twice is one figure with two names.
             (section.sum ?? []).forEach((ref, n) => {
               const added = column(of, ref, here('sections', s, 'sum', n));

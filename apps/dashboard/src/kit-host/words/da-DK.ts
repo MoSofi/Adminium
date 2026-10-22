@@ -54,6 +54,7 @@ const words: KitWords = {
     "ui:widgets.geo.mapBubble.legAbout": "cirka {distance} fra forrige stop",
     "ui:widgets.geo.mapBubble.legDrive": "{duration} i bil",
     "ui:widgets.geo.mapBubble.legExact": "{distance} fra forrige stop",
+    "ui:widgets.geo.mapBubble.legSameTown": "begge stop er sat på byen; placer dem for at måle",
     "ui:widgets.geo.mapBubble.legUnknown": "afstand fra forrige stop ukendt",
     "ui:widgets.geo.mapBubble.listMore": "og {count, plural, one {# mere} other {# flere}}",
     "ui:widgets.geo.mapBubble.mapLabel": "Kort",

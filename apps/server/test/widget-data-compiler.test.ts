@@ -372,6 +372,33 @@ describe('widget-data compiler — refusals', () => {
       expect(scanned.query.compile().sql).not.toContain('percentile_cont');
     }
   });
+
+  it('compiles a median beside other figures: ordered-set aggregates on postgres, window functions on sqlite/mysql, never a scan', () => {
+    const descriptorInput = {
+      shape: 'categorical' as const,
+      groupBy: ['customer_id'],
+      aggregations: [
+        { fn: 'count', alias: 'n' },
+        { fn: 'median', column: 'freight', alias: 'typical' },
+        { fn: 'median', column: 'order_date', alias: 'middle_day' },
+      ],
+    };
+    const pg = compile(descriptorInput);
+    expect(pg.percentileScan).toBeNull();
+    expect(pg.query.compile().sql).toContain('percentile_cont(0.5) within group (order by "freight")');
+    // A day's middle is one of its days: the earlier of the two middle ones.
+    expect(pg.query.compile().sql).toContain('percentile_disc(0.5) within group (order by "order_date")');
+    expect(pg.dateFigures).toEqual({ middle_day: 'instant' });
+    for (const dialect of ['sqlite', 'mysql'] as const) {
+      const windowed = compileWidgetQuery({ db, view, descriptor: descriptor(descriptorInput), canReadPii: false, dialect, now: () => NOW });
+      const text = windowed.query.compile().sql;
+      expect(windowed.percentileScan, dialect).toBeNull();
+      expect(text, dialect).toContain('row_number() over (partition by');
+      expect(text, dialect).toContain('count(');
+      expect(text, dialect).not.toContain('percentile');
+      expect(windowed.aggregationAliases).toEqual(['n', 'typical', 'middle_day']);
+    }
+  });
 });
 
 describe('windowBounds', () => {

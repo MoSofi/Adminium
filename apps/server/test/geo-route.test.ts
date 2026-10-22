@@ -166,11 +166,11 @@ describe('straight legs', () => {
     expect(answer.legs[0]!.distanceM).toBeLessThan(185_000);
   });
 
-  it('says a leg inside one town is unknown, never zero', () => {
+  it('says a leg inside one town is unknown, never zero, and why: both stops are pinned to the town', () => {
     const other: RouteStop = { ...CAIRO };
     expect(sameTown(CAIRO, other)).toBe(true);
     expect(straightRoute([CAIRO, other, ALEXANDRIA]).legs).toEqual([
-      { distanceM: null, durationS: null, estimate: true, unknown: true },
+      { distanceM: null, durationS: null, estimate: true, unknown: true, why: 'same-town' },
       { distanceM: straightMetres(CAIRO, ALEXANDRIA), durationS: null, estimate: true },
     ]);
     // Two exact points at one spot are zero apart; an exact point in a town is a real distance from its middle.
@@ -381,10 +381,10 @@ describe('asking the routing server', () => {
     const { router, asked } = harness();
     const answer = await router.route([CAIRO, { ...CAIRO }, ALEXANDRIA]);
     expect(answer.source).toBe('server');
-    expect(answer.legs[0]).toEqual({ distanceM: null, durationS: null, estimate: true, unknown: true });
+    expect(answer.legs[0]).toEqual({ distanceM: null, durationS: null, estimate: true, unknown: true, why: 'same-town' });
     expect(answer.legs[1]).toEqual({ distanceM: 1001, durationS: 61, estimate: true });
     // Stops that are all one town: there is nothing to ask.
-    expect(await router.route([CAIRO, { ...CAIRO }])).toEqual({ source: 'straight', legs: [{ distanceM: null, durationS: null, estimate: true, unknown: true }] });
+    expect(await router.route([CAIRO, { ...CAIRO }])).toEqual({ source: 'straight', legs: [{ distanceM: null, durationS: null, estimate: true, unknown: true, why: 'same-town' }] });
     expect(asked).toHaveLength(1);
   });
 
@@ -423,7 +423,7 @@ describe('POST /geo/route with routing off (as installed)', () => {
         source: 'straight',
         legs: [
           { distanceM: straightMetres(CAIRO, ALEXANDRIA), durationS: null, estimate: true },
-          { distanceM: null, durationS: null, estimate: true, unknown: true },
+          { distanceM: null, durationS: null, estimate: true, unknown: true, why: 'same-town' },
           { distanceM: straightMetres(ALEXANDRIA, TAHRIR), durationS: null, estimate: true },
         ],
       },

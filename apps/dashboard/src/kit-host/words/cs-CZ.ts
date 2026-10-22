@@ -54,6 +54,7 @@ const words: KitWords = {
     "ui:widgets.geo.mapBubble.legAbout": "asi {distance} od předchozí zastávky",
     "ui:widgets.geo.mapBubble.legDrive": "{duration} jízdy",
     "ui:widgets.geo.mapBubble.legExact": "{distance} od předchozí zastávky",
+    "ui:widgets.geo.mapBubble.legSameTown": "obě zastávky jsou připnuté jen k obci; umístěte je, aby šlo měřit",
     "ui:widgets.geo.mapBubble.legUnknown": "vzdálenost od předchozí zastávky není známá",
     "ui:widgets.geo.mapBubble.listMore": "a {count, plural, one {# další} few {# další} many {# dalšího} other {# dalších}}",
     "ui:widgets.geo.mapBubble.mapLabel": "Mapa",

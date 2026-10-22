@@ -485,6 +485,8 @@
     "chooseTable": "Choisir une table…",
     "owner": "Lignes où cette personne est",
     "conditions": "{count, plural, one {Et # autre condition, conservée telle quelle.} other {Et # autres conditions, conservées telles quelles.}}",
+    "withinYear": "Seulement les lignes de cette année selon {column}, au calendrier de l’entreprise. Conservé tel quel.",
+    "withinDays": "{count, plural, one {Seulement les lignes d’aujourd’hui selon {column}, au calendrier de l’entreprise. Conservé tel quel.} other {Seulement les lignes des # derniers jours selon {column}, au calendrier de l’entreprise. Conservé tel quel.}}",
     "limit": "Au plus ce nombre de lignes",
     "removeSection": "Supprimer cette section",
     "addSection": "Ajouter une section",

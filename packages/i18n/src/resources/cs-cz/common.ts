@@ -711,6 +711,7 @@ export default {
         "countDistinct": "Počet různých hodnot",
         "count": "Počet řádků",
         "max": "Maximum",
+        "median": "Medián",
         "min": "Minimum",
         "sum": "Součet"
       },
