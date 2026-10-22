@@ -66,6 +66,13 @@ describe('which columns a slot offers', () => {
     expect(qr.preferred.length + qr.rest.length).toBe(withCode.length);
   });
 
+  it('puts a picture or signature column first for a picture, and hides nothing', () => {
+    const withPictures = [...columns, { name: 'signature', label: 'Signature', logicalType: 'varchar', nullable: true }, { name: 'cover', label: 'Cover', logicalType: 'varchar', semantic: 'image', nullable: true }];
+    const picture = columnsForSlot({ type: 'picture' }, withPictures);
+    expect(picture.preferred.map((c) => c.name)).toEqual(['signature', 'cover']);
+    expect(picture.preferred.length + picture.rest.length).toBe(withPictures.length);
+  });
+
   it('offers everything, in some order, for a type it has no tag for', () => {
     const collection = columnsForSlot({ type: 'collection' }, columns);
     expect(collection.preferred).toEqual([]);
@@ -251,6 +258,10 @@ describe('which slots may be given a typed value', () => {
 
   it('does NOT offer it on a collection — a typed value is not a list', () => {
     expect(mayTypeValue({ type: 'collection', required: false })).toBe(false);
+  });
+
+  it('does NOT offer it on a picture — it is read from a file the row holds', () => {
+    expect(mayTypeValue({ type: 'picture', required: false })).toBe(false);
   });
 });
 

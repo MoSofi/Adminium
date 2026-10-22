@@ -4212,5 +4212,11 @@ export default {
       "body": "Stellen Sie die Serverzeit automatisch ein (NTP). Ab fünf Minuten werden Zahlungsnachrichten von {provider} abgelehnt."
     },
     "menuLabel": "Mehr zu {service}"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, one {Ein Dokument wartet auf ein Add-on-Update} other {# Dokumente warten auf ein Add-on-Update}}",
+      "item": "{document}: {addOn} erstellt es noch nicht. Es wird erstellt, sobald {addOn} aktualisiert ist."
+    }
   }
 } as const;

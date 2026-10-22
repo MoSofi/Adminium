@@ -33,7 +33,9 @@ export interface OutlineSlot {
     | 'currency'
     | 'number'
     | 'collection'
-    | 'qr';
+    | 'qr'
+    /** A picture the server reads from a file column of the row (a drawn signature). */
+    | 'picture';
   required: boolean;
   default?: 'sequence' | 'connection' | 'setting' | 'now' | 'pay-link';
   columns?: readonly OutlineSlot[];

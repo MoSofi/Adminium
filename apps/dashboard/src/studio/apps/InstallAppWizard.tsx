@@ -100,6 +100,7 @@ import {
   type AddOnPicks,
 } from './AddOnsInstallCard.js';
 import { namesList, sentence } from './addOnWords.js';
+import { DocumentsWaitingNotice } from './DocumentsWaitingNotice.js';
 import {
   APPS_QUERY_KEY,
   APP_CATALOG_QUERY_KEY,
@@ -1070,6 +1071,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             </ul>
           )}
           {result.addOns === undefined ? null : <AddOnsDoneLine done={result.addOns} />}
+          <DocumentsWaitingNotice waiting={result.documents?.waiting} />
           {sample.error === null ? null : (
             <Alert role="alert" tone="danger" title={t('studio:sampleData.addFailed', 'The sample data was not added')}>
               {sample.error.message}{' '}

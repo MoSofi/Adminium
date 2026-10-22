@@ -4212,5 +4212,11 @@ export default {
       "body": "اضبط وقت الخادم تلقائيًا (NTP). بعد خمس دقائق تُرفض رسائل الدفع من {provider}."
     },
     "menuLabel": "المزيد لـ {service}"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, one {مستند واحد ينتظر تحديث إضافة} two {مستندان ينتظران تحديث إضافة} few {# مستندات تنتظر تحديث إضافة} many {# مستندًا ينتظر تحديث إضافة} other {# مستند ينتظر تحديث إضافة}}",
+      "item": "{document}: لا تُنشئه {addOn} بعد. سيُنشأ عند تحديث {addOn}."
+    }
   }
 } as const;

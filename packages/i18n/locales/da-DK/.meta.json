@@ -23735,6 +23735,14 @@
     "status": "mt",
     "srcHash": "36478a3e3f31"
   },
+  "studio.appDocuments.waiting.item": {
+    "status": "mt",
+    "srcHash": "5f1dbd3c4f07"
+  },
+  "studio.appDocuments.waiting.title": {
+    "status": "mt",
+    "srcHash": "8dcd77e039d4"
+  },
   "studio.appParts.always": {
     "status": "mt",
     "srcHash": "531e4565609f"

@@ -4212,5 +4212,11 @@ export default {
       "body": "Nastavte čas serveru automaticky (NTP). Po pěti minutách jsou platební zprávy od služby {provider} odmítnuty."
     },
     "menuLabel": "Další pro {service}"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, one {Jeden dokument čeká na aktualizaci doplňku} few {# dokumenty čekají na aktualizaci doplňku} many {# dokumentu čeká na aktualizaci doplňku} other {# dokumentů čeká na aktualizaci doplňku}}",
+      "item": "{document}: {addOn} ho zatím nevytváří. Vytvoří se, jakmile bude {addOn} aktualizován."
+    }
   }
 } as const;

@@ -4212,5 +4212,11 @@ export default {
       "body": "Indstil servertiden automatisk (NTP). Efter fem minutter afvises betalingsbeskeder fra {provider}."
     },
     "menuLabel": "Mere for {service}"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, one {Et dokument venter på en opdatering af en tilføjelse} other {# dokumenter venter på en opdatering af en tilføjelse}}",
+      "item": "{document}: {addOn} laver det ikke endnu. Det oprettes, når {addOn} er opdateret."
+    }
   }
 } as const;

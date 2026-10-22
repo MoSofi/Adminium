@@ -4212,5 +4212,11 @@ export default {
       "body": "请自动设置服务器时间（NTP）。超过五分钟，来自 {provider} 的付款消息将被拒绝。"
     },
     "menuLabel": "{service} 的更多操作"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, other {# 个文档正在等待附加组件更新}}",
+      "item": "{document}：{addOn} 目前还不能生成它。{addOn} 更新后即会生成。"
+    }
   }
 } as const;

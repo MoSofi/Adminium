@@ -4202,5 +4202,11 @@
       "body": "Réglez l’heure du serveur automatiquement (NTP). Au-delà de cinq minutes, les messages de paiement de {provider} sont refusés."
     },
     "menuLabel": "Plus pour {service}"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, one {Un document attend une mise à jour de module} other {# documents attendent une mise à jour de module}}",
+      "item": "{document} : {addOn} ne le produit pas encore. Il sera créé dès que {addOn} sera mis à jour."
+    }
   }
 }

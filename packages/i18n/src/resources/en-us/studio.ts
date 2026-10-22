@@ -4212,5 +4212,11 @@ export default {
       "body": "Set the server time automatically (NTP). Past five minutes, payment messages from {provider} are refused."
     },
     "menuLabel": "More for {service}"
+  },
+  "appDocuments": {
+    "waiting": {
+      "title": "{count, plural, one {A document waits for an add-on update} other {# documents wait for an add-on update}}",
+      "item": "{document}: {addOn} does not draw it yet. It is made when {addOn} is updated."
+    }
   }
 } as const;

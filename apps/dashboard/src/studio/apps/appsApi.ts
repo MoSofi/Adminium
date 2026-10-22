@@ -325,6 +325,11 @@ export interface AddOnsDone {
   attached: { key: string; name: string; version: string }[];
 }
 
+/** The app's documents that wait for an update of the add-on that is to draw them (it does not draw their kind yet). */
+export interface DocumentsWaiting {
+  waiting: { kind: string; table: string; addOn: string; addOnName: string; name: string; reason: string }[];
+}
+
 /** What the install body says about one add-on: install or connect it at `version`, and update it when ticked. */
 export interface AddOnChoice {
   key: string;
@@ -810,6 +815,8 @@ export interface InstalledAppResult extends InstalledApp {
   };
   /** The add-ons installed, updated or connected with the app. Absent for an app that names none. */
   addOns?: AddOnsDone;
+  /** The app's documents that wait for an add-on update. Absent when none waits, and from an older server. */
+  documents?: DocumentsWaiting;
 }
 
 /**

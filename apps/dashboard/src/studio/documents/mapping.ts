@@ -111,6 +111,9 @@ export function columnsForSlot(
       // A QR code prints a code: a text column, those named like one first.
       case 'qr':
         return /^(varchar|text|char|citext)/i.test(column.logicalType) && /code|token/i.test(column.name);
+      // A picture is read from a column that holds a file: pictures and signatures first.
+      case 'picture':
+        return column.semantic === 'image' || /signature|photo|picture|image|logo/i.test(column.name);
       default:
         return false;
     }
@@ -148,10 +151,12 @@ export function rankTables(tables: readonly TableFacts[]): TableFacts[] {
  * purpose is to carry something from the row being drawn, and a constant there
  * makes every document from the mapping say the same thing in the one field
  * that was supposed to tell them apart — which reads as a working mapping.
- * A collection is excluded because a typed value is a value, not a list.
+ * A collection is excluded because a typed value is a value, not a list, and
+ * a picture because it is read from a file the row holds.
  */
 export function mayTypeValue(slot: Pick<OutlineSlot, 'type' | 'required' | 'default'>): boolean {
-  if (slot.type === 'collection') return false;
+  // A picture is read from the row's own file, never typed.
+  if (slot.type === 'collection' || slot.type === 'picture') return false;
   return !slot.required || slot.default !== undefined;
 }
 

@@ -68,10 +68,12 @@ import {
   updateApp,
   type AppInstallPlan,
   type CatalogApp,
+  type DocumentsWaiting,
   type InstallAnswers,
   type InstalledApp,
   type PlannedAppTable,
 } from './appsApi.js';
+import { DocumentsWaitingNotice } from './DocumentsWaitingNotice.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
@@ -179,6 +181,8 @@ export function useAppAcquisition() {
   );
   const [vetoed, setVetoed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /** An update's documents that wait for an add-on update, said under its notice. */
+  const [waiting, setWaiting] = useState<DocumentsWaiting['waiting'] | null>(null);
   const [consent, setConsent] = useState<UpdateConsent | null>(null);
   const [columnsConsent, setColumnsConsent] = useState<ColumnsConsent | null>(null);
   const [origin, setOrigin] = useState<AcquisitionOrigin>('shelf');
@@ -198,6 +202,7 @@ export function useAppAcquisition() {
     setBusy(true);
     setError(null);
     setNotice(null);
+    setWaiting(null);
     try {
       await work();
     } catch (caught) {
@@ -230,6 +235,7 @@ export function useAppAcquisition() {
         version: result.to,
       }),
     );
+    setWaiting(result.app.documents?.waiting ?? null);
   };
 
   return {
@@ -238,6 +244,7 @@ export function useAppAcquisition() {
     progress,
     vetoed,
     notice,
+    waiting,
     consent,
     columnsConsent,
     origin,
@@ -401,6 +408,7 @@ export function AppAcquisitionAlerts({
       {!mine || state.notice === null ? null : (
         <Alert ref={revealOnMount} tone="pos" title={state.notice} />
       )}
+      {!mine || state.notice === null ? null : <DocumentsWaitingNotice waiting={state.waiting ?? undefined} />}
     </>
   );
 }
