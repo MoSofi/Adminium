@@ -63,6 +63,18 @@
  *
  * Each reach is its own whole test (its `while` and its `by` hold for it
  * alone), as two roles' reaches are.
+ *
+ * `notBy` on an update (or a delete) reach takes out the rows a staff column
+ * names the person in — of the row itself, or of the row one of its links
+ * names (`starter_id.user_id`): a sales manager changes her team's targets
+ * but never her own, whatever door the change comes through —
+ *
+ * ```json
+ * "rows": { "update": { "reach": "team", "notBy": "rep_id" } }
+ * ```
+ *
+ * It judges the person alone, never the people they lead, and it judges the
+ * row as the change leaves it too: nobody names themselves into it.
  */
 import { z } from 'zod';
 
@@ -70,6 +82,30 @@ import { refSchema, scalarSchema, valueFits, type ColumnShape, type ReferenceIss
 
 /** How far one action reaches: the person's own rows, their teams', or every row (only `while` some value). */
 export const ROW_REACHES = ['own', 'team', 'all'] as const;
+
+/**
+ * A person a row names: a staff column of the row (`rep_id`), or
+ * `<link>.<staff column>`, the staff column of the row one of its links names
+ * (`deal_id.owner_id`, the deal's owner).
+ */
+export const personPathSchema = z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$/, 'a staff column, or <link>.<staff column> of the row a link of it names');
+
+/**
+ * What is wrong with a person path on a table of the manifest, or null: the
+ * column is not there, holds no staff member, or (with a link) the first
+ * column links nowhere the manifest can read.
+ */
+export function personPathIssue<C extends ColumnShape>(index: TableIndex<C>, table: string, path: string): string | null {
+  const [first, second] = path.split('.') as [string, string | undefined];
+  const own = index.column(table, first);
+  if (own === undefined) return `"${table}" has no column "${first}"`;
+  const staff = (column: C): boolean => (column as { rules?: { staff?: boolean } }).rules?.staff === true;
+  if (second === undefined) return staff(own) ? null : `"${table}.${first}" does not hold a staff member (rules.staff)`;
+  if (own.type !== 'fk' || own.references === undefined || index.table(own.references) === undefined) return `"${table}.${first}" is not a link to another of the app's tables, so it names no row to read "${second}" of`;
+  const far = index.column(own.references, second);
+  if (far === undefined) return `"${own.references}" has no column "${second}"`;
+  return staff(far) ? null : `"${own.references}.${second}" does not hold a staff member (rules.staff)`;
+}
 
 export const rowReachSchema = z
   .object({
@@ -83,10 +119,15 @@ export const rowReachSchema = z
      * table reached through a parent: "the notes of the deals they reach" to read, "the notes they wrote" to change.
      */
     by: refSchema.optional(),
+    /**
+     * And never the rows this staff column (or `<link>.<staff column>`) names the person in: a target's change is
+     * `notBy` its rep, so a manager changes her team's targets and never her own. The person alone, never their team.
+     */
+    notBy: personPathSchema.optional(),
   })
   .strict()
   .refine((reach) => reach.reach !== 'all' || reach.by === undefined, { message: '`by` narrows the person\'s own rows or their team\'s: with every row, say `while`' })
-  .refine((reach) => reach.reach !== 'all' || reach.while !== undefined, { message: 'a reach of every row is no limit: leave the action out, or say `while`' })
+  .refine((reach) => reach.reach !== 'all' || reach.while !== undefined || reach.notBy !== undefined, { message: 'a reach of every row is no limit: leave the action out, or say `while` or `notBy`' })
   .refine((reach) => reach.reach !== 'all' || reach.unowned === undefined, { message: 'every row includes the rows nobody owns' });
 export type RowReach = z.infer<typeof rowReachSchema>;
 
@@ -297,6 +338,12 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
             if (found === undefined) out.push({ path: where('by'), message: `"${ref}" has no column "${reach.by}"` });
             else if ((found as { rules?: { staff?: boolean } }).rules?.staff !== true) out.push({ path: where('by'), message: `"${ref}.${reach.by}" does not hold a staff member (rules.staff): \`by\` names the column that says who a row is by` });
           }
+          if (reach.notBy !== undefined) {
+            // A change the person may not make; their read of the row is theirs as ever.
+            if (action === 'read') out.push({ path: where('notBy'), message: '`notBy` holds a change (update or delete): a person still reads the rows that name them' });
+            const issue = personPathIssue(index, ref, reach.notBy);
+            if (issue !== null) out.push({ path: where('notBy'), message: `${issue}: \`notBy\` names the person who may not change the row` });
+          }
         });
       }
     }
@@ -307,7 +354,7 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
         if (!grants.has(`table:@${ref}:${action}`)) continue;
         const written = limit?.rows?.[action];
         const reach = Array.isArray(written) ? (written.length === 1 ? written[0] : undefined) : written;
-        if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined || reach.by !== undefined) {
+        if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined || reach.by !== undefined || reach.notBy !== undefined) {
           out.push({ path: ['roles', r, 'limits', ref, 'rows', action], message: `"${ref}" is private: the role's ${action} reaches the person's own rows only ({ "reach": "own" })` });
         }
       }
@@ -511,6 +558,8 @@ export function roleAddOnTableIssues(roles: readonly { key: string; tables?: rea
         // An add-on's table does not say whose its rows are yet: its rows are limited by a value only.
         reachList(written).forEach((reach, n) => {
           if (reach.reach !== 'all' || reach.unowned !== undefined) out.push({ path: at('limit', 'rows', action, ...(Array.isArray(written) ? [n] : []), 'reach'), message: 'an add-on\'s table does not say how people belong to its rows: limit it by a value ({ "reach": "all", "while": … })' });
+          // Its columns are the add-on's, which this manifest cannot see: no person of its rows is named.
+          if (reach.notBy !== undefined) out.push({ path: at('limit', 'rows', action, ...(Array.isArray(written) ? [n] : []), 'notBy'), message: 'an add-on\'s table is limited by a value only: "notBy" names a staff column of one of the app\'s own tables' });
         });
       }
       for (const [values, columns] of [['writableValues', 'writable'], ['creatableValues', 'creatable']] as const) {

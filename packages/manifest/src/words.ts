@@ -148,6 +148,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'card.module',
   'card.columnLabels',
   'link.staffPath',
+  'column.changes',
+  'rows.notBy',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -266,6 +268,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'card.module': '0.3.28',
   'card.columnLabels': '0.3.28',
   'link.staffPath': '0.3.28',
+  // When, and by whom, a column may change: from some values, while another holds one, by or never by a person the row names.
+  'column.changes': '0.3.33',
+  // A change a role's reach leaves to everybody but the person a staff column of the row names (a manager's own target).
+  'rows.notBy': '0.3.33',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -361,6 +367,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
       if (isDoc(rules['linkable']) && rules['linkable']['same'] !== undefined) out.push({ word: 'linkable.same', path: `${here}.linkable.same` });
       if (rules['file'] !== undefined) out.push({ word: 'column.file', path: `${here}.file` });
+      if (rules['changes'] !== undefined) out.push({ word: 'column.changes', path: `${here}.changes` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
@@ -383,6 +390,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(limit) && limit['rows'] !== undefined) out.push({ word: 'roles.rows', path: `roles.${String(r)}.limits.${ref}.rows` });
       for (const [action, reach] of Object.entries(isDoc(limit) && isDoc(limit['rows']) ? limit['rows'] : {})) {
         if (Array.isArray(reach)) out.push({ word: 'rows.several', path: `roles.${String(r)}.limits.${ref}.rows.${action}` });
+        if ((Array.isArray(reach) ? reach : [reach]).some((one) => isDoc(one) && one['notBy'] !== undefined)) out.push({ word: 'rows.notBy', path: `roles.${String(r)}.limits.${ref}.rows.${action}` });
       }
     }
     list(role['tables']).forEach((grant, g) => {
@@ -393,6 +401,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         out.push({ word: 'roles.rows', path: `roles.${String(r)}.tables.${String(g)}.limit.rows` });
         for (const [action, reach] of Object.entries(isDoc(grant['limit']['rows']) ? grant['limit']['rows'] : {})) {
           if (Array.isArray(reach)) out.push({ word: 'rows.several', path: `roles.${String(r)}.tables.${String(g)}.limit.rows.${action}` });
+          if ((Array.isArray(reach) ? reach : [reach]).some((one) => isDoc(one) && one['notBy'] !== undefined)) out.push({ word: 'rows.notBy', path: `roles.${String(r)}.tables.${String(g)}.limit.rows.${action}` });
         }
       }
     });

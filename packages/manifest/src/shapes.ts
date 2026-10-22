@@ -82,7 +82,7 @@ export function shapeKey(addOn: string, shape: { name: string; version: number }
  * `secret` only as `true`: an app may hide a part's column, never show one the
  * shape keeps back (`SECRET_ONLY_HIDES`).
  */
-const ADDABLE_RULES: ReadonlySet<string> = new Set(['enumLabels', 'personal', 'secret', 'validation', 'required', 'requiredWhen', 'options', 'notAfter', 'notBefore']);
+const ADDABLE_RULES: ReadonlySet<string> = new Set(['enumLabels', 'personal', 'secret', 'validation', 'required', 'requiredWhen', 'options', 'notAfter', 'notBefore', 'changes']);
 /** An addable rule that is added only one way: `secret: true` hides; `false` would show a part's column to every reader. */
 const SECRET_ONLY_HIDES = (name: string, value: unknown) => name === 'secret' && value !== true;
 

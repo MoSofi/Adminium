@@ -58,6 +58,7 @@ import { assistantIssues, type AssistantTableShape } from './assistant.js';
 import { stepsIssues, type StepTableShape } from './steps.js';
 import { WORD_FLOORS, installFloorWords } from './words.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
+import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 
@@ -858,6 +859,13 @@ export const columnRulesSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * When, and by whom, the column may change (see `change-guards.ts`): to
+     * some values only from others, only while another column holds a value,
+     * only by the person a staff column names, never by the people others
+     * name. Judged by the server on every way a row is written but history.
+     */
+    changes: changeGuardsSchema.optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -2722,6 +2730,7 @@ export function appReferenceIssues(
       if (rules.plainText !== undefined && column.type !== 'text') {
         out.push({ path: here('plainText'), message: 'plain text is a rule of a text column' });
       }
+      if (rules.changes !== undefined) out.push(...changeGuardIssues(index, table.ref, column, rules.changes, here));
       if (rules.announce !== undefined) {
         // Told from the settle, which has the row before and after only for a formula over one of its own totals.
         const reads = rules.formula === undefined ? [] : formulaColumns(rules.formula);
