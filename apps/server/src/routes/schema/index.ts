@@ -515,7 +515,8 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       /*
        * A rule that lands a column kept from readers (a secret, personal data,
        * a shared link's code) in one that is not — a copy, a stamp's copy, a
-       * formula — shows it past every guard above. Refused when the save
+       * formula; for a link's code also a total's newest value and its last
+       * four — shows it past every guard above. Refused when the save
        * brings it, or when the save makes its source kept while it lands it
        * in the open; one that was already so is left for its owner to fix.
        */
@@ -524,7 +525,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       const codes = await shareCodesOn(meta, connectionId);
       for (const item of proposed) {
         if (item.status === 'disabled' || item.columnName === null) continue;
-        if (item.op !== 'column.copy' && item.op !== 'column.stamp' && item.op !== 'column.formula') continue;
+        if (item.op !== 'column.copy' && item.op !== 'column.stamp' && item.op !== 'column.formula' && item.op !== 'column.rollup' && item.op !== 'column.codeLast4') continue;
         const at = { table: item.tableName, column: item.columnName };
         const issue = keptColumnIssue(item.op, item.value, at, afterSave, codes);
         if (issue === null) continue;

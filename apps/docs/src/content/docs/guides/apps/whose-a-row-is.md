@@ -114,7 +114,11 @@ listing follows.
 listing's person column (a deal's people, who covers whom) must read at least one of the tables
 read through that listing. Anybody else is refused for every writer, with the field marked
 `cannot-open`: they would be listed against rows they cannot open today, and would reach them
-unasked the day a role is added. A file brought in by somebody nothing limits is not asked.
+unasked the day a role is added. Every writer is asked: a person on the dashboard, a bulk edit,
+a file brought in (by somebody nothing limits too, line by line), a rule's write step, the row
+an effect moves, a timed move, and the owner's code. A rule, an effect and a timed move are
+asked of the row as its rules leave it: a stamp that copies a proposed person into the listing's
+person column when a seat is confirmed is refused the same way.
 
 A link that is refused is refused exactly as a link to a row that is not there. Only a link this
 write sets is asked about: one the row already holds is left alone. A file brought in is judged

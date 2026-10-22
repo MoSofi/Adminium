@@ -1080,6 +1080,15 @@ export interface EndpointCompileContext {
   shareCodes?: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
+/**
+ * The codes of a table no staff member reads (`code.hiddenFromStaff`): the
+ * link an order's or a quote's own email carries. Kept as a shared link's
+ * code is, whether or not an endpoint claims by it yet.
+ */
+function hiddenCodesOf(table: ResolvedTable | null | undefined): string[] {
+  return ((table?.table as ResolvedTable['table'] | undefined)?.columns ?? []).filter((column) => column.code?.hiddenFromStaff === true).map((column) => column.name);
+}
+
 /** The codes shared links open rows with, by source table, across these definitions. */
 export function shareCodesOf(definitions: Iterable<PublicEndpointDefinition>): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
@@ -1191,7 +1200,7 @@ function unlockIssues(def: PublicEndpointDefinition, table: ResolvedTable, view:
     if (!unique) out.push({ code: 'ENDPOINT_UNLOCK_NOT_A_CODE', message: `a code finds one row: make ${unlock.table}.${unlock.column} unique (or unique with its scope)`, column: 'unlock_by.column' });
     if (!made && code.normalize !== 'code') out.push({ code: 'ENDPOINT_UNLOCK_NOT_A_CODE', message: `${unlock.table}.${unlock.column} is compared as a code: store it as one (normalize "code")`, column: 'unlock_by.column' });
     const secret = codes.columns.get(unlock.column)?.secret === true;
-    if (secret || shareCodes?.get(unlock.table)?.has(unlock.column) === true || shareCodes?.get(codes.id)?.has(unlock.column) === true) {
+    if (secret || code.code?.hiddenFromStaff === true || shareCodes?.get(unlock.table)?.has(unlock.column) === true || shareCodes?.get(codes.id)?.has(unlock.column) === true) {
       out.push({ code: 'ENDPOINT_UNLOCK_SHARE_CODE', message: `${unlock.table}.${unlock.column} opens rows by a shared link, so it is never looked up`, column: 'unlock_by.column' });
     }
   }
@@ -1390,11 +1399,11 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
 
   /*
    * A shared link's code — this endpoint's, or another's on the same table,
-   * anonymous or not — is never shown, filtered, searched or ordered by: it
-   * leaves only as the link itself (its own claim compares it, and nothing
-   * else names it).
+   * anonymous or not, or a code no staff member reads — is never shown,
+   * filtered, searched or ordered by: it leaves only as the link itself (its
+   * own claim compares it, and nothing else names it).
    */
-  const codes = new Set(ctx.shareCodes?.get(def.source) ?? []);
+  const codes = new Set([...(ctx.shareCodes?.get(def.source) ?? []), ...hiddenCodesOf(table)]);
   const own = def.identity?.strategy === 'token' ? def.identity.match : [];
   for (const column of own) codes.add(column);
   for (const { list, column } of readsOf(def)) {
@@ -1678,7 +1687,7 @@ function treeAndPersonIssues(
       const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...plainColumns(child.plain_text), ...Object.keys(child.writable_values ?? {}), ...(child.position === undefined ? [] : [child.position])];
       const visible = visibleColumns(own);
       for (const column of named) if (!visible.has(column)) push('ENDPOINT_CHILD_SELECT_UNKNOWN', `"${column}" is not a column of ${child.source} (${name})`, column);
-      const codes = ctx.shareCodes?.get(child.source) ?? new Set<string>();
+      const codes = new Set([...(ctx.shareCodes?.get(child.source) ?? []), ...hiddenCodesOf(own)]);
       for (const column of child.select ?? []) {
         if (codes.has(column)) push('ENDPOINT_SHARE_CODE_READ', `"${column}" is the code a shared link opens its row with, so no endpoint shows it (${name})`, column);
       }

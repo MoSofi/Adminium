@@ -157,17 +157,42 @@ export function claimKind(claim: Claim): 'lookup' | 'link' | 'token' {
   return 'link';
 }
 
+/** What {@link shareCodeColumns} reads of the app's tables: a table's columns, with their rules (a `tableIndex` is one). */
+export interface CodeSchema {
+  table(ref: string): { columns: readonly { ref: string; rules?: unknown }[] } | undefined;
+}
+
+/** The app's tables as {@link shareCodeColumns} reads them. */
+export function codeSchemaOf(tables: readonly { ref: string; columns: readonly { ref: string; rules?: unknown }[] }[]): CodeSchema {
+  return { table: (ref) => tables.find((table) => table.ref === ref) };
+}
+
+/** Whether a column's rules make it a code no staff member reads (`rules.code.hiddenFromStaff`). */
+export function hiddenFromStaff(rules: unknown): boolean {
+  return ((rules as { code?: { hiddenFromStaff?: unknown } } | undefined)?.code?.hiddenFromStaff ?? false) === true;
+}
+
 /**
  * The columns of one table its shared links open a row by (`claim: { by:
  * 'token' }`): codes that leave only as the link — never shown, never
- * listed, never a value the app's own package gives (its sample rows).
+ * listed, never copied, never a value the app's own package gives (its
+ * sample rows).
+ *
+ * With `schema`, every code of the table no staff member reads
+ * (`rules.code.hiddenFromStaff`) counts too, whether or not an entry claims
+ * by it yet: such a code is the link an order's or a quote's own email
+ * carries, and every guard that keeps a shared link's code keeps it the
+ * same way (a kept total, its last four, a ledger's copy, a public entry).
  */
-export function shareCodeColumns(entries: readonly PublicAccess[], table: string): string[] {
+export function shareCodeColumns(entries: readonly PublicAccess[], table: string, schema?: CodeSchema): string[] {
   const out: string[] = [];
   for (const entry of entries) {
     const claim = entry.claim;
     if (entry.table !== table || claim === undefined || !('by' in claim) || claimKind(claim) !== 'token') continue;
     if (!out.includes(claim.column)) out.push(claim.column);
+  }
+  for (const column of schema?.table(table)?.columns ?? []) {
+    if (hiddenFromStaff(column.rules) && !out.includes(column.ref)) out.push(column.ref);
   }
   return out;
 }
@@ -187,7 +212,7 @@ export function unlistedColumn(
   column: string,
 ): string | null {
   const entries = m.publicAccess ?? [];
-  if (shareCodeColumns(entries, table).includes(column)) return 'the code a shared link opens its row with';
+  if (shareCodeColumns(entries, table, codeSchemaOf(m.requiredSchema.tables)).includes(column)) return 'the code a shared link opens its row with';
   if (entries.some((entry) => entry.table === table && entry.withhold?.columns.includes(column) === true)) return 'withheld from all but its holder';
   const columns = m.requiredSchema.tables.find((candidate) => candidate.ref === table)?.columns ?? [];
   const rules = columns.find((candidate) => candidate.ref === column)?.rules;
@@ -936,6 +961,10 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (entry.claim === undefined || claimKind(entry.claim) !== 'token' || !('by' in entry.claim)) continue;
     shareCodes.set(entry.table, (shareCodes.get(entry.table) ?? new Set()).add(entry.claim.column));
   }
+  // …and a code no staff member reads, which is such a link's whether or not an entry claims by it yet.
+  for (const table of index.tables()) {
+    for (const column of shareCodeColumns([], table.ref, index)) shareCodes.set(table.ref, (shareCodes.get(table.ref) ?? new Set()).add(column));
+  }
   entries.forEach((entry, i) => {
     const codes = shareCodes.get(entry.table);
     if (codes === undefined) return;
@@ -1507,7 +1536,7 @@ function unlockIssues(
       if (code.rules?.code === undefined && code.rules?.normalize !== 'code') {
         out.push({ path: at('unlockBy', 'column'), message: `"${entry.table}.${code.ref}" is compared as a code: give it normalize "code"` });
       }
-      if (shareCodeColumns(entries, entry.table).includes(code.ref)) {
+      if (shareCodeColumns(entries, entry.table, index).includes(code.ref)) {
         out.push({ path: at('unlockBy', 'column'), message: "a shared link's code is never looked up" });
       }
       // The code opens the row; the row never shows it back.
@@ -1546,7 +1575,7 @@ function unlockIssues(
     if (code.rules?.code === undefined && code.rules?.normalize !== 'code') {
       out.push({ path: at('unlockBy', 'column'), message: `"${unlock.table}.${code.ref}" is compared as a code: give it normalize "code"` });
     }
-    if (shareCodeColumns(entries, unlock.table).includes(code.ref)) {
+    if (shareCodeColumns(entries, unlock.table, index).includes(code.ref)) {
       out.push({ path: at('unlockBy', 'column'), message: "a shared link's code is never looked up" });
     }
   }
@@ -1586,7 +1615,7 @@ function pictureIssues(
   }
   if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at('key'), message: "pictures are served through the app's customer key" });
   const writes = new Set([...(entry.writable ?? []), ...Object.keys(entry.defaults ?? {})]);
-  const shareCodes = shareCodeColumns(entries, entry.table);
+  const shareCodes = shareCodeColumns(entries, entry.table, ctx.index);
   for (const ref of pictures) {
     const found = ctx.index.column(entry.table, ref) as
       | (ColumnShape & { semantic?: string; rules?: { code?: unknown; secret?: boolean; personal?: boolean } })
@@ -2159,7 +2188,7 @@ function personIssues(
           if (column === undefined) out.push({ path: here('fill', target), message: `"${id.table}" has no column "${target}"` });
           else if (column.type !== 'text' || column.role === 'pk' || target === claimed) {
             out.push({ path: here('fill', target), message: `"${id.table}.${target}" is not a text column a new person is filled with` });
-          } else if (peopleDecided.has(target) || column.rules?.secret === true || shareCodeColumns(entries, id.table).includes(target)) {
+          } else if (peopleDecided.has(target) || column.rules?.secret === true || shareCodeColumns(entries, id.table, index).includes(target)) {
             out.push({ path: here('fill', target), message: `"${id.table}.${target}" is Adminium's or a secret, so a create never fills it` });
           } else if (column.unique === true) {
             // A clash would refuse only the create that makes a person: a way to ask whether one exists.

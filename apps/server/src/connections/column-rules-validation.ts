@@ -35,7 +35,11 @@ import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
  * reuses, the audit's and the outbox's redaction and the public refusals.
  * So the source must be kept no better than the column it lands in: a secret
  * in a secret, personal data in personal data or a secret. A shared link's
- * code lands nowhere.
+ * code lands nowhere: not by a copy, a stamp or a formula, nor as the newest
+ * child row's value (a total's `latest`), nor as its last four
+ * (`codeLast4`). Nor does any code no staff member reads
+ * (`code.hiddenFromStaff`): it is such a link's whether or not one claims by
+ * it yet.
  *
  * Judged on the model as the save leaves it (`applyOverrides`), with the
  * connection's share codes (`public-api/share-codes.ts`).
@@ -61,6 +65,16 @@ export function keptColumnIssue(
     const parsed = formulaExprSchema.safeParse(value['formula']);
     if (parsed.success) for (const column of formulaColumns(parsed.data)) sources.push({ table: at.table, column });
   }
+  /** A shared link's code, or a code no staff member reads. */
+  const linkCode = (table: EffectiveModel['tables'][number], column: string): boolean =>
+    shareCodes.get(table.name)?.has(column) === true || table.columns.find((candidate) => candidate.name === column)?.code?.hiddenFromStaff === true;
+  // The newest child row's value, and a code's last four: judged for a link's code alone (they keep what they read, kept or not, as a copy does not).
+  const latest = op === 'column.rollup' ? (value['latest'] as Value | undefined) : undefined;
+  const kept = latest !== undefined ? { table: String(value['from']), column: String(latest['of']), verb: 'no total keeps it' } : op === 'column.codeLast4' ? { table: at.table, column: String(value['of']), verb: 'no column keeps its last four' } : undefined;
+  if (kept !== undefined) {
+    const table = model.tables.find((candidate) => candidate.id === kept.table);
+    return table !== undefined && linkCode(table, kept.column) ? `${JSON.stringify(`${table.name}.${kept.column}`)} is the code a shared link opens its row with, so ${kept.verb}.` : null;
+  }
   const into = columnPolicyFor(here);
   for (const source of sources) {
     const table = model.tables.find((candidate) => candidate.id === source.table);
@@ -68,7 +82,7 @@ export function keptColumnIssue(
     const kept = columnPolicyFor(table);
     const named = JSON.stringify(`${table.name}.${source.column}`);
     const verb = op === 'column.formula' ? 'no formula reads it' : 'no column copies it';
-    if (shareCodes.get(table.name)?.has(source.column) === true) return `${named} is the code a shared link opens its row with, so ${verb}.`;
+    if (linkCode(table, source.column)) return `${named} is the code a shared link opens its row with, so ${verb}.`;
     if (kept.secret.has(source.column) && !into.secret.has(at.column)) return `${named} is a secret, so ${verb} unless it is one too.`;
     if (kept.masked.has(source.column) && !into.masked.has(at.column) && !into.secret.has(at.column)) {
       return `${named} is personal data, so ${verb} unless it is marked personal too.`;
@@ -1439,7 +1453,8 @@ export function bookingRuleIssue(raw: unknown, table: TableModel, model: Databas
  * The reason a table's postings cannot be kept as they are stored, or `null`:
  * every column a posting names is a column of the table (or, under `via`, of
  * the row the lines belong to), `via` links the two, and a sibling table it
- * names is there.
+ * names is there. No posting copies a code no staff member reads
+ * (`code.hiddenFromStaff`, told where the table carries its rules) into a ledger.
  *
  * Whether a posting fits the ledger it goes into is judged with that add-on's
  * manifest at hand, where the rule is installed or saved; this is what the
@@ -1467,6 +1482,12 @@ export function postingsRuleIssue(raw: unknown, table: TableModel, model: Databa
       if (point === undefined || 'create' in point || 'to' in point) continue;
       const judged = parent !== undefined && point.own !== true ? parent : table;
       if (!has(judged, point.column)) return `${named} fires on ${JSON.stringify(point.column)}, which is not a column of ${judged.name}.`;
+    }
+    // A ledger's row is the add-on's, read by whoever reads its ledger: a code no staff member reads is never copied into one.
+    for (const mapping of Object.values(posting.map)) {
+      const read = typeof mapping === 'string' ? { of: table, column: mapping } : typeof mapping === 'object' && mapping !== null && 'parent' in mapping && parent !== undefined ? { of: parent, column: String((mapping as { parent: unknown }).parent) } : undefined;
+      const code = read === undefined ? undefined : (read.of.columns.find((c) => c.name === read.column) as { code?: { hiddenFromStaff?: unknown } } | undefined)?.code;
+      if (code?.hiddenFromStaff === true) return `${named} reads ${JSON.stringify(read!.column)}, the code a shared link opens its row with, so no posting copies it into a ledger.`;
     }
     const mappings: unknown[] = [...Object.values(posting.map), ...Object.values(posting.multipliers ?? {}), ...(posting.heldUntil === undefined ? [] : [posting.heldUntil])];
     for (const mapping of mappings) {

@@ -171,6 +171,7 @@ import { refusedOn } from './refusal-table.js';
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
+import { setsListing } from './row-writes.js';
 import { NO_NEW_FILES, type FileColumnJudge } from '../files/column-judge.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
@@ -1833,6 +1834,17 @@ export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
   /**
+   * The listing rule (`assertListedCanOpen` in `crud/row-writes.ts`): a row
+   * that lists somebody against rows of other tables lists only somebody who
+   * can open them. Asked of the row as a writer no person door judged leaves
+   * it — a rule's write step, the owner's code, a timed move ({@link LISTING_ORIGINS})
+   * — and of every row an effect moves, whoever's write set it off; each
+   * with what the rules filled in (a stamp that copies a person in). The data
+   * routes ask it of what a person sends, before the write. A service without
+   * it asks nobody.
+   */
+  listings?: ((target: WriteTarget, values: Row, before: Row | null) => Promise<void>) | undefined;
+  /**
    * The outbox links that let go of a table's rows as they are removed (an
    * app that writes to people about a removal: `outbox/release.ts`). Asked
    * before each delete; a service without it removes a row as the database
@@ -1899,6 +1911,17 @@ export interface WriteServiceOptions {
 
 /** How many times a create whose generated code collided is tried again. */
 const CODE_RETRIES = 4;
+
+/**
+ * The writers the service asks the listing rule of, on the row as it will be
+ * written (`listings`): those no person door judged first — a rule's write
+ * step and a timed move (`automation`), the owner's code (`hook`, `action`).
+ * A person's own write (`dashboard`, `bulk`) was judged by the data routes
+ * on what they sent, an import by its own judge (`data-io/import-judge.ts`),
+ * an undo puts history back, and a guest names no staff member. The rows an
+ * effect moves are asked whoever wrote.
+ */
+const LISTING_ORIGINS: ReadonlySet<WriteOrigin> = new Set(['automation', 'hook', 'action']);
 
 /**
  * Run `insert` so a refusal leaves the transaction usable: Postgres aborts a
@@ -2515,6 +2538,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // …judged again on the row as it will be written: a point may be reached by what the move stamps or works out, not by the state alone.
     await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values, record: before }], effect: moved.table.name });
     const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
+    // The listing rule: no person door judged this row, whoever's write moved it (an undo puts history back).
+    if (opts.listings !== undefined && context.origin !== 'undo') await opts.listings({ ...moved, db }, values, before);
     return { target: { ...moved, timezone: zone ?? moved.timezone }, rules, pk, before, checked };
   }
 
@@ -3274,6 +3299,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const values = await formulate(rules, 'create', target, hooked, null, context.origin);
     if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
     const judged = await checkAllOrThrow(rules, 'create', target, context, values, null, mapError);
+    // The listing rule, for a writer no person door judged: the new row as its rules filled it.
+    if (opts.listings !== undefined && LISTING_ORIGINS.has(context.origin)) await guardedValue(() => opts.listings!(target, judged, null), mapError);
     // What a number without gaps needs at its INSERT, read before any lock is taken; a quote takes none.
     const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, opts.settings) : await unclaimedNumbers(rules, target, judged);
     const checked = await carry(rules, 'create', target, context, brand(numbered), null, clock);
@@ -4524,6 +4551,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
       const carried = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
+      // The listing rule, for a writer no person door judged: the change as its rules filled it, against the row as stored.
+      if (opts.listings !== undefined && LISTING_ORIGINS.has(context.origin) && setsListing(target.view.model, target.table.id, Object.keys(values))) {
+        before ??= await storedRow();
+        await guardedValue(() => opts.listings!(target, values, before), input.mapError);
+      }
       // A public entry's windows read from moments go with the values to the statement, which judges them holding the row.
       const checkedValues = input.windows === undefined ? carried : brand(attachWindows(carried, input.windows));
       // A change that moves what a limit counts — its own rows', or the rows it owns — is judged under the pools' locks.

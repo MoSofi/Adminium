@@ -2209,8 +2209,9 @@ export function appReferenceIssues(
    * column a rule lands it in is kept the same way (a secret in a secret;
    * personal data in personal data or a secret). A copy of one, or a formula
    * over one, would show it where it is not kept, past the audit's and the
-   * outbox's redaction and the public refusals. A shared link's code is never
-   * landed anywhere.
+   * outbox's redaction and the public refusals. A shared link's code, and any
+   * code no staff member reads (`code.hiddenFromStaff`), is never landed
+   * anywhere.
    *
    * Personal data is told as the install tells it: by its mark, or guessed by
    * its name (`email`, a guest's `first_name` beside an address), and so is
@@ -2218,13 +2219,20 @@ export function appReferenceIssues(
    * formula over a guessed column into an unmarked one passed here and was
    * then skipped by the install, leaving the column empty.
    */
+  /**
+   * Whether a column is a code that leaves only as a shared link: one an
+   * entry claims by (`claim: { by: 'token' }`), or one no staff member reads
+   * (`code.hiddenFromStaff`). Nothing copies one, keeps its newest value, its
+   * last four or a ledger's copy of it, and no public entry shows it.
+   */
+  const linkCode = (tableRef: string, columnRef: string): boolean => shareCodeColumns(m.publicAccess ?? [], tableRef, index).includes(columnRef);
   const keptFromReaders = (
     tableRef: string,
     columnRef: string,
     into: ColumnRules | undefined,
     intoAt?: { table: string; column: string },
   ): string | null => {
-    if (shareCodeColumns(m.publicAccess ?? [], tableRef).includes(columnRef)) return 'the code a shared link opens its row with';
+    if (linkCode(tableRef, columnRef)) return 'the code a shared link opens its row with';
     const source = tables.get(tableRef)?.columns.find((x) => x.ref === columnRef)?.rules;
     if (source?.secret === true && into?.secret !== true) return 'a secret';
     const personal = (t: string, c: string): boolean => {
@@ -2466,6 +2474,10 @@ export function appReferenceIssues(
             if (!has(r.from, name)) out.push({ path: here('rollup'), message: `"${r.from}" has no column "${name}"` });
           }
           if (r.latest !== undefined) out.push(...rollupLatestIssues(index, table, column, r.from, r.latest, decide, here));
+          // A kept total of a shared link's code would show it on the parent, to whoever reads the parent.
+          if (r.latest !== undefined && linkCode(r.from, r.latest.of)) {
+            out.push({ path: here('rollup', 'latest', 'of'), message: `"${r.from}.${r.latest.of}" is the code a shared link opens its row with, so no total keeps it` });
+          }
           if (r.where !== undefined) {
             const filter = index.column(r.from, r.where.column);
             if (filter === undefined) out.push({ path: here('rollup', 'where'), message: `"${r.from}" has no column "${r.where.column}"` });
@@ -2656,7 +2668,7 @@ export function appReferenceIssues(
       }
       if (rules.code?.renew !== undefined) out.push(...codeRenewIssues(table, column, rules.code.renew, here('code', 'renew')));
       if (rules.lookup !== undefined) {
-        out.push(...codeLookupIssues(table, column, rules.lookup, here('lookup'), { index, tables, shareCodes: (ref) => shareCodeColumns(m.publicAccess ?? [], ref) }));
+        out.push(...codeLookupIssues(table, column, rules.lookup, here('lookup'), { index, tables, shareCodes: (ref) => shareCodeColumns(m.publicAccess ?? [], ref, index) }));
       }
       if (rules.addOnLink !== undefined) {
         const link = rules.addOnLink;
@@ -2773,6 +2785,8 @@ export function appReferenceIssues(
           // A code Adminium makes, or one a person types that a look-up on this table reads (a gift card's code on a payment).
           const typed = table.columns.some((other) => (other.rules as ColumnRules | undefined)?.lookup?.from === of.ref);
           if ((of.rules?.code === undefined && !typed) || of.ref === column.ref) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}.${of.ref}" is neither a code Adminium makes (rules.code) nor a code a look-up reads (rules.lookup.from)` });
+          // A link's code is shown nowhere, not even in part: its last four would narrow the guess to a quarter of it.
+          else if (linkCode(table.ref, of.ref)) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}.${of.ref}" is the code a shared link opens its row with, so no column keeps its last four` });
         }
         const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('codeLast4'), message: `the last four of a code are copied from it, not also decided by ${others.join(', ')}` });
@@ -2825,6 +2839,13 @@ export function appReferenceIssues(
           else if (parentRef !== undefined && typeof mapping === 'object' && mapping !== null && 'parent' in mapping) decide(parentRef, String((mapping as { parent: unknown }).parent));
         };
         if (posting.heldUntil !== undefined) own(posting.heldUntil);
+        // A ledger's row is the add-on's, read by whoever reads its ledger: a shared link's code is never copied into one.
+        for (const [input, mapping] of Object.entries(posting.map)) {
+          const read = typeof mapping === 'string' ? { table: table.ref, column: mapping } : parentRef !== undefined && typeof mapping === 'object' && mapping !== null && 'parent' in mapping ? { table: parentRef, column: String((mapping as { parent: unknown }).parent) } : undefined;
+          if (read !== undefined && linkCode(read.table, read.column)) {
+            out.push({ path: at('postings', p, 'map', input), message: `"${read.table}.${read.column}" is the code a shared link opens its row with, so no posting copies it into a ledger` });
+          }
+        }
         const action = (m.ledgers ?? []).find((ledger) => ledger.id === posting.into.ledger && posting.into.addOn === m.key)?.actions[posting.into.action];
         for (const rule of action?.decides ?? []) {
           const mapping = posting.map[rule.input];

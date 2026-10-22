@@ -357,6 +357,102 @@ function readThrough(model: { tables: readonly EffectiveTable[] }, tableId: stri
   return model.tables.filter((other) => (other.belongs ?? []).some((way) => 'through' in way && way.through.table === tableId && way.through.user === column && way.through.person === undefined));
 }
 
+/** The listing rule's refusal: the person column, and that its person could not open what it lists them on. */
+function cannotOpen(column: string): ValidationFailedError {
+  return new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
+}
+
+/** The model the listing rule reads: the tables (their ways and keys) and their links. */
+export type ListingModel = { tables: readonly EffectiveTable[]; relations: RowLimitContext['model']['relations'] };
+
+/**
+ * Whether the person `userId`, written into `column` of a row of `table`,
+ * can open what the row lists them on: they read at least one table read
+ * through it, and the very row this listing is against is one they would
+ * read once listed (see {@link assertListedCanOpen}). True for a column no
+ * table is read through, with nothing read.
+ */
+async function listedOpens(meta: MetaDb, db: Db, model: ListingModel, connectionId: string, table: EffectiveTable, column: string, userId: string, values: Row, before: Row | null): Promise<boolean> {
+  const opened = readThrough(model, table.id, column);
+  if (opened.length === 0) return true;
+  const theirs = await resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId });
+  const readable = opened.filter((other) => permissionSetAllows(theirs, `table:${connectionId}:${other.id}:read`));
+  /*
+   * And the very row this listing is against is one they would read once
+   * listed: a reach of their own rows (being listed makes it theirs), or a
+   * reach whose `while` the row holds now. Reading the table is not enough:
+   * an operations manager reads every WON deal, and listed on an open one she
+   * would be named on a deal she cannot open.
+   */
+  for (const other of readable) {
+    const held = rowReachesOf(theirs, connectionId, other.id, 'read');
+    if (held === null) return true;
+    const way = (other.belongs ?? []).find((one): one is Extract<BelongsWay, { through: unknown }> => 'through' in one && one.through.table === table.id && one.through.user === column);
+    const next: Row = { ...(before ?? {}), ...values };
+    const key = way === undefined ? undefined : next[way.through.link];
+    const on = way?.through.on ?? other.primaryKey[0];
+    const row = key === undefined || key === null || on === undefined ? undefined : await db.selectFrom(other.id as never).selectAll().where(sql.ref(on), '=', key as never).limit(1).executeTakeFirst();
+    // A link to no row is the link check's own refusal.
+    if (row === undefined) return true;
+    const holds = (reach: (typeof held)[number]): boolean => reach.while === undefined || reach.while.in.some((one) => String(one) === String((row as Row)[reach.while!.column]));
+    if (held.some((reach) => holds(reach) && (reach.reach === 'all' || reach.by === undefined))) return true;
+  }
+  return false;
+}
+
+/** Whether a write to `tableId` that sets any of these columns could be asked anything by the listing rule: a staff column some table is read through. */
+export function setsListing(model: ListingModel, tableId: string, columns: Iterable<string>): boolean {
+  const table = model.tables.find((candidate) => candidate.id === tableId);
+  if (table === undefined) return false;
+  for (const column of columns) {
+    if (table.columns.find((candidate) => candidate.name === column)?.staff === true && readThrough(model, tableId, column).length > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * THE LISTING RULE, for any writer: refuse a write that lists somebody
+ * against rows they cannot open.
+ *
+ * A table other tables are read through (the people on a deal, who covers
+ * whom) holds, in the person column they are read by, only somebody who
+ * reads at least one of those tables, and whose reach of it takes the very
+ * row the listing is against once they are listed (a reach of their own
+ * rows; or one whose `while` that row holds now). Anybody else would be
+ * listed against rows they cannot open today, and would reach them unasked
+ * the day a role is added.
+ *
+ * Judged for each staff column of `tableId` this write SETS: in `values`,
+ * with a value `before` (the stored row, or null for a new one) does not
+ * already hold, and not empty. The row the listing is against is read
+ * through `db` as the row will hold its link (`values` over `before`); a
+ * link to no row is the link check's refusal, not this one's. A person who
+ * is not there, or is suspended, opens nothing. Refused as a field:
+ * 422 `cannot-open` on the column.
+ *
+ * Who writes does not matter: the data routes ask it inside
+ * `assertStaffColumns` (with whether the person may be named at all), and
+ * every other writer asks it here — a rule's write step, an effect, a timed
+ * move, an import of somebody nothing limits, the owner's code
+ * (`write-service.ts` through `writeStores`, `data-io/import-judge.ts`). A
+ * hand-over that carries child rows asks it for each row it moves.
+ *
+ * `model` is the connection's model as the write sees it (`view.model`).
+ * Nothing is read for a table no other table is read through.
+ */
+export async function assertListedCanOpen(meta: MetaDb, db: Db, model: ListingModel, connectionId: string, tableId: string, values: Row, before: Row | null): Promise<void> {
+  if (!setsListing(model, tableId, Object.keys(values))) return;
+  const table = model.tables.find((candidate) => candidate.id === tableId)!;
+  for (const [column, value] of Object.entries(values)) {
+    if (table.columns.find((candidate) => candidate.name === column)?.staff !== true) continue;
+    if (empty(value) || (before !== null && same(value, before[column]))) continue;
+    if (readThrough(model, tableId, column).length === 0) continue;
+    const user = typeof value === 'string' ? await usersRepo(meta).findById(value) : null;
+    if (user === null || user.status === 'suspended') throw cannotOpen(column);
+    if (!(await listedOpens(meta, db, model, connectionId, table, column, user.id, values, before))) throw cannotOpen(column);
+  }
+}
+
 /**
  * Judge the people a write names. `values` is what the writer sent (never
  * what a rule fills: a stamp of the writer's own id is the rule's doing);
@@ -537,41 +633,8 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
     if (!viaPerson) {
       const user = typeof named === 'string' ? await usersRepo(meta).findById(named) : null;
       if (user === null || user.status === 'suspended') throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'not-found' } } });
-      // Listed against rows of other tables: somebody who reads at least one of them.
-      const opened = opts.connectionId === undefined ? [] : readThrough(model, table.id, column);
-      if (opened.length > 0) {
-        const theirs = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id });
-        const readable = opened.filter((other) => permissionSetAllows(theirs, `table:${opts.connectionId!}:${other.id}:read`));
-        /*
-         * And the very row this listing is against is one they would read once listed: a reach of their own rows (being
-         * listed makes it theirs), or a reach whose `while` the row holds now. Reading the table is not enough: an
-         * operations manager reads every WON deal, and listed on an open one she would be named on a deal she cannot open.
-         */
-        let reached = false;
-        for (const other of readable) {
-          const held = rowReachesOf(theirs, opts.connectionId!, other.id, 'read');
-          if (held === null) {
-            reached = true;
-            break;
-          }
-          const way = (other.belongs ?? []).find((one): one is Extract<BelongsWay, { through: unknown }> => 'through' in one && one.through.table === table.id && one.through.user === column);
-          const next: Row = { ...(before ?? {}), ...values };
-          const key = way === undefined ? undefined : next[way.through.link];
-          const on = way?.through.on ?? other.primaryKey[0];
-          const row = key === undefined || key === null || on === undefined ? undefined : await db.selectFrom(other.id as never).selectAll().where(sql.ref(on), '=', key as never).limit(1).executeTakeFirst();
-          // A link to no row is the link check's own refusal.
-          if (row === undefined) {
-            reached = true;
-            break;
-          }
-          const holds = (reach: (typeof held)[number]): boolean => reach.while === undefined || reach.while.in.some((one) => String(one) === String((row as Row)[reach.while!.column]));
-          if (held.some((reach) => holds(reach) && (reach.reach === 'all' || reach.by === undefined))) {
-            reached = true;
-            break;
-          }
-        }
-        if (!reached) throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
-      }
+      // Listed against rows of other tables: somebody who reads at least one of them (the listing rule, below).
+      if (opts.connectionId !== undefined && !(await listedOpens(meta, db, model, opts.connectionId, table, column, user.id, values, before))) throw cannotOpen(column);
       /*
        * A ROW HANDED OVER GOES TO SOMEBODY WHO CAN WORK IT. Not to a person
        * who has not arrived or is a sample; not to one whose roles do not
