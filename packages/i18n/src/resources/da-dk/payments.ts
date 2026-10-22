@@ -29,6 +29,7 @@ export default {
     "notice": {
       "draft": "Send fakturaen først. En betaling kan kun registreres på en sendt faktura.",
       "private": "Kunder kan ikke nå denne server, så betalingslinks er slået fra. Du kan stadig registrere betalinger.",
+      "noAddress": "Denne server har endnu ingen offentlig adresse, så betalingslinks er slået fra. Angiv den som »Adresse i e-maillinks« under Afsendere. Du kan stadig registrere betalinger.",
       "update": "Denne fakturatabel skal have sin apps opdatering for at tage imod onlinebetalinger.",
       "voided": "Denne faktura er annulleret. Der kan ikke tages imod betaling.",
       "noCurrency": "Denne post har ingen valuta, så der kan ikke registreres en betaling.",
@@ -117,6 +118,7 @@ export default {
     },
     "look": {
       "title": "En betaling skal ses efter",
+      "titleTest": "En testbetaling skal ses efter",
       "notRecorded": "Betalt hos {provider}, ikke registreret: {label}",
       "notYet": "Betalt hos {provider}, ikke registreret endnu: {label}",
       "amount": "Betalt hos {provider}, ikke det beløb der blev bedt om: {label}",
@@ -153,10 +155,12 @@ export default {
     },
     "refundFailed": {
       "title": "Refusion mislykkedes",
+      "titleTest": "Testrefusion mislykkedes",
       "body": "{amount} til {paidWith}"
     },
     "dispute": {
       "title": "Indsigelse åbnet",
+      "titleTest": "Testindsigelse åbnet",
       "body": "{label} · svar senest {date}",
       "bodyNoDate": "{label} · besvar den i {provider}-dashboardet"
     }

@@ -19,6 +19,7 @@
     "notice": {
       "draft": "Envoyez d’abord la facture. Un paiement ne peut être enregistré que sur une facture envoyée.",
       "private": "Les clients ne peuvent pas joindre ce serveur, les liens de paiement sont donc désactivés. Vous pouvez toujours enregistrer des paiements.",
+      "noAddress": "Ce serveur n’a pas encore d’adresse publique, les liens de paiement sont donc désactivés. Définissez-la comme « Adresse dans les liens des e-mails » dans Expéditeurs. Vous pouvez toujours enregistrer des paiements.",
       "update": "Cette table de factures a besoin de la mise à jour de son application pour accepter les paiements en ligne.",
       "voided": "Cette facture a été annulée. Aucun paiement ne peut être accepté.",
       "noCurrency": "Cet enregistrement n’a pas de devise, aucun paiement ne peut donc être enregistré.",
@@ -107,6 +108,7 @@
     },
     "look": {
       "title": "Un paiement demande votre attention",
+      "titleTest": "Un paiement de test demande votre attention",
       "notRecorded": "Payé sur {provider}, non enregistré : {label}",
       "notYet": "Payé sur {provider}, pas encore enregistré : {label}",
       "amount": "Payé sur {provider}, pas le montant demandé : {label}",
@@ -143,10 +145,12 @@
     },
     "refundFailed": {
       "title": "Remboursement échoué",
+      "titleTest": "Remboursement de test échoué",
       "body": "{amount} vers {paidWith}"
     },
     "dispute": {
       "title": "Litige ouvert",
+      "titleTest": "Litige de test ouvert",
       "body": "{label} · réponse avant le {date}",
       "bodyNoDate": "{label} · répondez-y dans le tableau de bord {provider}"
     }

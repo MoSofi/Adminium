@@ -3755,7 +3755,8 @@ export default {
       "bank": "Bankovní údaje pro převody se změnily {when}, provedl(a) {by}.",
       "address": "Vaše platební adresa se {when} změnila z {from} na {to}, provedl(a) {by}. Změňte adresu webhooku u Stripe a PayPal.",
       "heading": "Změnilo se, kam jdou peníze",
-      "emailed": "Všem, kdo spravují platby, byl poslán e-mail."
+      "emailed": "Všem, kdo spravují platby, byl poslán e-mail.",
+      "gotIt": "Rozumím"
     },
     "stop": {
       "label": "Zastavit nové platby",
@@ -3937,6 +3938,7 @@ export default {
       "statusColumn": "Stavový sloupec",
       "statusPaidValue": "Hodnota po úplném zaplacení",
       "statusRefunded": "Po úplné refundaci nastavit stav na",
+      "statusNoValues": "Dejte tomuto sloupci seznam hodnot (ve schématu tabulky), abyste ho mohli použít jako stav.",
       "leaveAsIs": "Ponechat beze změny",
       "pageFields": "Sloupce povolené na platební stránce",
       "personal": "Osobní: nikdy se nezobrazuje",
@@ -3948,6 +3950,7 @@ export default {
       "previewOf": "Tři řádky z {table}",
       "previewSummary": "{count, plural, one {# problém} few {# problémy} many {# problému} other {# problémů}}",
       "previewWaiting": "Vyberte částku a uvidíte tři řádky.",
+      "previewIncomplete": "Dokončete volby výše, abyste viděli tři řádky.",
       "becomes": "po zaplacení se {column} změní na {value}",
       "back": "Zpět",
       "stepOf": "Krok {step} ze 3",
@@ -4068,7 +4071,8 @@ export default {
         "waitingLong": "Čeká na banku už {days} dní: {record} · {amount}.",
         "waitingLongWay": "Čeká na banku už {days} dní: {record} · {amount} ({way}).",
         "recordChanged": "Zaznamenaná platba se změnila: {record} · {amount} už není zaznamenána jako předtím.",
-        "disputed": "Spor: {record} · {amount}. Odpovězte v ovládacím panelu {service}."
+        "disputed": "Spor: {record} · {amount}. Odpovězte v ovládacím panelu {service}.",
+        "disputeLost": "Spor prohrán: {amount} se vrátilo zákazníkovi u {record}. Zaznamenáno jako vrácení peněz."
       },
       "why": {
         "alreadyPaid": "Faktura už byla zaplacena v plné výši.",
@@ -4079,6 +4083,7 @@ export default {
       },
       "story": {
         "refundThere": "Vráceno v přehledu služby {service}: {amount}",
+        "refundDispute": "Spor prohrán: {amount} se vrátilo zákazníkovi",
         "refundStarted": "Vrácení {amount} zahájeno",
         "refunded": "Služba {service} hlásí: vráceno",
         "refundFailed": "Služba {service} hlásí: vrácení selhalo",
@@ -4098,7 +4103,9 @@ export default {
         "notRecorded": "Nezaznamenáno: je potřeba se podívat",
         "disputed": "Držitel karty otevřel spor",
         "disputeAnswer": "Odpovězte v ovládacím panelu {service}",
-        "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}."
+        "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
+        "disputeWon": "Spor byl vyhrán.",
+        "disputeLost": "Spor byl prohrán: peníze se vrátily zákazníkovi."
       },
       "checkedBy": "Zkontroloval(a) {name}",
       "someone": "někdo",

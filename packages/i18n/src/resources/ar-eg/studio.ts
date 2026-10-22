@@ -3755,7 +3755,8 @@ export default {
       "bank": "تغيّرت البيانات البنكية للتحويلات البنكية {when}، بواسطة {by}.",
       "address": "تغيّر عنوان الدفع من {from} إلى {to} {when}، بواسطة {by}. حدّث عنوان الـ Webhook لدى Stripe و PayPal.",
       "heading": "تغيّرت وجهة الأموال",
-      "emailed": "أُرسل بريد إلى كل من يدير المدفوعات."
+      "emailed": "أُرسل بريد إلى كل من يدير المدفوعات.",
+      "gotIt": "فهمت"
     },
     "stop": {
       "label": "إيقاف المدفوعات الجديدة",
@@ -3937,6 +3938,7 @@ export default {
       "statusColumn": "عمود الحالة",
       "statusPaidValue": "القيمة عند الدفع بالكامل",
       "statusRefunded": "عند الاسترداد بالكامل، اضبط الحالة على",
+      "statusNoValues": "أعطِ هذا العمود قائمة قيم (في مخطط الجدول) لاستخدامه حالةً.",
       "leaveAsIs": "اتركها كما هي",
       "pageFields": "الأعمدة المسموح بعرضها على صفحة الدفع",
       "personal": "بيانات شخصية: لا تُعرض أبدًا",
@@ -3948,6 +3950,7 @@ export default {
       "previewOf": "ثلاثة صفوف من {table}",
       "previewSummary": "{count, plural, zero {لا مشكلات} one {مشكلة واحدة} two {مشكلتان} few {# مشكلات} many {# مشكلة} other {# مشكلة}}",
       "previewWaiting": "اختر المبلغ لترى ثلاثة صفوف.",
+      "previewIncomplete": "أكمل الاختيارات أعلاه لترى ثلاثة صفوف.",
       "becomes": "عند الدفع، يصبح {column} {value}",
       "back": "رجوع",
       "stepOf": "الخطوة {step} من 3",
@@ -4068,7 +4071,8 @@ export default {
         "waitingLong": "بانتظار البنك منذ {days} يومًا: {record} · {amount}.",
         "waitingLongWay": "بانتظار البنك منذ {days} يومًا: {record} · {amount} ({way}).",
         "recordChanged": "تغيّرت دفعة مسجّلة: لم تعد {record} · {amount} مسجّلة كما كانت.",
-        "disputed": "نزاع: {record} · {amount}. رُدّ عليه في لوحة تحكم {service}."
+        "disputed": "نزاع: {record} · {amount}. رُدّ عليه في لوحة تحكم {service}.",
+        "disputeLost": "خُسر النزاع: عاد مبلغ {amount} إلى العميل على {record}. سُجّل استردادًا."
       },
       "why": {
         "alreadyPaid": "كانت الفاتورة مدفوعة بالكامل.",
@@ -4079,6 +4083,7 @@ export default {
       },
       "story": {
         "refundThere": "تم الرد في لوحة تحكم {service}: {amount}",
+        "refundDispute": "خُسر النزاع: عاد مبلغ {amount} إلى العميل",
         "refundStarted": "بدأ رد مبلغ {amount}",
         "refunded": "تقول {service}: تم الرد",
         "refundFailed": "تقول {service}: تعذّر الرد",
@@ -4098,7 +4103,9 @@ export default {
         "notRecorded": "لم تُسجَّل: تحتاج إلى نظرة",
         "disputed": "فتح حامل البطاقة نزاعًا",
         "disputeAnswer": "رُدّ عليه في لوحة تحكم {service}",
-        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}."
+        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
+        "disputeWon": "رُبح النزاع.",
+        "disputeLost": "خُسر النزاع: عاد المال إلى العميل."
       },
       "checkedBy": "راجعها {name}",
       "someone": "شخص ما",

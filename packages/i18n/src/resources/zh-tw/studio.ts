@@ -3755,7 +3755,8 @@ export default {
       "bank": "銀行轉帳的銀行資訊於 {when} 被變更，操作人：{by}。",
       "address": "您的付款網址於 {when} 由 {from} 變為 {to}，操作人：{by}。請在 Stripe 和 PayPal 更新 Webhook 網址。",
       "heading": "收款去向已變更",
-      "emailed": "所有管理付款的人都已收到電子郵件。"
+      "emailed": "所有管理付款的人都已收到電子郵件。",
+      "gotIt": "我知道了"
     },
     "stop": {
       "label": "停止新付款",
@@ -3937,6 +3938,7 @@ export default {
       "statusColumn": "狀態欄",
       "statusPaidValue": "全額付清時的值",
       "statusRefunded": "全額退款時，將狀態設為",
+      "statusNoValues": "請為此欄設定值清單（在資料表的結構中），才能將其用作狀態。",
       "leaveAsIs": "保持不變",
       "pageFields": "允許在付款頁面顯示的欄",
       "personal": "個人資料：永不顯示",
@@ -3948,6 +3950,7 @@ export default {
       "previewOf": "來自 {table} 的三列",
       "previewSummary": "{count, plural, other {# 個問題}}",
       "previewWaiting": "選擇金額以查看三列。",
+      "previewIncomplete": "完成上方的選擇即可查看三列。",
       "becomes": "付清後，{column} 變為 {value}",
       "back": "返回",
       "stepOf": "第 {step} 步，共 3 步",
@@ -4068,7 +4071,8 @@ export default {
         "waitingLong": "已等待銀行確認 {days} 天：{record} · {amount}。",
         "waitingLongWay": "已等待銀行確認 {days} 天：{record} · {amount}（{way}）。",
         "recordChanged": "一筆已記錄的付款有了變化：{record} · {amount} 的紀錄已與先前不同。",
-        "disputed": "有爭議：{record} · {amount}。請在 {service} 主控台中回覆。"
+        "disputed": "有爭議：{record} · {amount}。請在 {service} 主控台中回覆。",
+        "disputeLost": "爭議敗訴：{record} 的 {amount} 已退回客戶。已記為退款。"
       },
       "why": {
         "alreadyPaid": "該發票已全額付清。",
@@ -4079,6 +4083,7 @@ export default {
       },
       "story": {
         "refundThere": "已在 {service} 主控台中退款：{amount}",
+        "refundDispute": "爭議敗訴：{amount} 已退回客戶",
         "refundStarted": "已開始退款 {amount}",
         "refunded": "{service} 顯示：已退款",
         "refundFailed": "{service} 顯示：退款失敗",
@@ -4098,7 +4103,9 @@ export default {
         "notRecorded": "未記錄：需要查看",
         "disputed": "持卡人提出了爭議",
         "disputeAnswer": "請在 {service} 主控台中回覆",
-        "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。"
+        "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
+        "disputeWon": "爭議已勝訴。",
+        "disputeLost": "爭議敗訴：款項已退回客戶。"
       },
       "checkedBy": "由 {name} 核對",
       "someone": "某人",

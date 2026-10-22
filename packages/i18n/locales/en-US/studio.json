@@ -3745,7 +3745,8 @@
       "bank": "The bank details for bank transfers changed {when}, by {by}.",
       "address": "Your pay address changed from {from} to {to} {when}, by {by}. Update the webhook address at Stripe and PayPal.",
       "heading": "Where the money goes changed",
-      "emailed": "Everyone who manages payments was emailed."
+      "emailed": "Everyone who manages payments was emailed.",
+      "gotIt": "Got it"
     },
     "stop": {
       "label": "Stop new payments",
@@ -3927,6 +3928,7 @@
       "statusColumn": "Status column",
       "statusPaidValue": "Value when paid in full",
       "statusRefunded": "When it is refunded in full, set Status to",
+      "statusNoValues": "Give this column a list of values (in the table's schema) to use it as a status.",
       "leaveAsIs": "Leave it as it is",
       "pageFields": "Columns allowed on the pay page",
       "personal": "Personal: never shown",
@@ -3938,6 +3940,7 @@
       "previewOf": "Three rows from {table}",
       "previewSummary": "{count, plural, one {# problem} other {# problems}}",
       "previewWaiting": "Choose the amount to see three rows.",
+      "previewIncomplete": "Finish the choices above to see three rows.",
       "becomes": "when paid, {column} becomes {value}",
       "back": "Back",
       "stepOf": "Step {step} of 3",
@@ -4058,7 +4061,8 @@
         "waitingLong": "Waiting for the bank for {days} days: {record} · {amount}.",
         "waitingLongWay": "Waiting for the bank for {days} days: {record} · {amount} ({way}).",
         "recordChanged": "A recorded payment changed: {record} · {amount} is no longer written down as it was.",
-        "disputed": "Disputed: {record} · {amount}. Answer it in the {service} dashboard."
+        "disputed": "Disputed: {record} · {amount}. Answer it in the {service} dashboard.",
+        "disputeLost": "Dispute lost: {amount} went back to the customer on {record}. Recorded as a refund."
       },
       "why": {
         "alreadyPaid": "The invoice was already paid in full.",
@@ -4069,6 +4073,7 @@
       },
       "story": {
         "refundThere": "Refunded in the {service} dashboard: {amount}",
+        "refundDispute": "Dispute lost: {amount} went back to the customer",
         "refundStarted": "Refund of {amount} started",
         "refunded": "{service} says refunded",
         "refundFailed": "{service} says the refund failed",
@@ -4088,7 +4093,9 @@
         "notRecorded": "Not recorded: it needs a look",
         "disputed": "Dispute opened by the card holder",
         "disputeAnswer": "Answer it in the {service} dashboard",
-        "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard."
+        "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
+        "disputeWon": "The dispute was won.",
+        "disputeLost": "The dispute was lost: the money went back to the customer."
       },
       "checkedBy": "Checked by {name}",
       "someone": "someone",

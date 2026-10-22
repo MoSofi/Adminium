@@ -29,6 +29,7 @@ export default {
     "notice": {
       "draft": "Send the invoice first. A payment can only be recorded against a sent invoice.",
       "private": "Customers cannot reach this server, so pay links are off. You can still record payments.",
+      "noAddress": "This server has no public address yet, so pay links are off. Set it as “Address in email links” in Senders. You can still record payments.",
       "update": "This invoice table needs its app's update to take online payments.",
       "voided": "This invoice was voided. No payment can be taken.",
       "noCurrency": "This record has no currency, so no payment can be recorded.",
@@ -117,6 +118,7 @@ export default {
     },
     "look": {
       "title": "A payment needs a look",
+      "titleTest": "A test payment needs a look",
       "notRecorded": "Paid at {provider}, not recorded: {label}",
       "notYet": "Paid at {provider}, not recorded yet: {label}",
       "amount": "Paid at {provider}, not the amount asked: {label}",
@@ -153,10 +155,12 @@ export default {
     },
     "refundFailed": {
       "title": "Refund failed",
+      "titleTest": "Test refund failed",
       "body": "{amount} to {paidWith}"
     },
     "dispute": {
       "title": "Dispute opened",
+      "titleTest": "Test dispute opened",
       "body": "{label} · answer by {date}",
       "bodyNoDate": "{label} · answer it in the {provider} dashboard"
     }

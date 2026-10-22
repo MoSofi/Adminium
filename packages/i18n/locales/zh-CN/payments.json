@@ -19,6 +19,7 @@
     "notice": {
       "draft": "请先发送发票。只有已发送的发票才能记录付款。",
       "private": "客户无法访问此服务器，因此付款链接已关闭。您仍可以记录付款。",
+      "noAddress": "此服务器还没有公开地址，因此付款链接已关闭。请在“发件人”中将其设为“邮件链接中的地址”。您仍可以记录付款。",
       "update": "此发票表需要其应用的更新才能接受在线付款。",
       "voided": "此发票已作废，无法收款。",
       "noCurrency": "此记录没有币种，因此无法记录付款。",
@@ -107,6 +108,7 @@
     },
     "look": {
       "title": "有一笔付款需要查看",
+      "titleTest": "有一笔测试付款需要查看",
       "notRecorded": "已在 {provider} 付款，未记录：{label}",
       "notYet": "已在 {provider} 付款，尚未记录：{label}",
       "amount": "已在 {provider} 付款，但金额与要求不符：{label}",
@@ -143,10 +145,12 @@
     },
     "refundFailed": {
       "title": "退款失败",
+      "titleTest": "测试退款失败",
       "body": "{amount} 退至 {paidWith}"
     },
     "dispute": {
       "title": "已发起争议",
+      "titleTest": "已发起测试争议",
       "body": "{label} · 请在 {date} 前答复",
       "bodyNoDate": "{label} · 请在 {provider} 控制台中答复"
     }
