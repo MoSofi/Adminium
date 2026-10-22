@@ -108165,6 +108165,9 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "id": {
+                                "type": "string"
+                              },
                               "what": {
                                 "type": "string",
                                 "enum": [
@@ -108211,6 +108214,7 @@
                               }
                             },
                             "required": [
+                              "id",
                               "what",
                               "service",
                               "from",
@@ -108238,6 +108242,27 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/alarms/{id}/dismiss": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }
@@ -113349,7 +113374,8 @@
                               "type": "string",
                               "enum": [
                                 "staff",
-                                "provider"
+                                "provider",
+                                "dispute"
                               ]
                             },
                             "failureMessage": {
@@ -113539,6 +113565,9 @@
                                 ]
                               },
                               "at": {
+                                "type": "number"
+                              },
+                              "lookAt": {
                                 "type": "number"
                               },
                               "service": {
@@ -113761,7 +113790,8 @@
                                     "type": "string",
                                     "enum": [
                                       "staff",
-                                      "provider"
+                                      "provider",
+                                      "dispute"
                                     ]
                                   },
                                   {
@@ -113786,7 +113816,8 @@
                                           "paid-twice",
                                           "waiting-long",
                                           "record-changed",
-                                          "disputed"
+                                          "disputed",
+                                          "dispute-lost"
                                         ]
                                       },
                                       "reason": {
@@ -113941,12 +113972,27 @@
                                             "type": "null"
                                           }
                                         ]
+                                      },
+                                      "outcome": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "won",
+                                              "lost"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       }
                                     },
                                     "required": [
                                       "state",
                                       "at",
-                                      "closedAt"
+                                      "closedAt",
+                                      "outcome"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -113960,6 +114006,7 @@
                               "id",
                               "kind",
                               "at",
+                              "lookAt",
                               "service",
                               "mode",
                               "payable",
@@ -114887,7 +114934,8 @@
                                           "type": "string",
                                           "enum": [
                                             "staff",
-                                            "provider"
+                                            "provider",
+                                            "dispute"
                                           ]
                                         },
                                         "failureMessage": {
@@ -114952,12 +115000,27 @@
                                                 "type": "null"
                                               }
                                             ]
+                                          },
+                                          "outcome": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "won",
+                                                  "lost"
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
                                           }
                                         },
                                         "required": [
                                           "state",
                                           "at",
-                                          "closedAt"
+                                          "closedAt",
+                                          "outcome"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -116132,6 +116195,18 @@
                       "pageFields"
                     ],
                     "additionalProperties": false
+                  },
+                  "statusColumn": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -116279,12 +116354,26 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "statusValues": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
                         "issues",
                         "mayMark",
-                        "preview"
+                        "preview",
+                        "statusValues"
                       ],
                       "additionalProperties": false
                     }
