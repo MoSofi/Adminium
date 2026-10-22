@@ -381,7 +381,7 @@ change or delete is theirs from then on.
 | `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](#values-from-elsewhere). |
 | `sequence` | `{ "start"?, "gapless"?, "startSetting"?, "scope"? }` | The next number in a running series. Without `gapless`, the column's own counter; `start` is at least 1. With `"gapless": true`, a number with no gaps and none repeated. See [Numbers without gaps](#numbers-without-gaps). |
 | `format` | `{ "from", "prefix"?, "prefixSetting"?, "pad"? }` | A `text` column written from a running number of the same row, gapless or not: the prefix, then the digits padded with zeros (`INV-0042`). See [Numbers without gaps](#numbers-without-gaps). |
-| `code` | `{ "length", "prefix"?, "renew"?, "hiddenFromStaff"?, "givenByLedger"? }` | A short random code, unique in the column. `renew` makes a new one when the row changes hands; see [Codes that renew](#codes-that-renew). `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). A create that leaves it out or empty gets one, a sample row or an import too; a code they bring is kept, but a sample's code for a shared link's `column` is always made anew. A code is no secret by its rule alone: a name that reads like one (`share_token`) keeps it one, unless `secret: false` says otherwise or it is the column a shared link opens a row by, on a table the install made, which staff who read the table see. The public sees a code only where an entry's `select` names it, and a shared link's never. The audit log and the automation logs say `[code]` in its place, and the assistant never reads it. `hiddenFromStaff: true`: a code no desk hands out (an online order's own link) is left out of every staff read, for every role and Super Admin too: rows, exports, live updates and the history. The link still opens its row, and the app's emails still carry it to the row's holder. `givenByLedger: true`, on a table of an add-on: a row the add-on's own [ledger](#ledgers) adds may bring its code (an older gift card, under the code its holder has always had). It is kept when it is the prefix, then 4 to 16 capital letters and digits, fits the column and no other row has it, and refused otherwise; with none given Adminium makes one. No person's save gains anything by it, and a change never writes a code. |
+| `code` | `{ "length", "prefix"?, "renew"?, "hiddenFromStaff"?, "givenByLedger"? }` | A short random code, unique in the column. `renew` makes a new one when the row changes hands; see [Codes that renew](#codes-that-renew). `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). A create that leaves it out or empty gets one, a sample row or an import too; a code they bring is kept, but a sample's code for a shared link's `column` is always made anew. A code is no secret by its rule alone: a name that reads like one (`share_token`) keeps it one, unless `secret: false` says otherwise or it is the column a shared link opens a row by, on a table the install made, which staff who read the table see. The public sees a code only where an entry's `select` names it, and a shared link's never. The audit log and the automation logs say `[code]` in its place, and the assistant never reads it. `hiddenFromStaff: true`: a code no desk hands out (an online order's own link) is left out of every staff read, for every role and Super Admin too: rows, exports, live updates and the history. The link still opens its row, and the app's emails still carry it to the row's holder. A rule never carries it: a rule's step or e-mail template that names it (`{{record.x}}`, `{{x}}`, `{{was.x}}`, a linked row's `{{link.x}}`) is refused by the validator and when a rule is saved, the column named. `givenByLedger: true`, on a table of an add-on: a row the add-on's own [ledger](#ledgers) adds may bring its code (an older gift card, under the code its holder has always had). It is kept when it is the prefix, then 4 to 16 capital letters and digits, fits the column and no other row has it, and refused otherwise; with none given Adminium makes one. No person's save gains anything by it, and a change never writes a code. |
 | `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](#formulas). |
 | `normalize` | `"trim"`, `"email"` or `"code"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case, `code` compared as a code (upper case, spaces and dashes left out) when a person types one; see [Typed codes](#typed-codes). |
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
@@ -397,6 +397,7 @@ change or delete is theirs from then on.
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
 | `linkable` | `{ "where"?, "same"? }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered — and, with `same`, whose columns hold what this row holds (a visit's contact works for the company of the visit's deal). Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
 | `file` | `{ "accept", "maxBytes", "maxCount"? }` | Files a signed-in person uploads for the column: one in a `text` column, a list of up to `maxCount` (1–20) in a `json` column. It holds Adminium's own file ids, never a link. `accept` names the kinds the column takes, judged by the file's bytes; `maxBytes` (1 KiB–25 MiB) the size of each. A picture loses what a camera writes beside it as it is uploaded. A write may name only a file its writer uploaded and no record holds yet. See [Files in a column](#files-in-a-column). Needs Adminium 0.3.28. |
+| `changes` | `[{ "to"?, "from"?, "while"?, "by"?, "notBy"? }]` | When, and by whom, the column may change: to some values only from others, only while another column holds a value, only by the person a staff column of the row (or of a linked row) names, never by the people others name. Judged by the server on every way a row is written but history. See [Who may change a column](#who-may-change-a-column). Needs Adminium 0.3.33. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
@@ -570,6 +571,58 @@ so a deal with no company yet matches no contact; an empty link is still taken. 
 An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
 foreign key, or whose conditions name a column the linked table does not have. The screens are
 still the app's to filter: a picker that offers only active lines is kinder than a refusal.
+
+#### Who may change a column
+
+`changes` holds a column's changes to 1–8 guards. A quote's approval becomes approved or refused
+only from asked, and never by the person who asked for it nor by the deal's owner; an enquiry's
+deal is set only while the enquiry is claimed, and only by the person who claimed it:
+
+```json
+{ "ref": "approval", "type": "enum", "enum": ["none", "asked", "approved", "refused"],
+  "rules": { "changes": [
+    { "to": ["approved", "refused"], "from": ["asked"], "notBy": ["asked_by_id", "deal_id.owner_id"] } ] } }
+
+{ "ref": "deal_id", "type": "fk", "references": "deals", "nullable": true,
+  "rules": { "changes": [
+    { "while": { "column": "state", "in": ["claimed"] }, "by": "claimed_by_id" } ] } }
+```
+
+| Key | What it says |
+|---|---|
+| `to` | 1–32 values of the column: the guard holds a change to one of them. Without it, every change of the column (a new row's value is a change from nothing). |
+| `from` | 1–32 values the row holds before the change. A new row holds none, so it is never made with a value the guard holds. |
+| `while` | `{ "column", "in" }` or `{ "column", "isNull" }`: another column of the row holds one of the values (or is empty, or not), before the change and as the change leaves it. Never a secret. |
+| `by` | The only person who makes the change: the one a staff column of the row names (`claimed_by_id`), or `<link>.<staff column>`, the staff column of the row one of its foreign keys names (`deal_id.owner_id`), as the row stands before the change (a new row: as made). |
+| `notBy` | 1–4 people who never make the change, named as `by` names one, before the change and as it leaves the row: naming somebody else in the same write changes nothing. |
+
+A guard says at least one of `from`, `while`, `by` and `notBy`, and every guard that holds a change
+must be met. A value sent back as the row holds it is no change and is not judged.
+
+- **On every door.** The server judges it where it writes the row: a change on a page, a record's
+  button (a `set` or a move is saved as a change), a bulk edit, a file brought in, the public API,
+  a rule's step. History is not judged: an undo puts back what was, and an app's sample and seed
+  rows say what happened then. A Super Admin is held to it like anybody.
+- **Who is judged.** `by` and `notBy` judge the signed-in person who writes; an API key or a
+  visitor is somebody no column names (never the `by`, never a `notBy`). A write Adminium makes by
+  itself (a rule's step, a move when a moment passes) has nobody to judge: it is held to `from`
+  and `while` only. A person read through a link the database no longer has holds `by` for nobody
+  and `notBy` for everybody.
+- **The refusal.** `403` `COLUMN_FORBIDDEN`, with the column and the reason: `change-from`,
+  `change-while`, `change-by` or `change-not-by`; a file's line is refused by the same code, naming
+  the column. What an update was judged on in the stored row is asked again by its statement: a
+  row changed meanwhile is not written.
+- **On the record page.** A button whose change a guard leaves to others is not shown to the person
+  the row names in a `notBy` staff column of its own, and is shown only to the person a `by` names
+  there (`stateActions[].notBy`, `.by`); one read through a link is left to the save. That is
+  presentation only: the save refuses the change whatever a page shows.
+- The validator refuses a value the column cannot hold, a change from the very values it goes to,
+  a `while` on the column itself or on a column the table has not, a person who is not a staff
+  column (`rules.staff`) of the row or of the table a foreign key of it names, a person named
+  twice or both `by` and `notBy`, and a guard on a column Adminium decides (`copy`, `sequence`,
+  `code`, `rollup`, `stamp`, `formula`, `format`, `lookup`, `perNight`), which no writer changes.
+  Studio checks that each column and link is there. An app may add it to a column of a part of an
+  add-on's [shape](#tables-built-on-an-add-ons-shape).
 
 #### Files in a column
 
@@ -2740,6 +2793,25 @@ on the parent reads every row and each changes only their own:
 
 A rep reads every note of the deals they reach, and changes the ones `author_id` names them in.
 The column must be a staff column (`rules.staff`).
+
+`notBy`, on an update or a delete reach, takes out the rows a staff column names the person in: of
+the row itself, or `<link>.<staff column>` of the row one of its foreign keys names. A sales
+manager changes her team's targets and never her own, and any starter's goal but her own:
+
+```json
+"limits": {
+  "targets":       { "rows": { "read": { "reach": "team" }, "update": { "reach": "team", "notBy": "rep_id" } } },
+  "starter_goals": { "rows": { "update": { "reach": "all", "notBy": "starter_id.user_id" } } } }
+```
+
+It judges the person alone, never the people they lead, and `all` takes it in place of a `while`.
+It holds on every door the reach holds on (a change on a page, a bulk edit, a file brought in, a
+record's button): a row it leaves out is a row that is not there to them (`404`, and a file's line
+is not matched). It also judges the row as a write leaves it: a target made for herself, or a
+colleague's moved onto her, is refused (`403` `COLUMN_FORBIDDEN`, reason `not-by`, naming the
+column). A record page does not show her the buttons of a row whose own staff column names her,
+where every reach of hers says so. Never on a read, a private table, or a grant on an add-on's
+table. Needs Adminium 0.3.33 (`rows.notBy`).
 
 An action may name **several reaches**, as a list of one to four: any one of them is enough, and
 each is its own whole test (its `while`, `unowned` and `by` hold for it alone), as two roles'
