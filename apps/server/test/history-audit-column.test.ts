@@ -13,6 +13,8 @@ import { describe, expect, it } from 'vitest';
 import type { EffectiveModel } from '../src/connections/effective-schema.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 import { triggerEventFor } from '../src/automations/matcher.js';
+import { opsForRules, tableOpsFor } from '../src/apps/manifest-rules.js';
+import { applyOverrides } from '../src/connections/effective-schema.js';
 import { RealtimeHub, widgetDataChannel, type RealtimeEvent } from '../src/realtime/hub.js';
 import { publishWidgetDataStream } from '../src/widget-data/stream-publisher.js';
 
@@ -94,5 +96,18 @@ describe('column.history "audit" in a rule\'s {{was.<column>}}', () => {
 
   it('without the rule, the column as it was is kept as ever', () => {
     expect(triggerEventFor(event(false), 0, event(false).after, new Set(['text', 'state'])).before).toEqual({ text: 'Meet at the hotel bar', state: 'live' });
+  });
+});
+
+describe('the words, as an app\'s install stores them and the server reads them back', () => {
+  it('a table\'s removal rule and a column\'s history rule are each one rule, read back as written', () => {
+    expect(tableOpsFor({ removal: { reason: 'required', history: true } })).toEqual([{ op: 'table.removal', value: { reason: 'required', history: true } }]);
+    expect(opsForRules('firm', { history: 'audit' })).toEqual([{ op: 'column.history', value: { history: 'audit' } }]);
+    const stored = (op: string, value: Record<string, unknown>, columnName: string | null = null) => ({ id: op, connectionId: 'conn_1', op, tableName: 'public.messages', columnName, value, origin: 'app', llmRunId: null, status: 'active', createdBy: null, createdAt: 1, updatedAt: 1 });
+    const read = applyOverrides(model(false) as never, [stored('table.removal', { reason: true, history: true }), stored('column.history', { history: 'audit' }, 'text')] as never);
+    const table = read.tables.find((one) => one.id === 'public.messages')!;
+    expect(table.removal).toEqual({ reason: true, history: true });
+    expect(table.columns.find((column) => column.name === 'text')?.history).toBe('audit');
+    expect(table.columns.find((column) => column.name === 'state')?.history).toBeUndefined();
   });
 });
