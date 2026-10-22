@@ -71,6 +71,7 @@
               "column.area",
               "column.linkable",
               "column.file",
+              "column.changes",
               "table.belongs",
               "table.private",
               "relation.add",
