@@ -711,6 +711,7 @@ export default {
         "countDistinct": "Anzahl eindeutiger Werte",
         "count": "Anzahl der Zeilen",
         "max": "Maximum",
+        "median": "Median",
         "min": "Minimum",
         "sum": "Summe"
       },

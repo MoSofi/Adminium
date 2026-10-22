@@ -118,6 +118,7 @@ const MEASURE_LABEL: Record<MeasureFn, () => string> = {
   count_distinct: () => t('builder.binding.fn.countDistinct', 'Count of distinct values'),
   sum: () => t('builder.binding.fn.sum', 'Sum'),
   avg: () => t('builder.binding.fn.avg', 'Average'),
+  median: () => t('builder.binding.fn.median', 'Median'),
   min: () => t('builder.binding.fn.min', 'Minimum'),
   max: () => t('builder.binding.fn.max', 'Maximum'),
 };

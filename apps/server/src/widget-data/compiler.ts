@@ -306,6 +306,12 @@ export interface CompiledWidgetQuery {
   count: Qb | null;
   /** Set when quantiles are computed in process rather than in SQL. */
   percentileScan: PercentileScan | null;
+  /**
+   * The figures that are a day or a time (the earliest, the latest or the
+   * middle one of a date or a time column), by alias, and how each is written.
+   * Absent or empty when every figure is a number.
+   */
+  dateFigures?: Readonly<Record<string, DateFigureKind>>;
   /** Set when candles are folded in process rather than aggregated in SQL. */
   ohlcScan: OhlcScan | null;
   /** Effective LIMIT after the hard cap. */
@@ -755,23 +761,91 @@ function quantileAggregations(
 /** The types that keep a day or a time: nothing of them adds up, and their smallest is a day, not a figure. */
 const TEMPORAL_TYPES: ReadonlySet<string> = new Set(['date', 'time', 'timestamp', 'timestamptz']);
 
+/** The figures of a day or a time that are themselves a day or a time: the earliest, the latest, the middle one. */
+const DATE_FIGURE_FNS: ReadonlySet<string> = new Set(['min', 'max', 'median']);
+
+/** The shapes whose envelope can carry a figure that is a day or a time: one figure, and a ranking beside one. */
+const DATE_FIGURE_SHAPES: ReadonlySet<string> = new Set(['single-metric', 'metric+delta', 'categorical']);
+
+/** How a figure that is a day or a time is written: `YYYY-MM-DD`, an ISO 8601 instant, or a time of day. */
+export type DateFigureKind = 'date' | 'instant' | 'time';
+
+function dateFigureKind(column: ResolvedColumn): DateFigureKind {
+  return column.logicalType === 'date' ? 'date' : column.logicalType === 'time' ? 'time' : 'instant';
+}
+
 /**
- * A FIGURE IS A NUMBER. Every envelope carries an aggregation as one, and
- * every card reads it as one; the earliest of a date column is a date, and
- * was shaped into `0` (and a sum of dates into whatever the engine made of
- * their text). Refused instead, saying what answers the question: the row
- * itself, read as its reader reaches the rows. Counting dates stays a figure.
+ * A FIGURE OF A DAY IS A DAY. The earliest, the latest and the middle of a
+ * date or a time column answer a date (or an instant, or a time of day), in
+ * the shapes whose envelope can say one: a single figure, a figure and its
+ * prior window, and a ranking beside a number. Nothing else of them is a
+ * figure: a sum or an average of dates was shaped into `0` (or whatever the
+ * engine made of their text), and is refused, as is a date where a chart
+ * draws numbers. Counting dates stays a figure.
  */
-function refuseTemporal(aggregation: Aggregation, column: ResolvedColumn): void {
+function refuseTemporal(aggregation: Aggregation, column: ResolvedColumn, shape: string): void {
   if (!TEMPORAL_TYPES.has(column.logicalType)) return;
-  const what = aggregation.fn === 'min' ? 'earliest' : aggregation.fn === 'max' ? 'latest' : aggregation.fn;
+  const keeps = column.logicalType === 'date' ? 'a day' : 'a time';
+  if (DATE_FIGURE_FNS.has(aggregation.fn)) {
+    if (DATE_FIGURE_SHAPES.has(shape)) return;
+    reject(
+      `"${aggregation.fn}" of ${column.name} is ${keeps}, and a "${shape}" draws numbers. Ask for it as a "single-metric" or a "metric+delta", or beside a count in a "categorical".`,
+      { aggregation: aggregation.alias, column: column.name, type: column.logicalType, shape, reason: 'date-figure-shape' },
+    );
+  }
   reject(
-    `"${aggregation.fn}" of ${column.name} is no figure: ${column.name} keeps ${column.logicalType === 'date' ? 'a day' : 'a time'}, and a figure is a number. ` +
-      (aggregation.fn === 'min' || aggregation.fn === 'max'
-        ? `Ask for the ${what} row instead: a "record-list" ordered by ${column.name} with a limit of 1.`
-        : 'Count the rows, or add up a number column.'),
+    `"${aggregation.fn}" of ${column.name} is no figure: ${column.name} keeps ${keeps}, and a figure is a number. ` +
+      'Count the rows, add up a number column, or ask for the earliest, the latest or the middle one ("min", "max", "median").',
     { aggregation: aggregation.alias, column: column.name, type: column.logicalType, reason: 'not-a-number' },
   );
+}
+
+/**
+ * A median on an engine without an ordered-set aggregate (SQLite, MySQL 8):
+ * two window columns the source rows carry into the aggregate query, each row's
+ * place among its group's values (`rn`, from 1, in the value's order; empty
+ * values ranked apart) and how many values its group has (`n`, empties left
+ * out). The median is then an ordinary aggregate over the rows whose place is
+ * the middle, beside every other aggregate of the query.
+ */
+export interface MedianWindow {
+  column: string;
+  rn: string;
+  n: string;
+}
+
+interface CompiledAggregation {
+  alias: string;
+  expr: RawBuilder<unknown>;
+  /** Set when the figure is a day or a time: how it is written. */
+  date: DateFigureKind | null;
+  /** Set for a median read through window columns. */
+  window: MedianWindow | null;
+}
+
+/**
+ * The middle value, per dialect. Postgres has the ordered-set aggregates:
+ * `percentile_cont(0.5)` is the mean of the two middle numbers of an even
+ * count, and `percentile_disc(0.5)` the earlier of the two middle days, a
+ * value of the column itself. Elsewhere the rows carry their place in their
+ * group ({@link MedianWindow}): `2·rn` between `n` and `n + 2` is the one
+ * middle row of an odd count and the two of an even one, averaged; between
+ * `n` and `n + 1`, the earlier of the two. No division, so the test reads the
+ * same on every engine (MySQL's `/` is never whole).
+ */
+function medianExpr(ref: Ref, temporal: boolean, dialect: Dialect, index: number, column: string): { expr: RawBuilder<unknown>; window: MedianWindow | null } {
+  if (hasNativePercentile(dialect)) {
+    return { expr: temporal ? sql`percentile_disc(0.5) within group (order by ${ref})` : percentileExpr(ref, 0.5), window: null };
+  }
+  const window: MedianWindow = { column, rn: `__m${String(index)}_rn`, n: `__m${String(index)}_n` };
+  const rn = sql.ref(window.rn);
+  const n = sql.ref(window.n);
+  return {
+    expr: temporal
+      ? sql`min(case when 2 * ${rn} between ${n} and ${n} + 1 then ${ref} end)`
+      : sql`avg(case when 2 * ${rn} between ${n} and ${n} + 2 then ${ref} end)`,
+    window,
+  };
 }
 
 /** Validate + resolve one aggregation; returns its select expression factory. */
@@ -781,10 +855,14 @@ function compileAggregation(
   table: ResolvedTable,
   canReadPii: boolean,
   aggregation: Aggregation,
-): { alias: string; expr: RawBuilder<unknown> } {
+  shape: string,
+  dialect: Dialect,
+  index: number,
+): CompiledAggregation {
   if (!ALIAS_PATTERN.test(aggregation.alias) || aggregation.alias.startsWith('__')) {
     reject('Aggregation aliases must be simple identifiers.', { alias: aggregation.alias });
   }
+  const plain = (expr: RawBuilder<unknown>, date: DateFigureKind | null = null): CompiledAggregation => ({ alias: aggregation.alias, expr, date, window: null });
   if (aggregation.fn === 'percentile') {
     if (aggregation.column === undefined) {
       reject('Aggregation "percentile" requires a column.', { alias: aggregation.alias });
@@ -793,32 +871,37 @@ function compileAggregation(
       reject('Aggregation "percentile" requires `p` (0–1).', { alias: aggregation.alias });
     }
     const column = view.readableColumn(table, aggregation.column, canReadPii);
-    refuseTemporal(aggregation, column);
-    return { alias: aggregation.alias, expr: percentileExpr(db.dynamic.ref(column.name), aggregation.p) };
+    refuseTemporal(aggregation, column, shape);
+    return plain(percentileExpr(db.dynamic.ref(column.name), aggregation.p));
   }
   if (aggregation.column === undefined) {
     if (aggregation.fn !== 'count') {
       reject(`Aggregation "${aggregation.fn}" requires a column.`, { alias: aggregation.alias });
     }
-    return { alias: aggregation.alias, expr: sql`count(*)` };
+    return plain(sql`count(*)`);
   }
   // 403 COLUMN_FORBIDDEN when masked and the caller lacks the unmask grant.
   const column = view.readableColumn(table, aggregation.column, canReadPii);
   const ref = db.dynamic.ref(column.name);
-  if (aggregation.fn !== 'count' && aggregation.fn !== 'count_distinct') refuseTemporal(aggregation, column);
+  if (aggregation.fn !== 'count' && aggregation.fn !== 'count_distinct') refuseTemporal(aggregation, column, shape);
+  const date = TEMPORAL_TYPES.has(column.logicalType) ? dateFigureKind(column) : null;
   switch (aggregation.fn) {
     case 'count':
-      return { alias: aggregation.alias, expr: sql`count(${ref})` };
+      return plain(sql`count(${ref})`);
     case 'count_distinct':
-      return { alias: aggregation.alias, expr: sql`count(distinct ${ref})` };
+      return plain(sql`count(distinct ${ref})`);
     case 'sum':
-      return { alias: aggregation.alias, expr: sql`sum(${ref})` };
+      return plain(sql`sum(${ref})`);
     case 'avg':
-      return { alias: aggregation.alias, expr: sql`avg(${ref})` };
+      return plain(sql`avg(${ref})`);
     case 'min':
-      return { alias: aggregation.alias, expr: sql`min(${ref})` };
+      return plain(sql`min(${ref})`, date);
     case 'max':
-      return { alias: aggregation.alias, expr: sql`max(${ref})` };
+      return plain(sql`max(${ref})`, date);
+    case 'median': {
+      const median = medianExpr(ref, date !== null, dialect, index, column.name);
+      return { alias: aggregation.alias, expr: median.expr, date, window: median.window };
+    }
   }
 }
 
@@ -1214,6 +1297,8 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     } else {
       const resolved = quantileAggregations(aggregations, dialect);
       scanColumn = view.readableColumn(table, resolved.column, canReadPii);
+      // A percentile of a day is no figure here either: the scan would have read its text as 0.
+      for (const aggregation of aggregations) refuseTemporal(aggregation, scanColumn, shape);
       quantiles = resolved.quantiles;
     }
   }
@@ -1228,13 +1313,22 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const seenAliases = new Set<string>();
   const compiledAggs = scan
     ? []
-    : aggregations.map((aggregation) => {
+    : aggregations.map((aggregation, index) => {
         if (seenAliases.has(aggregation.alias)) {
           reject('Duplicate aggregation alias.', { alias: aggregation.alias });
         }
         seenAliases.add(aggregation.alias);
-        return compileAggregation(db, view, table, canReadPii, aggregation);
+        return compileAggregation(db, view, table, canReadPii, aggregation, shape, dialect, index);
       });
+  // A ranking is of a number: its bars, its total and its share are of the first figure. A day goes beside one.
+  if (shape === 'categorical' && compiledAggs[0]?.date != null) {
+    reject(`A "categorical" ranks by its first figure, and "${compiledAggs[0].alias}" is a day or a time: put a count or a sum first, and the day beside it.`, {
+      aggregation: compiledAggs[0].alias,
+      reason: 'date-figure-first',
+    });
+  }
+  // Medians read through window columns (SQLite, MySQL): the rows carry them into the aggregate query.
+  const medianWindows = compiledAggs.flatMap((aggregation) => (aggregation.window === null ? [] : [aggregation.window]));
 
   let selectedColumns: ResolvedColumn[] = [];
   const requestedLimit =
@@ -1285,8 +1379,61 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       });
   let bucketZone: string | null = null;
   const hourOfDay = descriptor.bucket?.unit === 'hour-of-day';
+  const bucketed = descriptor.bucket !== undefined && (shape === 'timeseries' || shape === 'multi-timeseries' || ohlcColumn !== null);
+  /** The time bucket of a row, on the venue's clock where it has one: the same expression wherever it is asked for. */
+  const bucketOf = (window: { start: Date; end: Date | null } | null): { expr: RawBuilder<unknown>; column: ResolvedColumn } | null => {
+    if (!bucketed || descriptor.bucket === undefined) return null;
+    const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
+    if (hourOfDay && (bucketColumn.logicalType === 'date' || ohlcColumn !== null)) {
+      reject(
+        ohlcColumn !== null
+          ? 'Candles follow time, so an "ohlc" cannot fold into the hours of the day.'
+          : `"${bucketColumn.name}" keeps days, not times: it has no hour of the day to fold into.`,
+        { bucket: descriptor.bucket },
+      );
+    }
+    // A week asked for by the day control is drawn in days, not 168 hours.
+    const unit = descriptor.bucket.unit === 'hour' && span?.unit === 'week' && followed !== undefined ? 'day' : descriptor.bucket.unit;
+    // The venue's hours and days, where the venue is not on UTC.
+    // …and its weeks, months, quarters and years: cut on its clock too, and said as a day of the calendar.
+    const venueZone = opts.timezone !== undefined && opts.timezone !== 'UTC' && bucketColumn.logicalType !== 'date' ? opts.timezone : null;
+    bucketZone = venueZone !== null && (unit === 'hour' || unit === 'day') ? venueZone : null;
+    /*
+     * The hours of the day are always the venue's (UTC where it names no
+     * zone): each row's own hour on that clock, whatever day it fell on.
+     */
+    const bucket = hourOfDay
+      ? venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, 'hour-of-day', zone, bucketRange(window, now()))
+      : venueZone === null
+        ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit as PeriodUnit, bucketColumn)
+        : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as PeriodUnit, venueZone, bucketRange(window, now()));
+    return { expr: bucket, column: bucketColumn };
+  };
+  /*
+   * The FROM of an aggregate query: the source table, or, where a median is
+   * read through window columns, the source's rows (filtered, windowed and
+   * limited to what the reader reaches, exactly as the query would) carrying
+   * each median's place in its group and its group's count, under the table's
+   * own name, so everything compiled against the table reads them unchanged.
+   */
+  const fromOf = (window: { start: Date; end: Date | null } | null): Qb => {
+    if (medianWindows.length === 0 || rowShape || scan || ohlcColumn !== null) return applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
+    const keys: RawBuilder<unknown>[] = [];
+    const bucket = bucketOf(window);
+    if (bucket !== null) keys.push(bucket.expr);
+    for (const name of groupColumns) keys.push(sql`${dynamic.ref(view.readableColumn(table, name, canReadPii).name)}`);
+    let inner = (db.selectFrom(table.id) as unknown as Qb).selectAll() as Qb;
+    for (const median of medianWindows) {
+      const ref = dynamic.ref(median.column);
+      const group = keys.length === 0 ? sql`` : sql`partition by ${sql.join(keys)}`;
+      // Empty values are ranked apart, so a value's place counts values only, whichever end an engine puts empties.
+      const place = sql`partition by ${sql.join([...keys, sql`(${ref} is null)`])}`;
+      inner = inner.select([sql`row_number() over (${place} order by ${ref})`.as(median.rn), sql`count(${ref}) over (${group})`.as(median.n)]);
+    }
+    return db.selectFrom(applyWhere(inner, window).as(table.name) as never) as unknown as Qb;
+  };
   const build = (window: { start: Date; end: Date | null } | null): Qb => {
-    let qb = applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
+    let qb = fromOf(window);
 
     if (rowShape) {
       selectedColumns =
@@ -1321,34 +1468,9 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       qb = qb.select(compiledAggs.map(({ expr, alias }) => expr.as(alias)));
     }
 
-    if (
-      descriptor.bucket !== undefined &&
-      (shape === 'timeseries' || shape === 'multi-timeseries' || ohlcColumn !== null)
-    ) {
-      const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
-      if (hourOfDay && (bucketColumn.logicalType === 'date' || ohlcColumn !== null)) {
-        reject(
-          ohlcColumn !== null
-            ? 'Candles follow time, so an "ohlc" cannot fold into the hours of the day.'
-            : `"${bucketColumn.name}" keeps days, not times: it has no hour of the day to fold into.`,
-          { bucket: descriptor.bucket },
-        );
-      }
-      // A week asked for by the day control is drawn in days, not 168 hours.
-      const unit = descriptor.bucket.unit === 'hour' && span?.unit === 'week' && followed !== undefined ? 'day' : descriptor.bucket.unit;
-      // The venue's hours and days, where the venue is not on UTC.
-      // …and its weeks, months, quarters and years: cut on its clock too, and said as a day of the calendar.
-      const venueZone = opts.timezone !== undefined && opts.timezone !== 'UTC' && bucketColumn.logicalType !== 'date' ? opts.timezone : null;
-      bucketZone = venueZone !== null && (unit === 'hour' || unit === 'day') ? venueZone : null;
-      /*
-       * The hours of the day are always the venue's (UTC where it names no
-       * zone): each row's own hour on that clock, whatever day it fell on.
-       */
-      const bucket = hourOfDay
-        ? venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, 'hour-of-day', zone, bucketRange(window, now()))
-        : venueZone === null
-          ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit as PeriodUnit, bucketColumn)
-          : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as PeriodUnit, venueZone, bucketRange(window, now()));
+    const bucketedAs = bucketOf(window);
+    if (bucketedAs !== null) {
+      const { expr: bucket, column: bucketColumn } = bucketedAs;
       qb = qb.select(bucket.as(BUCKET_ALIAS));
       if (ohlcColumn !== null) {
         // Candles are folded in process, so the ONE thing SQL must guarantee is
@@ -1470,6 +1592,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
           order: shape === 'categorical' ? 'value-desc' : 'key-asc',
         }
       : null,
+    dateFigures: Object.fromEntries(compiledAggs.flatMap((aggregation) => (aggregation.date === null ? [] : [[aggregation.alias, aggregation.date]]))),
     selectedColumns,
     lookups,
     limit,

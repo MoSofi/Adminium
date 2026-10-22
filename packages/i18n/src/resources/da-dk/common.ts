@@ -711,6 +711,7 @@ export default {
         "countDistinct": "Antal forskellige værdier",
         "count": "Antal rækker",
         "max": "Maksimum",
+        "median": "Median",
         "min": "Minimum",
         "sum": "Sum"
       },

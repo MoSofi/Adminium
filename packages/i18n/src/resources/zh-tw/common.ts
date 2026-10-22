@@ -711,6 +711,7 @@ export default {
         "countDistinct": "相異值計數",
         "count": "資料列筆數",
         "max": "最大值",
+        "median": "中位數",
         "min": "最小值",
         "sum": "總和"
       },

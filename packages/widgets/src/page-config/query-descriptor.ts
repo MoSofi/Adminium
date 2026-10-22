@@ -10,8 +10,15 @@ import { dataShapeSchema } from './data-shapes.js';
  * arbitrary SQL; the server compiles descriptors against the active schema
  * snapshot with dynamic Kysely, binding every value as a parameter.
  */
+/**
+ * One figure of a descriptor. `median` is the middle value: of an even count of
+ * numbers, the mean of the two middle ones; of a date or a time, the earlier of
+ * the two (a day stays a day, never a half-day between two). `min`, `max` and
+ * `median` of a date or a time answer a date (`YYYY-MM-DD`), an instant (ISO
+ * 8601) or a time of day; `sum`, `avg` and `percentile` of one are refused.
+ */
 export const aggregationSchema = z.object({
-  fn: z.enum(['count', 'sum', 'avg', 'min', 'max', 'count_distinct', 'percentile']),
+  fn: z.enum(['count', 'sum', 'avg', 'min', 'max', 'median', 'count_distinct', 'percentile']),
   column: z.string().optional(), // absent ⇔ count(*)
   p: z.number().min(0).max(1).optional(), // percentile only
   alias: z.string(),

@@ -711,6 +711,7 @@ export default {
         "countDistinct": "去重值计数",
         "count": "行数计数",
         "max": "最大值",
+        "median": "中位数",
         "min": "最小值",
         "sum": "求和"
       },
