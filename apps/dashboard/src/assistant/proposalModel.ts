@@ -213,7 +213,14 @@ export function rowOf(action: AssistantProposalAction, index: number, name: stri
   if (preview.kind === 'delete') {
     // The first few things the row holds, so the person can tell which row it is.
     const told = Object.values(preview.row).filter((value) => typeof value === 'string' && value !== '' && value !== action.id);
-    return { ...row, sub: told.slice(0, 2).map(cellText).join(' · ') };
+    const sub = told.slice(0, 2).map(cellText).join(' · ');
+    // Where the table asks why a row goes, the card says what will be kept with the removal: the reason, or that none is given.
+    if (preview.reason === undefined) return { ...row, sub };
+    const why =
+      preview.reason === null || preview.reason === ''
+        ? t('assistant:proposal.delete.noReason', 'No reason given')
+        : t('assistant:proposal.delete.reason', 'Why: {reason}', { reason: cellText(preview.reason) });
+    return { ...row, sub: sub === '' ? why : `${sub} · ${why}` };
   }
   if (preview.kind === 'doc.change' && preview.switchesOff) {
     return { ...row, sub: t('assistant:proposal.row.switchesOff', 'Saved switched off: switch it on again when you have looked at it.') };

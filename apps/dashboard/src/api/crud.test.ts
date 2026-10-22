@@ -40,6 +40,14 @@ describe('a bulk change of rows that post', () => {
     await expect(bulk('delete', ['a'])).rejects.toMatchObject({ code: 'POSTING_REFUSED' });
     expect(fetchMock.mock.calls).toHaveLength(1);
   });
+
+  it("sends a bulk removal's reason in the body, once for the batch, and never a change's", async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { results: [{ id: 'a', ok: true }], undoToken: 'u' }));
+    await bulk('delete', ['a', 'b'], undefined, { reason: 'Duplicates' });
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toEqual({ action: 'delete', ids: ['a', 'b'], reason: 'Duplicates' });
+    await bulk('update', ['a'], { status: 'x' }, { reason: 'ignored' });
+    expect(JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body))).toEqual({ action: 'update', ids: ['a'], values: { status: 'x' } });
+  });
 });
 
 describe('a save a ledger refused', () => {

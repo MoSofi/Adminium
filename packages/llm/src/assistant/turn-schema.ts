@@ -228,7 +228,18 @@ const ACTION_SCHEMAS = {
     id: actionRecordId,
     values: actionValues.describe('Only the columns that change, with their new values.'),
   }),
-  'row.delete': z.object({ do: z.literal('row.delete'), connectionId: actionConnection, table: actionTable, id: actionRecordId }),
+  'row.delete': z.object({
+    do: z.literal('row.delete'),
+    connectionId: actionConnection,
+    table: actionTable,
+    id: actionRecordId,
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .optional()
+      .describe('Why the row is removed, in the person\'s words: required where the table asks why a row is removed, refused where it asks nothing.'),
+  }),
   'doc.save': z.object({ do: z.literal('doc.save') }).describe('Save the draft in "result" of this same reply as a new document.'),
   'doc.change': z
     .object({ do: z.literal('doc.change') })

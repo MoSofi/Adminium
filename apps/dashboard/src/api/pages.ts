@@ -43,7 +43,12 @@ export interface FormRelationFactReply {
 
 interface ColumnFactsReply {
   /** `labelPlural` is absent from a server older than it. */
-  table: { labelSingular: string | null; labelPlural?: string | null | undefined };
+  table: {
+    labelSingular: string | null;
+    labelPlural?: string | null | undefined;
+    /** Whether a removal asks why (`table.removal.reason`); absent from a server older than it, and for a table that does not ask. */
+    removalReason?: 'optional' | 'required' | undefined;
+  };
   columns: FormColumnFactReply[];
   relations?: FormRelationFactReply[];
   children?: FormChildFactReply[];
@@ -236,6 +241,8 @@ export type PageDocumentResult =
       tableLabelSingular: string | null;
       /** What a person calls the table as a whole ("Categories"), where it has a name. */
       tableLabelPlural: string | null;
+      /** Whether a removal of one of its rows asks why: the delete dialogs ask too. */
+      removalReason: 'optional' | 'required' | null;
     }
   | { status: 'too-new'; v: number; latest: number }
   | { status: 'invalid'; issues: string[] };
@@ -315,6 +322,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     formChildren: [],
     tableLabelSingular: null,
     tableLabelPlural: null,
+    removalReason: null,
   };
 }
 
@@ -363,6 +371,7 @@ export function pageQuery(pageId: string) {
             formChildren: reply.columnFacts?.children ?? [],
             tableLabelSingular: reply.columnFacts?.table.labelSingular ?? null,
             tableLabelPlural: reply.columnFacts?.table.labelPlural ?? null,
+            removalReason: reply.columnFacts?.table.removalReason ?? null,
           }
         : result;
     },

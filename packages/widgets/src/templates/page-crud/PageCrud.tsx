@@ -42,7 +42,7 @@ import type { ControlOption } from './controls/index.js';
 import { optionsForColumn, withFactChoices } from './field-mapping.js';
 import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import { fieldMessagesOf } from './field-issues.js';
-import { isDeletePreview, PageSettingsChangedError } from './crud-api.js';
+import { DELETE_REASON_MAX, isDeletePreview, PageSettingsChangedError } from './crud-api.js';
 import { isPictureBlock } from '../../page-config/picture-kinds.js';
 import type {
   CrudApi,
@@ -154,6 +154,12 @@ export interface PageCrudProps {
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
+  /**
+   * A removal of one of the table's rows asks WHY (`table.removal.reason`):
+   * the delete dialogs (one row, and the bulk one) ask too, `required` holding
+   * the button until something is written. Absent: they ask nothing.
+   */
+  removalReason?: 'optional' | 'required' | undefined;
   /** Caller may reveal PII cells (server sends them unmasked). */
   canUnmask?: boolean | undefined;
   /**
@@ -326,6 +332,7 @@ export function PageCrud({
   canCreate = true,
   canUpdate = true,
   canDelete = true,
+  removalReason,
   canUnmask = false,
   columnFacts,
   listOptions,
@@ -589,6 +596,22 @@ export function PageCrud({
   // --- delete ----------------------------------------------------------------
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState<readonly string[] | null>(null);
+  // Why the row (or the rows) go, for a table that asks: written in the dialog, sent with the delete, emptied with each new one.
+  const [deleteReason, setDeleteReason] = useState('');
+  const reasonSent = (): { reason?: string } => (removalReason === undefined || deleteReason.trim() === '' ? {} : { reason: deleteReason.trim() });
+  const reasonBox =
+    removalReason === undefined
+      ? undefined
+      : {
+          label:
+            removalReason === 'required'
+              ? t('ui:templates.crud.deleteReason', 'Why is it removed?')
+              : t('ui:templates.crud.deleteReasonOptional', 'Why is it removed? (optional)'),
+          required: removalReason === 'required',
+          value: deleteReason,
+          onChange: setDeleteReason,
+          maxLength: DELETE_REASON_MAX,
+        };
 
   // --- export ----------------------------------------------------------------
   const [exporting, setExporting] = useState(false);
@@ -950,6 +973,7 @@ export function PageCrud({
   };
 
   const openDeleteFor = (record: CrudRow) => {
+    setDeleteReason('');
     setDeleteTarget({ record, references: [], loaded: false });
     const recordId = rowIdOf(columns, record);
     // References preflight — consequences render in the confirm modal.
@@ -973,7 +997,7 @@ export function PageCrud({
     if (deleteTarget === null) return;
     const recordId = rowIdOf(columns, deleteTarget.record);
     try {
-      const result = await api.remove(recordId, { confirm: true });
+      const result = await api.remove(recordId, { confirm: true, ...reasonSent() });
       setDeleteTarget(null);
       if (peekId === recordId) setPeekId(null);
       // A deleted row cannot stay SELECTED. The bulk bar would go on counting
@@ -1011,10 +1035,10 @@ export function PageCrud({
           n: String(count),
         });
       if (api.bulk !== undefined) {
-        const result = await api.bulk('delete', [...bulkDeleteIds]);
+        const result = await api.bulk('delete', [...bulkDeleteIds], undefined, reasonSent());
         pushUndoToast(bulkDeletedTitle(result.results.filter((r) => r.ok).length), result.undoToken);
       } else {
-        for (const id of bulkDeleteIds) await api.remove(id, { confirm: true });
+        for (const id of bulkDeleteIds) await api.remove(id, { confirm: true, ...reasonSent() });
         pushUndoToast(bulkDeletedTitle(bulkDeleteIds.length), null);
       }
       setBulkDeleteIds(null);
@@ -1259,7 +1283,10 @@ export function PageCrud({
                   : []),
               ]}
               onAction={(key, ids) => {
-                if (key === 'delete') setBulkDeleteIds(ids);
+                if (key === 'delete') {
+                  setDeleteReason('');
+                  setBulkDeleteIds(ids);
+                }
                 if (key === 'export') void runExport(BULK_EXPORT_FORMAT, ids);
                 if (key.startsWith(HOST_BULK_PREFIX)) {
                   bulkActions?.find((action) => `${HOST_BULK_PREFIX}${action.key}` === key)?.run(ids);
@@ -1588,6 +1615,7 @@ export function PageCrud({
         }
         confirmWord={deleteTarget === null ? '' : displayValueOf(columns, deleteTarget.record)}
         promptLabel={deleteTarget === null ? '' : confirmPromptFor(displayValueOf(columns, deleteTarget.record))}
+        {...(reasonBox === undefined ? {} : { reason: reasonBox })}
         confirmLabel={t('ui:action.delete', 'Delete')}
         cancelLabel={t('ui:action.cancel', 'Cancel')}
         closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
@@ -1605,6 +1633,7 @@ export function PageCrud({
         body={t('ui:templates.crud.bulkDeleteBody', 'Referential consequences apply to every selected row.')}
         confirmWord={String(bulkDeleteIds?.length ?? 0)}
         promptLabel={confirmPromptFor(String(bulkDeleteIds?.length ?? 0))}
+        {...(reasonBox === undefined ? {} : { reason: reasonBox })}
         confirmLabel={t('ui:templates.crud.bulkDeleteConfirm', 'Delete rows')}
         cancelLabel={t('ui:action.cancel', 'Cancel')}
         closeLabel={labels?.close ?? t('ui:action.close', 'Close')}

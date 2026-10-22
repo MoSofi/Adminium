@@ -269,6 +269,68 @@ describe('PageCrud template', () => {
     });
   });
 
+  it("a table that must be told why a row goes: both delete dialogs ask, hold the button until it is said, and send it", async () => {
+    const user = userEvent.setup();
+    const api: CrudApi = { ...makeApi(rows), bulk: vi.fn(async () => ({ results: [{ id: 1, ok: true }, { id: 2, ok: true }], undoToken: 'undo_bulk' })) };
+    renderPage(api, { removalReason: 'required' });
+    await screen.findByText('Initech');
+    const firstRow = screen.getAllByRole('row')[1] as HTMLElement;
+    await user.click(within(firstRow).getByRole('button', { name: 'Peek' }));
+    const detailDialog = await screen.findByRole('dialog');
+    await within(detailDialog).findByText('Fields');
+    await user.click(within(detailDialog).getByRole('button', { name: 'Delete' }));
+    const confirmInput = (await waitFor(() => document.querySelector('[data-part="confirm-input"]'))) as HTMLInputElement;
+    const confirmDialog = confirmInput.closest('[role="dialog"]') as HTMLElement;
+    const confirmButton = within(confirmDialog).getByRole('button', { name: 'Delete' }) as HTMLButtonElement;
+    await user.type(confirmInput, 'Initech');
+    expect(confirmButton.disabled).toBe(true);
+    await user.type(within(confirmDialog).getByLabelText('Why is it removed?'), '  Duplicate of Stark  ');
+    expect(confirmButton.disabled).toBe(false);
+    await user.click(confirmButton);
+    await waitFor(() => expect(api.remove).toHaveBeenCalledWith('1', { confirm: true, reason: 'Duplicate of Stark' }));
+
+    // The bulk dialog asks too, empty again, and sends one reason for the batch.
+    for (const bodyRow of screen.getAllByRole('row').slice(1)) await user.click(within(bodyRow).getByRole('checkbox', { name: 'Select row' }));
+    await user.click(within(screen.getByRole('toolbar', { name: 'Bulk actions' })).getByText('Delete'));
+    const bulkInput = (await waitFor(() => document.querySelector('[data-part="confirm-input"]'))) as HTMLInputElement;
+    const bulkDialog = bulkInput.closest('[role="dialog"]') as HTMLElement;
+    const why = within(bulkDialog).getByLabelText('Why is it removed?') as HTMLTextAreaElement;
+    expect(why.value).toBe('');
+    await user.type(bulkInput, '2');
+    const bulkButton = within(bulkDialog).getByRole('button', { name: 'Delete rows' }) as HTMLButtonElement;
+    expect(bulkButton.disabled).toBe(true);
+    await user.type(why, 'Test rows');
+    await user.click(bulkButton);
+    await waitFor(() => expect(api.bulk).toHaveBeenCalledWith('delete', ['1', '2'], undefined, { reason: 'Test rows' }));
+  });
+
+  it('a table that may be told why: the box may stay empty, and then nothing is sent; a table that asks nothing has no box', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    const { unmount } = renderPage(api, { removalReason: 'optional' });
+    await screen.findByText('Initech');
+    await user.click(within(screen.getAllByRole('row')[1] as HTMLElement).getByRole('button', { name: 'Peek' }));
+    const detailDialog = await screen.findByRole('dialog');
+    await within(detailDialog).findByText('Fields');
+    await user.click(within(detailDialog).getByRole('button', { name: 'Delete' }));
+    const confirmInput = (await waitFor(() => document.querySelector('[data-part="confirm-input"]'))) as HTMLInputElement;
+    const confirmDialog = confirmInput.closest('[role="dialog"]') as HTMLElement;
+    expect(within(confirmDialog).getByLabelText('Why is it removed? (optional)')).toBeDefined();
+    await user.type(confirmInput, 'Initech');
+    await user.click(within(confirmDialog).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledWith('1', { confirm: true }));
+    unmount();
+
+    renderPage(makeApi(rows));
+    await screen.findByText('Initech');
+    await user.click(within(screen.getAllByRole('row')[1] as HTMLElement).getByRole('button', { name: 'Peek' }));
+    const plain = await screen.findByRole('dialog');
+    await within(plain).findByText('Fields');
+    await user.click(within(plain).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(document.querySelector('[data-part="confirm-input"]')).not.toBeNull());
+    expect(document.querySelector('[data-part="confirm-reason"]')).toBeNull();
+  });
+
   it('selection morphs only the toolbar end slot into bulk actions', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);

@@ -108,6 +108,7 @@ export function PageRecordBinding({
   formRelations,
   currency,
   tableLabelPlural,
+  removalReason,
 }: PageTemplateProps) {
   const crud = adapters.crud;
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
@@ -779,6 +780,7 @@ export function PageRecordBinding({
         // table grants. Undefined keeps the widget's permissive default.
         canUpdate={canUpdate}
         canDelete={noDelete ? false : canDelete}
+        {...(removalReason === undefined ? {} : { removalReason })}
         // PII fields reveal only for callers the server sent clear values to.
         canUnmask={canUnmask}
         // The link relations the table can write through: chips on the record,

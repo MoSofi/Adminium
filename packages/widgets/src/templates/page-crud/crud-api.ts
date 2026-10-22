@@ -200,6 +200,9 @@ export interface CrudLookupFields {
   detail?: readonly string[] | undefined;
 }
 
+/** The most characters a removal's reason takes: the manifest's own limit (`REMOVAL_REASON_MAX`), which the server holds a reason to. */
+export const DELETE_REASON_MAX = 500;
+
 export interface CrudApi {
   list(params: CrudListParams): Promise<CrudListResult>;
   /** `recordId`: single PK value, or JSON tuple/object for composite PKs. */
@@ -289,8 +292,11 @@ export interface CrudApi {
    * Optional: without it the field still takes coordinates and a map link.
    */
   places?(query: string): Promise<PlaceSuggestion[]>;
-  /** Bulk update/delete — one transaction, one undo token (optional). */
-  bulk?(action: 'update' | 'delete', ids: readonly unknown[], values?: CrudRow): Promise<CrudBulkResult>;
+  /**
+   * Bulk update/delete — one transaction, one undo token (optional).
+   * `options.reason`: why the rows go, for a table that asks (`table.removal.reason`): one reason for the batch.
+   */
+  bulk?(action: 'update' | 'delete', ids: readonly unknown[], values?: CrudRow, options?: { reason?: string | undefined }): Promise<CrudBulkResult>;
   /**
    * FK combobox feed: search the referenced table's display column
    * (debounced 200ms server-side search). Optional — FK fields degrade

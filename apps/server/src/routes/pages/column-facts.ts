@@ -126,7 +126,7 @@ export interface ChildFact {
 }
 
 export interface ColumnFactsBlock {
-  table: { labelSingular: string | null; labelPlural: string | null };
+  table: { labelSingular: string | null; labelPlural: string | null; removalReason?: 'optional' | 'required' };
   columns: ColumnFact[];
   /**
    * The link relations this table can write through.
@@ -264,7 +264,12 @@ function blockFor(
           columns: columnsOf(view, child.child),
         }));
   return {
-    table: { labelSingular: table.table.label ?? null, labelPlural: table.table.labelPlural ?? table.table.label ?? null },
+    table: {
+      labelSingular: table.table.label ?? null,
+      labelPlural: table.table.labelPlural ?? table.table.label ?? null,
+      // A removal asks why (`table.removal.reason`): the console's delete dialogs ask too, and hold the button when it must be said.
+      ...(table.table.removal?.reason === undefined ? {} : { removalReason: table.table.removal.reason === 'required' ? ('required' as const) : ('optional' as const) }),
+    },
     columns,
     relations,
     children,

@@ -158,6 +158,7 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       formChildren={result.formChildren}
       tableLabelSingular={result.tableLabelSingular}
       tableLabelPlural={result.tableLabelPlural}
+      removalReason={result.removalReason}
     />
   );
 }
@@ -207,6 +208,7 @@ export function TemplateMount({
   formChildren,
   tableLabelSingular,
   tableLabelPlural,
+  removalReason,
 }: {
   page: PageEnvelope;
   slug: string;
@@ -229,6 +231,7 @@ export function TemplateMount({
   formChildren?: readonly FormChildFactReply[] | undefined;
   tableLabelSingular?: string | null | undefined;
   tableLabelPlural?: string | null | undefined;
+  removalReason?: 'optional' | 'required' | null | undefined;
 }) {
   const [resolution, setResolution] = useState<TemplateResolution>({ phase: 'resolving' });
   const [attempt, setAttempt] = useState(0);
@@ -366,6 +369,7 @@ export function TemplateMount({
             {...(formChildren === undefined ? {} : { formChildren })}
             {...(tableLabelSingular === undefined ? {} : { tableLabelSingular })}
             {...(tableLabelPlural === undefined ? {} : { tableLabelPlural })}
+            {...(removalReason === undefined || removalReason === null ? {} : { removalReason })}
             {...(currency === null || currency === undefined ? {} : { currency })}
           />
         </PageHostContext.Provider>

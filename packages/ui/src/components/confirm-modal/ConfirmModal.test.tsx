@@ -281,4 +281,56 @@ describe('ConfirmModal', () => {
       await waitFor(() => expect(dangerButton().getAttribute('aria-busy')).toBeNull());
     });
   });
+
+  describe('a reason box', () => {
+    function WithReason({ required, onConfirm }: { required: boolean; onConfirm: (why: string) => void }) {
+      const [why, setWhy] = useState('');
+      return (
+        <ConfirmModal
+          open
+          title="Delete row"
+          confirmWord="Acme"
+          promptLabel='Type "Acme" to confirm'
+          reason={{ label: required ? 'Why is it removed?' : 'Why is it removed? (optional)', required, value: why, onChange: setWhy, maxLength: 2000 }}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          closeLabel="Close"
+          onConfirm={() => onConfirm(why)}
+        />
+      );
+    }
+
+    it('holds the danger button until a required reason is written, spaces not counting', async () => {
+      const user = userEvent.setup();
+      const onConfirm = vi.fn();
+      render(<WithReason required onConfirm={onConfirm} />);
+      const confirm = screen.getByRole('button', { name: 'Delete' }) as HTMLButtonElement;
+      await user.type(screen.getByLabelText('Type "Acme" to confirm'), 'Acme');
+      expect(confirm.disabled).toBe(true);
+      const box = screen.getByLabelText('Why is it removed?');
+      expect(box.getAttribute('aria-required')).toBe('true');
+      await user.type(box, '   ');
+      expect(confirm.disabled).toBe(true);
+      await user.type(box, 'Customer cancelled');
+      expect(confirm.disabled).toBe(false);
+      await user.click(confirm);
+      expect(onConfirm).toHaveBeenCalledWith('   Customer cancelled');
+    });
+
+    it('lets an optional reason be left empty', async () => {
+      const user = userEvent.setup();
+      const onConfirm = vi.fn();
+      render(<WithReason required={false} onConfirm={onConfirm} />);
+      await user.type(screen.getByLabelText('Type "Acme" to confirm'), 'Acme');
+      const confirm = screen.getByRole('button', { name: 'Delete' }) as HTMLButtonElement;
+      expect(confirm.disabled).toBe(false);
+      await user.click(confirm);
+      expect(onConfirm).toHaveBeenCalledWith('');
+    });
+
+    it('is not drawn when not asked for', () => {
+      render(<Harness onConfirm={vi.fn()} />);
+      expect(document.querySelector('[data-part="confirm-reason"]')).toBeNull();
+    });
+  });
 });
