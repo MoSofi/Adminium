@@ -16,7 +16,9 @@
  * ordered by the cursor column then the primary key, claim each one under the
  * SAME occurrence key the route matcher would have used, and move the cursor.
  * A row Adminium wrote a minute ago and the poller now sees is therefore ONE
- * run, not two — the unique index decides, not a lookup.
+ * run, not two — the unique index decides, not a lookup. A `created` key
+ * carries the row's moment as well as its key: a row deleted outside Adminium
+ * keeps its claim, and the next row given its key is told apart by that.
  *
  * --- Ties, and why the cursor is a keyset ----------------------------------
  *
@@ -59,10 +61,13 @@ import { keptRow, type Row } from '../crud/mask.js';
 import { pkLabel } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
-import { recordOccurrenceKey } from './events.js';
+import { createdOccurrenceKey, plainCreatedKey, recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND, AUTOMATION_WATCH_BATCH } from './kinds.js';
 import { serverDay } from './relative-time.js';
 import { watchColumnFor } from './watch-columns.js';
+
+/** How long a plain `created` claim (the key alone) still speaks for the row the poller reads: see `claimRow`. */
+const PLAIN_CLAIM_WINDOW_MS = 60 * 60 * 1000;
 
 export interface WatchPollDeps {
   meta: MetaDb;
@@ -246,12 +251,23 @@ async function claimRow(input: {
 
   // The SAME key the route matcher builds — that identity is the whole reason
   // a dashboard-made row does not fire twice (`events.ts`).
-  const changeStamp = event === 'updated' ? row[input.watched.column] : undefined;
-  const dedupeKey = recordOccurrenceKey(
-    changeStamp === undefined
-      ? { ruleId: rule.id, table, pk }
-      : { ruleId: rule.id, table, pk, changeStamp, dialect },
-  );
+  const dedupeKey =
+    event === 'updated'
+      ? recordOccurrenceKey({ ruleId: rule.id, table, pk, changeStamp: row[input.watched.column], dialect })
+      : createdOccurrenceKey({ ruleId: rule.id, table, pk, row, dialect });
+  if (event === 'created') {
+    /*
+     * A row a person made just before this server learnt to spell a claim
+     * with the row's moment was claimed by its key alone. Such a plain claim,
+     * made within the hour, is this row's: the poller leaves it. An older one
+     * belonged to a row since deleted outside Adminium, and holds nothing.
+     */
+    const plain = plainCreatedKey({ ruleId: rule.id, table, pk });
+    if (plain !== dedupeKey) {
+      const at = await automationRunsRepo(deps.meta).claimedAt(plain);
+      if (at !== null && at > now - PLAIN_CLAIM_WINDOW_MS) return false;
+    }
+  }
 
   const run = await automationRunsRepo(deps.meta).begin(
     {

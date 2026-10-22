@@ -64,6 +64,7 @@ import {
 import { writeStores } from '../../crud/write-stores.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { staffAt } from '../staff-recipient.js';
+import { listWhenSample, mayNameSample } from '../sample-rows.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
 import { isOwnTable } from '../validate.js';
@@ -213,12 +214,13 @@ export async function resolveValues(
       // A person is handed a row only while they sign in: nobody, somebody removed or suspended, leaves it empty.
       if (holdsStaff(table, column)) {
         const user = given === null ? null : await usersRepo(ctx.meta).findById(String(given));
-        if (user === null || user.status !== 'active') {
+        // A sample person only on a run about a sample row (`sample-rows.ts`).
+        if (user === null || (user.status !== 'active' && !(await mayNameSample(ctx, user)))) {
           notes.push(ctx.text.settingNobody(column, `${value.setting.column}`));
           given = null;
           // Somebody of the record instead (`else`), while they sign in too.
           if (value.else !== undefined) {
-            const found = await staffAt(ctx.meta, ctx, value.else.staff);
+            const found = await staffAt(ctx.meta, ctx, value.else.staff, (user) => mayNameSample(ctx, user));
             if ('user' in found) given = found.user.id;
             else notes.push(ctx.text.settingNobody(column, value.else.staff));
           }
@@ -325,6 +327,8 @@ async function createRowWhole(ctx: ActionContext, table: ResolvedTable, values: 
       context: writeContext(ctx),
       mapError: failStep,
       announce: async (row, written) => {
+        // Made from a sample row: a sample row too, before another rule can run from it.
+        await listWhenSample(ctx, table, row);
         await announce(ctx, { table, action: 'create', entity: entityOf(row), before: null, after: row });
         // The parent the new row moved (`moveOnCreate`), as a change of its own made by the same rule.
         if (ctx.app !== undefined && ctx.source !== null) {

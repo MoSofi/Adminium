@@ -73,13 +73,16 @@ export function staffIdAt(ctx: Pick<ActionContext, 'source'>, path: string): str
 /**
  * The person a step tells. Somebody who cannot sign in is told nothing: a
  * suspended account, and a sample person (who has no real address).
+ * `sample` answers whether a sample person may be found all the same: a
+ * rule's write that hands a sample row to one (`sample-rows.ts`), never a
+ * step that tells somebody. Asked only of a sample person.
  */
-export async function staffAt(meta: MetaDb, ctx: Pick<ActionContext, 'source'>, path: string): Promise<StaffFound> {
+export async function staffAt(meta: MetaDb, ctx: Pick<ActionContext, 'source'>, path: string, sample?: (user: User) => Promise<boolean>): Promise<StaffFound> {
   const id = staffIdAt(ctx, path);
   if (id === null) return { nobody: 'empty' };
   const user = await usersRepo(meta).findById(id);
   if (user === null) return { nobody: 'gone' };
-  if (user.status !== 'active') return { nobody: 'away' };
+  if (user.status !== 'active' && !(user.status === 'sample' && sample !== undefined && (await sample(user)))) return { nobody: 'away' };
   return { user };
 }
 

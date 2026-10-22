@@ -52,7 +52,7 @@ import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { keptRow, type Row } from '../crud/mask.js';
 import { UNDO_TTL_MS } from '../crud/undo.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
-import { laterChangeKey, recordOccurrenceKey } from './events.js';
+import { createdOccurrenceKey, laterChangeKey, plainCreatedKey, recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND } from './kinds.js';
 import { resolveRuleTemplate } from './templates.js';
 import { flattenNodes } from './validate.js';
@@ -185,10 +185,12 @@ export class AutomationMatcher {
   /**
    * A deleted row's key may be given to the next row: SQLite hands a deleted
    * top rowid to the next insert, and MySQL before 8.0 restarts its counter.
-   * A `created` claim is `<rule>:<pk>` for good, so that next row would read
-   * as an occurrence already handled and its rules would never run. The
-   * delete lets go of the table's `created` claims for this key; the runs
-   * themselves stay, with their history.
+   * A `created` claim of a table with no creation moment is `<rule>:<pk>`
+   * for good, so that next row would read as an occurrence already handled
+   * and its rules would never run. The delete lets go of the table's
+   * `created` claims for this key; the runs themselves stay, with their
+   * history. (A delete made outside Adminium is never heard: there the
+   * claim's moment tells the next row apart, `createdOccurrenceKey`.)
    */
   async #releaseCreated(event: RecordWriteEvent): Promise<void> {
     if (!this.#loaded) await this.refresh();
@@ -196,7 +198,12 @@ export class AutomationMatcher {
     if (created.length === 0) return;
     const pk = event.entity.pk as Row;
     try {
-      await automationRunsRepo(this.#deps.meta).releaseClaims(created.map((rule) => recordOccurrenceKey({ ruleId: rule.id, table: event.table, pk })));
+      // The claim as the row's own moment spelled it, and the plain key a claim made before that carried.
+      const dialect = await this.#dialectOf(event.connectionId);
+      const keys = created.flatMap((rule) => [
+        ...new Set([createdOccurrenceKey({ ruleId: rule.id, table: event.table, pk, row: event.before, dialect }), plainCreatedKey({ ruleId: rule.id, table: event.table, pk })]),
+      ]);
+      await automationRunsRepo(this.#deps.meta).releaseClaims(keys);
     } catch (error) {
       // The delete already happened; a claim left held costs one later row its rules, never the write.
       this.#deps.log?.warn({ err: error, table: event.table.id }, 'automation matcher could not release a deleted row\'s claims');
@@ -274,7 +281,7 @@ export class AutomationMatcher {
     const dedupeKey = occurrenceKeyFor(
       rule.id,
       event,
-      event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
+      event.action === 'delete' ? undefined : await this.#dialectOf(event.connectionId),
     );
     const claim = {
       automationId: rule.id,
@@ -373,12 +380,13 @@ function sameValue(a: unknown, b: unknown): boolean {
 export function occurrenceKeyFor(
   ruleId: string,
   event: RecordWriteEvent,
-  /** The source's engine, which spells a `date` change stamp. */
+  /** The source's engine, which spells a `date` change stamp (and a `date` creation moment). */
   dialect?: Dialect,
 ): string | null {
   const pk = event.entity.pk as Row;
   if (event.action === 'create') {
-    return recordOccurrenceKey({ ruleId, table: event.table, pk });
+    // With the row's own moment: a later row given a deleted row's key is an occurrence of its own (`events.ts`).
+    return createdOccurrenceKey({ ruleId, table: event.table, pk, row: event.after, dialect });
   }
   if (event.action === 'update') {
     // A figure moved by rows written under the row: no stamp of the row moved with it, so nothing tells this change from the last. Each is one occurrence.
