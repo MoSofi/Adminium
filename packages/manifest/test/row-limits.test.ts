@@ -320,7 +320,22 @@ describe('what would carry a private table\'s rows out, or lean on it', () => {
   it('is refused on another table: a kept total, a copy, and rows reached through it', () => {
     expect(privately(beside({ ref: 'pairs', columns: [id, { ref: 'sessions', type: 'int', nullable: true, rules: { rollup: { from: 'one_to_ones', via: 'pair_id', count: true } } }] })).some((message) => message.endsWith('no total of its rows is kept on another table'))).toBe(true);
     expect(privately(beside({ ref: 'summaries', columns: [id, fk('note_id', 'one_to_ones'), { ref: 'note', type: 'text', maxLength: 400, nullable: true, rules: { copy: { via: 'note_id', from: 'note' } } }] })).some((message) => message.endsWith('nothing is copied out of it'))).toBe(true);
-    expect(privately(beside({ ref: 'reviews', columns: [id, fk('note_id', 'one_to_ones')], belongs: [{ column: 'note_id', person: 'rep_id' }] })).some((message) => message.endsWith('no other table\'s rows are reached through it'))).toBe(true);
+    // Through a listing, and through a link by a person column that is not one of the private row's own.
+    expect(privately(beside({ ref: 'reviews', columns: [id, fk('note_id', 'one_to_ones')], belongs: [{ through: { table: 'one_to_ones', link: 'id', on: 'note_id', user: 'rep_id' } }] })).some((message) => message.endsWith('no other table\'s rows are reached through it'))).toBe(true);
+    const scribed = notes({ columns: [id, staff('manager_id', false), staff('rep_id', false), staff('scribe_id'), { ref: 'note', type: 'text', maxLength: 400 }] });
+    expect(messages(manifest({ tables: [...scribed, { ref: 'reviews', columns: [id, fk('note_id', 'one_to_ones')], belongs: [{ column: 'note_id', person: 'scribe_id' }] }] }))).toContain(
+      'requiredSchema.tables.11.belongs.0.person: "one_to_ones" is private: only the people its rows belong to read it, so another table\'s rows are reached through it only by a person its own rows name: "scribe_id" is not one of its "belongs" columns',
+    );
+  });
+
+  it('lets another table be reached through it by the people its own row names, and copies nothing out', () => {
+    // A step of a one-to-one is the rep's and the manager's whose one-to-one it is: exactly who reads that row.
+    const steps = { ref: 'steps', columns: [id, fk('note_id', 'one_to_ones'), { ref: 'text', type: 'text', maxLength: 200 }], belongs: [{ column: 'note_id', person: 'rep_id' }, { column: 'note_id', person: 'manager_id' }] };
+    const reader = { ...rep, permissions: [...rep.permissions, 'table:@steps:read', 'table:@steps:create', 'table:@steps:update'], limits: { ...rep.limits, steps: { rows: { read: own, update: own } } } };
+    expect(messages(manifest({ tables: [...tables(), steps], roles: [reader, manager, accounts] }))).toEqual([]);
+    // A copy out of the row it hangs on stays refused, however the row is reached.
+    const copied = { ...steps, columns: [...steps.columns, { ref: 'about', type: 'text', maxLength: 400, nullable: true, rules: { copy: { via: 'note_id', from: 'note' } } }] };
+    expect(privately(beside(copied)).some((message) => message.endsWith('nothing is copied out of it'))).toBe(true);
   });
 
   it('is refused on the table itself: nothing Adminium does by itself runs on its rows', () => {
