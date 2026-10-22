@@ -1727,6 +1727,26 @@ export interface AdminiumPaymentCountersTable {
   hits: number;
 }
 
+// wave 0063 — the rows a table keeps of its removed rows
+
+/** One removed row, under one row it linked to (0063): the facts of its removal and the row as it was, masked. */
+export interface AdminiumRemovedRowsTable {
+  id: Id;
+  connectionId: Id;
+  entityTable: string;
+  entityId: string;
+  pk: string;
+  via: string;
+  parentTable: string;
+  parentValue: string;
+  removedAt: Ts;
+  actorKind: string;
+  actorId: string | null;
+  actorLabel: string;
+  reason: string | null;
+  image: string;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1804,6 +1824,7 @@ export interface MetaDB {
   adminium_payment_methods: AdminiumPaymentMethodsTable;
   adminium_payment_settings: AdminiumPaymentSettingsTable;
   adminium_payment_counters: AdminiumPaymentCountersTable;
+  adminium_removed_rows: AdminiumRemovedRowsTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1883,4 +1904,5 @@ export const META_TABLE_NAMES = [
   'adminium_payment_methods',
   'adminium_payment_settings',
   'adminium_payment_counters',
+  'adminium_removed_rows',
 ] as const satisfies readonly (keyof MetaDB)[];
