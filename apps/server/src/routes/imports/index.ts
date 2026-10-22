@@ -47,7 +47,7 @@ import { privilegeRefusal, writeRefused } from '../../connections/privileges.js'
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { coerceCell } from '../../data-io/coerce.js';
 import { createCsvParser, parseCsv, serializeCsvRow, sniffDelimiter } from '../../data-io/csv.js';
-import { assertMatchReadable, assertUpsertUpdates, openImportJudge, type EarlierLines, type ImportLine, type LineVerdict } from '../../data-io/import-judge.js';
+import { assertMatchReadable, assertUpsertUpdates, defaultedColumns, openImportJudge, type EarlierLines, type ImportLine, type LineVerdict } from '../../data-io/import-judge.js';
 import { canReadPii } from '../../crud/mask.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
@@ -159,12 +159,15 @@ export function validateRows(
   const issues: ValidationIssueView[] = [];
   let invalid = 0;
   let total = 0;
+  // An empty cell under a column with a default is left out of its line, not refused (`defaultedColumns`).
+  const defaulted = defaultedColumns(view, table);
   for (const record of rows) {
     if (record.length === 1 && record[0]?.trim() === '') continue;
     total += 1;
     let bad = false;
     for (const target of mapped) {
       const raw = record[target.index] ?? '';
+      if (raw.trim() === '' && defaulted.has(target.column.name)) continue;
       const result = coerceCell(raw, target.column);
       if (!result.ok) {
         bad = true;

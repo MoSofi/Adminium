@@ -70,7 +70,14 @@ it works out for a line of a file:
   formula, as for any new row;
 - a **stamp** (when a row was made, who made it, when it was closed): written
   into a column the line leaves out or leaves empty. The time is the time of
-  the import, and the person is you;
+  the import, and the person is you. A stamp never fills a column the table
+  asks for at that moment (`requiredWhen`): a deal brought in as won with no
+  closed date is refused, **closed_at** required, rather than closed on the day
+  of the import; bring its date and it keeps it;
+- the **default** of a column, for a cell left **empty**: a blank under
+  "may be e-mailed" (a yes/no that defaults to no) is no, not refused as
+  required. On a line that updates a row, an empty cell under such a column
+  leaves the row's value as it is;
 - the totals a parent row keeps of its children, once the rows are in.
 
 So a file does not have to carry a column the table fills. A list of enquiries
@@ -78,7 +85,11 @@ with a name and an email is enough for a table that stamps `received_at`, and
 somebody whose role may not write that column can still bring the list in.
 
 A value the file does carry is kept: bring `received_at` and the old enquiries
-keep the days they really came. That needs a role that may give a new row that
+keep the days they really came. A **strict** stamp is the one exception: who
+ticked a consent and when is always Adminium's, so a line that carries a value
+for it is refused, the column named, in the preview and in the run, whoever
+brings the file. Leave the column out, or empty, and each line is stamped as
+you. That needs a role that may give a new row that
 column. A file that carries a column your role may not write is refused whole,
 when it is made and again at the preview and the run, with **Your role may not
 give a new row … on this table, so it is not imported.**

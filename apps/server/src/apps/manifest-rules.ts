@@ -243,7 +243,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.notAfter !== undefined || rules.notBefore !== undefined) {
     out.push({
       op: 'column.bounds',
-      value: { ...(rules.notAfter === undefined ? {} : { notAfter: rules.notAfter }), ...(rules.notBefore === undefined ? {} : { notBefore: { ...rules.notBefore } }) },
+      value: { ...(rules.notAfter === undefined ? {} : { notAfter: rules.notAfter }), ...(rules.notBefore === undefined ? {} : { notBefore: rules.notBefore === 'now' ? 'now' : { ...rules.notBefore } }) },
     });
   }
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });

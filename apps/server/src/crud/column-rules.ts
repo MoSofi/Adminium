@@ -278,13 +278,32 @@ export interface DateBoundSide {
   when?: StateCondition[];
   /** The same day is out: always, or while the row meets these. */
   strict?: true | StateCondition[];
+  /** On a date: the other date moved by so many days (an end at most a year after its start). */
+  days?: number;
 }
 
-/** `column.bounds`, resolved. */
+/**
+ * What a bound compares a column as: a number type as numbers, a time type as
+ * times of day, text by what it holds (a time of day kept as `HH:MM`, else a
+ * date: SQLite may keep one as text), anything else as days.
+ */
+export function boundKindOf(logicalType: LogicalType): DateBound['kind'] {
+  if (logicalType === 'integer' || logicalType === 'bigint' || logicalType === 'decimal' || logicalType === 'float') return 'number';
+  if (logicalType === 'time') return 'time';
+  if (logicalType === 'text' || logicalType === 'varchar') return 'text';
+  return 'date';
+}
+
+/**
+ * `column.bounds`, resolved. `kind` is what the two sides are compared as:
+ * days (a date or a moment), numbers, times of day, or text read as one of
+ * those by what it holds (`HH:MM`, else a date).
+ */
 export interface DateBound {
   column: string;
+  kind: 'date' | 'number' | 'time' | 'text';
   notAfter?: 'today' | DateBoundSide;
-  notBefore?: DateBoundSide;
+  notBefore?: 'now' | DateBoundSide;
 }
 
 /**
@@ -839,10 +858,14 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     }
     if (column.normalize !== undefined) normalizes.push({ column: column.name, how: column.normalize });
     if (column.bounds !== undefined) {
-      const bound: DateBound = { column: column.name };
+      const bound: DateBound = { column: column.name, kind: boundKindOf(column.logicalType) };
       /** A side through a relation the snapshot still has; one it lost bounds nothing. */
       const sideOf = (side: EffectiveDateBound): DateBoundSide | undefined => {
-        const extra = { ...(side.when === undefined ? {} : { when: side.when }), ...(side.strict === undefined ? {} : { strict: side.strict }) };
+        const extra = {
+          ...(side.when === undefined ? {} : { when: side.when }),
+          ...(side.strict === undefined ? {} : { strict: side.strict }),
+          ...(side.days === undefined ? {} : { days: side.days }),
+        };
         if (side.via === undefined) return { column: side.column, ...extra };
         const relation = target.view?.model?.relations.find(
           (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === side.via,
@@ -855,7 +878,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
         const side = sideOf(after);
         if (side !== undefined) bound.notAfter = side;
       }
-      if (column.bounds.notBefore !== undefined) {
+      if (column.bounds.notBefore === 'now') bound.notBefore = 'now';
+      else if (column.bounds.notBefore !== undefined) {
         const side = sideOf(column.bounds.notBefore);
         if (side !== undefined) bound.notBefore = side;
       }
@@ -1634,6 +1658,9 @@ export function requiredOnCreate(target: { view: SnapshotView; table: ResolvedTa
 function neverAskedFor(rules: TableRules): Set<string> {
   const filled = filledColumns(rules);
   for (const copy of rules.copies ?? []) if (copy.mode === 'default' && copy.follow !== true) filled.delete(copy.column);
+  // Nor a stamp: it fills a person's write before this judges it, and never a write that brings history (a won deal brought in
+  // without its closed date is asked for one, not dated by the import).
+  for (const stamp of rules.stamps ?? []) filled.delete(stamp.column);
   return filled;
 }
 
