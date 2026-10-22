@@ -2762,12 +2762,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * when and why; …/removed/:childTable/:childId/history is one of them's
      * own history, as the record's history route answers a live one.
      */
-    async function removedReading(request: FastifyRequest<{ Params: { connectionId: string; table: string; recordId: string; childTable: string } }>) {
+    async function removedReading(request: FastifyRequest) {
+      const params = request.params as { recordId: string; childTable: string };
       const parent = asReader(await contextFor(request, 'read'));
-      const pk = parseRecordId(parent.table, request.params.recordId);
+      const pk = parseRecordId(parent.table, params.recordId);
       const parentRow = await startRow(parent, pk, 'read');
       if (parentRow === undefined) throw new NotFoundError('Record not found.', { pk });
-      const child = asReader(await contextFor(request, 'read', request.params.childTable));
+      const child = asReader(await contextFor(request, 'read', params.childTable));
       if (!keepsRemoved(child.table)) throw new NotFoundError('This table keeps no removed rows.', { table: child.table.id });
       const linked = parent.view.model.relations.some((relation) => relation.through === null && relation.from.tableId === child.table.id && relation.to.tableId === parent.table.id);
       if (!linked) throw new NotFoundError('That table does not link to this one.', { table: child.table.id });
