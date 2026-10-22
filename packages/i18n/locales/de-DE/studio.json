@@ -4110,7 +4110,8 @@
         "disputeAnswer": "Beantworten Sie sie im Dashboard von {service}",
         "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
         "disputeWon": "Die Rückbuchung wurde gewonnen.",
-        "disputeLost": "Die Rückbuchung wurde verloren: Das Geld ging an die Kundschaft zurück."
+        "disputeLost": "Die Rückbuchung wurde verloren: Das Geld ging an die Kundschaft zurück.",
+        "refundDisputeWon": "Rückbuchung gewonnen — {amount} kamen zurück"
       },
       "checkedBy": "Geprüft von {name}",
       "someone": "jemandem",

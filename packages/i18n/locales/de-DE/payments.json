@@ -71,7 +71,9 @@
       "failedNext": "Wenden Sie sich an den Kunden und erfassen Sie, was Sie vereinbaren.",
       "cancelled": "Abgebrochen: Es wurde nichts erstattet",
       "requested": "Angefordert",
-      "written": "Erstattung von {amount}"
+      "written": "Erstattung von {amount}",
+      "disputeWon": "Rückbuchung gewonnen — {amount} kamen zurück",
+      "undone": "Rückgängig gemacht"
     },
     "partlyRefunded": "Teilweise erstattet",
     "disputeWon": "Die Rückbuchung wurde zu Ihren Gunsten entschieden.",

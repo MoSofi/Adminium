@@ -335,6 +335,16 @@ describe('refunds and disputes on the Payment panel', () => {
     expect(screen.getByText('Refunded')).toBeTruthy();
   });
 
+  it('says a lost dispute later won as money that came back, in green, never as a failed refund', async () => {
+    const undone: PanelRefund = { id: 'rf_d', attemptId: 'pat_1', amount: '120.00', currency: 'EUR', state: 'failed', source: 'dispute', failureMessage: 'The dispute was won: the money came back.', createdAt: Date.UTC(2026, 9, 22), settledAt: null };
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, refunds: [undone], dispute: { state: 'closed', at: 1, closedAt: 2, outcome: 'won' } })] }));
+    const line = screen.getByTestId('payment-refund-line');
+    expect(line.textContent).toMatch(/^Dispute won — €120\.00 came back·(22 Oct|Oct 22)·Undone$/);
+    expect(line.getAttribute('data-tone')).toBe('pos');
+    expect(screen.queryByText(/Failed/)).toBeNull();
+    expect(screen.getByText('The dispute was won.')).toBeTruthy();
+  });
+
   it('says how a closed dispute ended: won, lost with no amount known, or not said', async () => {
     await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, dispute: { state: 'closed', at: 1, closedAt: 2, outcome: 'won' } })] }));
     expect(screen.getByText('The dispute was won.')).toBeTruthy();

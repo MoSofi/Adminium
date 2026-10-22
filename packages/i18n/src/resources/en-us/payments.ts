@@ -81,7 +81,9 @@ export default {
       "failedNext": "Contact the customer and record what you agree.",
       "cancelled": "Cancelled: nothing was refunded",
       "requested": "Requested",
-      "written": "Refund of {amount}"
+      "written": "Refund of {amount}",
+      "disputeWon": "Dispute won — {amount} came back",
+      "undone": "Undone"
     },
     "partlyRefunded": "Partly refunded",
     "disputeWon": "The dispute was won.",

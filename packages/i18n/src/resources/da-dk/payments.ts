@@ -81,7 +81,9 @@ export default {
       "failedNext": "Kontakt kunden, og registrér det, I aftaler.",
       "cancelled": "Annulleret: intet blev refunderet",
       "requested": "Anmodet",
-      "written": "Refundering af {amount}"
+      "written": "Refundering af {amount}",
+      "disputeWon": "Indsigelsen vundet — {amount} kom tilbage",
+      "undone": "Fortrudt"
     },
     "partlyRefunded": "Delvist refunderet",
     "disputeWon": "Indsigelsen blev vundet.",

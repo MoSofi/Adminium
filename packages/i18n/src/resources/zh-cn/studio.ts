@@ -4120,7 +4120,8 @@ export default {
         "disputeAnswer": "请在 {service} 控制台中答复",
         "disputeClosed": "争议已结束。结果请在 {service} 控制台中查看。",
         "disputeWon": "争议已胜诉。",
-        "disputeLost": "争议败诉：款项已退回客户。"
+        "disputeLost": "争议败诉：款项已退回客户。",
+        "refundDisputeWon": "争议胜诉 — {amount} 已退回"
       },
       "checkedBy": "由 {name} 核查",
       "someone": "某人",

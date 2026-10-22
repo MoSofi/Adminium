@@ -4120,7 +4120,8 @@ export default {
         "disputeAnswer": "Odpovězte v ovládacím panelu {service}",
         "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
         "disputeWon": "Spor byl vyhrán.",
-        "disputeLost": "Spor byl prohrán: peníze se vrátily zákazníkovi."
+        "disputeLost": "Spor byl prohrán: peníze se vrátily zákazníkovi.",
+        "refundDisputeWon": "Spor vyhrán — {amount} se vrátilo"
       },
       "checkedBy": "Zkontroloval(a) {name}",
       "someone": "někdo",

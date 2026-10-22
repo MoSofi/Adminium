@@ -4110,7 +4110,8 @@
         "disputeAnswer": "請在 {service} 主控台中回覆",
         "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
         "disputeWon": "爭議已勝訴。",
-        "disputeLost": "爭議敗訴：款項已退回客戶。"
+        "disputeLost": "爭議敗訴：款項已退回客戶。",
+        "refundDisputeWon": "爭議勝訴 — {amount} 已退回"
       },
       "checkedBy": "由 {name} 核對",
       "someone": "某人",

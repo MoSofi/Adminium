@@ -288,11 +288,13 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
       row.refundSource === 'provider'
         ? { text: t('studio:payments.activity.story.refundThere', 'Refunded in the {service} dashboard: {amount}', { service, amount }), at: row.times.started, tone: 'info' }
         : row.refundSource === 'dispute'
-          ? { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost — {amount} returned to the customer', { amount }), at: row.times.started, tone: 'warn' }
+          ? row.group === 'refundFailed'
+            ? { text: t('studio:payments.activity.story.refundDisputeWon', 'Dispute won — {amount} came back', { amount }), at: row.times.started, tone: 'pos' }
+            : { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost — {amount} returned to the customer', { amount }), at: row.times.started, tone: 'warn' }
           : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
     ];
     if (row.group === 'refunded') steps.push({ text: t('studio:payments.activity.story.refunded', '{service} says refunded', { service }), at: row.times.settled ?? row.times.updated, tone: 'pos' });
-    if (row.group === 'refundFailed') steps.push({ text: t('studio:payments.activity.story.refundFailed', '{service} says the refund failed', { service }), at: row.times.settled ?? row.times.updated, tone: 'danger' });
+    if (row.group === 'refundFailed' && row.refundSource !== 'dispute') steps.push({ text: t('studio:payments.activity.story.refundFailed', '{service} says the refund failed', { service }), at: row.times.settled ?? row.times.updated, tone: 'danger' });
     if (row.times.recorded !== null) steps.push({ text: t('studio:payments.activity.story.refundApplied', 'The record’s balance follows it'), at: row.times.recorded, tone: 'pos' });
     return steps;
   }

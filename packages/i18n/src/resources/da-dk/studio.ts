@@ -4120,7 +4120,8 @@ export default {
         "disputeAnswer": "Besvar den i {service}-dashboardet",
         "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
         "disputeWon": "Indsigelsen blev vundet.",
-        "disputeLost": "Indsigelsen blev tabt: pengene gik tilbage til kunden."
+        "disputeLost": "Indsigelsen blev tabt: pengene gik tilbage til kunden.",
+        "refundDisputeWon": "Indsigelsen vundet — {amount} kom tilbage"
       },
       "checkedBy": "Tjekket af {name}",
       "someone": "nogen",

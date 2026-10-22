@@ -4120,7 +4120,8 @@ export default {
         "disputeAnswer": "رُدّ عليه في لوحة تحكم {service}",
         "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
         "disputeWon": "رُبح النزاع.",
-        "disputeLost": "خُسر النزاع: عاد المال إلى العميل."
+        "disputeLost": "خُسر النزاع: عاد المال إلى العميل.",
+        "refundDisputeWon": "كُسب النزاع — عاد {amount}"
       },
       "checkedBy": "راجعها {name}",
       "someone": "شخص ما",

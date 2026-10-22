@@ -81,7 +81,9 @@ export default {
       "failedNext": "Contactez le client et enregistrez ce que vous convenez.",
       "cancelled": "Annulé : rien n’a été remboursé",
       "requested": "Demandé",
-      "written": "Remboursement de {amount}"
+      "written": "Remboursement de {amount}",
+      "disputeWon": "Litige gagné — {amount} sont revenus",
+      "undone": "Annulé"
     },
     "partlyRefunded": "Partiellement remboursé",
     "disputeWon": "Le litige a été gagné.",

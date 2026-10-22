@@ -124,6 +124,7 @@ function Notice({ tone, icon: Icon, children, action }: { tone: keyof typeof NOT
 const REFUND_TONES = {
   warn: { box: 'border border-warn/30 bg-warn-soft text-fg', icon: 'text-warn', state: 'text-warn' },
   danger: { box: 'border border-danger/30 bg-danger-soft text-fg', icon: 'text-danger', state: 'text-danger' },
+  pos: { box: 'border border-pos/30 bg-pos-soft text-fg', icon: 'text-pos', state: 'text-pos' },
 } as const;
 
 interface RefundLine {
@@ -152,6 +153,10 @@ export function refundLine(refund: PanelRefund, provider: string | null, money: 
         : t('payments:panel.refund.staff', 'Refund of {amount} made in Adminium', { amount });
   const date = shortDay(refund.state === 'succeeded' ? (refund.settledAt ?? refund.createdAt) : refund.createdAt, locale);
   const look = refund.source !== 'staff';
+  // A lost dispute later won: its money came back, so the line says so instead of reading as a failed refund.
+  if (refund.source === 'dispute' && refund.state === 'failed') {
+    return { tone: 'pos', what: t('payments:panel.refund.disputeWon', 'Dispute won — {amount} came back', { amount }), date, state: t('payments:panel.refund.undone', 'Undone'), detail: null, look: false };
+  }
   switch (refund.state) {
     case 'succeeded':
       return { tone: 'warn', what, date, state: t('payments:panel.refund.done', 'Done'), detail: null, look };

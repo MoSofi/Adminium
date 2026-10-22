@@ -4120,7 +4120,8 @@ export default {
         "disputeAnswer": "Répondez-y dans le tableau de bord {service}",
         "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}.",
         "disputeWon": "Le litige a été gagné.",
-        "disputeLost": "Le litige a été perdu : l’argent est revenu au client."
+        "disputeLost": "Le litige a été perdu : l’argent est revenu au client.",
+        "refundDisputeWon": "Litige gagné — {amount} sont revenus"
       },
       "checkedBy": "Vérifié par {name}",
       "someone": "quelqu'un",

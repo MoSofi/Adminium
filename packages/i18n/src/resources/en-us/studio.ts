@@ -4120,7 +4120,8 @@ export default {
         "disputeAnswer": "Answer it in the {service} dashboard",
         "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
         "disputeWon": "The dispute was won.",
-        "disputeLost": "The dispute was lost: the money went back to the customer."
+        "disputeLost": "The dispute was lost: the money went back to the customer.",
+        "refundDisputeWon": "Dispute won — {amount} came back"
       },
       "checkedBy": "Checked by {name}",
       "someone": "someone",

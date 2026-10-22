@@ -81,7 +81,9 @@ export default {
       "failedNext": "Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
       "cancelled": "Zrušeno: nic nebylo vráceno",
       "requested": "Vyžádáno",
-      "written": "Vrácení {amount}"
+      "written": "Vrácení {amount}",
+      "disputeWon": "Spor vyhrán — {amount} se vrátilo",
+      "undone": "Vráceno zpět"
     },
     "partlyRefunded": "Částečně vráceno",
     "disputeWon": "Spor byl vyhrán.",

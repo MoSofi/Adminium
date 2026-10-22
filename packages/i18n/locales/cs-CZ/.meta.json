@@ -20155,6 +20155,10 @@
     "status": "mt",
     "srcHash": "7edd007321cf"
   },
+  "payments.panel.refund.disputeWon": {
+    "status": "mt",
+    "srcHash": "fff1003ec250"
+  },
   "payments.panel.refund.done": {
     "status": "mt",
     "srcHash": "e9b450d14bc2"
@@ -20178,6 +20182,10 @@
   "payments.panel.refund.staff": {
     "status": "mt",
     "srcHash": "47f1373ec041"
+  },
+  "payments.panel.refund.undone": {
+    "status": "mt",
+    "srcHash": "b528b0fe2e94"
   },
   "payments.panel.refund.waitingCustomer": {
     "status": "mt",
@@ -30158,6 +30166,10 @@
   "studio.payments.activity.story.refundDispute": {
     "status": "mt",
     "srcHash": "7edd007321cf"
+  },
+  "studio.payments.activity.story.refundDisputeWon": {
+    "status": "mt",
+    "srcHash": "fff1003ec250"
   },
   "studio.payments.activity.story.refundFailed": {
     "status": "mt",

@@ -71,7 +71,9 @@
       "failedNext": "請聯絡客戶，並記錄你們商定的結果。",
       "cancelled": "已取消：未退還任何款項",
       "requested": "已申請",
-      "written": "退款 {amount}"
+      "written": "退款 {amount}",
+      "disputeWon": "爭議勝訴 — {amount} 已退回",
+      "undone": "已撤銷"
     },
     "partlyRefunded": "部分退款",
     "disputeWon": "爭議已勝訴。",

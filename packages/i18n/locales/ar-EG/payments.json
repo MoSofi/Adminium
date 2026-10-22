@@ -71,7 +71,9 @@
       "failedNext": "تواصل مع العميل وسجّل ما تتفقان عليه.",
       "cancelled": "أُلغي: لم يُسترد أي مبلغ",
       "requested": "تم طلبه",
-      "written": "استرداد {amount}"
+      "written": "استرداد {amount}",
+      "disputeWon": "كُسب النزاع — عاد {amount}",
+      "undone": "أُلغي"
     },
     "partlyRefunded": "مستردة جزئيًا",
     "disputeWon": "تم كسب النزاع.",
