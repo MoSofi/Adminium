@@ -571,6 +571,8 @@ export function automationIssues(m: {
     const wasIssue = (ref: string, path: (string | number)[]): void => {
       if (!changing) out.push({ path, message: `{{was.${ref}}}: only a rule run when its record is updated reads the record as it was` });
       else if (record !== undefined && !record.columns.some((candidate) => candidate.ref === ref)) out.push({ path, message: `{{was.${ref}}}: "${record.ref}" has no column "${ref}"` });
+      // Its earlier values are the audit log's alone: a rule reads them as nothing.
+      else if (record?.columns.find((candidate) => candidate.ref === ref)?.rules?.['history'] === 'audit') out.push({ path, message: `{{was.${ref}}}: "${record.ref}.${ref}" keeps its earlier values for the audit log only` });
     };
 
     // The rows earlier steps made, by the name each step gave its row.
@@ -849,6 +851,8 @@ export function automationIssues(m: {
         const vars = action.vars ?? {};
         for (const [name, text] of Object.entries(vars)) tokens(text, here('vars', name));
         const columns = new Set((record?.columns ?? []).map((candidate) => candidate.ref));
+        // A column whose earlier values only the audit log keeps: its `was.` is filled with nothing.
+        const auditOnly = new Set((record?.columns ?? []).filter((candidate) => candidate.rules?.['history'] === 'audit').map((candidate) => candidate.ref));
         // The name of the person a staff column of the record names; the record's address, in a mail to a person.
         const people = new Set((record?.columns ?? []).filter((candidate) => candidate.rules?.['staff'] === true).flatMap((candidate) => [`${candidate.ref}.name`, `record.${candidate.ref}.name`]));
         // A mail to a person, or to each of the people listed on the record: each is somebody the address is worked out for.
@@ -860,7 +864,7 @@ export function automationIssues(m: {
           (name.startsWith('record.') && columns.has(name.slice('record.'.length))) ||
           people.has(name) ||
           (toPerson && name === 'recordUrl') ||
-          (changing && name.startsWith('was.') && columns.has(name.slice('was.'.length)));
+          (changing && name.startsWith('was.') && columns.has(name.slice('was.'.length)) && !auditOnly.has(name.slice('was.'.length)));
         const everywhere = new Set<string>();
         if (template.attach !== undefined) out.push({ path: here('templateKey'), message: `"${action.templateKey}" carries a document, which only the outbox draws: send it from the outbox, or give the rule a template with no "attach"` });
         for (const [locale, content] of Object.entries(template.locales)) {

@@ -1618,6 +1618,16 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
   /* Rows read by the people they belong to, and by nobody and nothing else. */
   z.object({ op: z.literal('table.private'), value: z.object({ private: z.literal(true) }).strict() }),
+  /* What a removal of a row takes (a reason, asked or required) and keeps (the removed row's history, read through a row it linked to). */
+  z.object({
+    op: z.literal('table.removal'),
+    value: z
+      .object({ reason: z.union([z.literal(true), z.literal('required')]).optional(), history: z.literal(true).optional() })
+      .strict()
+      .refine((value) => value.reason !== undefined || value.history !== undefined, { message: 'a removal rule says reason, history, or both' }),
+  }),
+  /* A column whose earlier values only the audit log keeps: record history, a rule's was, a removed row's history and live frames leave them out. */
+  z.object({ op: z.literal('column.history'), value: z.object({ history: z.literal('audit') }).strict() }),
   z.object({
     op: z.literal('relation.add'),
     value: z.object({

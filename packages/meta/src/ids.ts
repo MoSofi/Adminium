@@ -152,6 +152,8 @@ export const ID_PREFIXES = {
   plk: 'adminium_payment_links',
   ppf: 'adminium_payable_profiles',
   pmt: 'adminium_payment_methods',
+  // wave 0063 — a removed row kept under a row it linked to.
+  rmv: 'adminium_removed_rows',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

@@ -57,6 +57,7 @@ import { AUTOMATION_RUN_KIND } from './kinds.js';
 import { resolveRuleTemplate } from './templates.js';
 import { flattenNodes } from './validate.js';
 import { changeStampColumn } from './watch-columns.js';
+import { auditOnlyColumnsOf } from '../crud/removals.js';
 
 /** Past this many automation-caused hops an event is refused. */
 export const MAX_AUTOMATION_HOPS = 3;
@@ -478,9 +479,12 @@ export function triggerEventFor(
 /** Of the row as it was, the columns a rule reads and may: nothing at all when that is none. */
 function keptBefore(event: RecordWriteEvent, before: Row, read: ReadonlySet<string>): { before?: Row } {
   const out: Row = {};
+  const auditOnly = auditOnlyColumnsOf(event.table);
   for (const name of read) {
     const column = event.table.columns.get(name);
     if (column === undefined || column.secret || !(name in before)) continue;
+    // Its earlier values are the audit log's alone (`column.history`): a rule reads them as nothing.
+    if (auditOnly.has(name)) continue;
     if ((event.table.table as { columns?: readonly { name: string; code?: { hiddenFromStaff?: boolean } }[] } | undefined)?.columns?.find((one) => one.name === name)?.code?.hiddenFromStaff === true) continue;
     out[name] = before[name];
   }

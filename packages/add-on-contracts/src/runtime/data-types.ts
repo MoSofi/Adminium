@@ -98,7 +98,12 @@ export interface WriteResult {
 export interface UseWriteResult {
   create: (values: Readonly<Record<string, DataValue>>) => Promise<WriteResult>;
   update: (key: string | number, values: Readonly<Record<string, DataValue>>) => Promise<WriteResult>;
-  remove: (key: string | number) => Promise<void>;
+  /**
+   * Removes one row. `reason`: why, for a table that asks (`removal.reason` in
+   * its manifest): kept in the removal's audit entry and with the removed row;
+   * refused by a table that asks for none, and required where it says so.
+   */
+  remove: (key: string | number, options?: { reason?: string }) => Promise<void>;
   /** The same change to up to 500 rows, one save each: what a bulk change is where a save may post. */
   /** `from`: the state every row was seen in — a row that moved meanwhile is refused, never moved twice. */
   updateEach: (keys: readonly (string | number)[], values: Readonly<Record<string, DataValue>>, options?: { from?: string }) => Promise<readonly EachResult[]>;

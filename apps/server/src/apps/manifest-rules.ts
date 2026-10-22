@@ -119,6 +119,7 @@ export type RuleOp =
   | 'column.linkable'
   | 'column.file'
   | 'column.changes'
+  | 'column.history'
   | 'table.belongs'
   | 'table.private'
   | 'table.capacity'
@@ -128,12 +129,13 @@ export type RuleOp =
   | 'table.postings'
   | 'table.adjust'
   | 'table.label'
-  | 'table.keyField';
+  | 'table.keyField'
+  | 'table.removal';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
 const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'column.semanticType', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.occupies', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.occupies', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField', 'table.removal']);
 
 interface DesiredRule {
   /** Written only on a table this app created, and silently left out elsewhere (Adminium asks it, not the manifest). */
@@ -268,6 +270,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   // When, and by whom, the column may change: the columns its guards name keep their names, so nothing is made real.
   if (rules.changes !== undefined) out.push({ op: 'column.changes', value: { guards: rules.changes.map((guard) => structuredClone(guard)) } });
   if (rules.file !== undefined) out.push({ op: 'column.file', value: { accept: [...rules.file.accept], maxBytes: rules.file.maxBytes, ...(rules.file.maxCount === undefined ? {} : { maxCount: rules.file.maxCount }) } });
+  if (rules.history === 'audit') out.push({ op: 'column.history', value: { history: 'audit' } });
   return out;
 }
 
@@ -286,7 +289,8 @@ export function tableOpsFor(table: {
   adjust?: unknown;
   belongs?: readonly object[] | undefined;
   private?: true | undefined;
-}): { op: 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private'; value: Record<string, unknown> }[] {
+  removal?: object | undefined;
+}): { op: 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.removal'; value: Record<string, unknown> }[] {
   const out: ReturnType<typeof tableOpsFor> = [];
   for (const [op, value] of [
     ['table.capacity', table.capacity],
@@ -299,6 +303,8 @@ export function tableOpsFor(table: {
     // Whose a row is: the ways are one rule, `{ways}`; a listing's table is named by its short ref and made real with the rest.
     ['table.belongs', table.belongs === undefined ? undefined : { ways: table.belongs.map((way) => structuredClone(way)) }],
     ['table.private', table.private === true ? { private: true } : undefined],
+    // What a removal takes and keeps: names no table, so nothing to make real.
+    ['table.removal', table.removal],
   ] as const) {
     if (value === undefined) continue;
     // Several limits are stored as `{rules}`; one stays the object a released app has always written.
@@ -757,8 +763,9 @@ export async function writeManifestRules(input: {
       judged(`"${table.name}" has no column "${String(rule.value['column'])}".`);
       return;
     }
-    if (rule.op === 'table.private') {
+    if (rule.op === 'table.private' || rule.op === 'table.removal') {
       // Says nothing a table could contradict: whose its rows are is `table.belongs`, written beside it.
+      // A removal's rule reads the table's links when a row goes; the manifest's check has judged it.
     } else if (rule.op === 'table.belongs') {
       const issue = belongsRuleIssue(rule.value, table, model);
       if (issue !== null) {
@@ -785,7 +792,7 @@ export async function writeManifestRules(input: {
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'column.semanticType' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'column.semanticType' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField' | 'table.removal'>,
         rule.value,
         column,
         model,

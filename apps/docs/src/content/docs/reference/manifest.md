@@ -235,6 +235,7 @@ the database.
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
 | `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.28. |
+| `removal` | no | `{ "reason"?: true \| "required", "history"?: true }`: a removal of a row takes a reason, and the removed row stays readable through a row it linked to; see [Removed rows](#removed-rows). Needs Adminium 0.3.33. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -399,6 +400,7 @@ change or delete is theirs from then on.
 | `file` | `{ "accept", "maxBytes", "maxCount"? }` | Files a signed-in person uploads for the column: one in a `text` column, a list of up to `maxCount` (1–20) in a `json` column. It holds Adminium's own file ids, never a link. `accept` names the kinds the column takes, judged by the file's bytes; `maxBytes` (1 KiB–25 MiB) the size of each. A picture loses what a camera writes beside it as it is uploaded. A write may name only a file its writer uploaded and no record holds yet. See [Files in a column](#files-in-a-column). Needs Adminium 0.3.28. |
 | `changes` | `[{ "to"?, "from"?, "while"?, "by"?, "notBy"? }]` | When, and by whom, the column may change: to some values only from others, only while another column holds a value, only by the person a staff column of the row (or of a linked row) names, never by the people others name. Judged by the server on every way a row is written but history. See [Who may change a column](#who-may-change-a-column). Needs Adminium 0.3.33. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
+| `history` | `"audit"` | The column's earlier values are kept for the audit log only, which the install's owner reads (a removed message's text). A row's history (`GET …/{record}/history`), a [removed row's](#removed-rows) history and row, a rule's `{{was.<column>}}` and the row a removal's live frame carries leave the column out, for every reader, the owner included; the audit page keeps it. The value a row holds now is read as any other column is. A rule or a template of the manifest that reads `{{was.<column>}}` of such a column is refused. Not on the key. Needs Adminium 0.3.33. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
@@ -2066,6 +2068,48 @@ it behaves is in [Discounts, codes and refunds](/guides/apps/discounts-and-codes
 
 Every column Adminium writes here — a reduction, `proved`, `staff.by`, a code's links, a refund's
 amount and tax — is read-only to every writer and in no public entry's `writable`.
+
+### Removed rows
+
+`removal`, on a table, says what a removal of one of its rows takes and keeps:
+
+```json
+{ "ref": "deal_members", "columns": [ … ], "removal": { "reason": "required", "history": true } }
+```
+
+- **`reason`**: every door a person removes a row through takes a reason: the delete route
+  (`DELETE /api/v1/data/{connection}/{table}/{record}` with the body `{ "reason": "…" }`), a bulk
+  delete (`POST …/{table}/bulk` with `"reason"`, one for the batch) and the add-on kit's
+  `useWrite(table).remove(key, { reason })`. It is trimmed, at most 500 characters, and written
+  into the removal's audit entry (`changes.reason`). `true` asks for one; `"required"` refuses a
+  removal without one (`422`, `fields.reason.code` `required`). Every other removal (an undo, a row
+  taken off under its parent's save, a rule's or a move's delete, a public entry's) is written with
+  `"reason": null`, no reason. A table without `reason` refuses one (`not-allowed`): nothing would
+  keep it. The reason travels in the body, never in the address, which logs keep.
+- **`history: true`**: a removed row stays readable, through a row it linked to that the reader
+  reads now (a deal's removed member, a job's cancelled visit), until an undo brings it back.
+  Every removal keeps it, by whichever door: who removed it, when, why, and the row as it was,
+  masked as the audit log keeps it (no personal data, no code). Never on a [private](#whose-a-row-is)
+  table, and only on a table with a link (`fk`) to the row it is read through.
+
+The removed rows are read by two routes:
+
+```http
+GET /api/v1/data/{connection}/{table}/{record}/removed/{childTable}
+GET /api/v1/data/{connection}/{table}/{record}/removed/{childTable}/{childRecord}/history
+```
+
+The first lists the rows of `childTable` that linked to the record and were removed, newest first,
+paged by `cursor` like a row's history: each with its `key`, `removedAt`, who removed it
+(`actorKind`, `actorLabel`), its `reason` (`null` for none), the link column that named the record
+(`via`) and the row as it was. The second is one of those rows' own history, as a live row's
+history route answers it. Both answer `404` for a record the reader does not read now (as for a
+record that is not there), and for a child table that keeps no removed rows (`This table keeps no
+removed rows.`) or does not link to the record; `403` where the reader's role may not read the
+child table. A removed row is shown only to a reader whose read of the child table would reach it:
+their row limit there is judged on the row as it was, and the columns their role does not read
+are left out, as a live read leaves them out. A table that never says `history` keeps nothing: a
+rep cannot read a contact the admin removed, through anything.
 
 ### Shared tables
 

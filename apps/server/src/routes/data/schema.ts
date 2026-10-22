@@ -135,6 +135,41 @@ export const recordHistoryReply = z.object({
   nextCursor: z.string().nullable(),
 });
 
+/** `GET …/:recordId/removed/:childTable` and its rows' history: a parent row, and a table that links to it. */
+export const removedChildParams = dataRecordParams.extend({
+  /** The table whose removed rows linked to this record (`table.removal.history`). */
+  childTable: z.string().min(1),
+});
+
+export const removedChildRecordParams = removedChildParams.extend({
+  /** The removed row's key, as `recordId` takes one. */
+  childId: z.string().min(1),
+});
+
+export const removedChildrenQuery = recordHistoryQuery;
+
+/**
+ * The removed rows of a table that linked to a record the reader reads now,
+ * newest first: who removed each and when, why (`null`: no reason), the link
+ * column that named the record, and the row as it was, masked as a live read
+ * masks it (and without personal data, which a removal never keeps).
+ */
+export const removedChildrenReply = z.object({
+  removed: z.array(
+    z.object({
+      /** The removed row's key, as `recordId` takes it. */
+      key: z.string(),
+      removedAt: z.number(),
+      actorKind: z.string(),
+      actorLabel: z.string(),
+      reason: z.string().nullable(),
+      via: z.string(),
+      row: z.record(z.string(), z.unknown()),
+    }),
+  ),
+  nextCursor: z.string().nullable(),
+});
+
 export const referencesReply = z.object({
   references: z.array(referenceCountSchema),
 });
@@ -500,6 +535,17 @@ export const recordDeleteQuery = z.object({
   confirm: boolFlag(),
 });
 
+/**
+ * Why the row is removed, for a table that asks (`table.removal.reason`):
+ * written into the removal's audit entry and kept with the removed row.
+ * Required where the table says so; refused where it asks for none. Sent as
+ * the body, never in the address, where a log would keep it.
+ */
+export const recordDeleteBody = z
+  .object({ reason: z.string().max(2000).optional() })
+  .strict()
+  .nullish();
+
 export const recordMutationReply = z.object({
   data: rowSchema.nullable(),
   /** Single-use undo token; null for non-undoable mutations. */
@@ -540,6 +586,8 @@ export const recordBulkBody = z.object({
    * orders cancelled in a few writes, one per state they were seen in.
    */
   from: z.string().min(1).max(64).optional(),
+  /** Why the rows are removed (a delete of a table that asks, `table.removal.reason`): one reason for the batch. */
+  reason: z.string().max(2000).optional(),
 });
 
 /** The most rows one row-by-row call takes. */

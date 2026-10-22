@@ -138,6 +138,8 @@ export type RemapOverride =
   | { op: 'column.codeLast4'; tableName: string; columnName: string; value: { of: string } }
   | { op: 'column.plainText'; tableName: string; columnName: string; value: { plainText: true | { digits?: number; max?: number } } }
   | { op: 'column.customerKey'; tableName: string; columnName: string; value: { of: string } }
+  /** A column whose earlier values only the audit log keeps. */
+  | { op: 'column.history'; tableName: string; columnName: string; value: { history: 'audit' } }
   /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
   | {
       op: 'column.bounds';
@@ -233,6 +235,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.linkable',
   'column.file',
   'column.changes',
+  'column.history',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

@@ -258,6 +258,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'belongs.throughPrivate',
   // A shape-built table's create held to a condition on a column the app added (shapes.ts createDifferences).
   'shape.create',
+  // A removal's reason, taken by every person's door and written into its audit entry; a removed row read through a row it linked
+  // to that the reader reads now (crud/removals.ts); a column whose earlier values only the audit log keeps.
+  'table.removal',
+  'column.history',
 ];
 
 export interface UnbuiltWord {

@@ -74,6 +74,8 @@
               "column.changes",
               "table.belongs",
               "table.private",
+              "table.removal",
+              "column.history",
               "relation.add",
               "relation.remove",
               "relation.label",
