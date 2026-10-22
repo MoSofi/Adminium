@@ -211,7 +211,13 @@ when it does.
   under the rule's name. Somebody who came to the row later (a new owner, a person covering, a
   helper added last week) reads what was written before they came. The history is the row's own:
   a change to a row under it (a line of a quote) is in that row's history, read by its own
-  rights.
+  rights. A column whose earlier values are the audit log's alone (`history: "audit"`, a removed
+  message's text) is left out of every row's history; the audit page, the install's owner's, keeps
+  it.
+- **A removed row is read through a row it linked to**, and only where its table keeps them
+  (`removal: { history: true }`, never a private table): a deal's removed member is read by
+  whoever reads the deal now, if their own read of the members' table would reach that row as it
+  was. See [Removed rows](/reference/manifest/#removed-rows).
 - **A file out of a table** (an export, a kept document) belongs to whoever asked for it; managing
   exports does not open another person's file of a table you are limited on.
 - **An API key is nobody.** A key whose role is limited on a table reads no row of it.
