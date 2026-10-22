@@ -51,6 +51,8 @@ function crm(): Record<string, unknown> {
             { ref: 'may_email', type: 'bool', default: false },
             { ref: 'may_email_at', type: 'timestamptz', nullable: true, rules: strictStamp('now') },
             { ref: 'may_email_by', type: 'text', maxLength: 64, nullable: true, rules: strictStamp('user-id') },
+            // A date worked out from another, which a desk could move by hand were it not strict.
+            { ref: 'ask_again_on', type: 'date', nullable: true, rules: { stamp: { set: { addDays: { date: 'may_email_at', days: 365 } }, on: { columns: ['may_email'] }, strict: true } } },
           ],
         },
         {
@@ -81,8 +83,8 @@ function crm(): Record<string, unknown> {
   };
 }
 
-/** A moment as milliseconds, however the driver hands it back. */
-const ms = (value: unknown): number => (value instanceof Date ? value.getTime() : Date.parse(String(value).replace(' ', 'T').replace(/(\d{2}:\d{2}:\d{2}(\.\d+)?)$/, '$1Z')));
+/** A moment as milliseconds, however the driver hands it back (SQLite keeps one without a zone on the server's wall clock). */
+const ms = (value: unknown): number => (value instanceof Date ? value.getTime() : Date.parse(String(value).replace(' ', 'T')));
 const yes = (value: unknown): boolean => value === true || value === 1 || value === '1';
 
 for (const [dialect, reachable] of LEGS) {
@@ -134,6 +136,11 @@ for (const [dialect, reachable] of LEGS) {
       expect(ms((await contact(1))['may_email_at'])).toBe(ms(held['may_email_at']));
       expect(said(await s.send('ada', 'POST', data(`${s.t('contacts')}/bulk`), { action: 'update', ids: [1], values: { may_email_by: 'somebody-else' } }))).toBe('ok');
       expect((await contact(1))['may_email_by']).toBe(held['may_email_by']);
+      // A date worked out from another is not moved by hand either, when its stamp is strict.
+      const askAgain = (await contact(1))['ask_again_on'];
+      expect(askAgain).not.toBeNull();
+      expect(said(await s.change('ada', 'contacts', 1, { ask_again_on: '2030-01-01' }))).toBe('ok');
+      expect(String((await contact(1))['ask_again_on'])).toBe(String(askAgain));
       // A tick by the CRM admin is stamped as her, whatever she sends beside it.
       expect(said(await s.change('ada', 'contacts', 1, { may_email: false, may_email_by: s.ids['owner'] }))).toBe('ok');
       expect((await contact(1))['may_email_by']).toBe(s.ids['ada']);

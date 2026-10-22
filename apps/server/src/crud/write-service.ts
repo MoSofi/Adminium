@@ -2028,12 +2028,15 @@ export function normalizeText(rules: TableRules | null, values: Row): Row {
  * something happened and who did it — its own record of a write, never the
  * writer's. Two kinds stay open: a date worked out from another (a due date
  * the desk may move later), and a `byOrigin` word with no staff word (staff
- * say it themselves; a guest never does). An import keeps what it brings.
+ * say it themselves; a guest never does) — unless the stamp is `strict`. An
+ * import keeps what it brings (a strict stamp's is refused in `decide.ts`).
  */
 function withoutStamped(rules: TableRules | null, values: Row, origin: WriteOrigin): Row {
   if (origin === 'import' || origin === 'undo') return values;
   const guest = origin === 'public';
-  const kept = (stamp: { set: unknown }): boolean => {
+  const kept = (stamp: { set: unknown; strict?: true }): boolean => {
+    // A strict stamp keeps nothing a writer sends, whatever it writes.
+    if (stamp.strict === true) return false;
     const set = stamp.set;
     if (typeof set !== 'object' || set === null) return false;
     if ('addDays' in set) return !guest;
