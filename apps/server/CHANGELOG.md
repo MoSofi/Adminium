@@ -1,5 +1,21 @@
 # @adminium/server
 
+## 0.3.34
+
+### Patch Changes
+
+- The server now bundles add-ons 1.0.13, including the two payment add-ons: Card payments (connects to Stripe) and Wallet payments (connects to PayPal). A normal install has them on the server without the online catalogue; they need an account at Stripe or PayPal and are set up in Studio → Payments.
+- @adminium/adapter-mysql@0.3.34
+  - @adminium/adapter-postgres@0.3.34
+  - @adminium/adapter-sqlite@0.3.34
+  - @adminium/add-on-contracts@0.3.34
+  - @adminium/engine@0.3.34
+  - @adminium/i18n@0.3.34
+  - @adminium/llm@0.3.34
+  - @adminium/manifest@0.3.34
+  - @adminium/meta@0.3.34
+  - @adminium/schema-import@0.3.34
+
 ## 0.3.33
 
 ### Patch Changes
