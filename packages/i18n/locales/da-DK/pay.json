@@ -27,7 +27,8 @@
     "gettingReady": "Gør klar …",
     "noteStripe": "Du betaler på siden hos Stripe. Denne butik ser aldrig dit kort.",
     "notePaypal": "Du betaler på siden hos PayPal. Denne butik ser aldrig dit kort.",
-    "noteBoth": "Du betaler på siden hos Stripe eller PayPal. Denne butik ser aldrig dit kort."
+    "noteBoth": "Du betaler på siden hos Stripe eller PayPal. Denne butik ser aldrig dit kort.",
+    "staffNoWay": "Kun du ser dette: ingen onlinebetalingsmåde er slået til for denne post, så denne testside tilbyder kun demotjenesten. Slå en til under Studio → Betalinger → Betalingsmåder."
   },
   "provider": {
     "stripe": "Stripe",
@@ -59,7 +60,8 @@
   "failed": {
     "title": "Betalingen gik ikke igennem.",
     "body": "Der blev ikke trukket noget.",
-    "retry": "Prøv igen"
+    "retry": "Prøv igen",
+    "otherWay": "Vælg en anden måde"
   },
   "cancelled": {
     "title": "Du forlod betalingssiden, før du betalte.",

@@ -37,7 +37,8 @@ export default {
     "gettingReady": "Getting ready…",
     "noteStripe": "You'll pay on the Stripe page. This shop never sees your card.",
     "notePaypal": "You'll pay on the PayPal page. This shop never sees your card.",
-    "noteBoth": "You'll pay on the Stripe or PayPal page. This shop never sees your card."
+    "noteBoth": "You'll pay on the Stripe or PayPal page. This shop never sees your card.",
+    "staffNoWay": "Only you see this: no way to pay online is switched on for this record, so this test page offers only the demo service. Switch one on in Studio → Payments → Ways to pay."
   },
   "provider": {
     "stripe": "Stripe",
@@ -69,7 +70,8 @@ export default {
   "failed": {
     "title": "The payment did not go through.",
     "body": "Nothing was taken.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "otherWay": "Choose another way"
   },
   "cancelled": {
     "title": "You left the payment page before paying.",
