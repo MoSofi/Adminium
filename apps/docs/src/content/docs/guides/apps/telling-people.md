@@ -71,6 +71,20 @@ own (`"values": { "came_from": "{{was.stage}}" }`) or say it: "moved from {{was.
 and is sent only to somebody who can open the record, as they read it. The run keeps only the
 columns as they were that the rule reads, never a secret one.
 
+## In each person's language
+
+Give a notice's title and message in every language your app speaks, as an e-mail template's
+`locales` are: each person is told in theirs (or another of the same language), and anybody else in
+the workspace's language. Their bell keeps what they were told.
+
+```json
+"title": { "en-US": "Won: {{record.name}}", "de-DE": "Gewonnen: {{record.name}}" },
+"body": { "en-US": "Send the thank-you card.", "de-DE": "Die Dankeskarte schicken." }
+```
+
+Give the title and the message the same languages; the manifest refuses one with a language the
+other lacks. See [A notice in the reader's language](/reference/manifest/#a-notice-in-the-readers-language).
+
 ## Once each time it happens
 
 A rule by the clock that visits "deals with nothing done for 14 days" would tell the owner every
