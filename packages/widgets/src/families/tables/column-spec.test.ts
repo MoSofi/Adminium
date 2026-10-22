@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { currencyScale } from '@adminium/manifest';
 import { describe, expect, it } from 'vitest';
 
 import {
+  cellCurrencyOf,
   columnAlign,
   compareCellValues,
   dateOnlyValue,
@@ -359,9 +361,74 @@ describe('money in minor units and the row currency (walk fix E3)', () => {
     expect(minorToMajor('n/a', 2)).toBeNull();
   });
 
-  it('knows each currency\'s exponent from Intl', () => {
+  it('knows each currency\'s exponent from ISO 4217, not Intl', () => {
     expect([currencyExponent('EUR'), currencyExponent('USD'), currencyExponent('JPY')]).toEqual([2, 2, 0]);
-    expect(['KWD', 'BHD', 'JOD', 'OMR', 'TND'].map(currencyExponent)).toEqual([3, 3, 3, 3, 3]);
+    expect(['KWD', 'BHD', 'JOD', 'OMR', 'TND', 'IQD'].map(currencyExponent)).toEqual([3, 3, 3, 3, 3, 3]);
+    // Intl (Node 22, CLDR's cash digits) says 0 for each of these; ISO 4217 says 2.
+    expect(['HUF', 'IDR', 'COP', 'PKR'].map(currencyExponent)).toEqual([2, 2, 2, 2]);
+    expect(currencyExponent('huf')).toBe(2);
     expect(currencyExponent(undefined)).toBe(2);
+    expect(currencyExponent('EURO')).toBe(2);
+  });
+
+  it('reads a forint, rupiah, dinar, yen, Kuwaiti dinar and euro minor amount at ISO digits', () => {
+    const at = (amount: number, currency: string): string => formatMoneyCell(cents, { amount_cents: amount, currency }, { locale: 'en-US' });
+    // The review's case: 490000 fillér was "HUF 490,000".
+    expect(at(490000, 'HUF')).toMatch(/^HUF\s4,900\.00$/);
+    expect(at(1250000, 'IDR')).toMatch(/^IDR\s12,500\.00$/);
+    expect(at(15000, 'IQD')).toMatch(/^IQD\s15\.000$/);
+    expect(at(4900, 'JPY')).toBe('¥4,900');
+    expect(at(15000, 'KWD')).toMatch(/^KWD\s15\.000$/);
+    expect(at(4900, 'EUR')).toBe('€49.00');
+  });
+
+  it('agrees with the server\'s currencyScale for every currency either knows', () => {
+    // Every code Intl lists, plus the ISO exceptions the server's table names
+    // (UYI is not in every Intl build).
+    const codes = new Set([...Intl.supportedValuesOf('currency'), 'UYI', 'BIF', 'CLP', 'XPF', 'BHD', 'IQD', 'TND']);
+    const differ = [...codes].filter((code) => currencyExponent(code) !== currencyScale(code));
+    expect(differ).toEqual([]);
+    expect(codes.size).toBeGreaterThan(100);
+  });
+});
+
+/**
+ * Release review (0.3.33): an explicit currency on the column must beat a
+ * currency guessed from the row's column names, and with several `*_currency`
+ * columns the one meant is the money column's own, never the first key.
+ */
+describe('which currency a money cell is in', () => {
+  const cents = spec({ name: 'amount_cents', label: 'Amount', logicalType: 'integer', semantic: 'money', format: 'currency-cents' });
+  const priced = spec({ name: 'amount_cents', label: 'Amount', logicalType: 'integer', semantic: 'money', format: 'currency-cents', currency: 'JPY' });
+
+  it('the column\'s own currency beats the row\'s currency column and the page\'s', () => {
+    expect(cellCurrencyOf(priced, { amount_cents: 4900, currency: 'EUR' }, 'USD')).toBe('JPY');
+    expect(formatMoneyCell(priced, { amount_cents: 4900, currency: 'EUR' }, { locale: 'en-US', currency: 'USD' })).toBe('¥4,900');
+  });
+
+  it('then the row, then the page, then none', () => {
+    expect(cellCurrencyOf(cents, { amount_cents: 1, currency: 'EUR' }, 'USD')).toBe('EUR');
+    expect(cellCurrencyOf(cents, { amount_cents: 1 }, 'usd')).toBe('USD');
+    expect(cellCurrencyOf(cents, { amount_cents: 1 }, undefined)).toBeUndefined();
+    // A malformed column currency says nothing, so the row still decides.
+    expect(cellCurrencyOf({ ...cents, currency: 'euro' }, { amount_cents: 1, currency: 'EUR' }, undefined)).toBe('EUR');
+  });
+
+  it('the money column\'s own *_currency first, whatever the key order', () => {
+    const row = { fee_currency: 'GBP', tax_currency: 'CHF', amount_currency: 'JPY', amount_cents: 1 };
+    expect(rowCurrencyOf(row, 'amount_cents')).toBe('JPY');
+    expect(rowCurrencyOf({ amount_currency: 'JPY', currency: 'EUR', amount_cents: 1 }, 'amount_cents')).toBe('JPY');
+    expect(rowCurrencyOf({ price_currency_code: 'SEK', price_minor: 1 }, 'price_minor')).toBe('SEK');
+  });
+
+  it('then a plain currency / currency_code, never another column\'s *_currency', () => {
+    expect(rowCurrencyOf({ fee_currency: 'GBP', currency: 'EUR', amount_cents: 1 }, 'amount_cents')).toBe('EUR');
+    expect(rowCurrencyOf({ fee_currency: 'GBP', currency_code: 'EUR', amount_cents: 1 }, 'amount_cents')).toBe('EUR');
+  });
+
+  it('several unrelated *_currency columns are no answer; one alone is the table\'s', () => {
+    expect(rowCurrencyOf({ fee_currency: 'GBP', tax_currency: 'CHF', amount_cents: 1 }, 'amount_cents')).toBeUndefined();
+    expect(rowCurrencyOf({ tax_currency: 'CHF', fee_currency: 'GBP', amount_cents: 1 }, 'amount_cents')).toBeUndefined();
+    expect(rowCurrencyOf({ billing_currency: 'CHF', amount_cents: 1 }, 'amount_cents')).toBe('CHF');
   });
 });

@@ -9,6 +9,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import {
+  cellCurrencyOf,
   columnAlign,
   dateOnlyValue,
   formatAbsoluteTime,
@@ -17,7 +18,6 @@ import {
   formatMoneyCell,
   formatRelativeTime,
   maskedColumnsOf,
-  rowCurrencyOf,
   uiToneOf,
 } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
@@ -447,7 +447,7 @@ function CellContent({
       >
         {formatDisplayValue(value, column.display, {
           locale: context.locale,
-          currency: rowCurrencyOf(row, column.name) ?? context.currency ?? column.currency,
+          currency: cellCurrencyOf(column, row, context.currency),
         })}
       </MonoText>
     );
