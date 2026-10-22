@@ -230,6 +230,8 @@ export function flagSentence(row: ActivityRow, services: readonly ServiceView[],
       return t('studio:payments.activity.flag.recordChanged', 'A recorded payment changed: {record} · {amount} is no longer written down as it was.', { record, amount });
     case 'disputed':
       return t('studio:payments.activity.flag.disputed', 'Disputed: {record} · {amount}. Answer it in the {service} dashboard.', { record, amount, service });
+    case 'dispute-lost':
+      return t('studio:payments.activity.flag.disputeLost', 'Dispute lost: {amount} went back to the customer on {record}. Recorded as a refund.', { record, amount });
     default:
       return '';
   }
@@ -254,15 +256,16 @@ function flagLook(row: ActivityRow): { icon: LucideIcon; tone: Tone } {
     case 'waiting-long':
       return { icon: Landmark, tone: 'info' };
     case 'disputed':
+    case 'dispute-lost':
       return { icon: ShieldAlert, tone: 'danger' };
     default:
       return { icon: PencilLine, tone: 'neutral' };
   }
 }
 
-/** The muted line under a flag or in a row: when, how and where. */
+/** The muted line under a flag: when it happened (a dispute's opening, not the payment's start), how and where. */
 function metaLine(row: ActivityRow, services: readonly ServiceView[], locale: string): string {
-  return [stamp(row.at, locale), row.payable?.label ?? null, row.paidWith, serviceName(row.service, services), modeWord(row.mode)].filter((part): part is string => part !== null && part !== '').join(' · ');
+  return [stamp(row.lookAt ?? row.at, locale), row.payable?.label ?? null, row.paidWith, serviceName(row.service, services), modeWord(row.mode)].filter((part): part is string => part !== null && part !== '').join(' · ');
 }
 
 interface StoryStep {
@@ -279,7 +282,9 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
     const steps: StoryStep[] = [
       row.refundSource === 'provider'
         ? { text: t('studio:payments.activity.story.refundThere', 'Refunded in the {service} dashboard: {amount}', { service, amount }), at: row.times.started, tone: 'info' }
-        : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
+        : row.refundSource === 'dispute'
+          ? { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost: {amount} went back to the customer', { amount }), at: row.times.started, tone: 'danger' }
+          : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
     ];
     if (row.group === 'refunded') steps.push({ text: t('studio:payments.activity.story.refunded', '{service} says refunded', { service }), at: row.times.settled ?? row.times.updated, tone: 'pos' });
     if (row.group === 'refundFailed') steps.push({ text: t('studio:payments.activity.story.refundFailed', '{service} says the refund failed', { service }), at: row.times.settled ?? row.times.updated, tone: 'danger' });
@@ -330,7 +335,11 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
     steps.push(
       row.dispute.state === 'open'
         ? { text: t('studio:payments.activity.story.disputeAnswer', 'Answer it in the {service} dashboard', { service }), at: null, tone: 'warn' }
-        : { text: t('studio:payments.activity.story.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service }), at: row.dispute.closedAt, tone: 'neutral' },
+        : row.dispute.outcome === 'won'
+          ? { text: t('studio:payments.activity.story.disputeWon', 'The dispute was won.'), at: row.dispute.closedAt, tone: 'pos' }
+          : row.dispute.outcome === 'lost'
+            ? { text: t('studio:payments.activity.story.disputeLost', 'The dispute was lost: the money went back to the customer.'), at: row.dispute.closedAt, tone: 'danger' }
+            : { text: t('studio:payments.activity.story.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service }), at: row.dispute.closedAt, tone: 'neutral' },
     );
   }
   return steps;
@@ -525,7 +534,7 @@ function NeedsLookCard({ services, locale, canManage, canRefund, onOpenSetup }: 
   const returnTo = useRef<HTMLButtonElement | null>(null);
   const silent = silences(services);
   // A checked flag stays in the group, tinted, with its line, until the page is opened again.
-  const rows = [...(open.data?.rows ?? []), ...kept.filter((one) => !(open.data?.rows ?? []).some((row) => row.id === one.id))].sort((a, b) => b.at - a.at);
+  const rows = [...(open.data?.rows ?? []), ...kept.filter((one) => !(open.data?.rows ?? []).some((row) => row.id === one.id))].sort((a, b) => (b.lookAt ?? b.at) - (a.lookAt ?? a.at));
   const headingId = useId();
   const total = count.data ?? open.data?.rows.length ?? 0;
   return (

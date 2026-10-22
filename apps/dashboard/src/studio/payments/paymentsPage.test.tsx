@@ -261,6 +261,23 @@ describe('PaymentsPage', () => {
     expect(textOf(screen.getByTestId('payments-alarm-pay-address'))).toContain('Update the webhook address at Stripe and PayPal.');
   });
 
+  it('lets a person say "Got it" to an alarm, which hides it for them', async () => {
+    const at = Date.now() - 3_600_000;
+    const { user, calls } = renderPage(
+      setup({
+        alarms: [
+          { id: 'aud_bank1', what: 'bank', service: null, from: null, to: null, by: 'Ava Reyes', at },
+          // From a server one step behind: no id, so nothing to dismiss it by.
+          { what: 'account', service: 'payments-stripe', from: 'acct_1Old', to: 'acct_1New', by: 'Ava Reyes', at },
+        ],
+      }),
+    );
+    const bank = await screen.findByTestId('payments-alarm-bank');
+    expect(within(screen.getByTestId('payments-alarm-account')).queryByRole('button', { name: 'Got it' })).toBeNull();
+    await user.click(within(bank).getByRole('button', { name: 'Got it' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'POST' && call.url === '/api/v1/payments/alarms/aud_bank1/dismiss')).toBe(true));
+  });
+
   it('reads the webhook health: bad signatures, a payment no webhook announced, and slowed checks', async () => {
     const health = { lastEventAt: Date.now() - 120_000, lastBadAt: Date.now() - 60_000, badThisHour: 3, caughtAt: Date.now() - 600_000, slowed: true };
     renderPage(setup({ services: [stripe({ live: mode({ health }) })] }));

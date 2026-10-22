@@ -69,6 +69,7 @@ import {
   checkKeys,
   checklistProgress,
   choosePath,
+  dismissAlarm,
   knownProvider,
   paymentsSetupQuery,
   saveField,
@@ -1223,19 +1224,34 @@ function alarmTitle(alarm: MoneyAlarm, services: ServiceView[]): string {
 }
 
 function AlarmsCard({ alarms, services }: { alarms: MoneyAlarm[]; services: ServiceView[] }) {
-  if (alarms.length === 0) return null;
+  const client = useQueryClient();
+  // "Got it" hides a banner for this person only: the email already went to everyone.
+  const dismiss = useMutation({
+    mutationFn: (id: string) => dismissAlarm(id),
+    onSuccess: async () => client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY }),
+  });
+  const shown = alarms.filter((alarm) => alarm.id === undefined || !(dismiss.isPending && dismiss.variables === alarm.id));
+  if (shown.length === 0) return null;
   return (
     <section className="flex flex-col gap-2" aria-label={t('studio:payments.alarm.heading', 'Where the money goes changed')} data-testid="payments-alarms">
-      {alarms.map((alarm) => (
+      {shown.map((alarm) => (
         <Alert
-          key={`${alarm.what}-${String(alarm.at)}`}
+          key={alarm.id ?? `${alarm.what}-${String(alarm.at)}`}
           tone="warn"
           icon={<ShieldAlert />}
           data-testid={`payments-alarm-${alarm.what}`}
           title={alarmTitle(alarm, services)}
           body={t('studio:payments.alarm.emailed', 'Everyone who manages payments was emailed.')}
+          action={
+            alarm.id === undefined ? undefined : (
+              <Button size="sm" variant="secondary" data-testid="payments-alarm-dismiss" onClick={() => alarm.id !== undefined && dismiss.mutate(alarm.id)}>
+                {t('studio:payments.alarm.gotIt', 'Got it')}
+              </Button>
+            )
+          }
         />
       ))}
+      {dismiss.isError ? <p role="alert" className="text-[12.5px] text-danger">{t('studio:payments.error.unknown', 'That did not work. Try again.')}</p> : null}
     </section>
   );
 }
