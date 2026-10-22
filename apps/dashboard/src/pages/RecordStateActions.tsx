@@ -44,6 +44,12 @@ export interface RecordStateActionsProps {
   recordId: string;
   /** A page that changes nothing (read-only, or closed by its parent) offers only the ways out of it: links. */
   linksOnly?: boolean;
+  /**
+   * The row as the page read it, and who is reading: a button whose change the row leaves to somebody else
+   * (`notBy`, `by`) is not shown. Presentation only: the server refuses the change whatever is shown.
+   */
+  row?: Readonly<Record<string, unknown>> | null;
+  me?: string | null;
   /** An action was made: the record, and whatever lists it, are read again. */
   onDone: () => void;
   /** What to say under the record's heading; null takes it away. */
@@ -58,7 +64,16 @@ interface Asking {
   errors: Record<string, string>;
 }
 
-export function RecordStateActions({ actions, state, connectionId, table, recordId, linksOnly = false, onDone, onRefused }: RecordStateActionsProps): ReactNode {
+/** Whether the row leaves this button's change to somebody other than the reader: it names them where the button says `notBy`, or names somebody else where it says `by`. */
+export function leftToOthers(action: Pick<StateActionFact, 'notBy' | 'by'>, row: Readonly<Record<string, unknown>> | null | undefined, me: string | null | undefined): boolean {
+  if (row === null || row === undefined || me === null || me === undefined) return false;
+  const names = (column: string): boolean => row[column] !== null && row[column] !== undefined && String(row[column]) === me;
+  // A column the reader is not shown is not judged here: the save is.
+  if ((action.notBy ?? []).some((column) => column in row && names(column))) return true;
+  return action.by !== undefined && action.by in row && !names(action.by);
+}
+
+export function RecordStateActions({ actions, state, connectionId, table, recordId, linksOnly = false, row, me, onDone, onRefused }: RecordStateActionsProps): ReactNode {
   const router = useRouter();
   const [asking, setAsking] = useState<Asking | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -66,12 +81,12 @@ export function RecordStateActions({ actions, state, connectionId, table, record
   const offered = useMemo(
     () =>
       actions
-        .filter((action) => state !== null && action.from.includes(state) && (!linksOnly || action.kind === 'link'))
+        .filter((action) => state !== null && action.from.includes(state) && (!linksOnly || action.kind === 'link') && !leftToOthers(action, row, me))
         // Stable: among actions of one tone, the order the app wrote them in.
         .map((action, index) => ({ action, index }))
         .sort((a, b) => TONE_ORDER[a.action.tone] - TONE_ORDER[b.action.tone] || a.index - b.index)
         .map((entry) => entry.action),
-    [actions, state, linksOnly],
+    [actions, state, linksOnly, row, me],
   );
   if (offered.length === 0) return null;
 

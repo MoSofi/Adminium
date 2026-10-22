@@ -85,7 +85,7 @@ import {
 } from './columnSpecs.js';
 import { Alert } from '@adminium/ui';
 import { addOnWords } from '../add-ons/messages.js';
-import { RecordStateActions } from './RecordStateActions.js';
+import { leftToOthers, RecordStateActions } from './RecordStateActions.js';
 import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, timedMove, type TableStateFacts } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
 
@@ -679,17 +679,17 @@ export function PageRecordBinding({
     const table = sourceTable ?? crud?.table;
     if (recordId === undefined || connectionId === null || table === undefined || stateActions === undefined || stateActions.length === 0) return [];
     // Nothing is offered in the state the row is in: no empty slot in the heading.
-    if (rowState === null || !stateActions.some((action) => action.from.includes(rowState) && (!(readOnly || parentClosed) || action.kind === 'link'))) return [];
+    if (rowState === null || !stateActions.some((action) => action.from.includes(rowState) && (!(readOnly || parentClosed) || action.kind === 'link') && !leftToOthers(action, row, bootstrap.user.id))) return [];
     return [
       {
         id: 'state-actions',
         label: t('ui:pages.record.more', 'More'),
         content: (
-          <RecordStateActions actions={stateActions} state={rowState} connectionId={connectionId} table={table} recordId={recordId} linksOnly={readOnly || parentClosed} onDone={afterAction} onRefused={setRefusal} />
+          <RecordStateActions actions={stateActions} state={rowState} connectionId={connectionId} table={table} recordId={recordId} linksOnly={readOnly || parentClosed} row={row} me={bootstrap.user.id} onDone={afterAction} onRefused={setRefusal} />
         ),
       },
     ];
-  }, [stateActions, rowState, recordId, connectionId, sourceTable, crud, readOnly, parentClosed, afterAction, t]);
+  }, [stateActions, rowState, recordId, connectionId, sourceTable, crud, readOnly, parentClosed, afterAction, t, row, bootstrap.user.id]);
   /** Each related tab with its own empty words in the reader's language, where its page gave some. */
   const locale = bootstrap.prefs.locale;
   const tabs = useMemo(
