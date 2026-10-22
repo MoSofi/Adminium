@@ -35,7 +35,7 @@ import { sql, type Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { addOnInstallsStamp, addOnTablesFor } from '../../apps/add-on-tables.js';
-import { applyOverrides } from '../../connections/effective-schema.js';
+import { applyOverrides, type CarryRule } from '../../connections/effective-schema.js';
 import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, plausibleAddress, subjectOf } from '../../public-api/claim-code.js';
 import { linkSubject } from '../../public-api/sign-in-link.js';
 import { PersonRaced, PersonRefused, PersonTableUnusable, personLocks, resolvePerson } from '../../crud/person.js';
@@ -51,7 +51,7 @@ import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
 import { runList } from '../../crud/list.js';
 import { fetchVisible, rowRefinement, type RowAction, type RowLimitContext } from '../../crud/row-limit.js';
 import { limitProjections, rowLimitContextOf, rowTestOf, venueDayOf } from '../../crud/row-limit-context.js';
-import { assertLinksReached, assertLinksToUnreadTables, assertNoUnreachedChildren, assertStaffColumns, linkRefused, reachedKeys, type LinkWriter, type StaffWriteOptions } from '../../crud/row-writes.js';
+import { assertLinksReached, assertLinksToUnreadTables, assertListedCanOpen, assertNoUnreachedChildren, assertStaffColumns, linkRefused, reachedKeys, type LinkWriter, type StaffWriteOptions } from '../../crud/row-writes.js';
 import { applyLookupMask, fetchLookupValues } from '../../crud/lookups.js';
 import {
   resolveProjections,
@@ -144,7 +144,7 @@ import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import { parseJsonColumn } from '../audit/index.js';
 import { cursorText } from '../../security/nul-bytes.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
-import { isStateRefusal } from '../../crud/state-conditions.js';
+import { holds, isStateRefusal } from '../../crud/state-conditions.js';
 import {
   createWriteService,
   deleteRows,
@@ -975,6 +975,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       updateLimit: UpdateLimit | null;
       /** The child table has a before hook, so its rows cannot be written blind. */
       hooked: boolean;
+      /**
+       * Rows a hand-over carries (`carries`): not sent by anybody, but the
+       * rows of this child whose `column` names the old person `from`, and
+       * that meet `where`, read inside the write, each given `to`.
+       */
+      carry?: { column: string; from: unknown; to: unknown; where: readonly NonNullable<CarryRule['where']>[number][] };
     }
 
     function childTargetOf(
@@ -1032,6 +1038,63 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         });
       }
       return out;
+    }
+
+    /**
+     * THE ROWS A HAND-OVER CARRIES. A record's hand-over button may carry the
+     * old person's child rows along (`carries`): a deal's booked visits and
+     * its owner's open follow-ups go to the new owner, while a visit already
+     * made, and a colleague's rows, stay as they are. For each carry whose
+     * person this change hands over (the record's `from` column moves from
+     * one person to another), the child rows are found inside the write
+     * (`applyChildren`) and each is changed as its own update: its rules and
+     * hooks, the listing rule, its audit row, its live frame and the rules
+     * that watch it. The writer's update must reach each one; the column it
+     * moves is the button's to write, as the columns it sets are. None when
+     * no row is carried, so the change takes its plain path.
+     */
+    async function carriedChildren(request: FastifyRequest, ctx: DataContext, context: WriteContext, carries: readonly CarryRule[], values: Row, before: Row): Promise<RequestedChildren[]> {
+      const out: RequestedChildren[] = [];
+      for (const carry of carries) {
+        if (carry.from === undefined || !Object.hasOwn(values, carry.from)) continue;
+        const [was, now] = [before[carry.from], values[carry.from]];
+        // Handed to nobody, from nobody, or to whom it already was: nothing goes anywhere.
+        if (was === null || was === undefined || was === '' || now === null || now === undefined || now === '' || String(was) === String(now)) continue;
+        const relation = ctx.view.model.relations.find((r) => r.through === null && r.from.tableId === carry.table && r.from.columns.length === 1 && r.from.columns[0] === carry.via && r.to.tableId === ctx.table.id && r.to.columns.length === 1);
+        const resolution = relation === undefined ? null : resolveChild(ctx.view, ctx.table, relation.id);
+        if (resolution === null || !resolution.ok) {
+          throw new ValidationFailedError('This hand-over carries rows of a table that is not one of this record\'s child tables.', { fields: { [carry.via]: { code: 'not-allowed' } }, relation: carry.table });
+        }
+        const { child } = resolution;
+        const carried = { column: carry.column, from: was, to: now, where: carry.where ?? [] };
+        // Nothing to carry today: the change keeps its plain path. The rows are found again inside the write.
+        if ((await carriedRows(ctx.db, child, before[child.parentKeyColumn], carried)).length === 0) continue;
+        out.push({
+          child,
+          rows: [],
+          canCreate: false,
+          canUpdate: await request.can(`table:${ctx.connectionId}:${child.child.id}:update`),
+          canDelete: false,
+          updateLimit: await updateLimitFor(request, ctx.connectionId, child.child.id),
+          hooked: await writes.wants('before', 'update', childTargetOf(ctx, child, ctx.db), context),
+          carry: carried,
+        });
+      }
+      return out;
+    }
+
+    /** The child rows of one parent a carry moves: its column names the old person, and every `where` holds. Read whole: a row the writer cannot reach refuses the hand-over. */
+    async function carriedRows(db: Kysely<SourceDatabase>, child: ResolvedChild, parentKey: unknown, carry: NonNullable<RequestedChildren['carry']>): Promise<Row[]> {
+      if (parentKey === null || parentKey === undefined) return [];
+      const rows = (await db
+        .selectFrom(child.child.id)
+        .selectAll()
+        .where((eb) => eb(db.dynamic.ref(child.foreignColumn), '=', parentKey))
+        .where((eb) => eb(db.dynamic.ref(carry.column), '=', carry.from as never))
+        .limit(MAX_CHILD_ROWS + 1)
+        .execute()) as Row[];
+      if (rows.length > MAX_CHILD_ROWS) throw new ValidationFailedError(`This hand-over would carry more than ${String(MAX_CHILD_ROWS)} rows of ${child.child.name}.`, { code: 'too-many', relation: child.relationId });
+      return rows.filter((row) => carry.where.every((condition) => holds(condition, row)));
     }
 
     /**
@@ -1103,6 +1166,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         effects?: EffectWritten[] | undefined;
         /** Rows of a quote: no number claimed, nothing held they do not write. */
         quote?: boolean | undefined;
+        /** The rows a hand-over carried, as changes of their own, to announce once it commits. */
+        carried?: EffectWritten[] | undefined;
       } = {},
     ): Promise<UndoChildren> {
       const limits = options.judged === true ? ({ capacity: 'judged', ...(options.quote === true ? { quote: true } : {}) } as const) : options.quote === true ? { quote: true } : undefined;
@@ -1112,8 +1177,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // What the children moved: a parent's total over them is settled inside
       // the same transaction, as a child written on its own would be.
       const settled: { action: 'create' | 'update' | 'delete'; record: Row; before: Row | null }[] = [];
-      const existing = options.existing ?? (await currentChildren(db, child, parentKey, ctx.rows));
-      const diff: ChildDiff = diffChildRows(child.child.primaryKey, existing, requested.rows);
+      const carry = requested.carry;
+      // A hand-over's carried rows: those the carry names, read now, inside the write; each given the new person.
+      const existing = options.existing ?? (carry !== undefined ? await carriedRows(db, child, parentKey, carry) : await currentChildren(db, child, parentKey, ctx.rows));
+      const sent = carry === undefined ? requested.rows : existing.map((row) => ({ key: keyOf(row), values: { [carry.column]: carry.to } }));
+      const diff: ChildDiff = diffChildRows(child.child.primaryKey, existing, sent);
       /** A child row the caller reads may still be one their update, or their delete, does not reach. */
       const within = async (row: Row, action: 'update' | 'delete'): Promise<boolean> => ctx.rows === null || (await fetchVisible(ctx.rows, db, child.child, keyOf(row), action)) !== undefined;
 
@@ -1167,14 +1235,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const before = existing.find((row) =>
           child.child.primaryKey.every((name) => String(row[name]) === String(change.key[name])),
         );
-        // Every existing row a form sends is "changed"; only what moved is judged.
-        assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
+        // Every existing row a form sends is "changed"; only what moved is judged. A carried row's column is the button's to write.
+        if (carry === undefined) assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
         // …and a row that does move is one the caller's update reaches, by what it holds now.
         if (changesRow(change.values, before)) assertMovedFrom(requested.updateLimit, child.child.id, before ?? null, change.values);
-        // …and by whose it is: theirs to change, and naming nobody and no row they may not.
+        // …and by whose it is: theirs to change, and naming nobody and no row they may not (a carried row: anybody the hand-over names).
         if (changesRow(change.values, before)) {
           if (before !== undefined && !(await within(before, 'update'))) refuse('update');
-          await judgeWrite(ctx, child.child.id, change.values, before ?? null, undefined, db);
+          await judgeWrite(ctx, child.child.id, change.values, before ?? null, carry === undefined ? undefined : { handOver: true }, db);
+          // The listing rule, on each row a hand-over carries: the new person can open what the row lists them on.
+          if (carry !== undefined) await assertListedCanOpen(meta, db, ctx.view.model, ctx.connectionId, child.child.id, change.values, before ?? null);
         }
         const [prepared] = await writes.beforeEach('update', target, context, [
           // The state a row sent back whole already holds is no move.
@@ -1197,7 +1267,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const after = (await fetchByPk(db, child.child, change.key)) ?? null;
         if (before !== undefined) undo.changed.push({ key: change.key, before, ...(after === null ? {} : { after }) });
         if (after !== null) settled.push({ action: 'update', record: after, before: before ?? null });
-        options.events?.push({ table: child.child, action: 'update', pk: change.key, row: after });
+        // A carried row is a change of its own (its audit row, its frame, the rules that watch it); a form's row, the form's.
+        if (carry !== undefined && before !== undefined && after !== null) options.carried?.push({ table: child.child.id, pk: change.key, before, after });
+        else options.events?.push({ table: child.child, action: 'update', pk: change.key, row: after });
       }
 
       for (const key of diff.removed) {
@@ -3831,6 +3903,20 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * asked about `judged` — what the caller chose, not what a move sets for itself.
      */
     /**
+     * The rows a hand-over carried, once it committed: each a change of its
+     * own, as an effect's row is (its audit row, its live frame, the rules
+     * and the outbox that watch it), and its table's after hooks.
+     */
+    async function announceCarried(request: FastifyRequest, ctx: DataContext, context: WriteContext, carried: readonly EffectWritten[]): Promise<void> {
+      if (carried.length === 0) return;
+      await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: [...carried], origin: 'dashboard', request });
+      for (const tableId of new Set(carried.map((row) => row.table))) {
+        const rows = carried.filter((row) => row.table === tableId && row.after !== null).map((row) => ({ record: row.after!, before: row.before }));
+        await writes.afterEach('update', { connectionId: ctx.connectionId, view: ctx.view, table: ctx.view.table(tableId), db: ctx.db, dialect: ctx.dialect }, context, rows);
+      }
+    }
+
+    /**
      * A save made from a page's form, when the page's settings moved since the
      * form opened, is refused: what the form drew (a picture field) may not be
      * what the page holds now (a text column), and a picture saved into a
@@ -3845,7 +3931,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
-    async function changeRecord(request: FastifyRequest, ctx: DataContext, recordId: string, body: RecordChange, own?: { values: Row; judged: Row; handOver?: true }) {
+    async function changeRecord(request: FastifyRequest, ctx: DataContext, recordId: string, body: RecordChange, own?: { values: Row; judged: Row; handOver?: true; carries?: CarryRule[] }) {
       await assertPageUnchanged(body.page);
       const pk = parseRecordId(ctx.table, recordId);
       // An edit form sends only what changed, so an edit of links or line
@@ -3870,7 +3956,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const values = held === null ? seenValues : attachSeen(seenValues, held);
       const context = withOccurredAt(requestWriteContext(request, 'dashboard'), body.occurredAt);
       const links = await requestedLinks(request, ctx, context, body.links);
-      const children = await requestedChildren(request, ctx, context, body.children);
+      // …and the rows a hand-over carries along with the record: changed in this same write, each as its own update.
+      const carried = own?.handOver === true && own.carries !== undefined ? await carriedChildren(request, ctx, context, own.carries, own.values, before) : [];
+      const children = [...(await requestedChildren(request, ctx, context, body.children)), ...carried];
       // What the record agrees to be (a stay's guests within what its room sleeps), judged on the row as changed, inside the change.
       const agrees = await recordAgrees(ctx);
       const inside = agrees === null ? {} : { inside: agrees };
@@ -3943,6 +4031,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           let childWrites: UndoChildren[] = [];
           let childEvents: ChildEvent[] = [];
           let childEffects: EffectWritten[] = [];
+          let childCarried: EffectWritten[] = [];
           const outcome = await writes.update({
             target: { ...ctx.target, timezone },
             pk,
@@ -3960,8 +4049,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 const rows: LockNameRow[] = [];
                 for (const requested of children) {
                   const target = { ...childTargetOf(ctx, requested.child, ctx.db), timezone };
-                  const existing = await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn], ctx.rows);
-                  for (const row of requested.rows) {
+                  const existing = requested.carry !== undefined ? await carriedRows(ctx.db, requested.child, before[requested.child.parentKeyColumn], requested.carry) : await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn], ctx.rows);
+                  // A carried row as it will stand: the new person in the carried column.
+                  const carry = requested.carry;
+                  const sent = carry === undefined ? requested.rows : existing.map((row) => ({ key: Object.fromEntries(requested.child.child.primaryKey.map((name) => [name, row[name]])), values: { [carry.column]: carry.to } }));
+                  for (const row of sent) {
                     const stored = row.key === undefined ? undefined : existing.find((one) => requested.child.child.primaryKey.every((name) => String(one[name]) === String(row.key![name])));
                     rows.push({ target, row: { ...(stored ?? {}), ...row.values, [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] }, before: stored ?? null, prepared: false });
                   }
@@ -3973,9 +4065,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 childWrites = [];
                 childEvents = [];
                 childEffects = [];
+                childCarried = [];
                 const judged: JudgedRow[] = [];
                 for (const requested of children) {
-                  const undo = await applyChildren(ctx, db, requested, after[requested.child.parentKeyColumn], context, { events: childEvents, effects: childEffects, judged: true });
+                  const undo = await applyChildren(ctx, db, requested, after[requested.child.parentKeyColumn], context, { events: childEvents, effects: childEffects, judged: true, carried: childCarried });
                   childWrites.push(undo);
                   const target = { ...childTargetOf(ctx, requested.child, db), timezone };
                   for (const [i, key] of undo.added.entries()) judged.push({ target, pk: key, row: undo.addedRows![i]!, before: null });
@@ -3988,8 +4081,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             },
             announce: async (result) => {
               const after = result.after ?? before;
-              if (result.postings === undefined && !pricedBy(result.adjusted)) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
+              // A hand-over that carried rows has no undo: no move back would take them back.
+              if (result.postings === undefined && !pricedBy(result.adjusted) && carried.length === 0) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+              await announceCarried(request, ctx, context, childCarried);
               for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
               await keepChildRemovals(request, ctx, childEvents);
               await tellChildMentions(request, ctx, childEvents);
@@ -4023,6 +4118,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const childWrites: UndoChildren[] = [];
       const childEvents: ChildEvent[] = [];
       const effected: EffectWritten[] = [];
+      const childCarried: EffectWritten[] = [];
       // The series a child row added here takes a number in, held until the save commits.
       const numbered = children.map((requested) => ({
         target: childTargetOf(ctx, requested.child, ctx.db),
@@ -4056,6 +4152,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
               events: childEvents,
               effects: effected,
+              carried: childCarried,
             }),
           );
         }
@@ -4067,19 +4164,24 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         return changed;
       }, numbered);
 
-      undoToken = await issueUndo(
-        request,
-        ctx,
-        'update',
-        [before],
-        [after],
-        Object.keys(prepared.values),
-        [],
-        written,
-        childWrites,
-        effected,
-      );
+      // A hand-over that carried rows has no undo: no move back would take them back.
+      undoToken =
+        carried.length > 0
+          ? null
+          : await issueUndo(
+              request,
+              ctx,
+              'update',
+              [before],
+              [after],
+              Object.keys(prepared.values),
+              [],
+              written,
+              childWrites,
+              effected,
+            );
       await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+      await announceCarried(request, ctx, context, childCarried);
       for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
       await keepChildRemovals(request, ctx, childEvents);
       await tellChildMentions(request, ctx, childEvents);

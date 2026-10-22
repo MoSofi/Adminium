@@ -1841,12 +1841,12 @@ export interface WriteServiceOptions {
   /**
    * The listing rule (`assertListedCanOpen` in `crud/row-writes.ts`): a row
    * that lists somebody against rows of other tables lists only somebody who
-   * can open them. Asked of the row as a writer no person door judged leaves
-   * it — a rule's write step, the owner's code, a timed move ({@link LISTING_ORIGINS})
-   * — and of every row an effect moves, whoever's write set it off; each
-   * with what the rules filled in (a stamp that copies a person in). The data
-   * routes ask it of what a person sends, before the write. A service without
-   * it asks nobody.
+   * can open them. Asked of the row as the write leaves it — a rule's write
+   * step, the owner's code, a timed move, and a person's own write
+   * ({@link LISTING_ORIGINS}) — and of every row an effect
+   * moves, whoever's write set it off; each with what the rules filled in (a
+   * stamp that copies a person in). The data routes also ask it of what a
+   * person sends, before the write. A service without it asks nobody.
    */
   listings?: ((target: WriteTarget, values: Row, before: Row | null) => Promise<void>) | undefined;
   /**
@@ -1919,14 +1919,15 @@ const CODE_RETRIES = 4;
 
 /**
  * The writers the service asks the listing rule of, on the row as it will be
- * written (`listings`): those no person door judged first — a rule's write
- * step and a timed move (`automation`), the owner's code (`hook`, `action`).
- * A person's own write (`dashboard`, `bulk`) was judged by the data routes
- * on what they sent, an import by its own judge (`data-io/import-judge.ts`),
- * an undo puts history back, and a guest names no staff member. The rows an
- * effect moves are asked whoever wrote.
+ * written (`listings`): a rule's write step and a timed move (`automation`),
+ * the owner's code (`hook`, `action`), and a person's own write through the
+ * data routes (`dashboard`, `bulk`) — judged there on what they sent, and
+ * here again on the row as its rules filled it, so a stamp that puts a
+ * person in a listing's person column is judged too. An import has its own
+ * judge (`data-io/import-judge.ts`), an undo puts history back, and a guest
+ * names no staff member. The rows an effect moves are asked whoever wrote.
  */
-const LISTING_ORIGINS: ReadonlySet<WriteOrigin> = new Set(['automation', 'hook', 'action']);
+const LISTING_ORIGINS: ReadonlySet<WriteOrigin> = new Set(['automation', 'hook', 'action', 'dashboard', 'bulk']);
 
 /**
  * Run `insert` so a refusal leaves the transaction usable: Postgres aborts a
@@ -5054,6 +5055,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
+        // The listing rule, on the row as its rules filled it (a stamp that copies a person in), for the writers it is asked of.
+        if (action !== 'delete' && opts.listings !== undefined && LISTING_ORIGINS.has(context.origin) && setsListing(target.view.model, target.table.id, Object.keys(worked))) await opts.listings(target, worked, record);
         // When, and by whom, a column may change: refused by name; what it read of the stored row is held by the statement.
         const changes = await judgeChangeGuards(rules, action, target, context, worked, record);
         if (changes.refusal !== null) throw changes.refusal;
