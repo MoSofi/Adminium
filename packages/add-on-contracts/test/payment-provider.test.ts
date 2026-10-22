@@ -232,3 +232,19 @@ describe('the demo reports what was really taken', () => {
     expect(((await provider.status(made.ref)) as { status: string }).status).toBe('expired');
   });
 });
+
+describe('a dispute event', () => {
+  const event = { ok: true, eventId: 'evt_1', type: 'charge.dispute.closed', kind: 'dispute', checkoutRef: null, paymentRef: 'pi_1', refundRef: null, livemode: false, occurredAt: 1 } as const;
+
+  it('may say where the dispute stands and how much, or nothing (an older add-on)', () => {
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse(event).success).toBe(true);
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'lost', amount: '120.00', currency: 'EUR' } }).success).toBe(true);
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'won', amount: null, currency: null } }).success).toBe(true);
+  });
+
+  it('refuses an outcome or an amount outside the contract', () => {
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'warning_closed', amount: null, currency: null } }).success).toBe(false);
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'lost', amount: '12000', currency: 'eur' } }).success).toBe(false);
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'lost', amount: '-1', currency: 'EUR' } }).success).toBe(false);
+  });
+});

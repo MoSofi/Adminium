@@ -401,6 +401,25 @@ export interface PaymentEvent {
   readonly livemode: boolean;
   /** When the provider made the event (epoch ms). */
   readonly occurredAt: number;
+  /**
+   * A dispute event's news, when the provider says it: where the dispute
+   * stands (`open` while it is fought; `won`, `lost`, or `closed` with no
+   * outcome said) and the amount disputed, as a decimal in major units
+   * ("120.00") with its currency. Optional: an engine reads a dispute event
+   * without it as open, or closed by its type.
+   */
+  readonly dispute?: PaymentDispute;
+}
+
+/** Where a dispute stands, as a dispute event says. */
+export const DISPUTE_STATUSES = ['open', 'won', 'lost', 'closed'] as const;
+export type DisputeStatus = (typeof DISPUTE_STATUSES)[number];
+
+export interface PaymentDispute {
+  readonly status: DisputeStatus;
+  /** The amount disputed, a decimal in major units, or null when the event does not say. */
+  readonly amount: string | null;
+  readonly currency: string | null;
 }
 
 export const paymentEventSchema = z
@@ -414,6 +433,14 @@ export const paymentEventSchema = z
     refundRef: z.string().min(1).max(255).nullable(),
     livemode: z.boolean(),
     occurredAt: z.number().int().nonnegative(),
+    dispute: z
+      .object({
+        status: z.enum(DISPUTE_STATUSES),
+        amount: decimalAmountSchema.nullable(),
+        currency: currencyCodeSchema.nullable(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
