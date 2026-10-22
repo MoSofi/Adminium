@@ -2048,7 +2048,7 @@ export default {
       "person": "人員",
       "everyone": "所有人",
       "toolbarCount": "{count, plural, other {# 張卡片}}",
-      "toolbarCountNamed": "{other}：{count}",
+      "toolbarCountNamed": "{count, plural, =1 {{one}：#} other {{other}：#}}",
       "daysLabelled": "{label} {days}",
       "secondAmount": "{label} {amount}"
     },

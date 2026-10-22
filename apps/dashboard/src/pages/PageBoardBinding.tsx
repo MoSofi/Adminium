@@ -51,7 +51,7 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
   // The board's columns as the server answers them, for a board that names them; undefined for any other.
   // Under a link's narrowing the cards are some of the table's, and a count of all of them would head the wrong list.
   const boardColumns = useBoardColumns(page, { states, formColumns, currency, locale: getI18nInstance()?.language ?? 'en-US', narrowed: view.key !== undefined, person });
-  const personColumn = useMemo(() => boardReadOf(page)?.person, [page]);
+  const personColumn = useMemo(() => boardReadOf(page)?.personColumn, [page]);
   const personLabel = useMemo(() => {
     const spec = formColumns?.find((column) => column.spec.name === personColumn)?.spec as { label?: unknown } | undefined;
     return typeof spec?.label === 'string' && spec.label !== '' ? spec.label : undefined;

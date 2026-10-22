@@ -2048,7 +2048,7 @@ export default {
       "person": "الشخص",
       "everyone": "الجميع",
       "toolbarCount": "{count, plural, zero {# بطاقة} one {بطاقة واحدة} two {بطاقتان} few {# بطاقات} many {# بطاقة} other {# بطاقة}}",
-      "toolbarCountNamed": "{other}: {count}",
+      "toolbarCountNamed": "{count, plural, zero {{other}: #} one {{one}: #} two {{other}: #} few {{other}: #} many {{other}: #} other {{other}: #}}",
       "daysLabelled": "{days} {label}",
       "secondAmount": "{label} {amount}"
     },

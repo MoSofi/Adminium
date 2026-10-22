@@ -159,7 +159,7 @@ function stub(fixture: Fixture) {
             body.requests.map((request) => [
               request.instanceId,
               request.descriptor.shape === 'single-metric'
-                ? { ok: true, result: { shape: 'single-metric', value: request.descriptor.aggregations?.[0]?.fn === 'count' ? (dana(request) ? 41 : 342) : dana(request) ? 2500 : 1450000 }, cached: false }
+                ? { ok: true, result: { shape: 'single-metric', value: request.descriptor.aggregations?.[0]?.fn === 'count' ? (dana(request) ? 41 : 342) : dana(request) ? 2500.5 : 1450000 }, cached: false }
                 : request.descriptor.shape === 'categorical' && request.descriptor.groupBy?.[0] === 'owner_id'
                   ? { ok: true, result: { shape: 'categorical', items: [{ key: 'usr_omar', label: 'Omar Haddad', value: 301 }, { key: 'usr_dana', label: 'Dana Ruiz', value: 41 }], total: 342 }, cached: false }
                   : request.descriptor.shape === 'categorical'
@@ -573,7 +573,7 @@ describe('a board with a toolbar', () => {
     const group = await screen.findByRole('group', { name: 'Person' });
     await settle();
     fireEvent.click(within(group).getByRole('button', { name: 'Dana Ruiz' }));
-    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('41 Deals · €2,500.00'));
+    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('41 Deals · €2,500.50'));
     const narrowed = batches.at(-1)!;
     expect(narrowed.filter((request) => owner(request as never) === 'usr_dana').map((request) => request.instanceId).sort()).toEqual(['board-1', 'board-1:toolbar:0', 'board-1:toolbar:1']);
     expect(owner(narrowed.find((request) => request.instanceId === 'board-1:people') as never)).toBeUndefined();

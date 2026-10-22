@@ -92,7 +92,7 @@ export interface BoardRead {
   /** Which cards are on the board; none ⇒ every row. */
   only: BoardOnlyTest[];
   /** The staff column the toolbar filters the cards by (`toolbar.person`), if it does. */
-  person: string | undefined;
+  personColumn: string | undefined;
 }
 
 /** The board of a page that names its columns, or null: an ordinary board, or no board at all. */
@@ -116,7 +116,7 @@ export function boardReadOf(page: PageEnvelope): BoardRead | null {
     counted,
     totals: cfg.totals,
     only: cfg.only,
-    person: cfg.toolbar?.person,
+    personColumn: cfg.toolbar?.person,
   };
 }
 
@@ -132,8 +132,8 @@ const personTest = (column: string, person: string) => ({ column, op: 'eq' as co
 export function withPerson(page: PageEnvelope, person: string | null): PageEnvelope {
   if (person === null) return page;
   const read = boardReadOf(page);
-  if (read?.person === undefined) return page;
-  const column = read.person;
+  if (read?.personColumn === undefined) return page;
+  const column = read.personColumn;
   const layout = pageLayoutSchema.safeParse(page.config['layout']);
   if (!layout.success) return page;
   const narrowed = (raw: unknown): unknown => {
@@ -319,7 +319,7 @@ export function useBoardColumns(
     () =>
       read === null || read.from === undefined || narrowed
         ? undefined
-        : boardCompute({ ...read, ...(person === null || read.person === undefined ? {} : { person: { column: read.person, id: person } }) }),
+        : boardCompute({ ...read, ...(person === null || read.personColumn === undefined ? {} : { person: { column: read.personColumn, id: person } }) }),
     [read, narrowed, person],
   );
   const formats = useMemo(() => totalFormats(read?.totals ?? [], opts.formColumns, opts.currency), [read, opts.formColumns, opts.currency]);

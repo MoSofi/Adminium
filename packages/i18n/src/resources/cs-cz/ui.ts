@@ -2048,7 +2048,7 @@ export default {
       "person": "Osoba",
       "everyone": "Všichni",
       "toolbarCount": "{count, plural, one {# karta} few {# karty} many {# karty} other {# karet}}",
-      "toolbarCountNamed": "{other}: {count}",
+      "toolbarCountNamed": "{count, plural, one {{one}: #} few {{other}: #} many {{other}: #} other {{other}: #}}",
       "daysLabelled": "{days} {label}",
       "secondAmount": "{label} {amount}"
     },
