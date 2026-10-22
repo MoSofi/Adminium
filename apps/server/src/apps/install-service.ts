@@ -142,6 +142,7 @@ import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { addOnsNamedBy, liveAddOnsFor } from './live-add-ons.js';
 import { roleTablesAsked, roleTablesChecked, settleRoleTables, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
 import { installAppDocuments } from '../documents/app-documents.js';
+import type { AppProfilesResult } from '../documents/app-profiles.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import type { PublicMethod } from '../public-api/endpoint.js';
@@ -436,6 +437,16 @@ function shapeRecordOf(
 function tableModuleOf(manifest: Manifest, ref: string): string | null {
   const table = (manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
   return table !== undefined && 'module' in table && typeof table.module === 'string' ? table.module : null;
+}
+
+/**
+ * The install or update reply's notice of the app's documents that wait: a
+ * kind the attached add-on does not draw yet, left off until that add-on is
+ * updated. Nothing when none waits.
+ */
+function documentsWaiting(documents: AppProfilesResult | undefined): { documents?: { waiting: { kind: string; table: string; addOn: string; addOnName: string; name: string; reason: string }[] } } {
+  if (documents === undefined || documents.waiting.length === 0) return {};
+  return { documents: { waiting: documents.waiting.map(({ kind, table, addOn, addOnName, name, reason }) => ({ kind, table, addOn, addOnName: addOnName ?? addOn, name, reason })) } };
 }
 
 export function statusOf(value: string): 'installing' | 'installed' | 'disabled' | 'error' {
@@ -1542,6 +1553,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         roles: RolesResult | undefined;
         publicAccess: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
         outbox: OutboxResult | undefined;
+        /** The app's documents as the install or update left them; absent when none were made here. */
+        documents?: AppProfilesResult | undefined;
       }
     | undefined
   > {
@@ -1635,8 +1648,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        * `documents`, owned by the app. An update changes them in place; one
        * that cannot be made (its add-on is not here) is said, never half-made.
        */
+      let documents: AppProfilesResult | undefined;
       if (connectionId !== null && ownsBlocks(manifest)) {
-        const documents = await installAppDocuments({
+        documents = await installAppDocuments({
           meta: deps.meta,
           manifest,
           connectionId,
@@ -1647,6 +1661,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         });
         if (documents.skipped.length > 0) {
           host.log.info({ skipped: documents.skipped, app: manifest.key }, 'app document profiles skipped');
+        }
+        if (documents.waiting.length > 0) {
+          host.log.info({ waiting: documents.waiting, app: manifest.key }, 'app documents wait for an add-on update');
         }
       }
       /*
@@ -1744,7 +1761,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           }
         }
       }
-      return { pages: result, rules, roles: roles === undefined || roleTables.length === 0 ? roles : { ...roles, tables: roleTables }, publicAccess: made, outbox };
+      return { pages: result, rules, roles: roles === undefined || roleTables.length === 0 ? roles : { ...roles, tables: roleTables }, publicAccess: made, outbox, documents };
     } catch (error) {
       if (strict) throw error;
       host.log.warn({ err: error, manifestRowId }, 'app installed, but its pages were not written');
@@ -2741,6 +2758,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
       ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
       ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
+      ...documentsWaiting(writtenPages?.documents),
       ...(seeded === undefined ? {} : { seeds: seeded }),
       ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
     };
@@ -3099,6 +3117,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
         ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
         ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
+        ...documentsWaiting(writtenPages?.documents),
         ...(seeded === undefined ? {} : { seeds: seeded }),
         ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
       },

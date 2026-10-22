@@ -1785,9 +1785,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const facts = await appFacts(box.row.manifestId);
     const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
     const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
-    const detached = async (addOnKey?: string) => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, addOnKey));
-    // Never made, for an add-on's own mail: absent also when the add-on it suggests is here and does not draw the kind yet.
-    const neverMade = async () => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, undefined, (await addOnAvailability(deps.meta, box.appKey, pipeline.runtime)).kindsOf));
+    // Absent also when the add-on that draws it is here and does not draw the kind yet: the document waits for its update.
+    const kindsOf = async () => (await addOnAvailability(deps.meta, box.appKey, pipeline.runtime)).kindsOf;
+    const detached = async (addOnKey?: string) => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, addOnKey, await kindsOf()));
+    const neverMade = async () => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, undefined, await kindsOf()));
     if (profile === null || key === undefined || ref === undefined || facts.manifest === null) {
       return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, ...((await neverMade()) ? { absent: true as const } : {}) };
     }

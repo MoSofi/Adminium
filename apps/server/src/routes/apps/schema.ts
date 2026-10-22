@@ -772,6 +772,18 @@ export const installedAppReply = z.object({
    * that declares none.
    */
   seeds: z.object({ written: z.record(z.string(), z.number()), kept: z.array(z.string()) }).optional(),
+  /**
+   * The app's documents that wait: each of a kind the add-on attached to the
+   * app does not draw yet (a version of the add-on that draws it is not
+   * installed). Left off, with the attachment a message makes of it, until the
+   * add-on is updated; then made with no step of the app's. Absent when none
+   * waits.
+   */
+  documents: z
+    .object({
+      waiting: z.array(z.object({ kind: z.string(), table: z.string(), addOn: z.string(), addOnName: z.string(), name: z.string(), reason: z.string() })),
+    })
+    .optional(),
   /** The add-ons installed, updated or connected along with the app. Absent for an app that names none. */
   addOns: addOnsDoneReply.optional(),
 });

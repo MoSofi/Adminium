@@ -124911,6 +124911,50 @@
                             ],
                             "additionalProperties": false
                           },
+                          "documents": {
+                            "type": "object",
+                            "properties": {
+                              "waiting": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "addOn": {
+                                      "type": "string"
+                                    },
+                                    "addOnName": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "table",
+                                    "addOn",
+                                    "addOnName",
+                                    "name",
+                                    "reason"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "waiting"
+                            ],
+                            "additionalProperties": false
+                          },
                           "addOns": {
                             "type": "object",
                             "properties": {
@@ -127848,6 +127892,50 @@
                       ],
                       "additionalProperties": false
                     },
+                    "documents": {
+                      "type": "object",
+                      "properties": {
+                        "waiting": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "addOn": {
+                                "type": "string"
+                              },
+                              "addOnName": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "table",
+                              "addOn",
+                              "addOnName",
+                              "name",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "waiting"
+                      ],
+                      "additionalProperties": false
+                    },
                     "addOns": {
                       "type": "object",
                       "properties": {
@@ -128704,6 +128792,50 @@
                           "required": [
                             "written",
                             "kept"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "documents": {
+                          "type": "object",
+                          "properties": {
+                            "waiting": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "addOn": {
+                                    "type": "string"
+                                  },
+                                  "addOnName": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "table",
+                                  "addOn",
+                                  "addOnName",
+                                  "name",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "waiting"
                           ],
                           "additionalProperties": false
                         },

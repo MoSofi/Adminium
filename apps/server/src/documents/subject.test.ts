@@ -152,6 +152,13 @@ describe('coercion per slot type', () => {
     expect(coerceSlot('qr', 'x'.repeat(65))).toBeNull();
   });
 
+  it('makes no picture from any value: a file id, a data URL, a picture-shaped object', () => {
+    // A picture comes only from the row's own file, judged (`picture.ts`), never from a value someone sent or typed.
+    expect(coerceSlot('picture', 'file_01J0000000000000000000000')).toBeNull();
+    expect(coerceSlot('picture', 'data:image/png;base64,iVBORw0KGgo=')).toBeNull();
+    expect(coerceSlot('picture', { mediaType: 'image/png', dataUrl: 'data:image/png;base64,iVBORw0KGgo=', width: 1, height: 1 })).toBeNull();
+  });
+
   it('never lets an object reach a provider as "[object Object]"', () => {
     expect(coerceSlot('text', { nested: true })).toBe('');
     expect(coerceSlot('text', null)).toBe('');
@@ -181,6 +188,21 @@ describe('building a subject from a mapped row', () => {
     expect(subject.now).toEqual(NOW);
     expect(subject.currency).toBe('EUR');
     expect(subject.business).toEqual(BUSINESS);
+  });
+
+  it('fills a picture slot only with the picture made for it, never a typed value, and says a required one missing', () => {
+    const picture = { mediaType: 'image/png', dataUrl: 'data:image/png;base64,iVBORw0KGgo=', width: 1, height: 1 };
+    const slots = [
+      { id: 'signature', type: 'picture' as const, required: true },
+      { id: 'stamp', type: 'picture' as const, required: false },
+    ];
+    const base = { slots, mapping: { signature: { column: 'signature' }, stamp: { column: 'stamp' } }, row: { signature: 'file_1', stamp: 'file_2' }, now: NOW, locale: 'en-US', currency: 'EUR', business: BUSINESS, entity: null, number: null };
+    const made = buildSubject({ ...base, pictures: { signature: picture } });
+    expect(made.missing).toEqual([]);
+    expect(made.subject.fields).toEqual({ signature: picture });
+    const none = buildSubject({ ...base, values: { signature: picture, stamp: 'data:image/png;base64,iVBORw0KGgo=' } });
+    expect(none.missing).toEqual(['signature']);
+    expect(none.subject.fields).toEqual({});
   });
 
   it('REPORTS an unmapped required slot rather than throwing', () => {

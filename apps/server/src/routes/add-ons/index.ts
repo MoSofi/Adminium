@@ -576,8 +576,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     if (deps.runtime === undefined || hosts.length === 0) return;
     const made = await attachAppDocuments({ meta: deps.meta, addOnKey, hosts, runtime: deps.runtime, createdBy: request.user?.id ?? null });
     for (const { app, result } of made) {
-      if (result.skipped.length + result.refused.length === 0) continue;
-      request.log.info({ app, skipped: result.skipped, refused: result.refused }, 'app document profiles skipped');
+      if (result.skipped.length + result.waiting.length + result.refused.length === 0) continue;
+      request.log.info({ app, skipped: result.skipped, waiting: result.waiting, refused: result.refused }, 'app document profiles skipped');
     }
   }
 
@@ -1413,6 +1413,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         });
         // The new version may draw a document another add-on has been waiting for (a purchase order): made now, as at an install.
         await makeSuggestedDocuments(request, request.params.key);
+        // …or one an app it is connected to has been waiting for (a kind the old version did not draw).
+        await makeAppDocuments(request, request.params.key, installed.attachments.map((attachment) => attachment.attachedTo));
         return { addOn: await toDto(installed), from, to, pruned };
       },
     );
@@ -1463,6 +1465,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         await makeSuggestedDocuments(request, request.params.key);
         // A version an app's part was waiting for (the one before was out of the app's range): the part is put in.
         await putInWaitingParts(request, installed.attachments.map((attachment) => attachment.attachedTo));
+        // …and a document of an app it is connected to that waited for a version drawing its kind: made now.
+        await makeAppDocuments(request, request.params.key, installed.attachments.map((attachment) => attachment.attachedTo));
         const { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp, publicAccessRemoved } = written ?? {};
         return {
           addOn: await toDto(installed),

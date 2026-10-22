@@ -100,7 +100,9 @@ export type SlotType =
   | 'number'
   | 'collection'
   /** A QR code of a short text (a ticket's code): `{text, modules, png}`, drawn here, so a provider needs no encoder. */
-  | 'qr';
+  | 'qr'
+  /** A picture a file column of the row holds (a drawn signature): made by `picture.ts`, never from a value anyone sends. */
+  | 'picture';
 
 export interface SubjectSlot {
   id: string;
@@ -250,6 +252,10 @@ export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2, timez
       if (!qrCarries(text)) return null;
       return { text, modules: qrRows(text), png: qrPngDataUrl(text) };
     }
+    case 'picture':
+      // Made from the file a column holds, judged (`picture.ts`), and handed in as `pictures`: never from a value — a
+      // column's file id, a typed value, a request's — which would be a picture nobody's read was judged for.
+      return null;
     default:
       return toText(value);
   }
@@ -303,6 +309,8 @@ export interface SubjectInput {
   number: string | null;
   /** The fields this document printed when it was last drawn, if it was. */
   drawnBefore?: Readonly<Record<string, unknown>>;
+  /** Each picture slot's picture, made and judged from the row's own file column (`picture.ts`); a slot absent here has none. */
+  pictures?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface BuiltSubject {
@@ -397,6 +405,14 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
         }
         return out;
       });
+      continue;
+    }
+
+    if (slot.type === 'picture') {
+      // Only a picture made from the row's own file: no typed value, no default, nothing a request sends.
+      const picture = input.pictures?.[slot.id];
+      if (picture !== undefined && picture !== null) fields[slot.id] = picture;
+      else if (slot.required) missing.push(slot.id);
       continue;
     }
 

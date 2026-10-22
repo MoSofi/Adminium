@@ -53,6 +53,7 @@ import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb 
 
 import type { BalanceAfter, StatementSource, StatementSources } from './statement.js';
 import type { CollectionSource, NightlySource, ProfileMapping, SubjectSlot } from './subject.js';
+import { pictureMappingIssueOf } from './picture.js';
 import { syncProfileTrigger } from './trigger-sync.js';
 
 /** The shapes the installed add-ons define, by `<addOn>/<name>@<version>`. */
@@ -390,15 +391,37 @@ export function storedProfile(
   return { addOnKey: plan.addOn, kind: plan.kind, name: plan.name, table, mapping, options, orderBy };
 }
 
+/** An app's document whose attached add-on does not draw its kind (yet): left off until the add-on is updated. */
+export interface WaitingProfile extends SkippedProfile {
+  kind: string;
+  /** The add-on that is to draw it. */
+  addOn: string;
+  /** The document's name, as the app gives it. */
+  name: string;
+  /** The add-on's own name, where the install could read it (`installAppDocuments`). */
+  addOnName?: string | undefined;
+}
+
 export interface AppProfilesResult {
   made: { id: string; kind: string; table: string }[];
   updated: { id: string; kind: string; table: string }[];
   removed: string[];
   skipped: SkippedProfile[];
   /**
-   * Documents an attached add-on does not draw — the app asks for a kind the
-   * add-on has never heard of. When any is here NOTHING was written: the
-   * caller refuses the install (`installAppDocuments` does).
+   * An APP's documents whose add-on is attached and switched on, and does not
+   * draw their kind — a version of it that does has not been installed yet.
+   * Left off, with their attachments (a message that may go without the
+   * document goes without it), and never a refusal of the install or the
+   * update: the document is made when that add-on is updated to a version
+   * that draws it (`attachAppDocuments`). The install's reply says so. A
+   * profile made earlier for it is kept.
+   */
+  waiting: WaitingProfile[];
+  /**
+   * Documents the app maps in a way the add-on's outline refuses: a request
+   * value for a slot no request may fill, a QR code or a picture mapped to a
+   * column that holds none. When any is here NOTHING was written: the caller
+   * refuses the install (`installAppDocuments` does).
    */
   refused: SkippedProfile[];
 }
@@ -483,10 +506,31 @@ export function qrMappingIssue(plan: Pick<PlannedProfile, 'addOn' | 'kind' | 'ta
 }
 
 /**
+ * Why a slot the add-on's outline draws as a picture is mapped to something
+ * that holds none, or null: a picture is read from one file a column of the
+ * document's own row holds (`rules.file`, no `maxCount`), of a kind that may
+ * be a PNG or a JPEG (`documents/picture.ts`).
+ */
+export function pictureMappingIssue(plan: Pick<PlannedProfile, 'addOn' | 'kind' | 'table' | 'mapping'>, slots: readonly SubjectSlot[] | null, manifest: AppManifest): string | null {
+  if (slots === null) return null;
+  const own = manifest.requiredSchema.tables.find((t) => t.ref === plan.table);
+  for (const slot of slots) {
+    if (slot.type !== 'picture') continue;
+    const mapped = plan.mapping[slot.id] as Record<string, unknown> | undefined;
+    if (mapped === undefined) continue;
+    const column = typeof mapped['column'] === 'string' ? own?.columns.find((c) => c.ref === mapped['column']) : undefined;
+    const issue = pictureMappingIssueOf(slot, mapped, column as Parameters<typeof pictureMappingIssueOf>[2], `the "${plan.addOn}" add-on's ${plan.kind}`);
+    if (issue !== null) return issue;
+  }
+  return null;
+}
+
+/**
  * Whether a planned document can be drawn for the app now: every add-on it
  * needs is attached — its own, and those of the feature it belongs to — and
  * the add-on draws its kind. `off` is the feature being off; `unknown` is the
- * app asking for a kind the attached add-on does not draw.
+ * app asking for a kind the attached add-on does not draw (yet: the document
+ * waits for the add-on's update).
  */
 export function availabilityOf(
   plan: { addOn: string; kind: string; feature?: string | undefined },
@@ -551,14 +595,14 @@ export async function makeAppProfiles(input: {
     const feature = candidate.feature === undefined ? undefined : input.manifest.addOns?.features?.find((f) => f.id === candidate.feature);
     return feature?.requires.includes(only.addOn) === true;
   };
-  const result: AppProfilesResult = { made: [], updated: [], removed: [], skipped: only === undefined ? [...plan.skipped] : [], refused: [] };
+  const result: AppProfilesResult = { made: [], updated: [], removed: [], skipped: only === undefined ? [...plan.skipped] : [], waiting: [], refused: [] };
 
   /*
-   * Checked for EVERY profile before anything is written: a kind the attached
-   * add-on does not draw refuses the whole set, so an install never ends with
-   * half its documents made — as does a slot the app lets a request fill that
-   * the add-on's outline says no request may. A feature that is off is only a
-   * skip.
+   * Checked for EVERY profile before anything is written: a slot the app lets
+   * a request fill that the add-on's outline says no request may, or a QR code
+   * or a picture mapped to a column that holds none, refuses the whole set, so
+   * an install never ends with half its documents made. A feature that is off
+   * is only a skip; a kind the attached add-on does not draw yet waits.
    */
   const planned: PlannedProfile[] = [];
   for (const candidate of plan.planned.filter(needs)) {
@@ -566,12 +610,26 @@ export async function makeAppProfiles(input: {
     if (verdict.state !== 'on') {
       // An add-on only SUGGESTS the add-ons that draw for it: one that is here and does not draw the kind
       // leaves that one document off, and never holds back the documents the owner draws itself.
-      const off = verdict.state === 'off' || (input.manifest as Manifest).kind === 'add-on';
-      (off ? result.skipped : result.refused).push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
+      if (verdict.state === 'off' || (input.manifest as Manifest).kind === 'add-on') {
+        result.skipped.push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
+        continue;
+      }
+      // An app's add-on that does not draw the kind yet: the document waits for the version that does.
+      result.waiting.push({
+        kind: candidate.kind,
+        table: candidate.table,
+        addOn: candidate.addOn,
+        name: candidate.name,
+        reason: `${verdict.reason} yet, so it is left off until the add-on is updated to a version that draws it`,
+      });
       continue;
     }
     const slots = input.availability?.slotsOf?.(candidate.addOn, candidate.kind) ?? null;
-    const issue = [...(candidate.requestValues ?? []).map((slot) => requestValueIssue(slot, candidate, slots)), qrMappingIssue(candidate, slots, input.manifest)].find(
+    const issue = [
+      ...(candidate.requestValues ?? []).map((slot) => requestValueIssue(slot, candidate, slots)),
+      qrMappingIssue(candidate, slots, input.manifest),
+      pictureMappingIssue(candidate, slots, input.manifest),
+    ].find(
       (found) => found !== null && found !== undefined,
     );
     if (issue !== undefined) {
@@ -645,7 +703,7 @@ export async function makeAppProfiles(input: {
    * it for a condition that may pass (the add-on is reinstalled).
    */
   const stillAsked = (profile: DocumentProfile): boolean =>
-    result.skipped.some((skip) => {
+    [...result.skipped, ...result.waiting].some((skip) => {
       const real = input.realId(skip.table);
       return real === profile.table && (skip.kind === null || skip.kind === profile.kind);
     });

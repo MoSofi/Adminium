@@ -105,6 +105,7 @@ import {
   renderingProviderOf,
 } from './provider.js';
 import type { StatementPeriod, StatementRead } from './statement.js';
+import { picturesFor, recordedPictures, type MadePicture } from './picture.js';
 import { buildSubject, coerceSlot, mappedTables, type ProfileMapping, type SubjectSlot } from './subject.js';
 import { sameValue } from '../crud/write-values.js';
 
@@ -671,11 +672,13 @@ async function renderCore(
           source.currency,
           source.timezone,
         );
-  // What the register says the request filled: the slot ids, beside what was printed.
-  const recorded = (subject: typeof built.subject): Record<string, unknown> =>
-    values === undefined
-      ? (subject as unknown as Record<string, unknown>)
-      : { ...(subject as unknown as Record<string, unknown>), requestValues: Object.keys(values).sort() };
+  // A picture slot's picture, made from the row's own file once nothing else can stop the draw (`picture.ts`).
+  let pictures: Record<string, MadePicture> = {};
+  // What the register says the request filled: the slot ids, beside what was printed — and each picture as what it was, never its bytes.
+  const recorded = (subject: typeof built.subject): Record<string, unknown> => {
+    const kept = recordedPictures(subject as unknown as Record<string, unknown>, pictures);
+    return values === undefined ? kept : { ...kept, requestValues: Object.keys(values).sort() };
+  };
 
   // Drawn for one reader, from tables a `withhold` covers: reused for that reader alone.
   const readerMark = withheldReaderMark(request.withhold, tables);
@@ -722,9 +725,13 @@ async function renderCore(
       ? await deps.payLinkFor(source.entity).catch(() => null)
       : null;
 
+  pictures = await picturesFor({ meta: deps.meta, storage: deps.storage, view: schema, profile, slots: outline.slots, row: source.row, pk: source.entity.pk });
+  const pictureValues = Object.fromEntries(Object.entries(pictures).map(([slot, made]) => [slot, made.value]));
+
   const subjectFor = (printed: string | null) =>
     buildSubject({
       payLink,
+      pictures: pictureValues,
       slots: outline.slots,
       mapping: profile.mapping as ProfileMapping,
       row: source.row,

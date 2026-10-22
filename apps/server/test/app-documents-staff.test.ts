@@ -319,11 +319,13 @@ describe.each(LEGS)('an app\'s own documents on %s', (dialect, reachable) => {
     expect((await ask('pos', { kind: 'receipt', ref: 'sales', pk: { id: 2 } })).statusCode).toBe(201);
   });
 
-  it.skipIf(!reachable)('checks at install that the attached add-on draws each kind, and skips what is off', async () => {
+  it.skipIf(!reachable)('checks at install that the attached add-on draws each kind, leaves off what it does not draw yet, and skips what is off', async () => {
     const before = await documentProfilesRepo(h.meta).list({ connectionId: h.connectionId });
-    // A kind the add-on does not draw: refused, and nothing written.
-    const unknown = posManifest([{ kind: 'gift-card', addOn: 'invoices', table: 'sales', name: 'Gift card', mapping: { amount: { column: 'total' } } }]);
-    await expect(make(unknown)).rejects.toMatchObject({ statusCode: 422, code: 'DOCUMENT_KIND_UNKNOWN' });
+    // A kind the add-on does not draw yet: left off and said, never a refusal; the rest kept as it was.
+    const giftCard = { kind: 'gift-card', addOn: 'invoices', table: 'sales', name: 'Gift card', mapping: { amount: { column: 'total' } } };
+    const waits = await make(posManifest([...(posManifest()['documents'] as Record<string, unknown>[]), giftCard]));
+    expect(waits.waiting.map((w) => [w.kind, w.table, w.addOn, w.name])).toEqual([['gift-card', 'sales', 'invoices', 'Gift card']]);
+    expect([waits.refused, waits.made, waits.removed]).toEqual([[], [], []]);
     expect(await documentProfilesRepo(h.meta).list({ connectionId: h.connectionId })).toEqual(before);
 
     // Detached: nothing made, nothing refused, the install goes on — and the profile already made is kept.

@@ -19,9 +19,16 @@
  * the install makes no profile for it (and says why), and a request to draw
  * one is refused as off. Never an install that fails over an optional add-on.
  *
- * What does refuse an install is an app asking an attached add-on for a kind
- * of document it does not draw — a mistake in the app, found before anything
- * is written.
+ * Nor over a kind of document an attached add-on does not draw: the version
+ * of the add-on that draws it is simply not here yet (an app released before
+ * the add-on's update). That document, and the attachment a message makes of
+ * it, waits — the install and the update say so (`waiting`) — and is made
+ * when the add-on is updated to a version that draws it.
+ *
+ * What does refuse an install is an app mapping a document in a way the
+ * add-on's outline refuses (a request value for a slot no request fills, a
+ * QR code or a picture from a column that holds none) — a mistake in the
+ * app, found before anything is written.
  */
 import { appPartIsOn } from '../rbac/app-parts.js';
 import { satisfiesSemverRange, type AppManifest, type Manifest } from '@adminium/manifest';
@@ -113,8 +120,10 @@ export function realIdIn(view: SnapshotView | null, names: Readonly<Record<strin
 /**
  * The install's (and an update's) step: make or bring up to date the app's
  * document profiles on its connection. Idempotent. Refuses — before writing
- * anything — when an attached add-on does not draw a kind the app asks for;
- * everything else it cannot make is skipped and listed with its reason.
+ * anything — when the app maps a document in a way the add-on's outline
+ * refuses; a kind the attached add-on does not draw yet is left off and
+ * listed under `waiting`, and everything else it cannot make is skipped and
+ * listed with its reason.
  */
 export async function installAppDocuments(input: {
   meta: MetaDb;
@@ -136,7 +145,7 @@ export async function installAppDocuments(input: {
     availability: await addOnAvailability(input.meta, input.manifest.key, input.runtime),
     createdBy: input.createdBy,
   });
-  // An app asking an attached add-on for a kind it does not draw is a mistake in the app, found before
+  // An app mapping a document the way the add-on's outline refuses is a mistake in the app, found before
   // anything is written. An add-on's own documents never stop its install: what cannot be drawn is listed.
   if (result.refused.length > 0 && (input.manifest as Manifest).kind === 'app') {
     throw new AppError(
@@ -145,6 +154,14 @@ export async function installAppDocuments(input: {
       `This app asks for documents its add-ons cannot draw as it asks: ${result.refused.map((r) => `"${r.table}" ${r.kind ?? ''} — ${r.reason}`).join('; ')}.`,
       { refused: result.refused },
     );
+  }
+  // What waits names the add-on it waits for, as the add-on calls itself: the console says it.
+  if (result.waiting.length > 0) {
+    const manifests = manifestsRepo(input.meta, NO_SECRETS);
+    for (const entry of result.waiting) {
+      const name = ((await manifests.findByKey(entry.addOn))?.document as { name?: unknown } | null | undefined)?.name;
+      entry.addOnName = typeof name === 'string' && name.trim() !== '' ? name : entry.addOn;
+    }
   }
   return result;
 }
@@ -167,8 +184,9 @@ export async function installAppDocuments(input: {
  * when the app's tables cannot be read, nothing is done at all.
  *
  * It never refuses: the add-on is already connected when this runs. A kind the
- * add-on does not draw is left off, listed under `refused`, with nothing
- * written. A host that is not an app installed on a connection (the
+ * add-on does not draw is left off, listed under `waiting`, with nothing
+ * written — and made here the day the add-on is updated to a version that
+ * draws it (the add-on routes run this after an update too). A host that is not an app installed on a connection (the
  * dashboard, an app still installing, which makes its own) is passed over.
  * Switching the add-on off again leaves the profiles where they are, as it
  * does the install's: the draw is refused as off while it is.
@@ -206,6 +224,7 @@ export async function attachAppDocuments(input: {
           updated: [],
           removed: [],
           skipped: [{ kind: null, table: '', reason: "the app's tables could not be read, so its documents were left as they are" }],
+          waiting: [],
           refused: [],
         },
       });
@@ -349,12 +368,12 @@ export async function appDocumentDetached(
   const attached = await drawersFor(meta, manifest.key);
   if ([addOn, ...(feature?.requires ?? [])].some((key) => !attached.has(key))) return true;
   /*
-   * An ADD-ON's document drawn by an add-on it only suggests: the other is
-   * here and loaded, and does not draw this kind (yet) — the version that does
-   * has not been installed. As good as not there: the mail goes without it.
-   * (For an app this is a mistake in the app, refused at its install.)
+   * Drawn by another add-on that is here and loaded, and does not draw this
+   * kind (yet) — the version that does has not been installed: an add-on's
+   * document drawn by one it suggests, or an app's whose document waits for
+   * its add-on's update. As good as not there: the mail goes without it.
    */
-  if ((manifest as Manifest).kind === 'add-on' && addOn !== manifest.key && kindsOf !== undefined) {
+  if (addOn !== manifest.key && kindsOf !== undefined) {
     const kinds = kindsOf(addOn);
     return kinds !== null && !kinds.has(kind);
   }
