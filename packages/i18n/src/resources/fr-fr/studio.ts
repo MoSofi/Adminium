@@ -3582,10 +3582,10 @@ export default {
     "service": {
       "connectsStripe": "Se connecte à Stripe",
       "connectsPaypal": "Se connecte à PayPal",
-      "first": "Configurez d’abord ceci.",
       "notLoaded": "Ce module n’a pas été chargé : ses clés ne peuvent donc pas être vérifiées.",
       "notLoadedBody": "Un service de paiement ne se charge que depuis un paquet dont Adminium peut se porter garant : un paquet fourni avec cette version, ou téléchargé depuis le catalogue.",
-      "paypalOnce": "PayPal n’apparaît qu’une fois : via cette carte, pas sur la page Stripe."
+      "paypalOnce": "PayPal n’apparaît qu’une fois : via cette carte, pas sur la page Stripe.",
+      "fixAddressFirst": "Corrigez d’abord l’adresse ci-dessus : les paiements en ligne restent désactivés d’ici là."
     },
     "reach": {
       "badge": {
@@ -3688,9 +3688,6 @@ export default {
       "testInLive": "Cette clé est pour les paiements de test, et ce champ est pour la clé en direct."
     },
     "webhook": {
-      "headingStripe": "Webhook (Stripe l’appelle un point de terminaison webhook)",
-      "heading": "Webhook",
-      "address": "Adresse",
       "noAddress": "Ce serveur a d’abord besoin d’une adresse publique.",
       "copyAddress": "Copier l’adresse du webhook",
       "events": "Cochez ces événements dans {provider}",
@@ -3705,7 +3702,15 @@ export default {
       "badTest": "{count, plural, one {# événement est arrivé} other {# événements sont arrivés}} dans la dernière heure, mais la signature ne correspondait pas. Est-ce le secret de la page de l’endpoint, pour le mode test ?",
       "caught": "Adminium a trouvé {when} un paiement qu’aucun webhook n’avait annoncé. Le webhook n’atteint pas ce serveur.",
       "slowed": "Adminium interroge {provider} moins souvent ce mois-ci : la moitié des lectures que {provider} autorise est utilisée.",
-      "moved": "L’adresse du webhook a changé. Mettez-la à jour chez {provider} :"
+      "moved": "L’adresse du webhook a changé. Mettez-la à jour chez {provider} :",
+      "headingTestStripe": "Webhook de test (Stripe l’appelle un point de terminaison webhook)",
+      "headingLiveStripe": "Webhook en direct (Stripe l’appelle un point de terminaison webhook)",
+      "headingTest": "Webhook de test",
+      "headingLive": "Webhook en direct",
+      "headingSandbox": "Webhook sandbox",
+      "addressTest": "Adresse du webhook de test",
+      "addressLive": "Adresse du webhook en direct",
+      "addressSandbox": "Adresse du webhook sandbox"
     },
     "mode": {
       "test": "Test",
@@ -3724,18 +3729,22 @@ export default {
       "heading": "Les accès dont la clé a besoin",
       "note": "Les deux méthodes donnent exactement ces accès à la clé. Laissez tout le reste sur Aucun.",
       "access": "Accès",
-      "why": "Pourquoi"
+      "why": "Pourquoi",
+      "where": "Où dans Stripe",
+      "optional": "(facultatif)"
     },
     "path": {
       "app": {
         "step1": "Installer Node.js 22 ou plus récent",
         "step2": "Installer la Stripe CLI",
-        "step5": "Décompresser le modèle et ouvrir son dossier",
-        "step7": "Installer l’app dans le tableau de bord Stripe et copier sa clé",
         "title": "Avec votre propre app Stripe (la méthode recommandée par Stripe)",
         "desc": "Vous téléversez une fois une petite app dans votre propre compte Stripe, avec l’outil en ligne de commande Stripe. Elle crée une clé avec exactement les accès ci-dessous.",
         "download": "Télécharger le modèle d’app",
-        "note": "Téléversez une fois dans votre compte de test et une fois dans votre compte réel."
+        "note": "Téléversez une fois dans votre compte de test et une fois dans votre compte réel.",
+        "create": "Lancez {command} et répondez n’importe quoi à ses questions",
+        "copy": "Copiez {file} depuis le modèle téléchargé dans le dossier {folder}, à la place de celui qui s’y trouve",
+        "upload": "Lancez {first}, puis {second}",
+        "install": "Installez l’app dans le tableau de bord Stripe, ouvrez « View API keys » et copiez la clé qui commence par {prefix}"
       },
       "hand": {
         "step1": "Dans le tableau de bord Stripe, ouvrez Développeurs → Clés API",
@@ -4013,7 +4022,11 @@ export default {
       "sepa": "Prélèvement SEPA",
       "bankTransfer": "Virement bancaire",
       "cashOnDelivery": "Paiement à la livraison",
-      "other": "Un autre moyen de paiement à la main"
+      "other": "Un autre moyen de paiement à la main",
+      "acssDebit": "Prélèvement préautorisé (Canada)",
+      "stripeTransfer": "Virement bancaire (Stripe)",
+      "krCard": "Cartes coréennes",
+      "crypto": "Cryptomonnaies"
     },
     "test": {
       "title": "Envoyer un paiement test",
@@ -4027,7 +4040,9 @@ export default {
       "noWebhook": "aucun webhook n’est arrivé : le paiement a été trouvé en interrogeant le service",
       "wouldRecord": "voici ce qui serait enregistré : un paiement de {amount}.",
       "wouldRecordWith": "voici ce qui serait enregistré : un paiement de {amount}, {paidWith}.",
-      "nothingWritten": "Rien n’a été écrit dans vos tables."
+      "nothingWritten": "Rien n’a été écrit dans vos tables.",
+      "noWay": "Les clients ne voient ce service qu’une fois un moyen activé dans « Moyens de paiement ».",
+      "openWays": "Ouvrir Moyens de paiement"
     },
     "activity": {
       "state": {
