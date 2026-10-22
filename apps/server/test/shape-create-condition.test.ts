@@ -52,7 +52,7 @@ function tableOnPart(part: string, ref: string, extra: Doc[] = [], states: (shap
 function crm(create: Doc | null = OPEN_ONLY): Doc {
   return appManifest('crm', {
     version: '0.2.0',
-    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.33', engines: ['postgres', 'mysql', 'sqlite'] },
     addOns: { requires: [{ key: 'invoices', range: '>=1.1.0', reason: en('Quotes are made by this add-on.') }] },
     requiredSchema: {
       prefixed: true,
