@@ -403,6 +403,7 @@ const RULE_OPS: Readonly<Record<string, string>> = {
   requiredWhen: 'column.requiredWhen',
   notAfter: 'column.bounds',
   notBefore: 'column.bounds',
+  changes: 'column.changes',
 };
 
 /**

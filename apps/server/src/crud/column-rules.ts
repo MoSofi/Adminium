@@ -57,6 +57,7 @@ import type {
   ColumnRequiredWhen,
   ColumnStampRule,
   ColumnValidation,
+  EffectiveChangeGuard,
   EffectiveColumn,
   EffectiveDateBound,
   EffectiveTable,
@@ -307,6 +308,29 @@ export interface LinkableSame {
   far?: { table: string; key: string; keyType?: string; column: string } | undefined;
 }
 
+/**
+ * A person a guard names (`column.changes`), resolved: a staff column of the
+ * row (`column`), or (with `far`) the column of the row the link `column`
+ * names, read through its one-column key. `unresolved` when the snapshot no
+ * longer has the column or the link: nobody can be told apart by it, so a
+ * `by` holds for nobody and a `notBy` for everybody (the change is refused).
+ */
+export type GuardPerson =
+  | { path: string; column: string; far?: { table: string; key: string; keyType?: string; column: string } | undefined; unresolved?: undefined }
+  | { path: string; unresolved: true };
+
+/** `column.changes`, resolved: the column, and each of its guards with the people they name. */
+export interface ChangeGuardRule {
+  column: string;
+  guards: {
+    to?: readonly (string | number | boolean)[];
+    from?: readonly (string | number | boolean)[];
+    while?: { column: string; in: readonly (string | number | boolean)[] } | { column: string; isNull: boolean };
+    by?: GuardPerson;
+    notBy?: readonly GuardPerson[];
+  }[];
+}
+
 /** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
 export interface ColumnDefaultFrom {
   column: string;
@@ -504,6 +528,8 @@ export interface TableRules {
   bounds?: DateBound[];
   /** Links that may name only a row meeting some conditions. */
   linkable?: LinkableRule[];
+  /** When, and by whom, columns may change (`crud/change-guards.ts`). */
+  changes?: ChangeGuardRule[];
   /** A document's life (`table.states`), and the rows of other tables that lock it. */
   states?: TableStatesRule;
   lockedBy?: LockedByReference[];
@@ -649,6 +675,34 @@ function checkableType(logicalType: LogicalType): boolean {
 }
 
 /**
+ * One column's `column.changes`, resolved against the snapshot: each person a
+ * guard names is a column of the row, or the column of the row one of its
+ * links names. A column or a link the snapshot lost fails closed.
+ */
+function changeGuardRuleOf(name: string, guards: readonly EffectiveChangeGuard[], columns: readonly EffectiveColumn[], target: { view: SnapshotView; table: ResolvedTable }): ChangeGuardRule {
+  const person = (path: string): GuardPerson => {
+    const [own, farColumn] = path.split('.') as [string, string | undefined];
+    if (!columns.some((other) => other.name === own)) return { path, unresolved: true };
+    if (farColumn === undefined) return { path, column: own };
+    const hop = target.view?.model?.relations.find((r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === own && r.to.columns.length === 1);
+    const far = hop === undefined ? undefined : target.view?.model?.tables.find((table) => table.id === hop.to.tableId);
+    if (hop === undefined || far === undefined || !far.columns.some((other) => other.name === farColumn)) return { path, unresolved: true };
+    const keyType = far.columns.find((other) => other.name === hop.to.columns[0])?.logicalType;
+    return { path, column: own, far: { table: far.id, key: hop.to.columns[0]!, ...(keyType === undefined ? {} : { keyType }), column: farColumn } };
+  };
+  return {
+    column: name,
+    guards: guards.map((guard) => ({
+      ...(guard.to === undefined ? {} : { to: guard.to }),
+      ...(guard.from === undefined ? {} : { from: guard.from }),
+      ...(guard.while === undefined ? {} : { while: guard.while }),
+      ...(guard.by === undefined ? {} : { by: person(guard.by) }),
+      ...(guard.notBy === undefined ? {} : { notBy: guard.notBy.map(person) }),
+    })),
+  };
+}
+
+/**
  * The fills and checks in force for one table, or `null` when there is nothing
  * to do — which is the common case and the reason a table with no rules pays
  * nothing.
@@ -695,6 +749,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const normalizes: { column: string; how: 'trim' | 'email' | 'code' }[] = [];
   const bounds: DateBound[] = [];
   const linkable: LinkableRule[] = [];
+  const changes: ChangeGuardRule[] = [];
   const states = target.table.table?.states;
   const lockedBy = target.table.table?.lockedBy ?? [];
   const stateParents = target.table.table?.stateParents ?? [];
@@ -708,6 +763,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (column.code !== undefined) {
       codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length, ...(column.code.renew === undefined ? {} : { renew: column.code.renew }) });
     }
+    if (column.changes !== undefined) changes.push(changeGuardRuleOf(column.name, column.changes, columns, target));
     // A secret column is refused by the write path long before this, and a
     // fill that named one would be a way to write it sideways.
     if (target.table.columns.get(column.name)?.secret === true) continue;
@@ -968,6 +1024,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     codeLookups.length === 0 &&
     bounds.length === 0 &&
     linkable.length === 0 &&
+    changes.length === 0 &&
     states === undefined &&
     stateParents.length === 0 &&
     capacity === undefined &&
@@ -1014,6 +1071,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(codeLookups.length === 0 ? {} : { codeLookups }),
           ...(bounds.length === 0 ? {} : { bounds }),
           ...(linkable.length === 0 ? {} : { linkable }),
+          ...(changes.length === 0 ? {} : { changes }),
           ...(states === undefined ? {} : { states, ...(lockedBy.length === 0 ? {} : { lockedBy }) }),
           ...(stateParents.length === 0 ? {} : { stateParents }),
           ...(capacity === undefined ? {} : { capacity }),

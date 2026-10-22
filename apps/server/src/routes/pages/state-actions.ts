@@ -27,6 +27,7 @@ import type { SnapshotView } from '../../crud/identifiers.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
 import { SUPER_ADMIN_SLUG, type PermissionSet } from '../../rbac/resolver.js';
 import { assertWithinCreateLimit, assertWithinLimit, createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
+import { rowReachesOf } from '../../rbac/row-limits.js';
 
 type Scalar = string | number | boolean;
 
@@ -48,11 +49,20 @@ export interface StateActionFact {
   child?: { table: string; via: string; form: string[] };
   /** A child form only: the new row's fixed values. What a move or a set writes never leaves the server. */
   set?: Record<string, Scalar>;
+  /**
+   * Staff columns of the row: the button is not shown to the person the row
+   * names in any of them — a change their reach (`rows.update.notBy`) or a
+   * column's guard (`changes.notBy`) leaves to others. Presentation only: the
+   * save refuses it whatever the page shows.
+   */
+  notBy?: string[];
+  /** A staff column of the row: the button is shown only to the person the row names there (`changes.by`). Presentation only. */
+  by?: string;
 }
 
 export interface StateActionAsker {
   can(permission: string): Promise<boolean>;
-  permissions: Pick<PermissionSet, 'superAdmin' | 'roleIds' | 'updateLimits' | 'createLimits' | 'readLimits'>;
+  permissions: Pick<PermissionSet, 'superAdmin' | 'roleIds' | 'updateLimits' | 'createLimits' | 'readLimits'> & { rowLimits?: PermissionSet['rowLimits'] };
   /** The reader's locale (`de_DE`); absent, en_US. */
   locale?: string | undefined;
   /** What the database's own role may write, when known. */
@@ -137,6 +147,26 @@ export async function stateActionFacts(meta: MetaDb, asker: StateActionAsker, vi
     const hidden = (name: string): boolean => readTable.columns.get(name)?.unreadable === true;
     const mayType = (columns: readonly string[]): boolean => columns.every((name) => !hidden(name) || limit?.writable.includes(name) === true);
     let owner: string | null | undefined;
+    /**
+     * The people a button that writes these columns is hidden for, or shown to alone: a reach of the caller's update
+     * that every one of their reaches says `notBy` of (a staff column of the row), and each guard of a written column
+     * that holds the change (`changes`). A column written with a value not known ahead (asked, stamped) is held by a
+     * guard of any change. A person read through a link is left to the save.
+     */
+    const reaches = rowReachesOf(asker.permissions, connectionId, resolved.id, 'update');
+    const reachNotBy = reaches !== null && reaches.length > 0 && reaches.every((reach) => reach.notBy !== undefined && !reach.notBy.includes('.')) ? [...new Set(reaches.map((reach) => reach.notBy!))] : [];
+    const peopleOf = (fixed: Record<string, unknown>, unknown: readonly string[]): Pick<StateActionFact, 'notBy' | 'by'> => {
+      const notBy = new Set(reachNotBy.length === 1 ? reachNotBy : []);
+      let by: string | undefined;
+      for (const [name, value] of [...Object.entries(fixed), ...unknown.map((name) => [name, undefined] as const)]) {
+        for (const guard of column(name)?.changes ?? []) {
+          if (guard.to !== undefined && (value === undefined || !guard.to.some((one) => String(one) === String(value)))) continue;
+          for (const path of guard.notBy ?? []) if (!path.includes('.')) notBy.add(path);
+          if (guard.by !== undefined && !guard.by.includes('.')) by ??= guard.by;
+        }
+      }
+      return { ...(notBy.size === 0 ? {} : { notBy: [...notBy] }), ...(by === undefined ? {} : { by }) };
+    };
 
     const out: StateActionFact[] = [];
     for (const action of states.actions) {
@@ -199,6 +229,12 @@ export async function stateActionFacts(meta: MetaDb, asker: StateActionAsker, vi
       }
 
       if (from.length === 0) continue;
+      // Who the button is hidden for, or shown to alone: what it writes, as the save will judge it.
+      if ('move' in action) Object.assign(fact, peopleOf({ [states.column]: action.move.to }, action.ask ?? []));
+      else if (!('link' in action) && !('child' in action)) {
+        const fixed = Object.fromEntries(Object.entries(action.set).filter(([, value]) => value === null || typeof value !== 'object'));
+        Object.assign(fact, peopleOf(fixed, [...Object.keys(action.set).filter((name) => !(name in fixed)), ...(action.ask ?? [])]));
+      }
       const to = 'move' in action ? action.move.to : null;
       const ask = 'ask' in action ? action.ask : undefined;
       out.push({

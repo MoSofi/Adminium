@@ -361,6 +361,21 @@ class Build {
     return sql<SqlBool>`${this.ref(alias, condition.column)} in (${sql.join(values)})`;
   }
 
+  /**
+   * "This person path names `me`": a staff column of the row, or (`<link>.<column>`) the staff column of the row
+   * one of its links names. Two-valued (an empty column names nobody), so it means the same negated. Null when the
+   * path cannot be read as written: a column or a link the database no longer has.
+   */
+  names(table: EffectiveTable, alias: string, path: string, me: string): Bool | null {
+    const [own, far] = path.split('.') as [string, string | undefined];
+    if (far === undefined) {
+      if (table.columns.find((candidate) => candidate.name === own)?.staff !== true) return null;
+      const ref = this.ref(alias, own);
+      return every([holdsSomeone(ref), this.among(ref, [me])]);
+    }
+    return this.someone(table, alias, own, far, [me]);
+  }
+
   /** One role's whole test: who it reaches, and only while. */
   role(table: EffectiveTable, alias: string, reach: RowReach): Bool {
     const who = this.ctx.set.reach;
@@ -376,6 +391,11 @@ class Build {
       if (reach.by !== undefined) parts.push(this.someone(table, alias, reach.by, undefined, ids) ?? never());
     }
     if (reach.while !== undefined) parts.push(this.whilst(table, alias, reach.while));
+    // …and never a row the person themselves is named in by `notBy` (a manager's own target). A path that cannot be read reaches nothing.
+    if (reach.notBy !== undefined) {
+      const named = this.names(table, alias, reach.notBy, me);
+      parts.push(named === null ? never() : not(named));
+    }
     return every(parts);
   }
 }

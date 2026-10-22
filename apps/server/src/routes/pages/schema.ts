@@ -357,6 +357,10 @@ export const pageReply = z.object({
         href: z.string().optional(),
         child: z.object({ table: z.string(), via: z.string(), form: z.array(z.string()) }).optional(),
         set: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+        /** Staff columns of the row: the button is not shown to the person the row names in one of them. Presentation only. */
+        notBy: z.array(z.string()).optional(),
+        /** A staff column of the row: the button is shown only to the person the row names there. Presentation only. */
+        by: z.string().optional(),
       }),
     )
     .optional(),

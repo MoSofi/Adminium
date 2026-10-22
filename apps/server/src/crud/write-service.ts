@@ -98,6 +98,7 @@ import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
+import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { canonicalCode, isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
 import { isWriteConflict } from './db-errors.js';
@@ -2364,11 +2365,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         mergeIssues(await linkableIssues(rules, action, target, context, values, stored), await fileIssues(action, target, context, values, stored)),
       ),
     );
+    if (issues !== null) {
+      const error = refusal(issues);
+      if (mapError !== undefined) mapError(error);
+      throw error;
+    }
+    // When, and by whom, a column may change: what the guards read of the stored row is held by the statement too.
+    const guarded = await judgeChangeGuards(rules, action, target, context, values, stored);
+    if (guarded.refusal !== null) {
+      if (mapError !== undefined) mapError(guarded.refusal);
+      throw guarded.refusal;
+    }
+    const held = guarded.expect === null ? values : attachExpect(values, guarded.expect);
     // What the check read of the stored row goes with the values, for the statement to hold it to.
-    if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
-    const error = refusal(issues);
-    if (mapError !== undefined) mapError(error);
-    throw error;
+    return brand(attachRequiredGuards(held, requiredGuards(judged, action, values, stored)));
   }
 
   /** The code columns a server action's update renews (`context.renewing`), or undefined: only an `action` write's own code columns. */
@@ -3809,6 +3819,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             mergeIssues(await linkableIssues(rules, action, target, context, values, checkOpts?.stored?.[index] ?? null), await fileIssues(action, target, context, values, checkOpts?.stored?.[index] ?? null)),
           ),
         );
+        // When, and by whom, a column may change: a new row, or a change judged against the row it matched.
+        if (issue === null) {
+          const guarded = await judgeChangeGuards(rules, action, target, context, values, checkOpts?.stored?.[index] ?? null);
+          if (guarded.refusal !== null) throw guarded.refusal;
+        }
         issues.push(issue);
         if (issue === null && checkOpts?.quote === true) {
           // Rows judged and never written (an import's preview): no number is claimed for them.
@@ -5002,7 +5017,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
-        const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
+        // When, and by whom, a column may change: refused by name; what it read of the stored row is held by the statement.
+        const changes = await judgeChangeGuards(rules, action, target, context, worked, record);
+        if (changes.refusal !== null) throw changes.refusal;
+        const guarded = brand(attachRequiredGuards(changes.expect === null ? worked : attachExpect(worked, changes.expect), requiredGuards(judged, action, worked, record)));
         // A quote's rows claim no number and hold nothing they do not write.
         if (beforeOpts?.quote === true) {
           const carried = await carry(rules, action, target, context, brand(await unclaimedNumbers(rules, target, guarded)), record, clock);

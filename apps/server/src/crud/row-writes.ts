@@ -283,6 +283,49 @@ export async function reachedKeys(ctx: RowLimitContext | null, db: Db, tableId: 
   return out;
 }
 
+/**
+ * A ROW THAT NAMES ITS WRITER WHERE THEIR REACH SAYS `notBy`. A manager whose
+ * update of targets is `notBy: rep_id` changes her team's targets and never
+ * her own — and the row test already keeps her own out of her reach. What it
+ * cannot see is the row as the write LEAVES it: a target made for herself,
+ * or a colleague's target moved onto her. So the row as it will be (what was
+ * sent, over what is stored) must be one a reach of hers would reach by its
+ * `notBy`: one with no `notBy`, or one whose `notBy` names somebody else
+ * there (a column of the row, or of the row one of its links names, read as
+ * it stands). Refused by name: the column, and that it names the writer.
+ */
+async function assertNotNamedBy(ctx: RowLimitContext | null, db: Db, model: { tables: readonly EffectiveTable[]; relations: RowLimitContext['model']['relations'] }, table: EffectiveTable, values: Row, before: Row | null): Promise<void> {
+  const reaches = ctx === null ? null : writerReaches(ctx, table.id);
+  if (reaches === null || reaches.every((reach) => reach.notBy === undefined)) return;
+  const me = ctx?.set.reach?.userId ?? null;
+  // A key with nobody behind it is named by no column.
+  if (me === null) return;
+  const row: Row = { ...(before ?? {}), ...values };
+  /** Whether the path names the writer in the row as it will be; a path that cannot be read names everybody (fails closed). */
+  const names = async (path: string): Promise<boolean> => {
+    const [own, far] = path.split('.') as [string, string | undefined];
+    const value = row[own];
+    if (empty(value)) return false;
+    if (far === undefined) return same(value, me);
+    const relation = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === own && r.to.columns.length === 1);
+    if (relation === undefined) return true;
+    const found = (await db
+      .selectFrom(relation.to.tableId as never)
+      .select(sql.ref(far).as('person') as never)
+      .where(sql.ref(relation.to.columns[0]!), '=', value as never)
+      .limit(1)
+      .executeTakeFirst()) as { person?: unknown } | undefined;
+    return !empty(found?.person) && same(found!.person, me);
+  };
+  let named: string | null = null;
+  for (const reach of reaches) {
+    if (reach.notBy === undefined) return;
+    if (!(await names(reach.notBy))) return;
+    named ??= reach.notBy;
+  }
+  throw new ForbiddenError(`Your role may not change a row that names you in ${named!}.`, 'COLUMN_FORBIDDEN', { table: table.id, column: named!.split('.')[0], reason: 'not-by', notBy: named });
+}
+
 /** What the table says a limited writer may put in a staff column: its way's `set`, `anyone` for a column no way names. */
 function setRuleOf(table: EffectiveTable, column: string): { set: 'self' | 'team' | 'anyone'; person?: string } {
   const way = (table.belongs ?? []).find((candidate): candidate is Extract<BelongsWay, { column: string }> => 'column' in candidate && candidate.column === column);
@@ -318,6 +361,7 @@ function readThrough(model: { tables: readonly EffectiveTable[] }, tableId: stri
 export async function assertStaffColumns(ctx: RowLimitContext | null, meta: MetaDb, db: Db, model: { tables: readonly EffectiveTable[]; relations: RowLimitContext['model']['relations'] }, tableId: string, values: Row, before: Row | null, opts: StaffWriteOptions = {}): Promise<void> {
   const table = model.tables.find((candidate) => candidate.id === tableId);
   if (table === undefined) return;
+  await assertNotNamedBy(ctx, db, model, table, values, before);
   const reaches = ctx === null ? null : writerReaches(ctx, tableId);
   const me = ctx?.set.reach?.userId ?? null;
   // The people of the teams the writer leads: read here when a column asks it, since a permission set carries them

@@ -619,6 +619,23 @@ export interface EffectiveColumn extends ColumnModel {
   linkable?: { where?: StateCondition[]; same?: { column: string; as: string }[] };
   /** `column.file`: the column holds files a signed-in person uploaded for it. */
   file?: EffectiveFileRule;
+  /** `column.changes`: when, and by whom, the column may change (`crud/change-guards.ts`). */
+  changes?: EffectiveChangeGuard[];
+}
+
+/**
+ * One guard of `column.changes`, as kept: a change to one of `to` (absent:
+ * any change) is made only from one of `from`, only while another column of
+ * the row holds one of some values (or is empty, or not), only by the person
+ * `by` names, never by one `notBy` names. A person is a staff column of the
+ * row, or `<link>.<staff column>` of the row one of its links names.
+ */
+export interface EffectiveChangeGuard {
+  to?: (string | number | boolean)[];
+  from?: (string | number | boolean)[];
+  while?: { column: string; in: (string | number | boolean)[] } | { column: string; isNull: boolean };
+  by?: string;
+  notBy?: string[];
 }
 
 /**
@@ -1600,6 +1617,11 @@ export function applyOverrides(
         const column = columnOf(table, row.columnName);
         const rule = value as { accept: string[]; maxBytes: number; maxCount?: number };
         if (column !== undefined) column.file = { accept: [...rule.accept], maxBytes: rule.maxBytes, ...(rule.maxCount === undefined ? {} : { maxCount: rule.maxCount }) };
+        break;
+      }
+      case 'column.changes': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.changes = structuredClone((value as unknown as { guards: EffectiveChangeGuard[] }).guards);
         break;
       }
       case 'table.belongs': {

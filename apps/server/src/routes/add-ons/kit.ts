@@ -44,7 +44,7 @@ const kitTable = z.object({
       /** The moves this reader may make, by the state they leave; never one only a posting makes. */
       moves: z.record(z.string(), z.array(z.string())),
       /** The table's actions this reader is offered: never a target, never what one writes. */
-      actions: z.array(z.object({ id: z.string(), kind: z.enum(['move', 'set', 'link', 'child']), from: z.array(z.string()) })).optional(),
+      actions: z.array(z.object({ id: z.string(), kind: z.enum(['move', 'set', 'link', 'child']), from: z.array(z.string()), notBy: z.array(z.string()).optional(), by: z.string().optional() })).optional(),
     })
     .optional(),
 });
@@ -111,7 +111,7 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
                   states: {
                     column: states.column,
                     moves: movesFor(states.moves, roles),
-                    ...(actions === undefined ? {} : { actions: actions.map((action) => ({ id: action.id, kind: action.kind, from: action.from })) }),
+                    ...(actions === undefined ? {} : { actions: actions.map((action) => ({ id: action.id, kind: action.kind, from: action.from, ...(action.notBy === undefined ? {} : { notBy: action.notBy }), ...(action.by === undefined ? {} : { by: action.by }) })) }),
                   },
                 }),
           };

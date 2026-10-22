@@ -172,7 +172,8 @@ export function columnRuleIssue(
     | 'column.place'
     | 'column.area'
     | 'column.linkable'
-    | 'column.file',
+    | 'column.file'
+    | 'column.changes',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -541,6 +542,31 @@ export function columnRuleIssue(
         const reached = hop === undefined ? undefined : model.tables.find((candidate) => candidate.id === hop.to.tableId);
         if (reached === undefined) return `${JSON.stringify(own)} is not a foreign key, so it names no row to read ${JSON.stringify(far)} of.`;
         if (!reached.columns.some((c) => c.name === far)) return `${reached.name} has no column ${JSON.stringify(far)}.`;
+      }
+      return null;
+    }
+
+    case 'column.changes': {
+      // Every column a guard reads is one of the row's own, or the staff column of the row one of its links names.
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const has = (name: unknown): boolean => table?.columns.some((c) => c.name === name) === true;
+      const staffOp = (name: string): boolean => (related?.rules ?? []).some((rule) => rule.op === 'column.staff' && rule.columnName === name);
+      const person = (path: unknown): string | null => {
+        const [own, far] = String(path).split('.') as [string, string | undefined];
+        if (!has(own)) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(own)}.`;
+        if (far === undefined) return related !== undefined && !staffOp(own) ? `${JSON.stringify(own)} does not hold a staff member.` : null;
+        const hop = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === own && r.to.columns.length === 1);
+        const reached = hop === undefined ? undefined : model.tables.find((candidate) => candidate.id === hop.to.tableId);
+        if (reached === undefined) return `${JSON.stringify(own)} is not a foreign key, so it names no row to read ${JSON.stringify(far)} of.`;
+        return reached.columns.some((c) => c.name === far) ? null : `${reached.name} has no column ${JSON.stringify(far)}.`;
+      };
+      if (column.isGenerated || column.isPrimaryKey) return `${name} is not changed by a writer, so nothing guards its changes.`;
+      for (const guard of (Array.isArray(value['guards']) ? value['guards'] : []) as { while?: { column?: unknown }; by?: unknown; notBy?: unknown[] }[]) {
+        if (guard.while !== undefined && (guard.while.column === column.name || !has(guard.while.column))) return `${table?.name ?? 'The table'} has no other column ${JSON.stringify(guard.while.column)} for the change to wait on.`;
+        for (const path of [...(guard.by === undefined ? [] : [guard.by]), ...(guard.notBy ?? [])]) {
+          const issue = person(path);
+          if (issue !== null) return issue;
+        }
       }
       return null;
     }
