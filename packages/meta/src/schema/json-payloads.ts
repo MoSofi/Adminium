@@ -2043,6 +2043,18 @@ export const automationDigestSectionSchema = z.object({
       of: z.string().max(128),
     })
     .optional(),
+  /**
+   * Only the rows whose date or time `column` falls in the current calendar
+   * year (`this: 'year'`), or in the last `lastDays` days (today and the days
+   * before it), on the business's calendar: the connection's time zone, from
+   * its midnight. Counted from when the rule ran, like the conditions.
+   */
+  within: z
+    .union([
+      z.object({ column: z.string().max(128), this: z.literal('year') }).strict(),
+      z.object({ column: z.string().max(128), lastDays: z.number().int().min(1).max(366) }).strict(),
+    ])
+    .optional(),
 });
 export type AutomationDigestSection = z.infer<typeof automationDigestSectionSchema>;
 

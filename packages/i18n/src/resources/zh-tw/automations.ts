@@ -495,6 +495,8 @@ export default {
     "chooseTable": "選擇一個資料表…",
     "owner": "此人在以下欄位中的列",
     "conditions": "{count, plural, other {另有 # 個條件，保持不變。}}",
+    "withinYear": "僅限依 {column} 計今年的列，以企業行事曆為準。保持不變。",
+    "withinDays": "{count, plural, other {僅限依 {column} 計最近 # 天的列，以企業行事曆為準。保持不變。}}",
     "limit": "最多顯示的列數",
     "removeSection": "移除此區段",
     "addSection": "新增區段",

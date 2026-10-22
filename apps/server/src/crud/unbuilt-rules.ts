@@ -205,11 +205,12 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'automations.urgent',
   // A summary for each person, read as that person when it is sent.
   'automations.digest',
-  // A section of one: the rows of the people its reader leads now, a column added up over every row, a line a person, a sum against a target.
+  // A section of one: the rows of the people its reader leads now, a column added up over every row, a line a person, a sum against a target, the rows of this year or of the last days.
   'digest.reach',
   'digest.sum',
   'digest.by',
   'digest.target',
+  'digest.within',
   // A row a step makes, kept in the run's trace for the steps after it.
   'automations.stepName',
   // More than twelve rules in one manifest: each is installed as the first twelve are.

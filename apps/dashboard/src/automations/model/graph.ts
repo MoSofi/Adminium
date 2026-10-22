@@ -76,6 +76,8 @@ export interface DigestSection {
   where: Condition[];
   orderBy: { column: string; dir: 'asc' | 'desc' } | null;
   limit: number;
+  /** Only the rows of this year, or of the last days, by a date column, on the business's calendar: an app's rule writes it, and the editor keeps it. */
+  within?: { column: string; this: 'year' } | { column: string; lastDays: number };
 }
 
 /**

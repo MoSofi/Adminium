@@ -117,6 +117,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'digest.sum',
   'digest.by',
   'digest.target',
+  'digest.within',
   'automations.stepName',
   'automations.many',
   'automations.replyTo',
@@ -213,6 +214,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'digest.sum': '0.3.28',
   'digest.by': '0.3.28',
   'digest.target': '0.3.28',
+  // A section held to the rows of this year, or of the last days, by a date column on the business's calendar.
+  'digest.within': '0.3.33',
   // A row a step makes, read by a later step.
   'automations.stepName': '0.3.28',
   // More rules than a manifest could ship before (twelve).
@@ -489,7 +492,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (action['kind'] === 'digest') out.push({ word: 'automations.digest', path: `${at}.${String(n)}.action` });
         if (action['kind'] === 'digest') {
           list(action['sections']).forEach((section, s) => {
-            for (const key of ['reach', 'sum', 'by', 'target'] as const) {
+            for (const key of ['reach', 'sum', 'by', 'target', 'within'] as const) {
               if (isDoc(section) && section[key] !== undefined) out.push({ word: `digest.${key}`, path: `${at}.${String(n)}.action.sections.${String(s)}.${key}` });
             }
           });

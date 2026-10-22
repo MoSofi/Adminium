@@ -495,6 +495,8 @@ export default {
     "chooseTable": "Choose a table…",
     "owner": "Rows where this person is",
     "conditions": "{count, plural, one {And # more condition, kept as it is.} other {And # more conditions, kept as they are.}}",
+    "withinYear": "Only the rows of this year by {column}, on the business’s calendar. Kept as it is.",
+    "withinDays": "{count, plural, one {Only the rows of today by {column}, on the business’s calendar. Kept as it is.} other {Only the rows of the last # days by {column}, on the business’s calendar. Kept as it is.}}",
     "limit": "At most this many rows",
     "removeSection": "Remove this section",
     "addSection": "Add a section",

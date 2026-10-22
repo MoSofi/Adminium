@@ -59,7 +59,7 @@ export function automationHashOf(rule: Pick<Automation, 'name' | 'description' |
     .digest('hex');
 }
 
-interface Binding {
+export interface Binding {
   connectionId: string;
   realId: (ref: string) => string;
   roleId: (key: string) => string;
@@ -86,7 +86,8 @@ function boundValue(value: ManifestWriteValue, b: Binding): unknown {
   return value;
 }
 
-function boundNode(node: unknown, b: Binding): unknown {
+/** One node of a shipped rule, bound to the install: its tables, roles and language (exported for its tests). */
+export function boundNode(node: unknown, b: Binding): unknown {
   const anyNode = node as Record<string, unknown> & { kind: string; title: Words; sub?: Words };
   const base = { ...anyNode, title: one(anyNode.title, b.language), ...(anyNode.sub === undefined ? {} : { sub: one(anyNode.sub, b.language) }) };
   if (anyNode.kind === 'condition') return { ...base, condition: boundCondition(anyNode['condition'] as ManifestCondition, b) };
@@ -116,6 +117,7 @@ function boundNode(node: unknown, b: Binding): unknown {
       sum?: string[];
       by?: 'owner';
       target?: { table: string; owner: string; column: string; year?: string; of: string };
+      within?: { column: string; this: 'year' } | { column: string; lastDays: number };
     }[];
     return {
       ...base,
@@ -134,6 +136,7 @@ function boundNode(node: unknown, b: Binding): unknown {
           ...(section.sum === undefined ? {} : { sum: section.sum }),
           ...(section.by === undefined ? {} : { by: section.by }),
           ...(section.target === undefined ? {} : { target: { ...section.target, table: b.realId(section.target.table) } }),
+          ...(section.within === undefined ? {} : { within: section.within }),
         })),
         sendEmpty: action['sendEmpty'] === true,
       },
