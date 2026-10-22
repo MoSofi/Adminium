@@ -291,14 +291,15 @@ function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { paymen
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-y-1 text-[13px] leading-normal text-fg-muted">
+          {/* The dot trails its part, so a wrapped line never starts with one. */}
           {shownParts.map((part, index) => (
             <span key={index} className="inline-flex items-center">
-              {index === 0 ? null : (
+              {part}
+              {index === shownParts.length - 1 ? null : (
                 <span aria-hidden="true" className="px-1.5 text-fg-subtle">
                   ·
                 </span>
               )}
-              {part}
             </span>
           ))}
           {payment.test ? (
