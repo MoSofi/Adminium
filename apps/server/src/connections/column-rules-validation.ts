@@ -172,7 +172,8 @@ export function columnRuleIssue(
     | 'column.place'
     | 'column.area'
     | 'column.linkable'
-    | 'column.file',
+    | 'column.file'
+    | 'column.history',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -496,6 +497,11 @@ export function columnRuleIssue(
 
     case 'column.tableRef': {
       return TEXTUAL_TYPES.has(column.logicalType) ? null : `A table's name is kept in text; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.history': {
+      // A row's history is found by its key: the key is never left out of it.
+      return column.isPrimaryKey ? `A row's key is how its history is found; ${name} is never kept for the audit log only.` : null;
     }
 
     case 'column.mentions': {

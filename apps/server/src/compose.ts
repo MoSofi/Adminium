@@ -58,6 +58,7 @@ import {
   publicSessionsRepo,
   paymentCountersRepo,
   paymentEventsRepo,
+  removedRowsRepo,
   sessionsRepo,
   settingsRepo,
   type EnqueueJobInput,
@@ -3428,6 +3429,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const auditLogDays = await settings.get('retention.auditLogDays');
     const auditArchive = await settings.get('retention.auditArchive');
     const auditEntries = auditArchive ? null : await auditRepo(meta).gc(at, auditLogDays);
+    // The removed rows a table keeps (`removal.history`) go with the audit entries they sit beside, under the same veto.
+    let removedRows: number | null = null;
+    try {
+      removedRows = auditArchive ? null : await removedRowsRepo(meta).gc(at, auditLogDays);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: removed rows purge failed');
+    }
 
     // `retention.automationRunsDays` has been a registered setting
     // read by nobody since it was added; this is its first reader. Failed runs
@@ -3491,6 +3499,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         passwordResets,
         jobs: finishedJobs,
         auditEntries,
+        removedRows,
         automationRuns,
         assistantSessions,
         publicSessions,

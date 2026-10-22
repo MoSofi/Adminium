@@ -267,9 +267,9 @@ export function useWrite(table: string): UseWriteResult {
     return {
       create: (values) => run(async () => written(table, (await crud.create(values as Record<string, unknown>)) as Saved)),
       update: (key, values) => run(async () => written(table, (await crud.update(keyText(key), values as Record<string, unknown>)) as Saved)),
-      remove: (key) =>
+      remove: (key, options) =>
         run(async () => {
-          const reply = await crud.remove(keyText(key), { confirm: true });
+          const reply = await crud.remove(keyText(key), { confirm: true, ...(options?.reason === undefined ? {} : { reason: options.reason }) });
           if (isDeletePreview(reply)) throw new Error('Other rows refer to this one: it was not deleted.');
         }),
       updateEach: (keys, values, options) => run(() => each(keys, (key) => keyText(key), (chunk) => api.post<EachReply>(`${base}/one-by-one`, { ids: chunk, values, ...(options?.from === undefined ? {} : { from: options.from }) }))),

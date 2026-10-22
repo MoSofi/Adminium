@@ -19,6 +19,7 @@
 import type { ResolvedTable } from '../crud/identifiers.js';
 import { staffInstants } from '../crud/instants.js';
 import { maskRow, type Row } from '../crud/mask.js';
+import { withoutEarlierValues } from '../crud/removals.js';
 import { widgetDataChannel, type FrameReach, type RealtimeEvent, type RealtimeHub } from '../realtime/hub.js';
 
 export interface WidgetStreamMutation {
@@ -83,10 +84,12 @@ export function tableFrameReach(table: ResolvedTable): FrameReach {
 export function publishWidgetDataStream(hub: RealtimeHub, mutation: WidgetStreamMutation): RealtimeEvent {
   const channel = widgetDataChannel(mutation.connectionId, mutation.table.id);
   // A SQLite source's wall-time text as the instant it is (Postgres and MySQL hand over moments already).
+  // A removed row's frame carries the row as it was: without the earlier values only the audit log keeps (`column.history`).
+  const held = mutation.type === 'record.delete' ? withoutEarlierValues(mutation.table, mutation.row) : mutation.row;
   const row =
-    mutation.row === null || mutation.row === undefined
+    held === null || held === undefined
       ? null
-      : staffInstants(maskRow(mutation.row, mutation.table, false), mutation.table, 'sqlite');
+      : staffInstants(maskRow(held, mutation.table, false), mutation.table, 'sqlite');
   const pk =
     mutation.pk === null || mutation.pk === undefined
       ? null

@@ -258,10 +258,11 @@ export interface CrudApi {
   /**
    * Delete. `dryRun` returns the referential-consequence preview;
    * `confirm` is required once the preview reports inbound references.
+   * `reason`: why, for a table that asks (`table.removal.reason`).
    */
   remove(
     recordId: string,
-    options?: { dryRun?: boolean | undefined; confirm?: boolean | undefined },
+    options?: { dryRun?: boolean | undefined; confirm?: boolean | undefined; reason?: string | undefined },
   ): Promise<CrudMutationResult | CrudDeletePreview>;
   /** Standalone references preflight (same payload as `remove({dryRun})`). */
   references(recordId: string): Promise<CrudReferenceCount[]>;

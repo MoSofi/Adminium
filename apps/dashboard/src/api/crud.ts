@@ -353,7 +353,8 @@ export function createCrudApi(connectionId: string, table: string, opts: CrudApi
       if (options.confirm === true) search.set('confirm', 'true');
       const suffix = search.size === 0 ? '' : `?${search.toString()}`;
       try {
-        return await api.delete<CrudMutationResult | CrudDeletePreview>(`${base}/${encodeURIComponent(recordId)}${suffix}`);
+        // Why the row goes, for a table that asks: in the body, never in the address a log keeps.
+        return await api.delete<CrudMutationResult | CrudDeletePreview>(`${base}/${encodeURIComponent(recordId)}${suffix}`, options.reason === undefined ? undefined : { reason: options.reason });
       } catch (error) {
         // A row that still holds something under a ledger is not deleted: said in the reader's words.
         throw await inReadersWords(error);

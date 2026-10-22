@@ -23,6 +23,7 @@ import {
   pagesRepo,
   publicChallengesRepo,
   publicEndpointsRepo,
+  removedRowsRepo,
   snapshotsRepo,
   type MetaDb,
   type RecordRef,
@@ -63,6 +64,7 @@ import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.j
 import { assertMovedFrom, assertWithinCreateLimit, assertWithinLimit, changesRow, createLimitOf, movedFromSeen, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { permissionSetAllows } from '../../rbac/resolver.js';
 import { readableImage, readsHidden, readViewOf, refuseHiddenIn } from '../../crud/read-view.js';
+import { actorOfRequest, forgetRemoved, keepRemoved, keepsRemoved, linksNaming, personReason, reachesRemoved, reasonEntry, shownRemoved, withoutEarlierValues } from '../../crud/removals.js';
 import {
   fetchByPk,
   parseRecordId,
@@ -177,6 +179,7 @@ import {
   recordOneByOneReply,
   recordCreateBody,
   recordDryRunReply,
+  recordDeleteBody,
   recordDeleteQuery,
   recordDeleteReply,
   recordGetQuery,
@@ -199,6 +202,10 @@ import {
   recordChangeDryRunBody,
   recordChangeDryRunReply,
   recordHistoryQuery,
+  removedChildParams,
+  removedChildRecordParams,
+  removedChildrenQuery,
+  removedChildrenReply,
   recordHistoryReply,
   referencesReply,
   claimLockClearedReply,
@@ -585,7 +592,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       if (ctx.rows !== null && count === 0) throw new NotFoundError('Record not found.', { pk });
     };
 
-    async function contextFor(request: FastifyRequest, action: TableAction): Promise<DataContext> {
+    async function contextFor(request: FastifyRequest, action: TableAction, otherTable?: string): Promise<DataContext> {
       /*
        * 401 without a principal, BEFORE any lookup. The resolution below
        * answers differently for a missing connection, an un-introspected one,
@@ -596,10 +603,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
        * undo route below have always opened this way.
        */
       await app.rbac.resolve(request);
-      const { connectionId, table: tableParam } = request.params as {
+      const { connectionId, table: named } = request.params as {
         connectionId: string;
         table: string;
       };
+      // A route that reads a second table (a parent's removed children) asks for it by name, judged as the first.
+      const tableParam = otherTable ?? named;
       const connection = await manager.mustFind(connectionId);
       const view = await viewFor(connectionId);
       // Identifier resolution FIRST, then RBAC on the resolved name.
@@ -819,6 +828,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       entity: RecordRef,
       before: Row | null,
       after: Row | null,
+      /** A removal's reason, for a table that asks for one (`table.removal`). */
+      reason?: string | null,
     ): Promise<void> {
       await afterRecordWrite(app, {
         request,
@@ -830,8 +841,23 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         after,
         origin: 'dashboard',
         files: deps.files,
+        ...(reason === undefined ? {} : { reason }),
       });
       if (after !== null && action !== 'delete') await tellMentionsOf(request, ctx, ctx.table, before, after);
+    }
+
+    /**
+     * The child rows a parent's save took off (a member taken off the deal's
+     * form) of a table that keeps its removed rows: kept under the rows they
+     * linked to, with no reason (`crud/removals.ts`). Such a row announces no
+     * event of its own, so it is kept here.
+     */
+    async function keepChildRemovals(request: FastifyRequest, ctx: DataContext, events: readonly ChildEvent[]): Promise<void> {
+      const by = actorOfRequest(request);
+      for (const event of events) {
+        if (event.action !== 'delete' || !keepsRemoved(event.table)) continue;
+        await keepRemoved(meta, { connectionId: ctx.connectionId, table: event.table, rows: [{ pk: event.pk, before: event.row }], reason: null, actor: by, view: ctx.view }, (error) => request.log.warn({ err: error }, 'removals: a removed child row could not be kept'));
+      }
     }
 
     /** The people a saved row newly mentions are told, once it is saved; a notice that fails is not the save's failure. */
@@ -1886,8 +1912,23 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const prepared = await writes.beforeEach(hookAction, target, context, undoRows(entry), {
           rules: false,
         });
-        const { restored: restoredIds, written, changed } = await executeUndo(target, entry, prepared, context, undone.rows);
+        const { restored: restoredIds, written, changed, children: undoneChildren } = await executeUndo(target, entry, prepared, context, undone.rows);
         invalidateWidgetData(app, entry.connectionId, entry.tableId);
+        /*
+         * The removed rows of a table that keeps them (`crud/removals.ts`): a
+         * row brought back comes off the list; a row the undo took away (a row
+         * made by mistake, a child row the undone save had added) goes on it,
+         * with no reason.
+         */
+        const by = actorOfRequest(request);
+        const warnKept = (error: unknown) => request.log.warn({ err: error }, 'removals: an undone row could not be kept');
+        if (entry.action === 'delete') await forgetRemoved(meta, entry.connectionId, table, entry.before.map((row) => Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]]))));
+        if (entry.action === 'create') await keepRemoved(meta, { connectionId: entry.connectionId, table, rows: changed.filter((row) => row.record !== null).map((row) => ({ pk: row.pk, before: row.record })), reason: null, actor: by, view: undone.view }, warnKept);
+        for (const moved of undoneChildren) {
+          const pks = moved.rows.map((row) => Object.fromEntries(moved.target.table.primaryKey.map((c) => [c, row.record[c]])));
+          if (moved.action === 'create') await forgetRemoved(meta, entry.connectionId, moved.target.table, pks);
+          if (moved.action === 'delete') await keepRemoved(meta, { connectionId: entry.connectionId, table: moved.target.table, rows: moved.rows.map((row, i) => ({ pk: pks[i]!, before: row.record })), reason: null, actor: by, view: undone.view }, warnKept);
+        }
         /*
          * A change taken back is a change of those columns again: an app's
          * email of "these columns changed" (a stay's dates) hears it, so the
@@ -1930,7 +1971,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           category: 'data',
           action: 'record.undo',
           connectionId: entry.connectionId,
-          changes: { after: { table: entry.tableId, action: entry.action, restored: restoredIds.length } },
+          // Rows a create's undo took away, of a table that asks why a row goes: no reason.
+          changes: { after: { table: entry.tableId, action: entry.action, restored: restoredIds.length }, ...(entry.action === 'create' ? reasonEntry(table, null) : {}) },
         });
         // Screens watching the table (a board, a kitchen) look again: the rows are back as they were.
         if (app.hasDecorator('realtime')) publishWidgetDataStream(app.realtime, { connectionId: entry.connectionId, table, type: 'record.undo', pk: null, row: null });
@@ -2158,7 +2200,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
        * row somebody else was given since is not written by the one who had it.
        */
       rows: RowLimitContext | null = null,
-    ): Promise<{ restored: unknown[]; written: WrittenRow[]; changed: { pk: Row; before: Row | null; record: Row | null }[] }> {
+    ): Promise<{ restored: unknown[]; written: WrittenRow[]; changed: { pk: Row; before: Row | null; record: Row | null }[]; children: UndoneRows[] }> {
       const { table } = target;
       const pkOf = (row: Row): Row => Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]]));
       const conflict = (): never => {
@@ -2184,7 +2226,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             restored.push(pkLabel(table, pkOf(before)));
             written.push({ pk: pkOf(before), before: null, record: null });
           }
-          return { restored, written };
+          return { restored, written, moved };
         }
         if (entry.action === 'update') {
           const compareColumns = undoColumns(entry);
@@ -2207,7 +2249,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             written.push({ pk, before: current ?? null, record: null });
           }
           await settleUndone(moved);
-          return { restored, written };
+          return { restored, written, moved };
         }
         // create undo: delete the inserted rows if untouched.
         for (const after of entry.after) {
@@ -2232,7 +2274,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           written.push({ pk, before: null, record: current });
         }
         await settleUndone(moved);
-        return { restored, written };
+        return { restored, written, moved };
       });
       // The rows as they stand now, for the totals they feed and for after
       // hooks — read only when either needs them.
@@ -2246,7 +2288,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (record !== undefined) written.push({ record, before: row.before });
         }
       }
-      return { restored: outcome.restored, written, changed: outcome.written };
+      return { restored: outcome.restored, written, changed: outcome.written, children: outcome.moved };
     }
 
     // --- one by one (static segment) --------------------------------------------
@@ -2383,6 +2425,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // The state every row was seen in, when it names one, travels as a condition of each row's change.
         const values = action === 'update' ? withSeenState(ctx.table, allowlistValues(ctx, request.body.values ?? {}), request.body.from) : null;
         if (action === 'delete' && request.body.from !== undefined) throw new ValidationFailedError('A state seen goes with a change, not a delete.', { fields: { from: { code: 'not-allowed' } } });
+        if (action !== 'delete' && request.body.reason !== undefined) throw new ValidationFailedError('A reason goes with a removal, not a change.', { fields: { reason: { code: 'not-allowed' } } });
+        // Why the rows go, where the table asks: one reason for the batch, refused before any row is touched.
+        const reason = action === 'delete' ? personReason(ctx.table, request.body.reason) : null;
         // One `values` for every row, so every column sent counts as a change.
         const limit = values === null ? null : await updateLimitFor(request, ctx.connectionId, ctx.table.id);
         if (values !== null) assertWithinLimit(limit, ctx.table.id, values);
@@ -2545,6 +2590,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           connectionId: ctx.connectionId,
           changes: {
             after: { table: ctx.table.id, requested: request.body.ids.length, succeeded: okCount },
+            ...(action === 'delete' ? reasonEntry(ctx.table, reason) : {}),
           },
         });
         invalidateWidgetData(app, ctx.connectionId, ctx.table.id);
@@ -2573,6 +2619,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             before: event.before,
             after: event.after,
             origin: 'bulk',
+            ...(action === 'delete' ? { reason, by: actorOfRequest(request) } : {}),
           });
         }
         await writes.afterEach(
@@ -2623,6 +2670,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const ctx = asReader(await contextFor(request, 'read'));
         const pk = parseRecordId(ctx.table, request.params.recordId);
         if ((await startRow(ctx, pk, 'read')) === undefined) throw new NotFoundError('Record not found.', { pk });
+        return historyOf(ctx, pk, request.query);
+      },
+    );
+
+    /*
+     * A RECORD'S ENTRIES, as its reader may read them: the history route's
+     * answer, and a removed row's (read through a row it linked to). The
+     * columns whose earlier values only the audit log keeps
+     * (`column.history: "audit"`) are left out of every before and after:
+     * the audit page, the install's owner's, keeps them.
+     */
+    async function historyOf(ctx: DataContext, pk: Row, query: { limit: number; cursor?: string | undefined }) {
+      {
         const keys = auditEntityKeyOf(recordRef(ctx, pk));
         let q = meta.db
           .selectFrom('adminium_audit_log')
@@ -2631,7 +2691,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           .where('connectionId', '=', ctx.connectionId)
           .where('entityTable', '=', keys.entityTable)
           .where('entityId', '=', keys.entityId);
-        const { limit, cursor } = request.query;
+        const { limit, cursor } = query;
         if (cursor !== undefined) {
           // `cursorText` decodes the cursor itself (and refuses one that holds U+0000).
           const decoded = cursorText(cursor) ?? '';
@@ -2644,7 +2704,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const page = rows.slice(0, limit);
         const last = page.at(-1);
         const image = (value: unknown) =>
-          typeof value === 'object' && value !== null && !Array.isArray(value) ? readableImage(ctx.readView, ctx.table.id, value as Row) : value;
+          typeof value === 'object' && value !== null && !Array.isArray(value) ? readableImage(ctx.readView, ctx.table.id, withoutEarlierValues(ctx.table, value as Row)) : value;
         /*
          * A change of the record's links keeps the keys it linked to. For a
          * reader who reaches only some rows of the linked table, the keys of
@@ -2687,6 +2747,86 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           }),
           nextCursor: rows.length > limit && last !== undefined ? Buffer.from(`${String(last.createdAt)}:${last.id}`, 'utf8').toString('base64url') : null,
         };
+      }
+    }
+
+    /*
+     * A RECORD'S REMOVED CHILDREN (`table.removal.history`): the rows of a
+     * table that linked to this record and were removed, read only through a
+     * record the reader reads NOW, and only by a reader the child table's own
+     * grants let read it: its read permission, its row limit (judged on the
+     * row as it was) and the columns their role reads, as a live read is
+     * held to them. Never a private table's, never a table that keeps none:
+     * answered as a table that keeps none. A removed contact of a table that
+     * does not opt in is read by nobody, through anything.
+     *
+     * …/removed/:childTable lists them, newest first, with who removed each,
+     * when and why; …/removed/:childTable/:childId/history is one of them's
+     * own history, as the record's history route answers a live one.
+     */
+    async function removedReading(request: FastifyRequest<{ Params: { connectionId: string; table: string; recordId: string; childTable: string } }>) {
+      const parent = asReader(await contextFor(request, 'read'));
+      const pk = parseRecordId(parent.table, request.params.recordId);
+      const parentRow = await startRow(parent, pk, 'read');
+      if (parentRow === undefined) throw new NotFoundError('Record not found.', { pk });
+      const child = asReader(await contextFor(request, 'read', request.params.childTable));
+      if (!keepsRemoved(child.table)) throw new NotFoundError('This table keeps no removed rows.', { table: child.table.id });
+      const linked = parent.view.model.relations.some((relation) => relation.through === null && relation.from.tableId === child.table.id && relation.to.tableId === parent.table.id);
+      if (!linked) throw new NotFoundError('That table does not link to this one.', { table: child.table.id });
+      return { parent, child, links: linksNaming(parent.view, child.table, parent.table, parentRow) };
+    }
+
+    app.get(
+      '/data/:connectionId/:table/:recordId/removed/:childTable',
+      { schema: { params: removedChildParams, querystring: removedChildrenQuery, response: { 200: removedChildrenReply } } },
+      async (request) => {
+        const { parent, child, links } = await removedReading(request);
+        const { limit, cursor } = request.query;
+        let before: { removedAt: number; id: string } | undefined;
+        if (cursor !== undefined) {
+          const decoded = cursorText(cursor) ?? '';
+          const at = Number(decoded.slice(0, decoded.indexOf(':')));
+          const id = decoded.slice(decoded.indexOf(':') + 1);
+          if (!Number.isFinite(at) || id === '') throw new ValidationFailedError('Malformed pagination cursor.', { cursor });
+          before = { removedAt: at, id };
+        }
+        const repo = removedRowsRepo(meta);
+        const shown: { key: string; removedAt: number; actorKind: string; actorLabel: string; reason: string | null; via: string; row: Row }[] = [];
+        let more = false;
+        let last: { removedAt: number; id: string } | undefined;
+        // A row the reader's limit does not reach is passed over: read on until the page is full or the list ends.
+        for (let round = 0; round < 20 && shown.length <= limit; round += 1) {
+          const batch = await repo.listUnder({ connectionId: child.connectionId, entityTable: child.table.id, parentTable: parent.table.id, links, limit: limit + 1, before });
+          for (const row of batch) {
+            if (!(await reachesRemoved(child.rows, child.db, child.table, row.image))) continue;
+            if (shown.length === limit) {
+              more = true;
+              break;
+            }
+            shown.push({ key: row.entityId, removedAt: row.removedAt, actorKind: row.actorKind, actorLabel: row.actorLabel, reason: row.reason, via: row.via, row: shownRemoved(child.readView, child.table, row.image) });
+            last = { removedAt: row.removedAt, id: row.id };
+          }
+          if (more || batch.length <= limit) break;
+          const end = batch.at(-1)!;
+          before = { removedAt: end.removedAt, id: end.id };
+        }
+        return {
+          removed: shown,
+          nextCursor: more && last !== undefined ? Buffer.from(`${String(last.removedAt)}:${last.id}`, 'utf8').toString('base64url') : null,
+        };
+      },
+    );
+
+    app.get(
+      '/data/:connectionId/:table/:recordId/removed/:childTable/:childId/history',
+      { schema: { params: removedChildRecordParams, querystring: recordHistoryQuery, response: { 200: recordHistoryReply } } },
+      async (request) => {
+        const { parent, child, links } = await removedReading(request);
+        const childPk = parseRecordId(child.table, request.params.childId);
+        const kept = await removedRowsRepo(meta).findUnder({ connectionId: child.connectionId, entityTable: child.table.id, entityId: pkLabel(child.table, childPk), parentTable: parent.table.id, links });
+        // Not removed from under this record, or not a row the reader's read of its table would reach: as a row that is not there.
+        if (kept === null || !(await reachesRemoved(child.rows, child.db, child.table, kept.image))) throw new NotFoundError('Record not found.', { pk: childPk });
+        return historyOf(child, childPk, request.query);
       },
     );
 
@@ -3838,6 +3978,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               if (result.postings === undefined && !pricedBy(result.adjusted)) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
               for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+              await keepChildRemovals(request, ctx, childEvents);
               await tellChildMentions(request, ctx, childEvents);
               // The rows the record's and its child rows' moves moved too, as changes of their own.
               await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: [...(result.effects ?? []), ...childEffects], origin: 'dashboard', request });
@@ -3927,6 +4068,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       );
       await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
       for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+      await keepChildRemovals(request, ctx, childEvents);
       await tellChildMentions(request, ctx, childEvents);
       // The rows the record's and its child rows' moves moved too, as changes of their own.
       await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'dashboard', request });
@@ -3960,6 +4102,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         schema: {
           params: dataRecordParams,
           querystring: recordDeleteQuery,
+          body: recordDeleteBody,
           response: { 200: recordDeleteReply },
         },
       },
@@ -3986,6 +4129,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // No write happens — cascade-modal payload.
           return { references, requiresConfirm: inbound > 0 };
         }
+        // Why it goes, where the table asks: refused before anything is asked to be confirmed.
+        const reason = personReason(ctx.table, request.body?.reason);
         if (inbound > 0 && request.query.confirm !== true) {
           throw new ConflictError(
             'Record has inbound references — retry with ?confirm=true after reviewing them.',
@@ -4014,7 +4159,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             const trashedFileIds = await trashRecordFiles(ctx, entity, before);
             // A line taken off an order moved its price: no Undo, as for any save that did.
             if (!pricedBy(adjusted)) undoToken = await issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
-            await afterMutation(request, ctx, 'delete', entity, before, null);
+            await afterMutation(request, ctx, 'delete', entity, before, null, reason);
           },
         });
         stillThere(ctx, removed, pk);

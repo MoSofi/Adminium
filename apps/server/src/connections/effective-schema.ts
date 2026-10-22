@@ -619,6 +619,8 @@ export interface EffectiveColumn extends ColumnModel {
   linkable?: { where?: StateCondition[]; same?: { column: string; as: string }[] };
   /** `column.file`: the column holds files a signed-in person uploaded for it. */
   file?: EffectiveFileRule;
+  /** `column.history`: the column's earlier values are kept for the audit log only (`crud/removals.ts` reads it). */
+  history?: 'audit';
 }
 
 /**
@@ -687,6 +689,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   belongs?: BelongsWay[];
   /** Rows read by the people they belong to, and by nobody and nothing else (`table.private`). */
   private?: true;
+  /** `table.removal`: a removal's reason is asked (or required), and the removed row's history kept (`crud/removals.ts`). */
+  removal?: { reason?: true | 'required'; history?: true };
 }
 
 /**
@@ -1609,6 +1613,20 @@ export function applyOverrides(
       }
       case 'table.private': {
         if (table !== undefined) table.private = true;
+        break;
+      }
+      case 'table.removal': {
+        if (table === undefined) break;
+        const rule = value as { reason?: unknown; history?: unknown };
+        table.removal = {
+          ...(rule.reason === true || rule.reason === 'required' ? { reason: rule.reason } : {}),
+          ...(rule.history === true ? { history: true as const } : {}),
+        };
+        break;
+      }
+      case 'column.history': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined && value.history === 'audit') column.history = 'audit';
         break;
       }
       case 'column.tableRef': {

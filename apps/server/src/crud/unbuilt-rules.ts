@@ -249,6 +249,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',
+  // A removal's reason, taken by every person's door and written into its audit entry; a removed row read through a row it linked
+  // to that the reader reads now (crud/removals.ts); a column whose earlier values only the audit log keeps.
+  'table.removal',
+  'column.history',
 ];
 
 export interface UnbuiltWord {

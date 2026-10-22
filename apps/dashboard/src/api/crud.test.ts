@@ -166,6 +166,17 @@ describe('createCrudApi serialization', () => {
     expect(result.references[0]?.count).toBe(3);
   });
 
+  it('sends a removal\'s reason in the body, never in the address, and no body without one', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: { id: 5 }, undoToken: null }));
+    await crud.remove('5', { confirm: true, reason: 'Customer cancelled' });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/v1/data/conn_1/public.customers/5?confirm=true');
+    expect(init.method).toBe('DELETE');
+    expect(JSON.parse(String(init.body))).toEqual({ reason: 'Customer cancelled' });
+    await crud.remove('6', { confirm: true });
+    expect((fetchMock.mock.calls[1] as [string, RequestInit])[1].body).toBeUndefined();
+  });
+
   it('fetches inbound reference counts for the cascade modal', async () => {
     const fetchMock = captureFetch(() => jsonResponse(200, { references: [] }));
     await crud.references('5');

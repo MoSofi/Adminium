@@ -53,6 +53,7 @@ import {
 
 import type { ResolvedTable } from './identifiers.js';
 import { keptImages, type Row } from './mask.js';
+import { actorOfRequest, keepRemoved, reasonEntry, type RemovalActor } from './removals.js';
 import { occurredAtOf } from './occurred-at.js';
 import { ruledBlocksOf } from '../files/column-blocks.js';
 import type { FileReconciler } from '../files/reconcile.js';
@@ -93,6 +94,14 @@ export interface RecordWriteEvent {
    * key of its own to be heard once by: each such change is one event.
    */
   cause?: 'forget' | 'undo' | 'settled' | undefined;
+  /**
+   * A removal of a table that asks for a reason (`table.removal.reason`): the
+   * one a person gave, or null — "no reason" — for every other door. Written
+   * into the removal's audit entry and kept with the removed row.
+   */
+  reason?: string | null | undefined;
+  /** Who removed the row, for a table that keeps its removed rows; the event's origin says so otherwise. */
+  by?: RemovalActor | undefined;
   /**
    * The conversation with the assistant in which this write was confirmed,
    * or the write that caused it was. Travels with a rule run it starts, so
@@ -205,6 +214,17 @@ export interface AfterRecordWriteInput extends RecordWriteEvent {
  * picks up afterwards.
  */
 export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEvent): Promise<void> {
+  /*
+   * A removed row of a table that keeps them, by whichever door it went:
+   * kept under the rows it linked to (`crud/removals.ts`). Every door that
+   * removes a row announces it here, which is why it is kept here; a row
+   * taken off under its parent's save, which announces no event, is kept by
+   * that route itself.
+   */
+  if (event.action === 'delete' && event.table.table?.removal?.history === true && app.hasDecorator('rbac')) {
+    const by: RemovalActor = event.by ?? (event.origin === 'automation' ? { kind: 'automation', id: null, label: 'Automation' } : { kind: 'system', id: null, label: 'Adminium' });
+    await keepRemoved(app.rbac.meta, { connectionId: event.connectionId, table: event.table, rows: [{ pk: event.entity.pk as Row, before: event.before }], reason: event.reason ?? null, actor: by }, (error) => app.log.warn({ err: error, table: event.table.id }, 'removals: the removed row could not be kept'));
+  }
   // An app's emails are queued whether or not any rule exists; the producers never throw.
   if (app.hasDecorator('outbox')) await app.outbox.onRecordEvent(event);
   // A person's sign-in address changed by the desk: their sessions and links end. Never throws.
@@ -253,7 +273,9 @@ export async function afterRecordWrite(
 
   // Before/after images are PII-redacted in the audit trail, and carry no
   // code: whoever reads the audit log may not read this table (`keptImages`).
-  const changes = keptImages(table, before, after);
+  // A removal of a table that asks for a reason says it, or says there was none.
+  const kept = keptImages(table, before, after);
+  const changes = action === 'delete' ? { ...kept, ...reasonEntry(table, input.reason) } : kept;
   // A staff device's own time for a write it sent late (an offline scan), kept beside the time it arrived.
   const occurredAt = occurredAtOf(input.request);
   const entry = {
@@ -320,5 +342,9 @@ export async function afterRecordWrite(
 
   // A write that came through the assistant's door: the rules it starts are told.
   const through = input.request?.assistantVia ?? null;
-  await emitRecordEvent(app, through === null || input.via !== undefined ? input : { ...input, via: { assistant: { sessionId: through.sessionId, turnId: through.turnId } } });
+  // Who removed a row: the request's person, or the writer the caller names (a rule, a move).
+  const by: RemovalActor | undefined =
+    action !== 'delete' ? undefined : (input.by ?? (input.request ? actorOfRequest(input.request) : input.actor === undefined ? undefined : { kind: input.actor.kind ?? 'automation', id: input.actor.id, label: input.actor.label }));
+  const event = by === undefined ? input : { ...input, by };
+  await emitRecordEvent(app, through === null || input.via !== undefined ? event : { ...event, via: { assistant: { sessionId: through.sessionId, turnId: through.turnId } } });
 }

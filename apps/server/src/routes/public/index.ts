@@ -126,6 +126,7 @@ import { offeredRoles, withOpenDoors } from '../../rbac/app-parts.js';
 import { appOutboxesRepo, connectionTenantConfig } from '@adminium/meta';
 import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
+import { reasonEntry } from '../../crud/removals.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
 import { answerCapacity, beyondReleasedSlot } from './capacity-availability.js';
@@ -3950,6 +3951,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   // What was removed, masked as any staff reader without the
                   // PII grant would see it, and with no code in it.
                   before: before === null ? null : keptRow(before, found.table),
+                  // A table that asks why a row goes: a public removal gives no reason.
+                  ...reasonEntry(found.table, null),
                 },
                 deletedRef,
               );
@@ -3970,6 +3973,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 before,
                 after: null,
                 origin: 'public',
+                // Kept, where the table keeps its removed rows, as removed by the key, with no reason.
+                reason: null,
+                by: { kind: 'api-key', id: null, label: `public:${ok.key.keyId}` },
               });
             },
           });
