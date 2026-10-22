@@ -153,6 +153,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'bounds.now',
   // A stamp no writer and no file may give a value of its own.
   'stamp.strict',
+  // A column a stamp fills and `requiredWhen` asks for: a brought line must carry it.
+  'requiredWhen.stamp',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -277,6 +279,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'bounds.now': '0.3.33',
   // A stamp that is always the server's, on every door, for every writer.
   'stamp.strict': '0.3.33',
+  // A stamp beside `requiredWhen`: stamped on a person's save, asked of a brought line (a release before refuses the pair).
+  'requiredWhen.stamp': '0.3.33',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -388,6 +392,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         else if (bound !== undefined && ((type !== 'date' && type !== 'timestamptz') || (isDoc(bound) && bound['days'] !== undefined))) out.push({ word: 'bounds.other', path: `${here}.${side}` });
       }
       if (isDoc(rules['stamp']) && rules['stamp']['strict'] !== undefined) out.push({ word: 'stamp.strict', path: `${here}.stamp.strict` });
+      if (rules['stamp'] !== undefined && rules['requiredWhen'] !== undefined) out.push({ word: 'requiredWhen.stamp', path: `${here}.requiredWhen` });
     });
   });
 

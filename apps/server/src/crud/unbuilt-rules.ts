@@ -254,6 +254,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'bounds.now',
   // A stamp no writer gives: dropped from every write, refused on a brought file's line (crud/decide.ts).
   'stamp.strict',
+  // A stamp beside `requiredWhen`: a brought line is judged as sent, before stamps (crud/decide.ts `stampLeftOut`).
+  'requiredWhen.stamp',
 ];
 
 export interface UnbuiltWord {

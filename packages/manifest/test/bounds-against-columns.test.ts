@@ -115,6 +115,15 @@ describe('a column a stamp fills and requiredWhen asks for', () => {
       { ref: 'closed_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'state', values: ['won', 'lost'] } }, requiredWhen: { column: 'state', in: ['won', 'lost'] } } },
     ]);
     expect(issuesText(m)).toBe('');
+    // A release before refuses the pair: the manifest says it needs this one.
+    const older = withTable(
+      [
+        { ref: 'state', type: 'enum', enum: ['open', 'won', 'lost'], default: 'open' },
+        { ref: 'closed_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'state', values: ['won', 'lost'] } }, requiredWhen: { column: 'state', in: ['won', 'lost'] } } },
+      ],
+      '0.3.32',
+    );
+    expect(issuesText(older)).toContain('rules.requiredWhen: "requiredWhen.stamp" is read by Adminium 0.3.33 and later');
   });
 
   it('still refuses it beside any other rule that fills the column', () => {
