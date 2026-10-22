@@ -29,6 +29,7 @@ export default {
     "notice": {
       "draft": "請先寄出發票。只有已寄出的發票才能記錄付款。",
       "private": "客戶無法連到此伺服器，因此付款連結已關閉。您仍可記錄付款。",
+      "noAddress": "此伺服器還沒有公開網址，因此付款連結已關閉。請在「寄件者」中將其設為「郵件連結中的網址」。您仍可記錄付款。",
       "update": "此發票資料表需要其應用程式的更新才能接受線上付款。",
       "voided": "此發票已作廢，無法收款。",
       "noCurrency": "此筆記錄沒有幣別，因此無法記錄付款。",
@@ -117,6 +118,7 @@ export default {
     },
     "look": {
       "title": "有一筆付款需要查看",
+      "titleTest": "有一筆測試付款需要查看",
       "notRecorded": "已在 {provider} 付款，未記錄：{label}",
       "notYet": "已在 {provider} 付款，尚未記錄：{label}",
       "amount": "已在 {provider} 付款，但金額與要求不符：{label}",
@@ -153,10 +155,12 @@ export default {
     },
     "refundFailed": {
       "title": "退款失敗",
+      "titleTest": "測試退款失敗",
       "body": "{amount} 退至 {paidWith}"
     },
     "dispute": {
       "title": "已提出爭議",
+      "titleTest": "已提出測試爭議",
       "body": "{label} · 請在 {date} 前回覆",
       "bodyNoDate": "{label} · 請在 {provider} 主控台中回覆"
     }

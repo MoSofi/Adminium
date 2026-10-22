@@ -373,6 +373,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/pages/nav-order': noRows('Pages, their configuration and saved views: filters and layouts, no row.'),
   // --- /payments
   'GET /api/v1/payments/setup': noRows('A payment service: its keys (as hints) and setup state, kept in meta.'),
+  'POST /api/v1/payments/alarms/:id/dismiss': noRows('Hides an alarm banner for the person who read it; a setting kept in meta.'),
   'PUT /api/v1/payments/services/:key/modes/:mode/fields/:field': noRows('A payment service key, kept encrypted in meta.'),
   'DELETE /api/v1/payments/services/:key/modes/:mode/fields/:field': noRows('A payment service key, kept encrypted in meta.'),
   'POST /api/v1/payments/services/:key/modes/:mode/check': noRows('Asks the payment service about its key; nothing of a source table.'),

@@ -3755,7 +3755,8 @@ export default {
       "bank": "Les coordonnées bancaires des virements ont changé {when}, par {by}.",
       "address": "Votre adresse de paiement est passée de {from} à {to} {when}, par {by}. Modifiez l’adresse du webhook chez Stripe et PayPal.",
       "heading": "L’endroit où va l’argent a changé",
-      "emailed": "Toutes les personnes qui gèrent les paiements ont reçu un e-mail."
+      "emailed": "Toutes les personnes qui gèrent les paiements ont reçu un e-mail.",
+      "gotIt": "J’ai compris"
     },
     "stop": {
       "label": "Arrêter les nouveaux paiements",
@@ -3937,6 +3938,7 @@ export default {
       "statusColumn": "Colonne de statut",
       "statusPaidValue": "Valeur une fois payé en entier",
       "statusRefunded": "Une fois remboursé en entier, mettre le statut à",
+      "statusNoValues": "Donnez à cette colonne une liste de valeurs (dans le schéma de la table) pour l’utiliser comme statut.",
       "leaveAsIs": "Laisser tel quel",
       "pageFields": "Colonnes autorisées sur la page de paiement",
       "personal": "Personnel : jamais affiché",
@@ -3948,6 +3950,7 @@ export default {
       "previewOf": "Trois lignes de {table}",
       "previewSummary": "{count, plural, one {# problème} other {# problèmes}}",
       "previewWaiting": "Choisissez le montant pour voir trois lignes.",
+      "previewIncomplete": "Terminez les choix ci-dessus pour voir trois lignes.",
       "becomes": "une fois payé, {column} devient {value}",
       "back": "Retour",
       "stepOf": "Étape {step} sur 3",
@@ -4068,7 +4071,8 @@ export default {
         "waitingLong": "En attente de la banque depuis {days} jours : {record} · {amount}.",
         "waitingLongWay": "En attente de la banque depuis {days} jours : {record} · {amount} ({way}).",
         "recordChanged": "Un paiement enregistré a changé : {record} · {amount} n'est plus enregistré comme avant.",
-        "disputed": "Litige : {record} · {amount}. Répondez-y dans le tableau de bord {service}."
+        "disputed": "Litige : {record} · {amount}. Répondez-y dans le tableau de bord {service}.",
+        "disputeLost": "Litige perdu : {amount} est revenu au client sur {record}. Enregistré comme remboursement."
       },
       "why": {
         "alreadyPaid": "La facture était déjà entièrement payée.",
@@ -4079,6 +4083,7 @@ export default {
       },
       "story": {
         "refundThere": "Remboursé dans le tableau de bord {service} : {amount}",
+        "refundDispute": "Litige perdu : {amount} est revenu au client",
         "refundStarted": "Remboursement de {amount} commencé",
         "refunded": "{service} indique : remboursé",
         "refundFailed": "{service} indique : le remboursement a échoué",
@@ -4098,7 +4103,9 @@ export default {
         "notRecorded": "Non enregistré : à examiner",
         "disputed": "Litige ouvert par le titulaire de la carte",
         "disputeAnswer": "Répondez-y dans le tableau de bord {service}",
-        "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}."
+        "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}.",
+        "disputeWon": "Le litige a été gagné.",
+        "disputeLost": "Le litige a été perdu : l’argent est revenu au client."
       },
       "checkedBy": "Vérifié par {name}",
       "someone": "quelqu'un",

@@ -390,7 +390,9 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
       )}
       {view.mayChange && !view.links.on && onlineOk ? (
         <Notice tone="info" icon={ServerOff}>
-          {t('payments:panel.notice.private', 'Customers cannot reach this server, so pay links are off. You can still record payments.')}
+          {view.links.reason === 'not-set'
+            ? t('payments:panel.notice.noAddress', 'This server has no public address yet, so pay links are off. Set it as “Address in email links” in Senders. You can still record payments.')
+            : t('payments:panel.notice.private', 'Customers cannot reach this server, so pay links are off. You can still record payments.')}
         </Notice>
       ) : null}
       {view.waiting.map((waiting) => (

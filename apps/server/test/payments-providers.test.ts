@@ -256,6 +256,24 @@ describe('a guarded provider', () => {
     expect((badMinor.toMinor('12.5', 'EUR') as ProviderError).code).toBe('UNAVAILABLE');
   });
 
+  it('lets a dispute event say how the dispute stands, in the contract\'s one shape, and refuses any other', async () => {
+    const event = { ok: true as const, eventId: 'evt_1', type: 'charge.dispute.closed', kind: 'dispute' as const, checkoutRef: null, paymentRef: 'pi_1', refundRef: null, livemode: false, occurredAt: 1 };
+    const said = (dispute: unknown) => guardProvider({ ...real, verifyWebhook: async () => ({ ...event, dispute }) as never });
+    for (const dispute of [
+      { status: 'lost', amount: '120.00', currency: 'EUR' },
+      { status: 'won', amount: null, currency: null },
+      { status: 'open', amount: '30.5', currency: 'USD' },
+      { status: 'closed', amount: null, currency: null },
+    ]) {
+      expect(await said(dispute).verifyWebhook({ rawBody: '{}', headers: {} })).toEqual({ ...event, dispute });
+    }
+    // An add-on that says nothing of it (1.0.12) still passes.
+    expect(await guardProvider({ ...real, verifyWebhook: async () => event }).verifyWebhook({ rawBody: '{}', headers: {} })).toEqual(event);
+    for (const dispute of [{ status: 'warning_closed', amount: null, currency: null }, { status: 'lost', amount: '120.00' }, { status: 'lost', amount: 120, currency: 'EUR' }, { status: 'lost', amount: null, currency: null, reason: 'fraud' }]) {
+      expect(((await said(dispute).verifyWebhook({ rawBody: '{}', headers: {} })) as ProviderError).code).toBe('UNAVAILABLE');
+    }
+  });
+
   it('passes a refusal through as data', async () => {
     const guarded = guardProvider({ ...real, status: async () => providerError('NOT_FOUND', 'No such checkout.') });
     expect(await guarded.status('x')).toEqual({ ok: false, code: 'NOT_FOUND', providerMessage: 'No such checkout.', retryable: false });

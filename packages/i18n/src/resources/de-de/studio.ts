@@ -3755,7 +3755,8 @@ export default {
       "bank": "Die Bankdaten für Überweisungen wurden {when} geändert, von {by}.",
       "address": "Ihre Zahlungsadresse wurde {when} von {from} zu {to} geändert, von {by}. Ändern Sie die Webhook-Adresse bei Stripe und PayPal.",
       "heading": "Wohin das Geld geht, hat sich geändert",
-      "emailed": "Alle, die Zahlungen verwalten, wurden per E-Mail informiert."
+      "emailed": "Alle, die Zahlungen verwalten, wurden per E-Mail informiert.",
+      "gotIt": "Verstanden"
     },
     "stop": {
       "label": "Neue Zahlungen stoppen",
@@ -3937,6 +3938,7 @@ export default {
       "statusColumn": "Statusspalte",
       "statusPaidValue": "Wert, wenn vollständig bezahlt",
       "statusRefunded": "Wenn vollständig erstattet, Status setzen auf",
+      "statusNoValues": "Geben Sie dieser Spalte eine Werteliste (im Schema der Tabelle), um sie als Status zu verwenden.",
       "leaveAsIs": "Unverändert lassen",
       "pageFields": "Auf der Zahlungsseite erlaubte Spalten",
       "personal": "Persönlich: wird nie gezeigt",
@@ -3948,6 +3950,7 @@ export default {
       "previewOf": "Drei Zeilen aus {table}",
       "previewSummary": "{count, plural, one {# Problem} other {# Probleme}}",
       "previewWaiting": "Wählen Sie den Betrag, um drei Zeilen zu sehen.",
+      "previewIncomplete": "Treffen Sie die Auswahl oben vollständig, um drei Zeilen zu sehen.",
       "becomes": "nach Zahlung wird {column} zu {value}",
       "back": "Zurück",
       "stepOf": "Schritt {step} von 3",
@@ -4068,7 +4071,8 @@ export default {
         "waitingLong": "Wartet seit {days} Tagen auf die Bank: {record} · {amount}.",
         "waitingLongWay": "Wartet seit {days} Tagen auf die Bank: {record} · {amount} ({way}).",
         "recordChanged": "Eine erfasste Zahlung hat sich geändert: {record} · {amount} ist nicht mehr so erfasst wie zuvor.",
-        "disputed": "Rückbuchung: {record} · {amount}. Beantworten Sie sie im Dashboard von {service}."
+        "disputed": "Rückbuchung: {record} · {amount}. Beantworten Sie sie im Dashboard von {service}.",
+        "disputeLost": "Rückbuchung verloren: {amount} ging bei {record} an die Kundschaft zurück. Als Erstattung erfasst."
       },
       "why": {
         "alreadyPaid": "Die Rechnung war bereits vollständig bezahlt.",
@@ -4079,6 +4083,7 @@ export default {
       },
       "story": {
         "refundThere": "Im Dashboard von {service} erstattet: {amount}",
+        "refundDispute": "Rückbuchung verloren: {amount} ging an die Kundschaft zurück",
         "refundStarted": "Erstattung über {amount} begonnen",
         "refunded": "{service} meldet: erstattet",
         "refundFailed": "{service} meldet: Erstattung fehlgeschlagen",
@@ -4098,7 +4103,9 @@ export default {
         "notRecorded": "Nicht erfasst: muss angesehen werden",
         "disputed": "Rückbuchung vom Karteninhaber eröffnet",
         "disputeAnswer": "Beantworten Sie sie im Dashboard von {service}",
-        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}."
+        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
+        "disputeWon": "Die Rückbuchung wurde gewonnen.",
+        "disputeLost": "Die Rückbuchung wurde verloren: Das Geld ging an die Kundschaft zurück."
       },
       "checkedBy": "Geprüft von {name}",
       "someone": "jemandem",

@@ -11,14 +11,14 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createDemoPaymentBackend, type DemoPaymentBackend } from '@adminium/add-on-contracts';
+import { createDemoPaymentBackend, type DemoPaymentBackend, type PaymentProvider } from '@adminium/add-on-contracts';
 import { createSqliteMetaDb, firstRun, keptPaymentsRepo, paymentAttemptsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 
 import { errorEnvelope } from '../src/errors.js';
 import { createCheckoutService } from '../src/payments/checkout.js';
 import { linkSealFromSecret, mintLink } from '../src/payments/links.js';
 import { createPayableSources, resolvePayable } from '../src/payments/payables.js';
-import { paymentProviderFor } from '../src/payments/providers.js';
+import { paymentProviderFor, type ProviderLookup } from '../src/payments/providers.js';
 import { recordAttempt } from '../src/payments/record.js';
 import { createTestPayable, isTestPayable, oneUnit } from '../src/payments/test-payables.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
@@ -34,12 +34,14 @@ describe('a test payment', () => {
   let owner: User;
   let viewer: User;
   let ready: string[];
+  let methodsOf: Record<string, string[]>;
 
   beforeEach(async () => {
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     backend = createDemoPaymentBackend({ pageUrl: (checkout) => `${new URL(checkout.successUrl ?? 'https://x.invalid').origin}/pay/demo/${checkout.attemptId}` });
     ready = [];
+    methodsOf = {};
     const users = usersRepo(meta);
     const roles = rolesRepo(meta);
     owner = await users.create({ email: 'mara@adminium.test', name: 'Mara', status: 'active' });
@@ -70,7 +72,13 @@ describe('a test payment', () => {
     });
     await app.register(rbacPlugin, { meta });
     await app.register(async (api) => api.register(testPaymentsRoutes({ meta, secret: TEST_SECRET, readyInTest: async () => ready })), { prefix: '/api/v1' });
-    await app.register(payRoutes({ meta, sources, checkout, readyProviders: async () => ready, secret: TEST_SECRET, networkFeatures: true, desktop: false, trustProxy: false }));
+    // A service's own list of ways, as Ways to pay reads it; a service not in it cannot be asked.
+    const providerFor = async (key: string, mode: 'test' | 'live'): Promise<ProviderLookup> => {
+      const listed = methodsOf[key];
+      if (listed === undefined) return { ok: false, code: 'NOT_INSTALLED', message: 'Not installed.' };
+      return { ok: true, key, mode, redirectHosts: [], provider: { methodsFor: async () => ({ ok: true, methods: listed.map((id) => ({ id, label: id, delayed: false })) }) } as unknown as PaymentProvider };
+    };
+    await app.register(payRoutes({ meta, sources, checkout, readyProviders: async () => ready, secret: TEST_SECRET, networkFeatures: true, desktop: false, trustProxy: false, providerFor }));
     await app.ready();
   });
 
@@ -128,6 +136,22 @@ describe('a test payment', () => {
     const token = (started.json().data.url as string).split('/pay/')[1]!;
     const page = (await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: as(owner) })).json();
     expect(page.ways).toEqual([{ source: 'payments-stripe', method: 'card', label: null, details: null }]);
+  });
+
+  it('offers a service with no way set up its own first way, never a made-up card PayPal refuses', async () => {
+    ready = ['payments-paypal', 'payments-stripe'];
+    methodsOf = { 'payments-paypal': ['paypal', 'venmo'] };
+    const pageOf = async (service: string) => {
+      const started = await app.inject({ method: 'POST', url: '/api/v1/payments/test-payments', headers: as(owner), payload: { service } });
+      expect(started.statusCode, started.payload).toBe(200);
+      const token = (started.json().data.url as string).split('/pay/')[1]!;
+      return (await app.inject({ method: 'GET', url: `/pay/api/${token}`, headers: as(owner) })).json();
+    };
+    expect((await pageOf('payments-paypal')).ways).toEqual([{ source: 'payments-paypal', method: 'paypal', label: null, details: null }]);
+    // A service that cannot be asked (or lists nothing) still gets a card.
+    expect((await pageOf('payments-stripe')).ways).toEqual([{ source: 'payments-stripe', method: 'card', label: null, details: null }]);
+    methodsOf = { 'payments-stripe': [] };
+    expect((await pageOf('payments-stripe')).ways).toEqual([{ source: 'payments-stripe', method: 'card', label: null, details: null }]);
   });
 
   it('is started by someone who may manage payments, signed in, and read only by someone who may see payments', async () => {

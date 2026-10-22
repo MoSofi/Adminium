@@ -202,6 +202,7 @@ export {
 
 export {
   CHECKOUT_STATUSES,
+  DISPUTE_STATUSES,
   PAYMENT_ANSWER_SCHEMAS,
   PAYMENT_EVENT_KINDS,
   PAYMENT_MODES,
@@ -236,6 +237,7 @@ export {
   type CheckoutStatus,
   type CreatePaymentProvider,
   type CredentialCheck,
+  type DisputeStatus,
   type ExpireResult,
   type MethodList,
   type MethodQuery,
@@ -244,6 +246,7 @@ export {
   type PaidWith,
   type PaymentCall,
   type PaymentCredentials,
+  type PaymentDispute,
   type PaymentEvent,
   type PaymentEventKind,
   type PaymentHttpClient,

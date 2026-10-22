@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { auditRepo, createSqliteMetaDb, firstRun, type MetaDb } from '@adminium/meta';
 
-import { ALARM_SHOWN_MS, recentAlarms } from '../src/payments/alarms.js';
+import { ALARM_SHOWN_MS, dismissAlarm, recentAlarms } from '../src/payments/alarms.js';
 
 describe('recent money-redirect alarms', () => {
   let meta: MetaDb;
@@ -42,5 +42,24 @@ describe('recent money-redirect alarms', () => {
     await log('payments.pay-address.changed', { before: { origin: 'https://pay.a.test' }, after: { origin: 'https://pay.a.test' } }, now - 2000);
     await log('payments.pay-address.changed', { before: { origin: 'https://pay.a.test' }, after: { origin: 'https://pay.b.test' } }, now - 1000);
     expect(await recentAlarms(meta, now)).toEqual([expect.objectContaining({ what: 'pay-address', from: 'https://pay.a.test', to: 'https://pay.b.test' })]);
+  });
+
+  it('hides an alarm for the person who said "Got it", and for nobody else', async () => {
+    await log('payments.bank.changed', { before: { accounts: [] }, after: { accounts: [{ currency: 'EUR' }] } }, now - 2000);
+    await log('payments.bank.changed', { before: { accounts: [{ currency: 'EUR' }] }, after: { accounts: [{ currency: 'USD' }] } }, now - 1000);
+    const [newest, older] = await recentAlarms(meta, now);
+    expect(newest!.id).not.toBe(older!.id);
+    expect(await dismissAlarm(meta, 'usr_mara', older!.id, now)).toBe(true);
+    // Twice is the same.
+    expect(await dismissAlarm(meta, 'usr_mara', older!.id, now)).toBe(true);
+    expect((await recentAlarms(meta, now, 'usr_mara')).map((one) => one.id)).toEqual([newest!.id]);
+    expect((await recentAlarms(meta, now, 'usr_pia')).map((one) => one.id)).toEqual([newest!.id, older!.id]);
+    expect((await recentAlarms(meta, now)).map((one) => one.id)).toEqual([newest!.id, older!.id]);
+  });
+
+  it('refuses to hide what is no alarm of the last 30 days', async () => {
+    const row = await log('payments.link.minted', { after: { linkId: 'plk_1' } }, now - 1000);
+    expect(await dismissAlarm(meta, 'usr_mara', 'aud_nothing', now)).toBe(false);
+    expect(await dismissAlarm(meta, 'usr_mara', String((row as { id: string }).id), now)).toBe(false);
   });
 });

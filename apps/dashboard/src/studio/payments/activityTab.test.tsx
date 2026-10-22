@@ -218,6 +218,22 @@ describe('ActivityTab', () => {
     expect(textOf(drawer)).toContain('Answer it in the Stripe dashboard');
   });
 
+  it('dates a dispute by when it opened, and says a lost one went back to the customer', async () => {
+    const opened = NOW + 18 * 60_000;
+    const stampOf = (at: number) => new Intl.DateTimeFormat('en-US-u-nu-latn', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(at));
+    const disputed = row({ id: 'pat_34', group: 'disputed', lookAt: opened, flag: { code: 'disputed', reason: null, message: null }, dispute: { state: 'open', at: opened, closedAt: null, outcome: null } });
+    const lost = row({ id: 'prf_9', kind: 'refund', at: opened + 60_000, lookAt: opened + 60_000, state: 'succeeded', group: 'refunded', refundSource: 'dispute', flag: { code: 'dispute-lost', reason: null, message: null } });
+    stub({ open: [disputed, lost], list: [lost, row({ id: 'pat_35', dispute: { state: 'closed', at: opened, closedAt: opened + 60_000, outcome: 'lost' } })] });
+    const user = show();
+    const card = await screen.findByTestId('activity-needs-look');
+    await waitFor(() => expect(textOf(card)).toContain('Dispute lost: €120.00 went back to the customer on INV-0042. Recorded as a refund.'));
+    expect(textOf(screen.getByTestId('activity-flag-pat_34'))).toContain(stampOf(opened));
+    expect(textOf(screen.getByTestId('activity-flag-pat_34'))).not.toContain(stampOf(NOW));
+    const table = await screen.findByTestId('activity-table');
+    await user.click(within(table).getAllByRole('button', { name: /INV-0042/ })[1]!);
+    expect(textOf(await screen.findByTestId('activity-drawer'))).toContain('The dispute was lost: the money went back to the customer.');
+  });
+
   it('lets someone who may only see payments read and export, with nothing to act on', async () => {
     const calls = stub({ open: [NOT_RECORDED], list: [row()] });
     const user = show({ canManage: false });

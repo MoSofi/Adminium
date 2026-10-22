@@ -514,7 +514,7 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
   it.runIf(available)('fails a refund only on a refusal: anything else leaves it asked, and asks again with the same key, once at a time', async () => {
     const invoice = await sentInvoice('35.00');
     const attemptId = await paid(invoiceRef(invoice), 'INV', '35.00');
-    for (const code of ['CREDENTIALS_REFUSED', 'UNAVAILABLE', 'NOT_FOUND'] as const) {
+    for (const code of ['RATE_LIMITED', 'UNAVAILABLE', 'NOT_FOUND'] as const) {
       fake.answerNextWith(code, false);
       const once = key();
       const asked = await requestRefund(deps, { attemptId, amount: '5.00', reason: 'other', note: null, key: once, requestedBy: null });
@@ -531,6 +531,40 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
     fake.answerNextWith('INVALID_REQUEST', false);
     expect(await requestRefund(deps, { attemptId, amount: '5.00', reason: 'other', note: null, key: key(), requestedBy: null })).toMatchObject({ ok: true, refund: { state: 'failed' } });
     expect(refundableOf((await paymentAttemptsRepo(h.meta).byId(attemptId))!)).toBe('20.00');
+  });
+
+  it.runIf(available)('fails a refund at once when the key may not refund, or is refused, whatever the add-on said of trying later', async () => {
+    const invoice = await sentInvoice('30.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '30.00');
+    for (const [code, retryable] of [['PERMISSION_MISSING', true], ['PERMISSION_MISSING', false], ['CREDENTIALS_REFUSED', true]] as const) {
+      fake.answerNextWith(code, retryable);
+      const asked = await requestRefund(deps, { attemptId, amount: '5.00', reason: 'other', note: null, key: key(), requestedBy: null });
+      expect(asked).toMatchObject({ ok: true, refund: { state: 'failed', failureMessage: 'Not now.' } });
+      // Nothing is asked again later: it is not waiting.
+      expect((await refundsRepo(h.meta).waiting(Date.now() + 60 * 60_000, 100)).map((one) => one.id)).not.toContain((asked as { refund: { id: string } }).refund.id);
+    }
+    expect(refundableOf((await paymentAttemptsRepo(h.meta).byId(attemptId))!)).toBe('30.00');
+  });
+
+  it.runIf(available)('writes a lost dispute into the record as money gone back, flags it, and lets Refund… give only what is left', async () => {
+    const invoice = await sentInvoice('80.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '80.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'charge.dispute.created', occurredAt: now - 1000, dispute: { status: 'open', amount: '30.00', currency: 'EUR' } });
+    await disputeEvent(deps, await read(), { type: 'charge.dispute.closed', occurredAt: now, dispute: { status: 'lost', amount: '30.00', currency: 'EUR' } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'lost' });
+    const [lost] = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(lost).toMatchObject({ source: 'dispute', state: 'succeeded', amount: '30.00', currency: 'EUR' });
+    expect(lost!.appliedAt).not.toBeNull();
+    expect(Number(await refundedOnRow(attemptId))).toBe(30);
+    expect((await refundsRepo(h.meta).list({ needingLook: true })).map((one) => one.id)).toContain(lost!.id);
+    expect(await requestRefund(deps, { attemptId, amount: '50.01', reason: 'other', note: null, key: key(), requestedBy: null })).toMatchObject({ ok: false, refusal: { code: 'MORE_THAN_REFUNDABLE' } });
+    expect(await requestRefund(deps, { attemptId, amount: '50.00', reason: 'other', note: null, key: key(), requestedBy: null })).toMatchObject({ ok: true, refund: { state: 'succeeded' } });
+    expect(Number(await refundedOnRow(attemptId))).toBe(80);
+    // A resend of the close records nothing more.
+    await disputeEvent(deps, await read(), { type: 'charge.dispute.closed', occurredAt: now, dispute: { status: 'lost', amount: '30.00', currency: 'EUR' } });
+    expect(await refundsRepo(h.meta).forAttempt(attemptId)).toHaveLength(2);
   });
 
   it.runIf(available)('takes dispute events in any order, and an update after the close reopens nothing', async () => {

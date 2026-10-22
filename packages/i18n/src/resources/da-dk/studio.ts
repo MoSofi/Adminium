@@ -3755,7 +3755,8 @@ export default {
       "bank": "Bankoplysningerne til bankoverførsler blev ændret {when} af {by}.",
       "address": "Din betalingsadresse blev ændret fra {from} til {to} {when} af {by}. Opdater webhook-adressen hos Stripe og PayPal.",
       "heading": "Hvor pengene går hen, er ændret",
-      "emailed": "Alle, der administrerer betalinger, har fået en e-mail."
+      "emailed": "Alle, der administrerer betalinger, har fået en e-mail.",
+      "gotIt": "Forstået"
     },
     "stop": {
       "label": "Stop nye betalinger",
@@ -3937,6 +3938,7 @@ export default {
       "statusColumn": "Statuskolonne",
       "statusPaidValue": "Værdi, når den er betalt fuldt ud",
       "statusRefunded": "Når den er refunderet fuldt ud, sæt status til",
+      "statusNoValues": "Giv denne kolonne en liste med værdier (i tabellens skema) for at bruge den som status.",
       "leaveAsIs": "Lad den være",
       "pageFields": "Kolonner, der må vises på betalingssiden",
       "personal": "Personlig: vises aldrig",
@@ -3948,6 +3950,7 @@ export default {
       "previewOf": "Tre rækker fra {table}",
       "previewSummary": "{count, plural, one {# problem} other {# problemer}}",
       "previewWaiting": "Vælg beløbet for at se tre rækker.",
+      "previewIncomplete": "Gør valgene ovenfor færdige for at se tre rækker.",
       "becomes": "når den er betalt, bliver {column} til {value}",
       "back": "Tilbage",
       "stepOf": "Trin {step} af 3",
@@ -4068,7 +4071,8 @@ export default {
         "waitingLong": "Har ventet på banken i {days} dage: {record} · {amount}.",
         "waitingLongWay": "Har ventet på banken i {days} dage: {record} · {amount} ({way}).",
         "recordChanged": "En registreret betaling er ændret: {record} · {amount} står ikke længere som før.",
-        "disputed": "Indsigelse: {record} · {amount}. Besvar den i {service}-dashboardet."
+        "disputed": "Indsigelse: {record} · {amount}. Besvar den i {service}-dashboardet.",
+        "disputeLost": "Indsigelse tabt: {amount} gik tilbage til kunden på {record}. Registreret som en refusion."
       },
       "why": {
         "alreadyPaid": "Fakturaen var allerede betalt fuldt ud.",
@@ -4079,6 +4083,7 @@ export default {
       },
       "story": {
         "refundThere": "Refunderet i dashboardet hos {service}: {amount}",
+        "refundDispute": "Indsigelse tabt: {amount} gik tilbage til kunden",
         "refundStarted": "Refundering af {amount} startet",
         "refunded": "{service} melder: refunderet",
         "refundFailed": "{service} melder: refunderingen mislykkedes",
@@ -4098,7 +4103,9 @@ export default {
         "notRecorded": "Ikke registreret: skal ses på",
         "disputed": "Kortholderen har gjort indsigelse",
         "disputeAnswer": "Besvar den i {service}-dashboardet",
-        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet."
+        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
+        "disputeWon": "Indsigelsen blev vundet.",
+        "disputeLost": "Indsigelsen blev tabt: pengene gik tilbage til kunden."
       },
       "checkedBy": "Tjekket af {name}",
       "someone": "nogen",

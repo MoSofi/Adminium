@@ -49,8 +49,8 @@ export const refundView = z.object({
   amount: z.string(),
   currency: z.string(),
   state: z.enum(['requested', 'pending', 'requires_action', 'succeeded', 'failed', 'cancelled']),
-  /** `staff`: asked in Adminium; `provider`: made in the provider's own dashboard. */
-  source: z.enum(['staff', 'provider']),
+  /** `staff`: asked in Adminium; `provider`: made in the provider's own dashboard; `dispute`: a lost dispute gave it back. */
+  source: z.enum(['staff', 'provider', 'dispute']),
   failureMessage: z.string().nullable(),
   createdAt: z.number(),
   settledAt: z.number().nullable(),
@@ -77,7 +77,7 @@ export function refundViewOf(refund: RefundRow): z.infer<typeof refundView> {
     amount: refund.amount,
     currency: refund.currency,
     state: refund.state,
-    source: refund.source === 'provider' ? 'provider' : 'staff',
+    source: refund.source,
     failureMessage: refund.failureMessage,
     createdAt: refund.createdAt,
     settledAt: refund.settledAt,

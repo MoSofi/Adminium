@@ -14,7 +14,13 @@
  *      Stripe's goes back 30 days), and, hourly, about declined attempts
  *      whose provider page may still be open (a later card may succeed
  *      there);
- *   3. queues the settle again for stored events nobody processed.
+ *   3. queues the settle again for stored events nobody processed; ties an
+ *      event stored before its payment was known (`events.ts`) to the attempt
+ *      that has since taken its money, and follows it.
+ *
+ * An event about no payment Adminium holds is given up after
+ * `UNATTACHED_GIVE_UP_MS` (by the planner, for every service at once): marked
+ * handled, the row kept until retention.
  *
  * Attempts that never got a checkout (`creating` for too long: nobody holds
  * their page) are let go by the planner, for every service at once.
@@ -35,9 +41,10 @@ import { z } from 'zod';
 
 import type { JobRegistry } from '../jobs/registry.js';
 import { MAX_CHECKOUT_LIFE_MS, type CheckoutService } from './checkout.js';
+import { eventBodyOf, followEvent, followUnattached, keptUnattached, occurredAtOf, UNATTACHED_GIVE_UP_MS, type Enqueue } from './events.js';
+import type { NoticeDeps } from './notices.js';
 import type { ProviderLookup } from './providers.js';
 import { serviceDocName, serviceStateSchema } from './services.js';
-import { followEvent, type WebhookDeps } from './webhook.js';
 
 export const PAYMENTS_SWEEP_JOB = 'payments.sweep';
 export const PAYMENTS_SWEEP_PLAN_NAME = 'payments-sweep-plan';
@@ -89,7 +96,9 @@ export interface SweepDeps {
   meta: MetaDb;
   checkout: CheckoutService;
   providerFor: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
-  enqueue: WebhookDeps['enqueue'];
+  enqueue: Enqueue;
+  /** Who is told of a dispute the sweep finds. */
+  notices?: NoticeDeps;
   now?: () => number;
 }
 
@@ -126,6 +135,7 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
   if (state.month !== monthOf(at)) state = { ...state, month: monthOf(at), reads: 0, slowed: false };
   const result: SweepResult = { events: 0, lookedUp: 0, redriven: 0, reads: 0 };
   const lookup = await deps.providerFor(key, mode);
+  const follow = { meta: deps.meta, enqueue: deps.enqueue, ...(deps.notices === undefined ? {} : { notices: deps.notices }), ...(deps.now === undefined ? {} : { now: deps.now }) };
 
   // 1. Missed events, from the cursor.
   if (lookup.ok) {
@@ -140,14 +150,15 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
           (event.checkoutRef === null ? null : await attempts.byProviderRef(key, mode, event.checkoutRef)) ??
           (event.paymentRef === null ? null : await attempts.byPaymentRef(key, mode, event.paymentRef)) ??
           (refund?.attemptId == null ? null : await attempts.byId(refund.attemptId));
-        if (attempt === null) continue;
+        // About no payment known: a dispute or refund is kept until one takes its money; anything else is not ours.
+        if (attempt === null && (refund !== null || !keptUnattached(event))) continue;
         const stored = await events.record(
-          { provider: key, mode, eventId: event.eventId, type: event.type, kind: event.kind, checkoutRef: event.checkoutRef, paymentRef: event.paymentRef, refundRef: event.refundRef, attemptId: attempt.id, source: 'sweep', body: null },
+          { provider: key, mode, eventId: event.eventId, type: event.type, kind: event.kind, checkoutRef: event.checkoutRef, paymentRef: event.paymentRef, refundRef: event.refundRef, attemptId: attempt?.id ?? null, source: 'sweep', body: eventBodyOf(event) },
           at,
         );
-        if (!stored.fresh) continue;
+        if (!stored.fresh || attempt === null) continue;
         result.events += 1;
-        await followEvent({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.now === undefined ? {} : { now: deps.now }) }, stored.event, attempt, event.occurredAt);
+        await followEvent(follow, stored.event, attempt, event.occurredAt);
         // The webhook never brought this one: it is not reaching this server.
         state = { ...state, caughtAt: at };
       }
@@ -180,7 +191,15 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
   for (const event of await events.unprocessed(at - REDRIVE_AFTER_MS, 200, { provider: key, mode })) {
     if (event.attemptId === null) continue;
     const attempt = await attempts.byId(event.attemptId);
-    if (await followEvent({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.now === undefined ? {} : { now: deps.now }) }, event, attempt, event.receivedAt)) result.redriven += 1;
+    if (await followEvent(follow, event, attempt, occurredAtOf(event))) result.redriven += 1;
+  }
+  //    And events stored before their payment was known: the match tried again (the planner gives them up after a while).
+  const tried = new Set<string>();
+  for (const event of await events.unattachedWaiting(at - REDRIVE_AFTER_MS, { provider: key, mode }, 200)) {
+    if (event.paymentRef === null || tried.has(event.paymentRef)) continue;
+    tried.add(event.paymentRef);
+    const attempt = await attempts.byPaymentRef(key, mode, event.paymentRef);
+    if (attempt !== null) result.redriven += await followUnattached(follow, attempt);
   }
 
   await docs.set(
@@ -232,6 +251,8 @@ export async function planSweeps(
 ): Promise<number> {
   const at = (deps.now ?? Date.now)();
   await paymentAttemptsRepo(deps.meta).abandonStale(at - ABANDON_AFTER_MS, at);
+  // Events about money no attempt ever took: not ours after all.
+  await paymentEventsRepo(deps.meta).giveUpUnattached(at - UNATTACHED_GIVE_UP_MS, at);
   const all = [...services];
   if (!all.some((one) => one.key === DEMO_PAYMENT_KEY)) all.push({ key: DEMO_PAYMENT_KEY, mode: 'test' });
   let queued = 0;

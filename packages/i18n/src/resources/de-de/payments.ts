@@ -29,6 +29,7 @@ export default {
     "notice": {
       "draft": "Senden Sie die Rechnung zuerst. Eine Zahlung kann nur zu einer gesendeten Rechnung erfasst werden.",
       "private": "Die Kundschaft erreicht diesen Server nicht, daher sind Zahlungslinks aus. Zahlungen können Sie weiterhin erfassen.",
+      "noAddress": "Dieser Server hat noch keine öffentliche Adresse, daher sind Zahlungslinks aus. Legen Sie sie unter Absender als „Adresse in E-Mail-Links“ fest. Zahlungen können Sie weiterhin erfassen.",
       "update": "Diese Rechnungstabelle braucht das Update ihrer App, um Online-Zahlungen anzunehmen.",
       "voided": "Diese Rechnung wurde storniert. Es kann keine Zahlung angenommen werden.",
       "noCurrency": "Dieser Datensatz hat keine Währung, daher kann keine Zahlung erfasst werden.",
@@ -117,6 +118,7 @@ export default {
     },
     "look": {
       "title": "Eine Zahlung braucht einen Blick",
+      "titleTest": "Eine Testzahlung braucht einen Blick",
       "notRecorded": "Bei {provider} bezahlt, nicht verbucht: {label}",
       "notYet": "Bei {provider} bezahlt, noch nicht verbucht: {label}",
       "amount": "Bei {provider} bezahlt, nicht der verlangte Betrag: {label}",
@@ -153,10 +155,12 @@ export default {
     },
     "refundFailed": {
       "title": "Erstattung fehlgeschlagen",
+      "titleTest": "Test-Erstattung fehlgeschlagen",
       "body": "{amount} an {paidWith}"
     },
     "dispute": {
       "title": "Rückbuchung eröffnet",
+      "titleTest": "Test-Rückbuchung eröffnet",
       "body": "{label} · Antwort bis {date}",
       "bodyNoDate": "{label} · beantworten Sie sie im Dashboard von {provider}"
     }

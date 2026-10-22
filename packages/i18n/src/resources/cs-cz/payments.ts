@@ -29,6 +29,7 @@ export default {
     "notice": {
       "draft": "Nejdřív fakturu odešlete. Platbu lze zaznamenat jen k odeslané faktuře.",
       "private": "Zákazníci se k tomuto serveru nedostanou, proto jsou platební odkazy vypnuté. Platby můžete dál zaznamenávat.",
+      "noAddress": "Tento server zatím nemá veřejnou adresu, proto jsou platební odkazy vypnuté. Nastavte ji jako „Adresa v odkazech v e-mailech“ v části Odesílatelé. Platby můžete dál zaznamenávat.",
       "update": "Tato tabulka faktur potřebuje aktualizaci své aplikace, aby přijímala online platby.",
       "voided": "Tato faktura byla stornována. Žádnou platbu nelze přijmout.",
       "noCurrency": "Tento záznam nemá měnu, proto nelze zaznamenat žádnou platbu.",
@@ -117,6 +118,7 @@ export default {
     },
     "look": {
       "title": "Platba potřebuje kontrolu",
+      "titleTest": "Testovací platba potřebuje kontrolu",
       "notRecorded": "Zaplaceno přes {provider}, nezaznamenáno: {label}",
       "notYet": "Zaplaceno přes {provider}, zatím nezaznamenáno: {label}",
       "amount": "Zaplaceno přes {provider}, ale ne požadovaná částka: {label}",
@@ -153,10 +155,12 @@ export default {
     },
     "refundFailed": {
       "title": "Vrácení peněz selhalo",
+      "titleTest": "Testovací vrácení peněz selhalo",
       "body": "{amount} na {paidWith}"
     },
     "dispute": {
       "title": "Otevřen spor",
+      "titleTest": "Otevřen testovací spor",
       "body": "{label} · odpovězte do {date}",
       "bodyNoDate": "{label} · odpovězte v ovládacím panelu {provider}"
     }
