@@ -187,7 +187,7 @@ export function columnRuleIssue(
     | 'column.area'
     | 'column.linkable'
     | 'column.file'
-    | 'column.changes',
+    | 'column.changes'
     | 'column.history',
   raw: unknown,
   column: ColumnModel,
