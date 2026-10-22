@@ -366,7 +366,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.area' ||
           item.op === 'column.linkable' ||
           item.op === 'column.file' ||
-          item.op === 'column.changes'
+          item.op === 'column.changes' ||
           item.op === 'column.history'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
