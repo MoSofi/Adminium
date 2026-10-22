@@ -75,6 +75,19 @@
  *
  * It judges the person alone, never the people they lead, and it judges the
  * row as the change leaves it too: nobody names themselves into it.
+ *
+ * `via` beside `by`, on a table whose rows are whoever's their parent is
+ * (`belongs: [{ "via": "deal_id" }]`), judges the row by a staff column of
+ * that PARENT and by nothing else: a sales manager reaches the visits of the
+ * deals somebody she leads OWNS, and not a visit on another team's deal, even
+ * where her rep helps on that deal or the visit names her rep —
+ *
+ * ```json
+ * "rows": { "read": { "reach": "team", "via": "deal_id", "by": "owner_id" } }
+ * ```
+ *
+ * Without it, a child row is reached by every way its table and its parent
+ * say (a helper listed on the deal, the visit's own rep), as before.
  */
 import { z } from 'zod';
 
@@ -124,8 +137,16 @@ export const rowReachSchema = z
      * `notBy` its rep, so a manager changes her team's targets and never her own. The person alone, never their team.
      */
     notBy: personPathSchema.optional(),
+    /**
+     * With `by`: a link of the table to the row it hangs off (one of its `belongs` `via` ways), and `by` a staff column
+     * of THAT row. The row is reached only where its parent's `by` names the person (with `team`, somebody they lead),
+     * whoever else the row or its parent names: a manager reaches the visits of the deals her team owns.
+     */
+    via: refSchema.optional(),
   })
   .strict()
+  .refine((reach) => reach.via === undefined || reach.by !== undefined, { message: '`via` names the parent whose `by` column judges the row: say `by` too' })
+  .refine((reach) => reach.via === undefined || reach.unowned === undefined, { message: 'a reach judged by the parent\'s person takes no `unowned`: a row whose parent names nobody is nobody\'s to reach' })
   .refine((reach) => reach.reach !== 'all' || reach.by === undefined, { message: '`by` narrows the person\'s own rows or their team\'s: with every row, say `while`' })
   .refine((reach) => reach.reach !== 'all' || reach.while !== undefined || reach.notBy !== undefined, { message: 'a reach of every row is no limit: leave the action out, or say `while` or `notBy`' })
   .refine((reach) => reach.reach !== 'all' || reach.unowned === undefined, { message: 'every row includes the rows nobody owns' });
@@ -333,7 +354,21 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
               if (!valueFits(found, value)) out.push({ path: where('while', 'in'), message: `${JSON.stringify(value)} is not a value of "${ref}.${reach.while.column}"` });
             }
           }
-          if (reach.by !== undefined) {
+          if (reach.via !== undefined) {
+            // A link to the row this one hangs off, named among the table's own ways; `by` is then a column of that row.
+            const link = index.column(ref, reach.via);
+            const parent = link?.type === 'fk' && link.references !== undefined && index.table(link.references) !== undefined ? link.references : undefined;
+            if (link === undefined) out.push({ path: where('via'), message: `"${ref}" has no column "${reach.via}"` });
+            else if (parent === undefined) out.push({ path: where('via'), message: `"${ref}.${reach.via}" is not a link to another of the app's tables` });
+            else if (rowTables?.ways !== undefined && !rowTables.ways(ref).some((way) => 'via' in way && way.via === reach.via)) {
+              out.push({ path: where('via'), message: `"${ref}" does not belong through "${reach.via}": add { "via": "${reach.via}" } to its "belongs"` });
+            }
+            if (parent !== undefined && reach.by !== undefined) {
+              const found = index.column(parent, reach.by);
+              if (found === undefined) out.push({ path: where('by'), message: `"${parent}" has no column "${reach.by}"` });
+              else if ((found as { rules?: { staff?: boolean } }).rules?.staff !== true) out.push({ path: where('by'), message: `"${parent}.${reach.by}" does not hold a staff member (rules.staff): \`by\` names the column of the parent that says whose the row is` });
+            }
+          } else if (reach.by !== undefined) {
             const found = index.column(ref, reach.by);
             if (found === undefined) out.push({ path: where('by'), message: `"${ref}" has no column "${reach.by}"` });
             else if ((found as { rules?: { staff?: boolean } }).rules?.staff !== true) out.push({ path: where('by'), message: `"${ref}.${reach.by}" does not hold a staff member (rules.staff): \`by\` names the column that says who a row is by` });
@@ -354,7 +389,7 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
         if (!grants.has(`table:@${ref}:${action}`)) continue;
         const written = limit?.rows?.[action];
         const reach = Array.isArray(written) ? (written.length === 1 ? written[0] : undefined) : written;
-        if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined || reach.by !== undefined || reach.notBy !== undefined) {
+        if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined || reach.by !== undefined || reach.notBy !== undefined || reach.via !== undefined) {
           out.push({ path: ['roles', r, 'limits', ref, 'rows', action], message: `"${ref}" is private: the role's ${action} reaches the person's own rows only ({ "reach": "own" })` });
         }
       }
@@ -377,6 +412,8 @@ export interface BelongsTableShape {
 export interface RowTables {
   belongs: (ref: string) => boolean;
   privateTables: () => readonly string[];
+  /** A table's own ways, as written (none for a table with no `belongs`). */
+  ways?: (ref: string) => readonly BelongsWay[];
 }
 
 export function rowTablesOf(tables: readonly BelongsTableShape[]): RowTables {
@@ -384,6 +421,7 @@ export function rowTablesOf(tables: readonly BelongsTableShape[]): RowTables {
   return {
     belongs: (ref) => byRef.get(ref)?.belongs !== undefined,
     privateTables: () => tables.filter((table) => table.private === true).map((table) => table.ref),
+    ways: (ref) => byRef.get(ref)?.belongs ?? [],
   };
 }
 
