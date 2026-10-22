@@ -3095,7 +3095,8 @@ column to it.
 A profile is the app's. It is made with the real table names when the app is installed, changed in
 place by an update so documents already issued keep pointing at it, and removed when the app is
 uninstalled. A profile whose add-on is not installed is skipped, with a reason on the install
-reply. An operator's own profile is never changed.
+reply. An operator's own profile is never changed. A document of a kind the attached add-on does
+not draw yet waits for the add-on's update; see [below](#a-kind-the-add-on-does-not-draw-yet).
 
 When a table is [built on an add-on's shape](#tables-built-on-an-add-ons-shape), the shape's own
 profiles are made for it at install. An app entry of the same kind on that table does not make a
@@ -3116,6 +3117,55 @@ already drawn is handed back while the row is unchanged, with `contentUrl` for i
 document reads, a statement's sources included. An app, kind, row or table they cannot reach is
 the one `404`; an add-on that is detached, or a feature switched off, is `409` `FEATURE_OFF`; a
 document that cannot be drawn (a required slot left empty) is `422` `DOCUMENT_NOT_DRAWN`.
+
+### A picture in a document
+
+An add-on's outline may have a `picture` slot (Adminium 0.3.33): the document then shows a picture
+the row keeps, such as a customer's drawn signature on a signed copy. Map it to a column of the
+document's own row that holds one file, a `text` column with
+[`"rules": { "file" }`](#column-rules) and no `maxCount`, whose `accept` lists `png` or `jpeg`:
+
+```json
+"mapping": { "signer": { "column": "signed_by" }, "signature": { "column": "signature" } }
+```
+
+The add-on never reads the file store: Adminium reads the file each time the document is drawn
+and hands the add-on the picture, or nothing. It hands it only when the file is the row's own
+(attached to that very record, alive, not a file of another row written into the column by hand),
+a PNG or a JPEG by its own bytes, no larger than the column's `maxBytes` and 5 MiB, and at most
+8192 pixels a side; what a camera writes beside a picture (the place, the device) is taken out. A
+file that is none of that leaves the slot empty, and a required picture slot is then a slot left
+empty ("unmapped or empty"). The picture is read as the column is: a staff member whose role does
+not read the column, or the row, is drawn nothing at all, as for any column a document prints; a
+column withheld from a guest is empty for them, and so is the picture. A secret column gives no
+picture. A value typed into the profile, or sent by a request, never fills a picture slot.
+
+A picture slot mapped through a link (`via`), to a column that holds no file, a list of files, or a
+file column that takes no PNG or JPEG is refused when the app is installed, naming the slot. A
+picture is never a column of a `collection`.
+
+The add-on receives the slot's value in `subject.fields` as `{ "mediaType", "dataUrl", "width",
+"height" }`: `mediaType` is `image/png` or `image/jpeg`, `dataUrl` is
+`data:<mediaType>;base64,<bytes>` (an HTML page puts it in an `<img>`; a PDF writer decodes the
+base64 after the comma and embeds the PNG or JPEG as it is), and `width` and `height` are the
+picture's pixels. `@adminium/add-on-contracts` exports the slot type (`OUTLINE_SLOT_TYPES`), the
+value's type and schema (`DocumentPictureValue`, `documentPictureValueSchema`) and, for an add-on's
+own tests, `SAMPLE_DOCUMENT_PICTURE`. The documents register keeps what was printed without the
+bytes: a picture is stored as `{ "mediaType", "width", "height", "sha256" }`, and the document's own
+file holds it as drawn.
+
+### A kind the add-on does not draw yet
+
+An app may name a document `kind` that the add-on attached to it does not draw yet: the app was
+released for the add-on's next version, and the installed one is older. The install and the update
+go through all the same (Adminium 0.3.33; an older release refused them). That document is left
+off, and so is the attachment a message makes of it: a template whose `attach` is `optional` goes
+without it, and one whose `attach` is not fails as for any document that cannot be drawn. The reply
+of `POST /api/v1/apps/install` and the `app` of `POST /api/v1/apps/<key>/update` say which documents
+wait, in `documents.waiting` (`[{ "kind", "table", "addOn", "addOnName", "name", "reason" }]`), and
+the console shows it on the install's last screen and under the update's notice. When the add-on is
+updated to a version that draws the kind, the document is made then, with nothing to do in the
+app. A profile already made for it is kept meanwhile.
 
 ### A list of an add-on's rows
 

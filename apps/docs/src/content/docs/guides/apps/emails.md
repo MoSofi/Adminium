@@ -406,7 +406,8 @@ paragraphs that only make sense beside it:
 
 The message goes without the document, and without every block marked
 `"withAttachment": true`, only while no add-on that draws receipts is attached to the app and
-switched on. Every other reason the document is missing (its profile switched off, a drawing that
+switched on, or while the one attached does not draw that kind yet (the document
+[waits for the add-on's update](/reference/manifest/#a-kind-the-add-on-does-not-draw-yet)). Every other reason the document is missing (its profile switched off, a drawing that
 failed, a file too large to send, an add-on that is there but draws nothing for this row) still
 fails the message, with the reason: an attached add-on that is late or failing never turns into a
 quiet email without its receipt. `withAttachment` is allowed only on a template whose `attach` is
