@@ -223,19 +223,32 @@ export function isMinorUnitMoney(column: Pick<GridColumnSpec, 'semantic' | 'form
 }
 
 /**
- * A currency's minor-unit exponent as `Intl` knows it: EUR 2, JPY 0, KWD 3.
- * Two when there is no currency — cents, the overwhelmingly common case and
- * the one a `_cents` name states outright.
+ * A currency's minor-unit exponent, ISO 4217's: EUR 2, JPY 0, KWD 3, HUF 2.
+ * Two when there is no currency or the code is unknown — cents, the
+ * overwhelmingly common case and the one a `_cents` name states outright.
+ *
+ * NOT `Intl`'s. Intl answers how many decimals a currency is usually WRITTEN
+ * with, which is CLDR's cash habit, not the stored unit: Node 22 says 0 for
+ * HUF, IDR, COP, PKR and IQD, so an `amount_cents` of 490000 forint read
+ * "490,000" instead of 4,900.00. This is the same table as the server's
+ * `currencyScale` (`@adminium/manifest`), which every invoice total and
+ * payment amount uses; a test holds the two to the same answer for every
+ * code.
  */
 export function currencyExponent(currency: string | undefined): number {
   const code = currencyCodeOf(currency);
   if (code === undefined) return 2;
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits ?? 2;
-  } catch {
-    return 2;
-  }
+  if (ZERO_DECIMAL_CURRENCIES.has(code)) return 0;
+  if (THREE_DECIMAL_CURRENCIES.has(code)) return 3;
+  return 2;
 }
+
+/** ISO 4217 currencies with no minor unit. Kept equal to the server's table (see {@link currencyExponent}). */
+const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
+  'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'UYI', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+]);
+/** ISO 4217 currencies with three minor digits. */
+const THREE_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set(['BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND']);
 
 /**
  * A minor-unit amount in major units, as an exact decimal string: (4900, 2) →
@@ -268,20 +281,21 @@ const CURRENCY_KEY = /(^|_)(currency|currency_code|curr_code)$/;
  * The currency a ROW says its money is in — the sibling column the classifier
  * names as the currency source (`currency`, `currency_code`, `*_currency`).
  *
- * A column's own `amount_currency` beside `amount_cents` is asked first, then
- * a plain `currency`/`currency_code`, then any other `*_currency`. Only an ISO
- * 4217 value counts: a `currency_id` key or an empty cell says nothing.
+ * Asked in a fixed order, never "whichever key comes first": the column's own
+ * `amount_currency` beside `amount_cents`, then a plain `currency` /
+ * `currency_code`, then another `*_currency` ONLY when it is the table's one
+ * currency column. With several (`fee_currency`, `tax_currency`) and none of
+ * them this column's, which one is meant is a guess, and a wrong symbol is
+ * worse than the page's own currency. Only an ISO 4217 value counts: a
+ * `currency_id` key or an empty cell says nothing.
  */
 export function rowCurrencyOf(row: GridRow, columnName: string): string | undefined {
   const stem = snakeName(columnName).replace(/_(in_)?(cents|minor(_units?)?)$/, '');
   const keys = Object.keys(row).filter((key) => key !== columnName && CURRENCY_KEY.test(snakeName(key)));
-  const rank = (key: string): number => {
-    const name = snakeName(key);
-    if (name === `${stem}_currency` || name === `${stem}_currency_code`) return 0;
-    if (name === 'currency' || name === 'currency_code') return 1;
-    return 2;
-  };
-  for (const key of [...keys].sort((a, b) => rank(a) - rank(b))) {
+  const own = keys.filter((key) => [`${stem}_currency`, `${stem}_currency_code`].includes(snakeName(key)));
+  const plain = keys.filter((key) => ['currency', 'currency_code'].includes(snakeName(key)));
+  const others = keys.filter((key) => !own.includes(key) && !plain.includes(key));
+  for (const key of [...own, ...plain, ...(others.length === 1 ? others : [])]) {
     const code = currencyCodeOf(row[key]);
     if (code !== undefined) return code;
   }
@@ -289,14 +303,34 @@ export function rowCurrencyOf(row: GridRow, columnName: string): string | undefi
 }
 
 /**
+ * The currency one money cell is in, by rank:
+ *
+ * 1. the column's OWN currency (`column.currency`, stated on the column spec)
+ *    — a person's explicit statement, so it outranks every guess;
+ * 2. the row's currency column ({@link rowCurrencyOf}) — a guess from a name;
+ * 3. the page's: the connection's currency, or the widget's `format.currency`
+ *    (templates merge the connection's into a widget's config as they draw
+ *    it, so the two cannot be told apart here — both rank as the default);
+ * 4. none — a plain number.
+ *
+ * A column's `display.currency` ranks above all of these, inside
+ * {@link formatDisplayValue}.
+ */
+export function cellCurrencyOf(
+  column: Pick<GridColumnSpec, 'name' | 'currency'>,
+  row: GridRow,
+  pageCurrency: string | undefined,
+): string | undefined {
+  return currencyCodeOf(column.currency) ?? rowCurrencyOf(row, column.name) ?? currencyCodeOf(pageCurrency);
+}
+
+/**
  * One money cell's text, the way every column-spec surface draws it (grid,
  * record view, detail list).
  *
- * The currency: the row's own currency column, else the page's (the
- * connection's, or the widget's `format.currency`), else the column spec's,
- * else none — a plain number. A minor-unit column is divided by THAT
- * currency's exponent and shown at exactly that many digits: EUR 4900 →
- * €49.00, JPY 4900 → ¥4,900, KWD 15000 → KWD 15.000.
+ * The currency is {@link cellCurrencyOf}'s. A minor-unit column is divided by
+ * THAT currency's exponent and shown at exactly that many digits: EUR 4900 →
+ * €49.00, JPY 4900 → ¥4,900, KWD 15000 → KWD 15.000, HUF 490000 → HUF 4,900.00.
  */
 export function formatMoneyCell(
   column: Pick<GridColumnSpec, 'name' | 'semantic' | 'format' | 'currency'>,
@@ -304,7 +338,7 @@ export function formatMoneyCell(
   options?: { locale?: string | undefined; currency?: string | undefined },
 ): string {
   const value = row[column.name];
-  const currency = rowCurrencyOf(row, column.name) ?? currencyCodeOf(options?.currency) ?? currencyCodeOf(column.currency);
+  const currency = cellCurrencyOf(column, row, options?.currency);
   if (!isMinorUnitMoney(column)) return formatMoney(value, { locale: options?.locale, currency });
   const exponent = currencyExponent(currency);
   const major = minorToMajor(value, exponent);

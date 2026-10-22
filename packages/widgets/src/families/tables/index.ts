@@ -23,6 +23,7 @@ export {
   isMinorUnitMoney,
   minorToMajor,
   rowCurrencyOf,
+  cellCurrencyOf,
   currencyExponent,
   formatRelativeTime,
   gridColumnSpecSchema,

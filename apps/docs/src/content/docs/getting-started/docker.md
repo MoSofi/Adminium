@@ -82,6 +82,7 @@ the compose file reads: [Docker Compose](/self-hosting/docker-compose/).
 | **Required env** | `ADMINIUM_SECRET`. It is **not** baked into the image; the image ships only code. |
 | **Healthcheck** | `GET /api/v1/healthz`, asserting `ok: true` in the JSON body |
 | **User** | `node`, uid 1000. No root at runtime. |
+| **Memory** | 1 GB on a managed host that runs the container for you; 2 GB, or 1 GB with swap, on a server you run yourself ([Requirements](/self-hosting/#requirements)). The image sets `NODE_OPTIONS=--max-old-space-size=512`; a `NODE_OPTIONS` of your own **replaces** it, so keep `--max-old-space-size=512` in it. |
 
 Every variable: [Environment variables](/self-hosting/env-vars/).
 

@@ -265,7 +265,11 @@ export const gridColumnSpecSchema = z.object({
    * the currency's minor unit, shown divided by its exponent.
    */
   format: z.string().nullable().default(null),
-  /** ISO currency for money columns (config.format.currency wins per-widget). */
+  /**
+   * ISO currency for money columns, stated on the column itself. Explicit,
+   * so it outranks the row's guessed `*_currency` column and the page's
+   * currency (`cellCurrencyOf`).
+   */
   currency: z.string().optional(),
   /** Enum members, when logicalType='enum'. */
   enumValues: z.array(z.string()).optional(),
