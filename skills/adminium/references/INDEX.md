@@ -45,12 +45,12 @@ file. Every file is 8 KB or less.
 | `references/guides/take-payments--who-the-seller-is.md` | Who the seller is | 883 |
 | `references/guides/take-payments--what-you-need.md` | What you need | 693 |
 | `references/guides/take-payments--who-may-do-what.md` | Who may do what | 662 |
-| `references/guides/take-payments--set-it-up.md` | Set it up | 4502 |
+| `references/guides/take-payments--set-it-up.md` | Set it up | 5140 |
 | `references/guides/take-payments--on-a-record.md` | On a record | 1201 |
 | `references/guides/take-payments--what-the-customer-sees.md` | What the customer sees | 848 |
 | `references/guides/take-payments--when-a-payment-arrives.md` | When a payment arrives | 1213 |
 | `references/guides/take-payments--refunds.md` | Refunds | 847 |
-| `references/guides/take-payments--disputes.md` | Disputes | 465 |
+| `references/guides/take-payments--disputes.md` | Disputes | 1018 |
 | `references/guides/take-payments--activity.md` | Activity | 415 |
 | `references/guides/take-payments--stopping.md` | Stopping | 404 |
 | `references/guides/take-payments--what-it-does-not-do.md` | What it does not do | 481 |
@@ -62,7 +62,7 @@ file. Every file is 8 KB or less.
 |---|---|---|
 | `references/self-hosting/payments--overview.md` | Payments on your server | 584 |
 | `references/self-hosting/payments--what-the-check-needs.md` | What the check needs | 1309 |
-| `references/self-hosting/payments--where-customers-pay.md` | Where customers pay | 724 |
+| `references/self-hosting/payments--where-customers-pay.md` | Where customers pay | 825 |
 | `references/self-hosting/payments--the-webhook-address.md` | The webhook address | 1178 |
 | `references/self-hosting/payments--behind-a-proxy.md` | Behind a proxy | 570 |
 | `references/self-hosting/payments--the-keys.md` | The keys | 579 |
