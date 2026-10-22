@@ -487,6 +487,7 @@ A column's value is shown by its type:
 | a date | Tuesday, 6 October 2026 | A date column, with *x*`.day_month` too. A date is never moved by a time zone. |
 | *x*`.days_since` | 47 | A date column: the whole days from it to today, by the venue's day ("47 days past due"). |
 | money | £40.00 | A money column, in the connection's currency. |
+| a yes/no | Yes | A yes/no (`bool`) column: "Yes" or "No" in the email's language ("Ja"/"Nein" in German, "Oui"/"Non" in French, "نعم"/"لا" in Arabic), never `true`, `1` or `0`, in the text, in a list's rows and in a rule's e-mail alike. A language Adminium does not ship reads English. Needs Adminium 0.3.33. |
 | *x*`.number` | 1,234.5 | A number or money column: the number as the language writes it, exactly as stored and no longer ("8.25", never "8.250"). |
 | *x*`.percent` | 8.25% | A number column holding a percentage: `8.25` reads "8.25%", and "8,25 %" in German. |
 | *x*`.money` | £1,234.50 | A number or money column, as an amount in the connection's currency. |
@@ -498,7 +499,7 @@ A column's value is shown by its type:
 
 Every form is written in the email's language: `morgen` rather than `tomorrow` in German, and
 Arabic-Indic digits in Arabic (`٤٧`), for the days as for the amounts. A column's own value, with no
-form, is written as it is stored, digits included, so a template can put an id in a link
+form, is written as it is stored (a yes/no as its word, above), digits included, so a template can put an id in a link
 (`{{manage_url}}#{{invoice.id}}`). Every form of an empty column reads empty.
 
 A form belongs to its column's type:

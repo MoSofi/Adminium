@@ -980,7 +980,14 @@ under [Dry runs, price checks and retries](/reference/manifest/#dry-runs-price-c
 ### A record with its child rows
 
 `POST /api/v1/data/{connectionId}/{table}` takes `children` beside `values`: the rows below the
-record, keyed by relation id (`model.relations[].id` in `GET /api/v1/connections/{id}/schema`). Each
+record, keyed by relation id (`model.relations[].id` in `GET /api/v1/connections/{id}/schema`), or
+by the short name the app that made the child table gives it (`quote_lines`, or `crm:quote_lines`
+for another manifest's) when that table has exactly one link to the record's. A short name is
+turned into its relation before anything is judged, so its rows meet every grant, limit
+(`creatable`, `writable`, the rows a role reaches) and rule (`linkable`) a list named by its
+relation meets; a short name for a table with no link, or two, is refused as a relation that is not
+there, and two names for one list are refused. The same holds for a row's own `children`, against
+its table, and on `PATCH` and the dry runs (Adminium 0.3.33). Each
 row is `{ key?, values, children? }`, two levels at most and up to 1,000 rows per list, and 1,000
 below one create in all (the public API's creates take 200). A row's own
 `children` hold `{ values }` rows only. Every row is written in one transaction, or none; totals
