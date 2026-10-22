@@ -25621,6 +25621,40 @@
                                                         }
                                                       ]
                                                     },
+                                                    "locales": {
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string",
+                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "title": {
+                                                            "type": "string",
+                                                            "minLength": 1,
+                                                            "maxLength": 200
+                                                          },
+                                                          "body": {
+                                                            "default": null,
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "string",
+                                                                "maxLength": 2000
+                                                              },
+                                                              {
+                                                                "type": "null"
+                                                              }
+                                                            ]
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "title",
+                                                          "body"
+                                                        ],
+                                                        "additionalProperties": false
+                                                      }
+                                                    },
                                                     "urgent": {
                                                       "type": "boolean"
                                                     }
@@ -27333,6 +27367,40 @@
                                                                               }
                                                                             ]
                                                                           },
+                                                                          "locales": {
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "title": {
+                                                                                  "type": "string",
+                                                                                  "minLength": 1,
+                                                                                  "maxLength": 200
+                                                                                },
+                                                                                "body": {
+                                                                                  "default": null,
+                                                                                  "anyOf": [
+                                                                                    {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 2000
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "null"
+                                                                                    }
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "title",
+                                                                                "body"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
+                                                                          },
                                                                           "urgent": {
                                                                             "type": "boolean"
                                                                           }
@@ -28877,6 +28945,40 @@
                                                                                 "type": "null"
                                                                               }
                                                                             ]
+                                                                          },
+                                                                          "locales": {
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "object",
+                                                                              "properties": {
+                                                                                "title": {
+                                                                                  "type": "string",
+                                                                                  "minLength": 1,
+                                                                                  "maxLength": 200
+                                                                                },
+                                                                                "body": {
+                                                                                  "default": null,
+                                                                                  "anyOf": [
+                                                                                    {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 2000
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "null"
+                                                                                    }
+                                                                                  ]
+                                                                                }
+                                                                              },
+                                                                              "required": [
+                                                                                "title",
+                                                                                "body"
+                                                                              ],
+                                                                              "additionalProperties": false
+                                                                            }
                                                                           },
                                                                           "urgent": {
                                                                             "type": "boolean"
@@ -31299,6 +31401,38 @@
                                                 }
                                               ]
                                             },
+                                            "locales": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "title": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 200
+                                                  },
+                                                  "body": {
+                                                    "default": null,
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string",
+                                                        "maxLength": 2000
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "title"
+                                                ]
+                                              }
+                                            },
                                             "urgent": {
                                               "type": "boolean"
                                             }
@@ -32928,6 +33062,38 @@
                                                                       }
                                                                     ]
                                                                   },
+                                                                  "locales": {
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "title": {
+                                                                          "type": "string",
+                                                                          "minLength": 1,
+                                                                          "maxLength": 200
+                                                                        },
+                                                                        "body": {
+                                                                          "default": null,
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "title"
+                                                                      ]
+                                                                    }
+                                                                  },
                                                                   "urgent": {
                                                                     "type": "boolean"
                                                                   }
@@ -34396,6 +34562,38 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "locales": {
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "title": {
+                                                                          "type": "string",
+                                                                          "minLength": 1,
+                                                                          "maxLength": 200
+                                                                        },
+                                                                        "body": {
+                                                                          "default": null,
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "title"
+                                                                      ]
+                                                                    }
                                                                   },
                                                                   "urgent": {
                                                                     "type": "boolean"
@@ -36659,6 +36857,40 @@
                                                   }
                                                 ]
                                               },
+                                              "locales": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "title": {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 200
+                                                    },
+                                                    "body": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "maxLength": 2000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "title",
+                                                    "body"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              },
                                               "urgent": {
                                                 "type": "boolean"
                                               }
@@ -38371,6 +38603,40 @@
                                                                         }
                                                                       ]
                                                                     },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
+                                                                    },
                                                                     "urgent": {
                                                                       "type": "boolean"
                                                                     }
@@ -39915,6 +40181,40 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
                                                                     },
                                                                     "urgent": {
                                                                       "type": "boolean"
@@ -42972,6 +43272,40 @@
                                                   }
                                                 ]
                                               },
+                                              "locales": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "title": {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 200
+                                                    },
+                                                    "body": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "maxLength": 2000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "title",
+                                                    "body"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              },
                                               "urgent": {
                                                 "type": "boolean"
                                               }
@@ -44684,6 +45018,40 @@
                                                                         }
                                                                       ]
                                                                     },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
+                                                                    },
                                                                     "urgent": {
                                                                       "type": "boolean"
                                                                     }
@@ -46228,6 +46596,40 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
                                                                     },
                                                                     "urgent": {
                                                                       "type": "boolean"
@@ -48633,6 +49035,38 @@
                                                 }
                                               ]
                                             },
+                                            "locales": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "title": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 200
+                                                  },
+                                                  "body": {
+                                                    "default": null,
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string",
+                                                        "maxLength": 2000
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "title"
+                                                ]
+                                              }
+                                            },
                                             "urgent": {
                                               "type": "boolean"
                                             }
@@ -50262,6 +50696,38 @@
                                                                       }
                                                                     ]
                                                                   },
+                                                                  "locales": {
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "title": {
+                                                                          "type": "string",
+                                                                          "minLength": 1,
+                                                                          "maxLength": 200
+                                                                        },
+                                                                        "body": {
+                                                                          "default": null,
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "title"
+                                                                      ]
+                                                                    }
+                                                                  },
                                                                   "urgent": {
                                                                     "type": "boolean"
                                                                   }
@@ -51730,6 +52196,38 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "locales": {
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "title": {
+                                                                          "type": "string",
+                                                                          "minLength": 1,
+                                                                          "maxLength": 200
+                                                                        },
+                                                                        "body": {
+                                                                          "default": null,
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "title"
+                                                                      ]
+                                                                    }
                                                                   },
                                                                   "urgent": {
                                                                     "type": "boolean"
@@ -53998,6 +54496,40 @@
                                                   }
                                                 ]
                                               },
+                                              "locales": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "title": {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 200
+                                                    },
+                                                    "body": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "maxLength": 2000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "title",
+                                                    "body"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              },
                                               "urgent": {
                                                 "type": "boolean"
                                               }
@@ -55710,6 +56242,40 @@
                                                                         }
                                                                       ]
                                                                     },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
+                                                                    },
                                                                     "urgent": {
                                                                       "type": "boolean"
                                                                     }
@@ -57254,6 +57820,40 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
                                                                     },
                                                                     "urgent": {
                                                                       "type": "boolean"
@@ -59774,6 +60374,40 @@
                                                   }
                                                 ]
                                               },
+                                              "locales": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "title": {
+                                                      "type": "string",
+                                                      "minLength": 1,
+                                                      "maxLength": 200
+                                                    },
+                                                    "body": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "maxLength": 2000
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "title",
+                                                    "body"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              },
                                               "urgent": {
                                                 "type": "boolean"
                                               }
@@ -61486,6 +62120,40 @@
                                                                         }
                                                                       ]
                                                                     },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
+                                                                    },
                                                                     "urgent": {
                                                                       "type": "boolean"
                                                                     }
@@ -63030,6 +63698,40 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "locales": {
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "title": {
+                                                                            "type": "string",
+                                                                            "minLength": 1,
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "body": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 2000
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "title",
+                                                                          "body"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      }
                                                                     },
                                                                     "urgent": {
                                                                       "type": "boolean"
@@ -65432,6 +66134,38 @@
                                                 }
                                               ]
                                             },
+                                            "locales": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "title": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 200
+                                                  },
+                                                  "body": {
+                                                    "default": null,
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string",
+                                                        "maxLength": 2000
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "title"
+                                                ]
+                                              }
+                                            },
                                             "urgent": {
                                               "type": "boolean"
                                             }
@@ -67061,6 +67795,38 @@
                                                                       }
                                                                     ]
                                                                   },
+                                                                  "locales": {
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "title": {
+                                                                          "type": "string",
+                                                                          "minLength": 1,
+                                                                          "maxLength": 200
+                                                                        },
+                                                                        "body": {
+                                                                          "default": null,
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "title"
+                                                                      ]
+                                                                    }
+                                                                  },
                                                                   "urgent": {
                                                                     "type": "boolean"
                                                                   }
@@ -68529,6 +69295,38 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "locales": {
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "title": {
+                                                                          "type": "string",
+                                                                          "minLength": 1,
+                                                                          "maxLength": 200
+                                                                        },
+                                                                        "body": {
+                                                                          "default": null,
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "title"
+                                                                      ]
+                                                                    }
                                                                   },
                                                                   "urgent": {
                                                                     "type": "boolean"
