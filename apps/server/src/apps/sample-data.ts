@@ -51,6 +51,7 @@ import { z } from 'zod';
 import {
   byClockSchema,
   byStaySchema,
+  codeSchemaOf,
   isoDurationMs,
   prefixFor,
   ROW_DIRECTIVES,
@@ -2019,7 +2020,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
             if (resolved.primaryKey.some((column) => values[column] !== undefined)) explicitKeys.add(resolved.name);
             // A shared link's code the sample gives is printed in the app's package for anyone to
             // read: every sample row's link is made here, like a person's create (`empty-code`).
-            for (const column of shareCodeColumns(app.manifest.kind === 'app' ? (app.manifest.publicAccess ?? []) : [], table.ref)) delete values[column];
+            // So is a code no staff member reads: it is such a link's whether or not an entry claims by it.
+            for (const column of shareCodeColumns(app.manifest.kind === 'app' ? (app.manifest.publicAccess ?? []) : [], table.ref, codeSchemaOf(app.manifest.requiredSchema.tables))) delete values[column];
             /*
              * A code or a running number the table already holds — a row
              * kept from an earlier add, or one of the operator's own — is

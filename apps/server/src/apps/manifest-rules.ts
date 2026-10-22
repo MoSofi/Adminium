@@ -793,8 +793,8 @@ export async function writeManifestRules(input: {
         return;
       }
     }
-    // A copy, a stamp's copy or a formula never lands a column kept from readers in one that is not.
-    if (rule.op === 'column.copy' || rule.op === 'column.stamp' || rule.op === 'column.formula') {
+    // A copy, a stamp's copy or a formula never lands a column kept from readers in one that is not; nor a total or a last four a link's code.
+    if (rule.op === 'column.copy' || rule.op === 'column.stamp' || rule.op === 'column.formula' || rule.op === 'column.rollup' || rule.op === 'column.codeLast4') {
       codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: ownsBlocks(manifest) ? manifest : null });
       const issue = keptColumnIssue(rule.op, rule.value, { table: rule.table, column: rule.column }, applyOverrides(model, active), codes);
       if (issue !== null) {
