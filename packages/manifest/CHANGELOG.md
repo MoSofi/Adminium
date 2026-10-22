@@ -1,5 +1,13 @@
 # @adminium/manifest
 
+## 0.3.33
+
+### Patch Changes
+
+- Updated dependencies [f412250]
+- Updated dependencies [9f6bff8]
+  - @adminium/add-on-contracts@0.3.33
+
 ## 0.3.32
 
 ### Patch Changes

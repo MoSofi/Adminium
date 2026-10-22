@@ -216,7 +216,7 @@ curl -s http://127.0.0.1:4600/api/v1/healthz
 The answer should contain `"ok":true`:
 
 ```json
-{"ok":true,"version":"0.3.27","uptime":5.03}
+{"ok":true,"version":"0.3.33","uptime":5.03}
 ```
 
 If `curl` prints nothing, wait a little longer and run it again. If it still
