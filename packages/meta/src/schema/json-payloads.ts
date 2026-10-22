@@ -123,7 +123,7 @@ export type UpdateLimit = z.infer<typeof updateLimitSchema>;
 
 /**
  * What a read grant on one table shows, when it may not show everything:
- * these columns (the key and the links to other rows are always shown). An
+ * these columns (the key is always shown; a link only when listed). An
  * app's role carries it (housekeeping reads a stay's room and dates, never
  * its guest or its money).
  */

@@ -64,13 +64,15 @@ export interface ResolvedTable {
 /**
  * One table of the effective model, as SQL-safe identifiers. `readable`: the
  * columns a caller's limited read shows — every other is theirs to know
- * nothing of, but the key and the links to other rows (`links`).
+ * nothing of, but the key. A link to another row is a column like any other:
+ * one the list leaves out is not shown (which company a won deal is for is
+ * something read, not a way through the screen).
  */
-function resolveTable(table: EffectiveTable, readable?: ReadonlySet<string>, links: ReadonlySet<string> = new Set()): ResolvedTable {
+function resolveTable(table: EffectiveTable, readable?: ReadonlySet<string>): ResolvedTable {
   const policy = columnPolicyFor(table);
   const columns = new Map<string, ResolvedColumn>();
   for (const column of table.columns) {
-    const hidden = readable !== undefined && !readable.has(column.name) && !column.isPrimaryKey && !links.has(column.name);
+    const hidden = readable !== undefined && !readable.has(column.name) && !column.isPrimaryKey;
     columns.set(column.name, {
       name: column.name,
       logicalType: column.logicalType,
@@ -183,12 +185,9 @@ export class SnapshotView {
     return resolved;
   }
 
-  /** One table, with this view's limit on its read (if any): its key and its links to other rows always shown. */
+  /** One table, with this view's limit on its read (if any): its key always shown, a link only when the limit lists it. */
   #resolve(table: EffectiveTable): ResolvedTable {
-    const readable = this.#readable.get(table.id);
-    if (readable === undefined) return resolveTable(table);
-    const links = new Set(this.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id).flatMap((relation) => relation.from.columns));
-    return resolveTable(table, readable, links);
+    return resolveTable(table, this.#readable.get(table.id));
   }
 
   /** Whether some table of this view is read only in part. */

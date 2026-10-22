@@ -140,6 +140,8 @@ export const describeSchemaTool: AssistantTool = {
         primaryKey: table.primaryKey,
         readOnly: table.readOnly,
         ...(table.readOnly ? {} : { requiredForNewRow: requiredOnCreate({ view, table }) }),
+        // A removal of one of its rows is told why: "required" refuses a row.delete without a reason, "optional" takes one.
+        ...(table.table.removal?.reason === undefined ? {} : { removalReason: table.table.removal.reason === 'required' ? 'required' : 'optional' }),
         columns: [...table.columns.values()]
           .filter((column) => !column.secret)
           .map((column) => ({
@@ -157,7 +159,8 @@ export const describeSchemaTool: AssistantTool = {
         // pointing at a table they cannot open names a table they cannot know
         // about.
         foreignKeys: view.model.relations
-          .filter((relation) => relation.from.tableId === id && wanted.includes(relation.to.tableId))
+          // …and only a link this person reads: a link their role's read leaves out is a column they are not shown.
+          .filter((relation) => relation.from.tableId === id && wanted.includes(relation.to.tableId) && relation.from.columns.every((name) => table.columns.get(name)?.secret === false))
           .map((relation) => ({
             columns: [...relation.from.columns],
             references: relation.to.tableId,

@@ -160,7 +160,7 @@ export function RoleTablesDisclosure({ entries, appName, addOnName }: { entries:
       ) : null}
       <RoleTablesLines entries={entries} addOnName={addOnName} />
       <p className="mt-1.5 text-[11px] leading-[1.45] text-fg-subtle">
-        {t('studio:appAddOns.roleTables.keyAndLinks', 'A read also shows each row’s key and its links to other rows.')}
+        {t('studio:appAddOns.roleTables.keyShown', 'A read also shows each row’s key. A link to another row is shown only where it is listed.')}
       </p>
     </details>
   );

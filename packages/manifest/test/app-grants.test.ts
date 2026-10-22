@@ -59,11 +59,13 @@ describe('appGrants on an add-on\'s table', () => {
     expect(messages(kit({ accounts: { actions: ['read', 'read'] } }))).toEqual(['requiredSchema.tables.0.appGrants.actions: an action is listed once']);
   });
 
-  it('refuses a column both listed and never, and a key or a link in never', () => {
+  it('refuses a column both listed and never, and the key in never; a link may be kept from every app', () => {
     expect(messages(kit({ accounts: { actions: ['read'], readable: ['id', 'name'], never: ['name'] } }))).toEqual(['requiredSchema.tables.0.appGrants.readable.1: "name" is listed in "never" too']);
-    expect(messages(kit({ entries: { actions: ['read'], never: ['account_id'] } }))).toEqual([
-      'requiredSchema.tables.1.appGrants.never.0: "account_id" is the table\'s key or a link, which every read shows: leave it out of "writable" and "creatable" instead',
+    expect(messages(kit({ entries: { actions: ['read'], never: ['id'] } }))).toEqual([
+      'requiredSchema.tables.1.appGrants.never.0: "id" is the table\'s key, which every read shows: leave it out of "writable" and "creatable" instead',
     ]);
+    // A link is a column like any other since 0.3.33: a read that does not list it does not show it.
+    expect(messages(kit({ entries: { actions: ['read'], never: ['account_id'] } }))).toEqual([]);
   });
 
   it('refuses it on a ledger\'s receipts, and any write on a table a ledger\'s code writes', () => {

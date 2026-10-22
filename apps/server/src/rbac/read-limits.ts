@@ -13,9 +13,9 @@
  * plain `read` there lifts it, Super Admin is never limited, and two limited
  * roles widen each other (a column either shows is shown).
  *
- * WHAT IS ALWAYS SHOWN. The table's key and its links to other rows: a
- * screen moves through them, and a link says only which row, never what is
- * in it (that is the other table's read).
+ * WHAT IS ALWAYS SHOWN. The table's key, and nothing else: a link to another
+ * row is a column like any other, shown only when the limit lists it. Which
+ * company a won deal is for is something a role reads, or does not.
  */
 import type { ReadLimit, RolePermission, TableActions } from '@adminium/meta';
 
@@ -45,8 +45,8 @@ export function readLimitOfRow(row: RolePermission): ReadLimit | null {
 }
 
 /**
- * The columns this person's read of one table shows (the key and links come
- * on top), or null when it shows every column: Super Admin, a person with no
+ * The columns this person's read of one table shows (the key comes on top),
+ * or null when it shows every column: Super Admin, a person with no
  * limited read there, and a person who also holds an unlimited read there.
  */
 export function readLimitOf(

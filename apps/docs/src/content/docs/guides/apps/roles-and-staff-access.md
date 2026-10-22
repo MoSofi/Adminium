@@ -99,7 +99,10 @@ role under **People → Roles & permissions** keeps them; the screen does not sh
 
 An app can also limit what a role **reads** of a table. A hotel's housekeeping sees a stay's room,
 its dates and its status, so the rooms get turned round in time, and nothing of its guest or its
-money. The table's key and its links to other rows are always shown: a screen moves through them.
+money. The table's key is always shown. A link to another row is a column like any other: a role
+whose list leaves out a won deal's `company_id` reads no company for it, and a screen that moves
+through that link (a deal's company, a visit's deal) needs the link listed. Before 0.3.33 every
+link was shown whatever the list said.
 
 Every staff read of the table holds to the limit: lists and records, links and lookups, search,
 exports and imports, dashboard cards and their live updates, documents, the audit log, files kept
