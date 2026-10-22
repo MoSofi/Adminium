@@ -24,7 +24,6 @@ export default {
     "waitingPlain": "بدأت دفعة عبر الإنترنت في {date} · في انتظار البنك",
     "recordedBy": "سجّلها {name}",
     "online": "دفع عبر الإنترنت ({service})",
-    "refundedInline": "استُرد {amount}",
     "listLabel": "الدفعات على هذا السجل",
     "notice": {
       "draft": "أرسل الفاتورة أولًا. لا يمكن تسجيل دفعة إلا على فاتورة مُرسلة.",
@@ -69,15 +68,24 @@ export default {
     "disputeLine": "نزاع — رُدّ عليه في لوحة تحكم {service}",
     "disputeNote": "إذا خُسر النزاع، يعود المبلغ إلى العميل. لا تتغير الفاتورة من تلقاء نفسها.",
     "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
-    "refundRequested": "طُلب استرداد {amount}",
-    "refundWaitingCustomer": "استرداد {amount} ينتظر العميل",
-    "refundFailed": "فشل استرداد {amount}: {reason}. تواصل مع العميل وسجّل ما تتفقان عليه.",
-    "refundFailedPlain": "فشل استرداد {amount}. تواصل مع العميل وسجّل ما تتفقان عليه.",
-    "refundCancelled": "أُلغي استرداد {amount}.",
-    "refundedOnInline": "استُرد {amount} في {date}",
-    "refundedThere": "استرداد {amount} تم في لوحة تحكم {service} في {date} · مسجّل",
     "needsLook": "يحتاج إلى مراجعة",
-    "demoService": "الخدمة التجريبية"
+    "demoService": "الخدمة التجريبية",
+    "refund": {
+      "dispute": "خُسر النزاع — أُعيد {amount} إلى العميل",
+      "provider": "استرداد {amount} تم في لوحة تحكم {service}",
+      "staff": "استرداد {amount} تم في Adminium",
+      "done": "تم",
+      "waitingCustomer": "بانتظار العميل",
+      "failed": "فشل",
+      "failedNext": "تواصل مع العميل وسجّل ما تتفقان عليه.",
+      "cancelled": "أُلغي: لم يُسترد أي مبلغ",
+      "requested": "تم طلبه",
+      "written": "استرداد {amount}"
+    },
+    "partlyRefunded": "مستردة جزئيًا",
+    "disputeWon": "تم كسب النزاع.",
+    "disputeLost": "خُسر النزاع. عاد {amount} إلى العميل.",
+    "disputeLostPlain": "خُسر النزاع. عاد المبلغ إلى العميل."
   },
   "record": {
     "title": "تسجيل دفعة",

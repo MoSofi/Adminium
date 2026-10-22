@@ -4113,7 +4113,8 @@ export default {
         "notRecorded": "Not recorded: it needs a look",
         "disputed": "Dispute opened by the card holder",
         "disputeAnswer": "Answer it in the {service} dashboard",
-        "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard."
+        "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
+        "disputeLost": "Dispute lost — {amount} returned to the customer"
       },
       "checkedBy": "Checked by {name}",
       "someone": "someone",

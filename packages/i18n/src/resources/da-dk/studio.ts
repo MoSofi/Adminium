@@ -4113,7 +4113,8 @@ export default {
         "notRecorded": "Ikke registreret: skal ses på",
         "disputed": "Kortholderen har gjort indsigelse",
         "disputeAnswer": "Besvar den i {service}-dashboardet",
-        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet."
+        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
+        "disputeLost": "Indsigelsen tabt — {amount} gik tilbage til kunden"
       },
       "checkedBy": "Tjekket af {name}",
       "someone": "nogen",

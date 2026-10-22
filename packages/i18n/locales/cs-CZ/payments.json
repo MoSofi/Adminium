@@ -14,7 +14,6 @@
     "waitingPlain": "Online platba zahájena {date} · čeká na banku",
     "recordedBy": "zaznamenal(a) {name}",
     "online": "Online platba ({service})",
-    "refundedInline": "vráceno {amount}",
     "listLabel": "Platby k tomuto záznamu",
     "notice": {
       "draft": "Nejdřív fakturu odešlete. Platbu lze zaznamenat jen k odeslané faktuře.",
@@ -59,15 +58,24 @@
     "disputeLine": "Spor — odpovězte v ovládacím panelu {service}",
     "disputeNote": "Pokud se spor prohraje, peníze se vrátí zákazníkovi. Faktura se tím sama nezmění.",
     "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
-    "refundRequested": "Vrácení {amount} vyžádáno",
-    "refundWaitingCustomer": "Vrácení {amount} čeká na zákazníka",
-    "refundFailed": "Vrácení {amount} se nezdařilo: {reason}. Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
-    "refundFailedPlain": "Vrácení {amount} se nezdařilo. Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
-    "refundCancelled": "Vrácení {amount} bylo zrušeno.",
-    "refundedOnInline": "vráceno {amount} dne {date}",
-    "refundedThere": "Vrácení {amount} provedené v ovládacím panelu {service} dne {date} · zaznamenáno",
     "needsLook": "Ke kontrole",
-    "demoService": "ukázková služba"
+    "demoService": "ukázková služba",
+    "refund": {
+      "dispute": "Spor prohrán — {amount} se vrátilo zákazníkovi",
+      "provider": "Vrácení {amount} provedené v ovládacím panelu {service}",
+      "staff": "Vrácení {amount} provedené v aplikaci Adminium",
+      "done": "Hotovo",
+      "waitingCustomer": "Čeká na zákazníka",
+      "failed": "Nezdařilo se",
+      "failedNext": "Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
+      "cancelled": "Zrušeno: nic nebylo vráceno",
+      "requested": "Vyžádáno",
+      "written": "Vrácení {amount}"
+    },
+    "partlyRefunded": "Částečně vráceno",
+    "disputeWon": "Spor byl vyhrán.",
+    "disputeLost": "Spor byl prohrán. {amount} se vrátilo zákazníkovi.",
+    "disputeLostPlain": "Spor byl prohrán. Peníze se vrátily zákazníkovi."
   },
   "record": {
     "title": "Zaznamenat platbu",

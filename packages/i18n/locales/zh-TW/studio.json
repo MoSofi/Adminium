@@ -4103,7 +4103,8 @@
         "notRecorded": "未記錄：需要查看",
         "disputed": "持卡人提出了爭議",
         "disputeAnswer": "請在 {service} 主控台中回覆",
-        "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。"
+        "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
+        "disputeLost": "爭議敗訴 — {amount} 已退回給客戶"
       },
       "checkedBy": "由 {name} 核對",
       "someone": "某人",

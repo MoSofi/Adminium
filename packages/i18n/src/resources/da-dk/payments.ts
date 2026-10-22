@@ -24,7 +24,6 @@ export default {
     "waitingPlain": "En onlinebetaling startede {date} · venter på banken",
     "recordedBy": "registreret af {name}",
     "online": "Onlinebetaling ({service})",
-    "refundedInline": "{amount} refunderet",
     "listLabel": "Betalinger på denne post",
     "notice": {
       "draft": "Send fakturaen først. En betaling kan kun registreres på en sendt faktura.",
@@ -69,15 +68,24 @@ export default {
     "disputeLine": "Indsigelse — besvar den i {service}-dashboardet",
     "disputeNote": "Tabes indsigelsen, går pengene tilbage til kunden. Fakturaen ændres ikke af sig selv.",
     "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
-    "refundRequested": "Refundering af {amount} anmodet",
-    "refundWaitingCustomer": "Refundering af {amount} venter på kunden",
-    "refundFailed": "Refunderingen af {amount} mislykkedes: {reason}. Kontakt kunden, og registrér det, I aftaler.",
-    "refundFailedPlain": "Refunderingen af {amount} mislykkedes. Kontakt kunden, og registrér det, I aftaler.",
-    "refundCancelled": "Refunderingen af {amount} blev annulleret.",
-    "refundedOnInline": "{amount} refunderet den {date}",
-    "refundedThere": "Refundering af {amount} foretaget i {service}-dashboardet den {date} · registreret",
     "needsLook": "Skal tjekkes",
-    "demoService": "demotjenesten"
+    "demoService": "demotjenesten",
+    "refund": {
+      "dispute": "Indsigelsen tabt — {amount} gik tilbage til kunden",
+      "provider": "Refundering af {amount} foretaget i {service}-dashboardet",
+      "staff": "Refundering af {amount} foretaget i Adminium",
+      "done": "Gennemført",
+      "waitingCustomer": "Venter på kunden",
+      "failed": "Mislykkedes",
+      "failedNext": "Kontakt kunden, og registrér det, I aftaler.",
+      "cancelled": "Annulleret: intet blev refunderet",
+      "requested": "Anmodet",
+      "written": "Refundering af {amount}"
+    },
+    "partlyRefunded": "Delvist refunderet",
+    "disputeWon": "Indsigelsen blev vundet.",
+    "disputeLost": "Indsigelsen blev tabt. {amount} gik tilbage til kunden.",
+    "disputeLostPlain": "Indsigelsen blev tabt. Pengene gik tilbage til kunden."
   },
   "record": {
     "title": "Registrér en betaling",

@@ -4113,7 +4113,8 @@ export default {
         "notRecorded": "Non enregistré : à examiner",
         "disputed": "Litige ouvert par le titulaire de la carte",
         "disputeAnswer": "Répondez-y dans le tableau de bord {service}",
-        "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}."
+        "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}.",
+        "disputeLost": "Litige perdu — {amount} rendus au client"
       },
       "checkedBy": "Vérifié par {name}",
       "someone": "quelqu'un",

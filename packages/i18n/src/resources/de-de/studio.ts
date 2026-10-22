@@ -4113,7 +4113,8 @@ export default {
         "notRecorded": "Nicht erfasst: muss angesehen werden",
         "disputed": "Rückbuchung vom Karteninhaber eröffnet",
         "disputeAnswer": "Beantworten Sie sie im Dashboard von {service}",
-        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}."
+        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
+        "disputeLost": "Rückbuchung verloren — {amount} gingen an den Kunden zurück"
       },
       "checkedBy": "Geprüft von {name}",
       "someone": "jemandem",

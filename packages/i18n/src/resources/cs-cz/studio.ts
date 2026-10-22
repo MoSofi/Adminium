@@ -4113,7 +4113,8 @@ export default {
         "notRecorded": "Nezaznamenáno: je potřeba se podívat",
         "disputed": "Držitel karty otevřel spor",
         "disputeAnswer": "Odpovězte v ovládacím panelu {service}",
-        "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}."
+        "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
+        "disputeLost": "Spor prohrán — {amount} se vrátilo zákazníkovi"
       },
       "checkedBy": "Zkontroloval(a) {name}",
       "someone": "někdo",

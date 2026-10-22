@@ -4113,7 +4113,8 @@ export default {
         "notRecorded": "لم تُسجَّل: تحتاج إلى نظرة",
         "disputed": "فتح حامل البطاقة نزاعًا",
         "disputeAnswer": "رُدّ عليه في لوحة تحكم {service}",
-        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}."
+        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
+        "disputeLost": "خُسر النزاع — أُعيد {amount} إلى العميل"
       },
       "checkedBy": "راجعها {name}",
       "someone": "شخص ما",
