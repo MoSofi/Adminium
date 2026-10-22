@@ -1395,6 +1395,23 @@ export function refundsRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * A refund the provider reports that a lost dispute already counted (a
+     * PayPal seller who settles a dispute by refunding: "refunded" and
+     * "resolved, buyer's favour" are the same money). It is that row: its
+     * provider id is set, nothing else moves.
+     */
+    async adoptForDispute(id: string, providerRefundId: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_refunds')
+        .set({ providerRefundId, updatedAt: at })
+        .where('id', '=', id)
+        .where('source', '=', 'dispute')
+        .where('providerRefundId', 'is', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
     /** Notes (or, with null, clears) why the record did not follow. Clearing clears only `only` when given. */
     async setProblem(id: string, code: RefundProblemCode | null, at: number = Date.now(), only?: RefundProblemCode): Promise<boolean> {
       let query = db.updateTable('adminium_refunds').set({ problemCode: code, updatedAt: at }).where('id', '=', id);

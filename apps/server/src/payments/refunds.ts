@@ -586,6 +586,11 @@ export async function refundEvent(deps: RefundDeps, input: { provider: string; m
   const otherCurrency = state.currency !== paidIn;
   // In the currency's own decimals ("20" is 20.00 EUR, 20.000 KWD), so sums and the record read it as written.
   const amount = exactAmount(state.amount, currencyScale(state.currency)) ?? state.amount;
+  // A lost dispute that already counted this money (the "resolved" event came before the "refunded" one): it is that row.
+  const counted = (await refunds.forAttempt(attempt.id)).find((row) => row.source === 'dispute' && row.providerRefundId === null && row.currency === state.currency && sameAmount(row.amount, amount));
+  if (counted !== undefined && (await refunds.adoptForDispute(counted.id, input.refundRef, at))) {
+    return (await refunds.byId(counted.id)) ?? counted;
+  }
   let made: { refund: RefundRow; fresh: boolean };
   try {
     made = await refunds.create(
@@ -677,10 +682,23 @@ async function disputeLost(deps: DisputeDeps, attempt: PaymentAttempt, said: Pay
   const currency = said?.currency ?? paidIn;
   const raw = said?.amount ?? (currency === paidIn ? attempt.takenAmount : null);
   if (raw === null) return;
-  const amount = exactAmount(raw, currencyScale(currency)) ?? raw;
-  if (compareAmounts(amount, '0') !== 1) return;
+  const scale = currencyScale(currency);
+  const disputed = exactAmount(raw, scale) ?? raw;
+  if (compareAmounts(disputed, '0') !== 1) return;
   const at = nowOf(deps);
   const refunds = refundsRepo(deps.meta);
+  const key = `dispute:${attempt.id}:${String(attempt.dispute.at)}`.slice(0, 80);
+  // Money the provider already reported giving back since the dispute opened is this same money (a PayPal seller
+  // settles a dispute by refunding: "refunded", then "resolved, buyer's favour"). Only the rest is counted here.
+  const since = attempt.dispute.at;
+  const covered = (await refunds.forAttempt(attempt.id)).filter(
+    (row) => row.source === 'provider' && row.currency === currency && row.createdAt >= since && row.state !== 'failed' && row.state !== 'cancelled',
+  );
+  const amount = covered.reduce<string | null>((left, row) => (left === null ? null : subtractAmounts(left, row.amount, scale)), disputed) ?? disputed;
+  if (compareAmounts(amount, '0') !== 1) {
+    await tellDisputeLost(deps, attempt, { amount: disputed, currency, about: key }).catch(() => undefined);
+    return;
+  }
   let made: { refund: RefundRow; fresh: boolean };
   try {
     made = await refunds.create(
@@ -694,7 +712,7 @@ async function disputeLost(deps: DisputeDeps, attempt: PaymentAttempt, said: Pay
         currency,
         reason: 'other',
         note: null,
-        idempotencyKey: `dispute:${attempt.id}:${String(attempt.dispute.at)}`.slice(0, 80),
+        idempotencyKey: key,
         source: 'dispute',
         requestedBy: null,
         state: 'succeeded',
@@ -706,7 +724,7 @@ async function disputeLost(deps: DisputeDeps, attempt: PaymentAttempt, said: Pay
     throw error;
   }
   if (!made.fresh) return;
-  await tellDisputeLost(deps, attempt, made.refund).catch(() => undefined);
+  await tellDisputeLost(deps, attempt, { amount: made.refund.amount, currency: made.refund.currency, about: key }).catch(() => undefined);
   if (currency !== paidIn) {
     await refunds.setProblem(made.refund.id, 'CURRENCY_DIFFERS', at);
     return;
@@ -779,12 +797,12 @@ async function tellDisputeOpened(deps: Pick<RefundDeps, 'notices'>, attempt: Pay
 }
 
 /** A lost dispute: the money went back to the customer. Once per dispute (keyed like its refund row). */
-async function tellDisputeLost(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt, refund: RefundRow): Promise<void> {
+async function tellDisputeLost(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt, refund: { amount: string; currency: string; about: string }): Promise<void> {
   if (deps.notices === undefined || !told(attempt.provider)) return;
   const test = attempt.mode !== 'live';
   await tellPaymentManagers(deps.notices, {
     kind: 'payments.dispute',
-    about: `dispute-lost:${refund.id}`,
+    about: `lost:${refund.about}`,
     urgent: true,
     actionUrl: '/studio/payments?tab=activity',
     words: (locale) => ({

@@ -567,6 +567,42 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
     expect(await refundsRepo(h.meta).forAttempt(attemptId)).toHaveLength(2);
   });
 
+  it.runIf(available)('counts a dispute settled by a refund at the provider once: the refund, then the lost dispute', async () => {
+    // The walk on 2026-10-22: a PayPal seller refunds $75 to settle a dispute; PayPal then says "resolved, buyer's favour".
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const paymentRef = (await read()).paymentRef!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 60_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR' } });
+    const refund = await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: fake.madeThere(paymentRef, '75.00') });
+    expect(refund).toMatchObject({ source: 'provider', amount: '75.00', state: 'succeeded' });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'lost', amount: '75.00', currency: 'EUR' } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'lost' });
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount])).toEqual([['provider', '75.00']]);
+    expect(Number(await refundedOnRow(attemptId))).toBe(75);
+  });
+
+  it.runIf(available)('counts a dispute settled by a refund at the provider once: the lost dispute, then the refund', async () => {
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const paymentRef = (await read()).paymentRef!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 60_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR' } });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'lost', amount: '75.00', currency: 'EUR' } });
+    const ref = fake.madeThere(paymentRef, '75.00');
+    const adopted = await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: ref });
+    expect(adopted).toMatchObject({ source: 'dispute', amount: '75.00', providerRefundId: ref });
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount])).toEqual([['dispute', '75.00']]);
+    expect(Number(await refundedOnRow(attemptId))).toBe(75);
+    // The same event again changes nothing.
+    await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: ref });
+    expect(await refundsRepo(h.meta).forAttempt(attemptId)).toHaveLength(1);
+  });
+
   it.runIf(available)('takes dispute events in any order, and an update after the close reopens nothing', async () => {
     const invoice = await sentInvoice('15.00');
     const attemptId = await paid(invoiceRef(invoice), 'INV', '15.00');
