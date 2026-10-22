@@ -83,7 +83,7 @@ read or a write the role does not grant is refused the same way.
 | `useRecords(table, options?)` | A filtered, sorted page of rows, and whether more exist. The server filters and pages. |
 | `useRecord(table, key)` | One row. |
 | `useRead()` | `list` and `get` as promises, for a read made when something happens (a scan, a run over a sheet's lines) and not while the page is drawn. |
-| `useWrite(table)` | `create`, `update`, `remove`, and `createEach` / `updateEach` for up to 500 rows, one save each. `updateEach` takes `{from}`, the state the rows were seen in, and answers what a ledger said of each row. |
+| `useWrite(table)` | `create`, `update`, `remove`, and `createEach` / `updateEach` for up to 500 rows, one save each. `updateEach` takes `{from}`, the state the rows were seen in, and answers what a ledger said of each row. `remove(key, { reason })` says why, for a table that asks ([Removed rows](/reference/manifest/#removed-rows)). |
 | `useTreeWrite(table)` | A row with the rows under it in one save, and a `dryRun` of it. |
 | `useStateMove(table)` | Makes one of the table's declared [actions](/reference/manifest/#buttons-on-a-record) on a row. |
 | `useAccess()` | `canRead`, `canCreate`, `canUpdate`, `canMove`, `has(feature)`, and `currency`: the currency of the database your tables are in, or `null` when the owner set none. |
