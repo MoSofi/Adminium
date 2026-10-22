@@ -274,6 +274,7 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
    */
   const rules = tableRulesFor(writeTarget);
   const filledByRule = new Set([...(rules?.stamps ?? []).map((stamp) => stamp.column), ...(rules?.fills ?? []).filter((fill) => fill.kind !== 'none').map((fill) => fill.column)]);
+  const defaulted = defaultedColumns(view, table);
   // Hooks judge rows one at a time, so a table with any hook for this import
   // is written row by row. Asked once: the hooks in force when the import
   // started decide how the whole file is written.
@@ -690,6 +691,8 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
       for (const target of mapped) {
         const raw = record[target.index] ?? '';
         if (raw.trim() === '' && !target.column.nullable && filledByRule.has(target.column.name)) continue;
+        // An empty cell under a column with a default says nothing: a new row takes the default (a blank "may be e-mailed" is no), a row already there keeps its value.
+        if (raw.trim() === '' && defaulted.has(target.column.name)) continue;
         const result = coerceCell(raw, target.column);
         if (!result.ok) {
           issues.push({ row: rowNumber, column: target.column.name, code: result.code, message: result.message, raw });
@@ -703,4 +706,18 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     },
     lines,
   };
+}
+
+/**
+ * The columns of a table that have a default: the database's own, or a fill
+ * Adminium writes (a literal, the moment, a value read from elsewhere). An
+ * empty cell of a brought file under one is left out of its line rather than
+ * refused as "required" or stored empty.
+ */
+export function defaultedColumns(view: SnapshotView, table: ResolvedTable): Set<string> {
+  const rules = tableRulesFor({ view, table });
+  return new Set([
+    ...(rules?.fills ?? []).filter((fill) => fill.kind !== 'none').map((fill) => fill.column),
+    ...table.table.columns.filter((column) => column.default !== null && column.default !== undefined && !column.isGenerated).map((column) => column.name),
+  ]);
 }

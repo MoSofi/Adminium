@@ -249,6 +249,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',
+  // A number or a time of day against another column, a span of days, a moment not before now: judged with the dates (write-service `boundIssues`).
+  'bounds.other',
+  'bounds.now',
+  // A stamp no writer gives: dropped from every write, refused on a brought file's line (crud/decide.ts).
+  'stamp.strict',
 ];
 
 export interface UnbuiltWord {

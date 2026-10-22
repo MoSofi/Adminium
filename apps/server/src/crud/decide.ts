@@ -60,7 +60,7 @@ import { ConflictError, ValidationFailedError } from '../errors.js';
 import { bookingCounts } from './booking-guard.js';
 import { renewCodes } from './code-renew.js';
 import { numberOf, slotInstant } from './capacity-guard.js';
-import type { ColumnStamp, TableRules } from './column-rules.js';
+import { requiredBy, type ColumnStamp, type TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
 import { instantFor, renderNow } from './instants.js';
 import { lateRuleFor, lateVerdict, lateWindow, refusedBy } from './late.js';
@@ -124,7 +124,8 @@ export function needsStored(rules: TableRules | null): boolean {
     // A move is judged on the row as it is, and a lock on what the write changes.
     rules?.states !== undefined ||
     (rules?.stateParents?.length ?? 0) > 0 ||
-    (rules?.bounds ?? []).some((bound) => bound.notBefore !== undefined) ||
+    // A value bounded by another column is judged against the row as the write leaves it (warm changed alone, against the stale held).
+    (rules?.bounds ?? []).some((bound) => (bound.notBefore !== undefined && bound.notBefore !== 'now') || (bound.notAfter !== undefined && bound.notAfter !== 'today')) ||
     // A link that may name only some rows is judged when it moves: a value sent back as the row holds it is no move.
     (rules?.linkable?.length ?? 0) > 0 ||
     // A column required while another holds a value is judged on the row as the write leaves it.
@@ -150,8 +151,10 @@ export async function decideRow(
 ): Promise<Row> {
   if (rules === null || action === 'delete') return values;
   if (HISTORY.has(context.origin)) return context.origin === 'import' && context.stamps === 'left-out' ? stampLeftOut(rules, action, values, before, context) : values;
-  if (action === 'update' && before === null) return values;
-  let out = values;
+  // A strict stamp is the server's: what any writer sent for it is not theirs to say, and goes (a form sends back what it read).
+  const own = withoutStrictStamps(rules, values);
+  if (action === 'update' && before === null) return own;
+  let out = own;
   const late = lateRule(rules);
   if (action === 'update' && late !== undefined) out = await decideLate(late, out, before!, context);
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
@@ -182,10 +185,31 @@ export async function decideRow(
  * made anew, no undo move.
  */
 async function stampLeftOut(rules: TableRules, action: WriteAction, values: Row, before: Row | null, context: DecideContext): Promise<Row> {
+  // A strict stamp is never the file's to say: a line that carries one is refused, by the column, before anything is stamped.
+  const carried = (rules.stamps ?? []).find((stamp) => stamp.strict === true && !empty(values[stamp.column]) && !(before !== null && sameValue(values[stamp.column], before[stamp.column])));
+  if (carried !== undefined) {
+    throw new ValidationFailedError(`${carried.column} is written by Adminium, never brought in from a file.`, { fields: { [carried.column]: { code: 'not-allowed' } }, column: carried.column });
+  }
   if (action === 'update' && before === null) return values;
-  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]));
+  // What a `requiredWhen` asks of the line, judged on the line as it was sent: no stamp fills it with today (a won deal brought in without its closed date is named, never dated by the import).
+  const row = { ...(before ?? {}), ...values };
+  const asked = new Set(
+    (rules.checks ?? [])
+      .filter((check) => check.requiredWhen !== undefined && requiredBy(check, has(row, check.requiredWhen.column) ? row[check.requiredWhen.column] : action === 'create' ? check.requiredWhenDefault : undefined))
+      .map((check) => check.column),
+  );
+  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]) && !asked.has(stamp.column));
   if (stamps.length === 0) return values;
   return stampRow(stamps, action, values, before, context, await momentStamps(stamps, action, values, before, context));
+}
+
+/** The values without what a writer sent for a strict stamp's column; the same object when none was sent. */
+function withoutStrictStamps(rules: TableRules, values: Row): Row {
+  const strict = (rules.stamps ?? []).filter((stamp) => stamp.strict === true && has(values, stamp.column));
+  if (strict.length === 0) return values;
+  const out = { ...values };
+  for (const stamp of strict) delete out[stamp.column];
+  return out;
 }
 
 // ─── moments, read before the write ───────────────────────────────────────
