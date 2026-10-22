@@ -47,7 +47,9 @@ import { pageLayoutSchema, type PageEnvelope } from '@adminium/engine/config';
 import {
   boardColumnsInstanceId,
   boardItemConfigOf,
+  currencyExponent,
   formatMoney,
+  minorToMajor,
   type BoardColumnRow,
   type BoardColumnsState,
   type BoardOnlyTest,
@@ -130,7 +132,17 @@ export function boardCompute(read: Pick<BoardRead, 'cardsTable' | 'column' | 'to
 interface TotalFormat {
   label: string;
   money: boolean;
+  /** Money kept in the currency's minor unit (`amount_cents`): shown divided by its exponent. */
+  minor: boolean;
   currency: string | undefined;
+}
+
+/** One money figure in a total's currency; a minor-unit total is shown in major units at the currency's own digits. */
+function moneyFigure(amount: number, format: TotalFormat, locale: string): string {
+  const currency = format.currency === undefined ? {} : { currency: format.currency };
+  if (!format.minor) return formatMoney(amount, { locale, ...currency });
+  const exponent = currencyExponent(format.currency);
+  return formatMoney(minorToMajor(amount, exponent) ?? amount, { locale, ...currency, decimals: exponent });
 }
 
 /** How each total is written: money when the column is money — in the column's own currency, else the connection's — a plain number otherwise. */
@@ -140,16 +152,18 @@ function totalFormats(totals: readonly BoardTotal[], columns: readonly FormColum
       | { label?: unknown; semantic?: unknown; format?: unknown; currency?: unknown; display?: { kind?: unknown; currency?: unknown } }
       | undefined;
     const money = spec?.semantic === 'money' || spec?.format === 'currency' || spec?.display?.kind === 'currency';
+    // An explicit `display` block is the person's own statement of the value, and is never rescaled.
+    const minor = spec?.semantic === 'money' && spec.format === 'currency-cents' && spec.display === undefined;
     const own = typeof spec?.display?.currency === 'string' ? spec.display.currency : typeof spec?.currency === 'string' ? spec.currency : undefined;
     // The column's own currency first: a table priced in dollars on a connection kept in euros totals in dollars.
-    return { label: typeof spec?.label === 'string' ? spec.label : total.column, money, currency: own ?? currency };
+    return { label: typeof spec?.label === 'string' ? spec.label : total.column, money, minor, currency: own ?? currency };
   });
 }
 
 /** How one column's amounts are written on a card: as a header's total of that column is. */
 export function amountWriter(column: string, columns: readonly FormColumnFactReply[] | undefined, currency: string | undefined, locale: string): (amount: number) => string {
   const format = totalFormats([{ column, fn: 'sum' }], columns, currency)[0] as TotalFormat;
-  return (amount) => (format.money ? formatMoney(amount, { locale, ...(format.currency === undefined ? {} : { currency: format.currency }) }) : getFormatters(locale).number(amount, { maximumFractionDigits: 2 }));
+  return (amount) => (format.money ? moneyFigure(amount, format, locale) : getFormatters(locale).number(amount, { maximumFractionDigits: 2 }));
 }
 
 /** A column's totals as its header shows them; one alone is the bare figure, two are each named. */
@@ -159,9 +173,7 @@ function totalText(values: readonly unknown[], formats: readonly TotalFormat[], 
     const format = formats[index];
     const amount = value === null || value === undefined || value === '' ? null : Number(value);
     if (format === undefined || amount === null || !Number.isFinite(amount)) return;
-    const figure = format.money
-      ? formatMoney(amount, { locale, ...(format.currency === undefined ? {} : { currency: format.currency }) })
-      : getFormatters(locale).number(amount, { maximumFractionDigits: 2 });
+    const figure = format.money ? moneyFigure(amount, format, locale) : getFormatters(locale).number(amount, { maximumFractionDigits: 2 });
     parts.push(formats.length > 1 ? `${format.label} ${figure}` : figure);
   });
   return parts.length === 0 ? undefined : parts.join(' · ');

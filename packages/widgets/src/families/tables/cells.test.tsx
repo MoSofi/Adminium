@@ -21,6 +21,19 @@ describe('CellValue — type-aware cell renderers', () => {
     expect(screen.getByText('$4,820')).toBeDefined();
   });
 
+  it('money in minor units reads in the row\'s own currency (walk fix E3)', () => {
+    const cents = spec({ name: 'amount_cents', label: 'Amount Cents', logicalType: 'integer', semantic: 'money', format: 'currency-cents' });
+    // The page's currency (the connection's) loses to the row's own.
+    render(<CellValue column={cents} row={{ amount_cents: 4900, currency: 'EUR' }} context={{ locale: 'en-US', currency: 'USD' }} />);
+    expect(screen.getByText('€49.00')).toBeDefined();
+    cleanup();
+    render(<CellValue column={cents} row={{ amount_cents: 4900, currency: 'JPY' }} />);
+    expect(screen.getByText('¥4,900')).toBeDefined();
+    cleanup();
+    render(<CellValue column={cents} row={{ amount_cents: 4900 }} />);
+    expect(screen.getByText('49.00')).toBeDefined();
+  });
+
   it('an explicit display block wins over the semantic chain', () => {
     // A derived value has no useful semantic or logicalType, so without this
     // branch a computed total renders as a bare mono string.
@@ -34,6 +47,7 @@ describe('CellValue — type-aware cell renderers', () => {
           sortable: false,
         })}
         row={{ total: '1367.28' }}
+        context={{ currency: 'USD' }}
       />,
     );
     expect(screen.getByText('$1,367.28')).toBeDefined();
@@ -56,6 +70,7 @@ describe('CellValue — type-aware cell renderers', () => {
       <CellValue
         column={spec({ ...rate, display: { kind: 'currency', decimals: 2 } })}
         row={{ rate: '1533.00' }}
+        context={{ currency: 'USD' }}
       />,
     );
     expect(screen.getByText('$1,533.00')).toBeDefined();

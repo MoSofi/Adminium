@@ -113,11 +113,18 @@ describe('PageQueueInbox', () => {
   });
 
   it('renders the polymorphic amount cell: $4,120.00 / 5 days / —', () => {
-    render(<PageQueueInbox config={config()} now={NOW} states={loaded} />);
+    render(<PageQueueInbox config={config()} now={NOW} states={loaded} currency="USD" />);
     const amounts = [...queueRows().querySelectorAll('[data-part="queue-amount"]')].map((el) => el.textContent);
     expect(amounts).toContain('$4,120.00');
     expect(amounts).toContain('5 days');
     expect(amounts).toContain('—');
+  });
+
+  it('writes an amount with no currency anywhere as the plain number, never a guessed dollar (walk fix E3)', () => {
+    render(<PageQueueInbox config={config()} now={NOW} states={loaded} />);
+    const amounts = [...queueRows().querySelectorAll('[data-part="queue-amount"]')].map((el) => el.textContent);
+    expect(amounts).toContain('4,120');
+    expect(amounts.some((text) => text?.includes('$'))).toBe(false);
   });
 
   it('tints status pills from the stored enumTones map', () => {

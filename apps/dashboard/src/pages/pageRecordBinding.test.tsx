@@ -133,7 +133,8 @@ function ordersEnvelope(): PageEnvelope {
     config: {
       columns: [
         { name: 'id', label: 'ID', logicalType: 'integer', primaryKey: true },
-        { name: 'total', label: 'Total', logicalType: 'decimal', semantic: 'money' },
+        // A money column with no currency is a plain number; this one names its own.
+        { name: 'total', label: 'Total', logicalType: 'decimal', semantic: 'money', currency: 'USD' },
       ],
       defaultSort: [{ column: 'id', dir: 'desc' }],
     },

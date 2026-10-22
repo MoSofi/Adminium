@@ -123,8 +123,22 @@ const TAGS_RE = /^(tags|labels|keywords)$/;
 const SLUG_RE = /^(slug|handle|permalink)$/;
 const IP_RE = /(^|_)ip(_address)?$/;
 const EXTERNAL_ID_RE = /_(id|uuid|ref|number|no)$/;
-const CENTS_RE = /_cents$/;
-const CURRENCY_SIBLING_RE = /(^|_)(currency|curr(ency)?_code)(_|$)/;
+/**
+ * Money held in the currency's MINOR unit: `amount_cents` 4900 is €49.00, and
+ * ¥4,900 when the row is in yen. Stamped `format: 'currency-cents'` — named for
+ * cents, read as "minor units": the exponent comes from the currency (JPY 0,
+ * EUR 2, KWD 3), never a fixed 100.
+ *
+ * `cents` says so on its own. `minor` does not — a `version_minor` is a
+ * number, not money — so it counts only beside money vocabulary
+ * (`amount_minor`) or a currency column on the same table.
+ */
+const CENTS_RE = /(^|_)cents$/;
+const MINOR_RE = /_minor(_units?)?$/;
+const MINOR_UNIT_TYPES = new Set(['integer', 'bigint', 'decimal']);
+/** The column that says which currency a row is in: `currency`, `currency_code`, `amount_currency`. */
+const CURRENCY_CODE_RE = /(^|_)(currency|currency_code|curr_code)$/;
+const CURRENCY_CODE_TYPES = new Set(['text', 'varchar', 'enum']);
 
 /** Directory-trigger vocabulary for "people-ish" tables (see tables.ts). */
 export const PEOPLE_TABLE_RE =
@@ -325,20 +339,18 @@ const RULES: { id: string; rule: Rule }[] = [
   {
     id: 'r04-money',
     rule: (c, name, ctx) => {
-      if (!NUMERIC.has(c.logicalType) || !MONEY_RE.test(name)) return null;
-      const reasons = ['name matches money vocabulary + numeric type'];
-      let format = 'currency';
-      if (c.logicalType === 'integer' || c.logicalType === 'bigint') {
-        if (CENTS_RE.test(name)) {
-          format = 'currency-cents';
-          reasons.push('integer with _cents suffix → divide-by-100 hint');
-        }
-      }
-      const sibling = ctx.table.columns.find((s) =>
-        CURRENCY_SIBLING_RE.test(normalizeName(s.name)),
+      const moneyWord = NUMERIC.has(c.logicalType) && MONEY_RE.test(name);
+      const sibling = ctx.table.columns.find(
+        (s) => s.name !== c.name && CURRENCY_CODE_TYPES.has(s.logicalType) && CURRENCY_CODE_RE.test(normalizeName(s.name)),
       );
+      const minor =
+        MINOR_UNIT_TYPES.has(c.logicalType) &&
+        (CENTS_RE.test(name) || (MINOR_RE.test(name) && (moneyWord || sibling !== undefined)));
+      if (!moneyWord && !minor) return null;
+      const reasons = [moneyWord ? 'name matches money vocabulary + numeric type' : 'name says minor currency units + numeric type'];
+      if (minor) reasons.push('minor-unit name → divide by the currency\'s exponent (cents: 100)');
       if (sibling) reasons.push(`sibling currency column "${sibling.name}" is the currency source`);
-      return hit('money', 0.85, format, reasons);
+      return hit('money', 0.85, minor ? 'currency-cents' : 'currency', reasons);
     },
   },
   {

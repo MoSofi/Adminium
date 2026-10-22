@@ -14,9 +14,10 @@ import {
   formatAbsoluteTime,
   formatCalendarDate,
   formatDisplayValue,
-  formatMoney,
+  formatMoneyCell,
   formatRelativeTime,
   maskedColumnsOf,
+  rowCurrencyOf,
   uiToneOf,
 } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
@@ -446,7 +447,7 @@ function CellContent({
       >
         {formatDisplayValue(value, column.display, {
           locale: context.locale,
-          currency: context.currency ?? column.currency,
+          currency: rowCurrencyOf(row, column.name) ?? context.currency ?? column.currency,
         })}
       </MonoText>
     );
@@ -460,7 +461,7 @@ function CellContent({
   if (column.semantic === 'money') {
     return (
       <MonoText data-part="cell-money" className="truncate font-semibold">
-        {formatMoney(value, { locale: context.locale, currency: context.currency ?? column.currency })}
+        {formatMoneyCell(column, row, { locale: context.locale, currency: context.currency })}
       </MonoText>
     );
   }
