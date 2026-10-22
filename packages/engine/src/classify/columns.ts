@@ -130,11 +130,20 @@ const EXTERNAL_ID_RE = /_(id|uuid|ref|number|no)$/;
  * EUR 2, KWD 3), never a fixed 100.
  *
  * `cents` says so on its own. `minor` does not — a `version_minor` is a
- * number, not money — so it counts only beside money vocabulary
- * (`amount_minor`) or a currency column on the same table.
+ * number, not money — so it counts only when the name ALSO says money:
+ * `amount_minor`, `price_minor_units`, `charge_minor`. A currency column on
+ * the same table is not enough: a `releases` table with `currency` beside
+ * `version_minor` is not paying anyone (release review, 0.3.33).
  */
 const CENTS_RE = /(^|_)cents$/;
 const MINOR_RE = /_minor(_units?)?$/;
+/**
+ * Money words a `*_minor` name may carry: {@link MONEY_RE}'s, plus the money
+ * nouns that are not money on their own in major units (`charge`, `tax`,
+ * `shipping`, `discount`…) but are when the name says minor units.
+ */
+const MINOR_MONEY_RE =
+  /(^|_)(amount|price|cost|total|subtotal|balance|fee|mrr|arr|revenue|budget|salary|payout|refund|paid|owed|charge|tax|shipping|discount|deposit|tip|net|gross|payment|spend|income|expense)_/;
 const MINOR_UNIT_TYPES = new Set(['integer', 'bigint', 'decimal']);
 /** The column that says which currency a row is in: `currency`, `currency_code`, `amount_currency`. */
 const CURRENCY_CODE_RE = /(^|_)(currency|currency_code|curr_code)$/;
@@ -343,9 +352,7 @@ const RULES: { id: string; rule: Rule }[] = [
       const sibling = ctx.table.columns.find(
         (s) => s.name !== c.name && CURRENCY_CODE_TYPES.has(s.logicalType) && CURRENCY_CODE_RE.test(normalizeName(s.name)),
       );
-      const minor =
-        MINOR_UNIT_TYPES.has(c.logicalType) &&
-        (CENTS_RE.test(name) || (MINOR_RE.test(name) && (moneyWord || sibling !== undefined)));
+      const minor = MINOR_UNIT_TYPES.has(c.logicalType) && (CENTS_RE.test(name) || (MINOR_RE.test(name) && MINOR_MONEY_RE.test(name)));
       if (!moneyWord && !minor) return null;
       const reasons = [moneyWord ? 'name matches money vocabulary + numeric type' : 'name says minor currency units + numeric type'];
       if (minor) reasons.push('minor-unit name → divide by the currency\'s exponent (cents: 100)');
