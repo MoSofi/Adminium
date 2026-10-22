@@ -148,6 +148,11 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'card.module',
   'card.columnLabels',
   'link.staffPath',
+  // Checked against another column: a number or a time of day against another, an end at most so many days after a start; a moment not before now.
+  'bounds.other',
+  'bounds.now',
+  // A stamp no writer and no file may give a value of its own.
+  'stamp.strict',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -266,6 +271,12 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'card.module': '0.3.28',
   'card.columnLabels': '0.3.28',
   'link.staffPath': '0.3.28',
+  // A number or a time of day kept on one side of another column, an end at most so many days after a start (a release before refuses all but dates).
+  'bounds.other': '0.3.33',
+  // A new row's moment not before now.
+  'bounds.now': '0.3.33',
+  // A stamp that is always the server's, on every door, for every writer.
+  'stamp.strict': '0.3.33',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -369,6 +380,14 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(rules['sequence']) && rules['sequence']['sample'] !== undefined) out.push({ word: 'sequence.sample', path: `${here}.sequence.sample` });
       if (isDoc(rules['rollup']) && rules['rollup']['latest'] !== undefined) out.push({ word: 'rollup.latest', path: `${here}.rollup.latest` });
       if (isDoc(rules['lookup']) && isDoc(rules['lookup']['table'])) out.push({ word: 'column.addOnLink', path: `${here}.lookup.table` });
+      // A bound on a column that is no date, or a span of days: only dates were kept within dates before.
+      const type = isDoc(column) ? column['type'] : undefined;
+      for (const side of ['notBefore', 'notAfter'] as const) {
+        const bound = rules[side];
+        if (bound === 'now') out.push({ word: 'bounds.now', path: `${here}.${side}` });
+        else if (bound !== undefined && ((type !== 'date' && type !== 'timestamptz') || (isDoc(bound) && bound['days'] !== undefined))) out.push({ word: 'bounds.other', path: `${here}.${side}` });
+      }
+      if (isDoc(rules['stamp']) && rules['stamp']['strict'] !== undefined) out.push({ word: 'stamp.strict', path: `${here}.stamp.strict` });
     });
   });
 

@@ -476,13 +476,17 @@ export const perNightSchema = z
   .strict();
 
 /**
- * A date kept on one side of another date: a column of the same row, or —
- * with `via`, a foreign key of this row — a column of the row it points at.
- * `when`: held only while the row, as the write leaves it, meets these (a
- * credit bounded by its stay's departure only once it is for nights not
- * stayed). `strict`: the dates may not be the same day — always, or only
- * while the row meets these (a guest who left early is credited from the day
- * after the arrival; a guest who never came, from the arrival itself).
+ * A value kept on one side of another column's: a column of the same row, or
+ * — with `via`, a foreign key of this row — a column of the row it points at.
+ * A date against a date, a number against a number (warm below stale), a
+ * time of day kept as text (`HH:MM`) against another (opening before
+ * closing). `when`: held only while the row, as the write leaves it, meets
+ * these (a credit bounded by its stay's departure only once it is for nights
+ * not stayed). `strict`: the two may not be the same — always, or only while
+ * the row meets these (a guest who left early is credited from the day after
+ * the arrival; a guest who never came, from the arrival itself). `days`, on a
+ * date: the other date moved by so many days (a cover ends at most a year
+ * after it starts: `notAfter: {column: 'starts_on', days: 365}`).
  */
 const dateBoundSchema = z
   .object({
@@ -490,8 +494,19 @@ const dateBoundSchema = z
     via: refSchema.optional(),
     when: z.array(stateConditionSchema).min(1).max(8).optional(),
     strict: z.union([z.literal(true), z.array(stateConditionSchema).min(1).max(8)]).optional(),
+    days: z.number().int().min(1).max(36_600).optional(),
   })
   .strict();
+
+/** What a bound compares a column as, by its type: null for a column no bound holds. */
+function boundKindOf(type: string | undefined): 'date' | 'number' | 'time' | null {
+  if (type === 'date' || type === 'timestamptz') return 'date';
+  if (type === 'int' || type === 'bigint' || type === 'decimal' || type === 'money' || type === 'float') return 'number';
+  if (type === 'text') return 'time';
+  return null;
+}
+
+const BOUND_KIND_WORDS = { date: 'a date', number: 'a number', time: 'a time of day kept as text' } as const;
 
 /** A table of an add-on, by the add-on's key and the table's own short name. */
 export const addOnTableSchema = z
@@ -714,6 +729,14 @@ export const columnRulesSchema = z
          * the kitchen undoes the Ready).
          */
         clearOnBack: z.literal(true).optional(),
+        /**
+         * Always the server's: a value any writer sends for the column — a
+         * form, a bulk edit, a rule, the public door, an add-on — is dropped,
+         * and a line of a brought file that carries one is refused, so who
+         * ticked a consent and when is never typed (`may_email_by_id`). Only
+         * history keeps its own: an app's sample data and an undo.
+         */
+        strict: z.literal(true).optional(),
       })
       .strict()
       .optional(),
@@ -736,15 +759,20 @@ export const columnRulesSchema = z
     /**
      * A date that may never be later than today, on the venue's calendar — a
      * payment is recorded when it came in, not when it might — or than another
-     * date, as `notBefore` says it (a credit's nights end by the stay's departure).
+     * column's value, as `notBefore` says it (a credit's nights end by the
+     * stay's departure; a cover ends at most a year after it starts).
      */
     notAfter: z.union([z.literal('today'), dateBoundSchema]).optional(),
     /**
-     * A date that may never be earlier than another: a column of the same row,
-     * or — with `via`, a foreign key of this row — a column of the row it
-     * points at (a payment is never dated before its invoice was issued).
+     * A value that may never be earlier than another column's: a column of
+     * the same row, or — with `via`, a foreign key of this row — a column of
+     * the row it points at (a payment is never dated before its invoice was
+     * issued; warm below stale; work starts before it ends). `now`, on a
+     * moment: a new row's moment is not in the past (a visit is never booked
+     * to start before now). Judged on a create only, and not on one that
+     * brings history (an import, sample data): a later change may correct it.
      */
-    notBefore: dateBoundSchema.optional(),
+    notBefore: z.union([z.literal('now'), dateBoundSchema]).optional(),
     /**
      * The column a staff create keeps its retry key in, as a hash: a desk's
      * save sent again after a lost reply answers the row the first one made
@@ -2261,13 +2289,20 @@ export function appReferenceIssues(
       if (rules.normalize !== undefined && column.type !== 'text') {
         out.push({ path: here('normalize'), message: 'only text is stored trimmed or in lower case' });
       }
-      const dated = (type: string | undefined) => type === 'date' || type === 'timestamptz';
-      if ((rules.notAfter !== undefined || rules.notBefore !== undefined) && !dated(column.type)) {
-        out.push({ path: here(rules.notAfter !== undefined ? 'notAfter' : 'notBefore'), message: 'only a date is kept within dates' });
+      // A bound compares like with like: dates, numbers, or times of day kept as text (`HH:MM`).
+      const boundKind = boundKindOf(column.type);
+      if ((rules.notAfter !== undefined || rules.notBefore !== undefined) && boundKind === null) {
+        out.push({ path: here(rules.notAfter !== undefined ? 'notAfter' : 'notBefore'), message: 'only a date, a number or a time of day is kept on one side of another' });
+      }
+      if (rules.notAfter === 'today' && boundKind !== 'date') out.push({ path: here('notAfter'), message: 'only a date is kept not later than today' });
+      if (rules.notBefore === 'now' && column.type !== 'timestamptz') out.push({ path: here('notBefore'), message: 'only a moment (timestamptz) is kept not before now' });
+      if ((rules.notAfter !== undefined || rules.notBefore !== undefined) && boundKind === 'time' && typeof column.maxLength === 'number' && column.maxLength < 5) {
+        out.push({ path: here(rules.notAfter !== undefined ? 'notAfter' : 'notBefore'), message: 'a time of day is kept as the 5 characters of HH:MM, so maxLength is at least 5' });
       }
       for (const side of ['notBefore', 'notAfter'] as const) {
         const bound = rules[side];
-        if (bound === undefined || bound === 'today') continue;
+        if (bound === undefined || bound === 'today' || bound === 'now') continue;
+        if (bound.days !== undefined && boundKind !== 'date') out.push({ path: here(side, 'days'), message: 'days are counted between dates only' });
         let owner = table.ref;
         if (bound.via !== undefined) {
           const via = index.column(table.ref, bound.via);
@@ -2280,9 +2315,10 @@ export function appReferenceIssues(
         }
         if (owner !== '') {
           const other = index.column(owner, bound.column);
+          const kind = other === undefined ? null : boundKindOf(other.type);
           if (other === undefined) out.push({ path: here(side, 'column'), message: `"${owner}" has no column "${bound.column}"` });
-          else if (!dated(other.type)) out.push({ path: here(side, 'column'), message: `"${owner}.${bound.column}" is not a date` });
-          else if (bound.via === undefined && other.ref === column.ref) out.push({ path: here(side, 'column'), message: 'a date is bounded by another column' });
+          else if (boundKind !== null && kind !== boundKind) out.push({ path: here(side, 'column'), message: `"${owner}.${bound.column}" is not ${BOUND_KIND_WORDS[boundKind]}` });
+          else if (bound.via === undefined && other.ref === column.ref) out.push({ path: here(side, 'column'), message: 'a value is bounded by another column' });
         }
         // The conditions read this row, as the write leaves it.
         (bound.when ?? []).forEach((condition, w) => out.push(...conditionIssues(table.ref, condition, index, here(side, 'when', w))));
@@ -2343,7 +2379,9 @@ export function appReferenceIssues(
         if (rules.required === true) out.push({ path: here('requiredWhen'), message: 'a column is required always, or only when another column says so, not both' });
         // A copy that only fills what a write leaves out still leaves a person to ask when there is nothing to copy.
         const fillsWhatIsLeftOut = deciders.length === 1 && deciders[0] === 'copy' && (rules.copy?.mode ?? 'default') === 'default' && rules.copy?.follow !== true;
-        if (deciders.length > 0 && !fillsWhatIsLeftOut) out.push({ path: here('requiredWhen'), message: 'Adminium fills this column, so nobody is asked for it' });
+        // A stamp fills a person's write, never a write that brings history: a won deal brought in carries its own closed date, or is named.
+        const stampedLive = deciders.length === 1 && deciders[0] === 'stamp';
+        if (deciders.length > 0 && !fillsWhatIsLeftOut && !stampedLive) out.push({ path: here('requiredWhen'), message: 'Adminium fills this column, so nobody is asked for it' });
       }
       if (rules.default !== undefined) {
         const from = rules.default.from;
@@ -2502,6 +2540,10 @@ export function appReferenceIssues(
       if (rules.stamp !== undefined) {
         const stamp = rules.stamp;
         const set = stamp.set;
+        // A strict stamp is the server's on every write: a staff writer's own word (`byOrigin` with no `staff`) would be theirs.
+        if (stamp.strict === true && typeof set === 'object' && 'byOrigin' in set && set.byOrigin.staff === undefined) {
+          out.push({ path: here('stamp', 'strict'), message: 'a strict stamp is always the server\'s, so a staff write says its value too (byOrigin.staff)' });
+        }
         if (set === 'now' && column.type !== 'timestamptz') {
           out.push({ path: here('stamp', 'set'), message: 'a "now" stamp needs a timestamptz column' });
         } else if (set === 'today' && column.type !== 'date') {
