@@ -706,6 +706,7 @@ async function disputeLost(deps: DisputeDeps, attempt: PaymentAttempt, said: Pay
     throw error;
   }
   if (!made.fresh) return;
+  await tellDisputeLost(deps, attempt, made.refund).catch(() => undefined);
   if (currency !== paidIn) {
     await refunds.setProblem(made.refund.id, 'CURRENCY_DIFFERS', at);
     return;
@@ -773,6 +774,23 @@ async function tellDisputeOpened(deps: Pick<RefundDeps, 'notices'>, attempt: Pay
       title: test ? { key: 'dispute.titleTest', fallback: 'Test dispute opened' } : { key: 'dispute.title', fallback: 'Dispute opened' },
       body: { key: 'dispute.bodyNoDate', fallback: '{label} · answer it in the {provider} dashboard' },
       values: { label: attempt.payableLabel, provider: providerName(attempt.provider) },
+    }),
+  });
+}
+
+/** A lost dispute: the money went back to the customer. Once per dispute (keyed like its refund row). */
+async function tellDisputeLost(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt, refund: RefundRow): Promise<void> {
+  if (deps.notices === undefined || !told(attempt.provider)) return;
+  const test = attempt.mode !== 'live';
+  await tellPaymentManagers(deps.notices, {
+    kind: 'payments.dispute',
+    about: `dispute-lost:${refund.id}`,
+    urgent: true,
+    actionUrl: '/studio/payments?tab=activity',
+    words: (locale) => ({
+      title: test ? { key: 'dispute.lostTitleTest', fallback: 'Test dispute lost' } : { key: 'dispute.lostTitle', fallback: 'Dispute lost' },
+      body: { key: 'dispute.lostBody', fallback: '{label} · {amount} went back to the customer' },
+      values: { label: attempt.payableLabel, amount: noticeMoney(refund.amount, refund.currency, locale) },
     }),
   });
 }

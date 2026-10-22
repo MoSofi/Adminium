@@ -188,6 +188,21 @@ describe('the walk fixes', () => {
       expect((await attempt(id)).dispute).toMatchObject({ state: 'open' });
     });
 
+    it('tells the payment managers once when a dispute is lost, marked as a test', async () => {
+      const id = await opened();
+      fake.statusOf.set('cs_1', fake.state('cs_1', 'succeeded'));
+      await service.settle(id);
+      await deliver(disputeAbout('pi_cs_1', 'charge.dispute.created', clock));
+      clock += 1000;
+      const lost = disputeAbout('pi_cs_1', 'charge.dispute.closed', clock, { status: 'lost', amount: null, currency: null });
+      expect(await deliver(lost)).toEqual({ status: 200, matched: true });
+      expect((await attempt(id)).dispute).toMatchObject({ state: 'closed', outcome: 'lost' });
+      // The same close again (a resend) tells nobody twice.
+      await deliver({ ...lost, eventId: `${lost.eventId}-again` });
+      const titles = (await notificationsRepo(meta).listForUser(owner.id, { limit: 20 })).map((one) => one.title);
+      expect(titles.filter((title) => title === 'Test dispute lost')).toHaveLength(1);
+    });
+
     it('drops anything else about money nobody here took, and still never keeps a checkout event about none', async () => {
       expect(await deliver({ ...disputeAbout('pi_theirs', 'checkout.session.completed', clock), kind: 'checkout' })).toEqual({ status: 200, matched: false });
       expect(await deliver({ ...disputeAbout('pi_theirs', 'charge.dispute.created', clock), paymentRef: null })).toEqual({ status: 200, matched: false });

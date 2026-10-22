@@ -170,7 +170,10 @@ export default {
       "title": "Litige ouvert",
       "titleTest": "Litige de test ouvert",
       "body": "{label} · réponse avant le {date}",
-      "bodyNoDate": "{label} · répondez-y dans le tableau de bord {provider}"
+      "bodyNoDate": "{label} · répondez-y dans le tableau de bord {provider}",
+      "lostTitle": "Litige perdu",
+      "lostTitleTest": "Litige de test perdu",
+      "lostBody": "{label} · {amount} rendus au client"
     }
   },
   "refund": {

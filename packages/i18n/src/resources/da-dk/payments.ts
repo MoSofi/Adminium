@@ -170,7 +170,10 @@ export default {
       "title": "Indsigelse åbnet",
       "titleTest": "Testindsigelse åbnet",
       "body": "{label} · svar senest {date}",
-      "bodyNoDate": "{label} · besvar den i {provider}-dashboardet"
+      "bodyNoDate": "{label} · besvar den i {provider}-dashboardet",
+      "lostTitle": "Indsigelsen tabt",
+      "lostTitleTest": "Testindsigelsen tabt",
+      "lostBody": "{label} · {amount} gik tilbage til kunden"
     }
   },
   "refund": {

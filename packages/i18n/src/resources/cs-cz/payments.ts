@@ -170,7 +170,10 @@ export default {
       "title": "Otevřen spor",
       "titleTest": "Otevřen testovací spor",
       "body": "{label} · odpovězte do {date}",
-      "bodyNoDate": "{label} · odpovězte v ovládacím panelu {provider}"
+      "bodyNoDate": "{label} · odpovězte v ovládacím panelu {provider}",
+      "lostTitle": "Spor prohrán",
+      "lostTitleTest": "Testovací spor prohrán",
+      "lostBody": "{label} · {amount} se vrátilo zákazníkovi"
     }
   },
   "refund": {

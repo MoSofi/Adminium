@@ -170,7 +170,10 @@ export default {
       "title": "Dispute opened",
       "titleTest": "Test dispute opened",
       "body": "{label} · answer by {date}",
-      "bodyNoDate": "{label} · answer it in the {provider} dashboard"
+      "bodyNoDate": "{label} · answer it in the {provider} dashboard",
+      "lostTitle": "Dispute lost",
+      "lostTitleTest": "Test dispute lost",
+      "lostBody": "{label} · {amount} went back to the customer"
     }
   },
   "refund": {

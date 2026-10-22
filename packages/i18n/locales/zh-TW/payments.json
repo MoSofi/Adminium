@@ -160,7 +160,10 @@
       "title": "已提出爭議",
       "titleTest": "已提出測試爭議",
       "body": "{label} · 請在 {date} 前回覆",
-      "bodyNoDate": "{label} · 請在 {provider} 主控台中回覆"
+      "bodyNoDate": "{label} · 請在 {provider} 主控台中回覆",
+      "lostTitle": "爭議敗訴",
+      "lostTitleTest": "測試爭議敗訴",
+      "lostBody": "{label} · {amount} 已退回給客戶"
     }
   },
   "refund": {

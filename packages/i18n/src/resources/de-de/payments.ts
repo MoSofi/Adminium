@@ -170,7 +170,10 @@ export default {
       "title": "Rückbuchung eröffnet",
       "titleTest": "Test-Rückbuchung eröffnet",
       "body": "{label} · Antwort bis {date}",
-      "bodyNoDate": "{label} · beantworten Sie sie im Dashboard von {provider}"
+      "bodyNoDate": "{label} · beantworten Sie sie im Dashboard von {provider}",
+      "lostTitle": "Rückbuchung verloren",
+      "lostTitleTest": "Test-Rückbuchung verloren",
+      "lostBody": "{label} · {amount} gingen an den Kunden zurück"
     }
   },
   "refund": {

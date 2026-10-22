@@ -160,7 +160,10 @@
       "title": "فُتح نزاع",
       "titleTest": "فُتح نزاع تجريبي",
       "body": "{label} · الرد قبل {date}",
-      "bodyNoDate": "{label} · رُدّ عليه في لوحة تحكم {provider}"
+      "bodyNoDate": "{label} · رُدّ عليه في لوحة تحكم {provider}",
+      "lostTitle": "خُسر النزاع",
+      "lostTitleTest": "خُسر نزاع تجريبي",
+      "lostBody": "{label} · أُعيد {amount} إلى العميل"
     }
   },
   "refund": {
