@@ -3464,7 +3464,6 @@ export default {
     "roleTables": {
       "summary": "{count, plural, other {{app} 的角色可存取它的 # 張資料表。查看它們讀取與變更的內容。}}",
       "unchecked": "{addOn} 尚未安裝在此伺服器上，因此這裡顯示的是 {app} 要求的內容。附加元件可能允許的更少。",
-      "keyAndLinks": "讀取時也會顯示每列的鍵及其指向其他列的連結。",
       "everyColumn": "所有欄位",
       "reads": "讀取 {columns}",
       "readsAll": "讀取所有欄位",
@@ -3484,7 +3483,8 @@ export default {
         "read": "讀取",
         "create": "新增資料列",
         "update": "變更資料列"
-      }
+      },
+      "keyShown": "讀取時也會顯示每列的鍵。指向其他列的連結只有在列出時才會顯示。"
     }
   },
   "featurePage": {

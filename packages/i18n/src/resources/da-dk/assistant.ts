@@ -517,7 +517,9 @@ export default {
     },
     "delete": {
       "reference": "{count} i {table}",
-      "references": "Andre rækker henviser til denne: {list}. De forsvinder eller ændres med den, som ved sidens egen sletning."
+      "references": "Andre rækker henviser til denne: {list}. De forsvinder eller ændres med den, som ved sidens egen sletning.",
+      "reason": "Hvorfor: {reason}",
+      "noReason": "Ingen grund angivet"
     },
     "noneAble": "Intet af dette kan lade sig gøre",
     "checkAgain": "Tjek igen",

@@ -2103,7 +2103,12 @@ amount and tax — is read-only to every writer and in no public entry's `writab
   removal without one (`422`, `fields.reason.code` `required`). Every other removal (an undo, a row
   taken off under its parent's save, a rule's or a move's delete, a public entry's) is written with
   `"reason": null`, no reason. A table without `reason` refuses one (`not-allowed`): nothing would
-  keep it. The reason travels in the body, never in the address, which logs keep.
+  keep it. The reason travels in the body, never in the address, which logs keep. The console's
+  delete dialogs, for one row and for the rows ticked in a list, ask "Why is it removed?" on such
+  a table (marked optional where it is `true`) and hold the Delete button until something is
+  written where it is `"required"`. The page assistant is told which tables ask: a delete it
+  proposes carries the person's reason, shown on the card before it is confirmed, and one without
+  a reason on a `"required"` table is refused at the check.
 - **`history: true`**: a removed row stays readable, through a row it linked to that the reader
   reads now (a deal's removed member, a job's cancelled visit), until an undo brings it back.
   Every removal keeps it, by whichever door: who removed it, when, why, and the row as it was,
@@ -2483,9 +2488,11 @@ open that form, with the day filled in.
     "link": "company_id.name",
     "person": "owner_id",
     "amount": "amount",
-    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 },
+    "secondAmount": { "column": "weighted_value", "label": "w", "labels": { "de-DE": "gew." } },
+    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30, "label": "in stage", "labels": { "de-DE": "in der Phase" } },
     "date": "expected_close"
   },
+  "toolbar": { "total": true, "person": "owner_id" },
   "note": { "text": "Columns come from Stages", "texts": { "de-DE": "Die Spalten kommen aus den Phasen" }, "href": "/p/crm-stages" }
 } }
 ```
@@ -2497,7 +2504,8 @@ open that form, with the day filled in.
 | `title` | no | The column of the page's table a card is titled with. Left out: the table's own title column. |
 | `totals` | no | One or two `{ "column", "fn" }`: a number or money column of the page's table, and `sum` or `avg`. Each column's header shows the figure beside its count. |
 | `only` | no | Which rows of the page's table are cards on the board: one to three `"column": value` or `"column": [values]` (up to 20 values each). A row is a card when every column named holds its value, or one of its values. Left out: every row. |
-| `card` | no | What a card shows under its title, each from a column of the page's table; at least one of: `link` (`"<link column>.<column>"`: a column of the row the link points at, such as a company's name), `person` (a staff column, `rules.staff`, shown as the person's name), `amount` (a number or money column), `daysSince` (`{ "column", "warnFrom", "alertFrom" }`: whole days from a date or time column to today; from `warnFrom` days the figure is amber and from `alertFrom` red, both optional, 1 to 3650, `warnFrom` the smaller) and `date` (a date or time column, shown as a day). |
+| `card` | no | What a card shows under its title, each from a column of the page's table; at least one of: `link` (`"<link column>.<column>"`: a column of the row the link points at, such as a company's name), `person` (a staff column, `rules.staff`, shown as the person's name), `amount` (a number or money column), `secondAmount` (`{ "column", "label", "labels" }`: a second number or money column, drawn at the end of the amount's line after its short `label`, such as a deal's weighted value "w €1,240"; `labels` gives the label in other languages by their tag; needs `minAdminiumVersion` 0.3.33), `daysSince` (`{ "column", "warnFrom", "alertFrom", "label", "labels" }`: whole days from a date or time column to today; from `warnFrom` days the figure is amber and from `alertFrom` red, both optional, 1 to 3650, `warnFrom` the smaller; `label` says what the days are, after the figure: "12 days in stage", with `labels` by language; the label needs `minAdminiumVersion` 0.3.33) and `date` (a date or time column, shown as a day). A label is 1 to 40 characters, and `labels` needs `label`. |
+| `toolbar` | no | `{ "total", "person" }`, at least one (0.3.33): a line drawn above the board. `"total": true` shows how many cards the board holds and each of its `totals` over all of them. `person` (a staff column, `rules.staff`) is a filter: "Everyone" and each person who holds a card on the board. The board's `note` is drawn at the line's end. |
 | `note` | no | `{ "text", "texts", "href" }`: one sentence of up to 200 characters drawn above the board; `texts` gives it in other languages by their tag, as a page's `titles` does; with `href`, a path of the workspace starting with one `/` (a page is `/p/<its ref>`), the sentence is a link. |
 
 With `columnsFrom` the board draws one column for each row of that table, a row with no card
@@ -2523,6 +2531,15 @@ figure, and a date still to come counts 0. With `daysSince` the cards are listed
 first. The two totals of a header are each named by their column's label ("Amount €12,400 ·
 Weighted value €1,240"); a total takes a line of its own where the heading has no room. A role
 that may not read the `badge` column sees the board without the badge.
+
+The toolbar's total is the server's, worked out over every card the person may read (their row
+limits, and `only`), never a sum of the cards drawn: a board of 340 deals draws 200 cards and its
+toolbar counts 340. The person filter offers the people who hold a card the person reads, named as
+the people list names them, the most cards first (30 at most); a card with nobody in the column is
+among "Everyone" only. Choosing a person narrows the cards, each column's count and totals, and
+the toolbar's total to that person's cards, still within what the person looking may read: a rep
+held to their own deals who chooses a colleague sees no card. The choice holds while the page is
+open.
 
 `only` makes the board a board of some of its table's rows: `"only": { "state": "open" }` is the
 open deals, `"only": { "kind": ["new", "renewal"], "hot": true }` the hot deals of two kinds. It
@@ -3025,7 +3042,7 @@ values. The names are the ones [public access](#public-access) uses:
 | `writable` | no | The columns the update may change, at least one. |
 | `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
 | `writableFrom` | no | `{ "<column>": [1–32 values] }`: the update reaches a row only while that column of the row holds one of these values. Any column of the table, in `writable` or not. Needs `writable`, and `minAdminiumVersion` 0.3.19 or later. |
-| `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key and the table's links to other rows are always read. Needs the role's `table:@<ref>:read`. |
+| `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key is always read; a link to another row is read only when it is listed, as any column (0.3.33; before, every link was read). Needs the role's `table:@<ref>:read`. |
 | `creatable` | no | The only columns a new row the role creates may be given; the rest take their defaults or what Adminium decides. Needs the role's `table:@<ref>:create`. |
 | `creatableValues` | no | For a column in `creatable`, the only values a new row may be given (1–32). Needs `creatable`. |
 
@@ -5228,7 +5245,7 @@ The table is the add-on's, so the add-on says how far that may go, on the table 
 | `readable` | The only columns an app's read shows. Absent: every column but those in `never`, and never a secret. |
 | `writable` | The only columns an app's update may change. Required when `actions` has `update`. |
 | `creatable` | The only columns a new row an app's role adds may be given. Required when `actions` has `create`. |
-| `never` | Columns no app's grant reaches, whatever else is listed. Not the key or a link: every read shows those. |
+| `never` | Columns no app's grant reaches, whatever else is listed. Not the key: every read shows it. |
 
 Once an add-on sets `appGrants` on one table, a table without it is given to no app's role. An
 add-on that sets it on none is held only by its own shape: no hold on a ledger's receipt table,
@@ -5238,8 +5255,8 @@ table a ledger's code writes allows only `read`. Each column named must be one o
 An app's entry is cut to it when it is written, and again whenever the add-on is installed,
 updated, connected or switched back on. Whatever is cut is named: in the install check, and in the
 reply as `narrowed` with `skipped: "ceiling"`, or `skipped: "not-offered"` for a table given to no
-app. A grant on such a table always carries its column lists. The key and the links to other rows
-are read with any read, as with every read limit.
+app. A grant on such a table always carries its column lists. The key is read with any read; a
+link to another row only when `readable` lists it, as with every read limit.
 
 A manifest that uses `appGrants` sets `compatibility.minAdminiumVersion` to `0.3.28` or later.
 

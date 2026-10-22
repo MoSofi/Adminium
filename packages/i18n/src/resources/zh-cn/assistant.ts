@@ -517,7 +517,9 @@ export default {
     },
     "delete": {
       "reference": "{table} 中 {count} 行",
-      "references": "其他行引用了此项：{list}。它们会随之删除或更改，与页面自身的删除相同。"
+      "references": "其他行引用了此项：{list}。它们会随之删除或更改，与页面自身的删除相同。",
+      "reason": "原因：{reason}",
+      "noReason": "未说明原因"
     },
     "noneAble": "这些都无法执行",
     "checkAgain": "重新检查",

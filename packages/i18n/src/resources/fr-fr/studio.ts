@@ -3464,7 +3464,6 @@ export default {
     "roleTables": {
       "summary": "Les rôles de {app} accèdent à {count, plural, one {# de ses tables} other {# de ses tables}}. Voyez ce qu’ils lisent et modifient.",
       "unchecked": "{addOn} n’est pas encore sur ce serveur : voici donc ce que demande {app}. Le module peut en permettre moins.",
-      "keyAndLinks": "Une lecture montre aussi la clé de chaque ligne et ses liens vers d’autres lignes.",
       "everyColumn": "toutes les colonnes",
       "reads": "Lit {columns}",
       "readsAll": "Lit toutes les colonnes",
@@ -3484,7 +3483,8 @@ export default {
         "read": "lire",
         "create": "ajouter des lignes",
         "update": "modifier des lignes"
-      }
+      },
+      "keyShown": "Une lecture montre aussi la clé de chaque ligne. Un lien vers une autre ligne n’est montré que là où il est listé."
     }
   },
   "featurePage": {

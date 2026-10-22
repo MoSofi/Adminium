@@ -1820,7 +1820,9 @@ export default {
         "gone": "Ten obrázek už není k dispozici.",
         "cancel": "Zrušit",
         "close": "Zavřít"
-      }
+      },
+      "deleteReason": "Proč se odstraňuje?",
+      "deleteReasonOptional": "Proč se odstraňuje? (nepovinné)"
     },
     "queue": {
       "allSegment": "Vše",
@@ -2041,7 +2043,14 @@ export default {
       "columnsError": "Sloupce této tabule se nepodařilo načíst z tabulky {table}.",
       "columnsCut": "{count, plural, one {Zobrazuje se jen první sloupec: tabulka, ze které tato tabule bere sloupce, má více řádků.} few {Zobrazují se první # sloupce: tabulka, ze které tato tabule bere sloupce, má více řádků.} many {Zobrazuje se prvních # sloupce: tabulka, ze které tato tabule bere sloupce, má více řádků.} other {Zobrazuje se prvních # sloupců: tabulka, ze které tato tabule bere sloupce, má více řádků.}}",
       "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky.",
-      "days": "{count, plural, one {# den} few {# dny} many {# dne} other {# dní}}"
+      "days": "{count, plural, one {# den} few {# dny} many {# dne} other {# dní}}",
+      "toolbar": "Nástěnka",
+      "person": "Osoba",
+      "everyone": "Všichni",
+      "toolbarCount": "{count, plural, one {# karta} few {# karty} many {# karty} other {# karet}}",
+      "toolbarCountNamed": "{other}: {count}",
+      "daysLabelled": "{days} {label}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} událost} few {{n} události} many {{n} události} other {{n} událostí}}",

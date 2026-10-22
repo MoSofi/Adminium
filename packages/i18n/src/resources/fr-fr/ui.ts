@@ -1820,7 +1820,9 @@ export default {
         "gone": "Cette image n’est plus disponible.",
         "cancel": "Annuler",
         "close": "Fermer"
-      }
+      },
+      "deleteReason": "Pourquoi est-ce supprimé ?",
+      "deleteReasonOptional": "Pourquoi est-ce supprimé ? (facultatif)"
     },
     "queue": {
       "allSegment": "Tout",
@@ -2041,7 +2043,14 @@ export default {
       "columnsError": "Les colonnes de ce tableau n’ont pas pu être lues depuis {table}.",
       "columnsCut": "{count, plural, one {Seule la première colonne est affichée : la table dont ce tableau tire ses colonnes compte davantage de lignes.} other {Seules les # premières colonnes sont affichées : la table dont ce tableau tire ses colonnes compte davantage de lignes.}}",
       "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes.",
-      "days": "{count, plural, one {# jour} other {# jours}}"
+      "days": "{count, plural, one {# jour} other {# jours}}",
+      "toolbar": "Tableau",
+      "person": "Personne",
+      "everyone": "Tout le monde",
+      "toolbarCount": "{count, plural, one {# carte} other {# cartes}}",
+      "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
+      "daysLabelled": "{days} {label}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} événement} other {{n} événements}}",

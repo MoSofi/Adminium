@@ -3464,7 +3464,6 @@ export default {
     "roleTables": {
       "summary": "Die Rollen von {app} erhalten Zugriff auf {count, plural, one {# seiner Tabellen} other {# seiner Tabellen}}. Sehen Sie, was sie lesen und ändern.",
       "unchecked": "{addOn} ist noch nicht auf diesem Server, daher sehen Sie, was {app} verlangt. Das Add-on erlaubt vielleicht weniger.",
-      "keyAndLinks": "Beim Lesen werden auch der Schlüssel jeder Zeile und ihre Verknüpfungen zu anderen Zeilen angezeigt.",
       "everyColumn": "jede Spalte",
       "reads": "Liest {columns}",
       "readsAll": "Liest jede Spalte",
@@ -3484,7 +3483,8 @@ export default {
         "read": "lesen",
         "create": "Zeilen hinzufügen",
         "update": "Zeilen ändern"
-      }
+      },
+      "keyShown": "Beim Lesen wird auch der Schlüssel jeder Zeile angezeigt. Eine Verknüpfung zu einer anderen Zeile wird nur angezeigt, wo sie aufgeführt ist."
     }
   },
   "featurePage": {

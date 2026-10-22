@@ -1271,6 +1271,14 @@
     "status": "mt",
     "srcHash": "5029140b2ce4"
   },
+  "assistant.proposal.delete.noReason": {
+    "status": "mt",
+    "srcHash": "35e691fbc2a5"
+  },
+  "assistant.proposal.delete.reason": {
+    "status": "mt",
+    "srcHash": "a84035f5ca02"
+  },
   "assistant.proposal.delete.reference": {
     "status": "mt",
     "srcHash": "6d9410b039c3"
@@ -23619,9 +23627,9 @@
     "status": "mt",
     "srcHash": "6ac646548519"
   },
-  "studio.appAddOns.roleTables.keyAndLinks": {
+  "studio.appAddOns.roleTables.keyShown": {
     "status": "mt",
-    "srcHash": "3557d42b5b8c"
+    "srcHash": "967d93c546fb"
   },
   "studio.appAddOns.roleTables.notGiven": {
     "status": "mt",
@@ -36223,6 +36231,14 @@
     "status": "mt",
     "srcHash": "e7c9e031e81b"
   },
+  "ui.templates.board.daysLabelled": {
+    "status": "mt",
+    "srcHash": "ae9d66928d91"
+  },
+  "ui.templates.board.everyone": {
+    "status": "mt",
+    "srcHash": "c756f6af1f03"
+  },
   "ui.templates.board.invalidLayout": {
     "status": "mt",
     "srcHash": "00212c6295c1"
@@ -36246,6 +36262,26 @@
   "ui.templates.board.noRowsTitle": {
     "status": "mt",
     "srcHash": "0b96215c8c5e"
+  },
+  "ui.templates.board.person": {
+    "status": "mt",
+    "srcHash": "8c41ae88467f"
+  },
+  "ui.templates.board.secondAmount": {
+    "status": "src",
+    "srcHash": "d8a3ffc0b8cc"
+  },
+  "ui.templates.board.toolbar": {
+    "status": "mt",
+    "srcHash": "e879b0be0190"
+  },
+  "ui.templates.board.toolbarCount": {
+    "status": "mt",
+    "srcHash": "28eb22aade73"
+  },
+  "ui.templates.board.toolbarCountNamed": {
+    "status": "mt",
+    "srcHash": "8fdd94cc986c"
   },
   "ui.templates.builder.blocks.block-approval": {
     "srcHash": "8cc047ac17d3",
@@ -36694,6 +36730,14 @@
   "ui.templates.crud.deletePreflight": {
     "srcHash": "85351b5d756d",
     "status": "mt"
+  },
+  "ui.templates.crud.deleteReason": {
+    "status": "mt",
+    "srcHash": "1b119b37fde0"
+  },
+  "ui.templates.crud.deleteReasonOptional": {
+    "status": "mt",
+    "srcHash": "08cc58fcb3ed"
   },
   "ui.templates.crud.deleteTitle": {
     "srcHash": "0851cf3e8f5c",

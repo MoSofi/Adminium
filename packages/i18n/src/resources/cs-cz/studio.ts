@@ -3464,7 +3464,6 @@ export default {
     "roleTables": {
       "summary": "Role aplikace {app} získají přístup k {count, plural, one {# jeho tabulce} few {# jeho tabulkám} many {# jeho tabulkám} other {# jeho tabulkám}}. Podívejte se, co čtou a mění.",
       "unchecked": "{addOn} na tomto serveru zatím není, proto vidíte, co žádá {app}. Doplněk může povolit méně.",
-      "keyAndLinks": "Čtení zobrazí také klíč každého řádku a jeho odkazy na jiné řádky.",
       "everyColumn": "každý sloupec",
       "reads": "Čte {columns}",
       "readsAll": "Čte každý sloupec",
@@ -3484,7 +3483,8 @@ export default {
         "read": "číst",
         "create": "přidávat řádky",
         "update": "měnit řádky"
-      }
+      },
+      "keyShown": "Čtení zobrazí také klíč každého řádku. Odkaz na jiný řádek se zobrazí jen tam, kde je uveden."
     }
   },
   "featurePage": {

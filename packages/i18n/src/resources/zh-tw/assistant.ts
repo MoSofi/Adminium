@@ -517,7 +517,9 @@ export default {
     },
     "delete": {
       "reference": "{table} 中 {count} 列",
-      "references": "其他列參照了此項：{list}。它們會隨之刪除或變更，與頁面本身的刪除相同。"
+      "references": "其他列參照了此項：{list}。它們會隨之刪除或變更，與頁面本身的刪除相同。",
+      "reason": "原因：{reason}",
+      "noReason": "未說明原因"
     },
     "noneAble": "這些都無法執行",
     "checkAgain": "重新檢查",

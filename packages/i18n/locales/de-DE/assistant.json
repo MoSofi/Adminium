@@ -507,7 +507,9 @@
     },
     "delete": {
       "reference": "{count} in {table}",
-      "references": "Andere Zeilen verweisen darauf: {list}. Sie werden mit entfernt oder geändert, wie beim Löschen auf der Seite selbst."
+      "references": "Andere Zeilen verweisen darauf: {list}. Sie werden mit entfernt oder geändert, wie beim Löschen auf der Seite selbst.",
+      "reason": "Grund: {reason}",
+      "noReason": "Kein Grund angegeben"
     },
     "noneAble": "Nichts davon lässt sich machen",
     "checkAgain": "Erneut prüfen",

@@ -1820,7 +1820,9 @@ export default {
         "gone": "Det billede er ikke længere tilgængeligt.",
         "cancel": "Annuller",
         "close": "Luk"
-      }
+      },
+      "deleteReason": "Hvorfor fjernes den?",
+      "deleteReasonOptional": "Hvorfor fjernes den? (valgfrit)"
     },
     "queue": {
       "allSegment": "Alle",
@@ -2041,7 +2043,14 @@ export default {
       "columnsError": "Tavlens kolonner kunne ikke læses fra {table}.",
       "columnsCut": "{count, plural, one {Kun den første kolonne vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.} other {De første # kolonner vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.}}",
       "noRowsBody": "Kort vises her, så snart tabellen har rækker.",
-      "days": "{count, plural, one {# dag} other {# dage}}"
+      "days": "{count, plural, one {# dag} other {# dage}}",
+      "toolbar": "Tavle",
+      "person": "Person",
+      "everyone": "Alle",
+      "toolbarCount": "{count, plural, one {# kort} other {# kort}}",
+      "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
+      "daysLabelled": "{days} {label}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}",

@@ -517,7 +517,9 @@ export default {
     },
     "delete": {
       "reference": "{count} in {table}",
-      "references": "Other rows refer to this: {list}. They go or change with it, as on the page’s own delete."
+      "references": "Other rows refer to this: {list}. They go or change with it, as on the page’s own delete.",
+      "reason": "Why: {reason}",
+      "noReason": "No reason given"
     },
     "noneAble": "None of this can be done",
     "checkAgain": "Check again",

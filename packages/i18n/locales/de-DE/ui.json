@@ -1810,7 +1810,9 @@
         "gone": "Dieses Bild ist nicht mehr verfügbar.",
         "cancel": "Abbrechen",
         "close": "Schließen"
-      }
+      },
+      "deleteReason": "Warum wird es entfernt?",
+      "deleteReasonOptional": "Warum wird es entfernt? (optional)"
     },
     "queue": {
       "allSegment": "Alle",
@@ -2031,7 +2033,14 @@
       "columnsError": "Die Spalten dieses Boards konnten nicht aus {table} gelesen werden.",
       "columnsCut": "{count, plural, one {Es wird nur die erste Spalte angezeigt: Die Tabelle, aus der dieses Board seine Spalten nimmt, hat mehr Zeilen.} other {Es werden die ersten # Spalten angezeigt: Die Tabelle, aus der dieses Board seine Spalten nimmt, hat mehr Zeilen.}}",
       "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat.",
-      "days": "{count, plural, one {# Tag} other {# Tage}}"
+      "days": "{count, plural, one {# Tag} other {# Tage}}",
+      "toolbar": "Board",
+      "person": "Person",
+      "everyone": "Alle",
+      "toolbarCount": "{count, plural, one {# Karte} other {# Karten}}",
+      "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
+      "daysLabelled": "{days} {label}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} Termin} other {{n} Termine}}",
