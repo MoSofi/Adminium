@@ -27,6 +27,12 @@
  *
  * `payAddress` is the one answer: the pay links, the record panel, the setup
  * page's reachability card and the webhook addresses all read it.
+ *
+ * So while none is saved, changing the public address ("Address in email
+ * links") moves every pay link and webhook address with it: that is a pay
+ * address change, audited and alarmed as one ({@link payAddressMovedWith}).
+ * Learning the public address for the first time, or clearing it, sends no
+ * money anywhere new, and raises nothing.
  */
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -135,6 +141,19 @@ export async function payAddress(meta: MetaDb): Promise<string | null> {
   if (saved !== null) return saved;
   const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
   return typeof publicOrigin === 'string' && publicOrigin !== '' ? normalizePublicOrigin(publicOrigin) : null;
+}
+
+/**
+ * Where the pay address moves when the public address goes from `before` to
+ * `after`: only while no pay address is saved (it then follows the public
+ * one), and only from one address to another. Null when nothing moves.
+ */
+export async function payAddressMovedWith(meta: MetaDb, before: string | null, after: string | null): Promise<{ from: string; to: string } | null> {
+  const from = before === null ? null : normalizePublicOrigin(before);
+  const to = after === null ? null : normalizePublicOrigin(after);
+  if (from === null || to === null || from === to) return null;
+  if ((await savedPayAddress(meta)) !== null) return null;
+  return { from, to };
 }
 
 /** "Can customers reach the pay page?", about the saved pay address. */
