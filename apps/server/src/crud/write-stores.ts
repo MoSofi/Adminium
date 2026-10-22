@@ -3,8 +3,9 @@
  * What the write service reads from the meta store, for a service built over
  * one: the counters a running number claims from, the connection's time zone
  * a rule reads its clock in, the settings a rule reads — the connection's
- * currency and an add-on's settings — and the roles of whoever writes, for a
- * move only some roles may make.
+ * currency and an add-on's settings — the roles of whoever writes, for a
+ * move only some roles may make, and who may be listed against what (the
+ * listing rule, `row-writes.ts`).
  */
 import { offeredRoles } from '../rbac/app-parts.js';
 import type { Manifest } from '@adminium/manifest';
@@ -14,6 +15,7 @@ import { SUPER_ADMIN_SLUG } from '../rbac/resolver.js';
 import type { WriteServiceOptions } from './write-service.js';
 import { installedCustomerKey } from '../public-api/customer-key.js';
 import { createFileColumnJudge } from '../files/column-judge.js';
+import { assertListedCanOpen } from './row-writes.js';
 
 /**
  * One of an add-on's settings: the value the install saved, else the default
@@ -36,8 +38,10 @@ export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: stri
   return 'default' in declared ? declared.default : undefined;
 }
 
-export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files'> {
+export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'listings'> {
   return {
+    // A row that lists somebody against rows of other tables lists only somebody who can open them, whoever writes it.
+    listings: (target, values, before) => assertListedCanOpen(meta, target.db, target.view.model, target.connectionId, target.table.id, values, before),
     // Which files a file column may be given: found in the meta store; a picture is shown clean only where the bytes can be read (the server's own service).
     files: createFileColumnJudge({ meta }),
     // A customer's key, under the secret the server said as it started: every service built from these stores makes the same one.

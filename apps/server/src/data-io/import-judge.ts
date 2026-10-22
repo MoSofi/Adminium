@@ -26,7 +26,9 @@
  *   refused `ALREADY_EXISTS` whoever's that row is: the database would refuse
  *   the insert, and says no more than this does.
  * - WHAT A ROW NAMES. For somebody held to some rows, each link names a row
- *   they reach and each staff column a person the table lets them name.
+ *   they reach and each staff column a person the table lets them name. For
+ *   anybody, a row that lists a person against rows of other tables (the
+ *   people on a deal) lists somebody who can open them: the listing rule.
  * - THE TABLE'S RULES, through the write service's fill and check. A line
  *   that becomes a row is a create by the person who brought the file, and a
  *   line that changes one a change by them: a default, a code, a copy, a
@@ -48,7 +50,7 @@ import { UNMASK_PERMISSION, type Row } from '../crud/mask.js';
 import { assertImportReadable, readViewOf } from '../crud/read-view.js';
 import { rowLimitContextForUser, rowLimitContextOf, rowTestOf, venueDayOf } from '../crud/row-limit-context.js';
 import { assertNotPrivate, writerReaches, type RowLimitContext, type RowTest } from '../crud/row-limit.js';
-import { assertLinksReached, assertLinksToUnreadTables, assertStaffColumns, type LinkWriter } from '../crud/row-writes.js';
+import { assertLinksReached, assertLinksToUnreadTables, assertListedCanOpen, assertStaffColumns, setsListing, type LinkWriter } from '../crud/row-writes.js';
 import {
   HookFailedError,
   HookRejectedError,
@@ -349,9 +351,22 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     throw new ValidationFailedError(`Rows of ${table.name} are matched on a column no two rows share (its key, or a unique column): ${match.name} is neither.`, { matchColumn: match.name });
   }
 
-  /** What one row names, judged for a requester who reaches only some rows: nothing for anybody else (a file brought in as history keeps what it names). */
+  /**
+   * Whether the file's table lists people against rows of other tables (the
+   * people on a deal): then each row is asked the listing rule whoever brings
+   * it in, somebody nothing limits too (`assertListedCanOpen`).
+   */
+  const listing = view.model.tables.find((candidate) => candidate.id === table.id)?.columns.some((column) => column.staff === true && setsListing(view.model, table.id, [column.name])) === true;
+  /**
+   * What one row names, judged for a requester who reaches only some rows. For
+   * anybody else a file brought in keeps what it names, but for whom it lists
+   * against rows they cannot open (the listing rule holds for every writer).
+   */
   const judge = async (values: Row, before: Row | null): Promise<void> => {
-    if (!held) return;
+    if (!held) {
+      if (listing) await assertListedCanOpen(deps.meta, db, view.model, row.connectionId, table.id, values, before);
+      return;
+    }
     await assertLinksReached(reach, db, table.id, values, before);
     if (writer !== null) await assertLinksToUnreadTables(view.model, row.connectionId, writer, db, table.id, values, before);
     await assertStaffColumns(reach, deps.meta, db, view.model, table.id, values, before, { connectionId: row.connectionId });
@@ -482,7 +497,7 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
    * wrote nothing the line did not bring.
    */
   const judgedAgain = async (values: Row, brought: Row, before: Row | null): Promise<LineVerdict | null> => {
-    if (!held || !Object.keys(values).some((column) => !Object.prototype.hasOwnProperty.call(brought, column) || values[column] !== brought[column])) return null;
+    if (!(held || listing) || !Object.keys(values).some((column) => !Object.prototype.hasOwnProperty.call(brought, column) || values[column] !== brought[column])) return null;
     try {
       await judge(values, before);
       return null;
