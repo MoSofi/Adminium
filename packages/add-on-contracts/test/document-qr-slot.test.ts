@@ -14,9 +14,8 @@ const square = (size: number) => Array.from({ length: size }, (_, row) => Array.
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==';
 
 describe('a qr slot', () => {
-  it('is one of the slot types, after every one there was', () => {
-    expect(OUTLINE_SLOT_TYPES.slice(0, -1)).toEqual(['text', 'text[]', 'date', 'email', 'money', 'percent', 'currency', 'number', 'collection']);
-    expect(OUTLINE_SLOT_TYPES.at(-1)).toBe('qr');
+  it('is one of the slot types, after every one there was before it', () => {
+    expect(OUTLINE_SLOT_TYPES.slice(0, 10)).toEqual(['text', 'text[]', 'date', 'email', 'money', 'percent', 'currency', 'number', 'collection', 'qr']);
   });
 
   it('parses in an outline, beside the older types, and as a collection column', () => {

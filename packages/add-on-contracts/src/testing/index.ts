@@ -19,6 +19,7 @@ import { artworkRefSchema, type ArtworkSource, type JobSpec } from '../artwork-s
 import {
   documentKindSchema,
   documentOutlineSchema,
+  documentPictureValueSchema,
   documentQrValueSchema,
   isDocumentError,
   localizedTextSchema,
@@ -27,6 +28,7 @@ import {
   type DocumentKind,
   type DocumentOutline,
   type DocumentPaper,
+  type DocumentPictureValue,
   type DocumentQrValue,
   type DocumentRenderer,
   type DocumentSubject,
@@ -362,6 +364,17 @@ export const SAMPLE_DOCUMENT_QR: DocumentQrValue = {
   png: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOgAAADoAQAAAADN0pXVAAAAsElEQVR42u3YQQ6AIAwEwP3/p9egbSmonHWpMQYyXoTSguDqQmlp6dcV19Uauaer9umg3QMoavv684ne20Hpb22hHgP6mptva0FILX/Bx+Ix1+loFCesapmORpzjWt+0wdDVqM2Wvymt7Hk75XBhtTm3dd7DXlqnxKasKZvF/lpYh/qEWOG6yrwRwQbqAR6Hiltul9R+TOY+6iVLWSPax/FQ1eE0wXn25bT+XpaW/lIPV7bmFz5b7OwAAAAASUVORK5CYII=',
 };
 
+/**
+ * A `picture` slot's value as the host hands it over: a 1 × 1 PNG, as the
+ * host reads it from a file a column of the row holds (a drawn signature).
+ */
+export const SAMPLE_DOCUMENT_PICTURE: DocumentPictureValue = {
+  mediaType: 'image/png',
+  dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==',
+  width: 1,
+  height: 1,
+};
+
 export interface DocumentRendererFixtures {
   /** The add-on's own non-secret values, as the engine would pass them. */
   settings: Readonly<Record<string, unknown>>;
@@ -673,6 +686,21 @@ export function describeDocumentRenderer(
           const value = subject.fields[slot.id];
           if (value === undefined || value === null) continue;
           expect(documentQrValueSchema.safeParse(value).success, `${kind.id}.${slot.id}`).toBe(true);
+        }
+      }
+    });
+
+    it('is given a picture as the host hands it over: a PNG or a JPEG, its size, never in a list', () => {
+      // The host reads the file and judges it (`DocumentPictureValue`); a fixture holding anything else tests a shape no host sends.
+      for (const kind of kinds) {
+        const outline = impl.describe(kind.id);
+        const subject = fixtures.subject(kind);
+        for (const slot of outline.slots) {
+          expect((slot.columns ?? []).some((column) => column.type === 'picture'), `${kind.id}.${slot.id}[] holds a picture`).toBe(false);
+          if (slot.type !== 'picture') continue;
+          const value = subject.fields[slot.id];
+          if (value === undefined || value === null) continue;
+          expect(documentPictureValueSchema.safeParse(value).success, `${kind.id}.${slot.id}`).toBe(true);
         }
       }
     });

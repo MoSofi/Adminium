@@ -22,6 +22,7 @@ import { describe, expect, it } from 'vitest';
 import {
   describeArtworkSource,
   describeDocumentRenderer,
+  SAMPLE_DOCUMENT_PICTURE,
   SAMPLE_DOCUMENT_QR,
   describeProductPersonalizer,
   describeShippingCarrier,
@@ -271,8 +272,8 @@ const DOCUMENT_SUBJECTS: Readonly<Record<string, () => DocumentSubject>> = {
     business: BUSINESS,
     entity: null,
     number: 'TK-0007',
-    // A ticket's door code, as the host hands a `qr` slot over.
-    fields: { title: 'Collection ticket', reference: 'ORD-4118', code: SAMPLE_DOCUMENT_QR },
+    // A ticket's door code, as the host hands a `qr` slot over, and a stamp as it hands a `picture` slot over.
+    fields: { title: 'Collection ticket', reference: 'ORD-4118', code: SAMPLE_DOCUMENT_QR, stamp: SAMPLE_DOCUMENT_PICTURE },
     collections: {},
   }),
   note: () => ({

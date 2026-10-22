@@ -643,6 +643,7 @@ const REFERENCE_OUTLINES: Readonly<Record<string, DocumentOutline>> = {
       { id: 'title', label: everyLocale('Title'), type: 'text', required: true },
       { id: 'reference', label: everyLocale('Reference'), type: 'text', required: true },
       { id: 'code', label: everyLocale('Door code'), type: 'qr', required: false },
+      { id: 'stamp', label: everyLocale('Stamp'), type: 'picture', required: false },
     ],
   },
   receipt: {
@@ -774,6 +775,12 @@ export class ReferenceDocumentRenderer implements DocumentRenderer {
       // A QR code: a provider that draws squares reads `modules`; this one prints the code it carries.
       if (slot.type === 'qr') {
         lines.push(`${slot.label['en-US']}: ${(raw as { text: string }).text}`);
+        continue;
+      }
+      // A picture: a writer that draws it reads `dataUrl`; this one prints its size.
+      if (slot.type === 'picture') {
+        const picture = raw as { width: number; height: number };
+        lines.push(`${slot.label['en-US']}: ${String(picture.width)}x${String(picture.height)}`);
         continue;
       }
       lines.push(`${slot.label['en-US']}: ${Array.isArray(raw) ? raw.join(', ') : String(raw)}`);
