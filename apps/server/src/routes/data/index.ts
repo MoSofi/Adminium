@@ -2682,7 +2682,6 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * the audit page, the install's owner's, keeps them.
      */
     async function historyOf(ctx: DataContext, pk: Row, query: { limit: number; cursor?: string | undefined }) {
-      {
         const keys = auditEntityKeyOf(recordRef(ctx, pk));
         let q = meta.db
           .selectFrom('adminium_audit_log')
@@ -2747,7 +2746,6 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           }),
           nextCursor: rows.length > limit && last !== undefined ? Buffer.from(`${String(last.createdAt)}:${last.id}`, 'utf8').toString('base64url') : null,
         };
-      }
     }
 
     /*
