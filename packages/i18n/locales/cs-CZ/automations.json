@@ -301,7 +301,8 @@
     "columnNone": "Tato tabulka nemá sloupec, který obsahuje pracovníka.",
     "columnEmpty": "Záznam, který v tom sloupci nikoho nemá, nikoho neupozorní a běh to uvede.",
     "urgent": "Naléhavé",
-    "urgentBody": "Oznámí se ihned, i v době klidu dané osoby"
+    "urgentBody": "Oznámí se ihned, i v době klidu dané osoby",
+    "languages": "Napsáno také v jazycích {languages}: každý ji dostane ve svém jazyce. Změnou názvu nebo zprávy zde ji všichni dostanou v jednom jazyce."
   },
   "rec": {
     "table": "Tabulka",

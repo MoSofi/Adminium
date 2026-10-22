@@ -301,7 +301,8 @@
     "columnNone": "Cette table n’a aucune colonne contenant un membre du personnel.",
     "columnEmpty": "Un enregistrement sans personne dans cette colonne ne prévient personne, et l’exécution le dit.",
     "urgent": "Urgent",
-    "urgentBody": "Signalé aussitôt, même pendant les heures calmes d’une personne"
+    "urgentBody": "Signalé aussitôt, même pendant les heures calmes d’une personne",
+    "languages": "Également rédigée en {languages} : chaque personne la reçoit dans sa langue. Modifier ici le titre ou le message l’écrit dans une seule langue pour tout le monde."
   },
   "rec": {
     "table": "Table",

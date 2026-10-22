@@ -301,7 +301,8 @@
     "columnNone": "Diese Tabelle hat keine Spalte, die ein Teammitglied enthält.",
     "columnEmpty": "Ein Datensatz ohne Person in dieser Spalte benachrichtigt niemanden, und der Lauf vermerkt das.",
     "urgent": "Dringend",
-    "urgentBody": "Wird sofort gemeldet, auch in den Ruhezeiten einer Person"
+    "urgentBody": "Wird sofort gemeldet, auch in den Ruhezeiten einer Person",
+    "languages": "Auch verfasst in {languages}: Jede Person erhält die Mitteilung in ihrer Sprache. Wenn Sie hier den Titel oder die Nachricht ändern, gilt ein Text in einer Sprache für alle."
   },
   "rec": {
     "table": "Tabelle",

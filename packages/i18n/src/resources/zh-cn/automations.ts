@@ -311,7 +311,8 @@ export default {
     "columnNone": "此表没有保存员工的列。",
     "columnEmpty": "该列为空的记录不会通知任何人，运行记录中会注明。",
     "urgent": "紧急",
-    "urgentBody": "立即通知，即使在对方的免打扰时段"
+    "urgentBody": "立即通知，即使在对方的免打扰时段",
+    "languages": "另有{languages}版本：每个人都会收到自己语言的通知。在此更改标题或消息后，所有人看到的都将是同一种语言。"
   },
   "rec": {
     "table": "表",

@@ -2719,6 +2719,10 @@
     "status": "mt",
     "srcHash": "89b173633140"
   },
+  "automations.notif.languages": {
+    "status": "mt",
+    "srcHash": "fbe94c65fbfa"
+  },
   "automations.notif.roles": {
     "status": "mt",
     "srcHash": "128a496a5d62"
