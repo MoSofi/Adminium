@@ -531,7 +531,8 @@ export function roleAddOnTableIssues(roles: readonly { key: string; tables?: rea
  * from under it, or lean on it and stop working: each is refused where it is
  * written. A private table's rows are read on the screen by the people they
  * belong to; nothing is kept from them elsewhere, nothing else is reached
- * through them, and nothing Adminium does by itself runs on them.
+ * through them but by those same people, and nothing Adminium does by itself
+ * runs on them.
  */
 export function privateShapeIssues(
   tables: readonly {
@@ -548,6 +549,14 @@ export function privateShapeIssues(
   if (held.size === 0) return [];
   const out: ReferenceIssue[] = [];
   const said = (ref: string, what: string): string => `"${ref}" is private: only the people its rows belong to read it, so ${what}`;
+  /** The staff columns that say whose a private table's row is: its own `belongs` columns. */
+  const ownPeople = (ref: string): ReadonlySet<string> =>
+    new Set(
+      (tables.find((table) => table.ref === ref)?.belongs ?? []).flatMap((way) => {
+        const own = way as { column?: unknown; person?: unknown };
+        return typeof way === 'object' && way !== null && typeof own.column === 'string' && own.person === undefined ? [own.column] : [];
+      }),
+    );
   tables.forEach((table, t) => {
     const at = (...rest: (string | number)[]): (string | number)[] => ['requiredSchema', 'tables', t, ...rest];
     const pointsAt = (column: string): string | undefined => table.columns.find((candidate) => candidate.ref === column)?.references;
@@ -580,7 +589,17 @@ export function privateShapeIssues(
       if (through?.table !== undefined && held.has(through.table)) out.push({ path: at('belongs', w, 'through', 'table'), message: said(through.table, "no other table's rows are reached through it") });
       const column = way as { column?: string; person?: string };
       const person = column.column !== undefined && column.person !== undefined ? pointsAt(column.column) : undefined;
-      if (person !== undefined && held.has(person)) out.push({ path: at('belongs', w, 'column'), message: said(person, "no other table's rows are reached through it") });
+      /*
+       * A ROW HUNG ON A PRIVATE ROW, BY THAT ROW'S OWN PEOPLE. A link to a
+       * private row and one of the columns that say whose that row is (its
+       * own `belongs`): the person it names already reads the private row,
+       * so the way reaches nobody new — a step of a coaching plan is the
+       * rep's and the manager's whose plan it is. Any other person column of
+       * the private row would reach somebody the row is not theirs.
+       */
+      if (person !== undefined && held.has(person) && !ownPeople(person).has(column.person!)) {
+        out.push({ path: at('belongs', w, 'person'), message: said(person, `another table's rows are reached through it only by a person its own rows name: "${column.person!}" is not one of its "belongs" columns`) });
+      }
     });
   });
   return out;

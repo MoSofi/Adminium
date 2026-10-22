@@ -240,8 +240,18 @@ class Build {
     if (person === undefined) return found.staff === true ? judge(this.ref(alias, column)) : null;
     const linked = this.target(table, column);
     if (linked === null || linked.table.columns.find((candidate) => candidate.name === person)?.staff !== true) return null;
+    /*
+     * THROUGH A PRIVATE ROW, ONLY ITS OWN PEOPLE. A row hung on a private one
+     * (a step of a one-to-one) is reached by the people that row names, as
+     * the private row itself is: never by whoever leads them. A manager's
+     * team reach does not open the steps of a one-to-one another manager
+     * holds with her rep.
+     */
+    const asked = ids === 'anybody' || linked.table.private !== true ? ids : ids.filter((one) => one === this.ctx.set.reach?.userId);
+    if (asked !== 'anybody' && asked.length === 0) return never();
+    const judged = (ref: RawBuilder<unknown>): Bool => (asked === 'anybody' ? holdsSomeone(ref) : this.among(ref, asked));
     const inner = this.alias();
-    return this.exists(linked.table, inner, [sql<SqlBool>`${this.ref(inner, linked.key)} = ${this.ref(alias, column)}`, judge(this.ref(inner, person))]);
+    return this.exists(linked.table, inner, [sql<SqlBool>`${this.ref(inner, linked.key)} = ${this.ref(alias, column)}`, judged(this.ref(inner, person))]);
   }
 
   /** The listing rows that count for this row today (and while their `while` column holds what it names), as conditions on the listing's alias; null when the way cannot be read. */

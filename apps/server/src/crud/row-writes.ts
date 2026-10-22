@@ -290,6 +290,11 @@ function setRuleOf(table: EffectiveTable, column: string): { set: 'self' | 'team
   return { set: way.set ?? 'self', ...(way.person === undefined ? {} : { person: way.person }) };
 }
 
+/** Every way a link column says whose a row is by a person of the row it points at, with what a limited writer may set it to. */
+function personWaysOf(table: EffectiveTable, column: string): { set: 'self' | 'team' | 'anyone'; person: string }[] {
+  return (table.belongs ?? []).flatMap((way) => ('column' in way && way.column === column && way.person !== undefined ? [{ set: way.set ?? 'self', person: way.person }] : []));
+}
+
 export interface StaffWriteOptions {
   /** A record's own hand-over: any person who can sign in may be named. */
   handOver?: boolean | undefined;
@@ -442,7 +447,7 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
       continue;
     }
     if (deciding.has(column) && !(await holdsItself())) refuse(column, 'not-theirs-to-give');
-    const rule = setRuleOf(table, column);
+    let rule = setRuleOf(table, column);
     // A link to a person's row: who that row holds is who is being named.
     const viaPerson = rule.person !== undefined && found.staff !== true;
     if (found.staff !== true && !viaPerson) continue;
@@ -452,10 +457,32 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
       if (reaches === null) continue;
       const relation = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === column && r.to.columns.length === 1);
       if (relation === undefined) refuse(column, 'staff-column');
-      const held = await db.selectFrom(relation!.to.tableId as never).select(sql.ref(rule.person!).as('person')).where(sql.ref(relation!.to.columns[0]!), '=', value as never).limit(1).executeTakeFirst();
+      /*
+       * One link may say whose a row is by more than one person of the row it
+       * points at: a step of a one-to-one is the rep's and the manager's. The
+       * link is the writer's to set when any one of those ways names them.
+       */
+      const ways = personWaysOf(table, column);
+      const held = (await db
+        .selectFrom(relation!.to.tableId as never)
+        .select(ways.map((way, n) => sql.ref(way.person).as(`p${String(n)}`)))
+        .where(sql.ref(relation!.to.columns[0]!), '=', value as never)
+        .limit(1)
+        .executeTakeFirst()) as Row | undefined;
       // No such row is the link's own refusal, told by the link check or the database.
       if (held === undefined) continue;
-      named = (held as { person: unknown }).person;
+      const people = ways.map((way, n) => ({ set: way.set, named: held[`p${String(n)}`] })).filter((one) => !empty(one.named));
+      if (people.length > 1) {
+        if (opts.handOver === true || people.some((one) => one.set === 'anyone')) continue;
+        if (me === null) refuse(column, 'staff-column');
+        let theirs = false;
+        for (const one of people) if (String(one.named) === me || (one.set === 'team' && (await leads(String(one.named))))) theirs = true;
+        if (!theirs) refuse(column, 'staff-column');
+        continue;
+      }
+      // One way names somebody (or none does): judged below as that way's person, as ever.
+      named = people[0]?.named ?? null;
+      if (people[0] !== undefined) rule = { ...rule, set: people[0].set };
     }
     if (empty(named)) {
       // Nobody's: a row a limited writer could then not see, unless their reach includes those (or, for a stored row, every
