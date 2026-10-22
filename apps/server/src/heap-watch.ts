@@ -42,6 +42,17 @@ export const HEAP_LOG_EVERY_MS = 60 * 60_000;
 
 const MB = 1024 * 1024;
 
+/**
+ * The heap ceiling to suggest next: the next power of two (512 MB at least) above
+ * what Node allows now plus some room — 512 from the ~259 MB Node picks on a 1 GB
+ * machine, 1024 from the image's own 512.
+ */
+export function nextHeapMb(limitMb: number): number {
+  let next = 512;
+  while (next <= limitMb + 128) next *= 2;
+  return next;
+}
+
 export interface HeapReading {
   /** The heap in use, in MB. */
   usedMb: number;
@@ -121,8 +132,8 @@ export function watchHeap(log: HeapLog, options: HeapWatchOptions = {}): () => v
       log.warn(
         { heapUsedMb: reading.usedMb, heapLimitMb: reading.limitMb, rssMb: reading.rssMb },
         `The server's JavaScript heap is nearly full: ${String(reading.usedMb)} MB in use of the ${String(reading.limitMb)} MB Node.js allows it, ` +
-          'and it stops when the heap runs out. Give it more: set NODE_OPTIONS=--max-old-space-size=512 ' +
-          '(and let the machine or container have at least 768 MB).',
+          `and it stops when the heap runs out. Give it more: set NODE_OPTIONS=--max-old-space-size=${String(nextHeapMb(reading.limitMb))} ` +
+          `(and let the machine or container have at least ${String(nextHeapMb(reading.limitMb) + 512)} MB).`,
       );
     }
     tightBefore = tight;

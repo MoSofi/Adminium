@@ -30,12 +30,13 @@ package installs differ.
 
 ## What you need
 
-- A Linux server with systemd, and an account that can use `sudo`, with **at
-  least 1 GB of memory** — enough for Adminium, PostgreSQL and Caddy together.
-  512 MB is not: Adminium alone peaks around 220 MB on its first boot, and on a
-  box that size a reverse proxy, a database and the distribution's own daemons
-  leave it no headroom. Droplets and most small VPSes ship without swap, so
-  there is nothing to absorb the spike.
+- A Linux server with systemd, and an account that can use `sudo`, with **2 GB
+  of memory**, or **1 GB with swap** turned on — enough for Adminium, PostgreSQL
+  and Caddy together. Adminium holds about 245 MB of JavaScript heap from boot,
+  and needs a 512 MB heap ceiling to work in: set
+  `NODE_OPTIONS=--max-old-space-size=512` for its service (the Docker image sets
+  it for you). Droplets and most small VPSes ship without swap; add a swap file
+  if you stay on 1 GB.
 - A domain name whose DNS record points at the server, with ports 80 and 443
   open. Caddy needs both to get a certificate.
 - A database for Adminium's own tables, the meta store. This page puts
@@ -167,6 +168,7 @@ After=network-online.target postgresql.service
 User=adminium
 Group=adminium
 EnvironmentFile=/etc/adminium/adminium.env
+Environment=NODE_OPTIONS=--max-old-space-size=512
 ExecStart=/usr/bin/node /opt/adminium/node_modules/@adminiumjs/adminium/dist/cli/index.js start
 WorkingDirectory=/var/lib/adminium
 StateDirectory=adminium
@@ -187,6 +189,9 @@ What the lines do:
 
 - **`ExecStart`** runs the CLI's entry file with `start`. `start` applies any
   pending meta migrations, then serves.
+- **`Environment=NODE_OPTIONS=…`** gives Node a 512 MB heap ceiling. Adminium
+  holds about 245 MB of heap from boot, and on a 1 or 2 GB server Node would
+  otherwise pick a ceiling near 256 MB, which a few hours of use fill.
 - **`StateDirectory=adminium`** creates `/var/lib/adminium` and gives it to the
   `adminium` user. Because of `ProtectSystem=strict`, it is the only place the
   service can write.

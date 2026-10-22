@@ -181,6 +181,11 @@ describe('Dockerfile', () => {
     for (const from of froms) expect(from).not.toMatch(/alpine|musl/i);
   });
 
+  it('gives Node a 512 MB heap ceiling by default (it boots at ~245 MB; a small machine would give it ~256)', () => {
+    const runtime = dockerfile.slice(dockerfile.indexOf('FROM node:22-slim'));
+    expect(runtime).toMatch(/^\s*NODE_OPTIONS=--max-old-space-size=512 \\$/m);
+  });
+
   it('runs as a non-root user', () => {
     const user = dockerfileInstructions.filter((line) => /^USER /i.test(line)).at(-1);
     expect(user).toBeDefined();

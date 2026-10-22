@@ -7,7 +7,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { HEAP_FIRST_LOOK_MS, HEAP_LOG_EVERY_MS, HEAP_LOOK_EVERY_MS, heapIsTight, readHeap, watchHeap, type HeapReading } from '../src/heap-watch.js';
+import { HEAP_FIRST_LOOK_MS, HEAP_LOG_EVERY_MS, HEAP_LOOK_EVERY_MS, heapIsTight, nextHeapMb, readHeap, watchHeap, type HeapReading } from '../src/heap-watch.js';
 
 function harness(readings: HeapReading[]) {
   let clock = 0;
@@ -112,5 +112,14 @@ describe('the heap watch', () => {
     // --max-old-space-size=512.
     expect(heapIsTight({ usedMb: 240, limitMb: 560, rssMb: 330 })).toBe(false);
     expect(heapIsTight(roomy)).toBe(false);
+  });
+});
+
+describe('the heap it suggests next', () => {
+  it('is 512 MB from the floor Node picks on a small machine, then doubles', () => {
+    expect(nextHeapMb(259)).toBe(512);
+    expect(nextHeapMb(304)).toBe(512);
+    expect(nextHeapMb(524)).toBe(1024);
+    expect(nextHeapMb(1060)).toBe(2048);
   });
 });

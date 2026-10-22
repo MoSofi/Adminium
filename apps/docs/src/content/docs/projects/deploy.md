@@ -107,7 +107,7 @@ services:
     name: my-admin
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: standard
     healthCheckPath: /api/v1/readyz
     envVars:
       - key: ADMINIUM_SECRET
@@ -183,7 +183,7 @@ spec:
         deploy_on_push: true
       dockerfile_path: Dockerfile
       http_port: 4600
-      instance_size_slug: basic-xxs
+      instance_size_slug: basic-xs
       instance_count: 1
       health_check:
         http_path: /api/v1/readyz

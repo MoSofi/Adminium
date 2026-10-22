@@ -61,18 +61,15 @@ primary_region = "iad"
 # Stated explicitly rather than left to Fly's default, which has changed between
 # versions of flyctl and is not something a deployment should inherit.
 #
-# 512 MB, not the 1 GB the docs ask for, and the difference is what else shares
-# the memory. A Fly Machine is a micro-VM running this container and a small init
-# — there is no container daemon and no proxy in here, because Fly terminates TLS
-# at its edge. Adminium is ~165 MB idle and ~220 MB during a first boot. The 1 GB
-# figure is for a machine where YOU run the runtime and a proxy beside the server,
-# which is the VPS-with-Compose shape, not this one.
-#
-# Raise it to '1gb' if your schema is large: the first boot's cost scales with
-# table and column count, Node takes its heap ceiling from the memory it can see,
-# and a Fly Machine has no swap to absorb a spike.
+# 1 GB. A Fly Machine is a micro-VM running this container and a small init —
+# no container daemon and no proxy in here, because Fly terminates TLS at its
+# edge — so the memory is the server's own. Adminium holds ~245 MB of heap from
+# boot and the image gives Node a 512 MB heap ceiling; 1 GB backs it. 512 MB is
+# not enough: Node then picks a ~256 MB ceiling, which a few hours of use fill,
+# and a Fly Machine has no swap. (The 2 GB the docs ask for is for a machine where
+# YOU run the runtime and a proxy beside the server.) Raise it for a large schema.
 [[vm]]
-  memory = '512mb'
+  memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
 

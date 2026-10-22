@@ -85,17 +85,13 @@ spec:
         # else. Take a database backup before bumping this.
         tag: 0.3.27
       http_port: 4600
-      # 512 MB, which is enough: this is the limit on THIS CONTAINER, and App
-      # Platform's own runtime and edge are not charged to it. Adminium is
-      # ~165 MB idle and ~220 MB during a first boot. The 1 GB the docs ask for
-      # is for a machine where YOU run the container runtime and a proxy next to
-      # the server — a Droplet with Compose — not for a platform that runs the
-      # container for you.
-      #
-      # Pick a bigger size if your schema is large: the first boot's cost scales
-      # with table and column count, and Node takes its heap ceiling from the
-      # container limit, so 512 MB caps the old space near 256 MB.
-      instance_size_slug: basic-xxs
+      # basic-xs, 1 GB: the limit on THIS CONTAINER (App Platform's own runtime
+      # and edge are not charged to it). Adminium holds ~245 MB of heap from boot
+      # and the image gives Node a 512 MB heap ceiling; 1 GB backs it. basic-xxs
+      # (512 MB) is not enough: Node then picks a ~256 MB ceiling, which a few
+      # hours of use fill. (The 2 GB the docs ask for is for a Droplet where YOU
+      # run the runtime and a proxy.) Pick a bigger size for a large schema.
+      instance_size_slug: basic-xs
       instance_count: 1
       health_check:
         http_path: /api/v1/readyz
