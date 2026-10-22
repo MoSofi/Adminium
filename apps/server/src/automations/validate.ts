@@ -660,6 +660,21 @@ export function resolveRule(
     }
   }
 
+  // A code no staff member reads (`code.hiddenFromStaff`, an order's own link) is no placeholder of a rule: what a rule
+  // writes reaches whoever its author says, and a run leaves it as written. Refused at the save, the column named:
+  // the record's (`{{record.x}}`, `{{x}}`, `{{was.x}}`) or a linked row's (`{{link.x}}`, `{{record.link.x}}`).
+  if (table !== null) {
+    for (const node of flattenNodes(graph)) {
+      if (node.kind !== 'action') continue;
+      for (const name of placeholderNames(node.action)) {
+        const hidden = hiddenCodeNamed(name, table, ctx.view);
+        if (hidden !== null) {
+          throw new ValidationFailedError(`Step “${node.title}”: {{${name}}} reads ${hidden}, a code staff never see, and a rule never carries it.`, { placeholder: name, column: hidden, reason: 'hidden-code' });
+        }
+      }
+    }
+  }
+
   for (const node of flattenNodes(graph)) {
     const where = `Step “${node.title}”`;
     if (node.kind === 'action') checkAction(node.action, table, ctx, where);
@@ -675,7 +690,10 @@ export function resolveRule(
     } catch {
       return null;
     }
-    return { id: made.id, readable: (column) => (!made.columns.has(column) ? 'none' : made.columns.get(column)!.unreadable === true || made.columns.get(column)!.secret || made.columns.get(column)!.masked ? 'hidden' : 'ok') };
+    return {
+      id: made.id,
+      readable: (column) => (!made.columns.has(column) ? 'none' : made.columns.get(column)!.unreadable === true || made.columns.get(column)!.secret || made.columns.get(column)!.masked || codeKeptFromStaff(made, column) ? 'hidden' : 'ok'),
+    };
   })[0];
   if (problem !== undefined) throw new ValidationFailedError(`Step “${problem.title}”: ${problem.message}`, { nodeId: problem.nodeId, reason: 'step-row' });
   // A placeholder that reaches through a link (`{{customer_id.name}}`): the link and the far
@@ -694,6 +712,28 @@ export function resolveRule(
     }
   }
   return table;
+}
+
+/** A code no staff member reads (`code.hiddenFromStaff`). */
+function codeKeptFromStaff(table: ResolvedTable, name: string): boolean {
+  return (table.table as ResolvedTable['table'] | undefined)?.columns?.find((candidate) => candidate.name === name)?.code?.hiddenFromStaff === true;
+}
+
+/**
+ * The code no staff member reads that a placeholder names, as `table.column`, or null: a column of the record
+ * (`record.x`, `x`, `was.x`, or a form of one such as `x.name`), or of the row one of its links names (`link.x`,
+ * `record.link.x`).
+ */
+function hiddenCodeNamed(name: string, table: ResolvedTable, view: SnapshotView | null): string | null {
+  const parts = name.split('.');
+  const rest = parts[0] === 'record' || parts[0] === 'was' ? parts.slice(1) : parts;
+  const own = rest[0];
+  if (own === undefined) return null;
+  if (codeKeptFromStaff(table, own)) return `${table.name}.${own}`;
+  const far = rest[1];
+  if (far === undefined || view === null || !table.columns.has(own)) return null;
+  const target = relatedTarget(view, table, own);
+  return target !== null && codeKeptFromStaff(target.table, far) ? `${target.table.name}.${far}` : null;
 }
 
 /**
