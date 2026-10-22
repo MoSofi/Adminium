@@ -26,7 +26,13 @@
  *                          missing afterwards (the integrity check flags it);
  *   - `disputed`           the customer's bank opened a dispute: it is answered
  *                          in the provider's own dashboard. Checked once per
- *                          dispute: one opened again needs a look again.
+ *                          dispute: one opened again needs a look again;
+ *   - `dispute-lost`       a dispute was lost: the money went back to the
+ *                          customer, recorded as a refund (and the record follows).
+ *
+ * A row's `lookAt` is when what needs a look happened: a dispute's opening,
+ * not the payment's start; a refund's own time. The list is ordered and paged
+ * by `at`.
  *
  * Each row carries what a person needs to read its story without another
  * call: what was asked and what was taken, when it started, settled and was
@@ -50,7 +56,7 @@ export interface PaymentActivityDeps {
   meta: MetaDb;
 }
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed', 'dispute-lost'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found. */
@@ -122,6 +128,8 @@ const rowView = z.object({
   id: z.string(),
   kind: z.enum(['attempt', 'refund']),
   at: z.number(),
+  /** When what needs a look happened (a dispute's opening, a refund's own time); `at` for a row that needs none. */
+  lookAt: z.number(),
   service: z.string(),
   mode: z.enum(['test', 'live']),
   payable: z.object({ kind: z.string(), connectionId: z.string().nullable(), tableName: z.string().nullable(), rowKey: z.string(), label: z.string().nullable() }).nullable(),
@@ -138,14 +146,14 @@ const rowView = z.object({
   times: z.object({ started: z.number(), settled: z.number().nullable(), recorded: z.number().nullable(), updated: z.number() }),
   /** Ids a person may quote to the payment service, or look up. */
   refs: z.object({ attempt: z.string().nullable(), checkout: z.string().nullable(), payment: z.string().nullable(), refund: z.string().nullable() }),
-  /** A refund: made in Adminium (`staff`) or in the service's own dashboard (`provider`). */
-  refundSource: z.enum(['staff', 'provider']).nullable(),
+  /** A refund: made in Adminium (`staff`), in the service's own dashboard (`provider`), or by a lost dispute (`dispute`). */
+  refundSource: z.enum(['staff', 'provider', 'dispute']).nullable(),
   flag: z.object({ code: z.enum(ACTIVITY_FLAGS), reason: z.string().nullable(), message: z.string().nullable() }).nullable(),
   check: z.object({ at: z.number(), by: z.string().nullable(), byName: z.string().nullable(), note: z.string().nullable() }).nullable(),
   /** An attempt that took money: what may still be refunded, and why nothing may now. Null on a refund row. */
   refund: z.object({ refundable: z.string(), refusal: z.object({ code: z.string(), message: z.string() }).nullable() }).nullable(),
-  /** A dispute the provider told of. Its deadline, amount and outcome are read in the provider's dashboard. */
-  dispute: z.object({ state: z.enum(['open', 'closed']), at: z.number(), closedAt: z.number().nullable() }).nullable(),
+  /** A dispute the provider told of; `outcome` once it closed and the provider said how. Its deadline is read in the provider's dashboard. */
+  dispute: z.object({ state: z.enum(['open', 'closed']), at: z.number(), closedAt: z.number().nullable(), outcome: z.enum(['won', 'lost']).nullable() }).nullable(),
 });
 type RowView = z.infer<typeof rowView>;
 const listReply = z.object({ data: z.object({ rows: z.array(rowView), more: z.boolean(), next: z.object({ before: z.number(), beforeId: z.string() }).nullable() }) });
@@ -188,6 +196,7 @@ function attemptRow(attempt: PaymentAttempt, names: Names, now: number): RowView
     id: attempt.id,
     kind: 'attempt',
     at: attempt.createdAt,
+    lookAt: flag?.code === 'disputed' && attempt.dispute !== null ? attempt.dispute.at : attempt.createdAt,
     service: attempt.provider,
     mode: attempt.mode,
     payable: { ...attempt.payable, label: attempt.payableLabel },
@@ -211,6 +220,7 @@ function attemptRow(attempt: PaymentAttempt, names: Names, now: number): RowView
 /** A refund's flag: what kept the record from following it first, then one made at the provider. */
 export function refundFlag(refund: RefundRow): RowView['flag'] {
   if (refund.problemCode !== null) return { code: 'refund-record', reason: refund.problemCode, message: null };
+  if (refund.source === 'dispute') return { code: 'dispute-lost', reason: null, message: null };
   return refund.source === 'provider' ? { code: 'refunded-at-provider', reason: null, message: null } : null;
 }
 
@@ -219,6 +229,7 @@ function refundRow(refund: RefundRow, of: PaymentAttempt | null, names: Names): 
     id: refund.id,
     kind: 'refund',
     at: refund.createdAt,
+    lookAt: refund.createdAt,
     service: refund.provider,
     mode: refund.mode,
     // The record it gave money back on, when it came from an attempt Adminium made.
