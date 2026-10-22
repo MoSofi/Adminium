@@ -4701,7 +4701,7 @@ signed off, owned by the person the business names on its Settings screen:
 
 | Value | What it writes |
 |---|---|
-| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. `"else": { "staff": "<column>" }` beside it names, for a staff column, the person to write instead: a staff column of the rule's record, or one link further (`deal_id.owner_id`), again only somebody who signs in (the rep who sold the job, when nobody is named for aftercare). Needs Adminium 0.3.29 (`automations.settingElse`). |
+| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. `"else": { "staff": "<column>" }` beside it names, for a staff column, the person to write instead: a staff column of the rule's record, or one link further (`deal_id.owner_id`), again only somebody who signs in (the rep who sold the job, when nobody is named for aftercare). Needs Adminium 0.3.29 (`automations.settingElse`). One exception, for the [sample](#sample-people): on a run about a sample row, a sample person may be written too, by the setting or by `else` (a sample job's sign-off books its aftercare call for the sample rep who sold it); on a real row a sample person is nobody. Adminium 0.3.33. |
 | `{ "daysAfter": { "column" or "now", "days", "setting"?, "at"? } }` | A day `days` (0–3650) after a `date` or `timestamptz` column of the rule's record, or after the run (`"now": true`), counted on the business's calendar (the connection's time zone). `setting`: a whole-number column of the settings row whose number is used while it holds one from 1 to 3650 (else `days`: an empty setting or a 0 is none). Written into a `date` column as the day; into a `timestamptz` column at `at` (`"HH:MM"`) on the business's clock, else at the wall time it counts from (midnight for a date), so a call booked at 09:30 is due at 09:30 after the clocks change. A record whose date is empty leaves the value empty, and the log says so. |
 
 A value is no way to read a table. The settings are read as a rule reads the connection, when the
@@ -4944,6 +4944,15 @@ data" takes them and their teams away, but for a person a row that stays still n
 operator made and gave to a sample rep): that person stays until the row names somebody else, and
 the next "Add sample data" takes them back instead of making a second one. An add-on's manifest
 takes neither field. Needs Adminium 0.3.28.
+
+A rule hands a row to nobody who cannot sign in, so a rule's write that names a person from the
+[settings row or the record](#a-value-from-the-settings-row-and-a-day-so-many-days-on) leaves a sample person out, with one exception: when
+the row the run is about is a sample row, it may name a sample person (a sample job's sign-off books
+its aftercare call for the sample rep who sold it). A real row is never handed to a sample person.
+The rows such a run creates are sample rows too: they are listed with the sample, and "Remove
+sample data" takes them with the rest, and with them the sample row they hang off. A rule-made row
+somebody has since written a row of their own under stays, as any sample row their records use
+does, and a row a rule made from a real row is never listed. Adminium 0.3.33.
 
 The file uses the `adminium.sample/1` format:
 
