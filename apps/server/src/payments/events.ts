@@ -88,7 +88,14 @@ export function disputeOfBody(body: unknown): PaymentDispute | null {
   const status = dispute['status'];
   if (typeof status !== 'string' || !(DISPUTE_STATUSES as readonly string[]).includes(status)) return null;
   const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
-  return { status: status as PaymentDispute['status'], amount: text(dispute['amount']), currency: text(dispute['currency']) };
+  // When the dispute opened, as the provider said: kept from add-ons after 0.3.32; a body from before has none.
+  const openedAt = dispute['openedAt'];
+  return {
+    status: status as PaymentDispute['status'],
+    amount: text(dispute['amount']),
+    currency: text(dispute['currency']),
+    ...(typeof openedAt === 'number' && Number.isInteger(openedAt) && openedAt > 0 ? { openedAt } : {}),
+  };
 }
 
 /**

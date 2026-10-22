@@ -491,6 +491,82 @@ for (const dialect of TEST_DIALECTS) {
         expect((await attempts.byId(lost))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 7, outcome: 'lost' });
       });
 
+      it('starts a dispute when the provider opened it, when no earlier open was heard, and keeps a start once recorded', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        // The close is the first event heard (the open came under an add-on that did not listen): it starts when it opened.
+        const closedFirst = await taken('120.00', 'idoc_open_1');
+        expect(await attempts.noteDispute(closedFirst, 'closed', T0 + 50, false, 'lost', T0 + 5)).toBe(true);
+        expect((await attempts.byId(closedFirst))?.dispute).toEqual({ state: 'closed', at: T0 + 5, closedAt: T0 + 50, outcome: 'lost' });
+        // News of an open dispute never heard of (PayPal's capture reversal) starts it when it opened too.
+        const reversed = await taken('120.00', 'idoc_open_2');
+        expect(await attempts.noteDispute(reversed, 'open', T0 + 30, false, null, T0 + 10)).toBe(true);
+        expect((await attempts.byId(reversed))?.dispute).toMatchObject({ state: 'open', at: T0 + 10 });
+        // A start once recorded stays: the open heard later, and the close, change nothing of it.
+        expect(await attempts.noteDispute(reversed, 'open', T0 + 31, true, null, T0 + 8)).toBe(false);
+        expect(await attempts.noteDispute(reversed, 'closed', T0 + 60, false, 'won', T0 + 8)).toBe(true);
+        expect((await attempts.byId(reversed))?.dispute).toEqual({ state: 'closed', at: T0 + 10, closedAt: T0 + 60, outcome: 'won' });
+        // Never after the event that tells of it; nothing said is the event's own time.
+        const odd = await taken('120.00', 'idoc_open_3');
+        expect(await attempts.noteDispute(odd, 'closed', T0 + 40, false, 'lost', T0 + 90)).toBe(true);
+        expect((await attempts.byId(odd))?.dispute?.at).toBe(T0 + 40);
+        const unsaid = await taken('120.00', 'idoc_open_4');
+        expect(await attempts.noteDispute(unsaid, 'closed', T0 + 40, false, 'lost', null)).toBe(true);
+        expect((await attempts.byId(unsaid))?.dispute?.at).toBe(T0 + 40);
+      });
+
+      it('takes a later "won" over "lost" (a chargeback read as lost when filed), never the reverse', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const id = await taken('120.00', 'idoc_won_late');
+        expect(await attempts.noteDispute(id, 'open', T0 + 2)).toBe(true);
+        expect(await attempts.noteDispute(id, 'closed', T0 + 4, false, 'lost')).toBe(true);
+        // Not an older one.
+        expect(await attempts.noteDispute(id, 'closed', T0 + 3, false, 'won')).toBe(false);
+        expect(await attempts.noteDispute(id, 'closed', T0 + 9, false, 'won')).toBe(true);
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 9, outcome: 'won' });
+        expect(await attempts.noteDispute(id, 'closed', T0 + 12, false, 'lost')).toBe(false);
+        expect((await attempts.byId(id))?.dispute?.outcome).toBe('won');
+      });
+
+      it('lets one writer at a time hold an attempt, each seeing what the one before made', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const id = await taken('120.00', 'idoc_held');
+        const seen: string[] = [];
+        const writer = (name: string, pause: number) =>
+          attempts.holding(id, async (held, attempt) => {
+            const before = (await refundsRepo(held).forAttempt(id)).map((row) => row.idempotencyKey);
+            seen.push(`${name} saw [${before.join(',')}] held ${attempt.refundCommitted}`);
+            await new Promise((resolve) => setTimeout(resolve, pause));
+            await refundsRepo(held).create({ attemptId: id, paymentId: null, provider: 'demo', mode: 'live', paymentRef: `pi_${id}`, amount: '10.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: `held-${name}-${id}`, source: 'provider', requestedBy: null, state: 'succeeded' }, T0);
+            expect(await paymentAttemptsRepo(held).commitRefund(id, attempt.refundCommitted, name === 'a' ? '10.00' : '20.00', T0, true)).toBe(true);
+            return name;
+          });
+        // Both start at once; the second waits for the first to commit, then reads its row and its hold.
+        const [a, b] = await Promise.all([writer('a', 150), (async () => { await new Promise((resolve) => setTimeout(resolve, 20)); return writer('b', 0); })()]);
+        expect([a, b]).toEqual(['a', 'b']);
+        expect(seen).toEqual(['a saw [] held 0', `b saw [held-a-${id}] held 10.00`]);
+        expect((await attempts.byId(id))?.refundCommitted).toBe('20.00');
+        // A writer that throws leaves nothing behind.
+        await expect(attempts.holding(id, async (held) => {
+          await refundsRepo(held).create({ attemptId: id, paymentId: null, provider: 'demo', mode: 'live', paymentRef: `pi_${id}`, amount: '1.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: `held-c-${id}`, source: 'provider', requestedBy: null }, T0);
+          throw new Error('no');
+        })).rejects.toThrow('no');
+        expect(await refundsRepo(meta()).byKey(`held-c-${id}`)).toBeNull();
+        expect(await attempts.holding('pat_none', async () => 'ran')).toBeNull();
+      });
+
+      it('lets a provider refund take on only a lost dispute’s row that still stands', async () => {
+        const refunds = refundsRepo(meta());
+        const id = await taken('120.00', 'idoc_adopt');
+        const lost = async (key: string) => (await refunds.create({ attemptId: id, paymentId: null, provider: 'demo', mode: 'live', paymentRef: `pi_${id}`, amount: '120.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: key, source: 'dispute', requestedBy: null, state: 'succeeded' }, T0)).refund;
+        const standing = await lost(`dispute-a-${id}`);
+        expect(await refunds.adoptForDispute(standing.id, `re_a_${id}`, T0 + 1)).toBe(true);
+        expect(await refunds.adoptForDispute(standing.id, `re_b_${id}`, T0 + 2)).toBe(false);
+        // Undone (the dispute was won after all): the money came back, so no refund is that money.
+        const undone = await lost(`dispute-b-${id}`);
+        expect(await refunds.move(undone.id, 'failed', { failureMessage: 'won' }, T0 + 3)).toBe(true);
+        expect(await refunds.adoptForDispute(undone.id, `re_c_${id}`, T0 + 4)).toBe(false);
+      });
+
       it('finds the refunds the record has not followed yet, on payments already written down', async () => {
         const attempts = paymentAttemptsRepo(meta());
         const refunds = refundsRepo(meta());

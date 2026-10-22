@@ -242,6 +242,17 @@ describe('a dispute event', () => {
     expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'won', amount: null, currency: null } }).success).toBe(true);
   });
 
+  it('may say when the dispute opened, in epoch ms, or that it does not know', () => {
+    const opened = PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'lost', amount: '75.00', currency: 'EUR', openedAt: 1_792_000_000_000 } });
+    expect(opened.success).toBe(true);
+    // Kept through the check: the engine reads the window of a lost dispute from it.
+    expect((opened.data as { dispute?: { openedAt?: number } }).dispute?.openedAt).toBe(1_792_000_000_000);
+    expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'open', amount: null, currency: null, openedAt: null } }).success).toBe(true);
+    for (const openedAt of [-1, 1.5, '2026-10-22T10:00:00Z', Number.NaN]) {
+      expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'open', amount: null, currency: null, openedAt } }).success, String(openedAt)).toBe(false);
+    }
+  });
+
   it('refuses an outcome or an amount outside the contract', () => {
     expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'warning_closed', amount: null, currency: null } }).success).toBe(false);
     expect(PAYMENT_ANSWER_SCHEMAS.verifyWebhook.safeParse({ ...event, dispute: { status: 'lost', amount: '12000', currency: 'eur' } }).success).toBe(false);

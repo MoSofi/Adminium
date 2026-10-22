@@ -222,6 +222,11 @@ When the dispute ends, Adminium records how:
   are told, and Activity flags it for a look. The invoice's status changes only through the
   "refunded in full" value you mapped.
 
+A dispute you settle by refunding the customer (in the PayPal dashboard, for example) is the same
+money as the lost dispute that follows it: it is counted once, whichever Adminium hears of first.
+If a dispute recorded as lost is later reported won, the line comes back off: the money is counted
+as yours again and the balance follows.
+
 These notices go out in test mode too, marked "Test", so you can see them while you set up.
 
 ## Activity

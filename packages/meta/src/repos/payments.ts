@@ -656,30 +656,73 @@ export function paymentAttemptsRepo(meta: MetaDb) {
      *   - closed: from open when it happened after the open, or from none (the
      *     close came first; the open that follows is older and changes nothing);
      *     with its outcome (`won`, `lost`) when the provider said it. A close
-     *     that said no outcome is told it by a later close of the same dispute.
+     *     that said no outcome is told it by a later close of the same dispute,
+     *     and a `lost` is told `won` by a later close (a provider that read a
+     *     chargeback being filed as lost, then the bank decided for the seller);
+     *     `won` is never told `lost`.
+     *
+     * The dispute starts when the provider opened it (`openedAt`, when its
+     * event says), else at the first event heard: a dispute whose open was
+     * never heard (opened under an add-on that did not listen, its "created"
+     * retried after the close) still starts before the refund that settled it.
+     * A start once recorded stays, so everything keyed by it stays the same.
      */
-    async noteDispute(id: string, state: 'open' | 'closed', at: number = Date.now(), fresh = true, outcome: DisputeOutcome | null = null): Promise<boolean> {
+    async noteDispute(
+      id: string,
+      state: 'open' | 'closed',
+      at: number = Date.now(),
+      fresh = true,
+      outcome: DisputeOutcome | null = null,
+      openedAt: number | null = null,
+    ): Promise<boolean> {
+      // Never after the event that tells of it.
+      const start = openedAt !== null && Number.isFinite(openedAt) && openedAt > 0 ? Math.min(openedAt, at) : at;
       const res =
         state === 'open'
           ? await db
               .updateTable('adminium_payment_attempts')
-              .set({ disputeState: 'open', disputedAt: at, disputeClosedAt: null, disputeOutcome: null, updatedAt: at })
+              .set({ disputeState: 'open', disputedAt: start, disputeClosedAt: null, disputeOutcome: null, updatedAt: at })
               .where('id', '=', id)
               .where((eb) => (fresh ? eb.or([eb('disputeState', 'is', null), eb.and([eb('disputeState', '=', 'closed'), eb('disputeClosedAt', '<', at)])]) : eb('disputeState', 'is', null)))
               .executeTakeFirst()
           : await db
               .updateTable('adminium_payment_attempts')
-              .set((eb) => ({ disputeState: 'closed', disputeClosedAt: at, disputedAt: eb.fn.coalesce('disputedAt', eb.val(at)), disputeOutcome: outcome, updatedAt: at }))
+              .set((eb) => ({ disputeState: 'closed', disputeClosedAt: at, disputedAt: eb.fn.coalesce('disputedAt', eb.val(start)), disputeOutcome: outcome, updatedAt: at }))
               .where('id', '=', id)
               .where((eb) =>
                 eb.or([
                   eb('disputeState', 'is', null),
                   eb.and([eb('disputeState', '=', 'open'), eb('disputedAt', '<=', at)]),
                   ...(outcome === null ? [] : [eb.and([eb('disputeState', '=', 'closed'), eb('disputeOutcome', 'is', null), eb('disputeClosedAt', '<=', at)])]),
+                  ...(outcome === 'won' ? [eb.and([eb('disputeState', '=', 'closed'), eb('disputeOutcome', '=', 'lost'), eb('disputeClosedAt', '<=', at)])] : []),
                 ]),
               )
               .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Runs `run` as the one writer of this attempt's refunds, across processes:
+     * in a transaction that first takes the attempt's row for writing (an
+     * UPDATE that changes nothing — the same statement on all three engines:
+     * a row lock until commit on Postgres and MySQL, the database's write lock
+     * on SQLite). A second caller waits there until the first commits, then
+     * reads what it wrote. `run` must use only the `meta` it is handed: the
+     * outer one would wait on the lock this holds. No attempt with this id:
+     * nothing runs, and the answer is null.
+     */
+    async holding<T>(id: string, run: (held: MetaDb, attempt: PaymentAttempt) => Promise<T>): Promise<T | null> {
+      return db.transaction().execute(async (trx) => {
+        // MySQL counts only changed rows, so the count says nothing: the row is held either way, then read.
+        await trx
+          .updateTable('adminium_payment_attempts')
+          .set((eb) => ({ updatedAt: eb.ref('updatedAt') }))
+          .where('id', '=', id)
+          .execute();
+        const row = await trx.selectFrom('adminium_payment_attempts').selectAll().where('id', '=', id).executeTakeFirst();
+        if (row === undefined) return null;
+        return run({ db: trx, dialect: meta.dialect }, decodeAttempt(row));
+      });
     },
 
     /** Attempts with a dispute in a state, newest first (Activity, notices). */
@@ -1407,6 +1450,7 @@ export function refundsRepo(meta: MetaDb) {
         .set({ providerRefundId, updatedAt: at })
         .where('id', '=', id)
         .where('source', '=', 'dispute')
+        .where('state', '=', 'succeeded')
         .where('providerRefundId', 'is', null)
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;

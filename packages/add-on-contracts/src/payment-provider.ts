@@ -405,8 +405,9 @@ export interface PaymentEvent {
    * A dispute event's news, when the provider says it: where the dispute
    * stands (`open` while it is fought; `won`, `lost`, or `closed` with no
    * outcome said) and the amount disputed, as a decimal in major units
-   * ("120.00") with its currency. Optional: an engine reads a dispute event
-   * without it as open, or closed by its type.
+   * ("120.00") with its currency, and when the provider opened the dispute.
+   * Optional: an engine reads a dispute event without it as open, or closed by
+   * its type.
    */
   readonly dispute?: PaymentDispute;
 }
@@ -420,6 +421,16 @@ export interface PaymentDispute {
   /** The amount disputed, a decimal in major units, or null when the event does not say. */
   readonly amount: string | null;
   readonly currency: string | null;
+  /**
+   * When the provider opened this dispute (epoch ms; Stripe's dispute
+   * `created`, PayPal's dispute `create_time`), on every event about it.
+   * Money the provider reports given back since then (a seller who settles
+   * the dispute by refunding) is the same money a lost dispute returns, so
+   * it is counted once even when the first event the engine hears is the
+   * close. Optional, and null when the event does not say: the engine then
+   * takes the first event it heard as the dispute's start.
+   */
+  readonly openedAt?: number | null;
 }
 
 export const paymentEventSchema = z
@@ -438,6 +449,7 @@ export const paymentEventSchema = z
         status: z.enum(DISPUTE_STATUSES),
         amount: decimalAmountSchema.nullable(),
         currency: currencyCodeSchema.nullable(),
+        openedAt: z.number().int().nonnegative().nullable().optional(),
       })
       .strict()
       .optional(),
