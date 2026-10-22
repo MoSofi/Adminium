@@ -34,6 +34,14 @@
  * burst of frames, since the key is built from values and not from a
  * function.
  *
+ * ── ONE PERSON'S CARDS (`toolbar.person`) ──────────────────────────────────
+ * A board whose toolbar filters by a person is narrowed to that person's
+ * cards by one more test, `{ column: person, … }`, added to everything the
+ * board reads of them: the cards' query, an enum board's counts, a table
+ * board's measures and the toolbar's total (`withPerson`, `boardCompute`).
+ * The people the filter offers are read without it, so everybody stays
+ * offered. Each read is the server's, with the reader's own row limits.
+ *
  * ── MORE ROWS THAN COLUMNS ─────────────────────────────────────────────────
  * A board draws the first `BOARD_COLUMNS_LIMIT` rows of the table. One row
  * more is asked for, so that a table with more is known to have more and the
@@ -83,6 +91,8 @@ export interface BoardRead {
   totals: BoardTotal[];
   /** Which cards are on the board; none ⇒ every row. */
   only: BoardOnlyTest[];
+  /** The staff column the toolbar filters the cards by (`toolbar.person`), if it does. */
+  person: string | undefined;
 }
 
 /** The board of a page that names its columns, or null: an ordinary board, or no board at all. */
@@ -96,7 +106,7 @@ export function boardReadOf(page: PageEnvelope): BoardRead | null {
   // A board whose stored `only` cannot be trusted is not drawn (`PageBoard` says why): nothing is asked for it.
   if (cfg.onlyInvalid) return null;
   const counted = item.config['columnsBinding'] !== undefined;
-  if (cfg.columnsFrom === undefined && !counted) return null;
+  if (cfg.columnsFrom === undefined && !counted && cfg.toolbar === undefined) return null;
   return {
     instanceId: item.i,
     connectionId: page.source.connectionId,
@@ -106,12 +116,48 @@ export function boardReadOf(page: PageEnvelope): BoardRead | null {
     counted,
     totals: cfg.totals,
     only: cfg.only,
+    person: cfg.toolbar?.person,
   };
 }
 
-/** The `compute=` of the columns read: a count of each row's cards, and each total — of the cards on the board (`only`). */
-export function boardCompute(read: Pick<BoardRead, 'cardsTable' | 'column' | 'totals'> & { only?: readonly BoardOnlyTest[] }): string {
-  const where = read.only === undefined || read.only.length === 0 ? {} : { where: read.only.map((test) => ({ column: test.column, in: test.in })) };
+/** The test that narrows a board to one person's cards, as the data routes and the batch both read it. */
+const personTest = (column: string, person: string) => ({ column, op: 'eq' as const, value: person });
+
+/**
+ * The page as the board reads it narrowed to one person (`toolbar.person`):
+ * that person's test added to the cards' query, an enum board's counts and
+ * each figure of the toolbar's total — never to the people the filter
+ * offers. The same page when nobody is chosen, or the board filters by no one.
+ */
+export function withPerson(page: PageEnvelope, person: string | null): PageEnvelope {
+  if (person === null) return page;
+  const read = boardReadOf(page);
+  if (read?.person === undefined) return page;
+  const column = read.person;
+  const layout = pageLayoutSchema.safeParse(page.config['layout']);
+  if (!layout.success) return page;
+  const narrowed = (raw: unknown): unknown => {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return raw;
+    const descriptor = raw as { filters?: unknown };
+    return { ...descriptor, filters: [...(Array.isArray(descriptor.filters) ? descriptor.filters : []), personTest(column, person)] };
+  };
+  const items = layout.data.items.map((item) => {
+    if (item.i !== read.instanceId) return item;
+    const config: Record<string, unknown> = { ...item.config, binding: narrowed(item.config['binding']) };
+    if (item.config['columnsBinding'] !== undefined) config['columnsBinding'] = narrowed(item.config['columnsBinding']);
+    if (Array.isArray(item.config['toolbarBindings'])) config['toolbarBindings'] = (item.config['toolbarBindings'] as unknown[]).map(narrowed);
+    return { ...item, config };
+  });
+  return { ...page, config: { ...page.config, layout: { ...layout.data, items } } };
+}
+
+/**
+ * The `compute=` of the columns read: a count of each row's cards, and each total — of the cards on the board (`only`),
+ * and of one person's alone when the toolbar is narrowed to them.
+ */
+export function boardCompute(read: Pick<BoardRead, 'cardsTable' | 'column' | 'totals'> & { only?: readonly BoardOnlyTest[]; person?: { column: string; id: string } | undefined }): string {
+  const tests = [...(read.only ?? []).map((test) => ({ column: test.column, in: test.in })), ...(read.person === undefined ? [] : [{ column: read.person.column, in: [read.person.id] }])];
+  const where = tests.length === 0 ? {} : { where: tests };
   return JSON.stringify({
     measures: [
       { id: COUNT_ALIAS, table: read.cardsTable, fkColumn: read.column, fn: 'count', ...where },
@@ -146,6 +192,18 @@ function totalFormats(totals: readonly BoardTotal[], columns: readonly FormColum
   });
 }
 
+/** How a board's totals are written on its toolbar, from the server's figures: as each column's header writes them. */
+export function useBoardTotalsWriter(
+  page: PageEnvelope,
+  columns: readonly FormColumnFactReply[] | undefined,
+  currency: string | undefined,
+  locale: string,
+): (values: readonly (number | null)[]) => string | undefined {
+  const read = useMemo(() => boardReadOf(page), [page]);
+  const formats = useMemo(() => totalFormats(read?.totals ?? [], columns, currency), [read, columns, currency]);
+  return useCallback((values) => totalText(values, formats, locale), [formats, locale]);
+}
+
 /** How one column's amounts are written on a card: as a header's total of that column is. */
 export function amountWriter(column: string, columns: readonly FormColumnFactReply[] | undefined, currency: string | undefined, locale: string): (amount: number) => string {
   const format = totalFormats([{ column, fn: 'sum' }], columns, currency)[0] as TotalFormat;
@@ -153,7 +211,7 @@ export function amountWriter(column: string, columns: readonly FormColumnFactRep
 }
 
 /** A column's totals as its header shows them; one alone is the bare figure, two are each named. */
-function totalText(values: readonly unknown[], formats: readonly TotalFormat[], locale: string): string | undefined {
+export function totalText(values: readonly unknown[], formats: readonly TotalFormat[], locale: string): string | undefined {
   const parts: string[] = [];
   values.forEach((value, index) => {
     const format = formats[index];
@@ -248,13 +306,22 @@ export function useBoardColumns(
     locale: string;
     /** The cards are narrowed by a link: the columns are read without their counts and totals, which are of every card. */
     narrowed?: boolean | undefined;
+    /** The person the toolbar narrows the board to: each column's count and totals are of their cards. */
+    person?: string | null | undefined;
   },
 ): BoardColumnsState | undefined {
   const queryClient = useQueryClient();
   const read = useMemo(() => boardReadOf(page), [page]);
   const from = read?.from;
   const narrowed = opts.narrowed === true;
-  const compute = useMemo(() => (read === null || read.from === undefined || narrowed ? undefined : boardCompute(read)), [read, narrowed]);
+  const person = opts.person ?? null;
+  const compute = useMemo(
+    () =>
+      read === null || read.from === undefined || narrowed
+        ? undefined
+        : boardCompute({ ...read, ...(person === null || read.person === undefined ? {} : { person: { column: read.person, id: person } }) }),
+    [read, narrowed, person],
+  );
   const formats = useMemo(() => totalFormats(read?.totals ?? [], opts.formColumns, opts.currency), [read, opts.formColumns, opts.currency]);
 
   const query = useQuery({

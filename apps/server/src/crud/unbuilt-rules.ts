@@ -110,6 +110,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'config.bulk',
   // A board's columns as its page names them: the rows of a table its cards link to, or an enum's values, written to the page at install.
   'config.board',
+  // A board's toolbar (the server's total, a filter by person), a card's second money line, and what its days are.
+  'board.toolbar',
+  'board.secondAmount',
+  'board.daysLabel',
   // The rules an app or an add-on ships: bound to its install, the owner's once they change one.
   'automations',
   // An add-on's stock words, and a public entry they answer: in, low or out for the rows a page asks about.

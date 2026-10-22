@@ -79,6 +79,8 @@ export interface BoardCardData {
   due?: string | undefined;
   client?: string | undefined;
   budget?: string | undefined;
+  /** A second money line, already written with its label ("w €12,000": a deal's weighted value), drawn at the end of the amount's line. */
+  budgetSecond?: string | undefined;
   /**
    * A few more lines under the title, each already in the reader's words: a
    * label and what it reads ("Close", "12 Mar"), or a line with no label.

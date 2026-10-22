@@ -13,7 +13,7 @@
  * carry the board it was asked for, where the rule would say nothing.
  */
 
-import type { BoardBadge, BoardCardFacts, BoardColumns, BoardNote, BoardOnly, BoardTotalFn, CandidateTableInput } from '@adminium/widgets/generate';
+import type { BoardBadge, BoardCardFacts, BoardColumns, BoardNote, BoardOnly, BoardToolbar, BoardTotalFn, CandidateTableInput } from '@adminium/widgets/generate';
 import { measureTestProblem } from '@adminium/widgets/page-config';
 
 const NUMERIC_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
@@ -54,11 +54,15 @@ export function boardColumnsProblem(
   }
   // Whether it holds a staff member is the manifest's own check (`rules.staff`) and the server's at every read: a model does not say.
   if (card.person !== undefined && !columns.has(card.person)) return `${table} has no column ${card.person} for a card's person`;
-  if (card.amount !== undefined) {
-    const amount = columns.get(card.amount);
-    if (amount === undefined) return `${table} has no column ${card.amount} for a card's amount`;
-    if (!NUMERIC_TYPES.has(amount.logicalType)) return `${table}.${card.amount} is not a number, so a card cannot show it as an amount`;
+  for (const name of [card.amount, card.secondAmount?.column]) {
+    if (name === undefined) continue;
+    const amount = columns.get(name);
+    if (amount === undefined) return `${table} has no column ${name} for a card's amount`;
+    if (!NUMERIC_TYPES.has(amount.logicalType)) return `${table}.${name} is not a number, so a card cannot show it as an amount`;
   }
+  // Whether it holds a staff member is the manifest's check and the server's at every read, as a card's person.
+  const person = board.toolbar?.person;
+  if (person !== undefined && !columns.has(person)) return `${table} has no column ${person} to choose the board's cards by person`;
   for (const name of [card.daysSince?.column, card.date]) {
     if (name === undefined) continue;
     const day = columns.get(name);
@@ -123,6 +127,20 @@ export function boardColumnsOf(raw: unknown, tableId: (name: string) => string |
   const rawDays = rawCard === null ? null : doc(rawCard['daysSince']);
   const daysColumn = rawDays === null ? undefined : text(rawDays, 'column');
   const [warnFrom, alertFrom] = rawDays === null ? [] : [days(rawDays['warnFrom']), days(rawDays['alertFrom'])];
+  // A short label, and the same by language: only text, and nothing empty.
+  const labels = (value: unknown): Record<string, string> | undefined => {
+    const written = doc(value);
+    if (written === null) return undefined;
+    const kept = Object.fromEntries(Object.entries(written).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== ''));
+    return Object.keys(kept).length === 0 ? undefined : kept;
+  };
+  const labelled = (from: Record<string, unknown> | null): { label?: string; labels?: Record<string, string> } => {
+    const label = from === null ? undefined : text(from, 'label');
+    const by = label === undefined || from === null ? undefined : labels(from['labels']);
+    return { ...(label === undefined ? {} : { label }), ...(by === undefined ? {} : { labels: by }) };
+  };
+  const rawSecond = rawCard === null ? null : doc(rawCard['secondAmount']);
+  const secondColumn = rawSecond === null ? undefined : text(rawSecond, 'column');
   const card: BoardCardFacts =
     rawCard === null
       ? {}
@@ -130,7 +148,8 @@ export function boardColumnsOf(raw: unknown, tableId: (name: string) => string |
           ...(text(rawCard, 'link') === undefined ? {} : { link: text(rawCard, 'link') }),
           ...(text(rawCard, 'person') === undefined ? {} : { person: text(rawCard, 'person') }),
           ...(text(rawCard, 'amount') === undefined ? {} : { amount: text(rawCard, 'amount') }),
-          ...(daysColumn === undefined ? {} : { daysSince: { column: daysColumn, ...(warnFrom === undefined ? {} : { warnFrom }), ...(alertFrom === undefined ? {} : { alertFrom }) } }),
+          ...(secondColumn === undefined ? {} : { secondAmount: { column: secondColumn, ...labelled(rawSecond) } }),
+          ...(daysColumn === undefined ? {} : { daysSince: { column: daysColumn, ...(warnFrom === undefined ? {} : { warnFrom }), ...(alertFrom === undefined ? {} : { alertFrom }), ...labelled(rawDays) } }),
           ...(text(rawCard, 'date') === undefined ? {} : { date: text(rawCard, 'date') }),
         };
   const rawNote = doc(value['note']);
@@ -144,6 +163,12 @@ export function boardColumnsOf(raw: unknown, tableId: (name: string) => string |
           ...(texts === null ? {} : { texts: Object.fromEntries(Object.entries(texts).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '')) }),
           ...(text(rawNote, 'href') === undefined ? {} : { href: text(rawNote, 'href') }),
         };
+  const rawToolbar = doc(value['toolbar']);
+  const toolbarPerson = rawToolbar === null ? undefined : text(rawToolbar, 'person');
+  const toolbar: BoardToolbar | undefined =
+    rawToolbar === null || (rawToolbar['total'] !== true && toolbarPerson === undefined)
+      ? undefined
+      : { ...(rawToolbar['total'] === true ? { total: true } : {}), ...(toolbarPerson === undefined ? {} : { person: toolbarPerson }) };
   const title = text(value, 'title');
   const totals = (Array.isArray(value['totals']) ? (value['totals'] as unknown[]) : []).flatMap((entry) => {
     if (typeof entry !== 'object' || entry === null) return [];
@@ -167,6 +192,7 @@ export function boardColumnsOf(raw: unknown, tableId: (name: string) => string |
     ...(table === undefined || label === undefined ? {} : { columnsFrom: { table: tableId(table) ?? table, label, ...(order === undefined ? {} : { order }), ...(badge === undefined ? {} : { badge }) } }),
     ...(Object.keys(card).length === 0 ? {} : { card }),
     ...(note === undefined ? {} : { note }),
+    ...(toolbar === undefined ? {} : { toolbar }),
     ...(title === undefined ? {} : { title }),
     ...(totals.length === 0 ? {} : { totals }),
   };

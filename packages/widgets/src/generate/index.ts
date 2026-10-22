@@ -72,6 +72,7 @@ export {
   type BoardColumns,
   type BoardNote,
   type BoardOnly,
+  type BoardToolbar,
   type BoardTotalFn,
   type CandidateColumn,
   type CandidateContext,

@@ -767,3 +767,126 @@ describe('PageBoard — what a named board’s headings, cards and note show', (
     }
   });
 });
+
+describe('PageBoard — a toolbar, a second money line and what the days are', () => {
+  const DANA = 'usr_dana';
+  const OMAR = 'usr_omar';
+  const BOARD = {
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name' },
+    totals: [
+      { column: 'amount', fn: 'sum' },
+      { column: 'weighted_value', fn: 'sum' },
+    ],
+    card: {
+      person: 'owner_id',
+      amount: 'amount',
+      secondAmount: { column: 'weighted_value', label: 'w', labels: { 'de-DE': 'gew.' } },
+      daysSince: { column: 'entered_stage_at', warnFrom: 14, alertFrom: 30, label: 'in stage', labels: { 'de-DE': 'in der Phase' } },
+    },
+    toolbar: { total: true, person: 'owner_id' },
+    note: { text: 'Columns come from Stages', href: '/p/crm-stages' },
+    binding: binding('deals'),
+    toolbarBindings: [binding('deals'), binding('deals'), binding('deals')],
+    personBinding: binding('deals'),
+  };
+  const DEALS = [
+    { id: 1, name: 'Desk rows', stage_id: 1, owner_id: DANA, amount: '52800.00', weighted_value: '26400.00', adm_card_days: 12, entered_stage_at: '2026-07-25T09:00:00Z' },
+    { id: 2, name: 'No weight yet', stage_id: 1, owner_id: OMAR, amount: 38000, weighted_value: null, adm_card_days: 1, entered_stage_at: '2026-06-26T09:00:00Z' },
+  ];
+  const listed = { status: 'success' as const, data: { rows: DEALS, columns: [{ name: 'entered_stage_at', logicalType: 'timestamptz' }], total: 2, people: { [DANA]: 'Dana Ruiz', [OMAR]: 'Omar Haddad' } } };
+  const STAGES = { status: 'success' as const, columns: [{ id: '1', value: 1, label: 'Proposal', count: 342, total: '£1.00' }] };
+  const metric = (value: number | null) => ({ status: 'success' as const, data: { value } });
+  const PEOPLE = { status: 'success' as const, data: { items: [{ key: OMAR, label: 'Omar Haddad', value: 301 }, { key: DANA, label: 'Dana Ruiz', value: 41 }] } };
+  const states = (more: Record<string, unknown> = {}) => ({
+    'board-1': listed,
+    'board-1:toolbar:0': metric(342),
+    'board-1:toolbar:1': metric(1450000),
+    'board-1:toolbar:2': metric(612500),
+    'board-1:people': PEOPLE,
+    ...more,
+  });
+  const draw = (props: Record<string, unknown> = {}, over: Record<string, unknown> = {}) =>
+    render(
+      <PageBoard
+        config={boardConfig({ ...BOARD, ...over })}
+        states={states() as never}
+        boardColumns={STAGES}
+        locale="en-US"
+        formatAmount={(_column, amount) => `£${amount.toFixed(2)}`}
+        formatTotals={(values) => values.map((value) => `£${String(value)}`).join(' · ')}
+        entityLabels={{ one: 'deal', other: 'deals' }}
+        personLabel="Owner"
+        onPersonChange={vi.fn()}
+        {...props}
+      />,
+    );
+
+  it("says the server's count and totals of every card, not of the cards it lists", () => {
+    draw();
+    // Two cards are listed; the server counted 342.
+    expect(screen.getByTestId('board-total').textContent).toBe('342 deals · £1450000 · £612500');
+    expect(screen.getByRole('toolbar', { name: 'Board' })).toBeDefined();
+  });
+
+  it('says nothing of a total until every figure is answered, and counts in cards when the table has no name', () => {
+    render(<PageBoard config={boardConfig(BOARD)} states={{ ...states(), 'board-1:toolbar:2': { status: 'loading' } } as never} boardColumns={STAGES} locale="en-US" onPersonChange={vi.fn()} />);
+    expect(screen.queryByTestId('board-total')).toBeNull();
+    cleanup();
+    render(<PageBoard config={boardConfig({ ...BOARD, totals: [], toolbarBindings: [binding('deals')] })} states={states() as never} boardColumns={STAGES} locale="en-US" onPersonChange={vi.fn()} />);
+    expect(screen.getByTestId('board-total').textContent).toBe('342 cards');
+  });
+
+  it('offers everyone and each person by first name, says which is chosen, and hands the choice to the host', () => {
+    const onPersonChange = vi.fn();
+    draw({ onPersonChange, person: DANA });
+    const group = screen.getByRole('group', { name: 'Owner' });
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons.map((button) => button.textContent)).toEqual(['Everyone', 'Omar', 'Dana']);
+    expect(within(group).getByRole('button', { name: 'Dana Ruiz' }).getAttribute('aria-pressed')).toBe('true');
+    expect(within(group).getByRole('button', { name: 'Everyone' }).getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(within(group).getByRole('button', { name: 'Omar Haddad' }));
+    expect(onPersonChange).toHaveBeenCalledWith(OMAR);
+    fireEvent.click(within(group).getByRole('button', { name: 'Everyone' }));
+    expect(onPersonChange).toHaveBeenLastCalledWith(null);
+    // Never an id on the line.
+    expect(group.textContent).not.toContain('usr_');
+  });
+
+  it('offers no filter to a host that holds none, or where there is only one person to choose', () => {
+    draw({ onPersonChange: undefined });
+    expect(screen.queryByRole('group', { name: 'Owner' })).toBeNull();
+    cleanup();
+    render(<PageBoard config={boardConfig(BOARD)} states={{ ...states(), 'board-1:people': { status: 'success', data: { items: [{ key: DANA, label: 'Dana Ruiz', value: 41 }] } } } as never} boardColumns={STAGES} locale="en-US" onPersonChange={vi.fn()} />);
+    expect(screen.queryByRole('group')).toBeNull();
+  });
+
+  it('draws the note at the end of the toolbar line, still a link through the host', () => {
+    const onEvent = vi.fn();
+    draw({ onEvent });
+    const toolbar = screen.getByRole('toolbar', { name: 'Board' });
+    const note = within(toolbar).getByTestId('board-note');
+    fireEvent.click(within(note).getByRole('button', { name: 'Columns come from Stages' }));
+    expect(onEvent).toHaveBeenCalledWith('board-1', { type: 'drill-through', href: '/p/crm-stages' });
+  });
+
+  it('draws a card’s second money line after its label, and the days with what they are', () => {
+    draw();
+    const card = screen.getByRole('button', { name: 'Desk rows' });
+    expect(within(card).getByText('£52800.00')).toBeDefined();
+    expect(card.querySelector('[data-part="board-card-second-amount"]')?.textContent).toBe('w £26400.00');
+    expect(within(card).getByText('12 days in stage')).toBeDefined();
+    // A row with no second figure draws no second line.
+    const bare = screen.getByRole('button', { name: 'No weight yet' });
+    expect(bare.querySelector('[data-part="board-card-second-amount"]')).toBeNull();
+    expect(within(bare).getByText('1 day in stage')).toBeDefined();
+  });
+
+  it('a board without the toolbar draws no toolbar, and its note as before', () => {
+    draw({}, { toolbar: undefined, toolbarBindings: undefined, personBinding: undefined });
+    expect(screen.queryByRole('toolbar', { name: 'Board' })).toBeNull();
+    expect(screen.getByTestId('board-note').textContent).toBe('Columns come from Stages');
+  });
+});

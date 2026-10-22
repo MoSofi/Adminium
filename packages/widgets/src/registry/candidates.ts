@@ -28,7 +28,7 @@
  */
 import type { DataShape } from '../page-config/data-shapes.js';
 import type { QueryDescriptor } from '../page-config/query-descriptor.js';
-import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote } from './board-facts.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardToolbar } from './board-facts.js';
 import type { WidgetFamily } from './types.js';
 
 /* ------------------------------------------------------------------ inputs */
@@ -166,7 +166,7 @@ export interface CandidateContext {
   board?: BoardColumns | undefined;
 }
 
-export { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote };
+export { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardToolbar };
 
 /** How a board header's figure is worked out of a column's cards. */
 export type BoardTotalFn = 'sum' | 'avg';
@@ -192,6 +192,8 @@ export interface BoardColumns {
   card?: BoardCardFacts | undefined;
   /** One sentence drawn above the board. */
   note?: BoardNote | undefined;
+  /** A line above the board: the server's total of every card, and a filter by a person. */
+  toolbar?: BoardToolbar | undefined;
   /** The column a card is titled with; absent ⇒ the table's display column. */
   title?: string | undefined;
   /** Figures a column's header shows beside its count (two at most). */
@@ -1422,6 +1424,9 @@ const boardsKanban: CandidateRule = {
 /** The most columns an enum board asks the server to count: past this a board is not a board. */
 const NAMED_BOARD_ENUM_MAX = 50;
 
+/** The most people a board's person filter offers: the ones with the most cards. */
+export const BOARD_PEOPLE_MAX = 30;
+
 /**
  * A board whose columns somebody named (`ctx.board`): the rows of a table its
  * cards link to, or the values of an enum of its own.
@@ -1461,10 +1466,11 @@ const boardsNamed: CandidateRule = {
       ...(asked.link !== undefined && has(linkColumn) ? { link: asked.link } : {}),
       ...(has(asked.person) ? { person: asked.person } : {}),
       ...(has(asked.amount) ? { amount: asked.amount } : {}),
-      ...(asked.daysSince !== undefined && has(asked.daysSince.column) ? { daysSince: { ...asked.daysSince } } : {}),
+      ...(asked.secondAmount !== undefined && has(asked.secondAmount.column) ? { secondAmount: { ...asked.secondAmount, ...(asked.secondAmount.labels === undefined ? {} : { labels: { ...asked.secondAmount.labels } }) } } : {}),
+      ...(asked.daysSince !== undefined && has(asked.daysSince.column) ? { daysSince: { ...asked.daysSince, ...(asked.daysSince.labels === undefined ? {} : { labels: { ...asked.daysSince.labels } }) } } : {}),
       ...(has(asked.date) ? { date: asked.date } : {}),
     };
-    const shown = [card.link === undefined ? undefined : linkColumn, card.person, card.amount, card.daysSince?.column, card.date].filter((name): name is string => name !== undefined);
+    const shown = [card.link === undefined ? undefined : linkColumn, card.person, card.amount, card.secondAmount?.column, card.daysSince?.column, card.date].filter((name): name is string => name !== undefined);
     const read = [...new Set([status.name, ...(title === null ? [] : [title]), ...totals.map((total) => total.column), ...shown])];
     const select = listSelect(view);
     // The cards on the board. A test of a column the table lacks is no board at all: left out, it would draw every row.
@@ -1472,6 +1478,35 @@ const boardsNamed: CandidateRule = {
     if (only.some((test) => test.in.length === 0 || !view.columns.some((c) => c.name === test.column))) return [];
     // One condition a test, on the cards listed and on an enum board's counts alike; the host says the same of a table board's (`config.only`).
     const filters = only.length === 0 ? {} : { filters: only.map((test) => ({ column: test.column, op: 'in' as const, value: [...test.in] })) };
+    /*
+     * The toolbar. Its total is the SERVER's, one figure a query over every
+     * card the reader reaches (their row limits, `only`): never a sum of the
+     * cards listed, which stop at the list's limit. Its person filter offers
+     * the people who hold cards on the board, each counted, named by the
+     * server as a chart's group of a staff column is. A host that narrows the
+     * board to one person adds that test to the cards, the columns' figures
+     * and the total alike, and never to the people offered.
+     */
+    const wanted = board.toolbar;
+    const person = wanted?.person !== undefined && has(wanted.person) ? wanted.person : undefined;
+    const toolbar = wanted === undefined || (wanted.total !== true && person === undefined) ? undefined : { ...(wanted.total === true ? { total: true } : {}), ...(person === undefined ? {} : { person }) };
+    const toolbarBindings =
+      toolbar?.total !== true
+        ? undefined
+        : [
+            descriptor(view, ctx, 'single-metric', { aggregations: [{ fn: 'count', alias: 'cards' }], ...filters }),
+            ...totals.map((total) => descriptor(view, ctx, 'single-metric', { aggregations: [{ fn: total.fn, column: total.column, alias: 'total' }], ...filters })),
+          ];
+    const personBinding =
+      person === undefined
+        ? undefined
+        : descriptor(view, ctx, 'categorical', {
+            aggregations: [{ fn: 'count', alias: 'cards' }],
+            groupBy: [person],
+            // Somebody, never "nobody": a card with no person is among everyone's, and is no choice of its own.
+            filters: [...(filters.filters ?? []), { column: person, op: 'not_null' as const }],
+            limit: BOARD_PEOPLE_MAX,
+          });
     return [
       {
         widget: 'kanban-board',
@@ -1530,6 +1565,9 @@ const boardsNamed: CandidateRule = {
                 },
               }),
           ...(Object.keys(card).length === 0 ? {} : { card }),
+          ...(toolbar === undefined ? {} : { toolbar }),
+          ...(toolbarBindings === undefined ? {} : { toolbarBindings }),
+          ...(personBinding === undefined ? {} : { personBinding }),
           ...(board.note === undefined ? {} : { note: { text: board.note.text, ...(board.note.texts === undefined ? {} : { texts: { ...board.note.texts } }), ...(board.note.href === undefined ? {} : { href: board.note.href }) } }),
           ...(title === null ? {} : { titleColumn: title }),
           ...(totals.length === 0 ? {} : { totals: totals.map((total) => ({ column: total.column, fn: total.fn })) }),

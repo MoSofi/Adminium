@@ -33,7 +33,8 @@
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
 import { pickLocalized } from '../../lib/localized.js';
-import { useCallback, useMemo, useState } from 'react';
+import { Columns3 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { KanbanBoard } from '../../families/boards/KanbanBoard.js';
 import { KanbanSwimlaneGrid } from '../../families/boards/KanbanSwimlaneGrid.js';
@@ -50,7 +51,7 @@ import {
   type LaneDefInput,
 } from '../../families/boards/board-lib.js';
 import { servedChoicesOf } from '../../families/tables/choices.js';
-import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote } from '../../registry/board-facts.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardToolbar } from '../../registry/board-facts.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
 import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
@@ -123,6 +124,16 @@ export function boardColumnsInstanceId(instanceId: string): string {
   return `${instanceId}:columns`;
 }
 
+/** The instance id of the n-th figure of board item `i`'s toolbar total (`config.toolbarBindings`): the count first, then each total. */
+export function boardToolbarInstanceId(instanceId: string, index: number): string {
+  return `${instanceId}:toolbar:${String(index)}`;
+}
+
+/** The instance id of the people board item `i`'s person filter offers (`config.personBinding`). */
+export function boardPeopleInstanceId(instanceId: string): string {
+  return `${instanceId}:people`;
+}
+
 export interface PageBoardProps {
   /** The stored page config body: `{ templateVersion, toolbar, overlays, layout }`. */
   config: unknown;
@@ -159,6 +170,148 @@ export interface PageBoardProps {
    * number in the reader's language.
    */
   formatAmount?: ((column: string, amount: number) => string) | undefined;
+  /**
+   * The person the board is narrowed to by its toolbar's filter (`toolbar.person`), or null for everyone. The host
+   * holds it, and asks the cards, the columns' figures and the total again of that person's cards alone.
+   */
+  person?: string | null | undefined;
+  /** The toolbar's filter was set: a person's id, or null for everyone. Absent ⇒ no filter is drawn. */
+  onPersonChange?: ((person: string | null) => void) | undefined;
+  /**
+   * The toolbar's totals as its header writes them (`totals`, in order), from the server's figures: money in its
+   * currency, two of them named. Absent ⇒ plain numbers.
+   */
+  formatTotals?: ((values: readonly (number | null)[]) => string | undefined) | undefined;
+  /** What one card, and several, are called ("deal", "deals"), in the reader's language. Absent ⇒ "card", "cards". */
+  entityLabels?: { one: string; other: string } | undefined;
+  /** What the person filter's column is called ("Owner"), in the reader's language. */
+  personLabel?: string | undefined;
+}
+
+/** What a board's toolbar was answered: each figure of its total, and the people its filter offers. */
+interface BoardToolbarStates {
+  figures: readonly (WidgetDataState | undefined)[];
+  people: WidgetDataState | undefined;
+}
+
+/** A single figure as the server answered it, or null for none. */
+function figureOf(state: WidgetDataState | undefined): number | null | undefined {
+  if (state?.status !== 'success') return undefined;
+  const value = (state.data as { value?: unknown } | null | undefined)?.value;
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value !== '' ? Number(value) : Number.NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+/** The people a board's filter offers, as the server named them (a chart's groups of a staff column). */
+function peopleOf(state: WidgetDataState | undefined): { id: string; name: string }[] {
+  if (state?.status !== 'success') return [];
+  const items = (state.data as { items?: unknown } | null | undefined)?.items;
+  if (!Array.isArray(items)) return [];
+  return (items as { key?: unknown; label?: unknown }[]).flatMap((item) =>
+    (typeof item.key === 'string' || typeof item.key === 'number') && item.key !== '__other' ? [{ id: String(item.key), name: typeof item.label === 'string' && item.label !== '' ? item.label : String(item.key) }] : [],
+  );
+}
+
+/** What each person's button says: their first name, or the whole name where two share one (as the comp draws: "Dana"). */
+export function shortNames(people: readonly { id: string; name: string }[]): Map<string, string> {
+  const first = (name: string): string => name.trim().split(/\s+/u)[0] ?? name;
+  const counts = new Map<string, number>();
+  for (const one of people) counts.set(first(one.name), (counts.get(first(one.name)) ?? 0) + 1);
+  return new Map(people.map((one) => [one.id, (counts.get(first(one.name)) ?? 0) > 1 ? one.name : first(one.name)]));
+}
+
+/**
+ * The line above a board that says so (`config.board.toolbar`, the comp's
+ * toolbar): the person filter — "Everyone" and each person who holds cards on
+ * the board — then the total, then the board's note at the line's end.
+ */
+function BoardToolbarLine({
+  toolbar,
+  states,
+  figures,
+  person,
+  onPersonChange,
+  formatTotals,
+  entityLabels,
+  personLabel,
+  note,
+  language,
+}: {
+  toolbar: BoardToolbar;
+  states: BoardToolbarStates;
+  figures: number;
+  person: string | null;
+  onPersonChange: ((person: string | null) => void) | undefined;
+  formatTotals: PageBoardProps['formatTotals'];
+  entityLabels: PageBoardProps['entityLabels'];
+  personLabel: string | undefined;
+  note: ReactNode;
+  language: string | undefined;
+}) {
+  const t = useMaybeT();
+  const offered = useMemo(() => peopleOf(states.people), [states.people]);
+  // A person chosen and since gone from the list (their last card moved on) stays a button, by the name last seen.
+  const [seen, setSeen] = useState<ReadonlyMap<string, string>>(new Map());
+  useEffect(() => {
+    if (offered.length === 0) return;
+    setSeen((before) => {
+      const next = new Map(before);
+      for (const one of offered) next.set(one.id, one.name);
+      return next;
+    });
+  }, [offered]);
+  const people = person === null || offered.some((one) => one.id === person) ? offered : [...offered, { id: person, name: seen.get(person) ?? person }];
+  const names = shortNames(people);
+  const filtering = toolbar.person !== undefined && onPersonChange !== undefined && (people.length > 1 || person !== null);
+  // The total: the server's figures, all of them answered, or nothing yet.
+  const values = Array.from({ length: figures }, (_, index) => figureOf(states.figures[index]));
+  const answered = toolbar.total === true && figures > 0 && values.every((value) => value !== undefined);
+  let total: string | undefined;
+  if (answered) {
+    const count = values[0] ?? 0;
+    const counted =
+      entityLabels === undefined
+        ? t('ui:templates.board.toolbarCount', '{count, plural, one {# card} other {# cards}}', { count })
+        : t('ui:templates.board.toolbarCountNamed', '{count, plural, one {# {one}} other {# {other}}}', { count, one: entityLabels.one, other: entityLabels.other });
+    const rest = values.slice(1) as (number | null)[];
+    const fmt = getFormatters(language ?? 'en-US');
+    const totals = rest.length === 0 ? undefined : (formatTotals?.(rest) ?? rest.filter((value): value is number => value !== null).map((value) => fmt.number(value, { maximumFractionDigits: 2 })).join(' · '));
+    total = [counted, ...(totals === undefined || totals === '' ? [] : [totals])].join(' · ');
+  }
+  if (!filtering && total === undefined && note === null) return null;
+  const segment = (on: boolean): string =>
+    `whitespace-nowrap rounded-lg px-3 py-[7px] text-caption font-bold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${on ? 'bg-surface text-fg shadow-sm' : 'text-fg-subtle hover:text-fg'}`;
+  return (
+    <div role="toolbar" aria-label={t('ui:templates.board.toolbar', 'Board')} data-testid="board-toolbar" className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 px-3 pt-2">
+      {filtering ? (
+        <div role="group" aria-label={personLabel ?? t('ui:templates.board.person', 'Person')} data-testid="board-person-filter" className="flex flex-wrap gap-[3px] rounded-[11px] border border-border bg-surface-2 p-[3px]">
+          <button type="button" aria-pressed={person === null} className={segment(person === null)} onClick={() => onPersonChange?.(null)}>
+            {t('ui:templates.board.everyone', 'Everyone')}
+          </button>
+          {people.map((one) => (
+            <button
+              key={one.id}
+              type="button"
+              aria-pressed={person === one.id}
+              aria-label={one.name}
+              title={one.name}
+              className={segment(person === one.id)}
+              onClick={() => onPersonChange?.(one.id)}
+            >
+              {names.get(one.id) ?? one.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {total === undefined ? null : (
+        // Said again when the filter or a colleague's change moves it.
+        <span data-testid="board-total" aria-live="polite" className="font-mono text-caption tabular-nums text-fg-muted">
+          {total}
+        </span>
+      )}
+      {note}
+    </div>
+  );
 }
 
 /** The stored board item config, normalized from the candidate vocabulary. */
@@ -189,6 +342,10 @@ interface BoardItemConfig {
   card: BoardCardFacts;
   /** A sentence above the board (an app's `config.board.note`). */
   note: BoardNote | undefined;
+  /** A line above the board (an app's `config.board.toolbar`): the server's total, a person filter. */
+  toolbar: BoardToolbar | undefined;
+  /** How many figures the toolbar's total is asked as (`config.toolbarBindings`): the count, then each total. */
+  toolbarFigures: number;
 }
 
 /** One test a card passes to be on its board: its `column` holds one of `in`. */
@@ -230,6 +387,25 @@ function columnsFromOf(config: Record<string, unknown>): BoardColumnsFrom | unde
   };
 }
 
+/** A short stored label and the same by language: text only, nothing empty. */
+function labelsOf(from: Record<string, unknown> | undefined): { label?: string; labels?: Record<string, string> } {
+  const label = from === undefined ? undefined : configString(from, 'label');
+  if (label === undefined) return {};
+  const raw = from?.['labels'];
+  const labels = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '')) : undefined;
+  return { label, ...(labels === undefined || Object.keys(labels).length === 0 ? {} : { labels }) };
+}
+
+/** The stored `toolbar`: a total, a person filter by a column, or nothing. */
+function toolbarOf(config: Record<string, unknown>): BoardToolbar | undefined {
+  const raw = config['toolbar'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const toolbar = raw as Record<string, unknown>;
+  const person = configString(toolbar, 'person');
+  if (toolbar['total'] !== true && person === undefined) return undefined;
+  return { ...(toolbar['total'] === true ? { total: true } : {}), ...(person === undefined ? {} : { person }) };
+}
+
 /** The stored `card`: each piece that names a column, and nothing it cannot read. */
 function cardFactsOf(config: Record<string, unknown>): BoardCardFacts {
   const raw = config['card'];
@@ -239,11 +415,14 @@ function cardFactsOf(config: Record<string, unknown>): BoardCardFacts {
   const daysColumn = rawDays === undefined ? undefined : configString(rawDays, 'column');
   const whole = (value: unknown): number | undefined => (typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined);
   const link = configString(card, 'link');
+  const rawSecond = typeof card['secondAmount'] === 'object' && card['secondAmount'] !== null ? (card['secondAmount'] as Record<string, unknown>) : undefined;
+  const secondColumn = rawSecond === undefined ? undefined : configString(rawSecond, 'column');
   return {
     ...(link === undefined || !/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(link) ? {} : { link }),
     ...(configString(card, 'person') === undefined ? {} : { person: configString(card, 'person') }),
     ...(configString(card, 'amount') === undefined ? {} : { amount: configString(card, 'amount') }),
-    ...(daysColumn === undefined ? {} : { daysSince: { column: daysColumn, warnFrom: whole(rawDays?.['warnFrom']), alertFrom: whole(rawDays?.['alertFrom']) } }),
+    ...(secondColumn === undefined ? {} : { secondAmount: { column: secondColumn, ...labelsOf(rawSecond) } }),
+    ...(daysColumn === undefined ? {} : { daysSince: { column: daysColumn, warnFrom: whole(rawDays?.['warnFrom']), alertFrom: whole(rawDays?.['alertFrom']), ...labelsOf(rawDays) } }),
     ...(configString(card, 'date') === undefined ? {} : { date: configString(card, 'date') }),
   };
 }
@@ -374,6 +553,8 @@ export function boardItemConfigOf(config: Record<string, unknown>): BoardItemCon
     onlyInvalid: only === null || !cardsAskOnly(config, only),
     card: cardFactsOf(config),
     note: noteOf(config),
+    toolbar: toolbarOf(config),
+    toolbarFigures: Array.isArray(config['toolbarBindings']) ? (config['toolbarBindings'] as unknown[]).length : 0,
   };
 }
 
@@ -444,6 +625,12 @@ export interface BoardCardWriter {
   day: (column: string, value: unknown) => string | undefined;
   /** "12 days", in the reader's language. */
   days: (count: number) => string;
+  /** One of the board's own short labels, in the reader's language (`label`, or `labels` by language). Absent ⇒ `label` as written. */
+  label?: ((label: string, labels: Readonly<Record<string, string>> | undefined) => string) | undefined;
+  /** "12 days in stage": the days, then what they are. Absent ⇒ the two with a space. */
+  daysLabelled?: ((days: string, label: string) => string) | undefined;
+  /** "w €12,000": a second amount after its label. Absent ⇒ the two with a space. */
+  secondAmount?: ((label: string, amount: string) => string) | undefined;
 }
 
 /**
@@ -461,15 +648,27 @@ function writeCardFacts(card: BoardCardData, row: Record<string, unknown>, asked
     const id = row[asked.person];
     card.owner = typeof id === 'string' ? facts.people[id] : undefined;
   }
-  if (asked.amount !== undefined) {
-    const raw = row[asked.amount];
+  const labelled = (label: string | undefined, labels: Readonly<Record<string, string>> | undefined): string | undefined =>
+    label === undefined ? undefined : (facts.label?.(label, labels) ?? label);
+  const amountOf = (column: string): string | undefined => {
+    const raw = row[column];
     const amount = raw === null || raw === undefined || raw === '' ? Number.NaN : Number(raw);
-    card.budget = Number.isFinite(amount) ? facts.amount(asked.amount, amount) : undefined;
+    return Number.isFinite(amount) ? facts.amount(column, amount) : undefined;
+  };
+  if (asked.amount !== undefined) card.budget = amountOf(asked.amount);
+  if (asked.secondAmount !== undefined) {
+    // A second money line (a deal's weighted value): its label first, in the reader's language.
+    const amount = amountOf(asked.secondAmount.column);
+    const label = labelled(asked.secondAmount.label, asked.secondAmount.labels);
+    card.budgetSecond = amount === undefined ? undefined : label === undefined ? amount : (facts.secondAmount?.(label, amount) ?? `${label} ${amount}`);
   }
   if (asked.daysSince !== undefined) {
     const count = row[BOARD_CARD_DAYS_ALIAS];
     if (typeof count === 'number' && Number.isFinite(count)) {
-      card.tag = facts.days(count);
+      // The days, and what they are when the board says ("12 days in stage").
+      const days = facts.days(count);
+      const label = labelled(asked.daysSince.label, asked.daysSince.labels);
+      card.tag = label === undefined ? days : (facts.daysLabelled?.(days, label) ?? `${days} ${label}`);
       card.tagTone = asked.daysSince.alertFrom !== undefined && count >= asked.daysSince.alertFrom ? 'danger' : asked.daysSince.warnFrom !== undefined && count >= asked.daysSince.warnFrom ? 'warn' : 'neutral';
     } else {
       card.tag = undefined;
@@ -502,8 +701,20 @@ function BoardSlot({
   onDismissAddRefusal,
   trackAdd,
   formatAmount,
+  toolbarStates,
+  person,
+  onPersonChange,
+  formatTotals,
+  entityLabels,
+  personLabel,
 }: {
   formatAmount: PageBoardProps['formatAmount'];
+  toolbarStates: BoardToolbarStates;
+  person: string | null;
+  onPersonChange: PageBoardProps['onPersonChange'];
+  formatTotals: PageBoardProps['formatTotals'];
+  entityLabels: PageBoardProps['entityLabels'];
+  personLabel: string | undefined;
   item: LayoutItem;
   state: WidgetDataState;
   boardColumns: BoardColumnsState | undefined;
@@ -552,6 +763,9 @@ function BoardSlot({
         return day === undefined || day === '' ? undefined : fmt.date(`${day}T12:00:00Z`, 'medium', { timeZone: 'UTC' });
       },
       days: (count) => t('ui:templates.board.days', '{count, plural, one {# day} other {# days}}', { count }),
+      label: (label, labels) => pickLocalized(label, labels, language),
+      daysLabelled: (days, label) => t('ui:templates.board.daysLabelled', '{days} {label}', { days, label }),
+      secondAmount: (label, amount) => t('ui:templates.board.secondAmount', '{label} {amount}', { label, amount }),
     };
   }, [cfg.card, people, language, formatAmount, timeZone, state.data, t]);
   const cards = useMemo(
@@ -693,7 +907,39 @@ function BoardSlot({
           `h-full`, and as a plain sibling below the notice it overflowed the
           slot by the notice's height, into the composer placed under it. */}
       <div className="flex h-full min-h-0 flex-col">
-        {cfg.note === undefined ? null : (
+        {cfg.toolbar === undefined ? null : (
+          <BoardToolbarLine
+            toolbar={cfg.toolbar}
+            states={toolbarStates}
+            figures={cfg.toolbarFigures}
+            person={person}
+            onPersonChange={onPersonChange}
+            formatTotals={formatTotals}
+            entityLabels={entityLabels}
+            personLabel={personLabel}
+            language={language}
+            note={
+              cfg.note === undefined ? null : (
+                // On the toolbar's line, at its end (the comp): the page's own sentence about its board.
+                <span data-testid="board-note" className="ms-auto flex items-center gap-[7px] rounded-[10px] border border-border bg-surface-2 px-[11px] py-1.5 text-caption text-fg-muted">
+                  <Columns3 aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+                  {cfg.note.href === undefined || onEvent === undefined ? (
+                    <span>{pickLocalized(cfg.note.text, cfg.note.texts, language)}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="rounded-sm text-start font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      onClick={() => void onEvent(item.i, { type: 'drill-through', href: cfg.note?.href ?? '' })}
+                    >
+                      {pickLocalized(cfg.note.text, cfg.note.texts, language)}
+                    </button>
+                  )}
+                </span>
+              )
+            }
+          />
+        )}
+        {cfg.note === undefined || cfg.toolbar !== undefined ? null : (
           // The page's own sentence about its board ("Columns come from Stages"), in the reader's language.
           <p data-testid="board-note" className="px-3 pt-2 text-caption text-fg-muted">
             {cfg.note.href === undefined || onEvent === undefined ? (
@@ -890,6 +1136,11 @@ export function PageBoard({
   testId,
   currency,
   formatAmount,
+  person = null,
+  onPersonChange,
+  formatTotals,
+  entityLabels,
+  personLabel,
 }: PageBoardProps) {
   const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
@@ -939,6 +1190,16 @@ export function PageBoard({
               onDismissAddRefusal={dismissAddRefusal}
               trackAdd={trackAdd}
               formatAmount={formatAmount}
+              // The toolbar's own queries, by the board item's id: never a widget of the grid's.
+              toolbarStates={{
+                figures: Array.from({ length: Array.isArray(item.config['toolbarBindings']) ? (item.config['toolbarBindings'] as unknown[]).length : 0 }, (_, index) => states?.[boardToolbarInstanceId(item.i, index)]),
+                people: states?.[boardPeopleInstanceId(item.i)],
+              }}
+              person={person}
+              onPersonChange={onPersonChange}
+              formatTotals={formatTotals}
+              entityLabels={entityLabels}
+              personLabel={personLabel}
             />
           );
         }

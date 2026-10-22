@@ -226,6 +226,37 @@ describe('a board whose columns a page names', () => {
     for (const key of ['lookups', 'people', 'daysSince', 'orderBy']) expect((bare?.config['binding'] as Record<string, unknown>)[key]).toBeUndefined();
   });
 
+  it('carries a toolbar, a second money line and what the days are, and asks the server for the total and the people', () => {
+    const written = {
+      ...BOARD,
+      totals: [{ column: 'amount', fn: 'sum' }],
+      only: { tier: ['gold', 'silver'] },
+      card: { amount: 'amount', secondAmount: { column: 'amount', label: 'w', labels: { 'de-DE': 'gew.' } }, daysSince: { column: 'entered_at', label: 'in stage', labels: { 'de-DE': 'in der Phase' } } },
+      toolbar: { total: true, person: 'owner_id' },
+    };
+    const board = boardColumnsOf(written, (name) => `public.${name}`)!;
+    expect(board).toMatchObject({ card: written.card, toolbar: { total: true, person: 'owner_id' } });
+    const model = modelFromRequiredSchema({ requiredSchema: SALES });
+    const built = composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board });
+    expect(built.reason).toBe('');
+    const item = (built.envelope?.['config'] as { layout: { items: { widget: string; config: Record<string, unknown> }[] } }).layout.items.find((candidate) => candidate.widget === 'kanban-board');
+    expect(item?.config).toMatchObject({ card: written.card, toolbar: { total: true, person: 'owner_id' } });
+    const only = [{ column: 'tier', op: 'in', value: ['gold', 'silver'] }];
+    // The total: the server's count and each total over every card on the board, one figure a query.
+    expect(item?.config['toolbarBindings']).toMatchObject([
+      { shape: 'single-metric', aggregations: [{ fn: 'count', alias: 'cards' }], filters: only },
+      { shape: 'single-metric', aggregations: [{ fn: 'sum', column: 'amount', alias: 'total' }], filters: only },
+    ]);
+    // The people offered: those who hold a card on the board, counted.
+    expect(item?.config['personBinding']).toMatchObject({ shape: 'categorical', groupBy: ['owner_id'], aggregations: [{ fn: 'count', alias: 'cards' }], filters: [...only, { column: 'owner_id', op: 'not_null' }] });
+    // A toolbar that only filters asks no total; one that names nothing is none.
+    const filterOnly = composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board: boardColumnsOf({ ...BOARD, toolbar: { person: 'owner_id' } }, (name) => `public.${name}`)! });
+    const filtered = (filterOnly.envelope?.['config'] as { layout: { items: { widget: string; config: Record<string, unknown> }[] } }).layout.items.find((candidate) => candidate.widget === 'kanban-board');
+    expect(filtered?.config['toolbarBindings']).toBeUndefined();
+    expect(filtered?.config['personBinding']).toBeDefined();
+    expect(boardColumnsOf({ ...BOARD, toolbar: {} }, () => undefined)?.toolbar).toBeUndefined();
+  });
+
   it('says which of a card’s facts or which badge the real table cannot answer, and builds no other board', () => {
     const model = modelFromRequiredSchema({ requiredSchema: SALES });
     const from = { table: 'public.stages', label: 'name' };
@@ -237,6 +268,8 @@ describe('a board whose columns a page names', () => {
     expect(reason({ card: { amount: 'name' } })).toBe('deals.name is not a number, so a card cannot show it as an amount');
     expect(reason({ card: { daysSince: { column: 'amount' } } })).toBe('deals.amount is not a date or a time, so a card cannot read a day from it');
     expect(reason({ card: { date: 'nope' } })).toBe("deals has no column nope for a card's date");
+    expect(reason({ card: { secondAmount: { column: 'name' } } })).toBe('deals.name is not a number, so a card cannot show it as an amount');
+    expect(reason({ toolbar: { person: 'nobody' } })).toBe("deals has no column nobody to choose the board's cards by person");
   });
 
   it('reads only as the manifest writes it, and refuses a board whose only cannot be asked rather than draw every row', () => {
