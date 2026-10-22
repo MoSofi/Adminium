@@ -402,6 +402,8 @@ async function sectionRows(input: Reader & {
           for (const [form, text] of Object.entries(forms.instant(name, value))) out[`row.${form}`] = text;
         } else if (column.logicalType === 'date') {
           for (const [form, text] of Object.entries(forms.day(name, value))) out[`row.${form}`] = text;
+        } else if (column.logicalType === 'boolean') {
+          out[`row.${name}`] = forms.yesNo(value);
         } else if (money(name)) {
           out[`row.${name}`] = forms.money(value, currency);
         }

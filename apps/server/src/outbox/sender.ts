@@ -178,6 +178,7 @@ import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '../payments/reminder-hold.js';
 import { createMemoryHolds } from './memory-holds.js';
+import { yesNo } from '../automations/yes-no.js';
 
 /** The job that sends one app's queued rows now. */
 export const OUTBOX_SEND_JOB_KIND = 'app-outbox-send';
@@ -416,9 +417,25 @@ function dateOnly(value: unknown): string | null {
   return match?.[1] ?? null;
 }
 
+/**
+ * "Yes" and "No" in each language Adminium ships, by the language's tag
+ * (`zh` reads the same in both scripts). A yes/no is a word a reader reads,
+ * never `true` or `1`; a language not here reads English, as its template does.
+ */
+const YES_NO: Readonly<Record<string, readonly [yes: string, no: string]>> = {
+  en: ['Yes', 'No'],
+  de: ['Ja', 'Nein'],
+  fr: ['Oui', 'Non'],
+  da: ['Ja', 'Nej'],
+  cs: ['Ano', 'Ne'],
+  ar: ['نعم', 'لا'],
+  zh: ['是', '否'],
+};
+
 /** How a row's values read in one language, on one clock, in one currency. */
 export function valueForms(input: { locale: string; zone: string; currency: string | null; now: number }) {
   const tag = bcp47(input.locale);
+  const [yes, no] = YES_NO[tag.split('-')[0]!.toLowerCase()] ?? YES_NO['en']!;
   const on = (opts: Intl.DateTimeFormatOptions, zone = input.zone) => new Intl.DateTimeFormat(tag, { ...opts, timeZone: zone });
   const full = on({ dateStyle: 'full', timeStyle: 'short' });
   const date = on({ dateStyle: 'full' });
@@ -481,6 +498,11 @@ export function valueForms(input: { locale: string; zone: string; currency: stri
       const found = /^([01]?\d|2[0-3]):([0-5]\d)/.exec(String(value ?? '').trim());
       if (found === null) return String(value ?? '');
       return on({ hour: 'numeric', minute: '2-digit' }, 'UTC').format(new Date(Date.UTC(2000, 0, 1, Number(found[1]), Number(found[2]))));
+    },
+    /** A yes/no as the reader says it: "Ja", "Non", "نعم"; anything that is neither, as it is. */
+    yesNo(value: unknown): string {
+      const answer = yesNo(value);
+      return answer === null ? String(value ?? '') : answer ? yes : no;
     },
     /** An amount in the row's own currency when it names one, else the connection's. */
     money(value: unknown, own: string | null = null): string {
@@ -707,6 +729,8 @@ function putValues(
     }
     if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') Object.assign(vars, forms.instant(name, value));
     else if (column.logicalType === 'date') Object.assign(vars, forms.day(name, value));
+    // A yes/no reads as its word, whatever its name says it might be (a `paid` is no amount).
+    else if (column.logicalType === 'boolean') vars[name] = forms.yesNo(value);
     else if (effective?.semantics?.primary === 'money') vars[name] = forms.money(value, currency);
     else vars[name] = value instanceof Date ? value.toISOString() : String(value);
   }
