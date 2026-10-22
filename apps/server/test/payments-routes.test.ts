@@ -10,6 +10,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { providerError, type PaymentProvider, type PaymentProviderContext } from '@adminium/add-on-contracts';
 import {
@@ -22,6 +23,7 @@ import {
   paymentCountersRepo,
   paymentSettingsRepo,
   rolesRepo,
+  settingsRepo,
   usersRepo,
   type ManifestsRepo,
   type MetaDb,
@@ -33,6 +35,8 @@ import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { errorEnvelope } from '../src/errors.js';
 import { modeCredentials } from '../src/payments/credentials.js';
 import { serviceDocName, serviceStateSchema } from '../src/payments/services.js';
+import { sweepDocName, sweepStateSchema } from '../src/payments/sweep.js';
+import { webhookDocName, webhookHealthSchema } from '../src/payments/webhook.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { paymentsRoutes } from '../src/routes/payments/index.js';
 
@@ -241,6 +245,46 @@ describe('payments setup routes', () => {
     expect(notices.map((row) => row.userId)).toEqual([owner.id]);
     const alarms = (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data.alarms;
     expect(alarms).toEqual([expect.objectContaining({ what: 'account', service: 'payments-stripe', from: 'acct_9xQ4', to: 'acct_7wE6' })]);
+  });
+
+  it('hides an alarm for the person who says "Got it", and only for them', async () => {
+    const other = await usersRepo(meta).create({ email: 'pia@adminium.test', name: 'Pia', status: 'active' });
+    await rolesRepo(meta).assignToUser(other.id, (await rolesRepo(meta).findBySlug('super-admin'))!.id);
+    await app.inject({ method: 'PUT', url: field('live', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_live_51Habcdefghijklmnop9xQ4' } });
+    await app.inject({ method: 'PUT', url: field('live', 'secret_key'), headers: asUser(owner), payload: { value: 'rk_live_51Habcdefghijklmnop7wE6' } });
+    const alarms = async (user: User) => (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(user) })).json().data.alarms as { id: string }[];
+    const [alarm] = await alarms(owner);
+    expect(alarm!.id).toEqual(expect.any(String));
+    const dismiss = (user: User, id: string, extra: Record<string, string> = {}) => app.inject({ method: 'POST', url: `/api/v1/payments/alarms/${id}/dismiss`, headers: asUser(user, extra) });
+    expect((await dismiss(viewer, alarm!.id)).statusCode).toBe(403);
+    expect((await dismiss(owner, alarm!.id, { 'x-test-api-key': '1' })).statusCode).toBe(403);
+    expect((await dismiss(owner, 'aud_nothing')).statusCode).toBe(404);
+    expect((await dismiss(owner, alarm!.id)).statusCode).toBe(204);
+    expect(await alarms(owner)).toEqual([]);
+    expect(await alarms(other)).toHaveLength(1);
+  });
+
+  it('reads one pay address everywhere: the one chosen, else the public address', async () => {
+    const setup = async () => (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data;
+    await settingsRepo(meta).set('system.publicOrigin', 'https://admin.crumbandco.test');
+    let data = await setup();
+    expect(data.reachability).toMatchObject({ state: 'reachable', origin: 'https://admin.crumbandco.test' });
+    expect(data.services[0].test.webhookUrl).toBe('https://admin.crumbandco.test/api/v1/payments/webhook/payments-stripe/test');
+    // A pay address chosen in Studio: the card reads it, and the webhooks point there.
+    await paymentSettingsRepo(meta).set('pay-address', z.object({ origin: z.string() }).strict(), { origin: 'http://192.168.1.50:4600' });
+    data = await setup();
+    expect(data.reachability).toMatchObject({ state: 'private-network', origin: 'http://192.168.1.50:4600', notPort443: true });
+    expect(data.services[0].test.webhookUrl).toBe('http://192.168.1.50:4600/api/v1/payments/webhook/payments-stripe/test');
+  });
+
+  it('clears "the webhook is not reaching this server" once an event arrives after the sweep caught a payment', async () => {
+    const at = Date.now();
+    await paymentSettingsRepo(meta).set(sweepDocName('payments-stripe', 'test'), sweepStateSchema, { cursor: null, lastRunAt: at, month: new Date(at).toISOString().slice(0, 7), reads: 1, caughtAt: at - 60_000, slowed: false, lastLookupAt: null });
+    await paymentSettingsRepo(meta).set(webhookDocName('payments-stripe', 'test'), webhookHealthSchema, { firstAt: at - 120_000, lastAt: at - 120_000, lastBadAt: null, origin: null });
+    const health = async () => (await app.inject({ method: 'GET', url: '/api/v1/payments/setup', headers: asUser(owner) })).json().data.services[0].test.health;
+    expect((await health()).caughtAt).toBe(at - 60_000);
+    await paymentSettingsRepo(meta).set(webhookDocName('payments-stripe', 'test'), webhookHealthSchema, { firstAt: at - 120_000, lastAt: at, lastBadAt: null, origin: null });
+    expect(await health()).toMatchObject({ caughtAt: null, lastEventAt: at });
   });
 
   it('refuses a key that answers for the other mode', async () => {

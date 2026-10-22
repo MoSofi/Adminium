@@ -32,19 +32,19 @@ import {
   type PaymentMode,
 } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
-import { paymentCountersRepo, paymentSettingsRepo, settingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
+import { paymentCountersRepo, paymentSettingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../../add-ons/runtime.js';
-import { audited } from '../../audit/coverage.js';
+import { auditExempt, audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { modeCredentials, withField } from '../../payments/credentials.js';
 import { payAddress } from '../../payments/links.js';
 import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
-import { raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
+import { dismissAlarm, raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
 import { clockSkewOf } from '../../payments/clock.js';
 import { refundableCount, removeKeysSafely, setLive, waitingCount } from '../../payments/going-live.js';
 import { providerName, tellPaymentManagers } from '../../payments/notices.js';
@@ -73,6 +73,7 @@ import {
   serviceKeyParams,
   serviceModeParams,
   serviceReply,
+  alarmParams,
   setupReply,
   stoppedBody,
   type ServiceView,
@@ -124,6 +125,12 @@ function secretFields(manifest: AddOnManifest): { key: string; webhook: boolean;
     }));
 }
 
+/** When the sweep last caught a payment no webhook announced, if no webhook event arrived since; else null. */
+export function caughtSince(caughtAt: number | null, lastEventAt: number | null): number | null {
+  if (caughtAt === null) return null;
+  return lastEventAt !== null && lastEventAt >= caughtAt ? null : caughtAt;
+}
+
 /** The signed-in person making the change. An API key is refused by name. */
 function requirePerson(request: FastifyRequest): void {
   if (request.apiKeyPrincipal != null) {
@@ -159,14 +166,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     return (await docs.get(serviceDocName(key), serviceStateSchema)) ?? emptyServiceState();
   }
 
-  async function publicOrigin(): Promise<string | null> {
-    const value = await settingsRepo(meta).get('system.publicOrigin');
-    return typeof value === 'string' && value !== '' ? value : null;
-  }
-
-  /** Where providers must send webhooks: the pay address once one is saved, else this server's public address. */
+  /** Where providers must send webhooks: the pay address (the one chosen, else this server's public address). */
   async function webhookOrigin(): Promise<string | null> {
-    return (await payAddress(meta)) ?? (await publicOrigin());
+    return payAddress(meta);
   }
 
   function webhookUrl(origin: string | null, key: string, mode: PaymentMode): string | null {
@@ -183,7 +185,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       lastEventAt: hook?.lastAt ?? null,
       lastBadAt: hook?.lastBadAt ?? null,
       badThisHour: await paymentCountersRepo(meta).read(`webhook-bad:${key}:${mode}`, at),
-      caughtAt: sweep?.caughtAt ?? null,
+      // Only while no event has arrived since: a webhook that works again clears the warning.
+      caughtAt: caughtSince(sweep?.caughtAt ?? null, hook?.lastAt ?? null),
       slowed: sweep?.slowed ?? false,
       eventOrigin: hook?.origin ?? null,
     };
@@ -313,8 +316,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
 
     app.get('/payments/setup', { schema: { response: { 200: setupReply } } }, async (request) => {
       if (!(await canRead(request))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
-      const origin = await publicOrigin();
-      const hooks = await webhookOrigin();
+      // The pay address, as the record panel and the pay links read it: one answer everywhere.
+      const origin = await payAddress(meta);
+      const hooks = origin;
       const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined;
       const services: ServiceView[] = [];
       for (const addOn of await paymentAddOns()) {
@@ -326,10 +330,24 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
           reachability: reachability({ networkFeatures: deps.networkFeatures, desktop: deps.desktop, publicOrigin: origin, trustProxy: deps.trustProxy, forwarded }),
           canManage: await request.can(PERMISSIONS.paymentsManage),
           services,
-          alarms: await recentAlarms(meta, clock()),
+          // Without the ones this person said "Got it" to.
+          alarms: await recentAlarms(meta, clock(), (request as unknown as { user?: { id?: string } }).user?.id ?? null),
         },
       };
     });
+
+    // "Got it" on an alarm banner: hidden for this person only (everyone who manages payments was emailed).
+    app.post(
+      '/payments/alarms/:id/dismiss',
+      { config: { audit: auditExempt('a person hiding a banner for themselves; the change it reports stays audited') }, schema: { params: alarmParams } },
+      async (request, reply) => {
+        requirePerson(request);
+        if (!(await canRead(request))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
+        const userId = (request as unknown as { user: { id: string } }).user.id;
+        if (!(await dismissAlarm(meta, userId, request.params.id, clock()))) throw new NotFoundError('No such alarm.');
+        return reply.status(204).send();
+      },
+    );
 
     app.put(
       '/payments/services/:key/modes/:mode/fields/:field',
