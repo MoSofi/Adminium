@@ -27,6 +27,7 @@ import { NAV_LINK_SCREENS, RECORD_ADDRESS_MESSAGE, SIDE_PATH_MESSAGE, isRecordAd
 import { addOnModuleIssues, moduleIdSchema, moduleIssues, modulesSchema, optionalShapeAddOns, roleNamesSchema, shapeIsOptional, withoutModules } from './modules.js';
 import { bookingIssues, bookingSchema } from './booking.js';
 import { occupiesIssues, occupiesSchema } from './occupies.js';
+import { columnHistorySchema, removalIssues, removalSchema } from './removal.js';
 import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
 import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument } from './documents.js';
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
@@ -858,6 +859,14 @@ export const columnRulesSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * `"audit"`: the column's earlier values are kept for the audit log only,
+     * which the install's owner reads. Record history, a rule's
+     * `{{was.<column>}}`, a removed row's history and live frames leave them
+     * out (a removed message's text). The value a row holds now is read as
+     * any other column is.
+     */
+    history: columnHistorySchema.optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -1069,6 +1078,8 @@ export const requiredTableSchema = z
     private: z.literal(true).optional(),
     /** An add-on's table: the most an app's role may be given of it (see `app-grants.ts`). */
     appGrants: appGrantsSchema.optional(),
+    /** What a removal of a row takes (a reason) and keeps (the removed row's history, read through a parent): see `removal.ts`. */
+    removal: removalSchema.optional(),
   })
   .strict()
   .refine(
@@ -2714,7 +2725,7 @@ export function appReferenceIssues(
           out.push({ path: here('file', 'accept'), message: `"${table.ref}.${column.ref}" is an image column, so its files are pictures: ${PICTURE_FILE_KINDS.join(', ')}` });
         }
         // What the column holds is a file a person uploaded: no rule of Adminium's makes one, and no two rows share one.
-        const others = (Object.keys(rules) as (keyof ColumnRules)[]).filter((name) => !['file', 'personal', 'required', 'requiredWhen'].includes(name));
+        const others = (Object.keys(rules) as (keyof ColumnRules)[]).filter((name) => !['file', 'personal', 'required', 'requiredWhen', 'history'].includes(name));
         if (others.length > 0) out.push({ path: here('file'), message: `a file column holds what a person uploaded, not also ${others.join(', ')}` });
         if (column.unique === true) out.push({ path: at('columns', c, 'unique'), message: 'a file column holds a file nobody else holds already: it is not also unique' });
         if ((column as { default?: unknown }).default !== undefined) out.push({ path: at('columns', c, 'default'), message: 'a file column takes no default: a file is uploaded' });
@@ -2907,6 +2918,7 @@ export function appReferenceIssues(
   out.push(...privateTableIssues(m as unknown as Record<string, unknown>, m.requiredSchema.tables.filter((table) => table.private === true).map((table) => table.ref)));
   out.push(...storedTotalIssues(m.requiredSchema.tables as never, (m.roles ?? []) as never));
   out.push(...privateShapeIssues(m.requiredSchema.tables as never));
+  out.push(...removalIssues(m.requiredSchema.tables));
   // Whose a row is, is an app's to say for now: an add-on's tables are shared by every app that names it.
   if (m.kind === 'add-on') {
     m.requiredSchema.tables.forEach((table, t) => {

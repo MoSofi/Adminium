@@ -148,6 +148,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'card.module',
   'card.columnLabels',
   'link.staffPath',
+  'table.removal',
+  'column.history',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -266,6 +268,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'card.module': '0.3.28',
   'card.columnLabels': '0.3.28',
   'link.staffPath': '0.3.28',
+  // A removal's reason, and a removed row's history read through a row it linked to; a column whose earlier values only the audit log keeps.
+  'table.removal': '0.3.33',
+  'column.history': '0.3.33',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -331,6 +336,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
     if (table['appGrants'] !== undefined) out.push({ word: 'table.appGrants', path: `${at}.appGrants` });
     if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
+    if (table['removal'] !== undefined) out.push({ word: 'table.removal', path: `${at}.removal` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     list(isDoc(table['states']) ? table['states']['actions'] : undefined).forEach((action, a) => {
       if (isDoc(action) && action['handOver'] !== undefined) out.push({ word: 'states.handOver', path: `${at}.states.actions.${String(a)}.handOver` });
@@ -361,6 +367,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
       if (isDoc(rules['linkable']) && rules['linkable']['same'] !== undefined) out.push({ word: 'linkable.same', path: `${here}.linkable.same` });
       if (rules['file'] !== undefined) out.push({ word: 'column.file', path: `${here}.file` });
+      if (rules['history'] !== undefined) out.push({ word: 'column.history', path: `${here}.history` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
