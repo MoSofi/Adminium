@@ -101,6 +101,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.staff',
   'table.belongs',
   'table.private',
+  'belongs.throughPrivate',
+  'shape.create',
   'table.appGrants',
   'roles.rows',
   'rows.several',
@@ -178,6 +180,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.staff': '0.3.28',
   'table.belongs': '0.3.28',
   'table.private': '0.3.28',
+  // A row hung on a private row, reached by a person that private row's own `belongs` names.
+  'belongs.throughPrivate': '0.3.33',
+  // A table built on a shape holding its create to a condition on a column the app added.
+  'shape.create': '0.3.33',
   // What an app's role may be given of an add-on's table: the add-on's ceiling, cut to at every grant.
   'table.appGrants': '0.3.28',
   'roles.rows': '0.3.28',
@@ -338,6 +344,14 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });
     });
     if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
+    list(table['belongs']).forEach((way, w) => {
+      if (!isDoc(way) || typeof way['column'] !== 'string' || way['person'] === undefined) return;
+      const link = list(table['columns']).find((column) => isDoc(column) && column['ref'] === way['column']);
+      const target = isDoc(link) ? link['references'] : undefined;
+      const parent = list(schema['tables']).find((other) => isDoc(other) && other['ref'] === target);
+      if (isDoc(parent) && parent['private'] !== undefined) out.push({ word: 'belongs.throughPrivate', path: `${at}.belongs.${String(w)}.person` });
+    });
+    if (table['builtOn'] !== undefined && isDoc(table['states']) && table['states']['create'] !== undefined) out.push({ word: 'shape.create', path: `${at}.states.create` });
     if (table['appGrants'] !== undefined) out.push({ word: 'table.appGrants', path: `${at}.appGrants` });
     if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });

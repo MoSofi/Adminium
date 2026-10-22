@@ -254,6 +254,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',
+  // A row hung on a private row, read and written by the people that private row names (crud/row-limit.ts someone()).
+  'belongs.throughPrivate',
+  // A shape-built table's create held to a condition on a column the app added (shapes.ts createDifferences).
+  'shape.create',
 ];
 
 export interface UnbuiltWord {
