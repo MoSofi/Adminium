@@ -202,6 +202,20 @@ still names stays until that record names somebody else; adding the sample data 
 that person back instead of making a second one. If you already have a team called "Sales", the
 sample's team is made as "Sales (sample)" and yours is left alone.
 
+### Rules that run on sample records
+
+Adding the sample runs no automations, but the sample's records are real rows afterwards: signing
+off a sample job runs the app's rule for a signed-off job. A rule never hands a row to somebody who
+cannot sign in, with one exception: a rule running on a **sample** record may name a sample
+person (the aftercare call of a sample job goes to the sample rep who sold it). On one of your own
+records a sample person is nobody, and the rule's log says so.
+
+What such a rule makes is sample data too. Adminium adds those records to its list of sample
+records, so **Remove sample data** takes them with the rest, and the sample record they belong to
+goes with them. A rule-made record you have since written something of your own under (a note on
+that aftercare call) is kept, like any sample record your records use. A record a rule made from
+one of your own records is never on the list. Adminium 0.3.33.
+
 ## While it is loaded
 
 The app's own pages in the dashboard show **Sample data is loaded** at the top, with **Remove it**.
