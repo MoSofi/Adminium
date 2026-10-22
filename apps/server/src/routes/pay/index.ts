@@ -123,11 +123,11 @@ const pageReply = z.object({
 });
 type PageReply = z.infer<typeof pageReply>;
 const challengeReply = z.object({ id: z.string(), salt: z.string(), difficulty: z.number(), expiresAt: z.number() });
-const checkoutReply = z.union([z.object({ url: z.string() }), z.object({ state: z.enum(PAY_STATES), message: z.string().nullable() })]);
+const checkoutReply = z.union([z.object({ url: z.string() }), z.object({ state: z.enum(PAY_STATES), message: z.string().nullable(), code: z.string().optional() })]);
 
-/** A checkout answer that is a state, not a redirect. */
-function say(state: PayState, message: string | null = null): { state: PayState; message: string | null } {
-  return { state, message };
+/** A checkout answer that is a state, not a redirect; `code` is why the service refused, so the page can say what may follow. */
+function say(state: PayState, message: string | null = null, code?: string): { state: PayState; message: string | null; code?: string } {
+  return code === undefined ? { state, message } : { state, message, code };
 }
 
 function noStore(reply: FastifyReply): void {
@@ -490,7 +490,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         if (started.kind === 'redirect') return { url: started.url };
         if (started.kind === 'in-progress') return say('processing');
         if (started.kind === 'busy') return say('checking');
-        return say('failed', started.message);
+        return say('failed', started.message, started.code);
       },
     );
 

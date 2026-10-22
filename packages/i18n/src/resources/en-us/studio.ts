@@ -3582,10 +3582,10 @@ export default {
     "service": {
       "connectsStripe": "Connects to Stripe",
       "connectsPaypal": "Connects to PayPal",
-      "first": "Set this up first.",
       "notLoaded": "This add-on did not load, so its keys cannot be checked.",
       "notLoadedBody": "A payment service loads only from a package Adminium can vouch for: one this build bundles, or one downloaded from the catalogue.",
-      "paypalOnce": "PayPal shows once: through this card, not on the Stripe page."
+      "paypalOnce": "PayPal shows once: through this card, not on the Stripe page.",
+      "fixAddressFirst": "Fix the address above first: online payments stay off until then."
     },
     "reach": {
       "badge": {
@@ -3688,9 +3688,6 @@ export default {
       "testInLive": "This key is for test payments, and this field is for the live key."
     },
     "webhook": {
-      "headingStripe": "Webhook (Stripe calls it a webhook endpoint)",
-      "heading": "Webhook",
-      "address": "Address",
       "noAddress": "This server needs a public address first.",
       "copyAddress": "Copy the webhook address",
       "events": "Tick these events in {provider}",
@@ -3705,7 +3702,15 @@ export default {
       "badTest": "{count, plural, one {# event} other {# events}} arrived in the last hour but the signature did not match. Is this the secret from the endpoint page, for test mode?",
       "caught": "Adminium found a payment {when} that no webhook had announced. The webhook is not reaching this server.",
       "slowed": "Adminium checks {provider} less often this month: it has used half of the reads {provider} allows.",
-      "moved": "The webhook address changed. Update it at {provider}:"
+      "moved": "The webhook address changed. Update it at {provider}:",
+      "headingTestStripe": "Test webhook (Stripe calls it a webhook endpoint)",
+      "headingLiveStripe": "Live webhook (Stripe calls it a webhook endpoint)",
+      "headingTest": "Test webhook",
+      "headingLive": "Live webhook",
+      "headingSandbox": "Sandbox webhook",
+      "addressTest": "Test webhook address",
+      "addressLive": "Live webhook address",
+      "addressSandbox": "Sandbox webhook address"
     },
     "mode": {
       "test": "Test",
@@ -3724,18 +3729,22 @@ export default {
       "heading": "The access the key needs",
       "note": "Both ways give the key exactly this. Leave everything else at None.",
       "access": "Access",
-      "why": "Why"
+      "why": "Why",
+      "where": "Where in Stripe",
+      "optional": "(optional)"
     },
     "path": {
       "app": {
         "step1": "Install Node.js 22 or later",
         "step2": "Install the Stripe CLI",
-        "step5": "Unzip the template and open its folder",
-        "step7": "Install the app in the Stripe dashboard and copy its key",
         "title": "With your own Stripe App (the way Stripe recommends)",
         "desc": "You upload a small app to your own Stripe account once, using the Stripe command-line tool. It makes a key with exactly the access below.",
         "download": "Download the app template",
-        "note": "Upload once in your test account and once in your live account."
+        "note": "Upload once in your test account and once in your live account.",
+        "create": "Run {command} and answer its questions with anything",
+        "copy": "Copy {file} from the template you downloaded into the {folder} folder, replacing the one there",
+        "upload": "Run {first}, then {second}",
+        "install": "Install the app in the Stripe dashboard, open View API keys and copy the key that starts with {prefix}"
       },
       "hand": {
         "step1": "In the Stripe dashboard, open Developers → API keys",
@@ -4016,7 +4025,11 @@ export default {
       "sepa": "SEPA Direct Debit",
       "bankTransfer": "Bank transfer",
       "cashOnDelivery": "Cash on delivery",
-      "other": "Another way to pay by hand"
+      "other": "Another way to pay by hand",
+      "acssDebit": "Pre-authorized debit (Canada)",
+      "stripeTransfer": "Bank transfer (Stripe)",
+      "krCard": "Korean cards",
+      "crypto": "Crypto"
     },
     "test": {
       "title": "Send a test payment",
@@ -4030,7 +4043,9 @@ export default {
       "noWebhook": "no webhook arrived: the payment was found by asking",
       "wouldRecord": "this is what would be recorded: one payment of {amount}.",
       "wouldRecordWith": "this is what would be recorded: one payment of {amount}, {paidWith}.",
-      "nothingWritten": "Nothing was written to your tables."
+      "nothingWritten": "Nothing was written to your tables.",
+      "noWay": "Customers see this service only once a way is switched on in Ways to pay.",
+      "openWays": "Open Ways to pay"
     },
     "activity": {
       "state": {
@@ -4083,7 +4098,7 @@ export default {
       },
       "story": {
         "refundThere": "Refunded in the {service} dashboard: {amount}",
-        "refundDispute": "Dispute lost: {amount} went back to the customer",
+        "refundDispute": "Dispute lost — {amount} returned to the customer",
         "refundStarted": "Refund of {amount} started",
         "refunded": "{service} says refunded",
         "refundFailed": "{service} says the refund failed",

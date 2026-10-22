@@ -24,7 +24,6 @@ export default {
     "waitingPlain": "一筆線上付款開始於 {date} · 等待銀行確認",
     "recordedBy": "由 {name} 記錄",
     "online": "線上付款（{service}）",
-    "refundedInline": "已退款 {amount}",
     "listLabel": "此筆記錄的付款",
     "notice": {
       "draft": "請先寄出發票。只有已寄出的發票才能記錄付款。",
@@ -70,15 +69,24 @@ export default {
     "disputeLine": "有爭議 — 請在 {service} 主控台中回覆",
     "disputeNote": "若爭議敗訴，款項會退還給客戶。發票不會因此自動變更。",
     "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
-    "refundRequested": "已申請退款 {amount}",
-    "refundWaitingCustomer": "退款 {amount} 正在等待客戶",
-    "refundFailed": "退款 {amount} 失敗：{reason}。請聯絡客戶，並記錄你們商定的結果。",
-    "refundFailedPlain": "退款 {amount} 失敗。請聯絡客戶，並記錄你們商定的結果。",
-    "refundCancelled": "退款 {amount} 已取消。",
-    "refundedOnInline": "已於 {date} 退款 {amount}",
-    "refundedThere": "已於 {date} 在 {service} 主控台中退款 {amount} · 已記錄",
     "needsLook": "需要查看",
-    "demoService": "示範服務"
+    "demoService": "示範服務",
+    "refund": {
+      "dispute": "爭議敗訴 — {amount} 已退回給客戶",
+      "provider": "在 {service} 主控台中退款 {amount}",
+      "staff": "在 Adminium 中退款 {amount}",
+      "done": "已完成",
+      "waitingCustomer": "等待客戶操作",
+      "failed": "失敗",
+      "failedNext": "請聯絡客戶，並記錄你們商定的結果。",
+      "cancelled": "已取消：未退還任何款項",
+      "requested": "已申請",
+      "written": "退款 {amount}"
+    },
+    "partlyRefunded": "部分退款",
+    "disputeWon": "爭議已勝訴。",
+    "disputeLost": "爭議已敗訴。{amount} 已退回給客戶。",
+    "disputeLostPlain": "爭議已敗訴。款項已退回給客戶。"
   },
   "record": {
     "title": "記錄一筆付款",

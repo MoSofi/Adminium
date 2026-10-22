@@ -48,6 +48,8 @@ describe('a pay link, end to end', () => {
   let owner: User;
   let jobs: string[];
   let locales: (string | null)[];
+  /** When set, the checkout answers this instead of asking the service. */
+  let refusal: { kind: 'refused'; code: string; message: string; retryable: boolean } | null = null;
   /** Whether live payments are on (links are then live). */
   let live = false;
   const sources: PayableSources = {
@@ -101,7 +103,8 @@ describe('a pay link, end to end', () => {
     await app.register(rbacPlugin, { meta });
     await app.register(async (api) => api.register(paymentLinksRoutes({ meta, manager: { data: async () => { throw new Error('no table here'); } }, sources, secret: TEST_SECRET, ...facts, liveOn: async () => live })), { prefix: '/api/v1' });
     // Notes the language each checkout is started in.
-    const noting = { ...checkout, start: async (input: Parameters<typeof checkout.start>[0]) => (locales.push(input.locale), checkout.start(input)) };
+    refusal = null;
+    const noting = { ...checkout, start: async (input: Parameters<typeof checkout.start>[0]) => (locales.push(input.locale), refusal ?? checkout.start(input)) };
     // What a browser with JavaScript off gets for a link, read the way the HTML route reads it.
     const reader = createPayPageReader({ meta, sources, checkout, readyProviders: async (mode) => (mode === 'test' ? ['demo'] : []), secret: TEST_SECRET, ...facts });
     app.get<{ Params: { token: string } }>('/noscript/:token', async (request) => reader.noscript(request, request.params.token));
@@ -162,6 +165,14 @@ describe('a pay link, end to end', () => {
     expect(back).toMatchObject({ state: 'paid', test: true, attempt: { provider: 'demo', amount: '120.00', currency: 'EUR', receiptSent: false } });
     expect(jobs).toEqual([attempt!.id]);
     expect(await recordAttempt({ meta, sources }, attempt!.id)).toMatchObject({ state: 'recorded' });
+  });
+
+  it('says why the service refused, so the page can tell a held currency from a try that may work again', async () => {
+    const { token } = await mint();
+    refusal = { kind: 'refused', code: 'CURRENCY_UNSUPPORTED', message: 'Payments in KWD are held.', retryable: false };
+    const refused = await app.inject({ method: 'POST', url: `/pay/api/${token}/checkout`, headers: { ...staff(), 'x-adminium-proof': await proof(token) }, payload: { source: 'demo' } });
+    expect(refused.statusCode, refused.payload).toBe(200);
+    expect(refused.json()).toEqual({ state: 'failed', message: 'Payments in KWD are held.', code: 'CURRENCY_UNSUPPORTED' });
   });
 
   it('says a link has expired, and still tells a revoked link how its own payment went, without the record', async () => {

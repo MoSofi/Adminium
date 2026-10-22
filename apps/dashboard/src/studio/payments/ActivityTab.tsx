@@ -61,7 +61,7 @@ import {
   type StateGroup,
 } from './activityApi.js';
 import { knownProvider, type ServiceView } from './paymentsApi.js';
-import { locale as activeLocale } from './paymentsWords.js';
+import { locale as activeLocale, wayName } from './paymentsWords.js';
 
 /** The record page's two-step refund, with its own words: loaded only when someone refunds. */
 const RefundDialog = lazy(() => import('../../payments-panel/RefundDialog.js'));
@@ -136,8 +136,13 @@ function wayWord(way: string): string {
     case 'link':
       return 'Link';
     default:
-      return way;
+      return wayName({ source: '', method: way, label: null });
   }
+}
+
+/** The way and the service, leaving the service out when the way already names it ("PayPal", never "PayPal · PayPal"). */
+function wayAndService(way: string | null, service: string): string[] {
+  return way === null || way === '' ? [service] : way.trim().toLowerCase() === service.toLowerCase() ? [way] : [way, service];
 }
 
 function modeWord(mode: 'test' | 'live'): string {
@@ -265,7 +270,7 @@ function flagLook(row: ActivityRow): { icon: LucideIcon; tone: Tone } {
 
 /** The muted line under a flag: when it happened (a dispute's opening, not the payment's start), how and where. */
 function metaLine(row: ActivityRow, services: readonly ServiceView[], locale: string): string {
-  return [stamp(row.lookAt ?? row.at, locale), row.payable?.label ?? null, row.paidWith, serviceName(row.service, services), modeWord(row.mode)].filter((part): part is string => part !== null && part !== '').join(' · ');
+  return [stamp(row.lookAt ?? row.at, locale), row.payable?.label ?? null, ...wayAndService(row.paidWith, serviceName(row.service, services)), modeWord(row.mode)].filter((part): part is string => part !== null && part !== '').join(' · ');
 }
 
 interface StoryStep {
@@ -283,7 +288,7 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
       row.refundSource === 'provider'
         ? { text: t('studio:payments.activity.story.refundThere', 'Refunded in the {service} dashboard: {amount}', { service, amount }), at: row.times.started, tone: 'info' }
         : row.refundSource === 'dispute'
-          ? { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost: {amount} went back to the customer', { amount }), at: row.times.started, tone: 'danger' }
+          ? { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost — {amount} returned to the customer', { amount }), at: row.times.started, tone: 'warn' }
           : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
     ];
     if (row.group === 'refunded') steps.push({ text: t('studio:payments.activity.story.refunded', '{service} says refunded', { service }), at: row.times.settled ?? row.times.updated, tone: 'pos' });
@@ -684,7 +689,7 @@ function whatOf(row: ActivityRow): ReactNode {
 }
 
 function wayOf(row: ActivityRow, services: readonly ServiceView[]): string {
-  return [row.paidWith ?? (row.way === null ? null : wayWord(row.way)), serviceName(row.service, services)].filter((part): part is string => part !== null).join(' · ');
+  return wayAndService(row.paidWith ?? (row.way === null ? null : wayWord(row.way)), serviceName(row.service, services)).join(' · ');
 }
 
 function PaymentDrawer({ row, services, locale, onClose }: { row: ActivityRow | null; services: readonly ServiceView[]; locale: string; onClose: () => void }): ReactNode {

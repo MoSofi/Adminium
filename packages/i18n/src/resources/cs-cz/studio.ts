@@ -3582,10 +3582,10 @@ export default {
     "service": {
       "connectsStripe": "Připojuje se ke Stripe",
       "connectsPaypal": "Připojuje se k PayPal",
-      "first": "Nejdřív nastavte tohle.",
       "notLoaded": "Tento doplněk se nenačetl, takže jeho klíče nelze ověřit.",
       "notLoadedBody": "Platební služba se načte jen z balíčku, za který se Adminium může zaručit: z balíčku dodaného s tímto sestavením, nebo staženého z katalogu.",
-      "paypalOnce": "PayPal se zobrazí jen jednou: přes tuto kartu, ne na stránce Stripe."
+      "paypalOnce": "PayPal se zobrazí jen jednou: přes tuto kartu, ne na stránce Stripe.",
+      "fixAddressFirst": "Nejdřív opravte adresu výše: do té doby zůstanou online platby vypnuté."
     },
     "reach": {
       "badge": {
@@ -3688,9 +3688,6 @@ export default {
       "testInLive": "Tento klíč je pro testovací platby a toto pole je pro ostrý klíč."
     },
     "webhook": {
-      "headingStripe": "Webhook (Stripe mu říká koncový bod webhooku)",
-      "heading": "Webhook",
-      "address": "Adresa",
       "noAddress": "Tento server nejdřív potřebuje veřejnou adresu.",
       "copyAddress": "Zkopírovat adresu webhooku",
       "events": "Zaškrtněte tyto události u {provider}",
@@ -3705,7 +3702,15 @@ export default {
       "badTest": "Za poslední hodinu {count, plural, one {přišla # událost} few {přišly # události} many {přišlo # události} other {přišlo # událostí}}, ale podpis nesouhlasil. Je to tajný klíč ze stránky endpointu, pro testovací režim?",
       "caught": "Adminium {when} našlo platbu, kterou neohlásil žádný webhook. Webhook se k tomuto serveru nedostává.",
       "slowed": "Adminium se tento měsíc ptá {provider} méně často: spotřebovalo polovinu dotazů, které {provider} povoluje.",
-      "moved": "Adresa webhooku se změnila. Aktualizujte ji u služby {provider}:"
+      "moved": "Adresa webhooku se změnila. Aktualizujte ji u služby {provider}:",
+      "headingTestStripe": "Testovací webhook (Stripe mu říká koncový bod webhooku)",
+      "headingLiveStripe": "Ostrý webhook (Stripe mu říká koncový bod webhooku)",
+      "headingTest": "Testovací webhook",
+      "headingLive": "Ostrý webhook",
+      "headingSandbox": "Webhook sandbox",
+      "addressTest": "Adresa testovacího webhooku",
+      "addressLive": "Adresa ostrého webhooku",
+      "addressSandbox": "Adresa webhooku sandbox"
     },
     "mode": {
       "test": "Test",
@@ -3724,18 +3729,22 @@ export default {
       "heading": "Přístup, který klíč potřebuje",
       "note": "Oba způsoby dají klíči přesně tento přístup. Vše ostatní nechte na Žádný.",
       "access": "Přístup",
-      "why": "Proč"
+      "why": "Proč",
+      "where": "Kde ve Stripe",
+      "optional": "(volitelné)"
     },
     "path": {
       "app": {
         "step1": "Nainstalovat Node.js 22 nebo novější",
         "step2": "Nainstalovat Stripe CLI",
-        "step5": "Rozbalit šablonu a otevřít její složku",
-        "step7": "Nainstalovat aplikaci v nástěnce Stripe a zkopírovat její klíč",
         "title": "S vlastní aplikací Stripe App (tak to doporučuje Stripe)",
         "desc": "Jednou nahrajete malou aplikaci do svého účtu Stripe pomocí nástroje příkazové řádky Stripe. Vytvoří klíč přesně s přístupem uvedeným níže.",
         "download": "Stáhnout šablonu aplikace",
-        "note": "Nahrajte jednou do testovacího účtu a jednou do ostrého účtu."
+        "note": "Nahrajte jednou do testovacího účtu a jednou do ostrého účtu.",
+        "create": "Spusťte {command} a na jeho otázky odpovězte čímkoli",
+        "copy": "Zkopírujte {file} ze stažené šablony do složky {folder} a nahraďte soubor, který tam je",
+        "upload": "Spusťte {first} a potom {second}",
+        "install": "Nainstalujte aplikaci v nástěnce Stripe, otevřete View API keys a zkopírujte klíč, který začíná na {prefix}"
       },
       "hand": {
         "step1": "V nástěnce Stripe otevřete Vývojáři → Klíče API",
@@ -4016,7 +4025,11 @@ export default {
       "sepa": "Inkaso SEPA",
       "bankTransfer": "Bankovní převod",
       "cashOnDelivery": "Dobírka",
-      "other": "Jiný ruční způsob platby"
+      "other": "Jiný ruční způsob platby",
+      "acssDebit": "Předautorizované inkaso (Kanada)",
+      "stripeTransfer": "Bankovní převod (Stripe)",
+      "krCard": "Korejské karty",
+      "crypto": "Kryptoměny"
     },
     "test": {
       "title": "Odeslat testovací platbu",
@@ -4030,7 +4043,9 @@ export default {
       "noWebhook": "žádný webhook nedorazil: platba byla nalezena dotazem",
       "wouldRecord": "toto by se zaznamenalo: jedna platba ve výši {amount}.",
       "wouldRecordWith": "toto by se zaznamenalo: jedna platba ve výši {amount}, {paidWith}.",
-      "nothingWritten": "Do vašich tabulek se nic nezapsalo."
+      "nothingWritten": "Do vašich tabulek se nic nezapsalo.",
+      "noWay": "Zákazníci tuto službu uvidí až poté, co v části „Způsoby platby“ zapnete některý způsob.",
+      "openWays": "Otevřít Způsoby platby"
     },
     "activity": {
       "state": {
@@ -4083,7 +4098,7 @@ export default {
       },
       "story": {
         "refundThere": "Vráceno v přehledu služby {service}: {amount}",
-        "refundDispute": "Spor prohrán: {amount} se vrátilo zákazníkovi",
+        "refundDispute": "Spor prohrán — {amount} se vrátilo zákazníkovi",
         "refundStarted": "Vrácení {amount} zahájeno",
         "refunded": "Služba {service} hlásí: vráceno",
         "refundFailed": "Služba {service} hlásí: vrácení selhalo",

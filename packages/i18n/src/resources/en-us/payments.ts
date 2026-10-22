@@ -24,7 +24,6 @@ export default {
     "waitingPlain": "An online payment started {date} · waiting for the bank",
     "recordedBy": "recorded by {name}",
     "online": "Online payment ({service})",
-    "refundedInline": "refunded {amount}",
     "listLabel": "Payments on this record",
     "notice": {
       "draft": "Send the invoice first. A payment can only be recorded against a sent invoice.",
@@ -70,15 +69,24 @@ export default {
     "disputeLine": "Disputed — answer it in the {service} dashboard",
     "disputeNote": "If the dispute is lost, the money goes back to the customer. The invoice is not changed by itself.",
     "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
-    "refundRequested": "Refund of {amount} requested",
-    "refundWaitingCustomer": "Refund of {amount} is waiting for the customer",
-    "refundFailed": "The refund of {amount} failed: {reason}. Contact the customer and record what you agree.",
-    "refundFailedPlain": "The refund of {amount} failed. Contact the customer and record what you agree.",
-    "refundCancelled": "The refund of {amount} was cancelled.",
-    "refundedOnInline": "refunded {amount} on {date}",
-    "refundedThere": "Refund of {amount} made in the {service} dashboard on {date} · recorded",
     "needsLook": "Needs a look",
-    "demoService": "the demo service"
+    "demoService": "the demo service",
+    "refund": {
+      "dispute": "Dispute lost — {amount} returned to the customer",
+      "provider": "Refund of {amount} made in the {service} dashboard",
+      "staff": "Refund of {amount} made in Adminium",
+      "done": "Done",
+      "waitingCustomer": "Waiting for the customer",
+      "failed": "Failed",
+      "failedNext": "Contact the customer and record what you agree.",
+      "cancelled": "Cancelled: nothing was refunded",
+      "requested": "Requested",
+      "written": "Refund of {amount}"
+    },
+    "partlyRefunded": "Partly refunded",
+    "disputeWon": "The dispute was won.",
+    "disputeLost": "The dispute was lost. {amount} went back to the customer.",
+    "disputeLostPlain": "The dispute was lost. The money went back to the customer."
   },
   "record": {
     "title": "Record a payment",

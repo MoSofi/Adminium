@@ -9,8 +9,9 @@
  *
  *  1. **Can customers reach this server?** First, because a payment service
  *     needs to send customers to a page here and to call this server back.
- *     While it cannot, the services stay folded with "Set this up first."
- *     Manual ways to pay and staff recording work whatever it says.
+ *     While it cannot, each service card says to fix the address first and
+ *     stays whole, so its keys can be set ahead. Manual ways to pay and staff
+ *     recording work whatever it says.
  *  2. **One card per payment service** (each a payment add-on: "Card
  *     payments" connects to Stripe, "Wallet payments" to PayPal). A checklist
  *     that keeps its progress, the way the key is made, then per mode (test,
@@ -72,6 +73,7 @@ import {
   dismissAlarm,
   knownProvider,
   paymentsSetupQuery,
+  paymentsWaysQuery,
   saveField,
   saveRefusalOf,
   disconnectService,
@@ -510,17 +512,52 @@ function CheckLine({ service, mode, view }: { service: ServiceView; mode: Paymen
   );
 }
 
+/** The webhook card's heading: it names the mode, so the test card is never taken for the live one. */
+function webhookHeading(provider: KnownProvider, mode: PaymentMode): string {
+  if (mode === 'live') {
+    return provider === 'stripe' ? t('studio:payments.webhook.headingLiveStripe', 'Live webhook (Stripe calls it a webhook endpoint)') : t('studio:payments.webhook.headingLive', 'Live webhook');
+  }
+  if (provider === 'stripe') return t('studio:payments.webhook.headingTestStripe', 'Test webhook (Stripe calls it a webhook endpoint)');
+  if (provider === 'paypal') return t('studio:payments.webhook.headingSandbox', 'Sandbox webhook');
+  return t('studio:payments.webhook.headingTest', 'Test webhook');
+}
+
+function webhookAddressLabel(provider: KnownProvider, mode: PaymentMode): string {
+  if (mode === 'live') return t('studio:payments.webhook.addressLive', 'Live webhook address');
+  if (provider === 'paypal') return t('studio:payments.webhook.addressSandbox', 'Sandbox webhook address');
+  return t('studio:payments.webhook.addressTest', 'Test webhook address');
+}
+
+/**
+ * The name the provider's own form lists an event by. PayPal lists its events
+ * by name ("Payment capture denied"), not by the code the card copies
+ * (`PAYMENT.CAPTURE.DENIED`): for a code in that upper-case dotted form the
+ * name is made from it. Stripe's form lists the codes themselves: null.
+ */
+export function eventDisplayName(code: string): string | null {
+  if (!/^[A-Z0-9]+(?:[._][A-Z0-9]+)+$/.test(code) || !code.includes('.')) return null;
+  const words = code.toLowerCase().split(/[._]+/).join(' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function WebhookCard({ service, mode, view, canManage }: { service: ServiceView; mode: PaymentMode; view: ModeView; canManage: boolean }) {
   const provider = knownProvider(service.key);
   const name = providerWord(provider, service.name);
   const fields = view.fields.filter((field) => field.webhook);
   return (
-    <section className="flex flex-col gap-3 rounded-md border border-border p-4" aria-labelledby={`wh-${service.key}-${mode}`} data-testid={`payments-${service.key}-${mode}-webhook`}>
-      <h4 id={`wh-${service.key}-${mode}`} className="text-[13px] font-bold">
-        {provider === 'stripe' ? t('studio:payments.webhook.headingStripe', 'Webhook (Stripe calls it a webhook endpoint)') : t('studio:payments.webhook.heading', 'Webhook')}
-      </h4>
+    <section
+      className={`flex flex-col gap-3 rounded-md border p-4 ${mode === 'live' ? 'border-pos/40' : 'border-info/40'}`}
+      aria-labelledby={`wh-${service.key}-${mode}`}
+      data-testid={`payments-${service.key}-${mode}-webhook`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 id={`wh-${service.key}-${mode}`} className="text-[13px] font-bold">
+          {webhookHeading(provider, mode)}
+        </h4>
+        <Badge tone={mode === 'live' ? 'pos' : 'info'}>{mode === 'live' ? t('studio:payments.mode.live', 'Live') : t('studio:payments.mode.test', 'Test')}</Badge>
+      </div>
       <div className="flex flex-col gap-1">
-        <span className="text-[12.5px] font-semibold">{t('studio:payments.webhook.address', 'Address')}</span>
+        <span className="text-[12.5px] font-semibold">{webhookAddressLabel(provider, mode)}</span>
         {view.webhookUrl === null ? (
           <p className="text-[12.5px] text-fg-muted">{t('studio:payments.webhook.noAddress', 'This server needs a public address first.')}</p>
         ) : (
@@ -536,14 +573,22 @@ function WebhookCard({ service, mode, view, canManage }: { service: ServiceView;
         <div className="flex flex-col gap-1">
           <span className="text-[12.5px] font-semibold">{t('studio:payments.webhook.events', 'Tick these events in {provider}', { provider: name })}</span>
           <ul className="flex flex-col gap-1">
-            {service.webhookEvents.map((event) => (
-              <li key={event} className="flex items-center gap-2">
-                <span dir="ltr" className="font-mono text-[12.5px]">
-                  {event}
-                </span>
-                <CopyButton text={event} label={t('studio:payments.webhook.copyEvent', 'Copy {event}', { event })} />
-              </li>
-            ))}
+            {service.webhookEvents.map((event) => {
+              const shown = eventDisplayName(event);
+              return (
+                <li key={event} className="flex flex-wrap items-center gap-x-2 gap-y-0.5" data-testid={`payments-event-${event}`}>
+                  {shown === null ? null : (
+                    <span dir="ltr" className="text-[12.5px] font-semibold">
+                      {shown}
+                    </span>
+                  )}
+                  <span dir="ltr" className={shown === null ? 'font-mono text-[12.5px]' : 'font-mono text-[11.5px] text-fg-muted'}>
+                    {event}
+                  </span>
+                  <CopyButton text={event} label={t('studio:payments.webhook.copyEvent', 'Copy {event}', { event })} />
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}
@@ -685,7 +730,7 @@ function LiveCard({ service, view, canManage }: { service: ServiceView; view: Mo
   );
 }
 
-function ModeSection({ service, mode, canManage }: { service: ServiceView; mode: PaymentMode; canManage: boolean }) {
+function ModeSection({ service, mode, canManage, onOpenWays }: { service: ServiceView; mode: PaymentMode; canManage: boolean; onOpenWays: () => void }) {
   const client = useQueryClient();
   const view = service[mode];
   const keyFields = view.fields.filter((field) => !field.webhook);
@@ -717,7 +762,7 @@ function ModeSection({ service, mode, canManage }: { service: ServiceView; mode:
       {recheck.isError ? <Alert tone="danger" role="alert" title={errorText(recheck.error)} /> : null}
       <CheckLine service={service} mode={mode} view={view} />
       <WebhookCard service={service} mode={mode} view={view} canManage={canManage} />
-      {mode === 'test' && canManage && view.check?.ok === true ? <TestPaymentCard service={service} /> : null}
+      {mode === 'test' && canManage && view.check?.ok === true ? <TestPaymentCard service={service} onOpenWays={onOpenWays} /> : null}
       {mode === 'live' ? <LiveCard service={service} view={view} canManage={canManage} /> : null}
     </section>
   );
@@ -735,11 +780,14 @@ function testAmount(amount: string, currency: string): string {
 }
 
 /** A pretend invoice of one unit, paid on the real pay page in a new tab, and the round trip shown here. */
-function TestPaymentCard({ service }: { service: ServiceView }) {
+function TestPaymentCard({ service, onOpenWays }: { service: ServiceView; onOpenWays: () => void }) {
   const provider = knownProvider(service.key);
   const [started, setStarted] = useState<StartedTestPayment | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const trip = useQuery(testPaymentQuery(started?.rowKey ?? null));
+  // A test payment always offers its service; a customer's pay page offers it only once a way of it is switched on.
+  const ways = useQuery(paymentsWaysQuery());
+  const noWayOn = ways.data !== undefined && !ways.data.ways.some((way) => way.source === service.key && way.enabled);
   const name = providerWord(provider, service.name);
 
   async function send(): Promise<void> {
@@ -814,23 +862,62 @@ function TestPaymentCard({ service }: { service: ServiceView }) {
           <p className="text-[12.5px] font-semibold text-fg-muted">{t('studio:payments.test.nothingWritten', 'Nothing was written to your tables.')}</p>
         </div>
       ) : null}
+      {noWayOn ? (
+        <Alert
+          tone="info"
+          data-testid={`payments-${service.key}-no-way`}
+          title={t('studio:payments.test.noWay', 'Customers see this service only once a way is switched on in Ways to pay.')}
+          action={
+            <Button variant="secondary" size="sm" iconRight={<ArrowRight className="size-4 rtl:-scale-x-100" />} onClick={onOpenWays}>
+              {t('studio:payments.test.openWays', 'Open Ways to pay')}
+            </Button>
+          }
+        />
+      ) : null}
     </div>
   );
 }
 
 // ─── The way a Stripe key is made ───────────────────────────────────────────
 
-const STRIPE_ACCESS: readonly { access: string; why: () => string }[] = [
-  { access: 'Checkout Sessions: write', why: () => t('studio:payments.access.sessionsWrite', 'Start a payment and end one that is no longer needed') },
-  { access: 'Checkout Sessions: read', why: () => t('studio:payments.access.sessionsRead', 'See how a payment ended') },
-  { access: 'PaymentIntents: read', why: () => t('studio:payments.access.intentsRead', 'See the amount taken') },
-  { access: 'Charges and Refunds: write', why: () => t('studio:payments.access.refundsWrite', 'Give refunds (in Stripe this access also allows changing charges)') },
-  { access: 'Events: read', why: () => t('studio:payments.access.eventsRead', 'Catch a payment whose webhook went missing') },
-  { access: 'Disputes: read', why: () => t('studio:payments.access.disputesRead', 'Show disputes') },
-  { access: 'Payment Method Configurations: read', why: () => t('studio:payments.access.methodsRead', 'See which ways to pay you switched on') },
-  { access: 'Accounts: read', why: () => t('studio:payments.access.accountRead', 'Show which Stripe account the key belongs to') },
-  { access: 'Webhook endpoints: read (optional)', why: () => t('studio:payments.access.webhooksRead', 'Check your live webhook') },
+/**
+ * The key's access, in the words and groups of the restricted-key form at
+ * Stripe: each row names the permission as the form does and where in the form
+ * it sits. Stripe's own words, so never translated; only "Why" is ours.
+ */
+const STRIPE_ACCESS: readonly { access: string; where: string; optional?: true; why: () => string }[] = [
+  { access: 'Checkout Sessions: write', where: 'Checkout Sessions', why: () => t('studio:payments.access.sessionsWrite', 'Start a payment and end one that is no longer needed') },
+  { access: 'Checkout Sessions: read', where: 'Checkout Sessions', why: () => t('studio:payments.access.sessionsRead', 'See how a payment ended') },
+  { access: 'Payment Intents: read', where: 'Core', why: () => t('studio:payments.access.intentsRead', 'See the amount taken') },
+  { access: 'Charges and Refunds: write', where: 'Core', why: () => t('studio:payments.access.refundsWrite', 'Give refunds (in Stripe this access also allows changing charges)') },
+  { access: 'Events: read', where: 'Core', why: () => t('studio:payments.access.eventsRead', 'Catch a payment whose webhook went missing') },
+  { access: 'Payment Disputes: read', where: 'Core', why: () => t('studio:payments.access.disputesRead', 'Show disputes') },
+  { access: 'Payment Method Configurations: read', where: 'Core', why: () => t('studio:payments.access.methodsRead', 'See which ways to pay you switched on') },
+  { access: 'Accounts: read', where: 'Connect → “In your account: Read”', why: () => t('studio:payments.access.accountRead', 'Show which Stripe account the key belongs to') },
+  { access: 'Webhook Endpoints, Event Destinations: read', where: 'Webhook endpoints', optional: true, why: () => t('studio:payments.access.webhooksRead', 'Check your live webhook') },
 ];
+
+/** A translated sentence with commands in it: each `{name}` becomes the command, in code type. */
+function withCode(sentence: string, codes: Readonly<Record<string, string>>): ReactNode {
+  return sentence.split(/\{(\w+)\}/).map((part, index) =>
+    index % 2 === 1 && codes[part] !== undefined ? (
+      <code key={index} dir="ltr" className="rounded bg-surface-3 px-1 py-px font-mono text-[12px]">
+        {codes[part]}
+      </code>
+    ) : (
+      part
+    ),
+  );
+}
+
+/** A step that is one command to type. */
+function command(text: string): ReactNode {
+  return (
+    <code dir="ltr" className="rounded bg-surface-3 px-1 py-px font-mono text-[12px]">
+      {text}
+    </code>
+  );
+}
 
 function PathChooser({ service, canManage }: { service: ServiceView; canManage: boolean }) {
   const client = useQueryClient();
@@ -838,16 +925,34 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
     mutationFn: (path: 'app' | 'by-hand') => choosePath(service.key, path),
     onSuccess: async () => client.invalidateQueries({ queryKey: PAYMENTS_SETUP_QUERY_KEY }),
   });
-  const guide =
+  // The placeholders stay in the sentence (each value is its own name) and become code in `withCode`.
+  const slot = (name: string): string => `{${name}}`;
+  const guide: { key: string; step: ReactNode }[] =
     service.path === 'app'
       ? [
-          t('studio:payments.path.app.step1', 'Install Node.js 22 or later'),
-          t('studio:payments.path.app.step2', 'Install the Stripe CLI'),
-          'stripe login',
-          'stripe plugin install apps',
-          t('studio:payments.path.app.step5', 'Unzip the template and open its folder'),
-          'stripe apps upload',
-          t('studio:payments.path.app.step7', 'Install the app in the Stripe dashboard and copy its key'),
+          { key: 'node', step: t('studio:payments.path.app.step1', 'Install Node.js 22 or later') },
+          { key: 'cli', step: t('studio:payments.path.app.step2', 'Install the Stripe CLI') },
+          { key: 'login', step: command('stripe login') },
+          { key: 'plugin', step: command('stripe plugin install apps') },
+          {
+            key: 'create',
+            step: withCode(t('studio:payments.path.app.create', 'Run {command} and answer its questions with anything', { command: slot('command') }), { command: 'stripe apps create key-app' }),
+          },
+          {
+            key: 'copy',
+            step: withCode(t('studio:payments.path.app.copy', 'Copy {file} from the template you downloaded into the {folder} folder, replacing the one there', { file: slot('file'), folder: slot('folder') }), {
+              file: 'stripe-app.json',
+              folder: 'key-app',
+            }),
+          },
+          {
+            key: 'upload',
+            step: withCode(t('studio:payments.path.app.upload', 'Run {first}, then {second}', { first: slot('first'), second: slot('second') }), { first: 'cd key-app', second: 'stripe apps upload' }),
+          },
+          {
+            key: 'install',
+            step: withCode(t('studio:payments.path.app.install', 'Install the app in the Stripe dashboard, open View API keys and copy the key that starts with {prefix}', { prefix: slot('prefix') }), { prefix: 'rk_test_' }),
+          },
         ]
       : service.path === 'by-hand'
         ? [
@@ -856,7 +961,7 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
             t('studio:payments.path.hand.step3', 'Name it Adminium'),
             t('studio:payments.path.hand.step4', 'Set the access in the list below. Leave everything else at None.'),
             t('studio:payments.path.hand.step5', 'Create the key and copy it'),
-          ]
+          ].map((step, index) => ({ key: String(index), step }))
         : [];
   return (
     <section className="flex flex-col gap-3" aria-labelledby={`path-${service.key}`} data-testid={`payments-${service.key}-path`}>
@@ -885,8 +990,8 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
       {pick.isError ? <Alert tone="danger" role="alert" title={errorText(pick.error)} data-testid={`payments-${service.key}-path-error`} /> : null}
       {guide.length > 0 ? (
         <ol className="flex list-decimal flex-col gap-1 ps-5 text-[12.5px]" data-testid={`payments-${service.key}-guide`}>
-          {guide.map((step) => (
-            <li key={step}>{step}</li>
+          {guide.map(({ key, step }) => (
+            <li key={key}>{step}</li>
           ))}
         </ol>
       ) : null}
@@ -912,24 +1017,33 @@ function PathChooser({ service, canManage }: { service: ServiceView; canManage: 
       <div className="flex flex-col gap-1">
         <h4 className="text-[12.5px] font-bold">{t('studio:payments.access.heading', 'The access the key needs')}</h4>
         <p className="text-[12.5px] text-fg-muted">{t('studio:payments.access.note', 'Both ways give the key exactly this. Leave everything else at None.')}</p>
-        <table className="text-[12.5px]">
-          <thead>
-            <tr>
-              <th className="py-1 pe-3 text-start font-semibold">{t('studio:payments.access.access', 'Access')}</th>
-              <th className="py-1 text-start font-semibold">{t('studio:payments.access.why', 'Why')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {STRIPE_ACCESS.map((row) => (
-              <tr key={row.access} className="border-t border-border">
-                <td dir="ltr" className="py-1 pe-3 text-start font-mono">
-                  {row.access}
-                </td>
-                <td className="py-1">{row.why()}</td>
+        <div className="overflow-x-auto">
+          <table className="text-[12.5px]">
+            <thead>
+              <tr>
+                <th className="py-1 pe-3 text-start font-semibold">{t('studio:payments.access.access', 'Access')}</th>
+                <th className="py-1 pe-3 text-start font-semibold">{t('studio:payments.access.where', 'Where in Stripe')}</th>
+                <th className="py-1 text-start font-semibold">{t('studio:payments.access.why', 'Why')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {STRIPE_ACCESS.map((row) => (
+                <tr key={row.access} className="border-t border-border align-top">
+                  <td className="py-1 pe-3 text-start">
+                    <bdi dir="ltr" className="font-mono">
+                      {row.access}
+                    </bdi>
+                    {row.optional === true ? <span className="text-fg-muted"> {t('studio:payments.access.optional', '(optional)')}</span> : null}
+                  </td>
+                  <td className="py-1 pe-3 text-start">
+                    <bdi dir="ltr">{row.where}</bdi>
+                  </td>
+                  <td className="py-1">{row.why()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
@@ -1138,7 +1252,7 @@ function ClockWarning({ service }: { service: ServiceView }) {
   );
 }
 
-function ServiceCard({ service, canManage, reachable, paypalConnected }: { service: ServiceView; canManage: boolean; reachable: boolean; paypalConnected: boolean }) {
+function ServiceCard({ service, canManage, reachable, paypalConnected, onOpenWays }: { service: ServiceView; canManage: boolean; reachable: boolean; paypalConnected: boolean; onOpenWays: () => void }) {
   const provider = knownProvider(service.key);
   const progress = checklistProgress(service);
   const connects = connectsTo(provider);
@@ -1155,54 +1269,50 @@ function ServiceCard({ service, canManage, reachable, paypalConnected }: { servi
           </div>
           {connects !== null ? <p className="text-[12.5px] text-fg-muted">{connects}</p> : null}
         </div>
-        {canManage && reachable ? <ServiceMenu service={service} /> : null}
+        {canManage ? <ServiceMenu service={service} /> : null}
       </CardHeader>
       <CardBody className="flex flex-col gap-5">
+        {/* Unreachable: the card stays whole, so its checklist and keys can be read and set ahead; one line says what comes first. */}
         {!reachable ? (
-          <p className="text-[13px] text-fg-muted" data-testid={`payments-service-${service.key}-first`}>
-            {t('studio:payments.service.first', 'Set this up first.')}
-          </p>
-        ) : (
-          <>
-            {!service.loaded ? (
-              <Alert
-                tone="warn"
-                title={t('studio:payments.service.notLoaded', 'This add-on did not load, so its keys cannot be checked.')}
-                body={t('studio:payments.service.notLoadedBody', 'A payment service loads only from a package Adminium can vouch for: one this build bundles, or one downloaded from the catalogue.')}
-              />
-            ) : null}
-            <KeyAlarm service={service} />
-            <ClockWarning service={service} />
-            {provider === 'paypal' && paypalConnected ? (
-              <p className="text-[12.5px] text-fg-muted">{t('studio:payments.service.paypalOnce', 'PayPal shows once: through this card, not on the Stripe page.')}</p>
-            ) : null}
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[13px] font-bold">{t('studio:payments.checklist.heading', 'Setup checklist')}</span>
-                <span className="text-[12.5px] text-fg-muted" data-testid={`payments-service-${service.key}-progress`}>
-                  {t('studio:payments.checklist.progress', '{done} of {total} done · your progress is kept', progress)}
+          <Alert tone="warn" icon={<Globe />} data-testid={`payments-service-${service.key}-first`} title={t('studio:payments.service.fixAddressFirst', 'Fix the address above first: online payments stay off until then.')} />
+        ) : null}
+        {!service.loaded ? (
+          <Alert
+            tone="warn"
+            title={t('studio:payments.service.notLoaded', 'This add-on did not load, so its keys cannot be checked.')}
+            body={t('studio:payments.service.notLoadedBody', 'A payment service loads only from a package Adminium can vouch for: one this build bundles, or one downloaded from the catalogue.')}
+          />
+        ) : null}
+        <KeyAlarm service={service} />
+        <ClockWarning service={service} />
+        {provider === 'paypal' && paypalConnected ? (
+          <p className="text-[12.5px] text-fg-muted">{t('studio:payments.service.paypalOnce', 'PayPal shows once: through this card, not on the Stripe page.')}</p>
+        ) : null}
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-[13px] font-bold">{t('studio:payments.checklist.heading', 'Setup checklist')}</span>
+            <span className="text-[12.5px] text-fg-muted" data-testid={`payments-service-${service.key}-progress`}>
+              {t('studio:payments.checklist.progress', '{done} of {total} done · your progress is kept', progress)}
+            </span>
+          </div>
+          <ol className="flex flex-col gap-1">
+            {service.checklist.map((step, index) => (
+              <li key={step.step} className="flex items-center gap-2 text-[12.5px]">
+                <span aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded-full bg-surface-3 text-[11px]">
+                  {step.done ? <Check className="size-3" /> : index + 1}
                 </span>
-              </div>
-              <ol className="flex flex-col gap-1">
-                {service.checklist.map((step, index) => (
-                  <li key={step.step} className="flex items-center gap-2 text-[12.5px]">
-                    <span aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded-full bg-surface-3 text-[11px]">
-                      {step.done ? <Check className="size-3" /> : index + 1}
-                    </span>
-                    <span>
-                      {stepLabel(step.step, provider)}
-                      {step.done ? <span className="sr-only"> · {t('studio:payments.checklist.done', 'done')}</span> : null}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            {service.hasPaths ? <PathChooser service={service} canManage={canManage} /> : null}
-            <ModeSection service={service} mode="test" canManage={canManage} />
-            <ModeSection service={service} mode="live" canManage={canManage} />
-            <StopSwitch service={service} canManage={canManage} />
-          </>
-        )}
+                <span>
+                  {stepLabel(step.step, provider)}
+                  {step.done ? <span className="sr-only"> · {t('studio:payments.checklist.done', 'done')}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        {service.hasPaths ? <PathChooser service={service} canManage={canManage} /> : null}
+        <ModeSection service={service} mode="test" canManage={canManage} onOpenWays={onOpenWays} />
+        <ModeSection service={service} mode="live" canManage={canManage} onOpenWays={onOpenWays} />
+        <StopSwitch service={service} canManage={canManage} />
       </CardBody>
     </Card>
   );
@@ -1335,7 +1445,7 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
                 </Card>
               ) : (
                 data.services.map((service) => (
-                  <ServiceCard key={service.key} service={service} canManage={data.canManage} reachable={reachable} paypalConnected={paypalConnected} />
+                  <ServiceCard key={service.key} service={service} canManage={data.canManage} reachable={reachable} paypalConnected={paypalConnected} onOpenWays={() => setTab('ways')} />
                 ))
               )}
             </>

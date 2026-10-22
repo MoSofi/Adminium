@@ -270,6 +270,32 @@ describe('ActivityTab', () => {
     expect(await screen.findByTestId('activity-table')).toBeTruthy();
   });
 
+  it('names PayPal once where the way and the service are both PayPal, in the list, a flag and the drawer', async () => {
+    const paypal = row({ id: 'pat_60', service: 'payments-paypal', paidWith: 'PayPal', way: 'paypal', currency: 'USD', amount: '25.00', asked: { amount: '25.00', currency: 'USD' } });
+    const refunded = row({ ...AT_STRIPE, id: 'prf_60', service: 'payments-paypal', paidWith: 'PayPal', way: 'paypal', currency: 'USD', amount: '10.00', asked: { amount: '10.00', currency: 'USD' } });
+    stub({ open: [refunded], list: [paypal] });
+    const user = show();
+    const card = await screen.findByTestId('activity-needs-look');
+    await waitFor(() => expect(textOf(card)).toContain('INV-0042 · PayPal · Live'));
+    expect(textOf(card)).not.toContain('PayPal · PayPal');
+    const table = await screen.findByTestId('activity-table');
+    expect(textOf(table)).toContain('PayPal');
+    expect(textOf(table)).not.toContain('PayPal · PayPal');
+    await user.click(within(table).getByRole('button', { name: /INV-0042/ }));
+    expect(textOf(await screen.findByTestId('activity-drawer'))).toContain('PayPal says paid');
+  });
+
+  it('tells a lost dispute’s money as returned to the customer in its story', async () => {
+    const lost = row({ id: 'prf_70', kind: 'refund', amount: '120.00', state: 'succeeded', group: 'refunded', refundSource: 'dispute' });
+    stub({ open: [], list: [lost] });
+    const user = show();
+    const table = await screen.findByTestId('activity-table');
+    await user.click(within(table).getByRole('button', { name: /INV-0042/ }));
+    const drawer = await screen.findByTestId('activity-drawer');
+    expect(textOf(drawer)).toContain('Dispute lost — €120.00 returned to the customer');
+    expect(textOf(drawer)).not.toContain('Refund of €120.00 started');
+  });
+
   it('says when there are no payments yet, and when they could not be loaded', async () => {
     stub({ open: [], list: [] });
     show();

@@ -158,7 +158,10 @@ describe('the Payment panel', () => {
       }),
     );
     expect(screen.getByText('€40.00', { selector: 'bdi.text-\\[20px\\]' })).toBeTruthy();
-    expect(screen.getByText('refunded €40.00')).toBeTruthy();
+    // Refunded with no refund behind it (written in the record): still its own line, and the payment says it.
+    const [line] = screen.getAllByTestId('payment-refund-line');
+    expect(line!.textContent).toBe('Refund of €40.00·Done');
+    expect(screen.getByText('Partly refunded')).toBeTruthy();
     expect(screen.queryByText('Paid in full')).toBeNull();
     expect(screen.getByRole('button', { name: 'Copy pay link' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Record a payment' })).toBeTruthy();
@@ -285,7 +288,7 @@ describe('refunds and disputes on the Payment panel', () => {
     expect(keys[3]).not.toBe(keys[0]);
   });
 
-  it('says each refund under its payment: asked, failed in the service’s words, made in its dashboard; a done one inline', async () => {
+  it('says every refund on its own coloured line under its payment: how much, where, when and how it stands', async () => {
     const at = Date.UTC(2026, 9, 22);
     const refund = (patch: Partial<PanelRefund> & { id: string }): PanelRefund => ({ attemptId: 'pat_1', amount: '40.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: at, settledAt: at, ...patch, id: `rf_${patch.id}` });
     await show(
@@ -302,11 +305,62 @@ describe('refunds and disputes on the Payment panel', () => {
         ],
       }),
     );
-    expect(screen.getByText(/^refunded €40\.00 on (22 Oct|Oct 22)$/)).toBeTruthy();
-    expect(screen.getByText('Refund of €10.00 requested')).toBeTruthy();
-    expect(screen.getByText('The refund of €30.00 failed: The card was closed. Contact the customer and record what you agree.')).toBeTruthy();
-    expect(screen.getByText(/^Refund of €20\.00 made in the Stripe dashboard on (22 Oct|Oct 22) · recorded$/)).toBeTruthy();
+    const day = '(22 Oct|Oct 22)';
+    const lines = screen.getAllByTestId('payment-refund-line');
+    expect(lines.map((line) => line.textContent)).toEqual([
+      expect.stringMatching(new RegExp(`^Refund of €40\\.00 made in Adminium·${day}·Done$`)),
+      expect.stringMatching(new RegExp(`^Refund of €10\\.00 made in Adminium·${day}·Requested$`)),
+      expect.stringMatching(new RegExp(`^Refund of €30\\.00 made in Adminium·${day}·FailedThe card was closed\\. Contact the customer and record what you agree\\.$`)),
+      expect.stringMatching(new RegExp(`^Refund of €20\\.00 made in the Stripe dashboard·${day}·DoneNeeds a look$`)),
+    ]);
+    // Never a grey clause: warn while on its way or done, danger when it failed.
+    expect(lines.map((line) => line.getAttribute('data-tone'))).toEqual(['warn', 'warn', 'danger', 'warn']);
+    expect(screen.queryByText(/^refunded €/)).toBeNull();
+    expect(screen.getByText('Partly refunded')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Needs a look' }).getAttribute('href')).toBe('/studio/payments?tab=activity');
+  });
+
+  it('badges a payment refunded in full "Refunded"', async () => {
+    const refund: PanelRefund = { id: 'rf_1', attemptId: 'pat_1', amount: '120.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: 1, settledAt: 1 };
+    await show(viewOf({ due: '120.00', paid: '0.00', payments: [paymentOf({ ...ONLINE, refunded: '120.00', refunds: [refund] })] }));
+    expect(screen.getByText('Refunded')).toBeTruthy();
+    expect(screen.queryByText('Partly refunded')).toBeNull();
+  });
+
+  it('says a lost dispute as money returned to the customer, on its line and in the closed dispute’s notice', async () => {
+    const lost: PanelRefund = { id: 'rf_d', attemptId: 'pat_1', amount: '120.00', currency: 'EUR', state: 'succeeded', source: 'dispute', failureMessage: null, createdAt: Date.UTC(2026, 9, 22), settledAt: Date.UTC(2026, 9, 22) };
+    await show(viewOf({ due: '120.00', paid: '0.00', payments: [paymentOf({ ...ONLINE, refunded: '120.00', refunds: [lost], dispute: { state: 'closed', at: 1, closedAt: 2, outcome: 'lost' } })] }));
+    expect(screen.getByTestId('payment-refund-line').textContent).toMatch(/^Dispute lost — €120\.00 returned to the customer·(22 Oct|Oct 22)·DoneNeeds a look$/);
+    expect(screen.getByText('The dispute was lost. €120.00 went back to the customer.')).toBeTruthy();
+    expect(screen.getByText('Refunded')).toBeTruthy();
+  });
+
+  it('says how a closed dispute ended: won, lost with no amount known, or not said', async () => {
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, dispute: { state: 'closed', at: 1, closedAt: 2, outcome: 'won' } })] }));
+    expect(screen.getByText('The dispute was won.')).toBeTruthy();
+    cleanup();
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, dispute: { state: 'closed', at: 1, closedAt: 2, outcome: 'lost' } })] }));
+    expect(screen.getByText('The dispute was lost. The money went back to the customer.')).toBeTruthy();
+    cleanup();
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, payments: [paymentOf({ ...ONLINE, dispute: { state: 'closed', at: 1, closedAt: 2, outcome: null } })] }));
+    expect(screen.getByText('The dispute was closed. Its outcome is in the Stripe dashboard.')).toBeTruthy();
+  });
+
+  it('keeps a payment line with nothing under it level with its icon and its menu', async () => {
+    await show(viewOf({ due: '0.00', paid: '120.00', mayRecord: false, mayRefund: true, payments: [paymentOf({ ...ONLINE })] }));
+    expect(screen.getByTestId('payment-row').className).toContain('items-center');
+    cleanup();
+    const refund: PanelRefund = { id: 'rf_1', attemptId: 'pat_1', amount: '20.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: 1, settledAt: 1 };
+    await show(viewOf({ due: '20.00', paid: '100.00', mayRefund: true, payments: [paymentOf({ ...ONLINE, refunded: '20.00', refunds: [refund] })] }));
+    expect(screen.getByTestId('payment-row').className).toContain('items-start');
+  });
+
+  it('names PayPal once when the way is PayPal, with a wallet icon', async () => {
+    await show(viewOf({ due: '0.00', paid: '25.00', currency: 'USD', mayRecord: false, payments: [paymentOf({ ...ONLINE, amount: '25.00', currency: 'USD', way: 'paypal', wayLabel: 'PayPal', provider: 'payments-paypal' })] }));
+    const row = screen.getByTestId('payment-row');
+    expect(row.textContent).not.toContain('PayPal·PayPal');
+    expect(row.textContent).toMatch(/\$25\.00·PayPal·(20 Oct|Oct 20)·recorded by Online payment \(PayPal\)/);
+    expect(row.querySelector('svg.lucide-wallet')).not.toBeNull();
   });
 
   it('shows an open dispute as a danger notice and a badge, and a closed one as where to read its outcome', async () => {

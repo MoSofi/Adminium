@@ -38,6 +38,7 @@ export interface ActivityRow {
   asked: { amount: string; currency: string };
   times: { started: number; settled: number | null; recorded: number | null; updated: number };
   refs: { attempt: string | null; checkout: string | null; payment: string | null; refund: string | null };
+  /** `dispute`: a lost dispute gave the money back (absent from an older server). */
   refundSource: 'staff' | 'provider' | 'dispute' | null;
   flag: { code: ActivityFlag; reason: string | null; message: string | null } | null;
   check: { at: number; by: string | null; byName: string | null; note: string | null } | null;

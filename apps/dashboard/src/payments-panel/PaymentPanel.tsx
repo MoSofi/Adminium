@@ -11,23 +11,26 @@
  *
  * A payment taken online carries a "…" menu with "Refund…" for whoever may
  * refund; when it cannot be refunded now the item stays (focusable, with
- * `aria-disabled`) and says why. Each refund shows under its payment: asked,
- * waiting, failed in the service's words, made in the service's dashboard; a
- * done one reads inline. A dispute is a danger notice and a badge on its row;
- * the record itself is never changed by it.
+ * `aria-disabled`) and says why. Every refund is its own ↩ line under its
+ * payment, coloured so it is never missed (owner ruling, plan 70 walk D1):
+ * how much, where it was made (here, in the service's dashboard, or by a lost
+ * dispute), when, and how it stands — requested, done, or failed in the
+ * service's words. The payment's own line says "Partly refunded" or
+ * "Refunded". A dispute is a danger notice and a badge on its row; the record
+ * itself is never changed by it.
  *
  * Loaded lazily, with its words, only on a record that takes payments.
  */
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Tooltip } from '@adminium/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Banknote, CircleCheck, CircleDot, CircleX, Clock, CornerDownLeft, CreditCard, Ellipsis, FileText, Landmark, Link2, Loader, Mail, Package, Plus, RotateCcw, Send, ServerOff, ShieldAlert, type LucideIcon } from 'lucide-react';
+import { Ban, Banknote, CircleCheck, CircleDot, Clock, CornerDownLeft, CreditCard, Ellipsis, FileText, Landmark, Link2, Mail, Package, Plus, RotateCcw, Send, ServerOff, ShieldAlert, Wallet, type LucideIcon } from 'lucide-react';
 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { emailLink, fetchCurrentLink, fetchPaymentPanel, makeLink, panelQueryKey, paymentPanelKey, revokeLink, type PanelDocument, type PanelPayment, type PanelTarget, type PanelRefund, type PaymentPanelView } from './paymentPanelApi.js';
-import { decimalsOf, formatMoney, moreThan, shortDay } from './paymentText.js';
+import { decimalsOf, formatMoney, moreThan, shortDay, sumAmounts } from './paymentText.js';
 import { readerLocale, usePaymentsMessages } from './paymentsMessages.js';
 import { RecordPaymentDialog } from './RecordPaymentDialog.js';
 import RefundDialog from './RefundDialog.js';
@@ -41,7 +44,27 @@ const WAY_ICONS: Record<string, LucideIcon> = {
   cheque: FileText,
   other: CircleDot,
   online: CreditCard,
+  // A way paid online, by the service's own id: wallets and bank debits.
+  paypal: Wallet,
+  apple_pay: Wallet,
+  google_pay: Wallet,
+  samsung_pay: Wallet,
+  amazon_pay: Wallet,
+  link: Wallet,
+  cashapp: Wallet,
+  revolut_pay: Wallet,
+  wechat_pay: Wallet,
+  alipay: Wallet,
+  sepa_debit: Landmark,
+  bacs_debit: Landmark,
+  us_bank_account: Landmark,
 };
+
+/** The service's name beside the way, unless the way already says it ("PayPal", not "PayPal · PayPal"). */
+export function serviceAfterWay(wayLabel: string | null, provider: string): string | null {
+  const service = serviceName(provider);
+  return wayLabel !== null && wayLabel.trim().toLowerCase() === service.toLowerCase() ? null : service;
+}
 
 export { serviceName };
 
@@ -97,45 +120,85 @@ function Notice({ tone, icon: Icon, children, action }: { tone: keyof typeof NOT
   );
 }
 
-const SUB_TONES = {
-  info: { box: 'bg-info-soft px-2.5 py-1.5 text-fg-muted', icon: 'text-info' },
-  danger: { box: 'bg-danger-soft px-2.5 py-1.5 font-semibold text-fg', icon: 'text-danger' },
-  neutral: { box: 'text-fg-muted', icon: 'text-fg-subtle' },
+/** A refund's ↩ line: warn while it is on its way or done, danger when it failed. */
+const REFUND_TONES = {
+  warn: { box: 'border border-warn/30 bg-warn-soft text-fg', icon: 'text-warn', state: 'text-warn' },
+  danger: { box: 'border border-danger/30 bg-danger-soft text-fg', icon: 'text-danger', state: 'text-danger' },
 } as const;
 
-/** A refund's line under its payment, or null when it reads inline (done, asked here). */
-function refundLine(refund: PanelRefund, provider: string | null, money: (amount: string) => string, locale: string): { tone: keyof typeof SUB_TONES; icon: LucideIcon; text: string; look: boolean } | null {
+interface RefundLine {
+  tone: keyof typeof REFUND_TONES;
+  /** How much and where it was made. */
+  what: string;
+  /** The day, when there is one. */
+  date: string | null;
+  /** How it stands. */
+  state: string;
+  /** For a failed one: what the service said, and what to do. */
+  detail: string | null;
+  /** Made outside Adminium: Activity holds it until someone has looked. */
+  look: boolean;
+}
+
+/** One refund under its payment, said whole: amount, where, when, and how it stands. */
+export function refundLine(refund: PanelRefund, provider: string | null, money: (amount: string) => string, locale: string): RefundLine {
   const amount = money(refund.amount);
-  if (refund.source === 'provider' && refund.state === 'succeeded') {
-    return {
-      tone: 'neutral',
-      icon: CornerDownLeft,
-      text: t('payments:panel.refundedThere', 'Refund of {amount} made in the {service} dashboard on {date} · recorded', { amount, service: serviceName(provider ?? ''), date: shortDay(refund.settledAt ?? refund.createdAt, locale) }),
-      look: true,
-    };
-  }
+  const service = serviceName(provider ?? '');
+  const what =
+    refund.source === 'dispute'
+      ? t('payments:panel.refund.dispute', 'Dispute lost — {amount} returned to the customer', { amount })
+      : refund.source === 'provider'
+        ? t('payments:panel.refund.provider', 'Refund of {amount} made in the {service} dashboard', { amount, service })
+        : t('payments:panel.refund.staff', 'Refund of {amount} made in Adminium', { amount });
+  const date = shortDay(refund.state === 'succeeded' ? (refund.settledAt ?? refund.createdAt) : refund.createdAt, locale);
+  const look = refund.source !== 'staff';
   switch (refund.state) {
     case 'succeeded':
-      return null;
+      return { tone: 'warn', what, date, state: t('payments:panel.refund.done', 'Done'), detail: null, look };
     case 'requires_action':
-      return { tone: 'info', icon: Loader, text: t('payments:panel.refundWaitingCustomer', 'Refund of {amount} is waiting for the customer', { amount }), look: false };
+      return { tone: 'warn', what, date, state: t('payments:panel.refund.waitingCustomer', 'Waiting for the customer'), detail: null, look };
     case 'failed': {
-      const reason = refund.failureMessage?.trim().replace(/[.。]+$/u, '') ?? '';
-      return {
-        tone: 'danger',
-        icon: CircleX,
-        text:
-          reason === ''
-            ? t('payments:panel.refundFailedPlain', 'The refund of {amount} failed. Contact the customer and record what you agree.', { amount })
-            : t('payments:panel.refundFailed', 'The refund of {amount} failed: {reason}. Contact the customer and record what you agree.', { amount, reason }),
-        look: false,
-      };
+      const reason = refund.failureMessage?.trim() ?? '';
+      const next = t('payments:panel.refund.failedNext', 'Contact the customer and record what you agree.');
+      return { tone: 'danger', what, date, state: t('payments:panel.refund.failed', 'Failed'), detail: reason === '' ? next : `${reason.replace(/[.。]+$/u, '')}. ${next}`, look: false };
     }
     case 'cancelled':
-      return { tone: 'neutral', icon: CircleX, text: t('payments:panel.refundCancelled', 'The refund of {amount} was cancelled.', { amount }), look: false };
+      return { tone: 'warn', what, date, state: t('payments:panel.refund.cancelled', 'Cancelled: nothing was refunded'), detail: null, look: false };
     default:
-      return { tone: 'info', icon: Loader, text: t('payments:panel.refundRequested', 'Refund of {amount} requested', { amount }), look: false };
+      return { tone: 'warn', what, date, state: t('payments:panel.refund.requested', 'Requested'), detail: null, look };
   }
+}
+
+function RefundSubLine({ line }: { line: RefundLine }): ReactNode {
+  const tone = REFUND_TONES[line.tone];
+  return (
+    <div className={`flex flex-wrap items-start gap-[7px] rounded-md px-2.5 py-1.5 text-[12.5px] leading-normal ${tone.box}`} data-testid="payment-refund-line" data-tone={line.tone}>
+      <CornerDownLeft className={`mt-0.5 size-3.5 shrink-0 rtl:-scale-x-100 ${tone.icon}`} aria-hidden="true" />
+      <span className="min-w-0 flex-[1_1_200px]">
+        <span className="font-semibold">{line.what}</span>
+        {line.date === null || line.date === '' ? null : (
+          <>
+            <span aria-hidden="true" className="px-1.5 text-fg-subtle">
+              ·
+            </span>
+            <bdi dir="ltr" className="whitespace-nowrap font-mono">
+              {line.date}
+            </bdi>
+          </>
+        )}
+        <span aria-hidden="true" className="px-1.5 text-fg-subtle">
+          ·
+        </span>
+        <span className={`font-bold ${tone.state}`}>{line.state}</span>
+        {line.detail === null ? null : <span className="mt-0.5 block text-fg-muted">{line.detail}</span>}
+      </span>
+      {line.look ? (
+        <a href="/studio/payments?tab=activity" className="shrink-0 rounded-full bg-warn-soft px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[.05em] text-warn no-underline">
+          {t('payments:panel.needsLook', 'Needs a look')}
+        </a>
+      ) : null}
+    </div>
+  );
 }
 
 /** The "…" menu of a payment (or of a payment waiting for the bank): "Refund…", or why it cannot be refunded now. */
@@ -183,18 +246,18 @@ function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { paymen
   const money = (value: string): string => formatMoney(value, payment.currency || currency, locale, decimalsOf(payment.amount));
   const amount = formatMoney(payment.amount, payment.currency || currency, locale);
   const date = payment.paidOn === '' ? '' : shortDay(payment.paidOn, locale);
-  const fullyRefunded = payment.refunded !== '0' && !moreThan(payment.amount, payment.refunded);
+  const someRefunded = moreThan(payment.refunded, '0');
+  const fullyRefunded = someRefunded && !moreThan(payment.amount, payment.refunded);
   const disputed = payment.dispute?.state === 'open';
-  // Refunds done here read inline, each with its day; a refunded amount with no refund behind it (written by hand) reads as one.
-  const doneHere = payment.refunds.filter((refund) => refund.state === 'succeeded' && refund.source === 'staff');
-  const inline: string[] =
+  // Every refund is its own line. A refunded amount with no refund behind it (written by hand in the record) reads as one too.
+  const lines: { key: string; line: RefundLine }[] =
     payment.refunds.length > 0
-      ? doneHere.map((refund) => t('payments:panel.refundedOnInline', 'refunded {amount} on {date}', { amount: money(refund.amount), date: shortDay(refund.settledAt ?? refund.createdAt, locale) }))
-      : moreThan(payment.refunded, '0') && !fullyRefunded
-        ? [t('payments:panel.refundedInline', 'refunded {amount}', { amount: money(payment.refunded) })]
+      ? payment.refunds.map((refund) => ({ key: refund.id, line: refundLine(refund, payment.provider, money, locale) }))
+      : someRefunded
+        ? [{ key: 'written', line: { tone: 'warn', what: t('payments:panel.refund.written', 'Refund of {amount}', { amount: money(payment.refunded) }), date: null, state: t('payments:panel.refund.done', 'Done'), detail: null, look: false } }]
         : [];
-  const subs = payment.refunds.map((refund) => ({ refund, line: refundLine(refund, payment.provider, money, locale) })).filter((one) => one.line !== null);
   const online = payment.provider !== null;
+  const service = online ? serviceAfterWay(payment.wayLabel, payment.provider!) : null;
   const recorder = online
     ? t('payments:panel.recordedBy', 'recorded by {name}', { name: t('payments:panel.online', 'Online payment ({service})', { service: serviceName(payment.provider!) }) })
     : payment.recordedBy === null
@@ -205,24 +268,24 @@ function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { paymen
         payment.number === null ? null : <bdi key="n" className="font-mono font-bold text-accent">{payment.number}</bdi>,
         <bdi key="a" dir="ltr" className="font-mono font-semibold text-fg">{amount}</bdi>,
         payment.wayLabel === null ? null : <span key="w">{payment.wayLabel}</span>,
-        <span key="s">{serviceName(payment.provider!)}</span>,
+        service === null ? null : <span key="s">{service}</span>,
         date === '' ? null : <span key="d">{date}</span>,
         recorder === null ? null : <span key="r">{recorder}</span>,
-        ...inline.map((text, index) => <span key={`f${String(index)}`}>{text}</span>),
       ]
     : [
         <bdi key="a" dir="ltr" className="font-mono font-semibold text-fg">{amount}</bdi>,
         <span key="w">{byWay(payment.way, payment.cardLast4)}</span>,
         recorder === null ? null : <span key="r">{recorder}</span>,
-        ...inline.map((text, index) => <span key={`f${String(index)}`}>{text}</span>),
       ];
   const shownParts = parts.filter((part) => part !== null);
   const meta = online ? null : [payment.number, date].filter((part) => part !== null && part !== '').join(' · ');
   // Recorded by hand: refunded by hand. Otherwise the server says why not, or nothing does.
   const why = payment.attemptId === null ? refusalWords('BY_HAND', null, '') : payment.refundRefusal === null ? null : refusalWords(payment.refundRefusal.code, payment.provider, payment.refundRefusal.message);
   const ref = payment.number ?? amount;
+  // A line with nothing under it sits level with its icon and its "…" button.
+  const alone = lines.length === 0 && (meta === null || meta === '');
   return (
-    <li className="flex items-start gap-3 border-b border-border px-3 py-3 last:border-b-0">
+    <li className={`flex gap-3 border-b border-border px-3 py-3 last:border-b-0 ${alone ? 'items-center' : 'items-start'}`} data-testid="payment-row">
       <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${disputed ? 'bg-danger-soft text-danger' : 'bg-surface-3 text-fg-muted'}`}>
         <Icon className="size-4" aria-hidden="true" />
       </span>
@@ -249,8 +312,12 @@ function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { paymen
             </Badge>
           ) : null}
           {fullyRefunded ? (
-            <Badge tone="neutral" className="ms-2">
+            <Badge tone="warn" className="ms-2">
               {t('payments:panel.refunded', 'Refunded')}
+            </Badge>
+          ) : someRefunded ? (
+            <Badge tone="warn" className="ms-2">
+              {t('payments:panel.partlyRefunded', 'Partly refunded')}
             </Badge>
           ) : null}
         </div>
@@ -261,25 +328,27 @@ function PaymentRow({ payment, currency, locale, mayRefund, onRefund }: { paymen
             </bdi>
           </div>
         )}
-        {subs.map(({ refund, line }) => {
-          const tone = SUB_TONES[line!.tone];
-          const LineIcon = line!.icon;
-          return (
-            <div key={refund.id} className={`flex flex-wrap items-start gap-[7px] rounded-md text-[12.5px] leading-normal ${tone.box}`}>
-              <LineIcon className={`mt-0.5 size-3.5 shrink-0 ${tone.icon}`} aria-hidden="true" />
-              <span className="min-w-0 flex-[1_1_200px]">{line!.text}</span>
-              {line!.look ? (
-                <a href="/studio/payments?tab=activity" className="shrink-0 rounded-full bg-warn-soft px-2 py-[3px] text-[10.5px] font-bold uppercase tracking-[.05em] text-warn no-underline">
-                  {t('payments:panel.needsLook', 'Needs a look')}
-                </a>
-              ) : null}
-            </div>
-          );
-        })}
+        {lines.map(({ key, line }) => (
+          <RefundSubLine key={key} line={line} />
+        ))}
       </div>
       {mayRefund ? <RowMenu label={t('payments:panel.moreFor', 'More for {ref}', { ref })} why={why} onRefund={() => onRefund(payment)} /> : null}
     </li>
   );
+}
+
+/** A closed dispute, by how it ended when the service said. */
+function disputeClosedText(payment: PanelPayment, currency: string, locale: string): string {
+  const outcome = payment.dispute?.outcome ?? null;
+  if (outcome === 'won') return t('payments:panel.disputeWon', 'The dispute was won.');
+  if (outcome === 'lost') {
+    const returned = payment.refunds.filter((refund) => refund.source === 'dispute' && refund.state === 'succeeded');
+    if (returned.length === 0) return t('payments:panel.disputeLostPlain', 'The dispute was lost. The money went back to the customer.');
+    const scale = decimalsOf(payment.amount);
+    const total = sumAmounts(returned.map((refund) => refund.amount), scale);
+    return t('payments:panel.disputeLost', 'The dispute was lost. {amount} went back to the customer.', { amount: formatMoney(total, payment.currency || currency, locale, scale) });
+  }
+  return t('payments:panel.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service: serviceName(payment.provider!) });
 }
 
 export interface PaymentPanelProps {
@@ -442,8 +511,8 @@ export default function PaymentPanel({ record, view, onChanged }: PaymentPanelPr
               </span>
             </Notice>
           ) : (
-            <Notice key={`dispute-${payment.id}`} tone="neutral" icon={ShieldAlert}>
-              {t('payments:panel.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service: serviceName(payment.provider!) })}
+            <Notice key={`dispute-${payment.id}`} tone={payment.dispute!.outcome === 'lost' ? 'warn' : 'neutral'} icon={ShieldAlert}>
+              {disputeClosedText(payment, view.currency, locale)}
             </Notice>
           ),
         )}

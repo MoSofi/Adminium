@@ -3582,10 +3582,10 @@ export default {
     "service": {
       "connectsStripe": "Forbinder til Stripe",
       "connectsPaypal": "Forbinder til PayPal",
-      "first": "Opsæt dette først.",
       "notLoaded": "Denne tilføjelse blev ikke indlæst, så dens nøgler kan ikke tjekkes.",
       "notLoadedBody": "En betalingstjeneste indlæses kun fra en pakke, Adminium kan stå inde for: en, der følger med denne version, eller en, der er hentet fra kataloget.",
-      "paypalOnce": "PayPal vises kun én gang: gennem dette kort, ikke på siden hos Stripe."
+      "paypalOnce": "PayPal vises kun én gang: gennem dette kort, ikke på siden hos Stripe.",
+      "fixAddressFirst": "Ret først adressen ovenfor: indtil da forbliver onlinebetalinger slået fra."
     },
     "reach": {
       "badge": {
@@ -3688,9 +3688,6 @@ export default {
       "testInLive": "Denne nøgle er til testbetalinger, og dette felt er til live-nøglen."
     },
     "webhook": {
-      "headingStripe": "Webhook (Stripe kalder det et webhook-endpoint)",
-      "heading": "Webhook",
-      "address": "Adresse",
       "noAddress": "Denne server skal først have en offentlig adresse.",
       "copyAddress": "Kopiér webhook-adressen",
       "events": "Sæt flueben ved disse hændelser hos {provider}",
@@ -3705,7 +3702,15 @@ export default {
       "badTest": "{count, plural, one {# hændelse} other {# hændelser}} kom i den seneste time, men signaturen passede ikke. Er det hemmeligheden fra endpointets side, til testtilstand?",
       "caught": "Adminium fandt {when} en betaling, som ingen webhook havde meldt. Webhooken når ikke frem til denne server.",
       "slowed": "Adminium tjekker {provider} sjældnere denne måned: Den har brugt halvdelen af de opslag, {provider} tillader.",
-      "moved": "Webhook-adressen er ændret. Opdater den hos {provider}:"
+      "moved": "Webhook-adressen er ændret. Opdater den hos {provider}:",
+      "headingTestStripe": "Test-webhook (Stripe kalder det et webhook-endpoint)",
+      "headingLiveStripe": "Live-webhook (Stripe kalder det et webhook-endpoint)",
+      "headingTest": "Test-webhook",
+      "headingLive": "Live-webhook",
+      "headingSandbox": "Sandbox-webhook",
+      "addressTest": "Adresse på test-webhooken",
+      "addressLive": "Adresse på live-webhooken",
+      "addressSandbox": "Adresse på sandbox-webhooken"
     },
     "mode": {
       "test": "Test",
@@ -3724,18 +3729,22 @@ export default {
       "heading": "Den adgang, nøglen skal have",
       "note": "Begge måder giver nøglen præcis dette. Lad alt andet stå på Ingen.",
       "access": "Adgang",
-      "why": "Hvorfor"
+      "why": "Hvorfor",
+      "where": "Hvor hos Stripe",
+      "optional": "(valgfrit)"
     },
     "path": {
       "app": {
         "step1": "Installér Node.js 22 eller nyere",
         "step2": "Installér Stripe CLI",
-        "step5": "Pak skabelonen ud, og åbn dens mappe",
-        "step7": "Installér appen i dashboardet hos Stripe, og kopiér dens nøgle",
         "title": "Med din egen app i Stripe (sådan anbefaler Stripe det)",
         "desc": "Du uploader én gang en lille app til din egen konto hos Stripe med kommandolinjeværktøjet fra Stripe. Den laver en nøgle med præcis adgangen nedenfor.",
         "download": "Hent app-skabelonen",
-        "note": "Upload én gang i din testkonto og én gang i din live-konto."
+        "note": "Upload én gang i din testkonto og én gang i din live-konto.",
+        "create": "Kør {command}, og svar hvad som helst på dens spørgsmål",
+        "copy": "Kopiér {file} fra den skabelon, du hentede, til mappen {folder}, så den erstatter filen der",
+        "upload": "Kør {first} og derefter {second}",
+        "install": "Installér appen i dashboardet hos Stripe, åbn View API keys, og kopiér nøglen, der starter med {prefix}"
       },
       "hand": {
         "step1": "I dashboardet hos Stripe skal du åbne Udviklere → API-nøgler",
@@ -4016,7 +4025,11 @@ export default {
       "sepa": "SEPA-betalingsservice",
       "bankTransfer": "Bankoverførsel",
       "cashOnDelivery": "Efterkrav",
-      "other": "En anden manuel betalingsmåde"
+      "other": "En anden manuel betalingsmåde",
+      "acssDebit": "Forhåndsgodkendt debitering (Canada)",
+      "stripeTransfer": "Bankoverførsel (Stripe)",
+      "krCard": "Koreanske kort",
+      "crypto": "Krypto"
     },
     "test": {
       "title": "Send en testbetaling",
@@ -4030,7 +4043,9 @@ export default {
       "noWebhook": "ingen webhook kom frem: Betalingen blev fundet ved at spørge efter den",
       "wouldRecord": "dette ville blive registreret: én betaling på {amount}.",
       "wouldRecordWith": "dette ville blive registreret: én betaling på {amount}, {paidWith}.",
-      "nothingWritten": "Der blev ikke skrevet noget i dine tabeller."
+      "nothingWritten": "Der blev ikke skrevet noget i dine tabeller.",
+      "noWay": "Kunderne ser først denne tjeneste, når en betalingsmåde er slået til under “Betalingsmåder”.",
+      "openWays": "Åbn Betalingsmåder"
     },
     "activity": {
       "state": {
@@ -4083,7 +4098,7 @@ export default {
       },
       "story": {
         "refundThere": "Refunderet i dashboardet hos {service}: {amount}",
-        "refundDispute": "Indsigelse tabt: {amount} gik tilbage til kunden",
+        "refundDispute": "Indsigelsen tabt — {amount} gik tilbage til kunden",
         "refundStarted": "Refundering af {amount} startet",
         "refunded": "{service} melder: refunderet",
         "refundFailed": "{service} melder: refunderingen mislykkedes",

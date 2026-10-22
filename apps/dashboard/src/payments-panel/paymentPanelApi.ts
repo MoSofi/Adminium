@@ -49,8 +49,11 @@ export interface PanelPayment {
   refundable: string;
   refundRefusal: { code: string; message: string } | null;
   refunds: PanelRefund[];
-  /** A dispute the service told of; its deadline and outcome are read in the service's dashboard. */
-  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null } | null;
+  /**
+   * A dispute the service told of; its deadline is read in the service's dashboard. `outcome` says how a closed
+   * one ended, when the service said (absent from an older server: read as not known).
+   */
+  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null; outcome?: 'won' | 'lost' | null } | null;
 }
 
 export type RefundState = 'requested' | 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'cancelled';
@@ -61,8 +64,8 @@ export interface PanelRefund {
   amount: string;
   currency: string;
   state: RefundState;
-  /** `staff`: asked in Adminium; `provider`: made in the service's own dashboard. */
-  source: 'staff' | 'provider';
+  /** `staff`: asked in Adminium; `provider`: made in the service's own dashboard; `dispute`: a lost dispute gave it back. */
+  source: 'staff' | 'provider' | 'dispute';
   /** The service's own words, when it failed. */
   failureMessage: string | null;
   createdAt: number;
