@@ -146,8 +146,12 @@ Your table spells out the same states, and may add to them in five ways: more co
 writable in `lock.except` (its own), `roles` on a move, more child tables in `children`, more
 of its own columns in a child's `clearOnCreate`, and, on a child, a `release` and `lockLinked`
 over columns you added to it (a line's link to the time it bills, emptied once the invoice is void;
-see [states](/reference/manifest/#states)). The studio keeps voiding a sent invoice for its
-managers, and a recorded payment clears the client's "I've paid":
+see [states](/reference/manifest/#states)). It may also hold one of the part's moves, or the
+making of a new row, to a condition on a column you added yourself, never on one of the part's: a
+sales app keeps the deal's state on its quote and makes no new quote on a closed deal with
+`"create": { "requires": { "where": [{ "column": "deal_state", "eq": "open" }] } }` (a condition on
+the create needs Adminium 0.3.33; an import of past quotes is not held to it). The studio keeps
+voiding a sent invoice for its managers, and a recorded payment clears the client's "I've paid":
 
 ```json
 "states": {

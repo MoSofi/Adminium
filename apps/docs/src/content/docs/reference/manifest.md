@@ -1680,7 +1680,9 @@ only for a paid ticket, on its day, from half an hour before the doors.
 `children`). They are judged inside the create's transaction on every door but an import, which
 is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
 `STATE_MOVE_REFUSED` with `details.create: true` and `from: null`, beside `to`, `requires` and
-the parts above. The row's formulas are worked out before the conditions are judged.
+the parts above. The row's formulas, and its copies of a linked row's columns, are worked out
+before the conditions are judged. On a table [built on an add-on's shape](#tables-built-on-an-add-ons-shape)
+the app may add only `where` conditions on columns it added itself (Adminium 0.3.33).
 
 #### Once means once
 
@@ -2076,7 +2078,11 @@ What the app may add to a part, and nothing else:
   move, a condition added to a move the part has (`requires.where` on a column the app itself
   added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
   written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
+  move), a condition on a new row (`create.requires.where`, on a column the app itself added: no
+  new quote on a closed deal, read from the deal's state the app keeps on the quote; a `create`
+  the part has stays as written, a condition of the app's never reads a column of the part's, and
+  a `linked`, `setting` or `time` is the part's alone; history is not held to it; needs Adminium
+  0.3.33), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
   the table, the part's included: a last day only ever refuses), an effect that runs through a link
   the app itself added (`effects` with `via`, or
   `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
@@ -2709,10 +2715,27 @@ table's [`indexes`](#tables): a limited list is as fast as an unlimited one with
 several times slower without it.
 
 **`private`**, on a table, with a `belongs` of plain staff columns only (no `via`, `through` or
-`person`): its rows are read by their own people and by nothing else. Nothing may be reached
-through a private table, no total of its rows is kept elsewhere, and it is not exported,
-imported, reported on a schedule, drawn into a document, read by a rule or handed to an owner's
-code. An update of the app is the only thing that sets or removes the mark.
+`person`): its rows are read by their own people and by nothing else. No other table's rows are
+reached through a private table but by those same people (below), nothing is copied out of it,
+no total of its rows is kept elsewhere, and it is not exported, imported, reported on a schedule,
+drawn into a document, read by a rule or handed to an owner's code. An update of the app is the
+only thing that sets or removes the mark.
+
+**A row hung on a private row, reached by its own people.** Another table may say its rows are
+reached through a link to a private table, with `person` naming one of that private table's own
+`belongs` columns: exactly the people who already read the private row. A step of a coaching
+area is the rep's and the manager's of that area:
+
+```json
+{ "ref": "coaching_steps", "belongs": [{ "column": "area_id", "person": "rep_id" }, { "column": "area_id", "person": "manager_id" }], "columns": [ ... ] }
+```
+
+Any other staff column of the private row as `person` is refused, as are a `through` listing or a
+`via` through it. Such a way is never widened by a team: a `team` reach of the steps reaches,
+through the private row, only the rows whose private row names the reader, never one that names
+somebody they lead (another manager's one-to-one with her rep stays out). A writer held to some
+rows may set the link only to a private row that names them; with several such ways on one link,
+any one that names them is enough. Needs Adminium 0.3.33.
 
 **`rows`**, in a role's [`limits`](#roles) for a table, says which rows its read, update and
 delete reach, each on its own:
