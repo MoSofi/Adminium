@@ -11,8 +11,9 @@
  *
  * The keys, per producer:
  *
- *   route `created`   `<rule>:<pk>`                    ← same as the poller's
- *   watch `created`   `<rule>:<pk>`
+ *   route `created`   `<rule>:<pk>:c<created_at>`      ← same as the poller's
+ *   watch `created`   `<rule>:<pk>:c<created_at>`
+ *   route/watch `created` `<rule>:<pk>`                ← no moment to read ({@link createdOccurrenceKey})
  *   route `updated`   `<rule>:<pk>:<updated_at>`       ← when the table has one
  *   route `updated`   `<rule>:<pk>:<updated_at>~<n>`   ← the n-th change of that moment
  *   watch `updated`   `<rule>:<pk>:<updated_at>`
@@ -41,6 +42,7 @@ import type { Dialect } from '@adminium/engine';
 
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { watchColumnFor } from './watch-columns.js';
 
 /** `adminium_automation_runs.dedupe_key` is str(160) (migration 0028). */
 const MAX_KEY = 160;
@@ -63,6 +65,44 @@ export function capKey(key: string): string {
   if (key.length <= MAX_KEY) return key;
   const digest = createHash('sha256').update(key).digest('hex').slice(0, 32);
   return `${key.slice(0, MAX_KEY - 33)}#${digest}`;
+}
+
+/**
+ * A `created` occurrence: the row's key PLUS the value the poller orders it
+ * by, where that is a moment (`created_at`). A row deleted outside Adminium
+ * leaves its claim held, as nothing tells Adminium it went; the next row given
+ * the same key (SQLite hands a deleted top rowid out again, MySQL before 8.0
+ * restarts its counter) carries a later moment, and so is an occurrence of
+ * its own. A change of the row moves no `created_at`, so it never claims
+ * again. Where the poller orders by the key itself (an auto-increment id and
+ * no moment), or cannot watch the table, the key alone, as before.
+ *
+ * `row` is the row as stored: the route's `after`, the poller's read. A row
+ * that does not carry the column (a write that announced only some columns)
+ * takes the plain key, which the poller also respects for a while
+ * ({@link plainCreatedKey}).
+ */
+export function createdOccurrenceKey(input: {
+  ruleId: string;
+  table: ResolvedTable;
+  pk: Row;
+  row: Row | null | undefined;
+  dialect?: Dialect | undefined;
+}): string {
+  const watched = watchColumnFor(input.table, 'created');
+  const row = input.row;
+  if (watched === null || watched.kind !== 'timestamp' || row === null || row === undefined || !Object.prototype.hasOwnProperty.call(row, watched.column)) {
+    return plainCreatedKey(input);
+  }
+  return capKey(`${input.ruleId}:${pkKey(input.table, input.pk)}:c${stampOf(row[watched.column], input.dialect)}`);
+}
+
+/**
+ * A `created` claim by the key alone: every table's before a claim carried
+ * the row's moment, and still a table with no moment to read.
+ */
+export function plainCreatedKey(input: { ruleId: string; table: ResolvedTable; pk: Row }): string {
+  return recordOccurrenceKey({ ruleId: input.ruleId, table: input.table, pk: input.pk });
 }
 
 export function recordOccurrenceKey(input: {

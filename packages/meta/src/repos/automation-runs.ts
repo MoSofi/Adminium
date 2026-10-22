@@ -314,6 +314,21 @@ export function automationRunsRepo(meta: MetaDb) {
     },
 
     /**
+     * When the run holding an occurrence key started, or null when no run
+     * holds it. The watch poller asks of a plain `created` claim (the key
+     * alone, as claims were spelled before they carried the row's moment): a
+     * recent one is the row it reads, an old one a row deleted since.
+     */
+    async claimedAt(dedupeKey: string): Promise<number | null> {
+      const row = await db
+        .selectFrom('adminium_automation_runs')
+        .select('startedAt')
+        .where('dedupeKey', '=', dedupeKey)
+        .executeTakeFirst();
+      return row === undefined ? null : Number(row.startedAt);
+    },
+
+    /**
      * The undo mapping's worklist (D7): runs that have not started and are
      * still inside their delay. Small by construction — the window is 60 s —
      * so the caller decodes `triggerEvent.record` in JS rather than the store
