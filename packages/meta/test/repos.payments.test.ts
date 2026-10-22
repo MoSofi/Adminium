@@ -289,6 +289,40 @@ for (const dialect of TEST_DIALECTS) {
         expect(await events.unprocessed(T0 + 10, 100, { provider: 'demo', mode: 'test' })).toEqual([]);
         expect(await events.gc(T0 + 40 * 86_400_000, 30)).toBe(1);
       });
+
+      it('keeps an event about money no attempt holds yet, ties it once, and gives up on it after a while', async () => {
+        const events = paymentEventsRepo(meta());
+        const dispute = (eventId: string, paymentRef: string, mode = 'test') => ({
+          provider: 'payments-stripe',
+          mode,
+          eventId,
+          type: 'charge.dispute.created',
+          kind: 'dispute',
+          checkoutRef: null,
+          paymentRef,
+          refundRef: null,
+          attemptId: null,
+          source: 'webhook' as const,
+          body: { occurredAt: T0, dispute: { status: 'open', amount: '120.00', currency: 'EUR' } },
+        });
+        const early = (await events.record(dispute('evt_d1', 'pi_A'), T0)).event;
+        await events.record(dispute('evt_d2', 'pi_B'), T0 + 1);
+        await events.record(dispute('evt_d3', 'pi_A', 'live'), T0 + 2);
+        expect((await events.unattached('payments-stripe', 'test', 'pi_A')).map((one) => one.eventId)).toEqual(['evt_d1']);
+        expect((await events.unattached('payments-stripe', 'test', 'pi_A'))[0]!.body).toEqual({ occurredAt: T0, dispute: { status: 'open', amount: '120.00', currency: 'EUR' } });
+        expect((await events.unattachedWaiting(T0 + 10, { provider: 'payments-stripe', mode: 'test' })).map((one) => one.eventId)).toEqual(['evt_d1', 'evt_d2']);
+        // Never work for the redrive while it has no attempt.
+        expect(await events.unprocessed(T0 + 10, 100, { provider: 'payments-stripe', mode: 'test' })).toEqual([]);
+        expect(await events.attach(early.id, 'pat_A')).toBe(true);
+        expect(await events.attach(early.id, 'pat_other')).toBe(false);
+        expect(await events.unattached('payments-stripe', 'test', 'pi_A')).toEqual([]);
+        expect((await events.unprocessed(T0 + 10, 100, { provider: 'payments-stripe', mode: 'test' })).map((one) => one.attemptId)).toEqual(['pat_A']);
+        // Given up: handled, the rows kept.
+        expect(await events.giveUpUnattached(T0 + 2, T0 + 100)).toBe(1);
+        expect((await events.unattachedWaiting(T0 + 10, { provider: 'payments-stripe', mode: 'test' })).map((one) => one.eventId)).toEqual([]);
+        expect((await events.unattachedWaiting(T0 + 10, { provider: 'payments-stripe', mode: 'live' })).map((one) => one.eventId)).toEqual(['evt_d3']);
+        expect(await meta().db.selectFrom('adminium_payment_events').select('id').where('provider', '=', 'payments-stripe').execute()).toHaveLength(3);
+      });
     });
 
     describe('payments Adminium keeps', () => {
@@ -402,14 +436,14 @@ for (const dialect of TEST_DIALECTS) {
         const id = await taken();
         expect(await attempts.noteDispute(id, 'open', T0 + 2)).toBe(true);
         expect(await attempts.noteDispute(id, 'open', T0 + 3)).toBe(false);
-        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 2, closedAt: null });
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 2, closedAt: null, outcome: null });
         expect((await attempts.disputed('open')).map((one) => one.id)).toEqual([id]);
         expect(await attempts.noteDispute(id, 'closed', T0 + 4)).toBe(true);
-        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 4 });
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 4, outcome: null });
         expect(await attempts.disputed('open')).toEqual([]);
         expect((await attempts.disputed('closed')).map((one) => one.id)).toEqual([id]);
         expect(await attempts.noteDispute(id, 'open', T0 + 5)).toBe(true);
-        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 5, closedAt: null });
+        expect((await attempts.byId(id))?.dispute).toEqual({ state: 'open', at: T0 + 5, closedAt: null, outcome: null });
       });
 
       it('takes dispute events in any order: a close before its open, an update after the close, an old open', async () => {
@@ -417,7 +451,7 @@ for (const dialect of TEST_DIALECTS) {
         // The close came first: closed, and the open that follows (older) changes nothing.
         const first = await taken();
         expect(await attempts.noteDispute(first, 'closed', T0 + 20)).toBe(true);
-        expect((await attempts.byId(first))?.dispute).toEqual({ state: 'closed', at: T0 + 20, closedAt: T0 + 20 });
+        expect((await attempts.byId(first))?.dispute).toEqual({ state: 'closed', at: T0 + 20, closedAt: T0 + 20, outcome: null });
         expect(await attempts.noteDispute(first, 'open', T0 + 10)).toBe(false);
         expect(await attempts.noteDispute(first, 'closed', T0 + 21)).toBe(false);
         // An update after the close never reopens it; a new dispute after it does.
@@ -426,11 +460,35 @@ for (const dialect of TEST_DIALECTS) {
         expect(await attempts.noteDispute(first, 'open', T0 + 40)).toBe(true);
         // A close older than the open it would close is a close of something before it.
         expect(await attempts.noteDispute(first, 'closed', T0 + 35)).toBe(false);
-        expect((await attempts.byId(first))?.dispute).toEqual({ state: 'open', at: T0 + 40, closedAt: null });
+        expect((await attempts.byId(first))?.dispute).toEqual({ state: 'open', at: T0 + 40, closedAt: null, outcome: null });
         // An update about a dispute never heard of opens it.
         const second = await taken('120.00', 'idoc_9');
         expect(await attempts.noteDispute(second, 'open', T0 + 5, false)).toBe(true);
         expect(await attempts.noteDispute(second, 'open', T0 + 6)).toBe(false);
+      });
+
+      it('keeps how a dispute ended, takes the outcome a later close says, and forgets it when a new dispute opens', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const won = await taken();
+        expect(await attempts.noteDispute(won, 'open', T0 + 2)).toBe(true);
+        expect(await attempts.noteDispute(won, 'closed', T0 + 4, false, 'won')).toBe(true);
+        expect((await attempts.byId(won))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 4, outcome: 'won' });
+        // Said once: a later close changes nothing.
+        expect(await attempts.noteDispute(won, 'closed', T0 + 5, false, 'lost')).toBe(false);
+        expect((await attempts.byId(won))?.dispute?.outcome).toBe('won');
+        // A new dispute: open again, with no outcome yet.
+        expect(await attempts.noteDispute(won, 'open', T0 + 6)).toBe(true);
+        expect((await attempts.byId(won))?.dispute).toEqual({ state: 'open', at: T0 + 6, closedAt: null, outcome: null });
+
+        // A close that said nothing, then one that says it was lost.
+        const lost = await taken('120.00', 'idoc_lost');
+        expect(await attempts.noteDispute(lost, 'open', T0 + 2)).toBe(true);
+        expect(await attempts.noteDispute(lost, 'closed', T0 + 4)).toBe(true);
+        expect((await attempts.byId(lost))?.dispute?.outcome).toBeNull();
+        // Not an older one, though.
+        expect(await attempts.noteDispute(lost, 'closed', T0 + 3, false, 'lost')).toBe(false);
+        expect(await attempts.noteDispute(lost, 'closed', T0 + 7, false, 'lost')).toBe(true);
+        expect((await attempts.byId(lost))?.dispute).toEqual({ state: 'closed', at: T0 + 2, closedAt: T0 + 7, outcome: 'lost' });
       });
 
       it('finds the refunds the record has not followed yet, on payments already written down', async () => {
@@ -534,6 +592,17 @@ for (const dialect of TEST_DIALECTS) {
           T0,
         );
         expect(refund).toMatchObject({ state: 'succeeded', source: 'provider', settledAt: T0 });
+      });
+
+      it('records a lost dispute as a refund of its own, done, and shows it to a person until checked', async () => {
+        const refunds = refundsRepo(meta());
+        const { refund } = await refunds.create({ ...base, idempotencyKey: 'dispute:pat_1:1', source: 'dispute', state: 'succeeded' }, T0);
+        expect(refund).toMatchObject({ state: 'succeeded', source: 'dispute', providerRefundId: null, settledAt: T0 });
+        expect((await refunds.byId(refund.id))?.source).toBe('dispute');
+        expect((await refunds.list({ needingLook: true })).map((one) => one.id)).toContain(refund.id);
+        const before = await refunds.countNeedingLook();
+        expect(await refunds.check(refund.id, null, null, T0 + 1)).toBe(true);
+        expect(await refunds.countNeedingLook()).toBe(before - 1);
       });
 
       it('lists the refunds still on their way, longest waiting first, and the refunds of one attempt', async () => {

@@ -1589,6 +1589,8 @@ export interface AdminiumPaymentAttemptsTable {
   disputeState: ColumnType<string | null, string | null | undefined, string | null>;
   disputedAt: ColumnType<number | null, number | null | undefined, number | null>;
   disputeClosedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  /** How a closed dispute ended, when the provider said: `won` or `lost` (0063). */
+  disputeOutcome: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
 /** A webhook, or a status change a poll found, unique per provider, mode and event id (0062). */

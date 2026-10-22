@@ -224,9 +224,13 @@ export interface PaymentAttempt {
   failCounted: number;
   /** What refunds not failed have promised back from the money taken. */
   refundCommitted: string;
-  /** A dispute the provider told of, or null. */
-  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null } | null;
+  /** A dispute the provider told of, or null. `outcome`: how a closed one ended, when the provider said. */
+  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null; outcome: DisputeOutcome | null } | null;
 }
+
+/** How a closed dispute ended, when the provider said so. */
+export const DISPUTE_OUTCOMES = ['won', 'lost'] as const;
+export type DisputeOutcome = (typeof DISPUTE_OUTCOMES)[number];
 
 export interface AttemptCheck {
   at: number;
@@ -310,7 +314,13 @@ function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAt
     refundCommitted: row.refundCommitted ?? '0',
     dispute:
       row.disputeState === 'open' || row.disputeState === 'closed'
-        ? { state: row.disputeState, at: Number(row.disputedAt ?? 0), closedAt: row.disputeClosedAt === null || row.disputeClosedAt === undefined ? null : Number(row.disputeClosedAt) }
+        ? {
+            state: row.disputeState,
+            at: Number(row.disputedAt ?? 0),
+            closedAt: row.disputeClosedAt === null || row.disputeClosedAt === undefined ? null : Number(row.disputeClosedAt),
+            // Only a closed dispute has an outcome.
+            outcome: row.disputeState === 'closed' && (DISPUTE_OUTCOMES as readonly string[]).includes(row.disputeOutcome ?? '') ? (row.disputeOutcome as DisputeOutcome) : null,
+          }
         : null,
   };
 }
@@ -644,22 +654,30 @@ export function paymentAttemptsRepo(meta: MetaDb) {
      *   - any other news of an open dispute (an update) opens only one never
      *     heard of: after a close it changes nothing;
      *   - closed: from open when it happened after the open, or from none (the
-     *     close came first; the open that follows is older and changes nothing).
+     *     close came first; the open that follows is older and changes nothing);
+     *     with its outcome (`won`, `lost`) when the provider said it. A close
+     *     that said no outcome is told it by a later close of the same dispute.
      */
-    async noteDispute(id: string, state: 'open' | 'closed', at: number = Date.now(), fresh = true): Promise<boolean> {
+    async noteDispute(id: string, state: 'open' | 'closed', at: number = Date.now(), fresh = true, outcome: DisputeOutcome | null = null): Promise<boolean> {
       const res =
         state === 'open'
           ? await db
               .updateTable('adminium_payment_attempts')
-              .set({ disputeState: 'open', disputedAt: at, disputeClosedAt: null, updatedAt: at })
+              .set({ disputeState: 'open', disputedAt: at, disputeClosedAt: null, disputeOutcome: null, updatedAt: at })
               .where('id', '=', id)
               .where((eb) => (fresh ? eb.or([eb('disputeState', 'is', null), eb.and([eb('disputeState', '=', 'closed'), eb('disputeClosedAt', '<', at)])]) : eb('disputeState', 'is', null)))
               .executeTakeFirst()
           : await db
               .updateTable('adminium_payment_attempts')
-              .set((eb) => ({ disputeState: 'closed', disputeClosedAt: at, disputedAt: eb.fn.coalesce('disputedAt', eb.val(at)), updatedAt: at }))
+              .set((eb) => ({ disputeState: 'closed', disputeClosedAt: at, disputedAt: eb.fn.coalesce('disputedAt', eb.val(at)), disputeOutcome: outcome, updatedAt: at }))
               .where('id', '=', id)
-              .where((eb) => eb.or([eb('disputeState', 'is', null), eb.and([eb('disputeState', '=', 'open'), eb('disputedAt', '<=', at)])]))
+              .where((eb) =>
+                eb.or([
+                  eb('disputeState', 'is', null),
+                  eb.and([eb('disputeState', '=', 'open'), eb('disputedAt', '<=', at)]),
+                  ...(outcome === null ? [] : [eb.and([eb('disputeState', '=', 'closed'), eb('disputeOutcome', 'is', null), eb('disputeClosedAt', '<=', at)])]),
+                ]),
+              )
               .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
     },
@@ -855,6 +873,60 @@ export function paymentEventsRepo(meta: MetaDb) {
         .where('id', '=', id)
         .where('processedAt', 'is', null)
         .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Events stored before their payment was known (a dispute or refund that
+     * outran the settle writing its `paymentRef`), not yet followed: the ones
+     * naming this payment, oldest first.
+     */
+    async unattached(provider: string, mode: string, paymentRef: string): Promise<PaymentEventRow[]> {
+      const rows = await db
+        .selectFrom('adminium_payment_events')
+        .selectAll()
+        .where('provider', '=', provider)
+        .where('mode', '=', mode)
+        .where('paymentRef', '=', paymentRef)
+        .where('attemptId', 'is', null)
+        .where('processedAt', 'is', null)
+        .orderBy('receivedAt', 'asc')
+        .limit(50)
+        .execute();
+      return rows.map(decodeEvent);
+    },
+
+    /** Events of a service and mode stored with no payment known, received before `before` and never processed, oldest first. */
+    async unattachedWaiting(before: number, scope: { provider: string; mode: string }, limit = 100): Promise<PaymentEventRow[]> {
+      const rows = await db
+        .selectFrom('adminium_payment_events')
+        .selectAll()
+        .where('provider', '=', scope.provider)
+        .where('mode', '=', scope.mode)
+        .where('attemptId', 'is', null)
+        .where('processedAt', 'is', null)
+        .where('receivedAt', '<', before)
+        .orderBy('receivedAt', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(decodeEvent);
+    },
+
+    /** Marks handled every event stored with no payment known, received before `before`: about money Adminium never held. The rows stay. */
+    async giveUpUnattached(before: number, at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_payment_events')
+        .set({ processedAt: at })
+        .where('attemptId', 'is', null)
+        .where('processedAt', 'is', null)
+        .where('receivedAt', '<', before)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows);
+    },
+
+    /** Ties an event stored with no payment known to its attempt, once. */
+    async attach(id: string, attemptId: string): Promise<boolean> {
+      const res = await db.updateTable('adminium_payment_events').set({ attemptId }).where('id', '=', id).where('attemptId', 'is', null).executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
     },
 
@@ -1119,7 +1191,7 @@ export interface RefundRow {
   state: RefundRowState;
   idempotencyKey: string;
   providerRefundId: string | null;
-  source: 'staff' | 'provider';
+  source: RefundSource;
   requestedBy: string | null;
   failureMessage: string | null;
   createdAt: number;
@@ -1139,6 +1211,14 @@ export interface RefundRow {
  *   - `MORE_THAN_PAID`    refunds stand above what was paid: the record shows what was paid, no more;
  *   - `CURRENCY_DIFFERS`  made at the provider in another currency than was paid: not written.
  */
+/**
+ * Where a refund was made: `staff` asked in Adminium, `provider` made in the
+ * provider's own dashboard, `dispute` a dispute lost (the customer's bank took
+ * the money back).
+ */
+export const REFUND_SOURCES = ['staff', 'provider', 'dispute'] as const;
+export type RefundSource = (typeof REFUND_SOURCES)[number];
+
 export const REFUND_PROBLEM_CODES = ['NOT_WRITTEN', 'RECORD_GONE', 'MORE_THAN_PAID', 'CURRENCY_DIFFERS'] as const;
 export type RefundProblemCode = (typeof REFUND_PROBLEM_CODES)[number];
 
@@ -1153,7 +1233,7 @@ export interface CreateRefundInput {
   reason: string;
   note: string | null;
   idempotencyKey: string;
-  source: 'staff' | 'provider';
+  source: RefundSource;
   requestedBy: string | null;
   /** A refund made at the provider arrives already settled; one made here starts `requested`. */
   state?: RefundRowState;
@@ -1181,7 +1261,7 @@ function decodeRefund(row: Selectable<AdminiumRefundsTable>): RefundRow {
     state: row.state as RefundRowState,
     idempotencyKey: row.idempotencyKey,
     providerRefundId: row.providerRefundId,
-    source: row.source as 'staff' | 'provider',
+    source: (REFUND_SOURCES as readonly string[]).includes(row.source) ? (row.source as RefundSource) : 'staff',
     requestedBy: row.requestedBy,
     failureMessage: row.failureMessage,
     createdAt: Number(row.createdAt),
@@ -1399,8 +1479,8 @@ export function refundsRepo(meta: MetaDb) {
       let query = db.selectFrom('adminium_refunds').selectAll();
       if (filter.mode !== undefined) query = query.where('mode', '=', filter.mode);
       if (filter.provider !== undefined) query = query.where('provider', '=', filter.provider);
-      // A refund made at the provider, or one the record did not follow, is shown to a person until they check it.
-      if (filter.needingLook === true) query = query.where((eb) => eb.or([eb('source', '=', 'provider'), eb('problemCode', 'is not', null)])).where('checkedAt', 'is', null);
+      // A refund made at the provider or by a lost dispute, or one the record did not follow, is shown to a person until they check it.
+      if (filter.needingLook === true) query = query.where((eb) => eb.or([eb('source', 'in', ['provider', 'dispute']), eb('problemCode', 'is not', null)])).where('checkedAt', 'is', null);
       const before = filter.before;
       if (typeof before === 'number') query = query.where('createdAt', '<', before);
       else if (before !== undefined) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
@@ -1412,7 +1492,7 @@ export function refundsRepo(meta: MetaDb) {
       const row = await db
         .selectFrom('adminium_refunds')
         .select((eb) => eb.fn.countAll<number>().as('n'))
-        .where((eb) => eb.or([eb('source', '=', 'provider'), eb('problemCode', 'is not', null)]))
+        .where((eb) => eb.or([eb('source', 'in', ['provider', 'dispute']), eb('problemCode', 'is not', null)]))
         .where('checkedAt', 'is', null)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
