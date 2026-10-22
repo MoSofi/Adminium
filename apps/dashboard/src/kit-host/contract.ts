@@ -250,6 +250,8 @@ export interface MapLeg {
   estimate: boolean;
   /** Both ends are known only as the same town: said as "unknown", never 0. */
   unknown?: true | undefined;
+  /** Why the leg has no length. `same-town`: both stops are pinned to the town; placing them lets it be measured. */
+  why?: 'same-town' | undefined;
 }
 
 /** The way through the stops: what `POST /api/v1/geo/route` answers in `data`. Anything more it says is let by. */

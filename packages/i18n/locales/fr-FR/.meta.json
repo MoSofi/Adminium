@@ -40947,6 +40947,10 @@
     "status": "mt",
     "srcHash": "7afa354a7561"
   },
+  "ui.widgets.geo.mapBubble.legSameTown": {
+    "status": "mt",
+    "srcHash": "db479d4ae8d0"
+  },
   "ui.widgets.geo.mapBubble.legUnknown": {
     "status": "mt",
     "srcHash": "4e49ae3e38dc"

@@ -810,6 +810,7 @@ export default {
         "legAbout": "environ {distance} depuis l’arrêt précédent",
         "legExact": "{distance} depuis l’arrêt précédent",
         "legUnknown": "distance depuis l’arrêt précédent inconnue",
+        "legSameTown": "les deux arrêts sont épinglés sur la ville ; placez-les pour mesurer",
         "openInMaps": "Ouvrir dans mon appli de cartes",
         "openOnMapsSite": "Ouvrir sur OpenStreetMap (nouvel onglet)",
         "legDrive": "{duration} de route",

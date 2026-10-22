@@ -50,6 +50,7 @@
     "ui:widgets.geo.mapBubble.legAbout",
     "ui:widgets.geo.mapBubble.legDrive",
     "ui:widgets.geo.mapBubble.legExact",
+    "ui:widgets.geo.mapBubble.legSameTown",
     "ui:widgets.geo.mapBubble.legUnknown",
     "ui:widgets.geo.mapBubble.listMore",
     "ui:widgets.geo.mapBubble.mapLabel",

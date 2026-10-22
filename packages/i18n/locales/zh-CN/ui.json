@@ -800,6 +800,7 @@
         "legAbout": "距上一站约 {distance}",
         "legExact": "距上一站 {distance}",
         "legUnknown": "距上一站的距离未知",
+        "legSameTown": "两站都只标在城镇上；请放置它们以便测量",
         "openInMaps": "在我的地图应用中打开",
         "openOnMapsSite": "在 OpenStreetMap 上打开（新标签页）",
         "legDrive": "车程 {duration}",

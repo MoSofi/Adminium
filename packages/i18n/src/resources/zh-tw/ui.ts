@@ -810,6 +810,7 @@ export default {
         "legAbout": "距上一站約 {distance}",
         "legExact": "距上一站 {distance}",
         "legUnknown": "距上一站的距離不明",
+        "legSameTown": "兩站都只標在城鎮上；請放置它們以便測量",
         "openInMaps": "在我的地圖 App 中開啟",
         "openOnMapsSite": "在 OpenStreetMap 上開啟（新分頁）",
         "legDrive": "車程 {duration}",

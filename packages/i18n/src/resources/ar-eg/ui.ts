@@ -810,6 +810,7 @@ export default {
         "legAbout": "نحو {distance} من المحطة السابقة",
         "legExact": "{distance} من المحطة السابقة",
         "legUnknown": "المسافة من المحطة السابقة غير معروفة",
+        "legSameTown": "المحطتان مثبتتان على المدينة فقط؛ ضعهما في مكانهما لقياس المسافة",
         "openInMaps": "افتح في تطبيق الخرائط عندي",
         "openOnMapsSite": "افتح في OpenStreetMap (تبويب جديد)",
         "legDrive": "{duration} بالسيارة",

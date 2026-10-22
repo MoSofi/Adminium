@@ -402,7 +402,12 @@ export function MapBubble({
     if (route === undefined || stop === 0) return null;
     const leg = route.legs[stop - 1];
     const distance = legDistance(leg, units);
-    if (distance.kind === 'unknown') return t('ui:widgets.geo.mapBubble.legUnknown', 'distance from the stop before unknown');
+    if (distance.kind === 'unknown') {
+      // Said why where the server says it: two stops pinned to one town have no length until they are placed.
+      return leg?.why === 'same-town'
+        ? t('ui:widgets.geo.mapBubble.legSameTown', 'both stops are pinned to the town; place them to measure')
+        : t('ui:widgets.geo.mapBubble.legUnknown', 'distance from the stop before unknown');
+    }
     const figure = formatDistance(distance, locale);
     const length =
       distance.kind === 'about'
