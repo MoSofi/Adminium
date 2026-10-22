@@ -16,7 +16,7 @@ export interface KitTable {
   id: string;
   can: { read: boolean; create: boolean; update: boolean; delete: boolean };
   unreadable: string[];
-  states?: { column: string; moves: Record<string, string[]>; actions?: { id: string; kind: 'move' | 'set' | 'link' | 'child'; from: string[] }[] };
+  states?: { column: string; moves: Record<string, string[]>; actions?: { id: string; kind: 'move' | 'set' | 'link' | 'child'; from: string[]; notBy?: string[]; by?: string }[] };
 }
 
 export interface KitReply {

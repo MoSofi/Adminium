@@ -177,6 +177,23 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       const next = renamedInFormula(rule['formula'], from, to);
       return JSON.stringify(next) === JSON.stringify(rule['formula']) ? value : { ...rule, formula: next };
     }
+    case 'column.changes': {
+      // What a guard waits on, and the person it names (or the link the person is read through), are columns of this row.
+      const path = (name: unknown): unknown => (typeof name === 'string' && name.split('.')[0] === from ? [to, ...name.split('.').slice(1)].join('.') : name);
+      const next = {
+        ...rule,
+        guards: ((rule['guards'] ?? []) as Record<string, unknown>[]).map((guard) => {
+          const waits = guard['while'] as Record<string, unknown> | undefined;
+          return {
+            ...guard,
+            ...(waits !== undefined && same(waits['column']) ? { while: { ...waits, column: to } } : {}),
+            ...(guard['by'] === undefined ? {} : { by: path(guard['by']) }),
+            ...(Array.isArray(guard['notBy']) ? { notBy: (guard['notBy'] as unknown[]).map(path) } : {}),
+          };
+        }),
+      };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
+    }
     case 'column.customerKey':
     case 'column.codeLast4':
       // The address a key is worked out from, the code its last four are taken of: columns of this row.

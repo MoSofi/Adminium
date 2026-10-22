@@ -135,6 +135,10 @@ export interface StateActionFact {
   child?: { table: string; via: string; form: string[] };
   /** A child form's fixed values. */
   set?: Record<string, string | number | boolean>;
+  /** Staff columns of the row: not shown to the person the row names in one of them (the save refuses it anyway). */
+  notBy?: string[];
+  /** A staff column of the row: shown only to the person the row names there. */
+  by?: string;
 }
 
 /** One bulk action of a list, as the server offers it to one reader (`GET /pages/:id` · `bulkActions`). */

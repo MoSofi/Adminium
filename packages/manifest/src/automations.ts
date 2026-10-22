@@ -575,9 +575,34 @@ export function automationIssues(m: {
 
     // The rows earlier steps made, by the name each step gave its row.
     const made = new Map<string, AutomationTableShape | undefined>();
+    /**
+     * A code no staff member reads (`rules.code.hiddenFromStaff`, an order's own link) is no placeholder of a rule:
+     * what a rule writes reaches whoever its author says, and the run leaves it as written. Named as the record's
+     * (`{{record.x}}`, `{{x}}`, `{{was.x}}`), as a linked row's (`{{link.x}}`, `{{record.link.x}}`) or as a row an
+     * earlier step made (`{{steps.name.x}}`); a form after the column (`.name`, `.money`) reads the same column.
+     */
+    const hiddenCodes = (names: Iterable<string>, path: (string | number)[]): void => {
+      const hidden = (of: AutomationTableShape | undefined, ref: string | undefined) =>
+        ref !== undefined && (of?.columns.find((candidate) => candidate.ref === ref)?.rules?.['code'] as { hiddenFromStaff?: unknown } | undefined)?.hiddenFromStaff === true;
+      for (const name of names) {
+        let of: AutomationTableShape | undefined = record;
+        let parts = name.split('.');
+        if (parts[0] === 'steps') {
+          of = made.get(parts[1] ?? '');
+          parts = parts.slice(2);
+        } else if (parts[0] === 'record' || parts[0] === 'was') parts = parts.slice(1);
+        const own = of?.columns.find((candidate) => candidate.ref === parts[0]);
+        if (own === undefined) continue;
+        let said: string | undefined;
+        if (hidden(of, own.ref)) said = `${of!.ref}.${own.ref}`;
+        else if (own.references !== undefined && parts[1] !== undefined && hidden(tables.get(own.references), parts[1])) said = `${own.references}.${parts[1]}`;
+        if (said !== undefined) out.push({ path, message: `{{${name}}} reads "${said}", a code staff never see (rules.code.hiddenFromStaff): no rule carries it` });
+      }
+    };
     // Every `{{record.<column>}}` a text carries is a column of the rule's record; every `{{steps.<name>.<column>}}` a column of a row an earlier step made.
     const tokens = (text: unknown, path: (string | number)[]) => {
       const texts = typeof text === 'string' ? [text] : typeof text === 'object' && text !== null ? Object.values(text as Record<string, unknown>).filter((value): value is string => typeof value === 'string') : [];
+      hiddenCodes(placeholderNames(texts), path);
       for (const each of texts) {
         for (const match of each.matchAll(/\{\{\s*steps\.([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\s*(\|[^{}]*)?\}\}/g)) {
           const name = match[1] as string;
@@ -845,6 +870,8 @@ export function automationIssues(m: {
           }
           const names = templatePlaceholdersOf(content);
           for (const name of names) everywhere.add(name);
+          // The template is filled from the record by the rule: a code no staff member reads is not among what it carries.
+          hiddenCodes(names.filter((name) => !Object.hasOwn(vars, name)), here('templateKey'));
           const unfilled = templateRequiredPlaceholdersOf(content).filter((name) => !filled(name));
           if (unfilled.includes('recordUrl') && !toPerson) {
             out.push({ path: here(), message: `"${action.templateKey}" (${locale}) reads {{recordUrl}}, which only a mail to a person carries ("to": { "kind": "staff", … }): an address of the record is no link for anybody else` });

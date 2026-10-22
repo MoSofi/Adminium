@@ -247,6 +247,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'card.module',
   'card.columnLabels',
   'link.staffPath',
+  // When, and by whom, a column may change: judged on every write but history (crud/change-guards.ts).
+  'column.changes',
+  // A change a role's reach leaves to everybody but the person a staff column names: judged in the row test (crud/row-limit.ts).
+  'rows.notBy',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

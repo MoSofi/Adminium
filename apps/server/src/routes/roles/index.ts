@@ -336,7 +336,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           }
           // "Every row" is the plain grant; it is written as a limit only to say "only while". Each of several reaches alike:
           // one of them that reached every row would make the others say nothing.
-          if (rowReachList(written).some((reach) => reach.reach === 'all' && reach.while === undefined)) {
+          if (rowReachList(written).some((reach) => reach.reach === 'all' && reach.while === undefined && reach.notBy === undefined)) {
             throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
           }
         }

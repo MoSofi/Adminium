@@ -180,6 +180,13 @@ shows such a value as it is, and it is worked out when the step runs.
 A column the product masks (an email address, a phone number) can be *read* by
 a rule and *sent to*, but never *written* by one.
 
+A code staff never see (a column with `rules.code.hiddenFromStaff`, such as an
+online order's own link) is no token of a rule: a rule's text reaches whoever
+its author says. Saving a rule whose step names one — `{{record.share_code}}`,
+`{{share_code}}`, `{{was.share_code}}`, or a linked row's `{{order_id.share_code}}` —
+is refused with the column named. The app's own emails still carry it to the
+row's holder.
+
 ## Switching a rule on
 
 A rule saves at any stage — a half-built flow is a normal thing to leave

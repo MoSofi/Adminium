@@ -118,6 +118,7 @@ export type RuleOp =
   | 'column.area'
   | 'column.linkable'
   | 'column.file'
+  | 'column.changes'
   | 'table.belongs'
   | 'table.private'
   | 'table.capacity'
@@ -264,6 +265,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
     out.push({ op: 'column.linkable', value: { ...(where === undefined ? {} : { where: where.map((condition) => ({ ...condition })) }), ...(same === undefined ? {} : { same: same.map((pair) => ({ ...pair })) }) } });
   }
   // A list of files is told by how many it holds: on SQLite a json column is TEXT, so the column's type cannot say it.
+  // When, and by whom, the column may change: the columns its guards name keep their names, so nothing is made real.
+  if (rules.changes !== undefined) out.push({ op: 'column.changes', value: { guards: rules.changes.map((guard) => structuredClone(guard)) } });
   if (rules.file !== undefined) out.push({ op: 'column.file', value: { accept: [...rules.file.accept], maxBytes: rules.file.maxBytes, ...(rules.file.maxCount === undefined ? {} : { maxCount: rules.file.maxCount }) } });
   return out;
 }

@@ -146,6 +146,8 @@ export const rowReachSchema = z
     while: z.object({ column: z.string().min(1), in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32) }).strict().optional(),
     /** And only the rows this staff column names them in (or, with `team`, somebody they lead): the notes they wrote, on deals they reach. */
     by: z.string().min(1).max(64).optional(),
+    /** And never the rows this staff column (or `<link>.<staff column>`) names the person in: a manager's own target. A change only. */
+    notBy: z.string().regex(/^[^.]{1,64}(\.[^.]{1,64})?$/).optional(),
   })
   .strict();
 export type RowReach = z.infer<typeof rowReachSchema>;
@@ -1576,6 +1578,39 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         accept: z.array(z.string().regex(/^[a-z][a-z0-9]{1,9}$/)).min(1).max(20),
         maxBytes: z.number().int().min(1024).max(26_214_400),
         maxCount: z.number().int().min(1).max(20).optional(),
+      })
+      .strict(),
+  }),
+  /*
+   * When, and by whom, a column may change: to some values only from others,
+   * only while another column of the row holds a value (or is empty, or not),
+   * only by the person a staff column (or `<link>.<staff column>`) names,
+   * never by the people others name. Every guard that holds a change is met.
+   */
+  z.object({
+    op: z.literal('column.changes'),
+    value: z
+      .object({
+        guards: z
+          .array(
+            z
+              .object({
+                to: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(32).optional(),
+                from: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(32).optional(),
+                while: z
+                  .union([
+                    z.object({ column: ruleColumn, in: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(32) }).strict(),
+                    z.object({ column: ruleColumn, isNull: z.boolean() }).strict(),
+                  ])
+                  .optional(),
+                by: z.string().regex(/^[^.]{1,128}(\.[^.]{1,128})?$/).optional(),
+                notBy: z.array(z.string().regex(/^[^.]{1,128}(\.[^.]{1,128})?$/)).min(1).max(4).optional(),
+              })
+              .strict()
+              .refine((guard) => guard.from !== undefined || guard.while !== undefined || guard.by !== undefined || guard.notBy !== undefined, { message: 'a guard says what a change waits for: from, while, by or notBy' }),
+          )
+          .min(1)
+          .max(8),
       })
       .strict(),
   }),

@@ -65,6 +65,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.area',
   'column.linkable',
   'column.file',
+  'column.changes',
 ]);
 
 export interface SchemaOverride {

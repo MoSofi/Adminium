@@ -12161,6 +12161,15 @@
                                       "items": {
                                         "type": "string"
                                       }
+                                    },
+                                    "notBy": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "by": {
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -94518,6 +94527,15 @@
                                 }
                               ]
                             }
+                          },
+                          "notBy": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "by": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -140075,6 +140093,10 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 64
+                                  },
+                                  "notBy": {
+                                    "type": "string",
+                                    "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                   }
                                 },
                                 "required": [
@@ -140139,6 +140161,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -140204,6 +140230,10 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 64
+                                  },
+                                  "notBy": {
+                                    "type": "string",
+                                    "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                   }
                                 },
                                 "required": [
@@ -140268,6 +140298,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -140333,6 +140367,10 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 64
+                                  },
+                                  "notBy": {
+                                    "type": "string",
+                                    "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                   }
                                 },
                                 "required": [
@@ -140397,6 +140435,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -140506,6 +140548,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -140570,6 +140616,10 @@
                                         "type": "string",
                                         "minLength": 1,
                                         "maxLength": 64
+                                      },
+                                      "notBy": {
+                                        "type": "string",
+                                        "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                       }
                                     },
                                     "required": [
@@ -140635,6 +140685,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -140699,6 +140753,10 @@
                                         "type": "string",
                                         "minLength": 1,
                                         "maxLength": 64
+                                      },
+                                      "notBy": {
+                                        "type": "string",
+                                        "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                       }
                                     },
                                     "required": [
@@ -140764,6 +140822,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -140828,6 +140890,10 @@
                                         "type": "string",
                                         "minLength": 1,
                                         "maxLength": 64
+                                      },
+                                      "notBy": {
+                                        "type": "string",
+                                        "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                       }
                                     },
                                     "required": [
@@ -140947,6 +141013,10 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 64
+                                  },
+                                  "notBy": {
+                                    "type": "string",
+                                    "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                   }
                                 },
                                 "required": [
@@ -141011,6 +141081,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -141076,6 +141150,10 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 64
+                                  },
+                                  "notBy": {
+                                    "type": "string",
+                                    "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                   }
                                 },
                                 "required": [
@@ -141140,6 +141218,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -141205,6 +141287,10 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 64
+                                  },
+                                  "notBy": {
+                                    "type": "string",
+                                    "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                   }
                                 },
                                 "required": [
@@ -141269,6 +141355,10 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 64
+                                    },
+                                    "notBy": {
+                                      "type": "string",
+                                      "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                     }
                                   },
                                   "required": [
@@ -142226,6 +142316,10 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 64
+                          },
+                          "notBy": {
+                            "type": "string",
+                            "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                           }
                         },
                         "required": [
@@ -142290,6 +142384,10 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 64
+                            },
+                            "notBy": {
+                              "type": "string",
+                              "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                             }
                           },
                           "required": [
@@ -142594,6 +142692,10 @@
                                             "type": "string",
                                             "minLength": 1,
                                             "maxLength": 64
+                                          },
+                                          "notBy": {
+                                            "type": "string",
+                                            "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                           }
                                         },
                                         "required": [
@@ -142658,6 +142760,10 @@
                                               "type": "string",
                                               "minLength": 1,
                                               "maxLength": 64
+                                            },
+                                            "notBy": {
+                                              "type": "string",
+                                              "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                             }
                                           },
                                           "required": [
@@ -142723,6 +142829,10 @@
                                             "type": "string",
                                             "minLength": 1,
                                             "maxLength": 64
+                                          },
+                                          "notBy": {
+                                            "type": "string",
+                                            "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                           }
                                         },
                                         "required": [
@@ -142787,6 +142897,10 @@
                                               "type": "string",
                                               "minLength": 1,
                                               "maxLength": 64
+                                            },
+                                            "notBy": {
+                                              "type": "string",
+                                              "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                             }
                                           },
                                           "required": [
@@ -142852,6 +142966,10 @@
                                             "type": "string",
                                             "minLength": 1,
                                             "maxLength": 64
+                                          },
+                                          "notBy": {
+                                            "type": "string",
+                                            "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                           }
                                         },
                                         "required": [
@@ -142916,6 +143034,10 @@
                                               "type": "string",
                                               "minLength": 1,
                                               "maxLength": 64
+                                            },
+                                            "notBy": {
+                                              "type": "string",
+                                              "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
                                             }
                                           },
                                           "required": [

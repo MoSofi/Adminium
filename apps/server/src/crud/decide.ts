@@ -131,6 +131,8 @@ export function needsStored(rules: TableRules | null): boolean {
     (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined) ||
     // A code renewed when the row changes hands: a change is judged against what is stored.
     (rules?.codes ?? []).some((code) => code.renew !== undefined) ||
+    // A column guarded on its change (`column.changes`): from what, while what, by whom, read off the row as stored.
+    (rules?.changes?.length ?? 0) > 0 ||
     // A posting's point is crossed, never merely held: whether this write crosses one is read off the row as it was.
     (rules?.postings?.length ?? 0) + (rules?.asLine?.length ?? 0) + (rules?.linePostings?.length ?? 0) > 0
   );

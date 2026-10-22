@@ -229,6 +229,9 @@ function sameAs(dialect: Dialect, column: ResolvedColumn | null, dbType: string 
 }
 
 /** A row the table's rules refused: its field and the reason. */
+/** The refusals of a column's guard (`crud/change-guards.ts`) and of a reach's `notBy` (`crud/row-writes.ts`). */
+const GUARD_REASONS: ReadonlySet<string> = new Set(['change-from', 'change-while', 'change-by', 'change-not-by', 'not-by']);
+
 function refusedBy(fieldIssues: FieldIssues | null): LineVerdict {
   const [column, issue] = Object.entries(fieldIssues ?? {})[0] ?? ['', null];
   const code = issue?.code ?? 'invalid';
@@ -368,13 +371,19 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     if (!(error instanceof AppError)) return 'the database refused the row';
     return (scrubRefusal(error, readView, readView.table(table.id)) as AppError).message;
   };
-  /** A line something threw for: a hook's no, a hook that broke, or anything else as the database's. */
-  const thrown = (error: unknown): LineVerdict => ({
-    status: 'refused',
-    code: error instanceof HookRejectedError ? 'REJECTED' : error instanceof HookFailedError ? 'HOOK_FAILED' : 'DB_ERROR',
-    column: '',
-    message: told(error),
-  });
+  /** A line something threw for: a hook's no, a hook that broke, a column the line may not change (`column.changes`), or anything else as the database's. */
+  const thrown = (error: unknown): LineVerdict => {
+    // Said by the column and the guard, and naming no stored value: the line's own refusal, as a limit's is.
+    if (error instanceof AppError && error.code === 'COLUMN_FORBIDDEN' && GUARD_REASONS.has(String((error.details as { reason?: unknown } | undefined)?.reason))) {
+      return { status: 'refused', code: 'COLUMN_FORBIDDEN', column: String((error.details as { column?: unknown } | undefined)?.column ?? ''), message: error.message };
+    }
+    return {
+      status: 'refused',
+      code: error instanceof HookRejectedError ? 'REJECTED' : error instanceof HookFailedError ? 'HOOK_FAILED' : 'DB_ERROR',
+      column: '',
+      message: told(error),
+    };
+  };
 
   type Found = { kind: 'reached'; row: Row } | { kind: 'unreached' } | { kind: 'none' } | { kind: 'failed'; error: unknown };
 
@@ -665,7 +674,8 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     return out.map((verdict, index) => verdict ?? thrown(new Error(`row ${items[index]!.rowNumber} was not judged`)));
   };
 
-  const fast = mode === 'insert' && !hooked.create && !held;
+  // A line a column's guard may refuse (`column.changes`) is judged on its own: one refusal stops that line, not the file.
+  const fast = mode === 'insert' && !hooked.create && !held && (rules?.changes?.length ?? 0) === 0;
 
   return {
     view,

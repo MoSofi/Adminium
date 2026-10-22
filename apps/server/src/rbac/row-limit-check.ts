@@ -15,7 +15,7 @@ import { rowReachList, type RowLimit, type RowReach } from '@adminium/meta';
 import type { EffectiveModel } from '../connections/effective-schema.js';
 
 export interface RowLimitIssue {
-  code: 'no-such-table' | 'private' | 'no-belongs' | 'no-such-column' | 'hidden-column' | 'not-a-staff-column';
+  code: 'no-such-table' | 'private' | 'no-belongs' | 'no-such-column' | 'hidden-column' | 'not-a-staff-column' | 'not-by-read';
   message: string;
   column?: string;
 }
@@ -39,6 +39,21 @@ export function rowReachIssue(model: EffectiveModel, tableId: string, reach: Row
     if (column === undefined) return { code: 'no-such-column', message: `"${table.label ?? table.name}" has no column "${reach.by}".`, column: reach.by };
     if (column.staff !== true) return { code: 'not-a-staff-column', message: `"${reach.by}" does not hold a staff member, so no row is anybody's by it.`, column: reach.by };
   }
+  if (reach.notBy !== undefined) {
+    // A staff column of the row, or `<link>.<staff column>` of the row one of its links names.
+    const [own, far] = reach.notBy.split('.') as [string, string | undefined];
+    const column = table.columns.find((candidate) => candidate.name === own);
+    if (column === undefined) return { code: 'no-such-column', message: `"${table.label ?? table.name}" has no column "${own}".`, column: reach.notBy };
+    if (far === undefined) {
+      if (column.staff !== true) return { code: 'not-a-staff-column', message: `"${own}" does not hold a staff member, so it names nobody who may not change the row.`, column: reach.notBy };
+    } else {
+      const hop = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === own && r.to.columns.length === 1);
+      const linked = hop === undefined ? undefined : model.tables.find((candidate) => candidate.id === hop.to.tableId);
+      const person = linked?.columns.find((candidate) => candidate.name === far);
+      if (person === undefined) return { code: 'no-such-column', message: `"${own}" names no row with a column "${far}".`, column: reach.notBy };
+      if (person.staff !== true) return { code: 'not-a-staff-column', message: `"${far}" does not hold a staff member, so it names nobody who may not change the row.`, column: reach.notBy };
+    }
+  }
   return null;
 }
 
@@ -46,6 +61,8 @@ export function rowReachIssue(model: EffectiveModel, tableId: string, reach: Row
 export function rowLimitIssue(model: EffectiveModel, tableId: string, limit: RowLimit): (RowLimitIssue & { action: string }) | null {
   for (const [action, reaches] of Object.entries(limit)) {
     for (const reach of rowReachList(reaches)) {
+      // A change the person may not make: their read of the rows that name them is theirs as ever.
+      if (action === 'read' && reach.notBy !== undefined) return { code: 'not-by-read', message: '"Not by" holds a change: a person still reads the rows that name them.', column: reach.notBy, action };
       const issue = rowReachIssue(model, tableId, reach);
       if (issue !== null) return { ...issue, action };
     }
