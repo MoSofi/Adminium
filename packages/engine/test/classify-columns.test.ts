@@ -559,3 +559,108 @@ describe('the file-reference vocabulary (r20-file-ref)', () => {
     }
   });
 });
+
+/**
+ * Money in MINOR units (walk fix E3, 2026-10-22). An `orders` table on SQLite
+ * showed `amount_cents` 4900 as "$4,900": money from the name, no scale, in
+ * dollars. The classifier half of the fix: a minor-unit name stamps
+ * `format: 'currency-cents'` (the renderer divides by the row currency's
+ * exponent), and a `*_minor` name only counts when something else says money.
+ */
+describe('money in minor units (r04, walk fix E3)', () => {
+  type Col = { name: string; logicalType: string; dbType?: string };
+  const classifyCols = (dialect: 'sqlite' | 'postgres' | 'mysql', columns: Col[]): Map<string, ClassifiedColumn> => {
+    const model = parseDatabaseModel({
+      irVersion: 1,
+      dialect,
+      name: 'probe',
+      tables: [
+        {
+          schema: dialect === 'sqlite' ? 'main' : 'public',
+          name: 'orders',
+          columns: [{ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }, ...columns],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    return new Map(classifyTableColumns(model, model.tables[0]!).map((c) => [c.column, c]));
+  };
+
+  // What each adapter's type map answers for the owner's table (verified
+  // against mapSqliteType / mapPostgresType / mapMysqlType).
+  const dialects = [
+    { dialect: 'sqlite', integer: { logicalType: 'integer', dbType: 'INTEGER' }, text: { logicalType: 'text', dbType: 'TEXT' } },
+    { dialect: 'postgres', integer: { logicalType: 'bigint', dbType: 'bigint' }, text: { logicalType: 'varchar', dbType: 'character varying(3)' } },
+    { dialect: 'mysql', integer: { logicalType: 'integer', dbType: 'int' }, text: { logicalType: 'varchar', dbType: 'varchar(3)' } },
+  ] as const;
+
+  for (const { dialect, integer, text } of dialects) {
+    it(`${dialect}: amount_cents beside a currency column is minor-unit money with that currency source`, () => {
+      const c = classifyCols(dialect, [
+        { name: 'number', ...text },
+        { name: 'amount_cents', ...integer },
+        { name: 'currency', ...text },
+      ]).get('amount_cents')!;
+      expect(c.semantics.primary).toBe('money');
+      expect(c.semantics.format).toBe('currency-cents');
+      expect(c.reasons.join(' ')).toContain('sibling currency column "currency"');
+    });
+  }
+
+  it('a _cents integer with no currency column is still minor-unit money', () => {
+    const c = classifyCols('sqlite', [{ name: 'amount_cents', logicalType: 'integer' }]).get('amount_cents')!;
+    expect(c.semantics.primary).toBe('money');
+    expect(c.semantics.format).toBe('currency-cents');
+    expect(c.reasons.join(' ')).not.toContain('sibling');
+  });
+
+  it('a _cents name needs no money word: shipping_cents, cents, discount_cents', () => {
+    const cols = classifyCols('postgres', [
+      { name: 'shipping_cents', logicalType: 'integer' },
+      { name: 'cents', logicalType: 'bigint' },
+      { name: 'discount_cents', logicalType: 'integer' },
+      { name: 'tax_in_cents', logicalType: 'decimal' },
+    ]);
+    for (const name of ['shipping_cents', 'cents', 'discount_cents', 'tax_in_cents']) {
+      expect(cols.get(name)!.semantics.primary, name).toBe('money');
+      expect(cols.get(name)!.semantics.format, name).toBe('currency-cents');
+    }
+  });
+
+  it('_minor counts beside money vocabulary or a currency column, never alone', () => {
+    const withWord = classifyCols('postgres', [
+      { name: 'amount_minor', logicalType: 'bigint' },
+      { name: 'price_minor_units', logicalType: 'integer' },
+      { name: 'version_minor', logicalType: 'integer' },
+    ]);
+    expect(withWord.get('amount_minor')!.semantics.format).toBe('currency-cents');
+    expect(withWord.get('price_minor_units')!.semantics.format).toBe('currency-cents');
+    expect(withWord.get('version_minor')!.semantics.primary).not.toBe('money');
+
+    const withCurrency = classifyCols('postgres', [
+      { name: 'charge_minor', logicalType: 'bigint' },
+      { name: 'currency_code', logicalType: 'varchar' },
+    ]);
+    expect(withCurrency.get('charge_minor')!.semantics.primary).toBe('money');
+    expect(withCurrency.get('charge_minor')!.semantics.format).toBe('currency-cents');
+  });
+
+  it('a currency_id (a key, not a code) is not a currency source', () => {
+    const cols = classifyCols('postgres', [
+      { name: 'charge_minor', logicalType: 'bigint' },
+      { name: 'currency_id', logicalType: 'integer' },
+    ]);
+    expect(cols.get('charge_minor')!.semantics.primary).not.toBe('money');
+  });
+
+  it('money in major units keeps format currency; a cents-named string or float is not minor money', () => {
+    const cols = classifyCols('mysql', [
+      { name: 'total', logicalType: 'decimal' },
+      { name: 'amount_cents_label', logicalType: 'varchar' },
+      { name: 'ratio_cents', logicalType: 'float' },
+    ]);
+    expect(cols.get('total')!.semantics.format).toBe('currency');
+    expect(cols.get('amount_cents_label')!.semantics.primary).not.toBe('money');
+    expect(cols.get('ratio_cents')!.semantics.format).not.toBe('currency-cents');
+  });
+});
