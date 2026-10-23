@@ -245,9 +245,11 @@ test.describe('an app’s console cards', () => {
       const first = chart.getByRole('table').locator('tbody tr').first();
       const cells = await first.locator('th, td').allTextContents();
       expect(cells).toHaveLength(3);
-      // The count: a plain figure. The freight: in the currency.
+      // The count: a plain figure. The freight: money, two decimals. The column names no currency, so no
+      // symbol is guessed (the chart table used to default to "$"). Arabic writes its own digits: ٤٦٣٫٨٩.
       expect(cells[1]).not.toMatch(/\$/);
-      expect(cells[2]).toMatch(/\$/);
+      expect(cells[2]).not.toMatch(/\$/);
+      expect(cells[2]).toMatch(/[\d٠-٩][.,٫][\d٠-٩]{2}(?![\d٠-٩])/);
       await nothingSideways(page);
     });
 
