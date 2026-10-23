@@ -5,16 +5,41 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { computeDelta, formatMetricValue } from './format.js';
+import { computeDelta, formatChartMoney, formatMetricValue } from './format.js';
 
 const EN = { locale: 'en-US' };
 
+describe('formatChartMoney', () => {
+  it('writes a chart\'s money figure in the card\'s currency, else the plain number (walk fix E3)', () => {
+    expect(formatChartMoney(36350, { locale: 'en-GB', currency: 'GBP' })).toBe('£36,350');
+    expect(formatChartMoney(12.5, { locale: 'en-US', currency: 'usd' })).toBe('$12.50');
+    expect(formatChartMoney(36350, { locale: 'en-US' })).toBe('36,350');
+    expect(formatChartMoney(12.5, { locale: 'en-US', currency: '' })).toBe('12.50');
+    expect(formatChartMoney(12.5, { locale: 'en-US', currency: 'not-a-code' })).toBe('12.50');
+  });
+});
+
 describe('formatMetricValue', () => {
   it('formats currency with compact notation above 100k', () => {
-    expect(formatMetricValue(48_210, 'currency', EN)).toBe('$48,210');
-    expect(formatMetricValue(1_250_000, 'currency', EN)).toBe('$1.3M');
-    expect(formatMetricValue(12.5, 'currency', EN)).toBe('$12.50');
+    const USD = { ...EN, currency: 'USD' };
+    expect(formatMetricValue(48_210, 'currency', USD)).toBe('$48,210');
+    expect(formatMetricValue(1_250_000, 'currency', USD)).toBe('$1.3M');
+    expect(formatMetricValue(12.5, 'currency', USD)).toBe('$12.50');
     expect(formatMetricValue(950, 'currency', { ...EN, currency: 'EUR' })).toBe('€950.00');
+  });
+
+  it('reads currency with no currency set as the same figure without a symbol (walk fix E3)', () => {
+    // Never a guessed "$": a euro shop with no currency on the widget saw dollars.
+    expect(formatMetricValue(48_210, 'currency', EN)).toBe('48,210');
+    expect(formatMetricValue(1_250_000, 'currency', EN)).toBe('1.3M');
+    expect(formatMetricValue(12.5, 'currency', EN)).toBe('12.50');
+    expect(formatMetricValue(950, 'currency', EN)).toBe('950.00');
+    // Empty, blank or not a code: the same as none, never a thrown RangeError.
+    expect(formatMetricValue(12.5, 'currency', { ...EN, currency: '' })).toBe('12.50');
+    expect(formatMetricValue(12.5, 'currency', { ...EN, currency: '  ' })).toBe('12.50');
+    expect(formatMetricValue(12.5, 'currency', { ...EN, currency: 'dollars' })).toBe('12.50');
+    // A lower-case code still counts.
+    expect(formatMetricValue(12.5, 'currency', { ...EN, currency: 'eur' })).toBe('€12.50');
   });
 
   it('formats percent from fractions and compact large numbers', () => {
@@ -49,7 +74,9 @@ describe('computeDelta', () => {
 
   it('prefers a server-provided deltaPct and formats abs mode with the metric format', () => {
     expect(computeDelta({ value: 5, deltaPct: -0.124 }, 'pct', 'plain', EN)?.text).toBe('-12.4%');
-    const abs = computeDelta({ value: 1250, prior: 1000 }, 'abs', 'currency', EN);
+    const abs = computeDelta({ value: 1250, prior: 1000 }, 'abs', 'currency', { ...EN, currency: 'USD' });
     expect(abs).toMatchObject({ trend: 'up', text: '+$250.00' });
+    const bare = computeDelta({ value: 1250, prior: 1000 }, 'abs', 'currency', EN);
+    expect(bare).toMatchObject({ trend: 'up', text: '+250.00' });
   });
 });
