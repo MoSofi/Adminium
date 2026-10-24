@@ -270,12 +270,13 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
               /**
                * Only the rows whose date `column` falls in this calendar year (`"this": "year"`), or in the last
                * `lastDays` days (today and the days before it), on the business's calendar: its time zone, from
-               * its midnight. Counted when the summary is made, like every condition of a section.
+               * its midnight. Counted when the summary is made, like every condition of a section. `orEmpty`: a row
+               * whose column is empty counts too (the open deals beside the ones won this year).
                */
               within: z
                 .union([
-                  z.object({ column: refSchema, this: z.literal('year') }).strict(),
-                  z.object({ column: refSchema, lastDays: z.number().int().min(1).max(366) }).strict(),
+                  z.object({ column: refSchema, this: z.literal('year'), orEmpty: z.literal(true).optional() }).strict(),
+                  z.object({ column: refSchema, lastDays: z.number().int().min(1).max(366), orEmpty: z.literal(true).optional() }).strict(),
                 ])
                 .optional(),
             })

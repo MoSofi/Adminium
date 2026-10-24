@@ -64,6 +64,7 @@ in the **last N days**, on the business's calendar (the connection's time zone),
 |---|---|
 | `{ "column": <col>, "this": "year" }` | From the business's midnight on 1 January of the year it is in when the rule runs, to the next 1 January. A summary made at 01:00 on 1 January in Auckland counts the new year, whatever the server's clock says. |
 | `{ "column": <col>, "lastDays": N }` | Today and the N − 1 days before it, each a whole day on the business's calendar (1 to 366). `"lastDays": 7` made on a Monday is that Monday and the six days before it. |
+| `"orEmpty": true`, beside either | The rows whose column is empty count too: `{ "column": "closed_on", "this": "year", "orEmpty": true }` with `state` not `lost` is the open deals and the ones won this year (a cover). |
 
 The column is a `date` or a `timestamptz` of the section's table; a date is compared with the
 business's days, a moment with the instants its midnights begin. Like every condition of a section,

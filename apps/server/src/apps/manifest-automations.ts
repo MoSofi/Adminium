@@ -131,7 +131,7 @@ export function boundNode(node: unknown, b: Binding): unknown {
       sum?: string[];
       by?: 'owner';
       target?: { table: string; owner: string; column: string; year?: string; of: string };
-      within?: { column: string; this: 'year' } | { column: string; lastDays: number };
+      within?: { column: string; this: 'year'; orEmpty?: true } | { column: string; lastDays: number; orEmpty?: true };
     }[];
     return {
       ...base,

@@ -21,7 +21,7 @@
 | `references/manifest/automations--a-value-from-the-settings-row-and-a-day-so-many-days-on.md` | Automations — A value from the settings row, and a day so many days on | 3507 |
 | `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 691 |
 | `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 1412 |
-| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 7210 |
+| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 7432 |
 | `references/manifest/automations--a-summary-for-each-person-2.md` | Automations — A summary for each person (part 2) | 1317 |
 | `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 3179 |
 | `references/manifest/sample-data.md` | Sample data | 975 |

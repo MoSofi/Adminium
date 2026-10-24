@@ -481,7 +481,8 @@ async function sectionRows(input: Reader & {
  * business's current year (or of the first of its last days) to the start of
  * the next, as the business's calendar has them when the rule ran. A date
  * column is compared with the business's days; a time column with the
- * instants of its midnights, spelled as a write would store them.
+ * instants of its midnights, spelled as a write would store them. With
+ * `orEmpty`, a row whose column is empty is in the section too.
  */
 export function withinFilter(within: NonNullable<AutomationDigestSection['within']>, table: Pick<ResolvedTable, 'id' | 'columns'>, zone: string, madeAt: number): RecordFilter {
   const column = table.columns.get(within.column);
@@ -489,7 +490,9 @@ export function withinFilter(within: NonNullable<AutomationDigestSection['within
   const at = new Date(madeAt);
   const bounds = 'this' in within ? calendarBounds(1, 'year', 0, at, zone) : calendarBounds(within.lastDays, 'day', 0, at, zone);
   const spell = (instant: Date): string => (column.logicalType === 'date' ? venueClock(instant, zone).day : instant.toISOString());
-  return { and: [{ column: column.name, op: 'gte', value: spell(bounds.start) }, { column: column.name, op: 'lt', value: spell(bounds.end) }] };
+  const inside: RecordFilter = { and: [{ column: column.name, op: 'gte', value: spell(bounds.start) }, { column: column.name, op: 'lt', value: spell(bounds.end) }] };
+  // `orEmpty`: a row whose column is empty counts too (an open deal has no close date yet).
+  return within.orEmpty === true ? { or: [inside, { column: column.name, op: 'is_null' }] } : inside;
 }
 
 /**

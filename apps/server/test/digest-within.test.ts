@@ -154,5 +154,37 @@ for (const [dialect, available] of ENGINES) {
         ['real.deals', { column: 'met_at', lastDays: 30 }],
       ]);
     });
+
+    it('counts the rows whose date is empty too, with orEmpty: the open deals beside the year\'s', async () => {
+      // An open deal: no close date, no meeting yet.
+      await w.run(`INSERT INTO deals (id, title, owner_id, state, amount, big, company_id, close_on) VALUES (20, 'Deal 20', '${w.people.dana}', 'open', 2000, ${dialect === 'postgres' ? 'false' : '0'}, 1, NULL)`);
+      try {
+        const sections = [
+          section('year-by-day', { column: 'close_on', this: 'year', orEmpty: true }),
+          section('two-days', { column: 'close_on', lastDays: 2, orEmpty: true }),
+          section('year-by-moment', { column: 'met_at', this: 'year' }),
+        ];
+        // Saved through the rules' own door, which reads every word of it.
+        const saved = await w.app.inject({
+          method: 'POST',
+          url: '/api/v1/automations',
+          headers: { cookie: w.owner.cookie },
+          payload: {
+            name: 'Cover',
+            connectionId: w.connectionId,
+            trigger: { kind: 'schedule', connectionId: w.connectionId, schedule: { kind: 'weekly', time: '07:00', dayOfWeek: 1, timezone: ZONE } },
+            graph: { version: 1, nodes: [{ id: 't', kind: 'trigger', title: 'Each week' }, { id: 'sum', kind: 'action', title: 'Cover', action: { kind: 'digest', templateKey: 'firm-year', to: { roles: [rep] }, sections, sendEmpty: true } }] },
+            enabled: true,
+          },
+        });
+        expect(saved.statusCode, saved.body).toBe(201);
+        // Deals 2 and 11 by their day, and the open deal 20; held to the moment alone, deal 20 is not in it.
+        expect(await send(MADE_AT, sections)).toMatchObject({ sent: true, rows: { 'year-by-day': 3, 'two-days': 3, 'year-by-moment': 2 } });
+        const filter = withinFilter({ column: 'close_on', this: 'year', orEmpty: true }, { id: 'deals', columns: new Map([['close_on', { name: 'close_on', logicalType: 'date' }]]) } as never, ZONE, MADE_AT);
+        expect(filter).toEqual({ or: [{ and: [{ column: 'close_on', op: 'gte', value: '2027-01-01' }, { column: 'close_on', op: 'lt', value: '2028-01-01' }] }, { column: 'close_on', op: 'is_null' }] });
+      } finally {
+        await w.run('DELETE FROM deals WHERE id = 20');
+      }
+    });
   });
 }

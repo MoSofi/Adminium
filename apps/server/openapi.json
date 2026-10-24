@@ -26524,6 +26524,12 @@
                                                                     "enum": [
                                                                       "year"
                                                                     ]
+                                                                  },
+                                                                  "orEmpty": {
+                                                                    "type": "boolean",
+                                                                    "enum": [
+                                                                      true
+                                                                    ]
                                                                   }
                                                                 },
                                                                 "required": [
@@ -26543,6 +26549,12 @@
                                                                     "type": "integer",
                                                                     "minimum": 1,
                                                                     "maximum": 366
+                                                                  },
+                                                                  "orEmpty": {
+                                                                    "type": "boolean",
+                                                                    "enum": [
+                                                                      true
+                                                                    ]
                                                                   }
                                                                 },
                                                                 "required": [
@@ -28313,6 +28325,12 @@
                                                                                           "enum": [
                                                                                             "year"
                                                                                           ]
+                                                                                        },
+                                                                                        "orEmpty": {
+                                                                                          "type": "boolean",
+                                                                                          "enum": [
+                                                                                            true
+                                                                                          ]
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -28332,6 +28350,12 @@
                                                                                           "type": "integer",
                                                                                           "minimum": 1,
                                                                                           "maximum": 366
+                                                                                        },
+                                                                                        "orEmpty": {
+                                                                                          "type": "boolean",
+                                                                                          "enum": [
+                                                                                            true
+                                                                                          ]
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -29935,6 +29959,12 @@
                                                                                           "enum": [
                                                                                             "year"
                                                                                           ]
+                                                                                        },
+                                                                                        "orEmpty": {
+                                                                                          "type": "boolean",
+                                                                                          "enum": [
+                                                                                            true
+                                                                                          ]
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -29954,6 +29984,12 @@
                                                                                           "type": "integer",
                                                                                           "minimum": 1,
                                                                                           "maximum": 366
+                                                                                        },
+                                                                                        "orEmpty": {
+                                                                                          "type": "boolean",
+                                                                                          "enum": [
+                                                                                            true
+                                                                                          ]
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -32410,6 +32446,12 @@
                                                             "enum": [
                                                               "year"
                                                             ]
+                                                          },
+                                                          "orEmpty": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -32429,6 +32471,12 @@
                                                             "type": "integer",
                                                             "minimum": 1,
                                                             "maximum": 366
+                                                          },
+                                                          "orEmpty": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -34114,6 +34162,12 @@
                                                                                   "enum": [
                                                                                     "year"
                                                                                   ]
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -34133,6 +34187,12 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 366
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -35658,6 +35718,12 @@
                                                                                   "enum": [
                                                                                     "year"
                                                                                   ]
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -35677,6 +35743,12 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 366
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -38018,6 +38090,12 @@
                                                               "enum": [
                                                                 "year"
                                                               ]
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -38037,6 +38115,12 @@
                                                               "type": "integer",
                                                               "minimum": 1,
                                                               "maximum": 366
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -39807,6 +39891,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -39826,6 +39916,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -41429,6 +41525,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -41448,6 +41550,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -44562,6 +44670,12 @@
                                                               "enum": [
                                                                 "year"
                                                               ]
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -44581,6 +44695,12 @@
                                                               "type": "integer",
                                                               "minimum": 1,
                                                               "maximum": 366
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -46351,6 +46471,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -46370,6 +46496,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -47973,6 +48105,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -47992,6 +48130,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -50431,6 +50575,12 @@
                                                             "enum": [
                                                               "year"
                                                             ]
+                                                          },
+                                                          "orEmpty": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -50450,6 +50600,12 @@
                                                             "type": "integer",
                                                             "minimum": 1,
                                                             "maximum": 366
+                                                          },
+                                                          "orEmpty": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -52135,6 +52291,12 @@
                                                                                   "enum": [
                                                                                     "year"
                                                                                   ]
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -52154,6 +52316,12 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 366
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -53679,6 +53847,12 @@
                                                                                   "enum": [
                                                                                     "year"
                                                                                   ]
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -53698,6 +53872,12 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 366
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -56044,6 +56224,12 @@
                                                               "enum": [
                                                                 "year"
                                                               ]
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -56063,6 +56249,12 @@
                                                               "type": "integer",
                                                               "minimum": 1,
                                                               "maximum": 366
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -57833,6 +58025,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -57852,6 +58050,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -59455,6 +59659,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -59474,6 +59684,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -62051,6 +62267,12 @@
                                                               "enum": [
                                                                 "year"
                                                               ]
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -62070,6 +62292,12 @@
                                                               "type": "integer",
                                                               "minimum": 1,
                                                               "maximum": 366
+                                                            },
+                                                            "orEmpty": {
+                                                              "type": "boolean",
+                                                              "enum": [
+                                                                true
+                                                              ]
                                                             }
                                                           },
                                                           "required": [
@@ -63840,6 +64068,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -63859,6 +64093,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -65462,6 +65702,12 @@
                                                                                     "enum": [
                                                                                       "year"
                                                                                     ]
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -65481,6 +65727,12 @@
                                                                                     "type": "integer",
                                                                                     "minimum": 1,
                                                                                     "maximum": 366
+                                                                                  },
+                                                                                  "orEmpty": {
+                                                                                    "type": "boolean",
+                                                                                    "enum": [
+                                                                                      true
+                                                                                    ]
                                                                                   }
                                                                                 },
                                                                                 "required": [
@@ -67917,6 +68169,12 @@
                                                             "enum": [
                                                               "year"
                                                             ]
+                                                          },
+                                                          "orEmpty": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -67936,6 +68194,12 @@
                                                             "type": "integer",
                                                             "minimum": 1,
                                                             "maximum": 366
+                                                          },
+                                                          "orEmpty": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
                                                           }
                                                         },
                                                         "required": [
@@ -69621,6 +69885,12 @@
                                                                                   "enum": [
                                                                                     "year"
                                                                                   ]
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -69640,6 +69910,12 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 366
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -71165,6 +71441,12 @@
                                                                                   "enum": [
                                                                                     "year"
                                                                                   ]
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -71184,6 +71466,12 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 366
+                                                                                },
+                                                                                "orEmpty": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
                                                                                 }
                                                                               },
                                                                               "required": [

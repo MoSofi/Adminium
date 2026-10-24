@@ -310,7 +310,8 @@ describe('rules that tell the person on the row', () => {
       (doc as unknown as { compatibility: { minAdminiumVersion: string } }).compatibility.minAdminiumVersion = '0.3.35';
       section(doc).within = within;
     };
-    for (const within of [{ column: 'closed_on', this: 'year' }, { column: 'touched_at', lastDays: 30 }]) {
+    // `orEmpty`: rows whose date is empty count too (open deals beside the year's won ones).
+    for (const within of [{ column: 'closed_on', this: 'year' }, { column: 'touched_at', lastDays: 30 }, { column: 'closed_on', this: 'year', orEmpty: true }, { column: 'touched_at', lastDays: 7, orEmpty: true }]) {
       const doc = sales() as Doc;
       dated(doc, within);
       expect(issuesOf(doc), JSON.stringify(within)).toEqual([]);
@@ -326,7 +327,7 @@ describe('rules that tell the person on the row', () => {
     expect(changed((doc) => dated(doc, { column: 'nope', lastDays: 7 }))).toContain('"deals" has no column "nope"');
     // A year, or a number of days from one to a year's: nothing else.
     expect(changed((doc) => dated(doc, { column: 'quiet', lastDays: 7 }))).toContain('"deals.quiet" is int: a section is held to a year or to days by a date column');
-    for (const within of [{ column: 'closed_on', this: 'month' }, { column: 'closed_on', lastDays: 0 }, { column: 'closed_on', lastDays: 367 }, { column: 'closed_on' }, { column: 'closed_on', this: 'year', lastDays: 7 }]) {
+    for (const within of [{ column: 'closed_on', this: 'month' }, { column: 'closed_on', lastDays: 0 }, { column: 'closed_on', lastDays: 367 }, { column: 'closed_on' }, { column: 'closed_on', this: 'year', lastDays: 7 }, { column: 'closed_on', this: 'year', orEmpty: false }]) {
       expect(changed((doc) => dated(doc, within)), JSON.stringify(within)).not.toBe('');
     }
   });

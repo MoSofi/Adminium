@@ -2121,11 +2121,12 @@ export const automationDigestSectionSchema = z.object({
    * year (`this: 'year'`), or in the last `lastDays` days (today and the days
    * before it), on the business's calendar: the connection's time zone, from
    * its midnight. Counted from when the rule ran, like the conditions.
+   * `orEmpty`: a row whose column is empty counts too.
    */
   within: z
     .union([
-      z.object({ column: z.string().max(128), this: z.literal('year') }).strict(),
-      z.object({ column: z.string().max(128), lastDays: z.number().int().min(1).max(366) }).strict(),
+      z.object({ column: z.string().max(128), this: z.literal('year'), orEmpty: z.literal(true).optional() }).strict(),
+      z.object({ column: z.string().max(128), lastDays: z.number().int().min(1).max(366), orEmpty: z.literal(true).optional() }).strict(),
     ])
     .optional(),
 });
