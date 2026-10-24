@@ -267,33 +267,35 @@ describe.each(LEGS)('an add-on\'s ceiling on an app\'s roles — %s', (dialect, 
     expect((await addKit()).statusCode).toBe(200);
     const wider = ceilingKit(WIDER, '1.0.1');
     await h.stageAddOn(wider, { files: ledgerKitFiles(wider) });
+    const needsNewer = { suggests: [{ key: KIT, range: '>=1.0.1', reason: { 'en-US': 'Keeps units.' } }] };
+    const bring = { addOns: [{ key: KIT, version: '1.0.1', update: true }] };
+    const widened = [
+      { role: 'floor', table: 'accounts', wider: { actions: [], columns: ['taken'] } },
+      { role: 'floor', table: 'settings', wider: { actions: ['create'], columns: ['note'] } },
+    ];
+
+    // The shop's own update, which needs the kit's release: its floor would get more, so the update asks first.
+    await h.stageApp(shop(ACCOUNTS_ASKED.readable, { version: '1.0.1', addOns: needsNewer }));
+    const own = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: bring });
+    expect(own.statusCode, own.body).toBe(422);
+    expect(own.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: widened } } });
+    expect(await held('floor')).toEqual(WRITTEN);
 
     // Another app installed with "update the kit too": the shop's floor would get more, so the install asks first.
-    const stall = shopManifest({ key: 'stall', name: 'Stall', addOns: { suggests: [{ key: KIT, range: '*', reason: { 'en-US': 'Keeps units.' } }] }, publicAccess: [], pages: [{ ref: 'stall-home', template: 'page-dashboard', title: { key: 'mft.stall.page.home', fallback: 'Home' }, nav: { group: 'manifest:sample', icon: 'layout-dashboard', order: 1 } }] });
+    const stall = shopManifest({ key: 'stall', name: 'Stall', addOns: needsNewer, publicAccess: [], pages: [{ ref: 'stall-home', template: 'page-dashboard', title: { key: 'mft.stall.page.home', fallback: 'Home' }, nav: { group: 'manifest:sample', icon: 'layout-dashboard', order: 1 } }] });
     await h.stageApp(stall);
     const checked = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'stall', version: '1.0.0', connectionId: h.connectionId } });
     expect(checked.statusCode, checked.body).toBe(200);
-    expect(((checked.json() as { plan: { roleTables?: Doc[] } }).plan.roleTables ?? []).filter((entry) => entry['app'] !== undefined)).toEqual([
-      expect.objectContaining({ app: 'shop', role: 'floor', table: 'accounts', wider: { actions: [], columns: ['taken'] } }),
-      expect.objectContaining({ app: 'shop', role: 'floor', table: 'settings', wider: { actions: ['create'], columns: ['note'] } }),
-    ]);
-    const bring = { addOns: [{ key: KIT, version: '1.0.1', update: true }] };
+    expect(((checked.json() as { plan: { roleTables?: Doc[] } }).plan.roleTables ?? []).filter((entry) => entry['app'] !== undefined)).toEqual(widened.map((entry) => expect.objectContaining({ app: 'shop', appName: 'Shop', ...entry })));
     const refused = await h.install('stall', '1.0.0', bring);
     expect(refused.statusCode, refused.body).toBe(422);
-    expect(refused.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: [{ app: 'shop', table: 'accounts' }, { app: 'shop', table: 'settings' }] } } });
+    expect(refused.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: widened.map((entry) => ({ app: 'shop', ...entry })) } } });
     expect(await held('floor')).toEqual(WRITTEN);
-    // Installed without the kit's update: nothing is asked.
-    const without = await h.install('stall', '1.0.0');
-    expect(without.statusCode, without.body).toBe(200);
-
-    // The shop's own update bringing the kit's release: its floor gets more, so the update asks first.
-    await h.stageApp(shop(ACCOUNTS_ASKED.readable, { version: '1.0.1' }));
-    const own = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: bring });
-    expect(own.statusCode, own.body).toBe(422);
-    expect(own.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: [{ role: 'floor', table: 'accounts', wider: { actions: [], columns: ['taken'] } }, { role: 'floor', table: 'settings', wider: { actions: ['create'], columns: ['note'] } }] } } });
-    expect(await held('floor')).toEqual(WRITTEN);
-    const allowed = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { ...bring, roleTables: true } });
+    const allowed = await h.install('stall', '1.0.0', { ...bring, roleTables: true });
     expect(allowed.statusCode, allowed.body).toBe(200);
     expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ readLimit: { readable: ['id', 'name', 'balance', 'taken'] } });
+    // The release is in: the shop's update brings nothing new to its roles, and is not asked.
+    const quiet = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(quiet.statusCode, quiet.body).toBe(200);
   });
 });
