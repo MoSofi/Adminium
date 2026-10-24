@@ -893,7 +893,42 @@ function BoardSlot({
             .join(' ')
         : messageOf(state.error);
 
-  return (
+  // The toolbar is drawn OUTSIDE the cards' frame: narrowing the board to a person asks the cards again, and the
+  // frame's skeleton must not take the filter away from under the pointer (or the keyboard's focus) meanwhile.
+  const toolbarLine =
+    cfg.toolbar === undefined ? null : (
+      <BoardToolbarLine
+        toolbar={cfg.toolbar}
+        states={toolbarStates}
+        figures={cfg.toolbarFigures}
+        person={person}
+        onPersonChange={onPersonChange}
+        formatTotals={formatTotals}
+        entityLabels={entityLabels}
+        personLabel={personLabel}
+        language={language}
+        note={
+          cfg.note === undefined ? null : (
+            // On the toolbar's line, at its end (the comp): the page's own sentence about its board.
+            <span data-testid="board-note" className="ms-auto flex items-center gap-[7px] rounded-[10px] border border-border bg-surface-2 px-[11px] py-1.5 text-caption text-fg-muted">
+              <Columns3 aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+              {cfg.note.href === undefined || onEvent === undefined ? (
+                <span>{pickLocalized(cfg.note.text, cfg.note.texts, language)}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="rounded-sm text-start font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => void onEvent(item.i, { type: 'drill-through', href: cfg.note?.href ?? '' })}
+                >
+                  {pickLocalized(cfg.note.text, cfg.note.texts, language)}
+                </button>
+              )}
+            </span>
+          )
+        }
+      />
+    );
+  const framed = (
     <WidgetFrame
       state={frameState}
       frameless
@@ -907,38 +942,6 @@ function BoardSlot({
           `h-full`, and as a plain sibling below the notice it overflowed the
           slot by the notice's height, into the composer placed under it. */}
       <div className="flex h-full min-h-0 flex-col">
-        {cfg.toolbar === undefined ? null : (
-          <BoardToolbarLine
-            toolbar={cfg.toolbar}
-            states={toolbarStates}
-            figures={cfg.toolbarFigures}
-            person={person}
-            onPersonChange={onPersonChange}
-            formatTotals={formatTotals}
-            entityLabels={entityLabels}
-            personLabel={personLabel}
-            language={language}
-            note={
-              cfg.note === undefined ? null : (
-                // On the toolbar's line, at its end (the comp): the page's own sentence about its board.
-                <span data-testid="board-note" className="ms-auto flex items-center gap-[7px] rounded-[10px] border border-border bg-surface-2 px-[11px] py-1.5 text-caption text-fg-muted">
-                  <Columns3 aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-                  {cfg.note.href === undefined || onEvent === undefined ? (
-                    <span>{pickLocalized(cfg.note.text, cfg.note.texts, language)}</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="rounded-sm text-start font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      onClick={() => void onEvent(item.i, { type: 'drill-through', href: cfg.note?.href ?? '' })}
-                    >
-                      {pickLocalized(cfg.note.text, cfg.note.texts, language)}
-                    </button>
-                  )}
-                </span>
-              )
-            }
-          />
-        )}
         {cfg.note === undefined || cfg.toolbar !== undefined ? null : (
           // The page's own sentence about its board ("Columns come from Stages"), in the reader's language.
           <p data-testid="board-note" className="px-3 pt-2 text-caption text-fg-muted">
@@ -1040,6 +1043,13 @@ function BoardSlot({
         </div>
       </div>
     </WidgetFrame>
+  );
+  if (toolbarLine === null) return framed;
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {toolbarLine}
+      <div className="min-h-0 flex-1">{framed}</div>
+    </div>
   );
 }
 

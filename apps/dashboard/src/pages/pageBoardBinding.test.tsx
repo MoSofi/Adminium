@@ -560,7 +560,8 @@ describe('a board with a toolbar', () => {
 
   it("reads the server's total and the people in the page's one batch, and says the total in the table's own words", async () => {
     await renderBoard({ stages: STAGES, page: TOOLBAR });
-    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('342 Deals · €1,450,000.00'));
+    // A whole total is written as the columns' headers write theirs: no cents.
+    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('342 Deals · €1,450,000'));
     await settle();
     expect(batches).toHaveLength(1);
     expect(batches[0]!.map((request) => request.instanceId).sort()).toEqual(['board-1', 'board-1:people', 'board-1:toolbar:0', 'board-1:toolbar:1']);
@@ -580,10 +581,12 @@ describe('a board with a toolbar', () => {
     // Each column's count and total: the measures ask of her cards alone.
     const compute = JSON.parse(columnReads.at(-1)!.searchParams.get('compute')!) as { measures: { where?: unknown }[] };
     for (const measure of compute.measures) expect(measure.where).toEqual([{ column: 'owner_id', in: ['usr_dana'] }]);
+    // The same filter, never drawn again while her cards were read: what was clicked (and focused) is still there.
+    expect(group.isConnected).toBe(true);
     expect(within(group).getByRole('button', { name: 'Dana Ruiz' }).getAttribute('aria-pressed')).toBe('true');
     // Everyone again: the whole board.
     fireEvent.click(within(group).getByRole('button', { name: 'Everyone' }));
-    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('342 Deals · €1,450,000.00'));
+    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('342 Deals · €1,450,000'));
   });
 });
 
