@@ -20,7 +20,7 @@ That is the whole architecture. It fits on one small VPS.
 | **Port** | 4600 by default |
 | **Meta store** | PostgreSQL, MySQL/MariaDB, or SQLite |
 | **Source database** | PostgreSQL, MySQL/MariaDB, or SQLite — external, always |
-| **Memory** | The server is about **165 MB** idle and about **220 MB** during a first boot. **1 GB** where you run the runtime yourself — a VPS with Docker Compose, or Adminium with PostgreSQL and a proxy on one box. **512 MB** is enough on a managed host that runs the container for you (Render, App Platform, Fly, Railway), because that limit applies to your container alone. It scales with concurrent users and with your **schema** size, not with how many rows you have. |
+| **Memory** | The server holds about **245 MB** of JavaScript heap from the moment it boots, so the Docker image gives Node a **512 MB** heap ceiling (`NODE_OPTIONS=--max-old-space-size=512`). Back it with **2 GB** on a server you run yourself — a VPS with Docker Compose, or Adminium with PostgreSQL and a proxy on one box — or **1 GB with swap** turned on. On a managed host that runs the container for you (Render, App Platform, Fly, Railway), the limit applies to your container alone: give it **1 GB**. **512 MB is not enough** anywhere: Node then picks a heap ceiling near 256 MB, which a few hours of use fill. It scales with concurrent users and with your **schema** size, not with how many rows you have. Running from npm (`npx @adminiumjs/adminium`) on a small machine, set `NODE_OPTIONS=--max-old-space-size=512` yourself. Setting your own `NODE_OPTIONS` on the container (for example to add `--enable-source-maps`) **replaces** the image's, so keep `--max-old-space-size=512` in it. |
 
 ## Pick a shape
 

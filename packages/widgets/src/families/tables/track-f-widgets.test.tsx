@@ -10,7 +10,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { CardGallery, cardGalleryDemoData } from './CardGallery.js';
-import { GroupedSummaryTable, groupedSummaryTableDemoData } from './GroupedSummaryTable.js';
+import {
+  GroupedSummaryTable,
+  GroupedSummaryTableWidget,
+  groupedSummaryTableConfigSchema,
+  groupedSummaryTableDemoData,
+} from './GroupedSummaryTable.js';
 import { LogTable, codeTone, isErrorRow, logTableDemoData, smartTimestamp } from './LogTable.js';
 import type { LogRow } from './LogTable.js';
 import { MasterList, masterListDemoData } from './MasterList.js';
@@ -144,7 +149,7 @@ describe('grouped-summary-table', () => {
    * `$33,385.00`.
    */
   it('renders byte-identically to the pre-wave build', () => {
-    render(<GroupedSummaryTable data={groupedSummaryTableDemoData(5)} />);
+    render(<GroupedSummaryTable data={groupedSummaryTableDemoData(5)} currency="USD" />);
     expect(document.body.textContent).toBe(
       'GroupRequestsRevenueQuotaErrors' +
         'North America(3)70,219$33,38557%2.4%' +
@@ -153,6 +158,30 @@ describe('grouped-summary-table', () => {
         'Latin America(1)17,302$20,21427%1.5%' +
         'Total185,669$66,60054%2%',
     );
+  });
+
+  it('reads money columns with no currency set as plain numbers, never a guessed "$" (walk fix E3)', () => {
+    render(<GroupedSummaryTable data={groupedSummaryTableDemoData(5)} />);
+    expect(document.body.textContent).toBe(
+      'GroupRequestsRevenueQuotaErrors' +
+        'North America(3)70,21933,38557%2.4%' +
+        'Europe(2)64,2837,03861%2.1%' +
+        'Asia Pacific(3)33,8655,96370%2%' +
+        'Latin America(1)17,30220,21427%1.5%' +
+        'Total185,66966,60054%2%',
+    );
+  });
+
+  it('takes the widget\'s own currency from format.currency', () => {
+    render(
+      <GroupedSummaryTableWidget
+        config={groupedSummaryTableConfigSchema.parse({ format: { currency: 'EUR' } })}
+        data={groupedSummaryTableDemoData(5)}
+        instanceId="gs-eur"
+        onEvent={() => {}}
+      />,
+    );
+    expect(document.body.textContent).toContain('€33,385');
   });
 
   it('demoData is deterministic and carries columns + totals', () => {

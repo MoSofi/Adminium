@@ -31,6 +31,7 @@ import { registerAdapters } from '../connections/register-adapters.js';
 import { importZip as defaultImportZip, type ImportZip } from '../export/import-service.js';
 import { exportZip as defaultExportZip, type ExportZip } from '../export/zip-service.js';
 import { runGeneration } from '../generate/run.js';
+import { watchHeap } from '../heap-watch.js';
 import { createApplyService, type ApplyService } from '../llm/apply-service.js';
 import { createPromptService, type PromptService } from '../llm/prompt-service.js';
 import { createRunService, type RunService } from '../llm/run-service.js';
@@ -343,6 +344,8 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
   }
   await listenOrClose(app, env);
   installSignalShutdown(app);
+  // A heap near Node's limit is said in the log before it runs out (`heap-watch.ts`).
+  watchHeap(app.log);
   return {
     url: displayUrl(env.HOST, env.PORT),
     bridgePairingCode,

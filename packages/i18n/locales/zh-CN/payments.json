@@ -14,11 +14,11 @@
     "waitingPlain": "一笔在线付款开始于 {date} · 等待银行确认",
     "recordedBy": "由 {name} 记录",
     "online": "在线付款（{service}）",
-    "refundedInline": "已退款 {amount}",
     "listLabel": "此记录的付款",
     "notice": {
       "draft": "请先发送发票。只有已发送的发票才能记录付款。",
       "private": "客户无法访问此服务器，因此付款链接已关闭。您仍可以记录付款。",
+      "noAddress": "此服务器还没有公开地址，因此付款链接已关闭。请在“发件人”中将其设为“邮件链接中的地址”。您仍可以记录付款。",
       "update": "此发票表需要其应用的更新才能接受在线付款。",
       "voided": "此发票已作废，无法收款。",
       "noCurrency": "此记录没有币种，因此无法记录付款。",
@@ -59,15 +59,26 @@
     "disputeLine": "有争议 — 请在 {service} 控制台中答复",
     "disputeNote": "如果争议败诉，款项会退还给客户。发票不会因此自动更改。",
     "disputeClosed": "争议已结束。结果请在 {service} 控制台中查看。",
-    "refundRequested": "已申请退款 {amount}",
-    "refundWaitingCustomer": "退款 {amount} 正在等待客户",
-    "refundFailed": "退款 {amount} 失败：{reason}。请联系客户，并记录你们商定的结果。",
-    "refundFailedPlain": "退款 {amount} 失败。请联系客户，并记录你们商定的结果。",
-    "refundCancelled": "退款 {amount} 已取消。",
-    "refundedOnInline": "已于 {date} 退款 {amount}",
-    "refundedThere": "已于 {date} 在 {service} 控制台中退款 {amount} · 已记录",
     "needsLook": "需要查看",
-    "demoService": "演示服务"
+    "demoService": "演示服务",
+    "refund": {
+      "dispute": "争议败诉 — {amount} 已退回给客户",
+      "provider": "在 {service} 控制台中退款 {amount}",
+      "staff": "在 Adminium 中退款 {amount}",
+      "done": "已完成",
+      "waitingCustomer": "等待客户操作",
+      "failed": "失败",
+      "failedNext": "请联系客户，并记录你们商定的结果。",
+      "cancelled": "已取消：未退还任何款项",
+      "requested": "已申请",
+      "written": "退款 {amount}",
+      "disputeWon": "争议胜诉 — {amount} 已退回",
+      "undone": "已撤销"
+    },
+    "partlyRefunded": "部分退款",
+    "disputeWon": "争议已胜诉。",
+    "disputeLost": "争议已败诉。{amount} 已退回给客户。",
+    "disputeLostPlain": "争议已败诉。款项已退回给客户。"
   },
   "record": {
     "title": "记录一笔付款",
@@ -107,6 +118,7 @@
     },
     "look": {
       "title": "有一笔付款需要查看",
+      "titleTest": "有一笔测试付款需要查看",
       "notRecorded": "已在 {provider} 付款，未记录：{label}",
       "notYet": "已在 {provider} 付款，尚未记录：{label}",
       "amount": "已在 {provider} 付款，但金额与要求不符：{label}",
@@ -143,12 +155,17 @@
     },
     "refundFailed": {
       "title": "退款失败",
+      "titleTest": "测试退款失败",
       "body": "{amount} 退至 {paidWith}"
     },
     "dispute": {
       "title": "已发起争议",
+      "titleTest": "已发起测试争议",
       "body": "{label} · 请在 {date} 前答复",
-      "bodyNoDate": "{label} · 请在 {provider} 控制台中答复"
+      "bodyNoDate": "{label} · 请在 {provider} 控制台中答复",
+      "lostTitle": "争议败诉",
+      "lostTitleTest": "测试争议败诉",
+      "lostBody": "{label} · {amount} 已退回给客户"
     }
   },
   "refund": {

@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createSqliteMetaDb, firstRun, paymentSettingsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 
 import { errorEnvelope } from '../src/errors.js';
+import { recentAlarms } from '../src/payments/alarms.js';
 import { PAY_ADDRESS_DOC, payAddressSchema } from '../src/payments/links.js';
 import type { PayableSources } from '../src/payments/payables.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
@@ -96,6 +97,15 @@ describe('who may make a pay link', () => {
     live = false;
     expect((await post({ kind: 'document', connectionId: null, tableName: null, rowKey: 'doc_1' }, { 'x-forwarded-for': '203.0.113.9' })).statusCode).toBe(200);
     live = true;
+  });
+
+  it('raises no alarm for a first pay address saved as the one already in use', async () => {
+    await settingsRepo(meta).set('system.publicOrigin', 'https://admin.crumbandco.test');
+    await meta.db.deleteFrom('adminium_payment_settings').where('name', '=', 'pay-address').execute();
+    const saved = await app.inject({ method: 'PUT', url: '/api/v1/payments/pay-address', headers: { 'x-test-user-id': owner.id, origin: PAY }, payload: { origin: 'https://admin.crumbandco.test' } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(await recentAlarms(meta, Date.now() + 1000)).toEqual([]);
+    expect(await meta.db.selectFrom('adminium_notifications').select('id').where('kind', '=', 'payments.money-redirect').execute()).toEqual([]);
   });
 
   it('names which pay address is the staff one', async () => {

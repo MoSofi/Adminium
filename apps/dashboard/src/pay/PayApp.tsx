@@ -52,6 +52,13 @@ import { solve } from './proof.js';
 import type { PayRoute } from './route.js';
 import { PAY_LANGUAGES } from './words.js';
 
+/**
+ * Refusals that no second try with the same service can change: the page
+ * offers the other ways instead of "Try again", and no longer offers that
+ * service for this visit.
+ */
+const FINAL_REFUSALS: ReadonlySet<string> = new Set(['CURRENCY_UNSUPPORTED']);
+
 /** How often the way-back page asks again while the provider has not said. */
 export const BACK_POLL_MS = 3000;
 /** After this many asks the page says it is taking long, and keeps asking more slowly. */
@@ -68,7 +75,7 @@ interface Status {
   icon: LucideIcon | 'spinner';
   title: string;
   paras: string[];
-  action?: { label: string; onPress: () => void };
+  action?: { label: string; onPress: () => void; icon?: LucideIcon; flip?: boolean };
   link?: { label: string; href: string };
   contact?: boolean;
 }
@@ -133,6 +140,10 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
   const [phase, setPhase] = useState<Phase>({ kind: 'page' });
   const [credentials, setCredentials] = useState<Credentials>('omit');
   const [message, setMessage] = useState<string | null>(null);
+  /** Services that refused this payable for good on this visit (a held currency): not offered again. */
+  const [refused, setRefused] = useState<readonly string[]>([]);
+  /** The last refusal was one of those: offer the other ways, not "Try again". */
+  const [finalRefusal, setFinalRefusal] = useState(false);
   const [asks, setAsks] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -259,7 +270,10 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
         window.location.assign(answer.answer.url);
         return;
       }
-      const next = 'state' in answer.answer ? answer.answer : { state: 'failed' as PayState, message: null };
+      const next = 'state' in answer.answer ? answer.answer : { state: 'failed' as PayState, message: null, code: null };
+      const final = next.state === 'failed' && FINAL_REFUSALS.has(next.code ?? '');
+      if (final) setRefused((now) => (now.includes(source) ? now : [...now, source]));
+      setFinalRefusal(final);
       moveFocus.current = true;
       setMessage(next.message);
       setPage((current) => (current === null ? current : { ...current, state: next.state === 'ready' ? 'failed' : next.state }));
@@ -276,6 +290,16 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
     const token = route.kind === 'link' ? route.token : readStoredToken();
     return token === null ? null : { label: t('pay:failed.retry', 'Try again'), onPress: () => window.location.assign(`/pay/${encodeURIComponent(token)}`) };
   }, [route, t]);
+
+  // Every way this visit may still try, the refused services left out.
+  const otherWays = (page?.ways ?? []).some((way) => way.source === 'manual' || !refused.includes(way.source));
+
+  function backToWays(): void {
+    moveFocus.current = true;
+    setFinalRefusal(false);
+    setMessage(null);
+    setPage((current) => (current === null ? current : { ...current, state: 'ready' }));
+  }
 
   function status(): Status | null {
     if (offline) {
@@ -324,6 +348,13 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
       case 'shop-checks':
         return { tone: 'warning', icon: TriangleAlert, title: t('pay:shopChecks.title', 'The shop will check this payment'), paras: [t('pay:shopChecks.body', 'We received a payment, but it does not match the amount due. The shop will look at it and write to you.')], contact: true };
       case 'failed': {
+        if (finalRefusal) {
+          const paras = [message ?? t('pay:failed.body', 'Nothing was taken.')];
+          // The service cannot take this payable: the other ways, when there are any; else the shop.
+          return otherWays
+            ? { tone: 'danger', icon: CircleX, title: t('pay:failed.title', 'The payment did not go through.'), paras, action: { label: t('pay:failed.otherWay', 'Choose another way'), icon: ArrowLeft, flip: true, onPress: backToWays } }
+            : { tone: 'danger', icon: CircleX, title: t('pay:failed.title', 'The payment did not go through.'), paras, contact: true };
+        }
         const paras = [message ?? t('pay:failed.body', 'Nothing was taken.')];
         if (tryAgain === null && route.kind === 'back') paras.push(t('pay:retryLater', 'Open the pay link again to try once more.'));
         return { tone: 'danger', icon: CircleX, title: t('pay:failed.title', 'The payment did not go through.'), paras, ...(tryAgain === null ? {} : { action: tryAgain }) };
@@ -369,9 +400,11 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
   const showWays = page !== null && !offline && (state === 'ready' || state === 'locked' || (state === 'cancelled' && route.kind === 'link')) && phase.kind !== 'redirecting' && phase.kind !== 'bank';
   const showHero = payable !== null && !solo && state !== 'voided';
   const ways = page?.ways ?? [];
-  const providers = [...new Set(ways.filter((way) => way.source !== 'manual').map((way) => way.source))];
+  const providers = [...new Set(ways.filter((way) => way.source !== 'manual' && !refused.includes(way.source)).map((way) => way.source))];
   const manual = ways.filter((way) => way.source === 'manual');
   const bankWay = manual.find((way) => way.method === 'bank-transfer') ?? null;
+  // A test link opens only for signed-in staff, so a line on it is for staff alone: no real service is on for this record.
+  const onlyDemo = page?.test === true && route.kind === 'link' && !ways.some((way) => way.source !== 'manual' && way.source !== 'demo');
 
   const note = (() => {
     const kinds = new Set(providers.map(providerKind));
@@ -670,7 +703,7 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
               </div>
               {current.action === undefined ? null : (
                 <button type="button" className="pp-button" onClick={current.action.onPress}>
-                  <Icon of={RotateCcw} size={16} />
+                  <Icon of={current.action.icon ?? RotateCcw} size={16} flip={current.action.flip === true} />
                   <span>{current.action.label}</span>
                 </button>
               )}
@@ -689,6 +722,12 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
               <h2 id="pp-ways-title" className="pp-ways-title">
                 {t('pay:ways.title', 'Ways to pay')}
               </h2>
+              {onlyDemo ? (
+                <p className="pp-staff-note" data-testid="pay-staff-no-way">
+                  <Icon of={Info} size={14} />
+                  <span>{t('pay:ways.staffNoWay', 'Only you see this: no way to pay online is switched on for this record, so this test page offers only the demo service. Switch one on in Studio → Payments → Ways to pay.')}</span>
+                </p>
+              ) : null}
               {state === 'locked' ? null : providers.map((source, index) => wayButton(source, index))}
               {manual.map((way) => manualButton(way))}
               {note === null || state === 'locked' ? null : (

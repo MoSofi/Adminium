@@ -37,7 +37,8 @@ export default {
     "gettingReady": "Připravujeme…",
     "noteStripe": "Zaplatíte na stránce Stripe. Tento obchod vaši kartu nikdy neuvidí.",
     "notePaypal": "Zaplatíte na stránce PayPal. Tento obchod vaši kartu nikdy neuvidí.",
-    "noteBoth": "Zaplatíte na stránce Stripe nebo PayPal. Tento obchod vaši kartu nikdy neuvidí."
+    "noteBoth": "Zaplatíte na stránce Stripe nebo PayPal. Tento obchod vaši kartu nikdy neuvidí.",
+    "staffNoWay": "Vidíte to jen vy: pro tento záznam není zapnutý žádný způsob online platby, a tak tato testovací stránka nabízí jen ukázkovou službu. Zapněte některý v Studio → Platby → Způsoby platby."
   },
   "provider": {
     "stripe": "Stripe",
@@ -69,7 +70,8 @@ export default {
   "failed": {
     "title": "Platba neproběhla.",
     "body": "Nic nebylo strženo.",
-    "retry": "Zkusit znovu"
+    "retry": "Zkusit znovu",
+    "otherWay": "Zvolit jiný způsob"
   },
   "cancelled": {
     "title": "Opustili jste platební stránku před zaplacením.",

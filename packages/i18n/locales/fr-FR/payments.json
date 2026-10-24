@@ -14,11 +14,11 @@
     "waitingPlain": "Un paiement en ligne a commencé le {date} · en attente de la banque",
     "recordedBy": "enregistré par {name}",
     "online": "Paiement en ligne ({service})",
-    "refundedInline": "{amount} remboursé",
     "listLabel": "Paiements de cet enregistrement",
     "notice": {
       "draft": "Envoyez d’abord la facture. Un paiement ne peut être enregistré que sur une facture envoyée.",
       "private": "Les clients ne peuvent pas joindre ce serveur, les liens de paiement sont donc désactivés. Vous pouvez toujours enregistrer des paiements.",
+      "noAddress": "Ce serveur n’a pas encore d’adresse publique, les liens de paiement sont donc désactivés. Définissez-la comme « Adresse dans les liens des e-mails » dans Expéditeurs. Vous pouvez toujours enregistrer des paiements.",
       "update": "Cette table de factures a besoin de la mise à jour de son application pour accepter les paiements en ligne.",
       "voided": "Cette facture a été annulée. Aucun paiement ne peut être accepté.",
       "noCurrency": "Cet enregistrement n’a pas de devise, aucun paiement ne peut donc être enregistré.",
@@ -59,15 +59,26 @@
     "disputeLine": "Litige — répondez-y dans le tableau de bord {service}",
     "disputeNote": "Si le litige est perdu, l’argent revient au client. La facture n’est pas modifiée d’elle-même.",
     "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}.",
-    "refundRequested": "Remboursement de {amount} demandé",
-    "refundWaitingCustomer": "Le remboursement de {amount} attend le client",
-    "refundFailed": "Le remboursement de {amount} a échoué : {reason}. Contactez le client et enregistrez ce que vous convenez.",
-    "refundFailedPlain": "Le remboursement de {amount} a échoué. Contactez le client et enregistrez ce que vous convenez.",
-    "refundCancelled": "Le remboursement de {amount} a été annulé.",
-    "refundedOnInline": "{amount} remboursé le {date}",
-    "refundedThere": "Remboursement de {amount} fait dans le tableau de bord {service} le {date} · enregistré",
     "needsLook": "À vérifier",
-    "demoService": "le service de démonstration"
+    "demoService": "le service de démonstration",
+    "refund": {
+      "dispute": "Litige perdu — {amount} rendus au client",
+      "provider": "Remboursement de {amount} fait dans le tableau de bord {service}",
+      "staff": "Remboursement de {amount} fait dans Adminium",
+      "done": "Effectué",
+      "waitingCustomer": "En attente du client",
+      "failed": "Échoué",
+      "failedNext": "Contactez le client et enregistrez ce que vous convenez.",
+      "cancelled": "Annulé : rien n’a été remboursé",
+      "requested": "Demandé",
+      "written": "Remboursement de {amount}",
+      "disputeWon": "Litige gagné — {amount} sont revenus",
+      "undone": "Annulé"
+    },
+    "partlyRefunded": "Partiellement remboursé",
+    "disputeWon": "Le litige a été gagné.",
+    "disputeLost": "Le litige a été perdu. {amount} sont retournés au client.",
+    "disputeLostPlain": "Le litige a été perdu. L’argent est retourné au client."
   },
   "record": {
     "title": "Enregistrer un paiement",
@@ -107,6 +118,7 @@
     },
     "look": {
       "title": "Un paiement demande votre attention",
+      "titleTest": "Un paiement de test demande votre attention",
       "notRecorded": "Payé sur {provider}, non enregistré : {label}",
       "notYet": "Payé sur {provider}, pas encore enregistré : {label}",
       "amount": "Payé sur {provider}, pas le montant demandé : {label}",
@@ -143,12 +155,17 @@
     },
     "refundFailed": {
       "title": "Remboursement échoué",
+      "titleTest": "Remboursement de test échoué",
       "body": "{amount} vers {paidWith}"
     },
     "dispute": {
       "title": "Litige ouvert",
+      "titleTest": "Litige de test ouvert",
       "body": "{label} · réponse avant le {date}",
-      "bodyNoDate": "{label} · répondez-y dans le tableau de bord {provider}"
+      "bodyNoDate": "{label} · répondez-y dans le tableau de bord {provider}",
+      "lostTitle": "Litige perdu",
+      "lostTitleTest": "Litige de test perdu",
+      "lostBody": "{label} · {amount} rendus au client"
     }
   },
   "refund": {

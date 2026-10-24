@@ -2136,7 +2136,10 @@ export default {
       },
       "bounds": {
         "notAfter": "Nie später als heute",
-        "notBefore": "Nie vor {column}"
+        "notAfterColumn": "Nie nach {column}",
+        "notAfterDays": "Höchstens {days} Tage nach {column}",
+        "notBefore": "Nie vor {column}",
+        "notBeforeNow": "Nie vor jetzt, bei einer neuen Zeile"
       }
     },
     "saveFailed": "Speichern fehlgeschlagen: {message}",
@@ -3582,10 +3585,10 @@ export default {
     "service": {
       "connectsStripe": "Verbindet mit Stripe",
       "connectsPaypal": "Verbindet mit PayPal",
-      "first": "Richten Sie das zuerst ein.",
       "notLoaded": "Dieses Add-on wurde nicht geladen, daher können seine Schlüssel nicht geprüft werden.",
       "notLoadedBody": "Ein Zahlungsdienst lädt nur aus einem Paket, für das Adminium bürgen kann: eines, das dieser Build mitbringt, oder eines aus dem Katalog.",
-      "paypalOnce": "PayPal erscheint nur einmal: über diese Karte, nicht auf der Seite von Stripe."
+      "paypalOnce": "PayPal erscheint nur einmal: über diese Karte, nicht auf der Seite von Stripe.",
+      "fixAddressFirst": "Beheben Sie zuerst das Problem mit der Adresse oben: Bis dahin bleiben Online-Zahlungen aus."
     },
     "reach": {
       "badge": {
@@ -3688,9 +3691,6 @@ export default {
       "testInLive": "Dieser Schlüssel ist für Testzahlungen, und dieses Feld ist für den Live-Schlüssel."
     },
     "webhook": {
-      "headingStripe": "Webhook (bei Stripe heißt er Webhook-Endpunkt)",
-      "heading": "Webhook",
-      "address": "Adresse",
       "noAddress": "Dieser Server braucht zuerst eine öffentliche Adresse.",
       "copyAddress": "Webhook-Adresse kopieren",
       "events": "Kreuzen Sie diese Ereignisse bei {provider} an",
@@ -3705,7 +3705,15 @@ export default {
       "badTest": "{count, plural, one {# Ereignis kam} other {# Ereignisse kamen}} in der letzten Stunde an, aber die Signatur passte nicht. Ist das das Secret von der Endpoint-Seite, für den Testmodus?",
       "caught": "Adminium hat {when} eine Zahlung gefunden, die kein Webhook gemeldet hatte. Der Webhook erreicht diesen Server nicht.",
       "slowed": "Adminium fragt {provider} diesen Monat seltener ab: Die Hälfte der Abrufe, die {provider} erlaubt, ist verbraucht.",
-      "moved": "Die Webhook-Adresse hat sich geändert. Aktualisieren Sie sie bei {provider}:"
+      "moved": "Die Webhook-Adresse hat sich geändert. Aktualisieren Sie sie bei {provider}:",
+      "headingTestStripe": "Test-Webhook (bei Stripe heißt er Webhook-Endpunkt)",
+      "headingLiveStripe": "Live-Webhook (bei Stripe heißt er Webhook-Endpunkt)",
+      "headingTest": "Test-Webhook",
+      "headingLive": "Live-Webhook",
+      "headingSandbox": "Sandbox-Webhook",
+      "addressTest": "Adresse des Test-Webhooks",
+      "addressLive": "Adresse des Live-Webhooks",
+      "addressSandbox": "Adresse des Sandbox-Webhooks"
     },
     "mode": {
       "test": "Test",
@@ -3724,18 +3732,22 @@ export default {
       "heading": "Der Zugriff, den der Schlüssel braucht",
       "note": "Beide Wege geben dem Schlüssel genau diesen Zugriff. Lassen Sie alles andere auf „Kein“.",
       "access": "Zugriff",
-      "why": "Wozu"
+      "why": "Wozu",
+      "where": "Wo bei Stripe",
+      "optional": "(optional)"
     },
     "path": {
       "app": {
         "step1": "Node.js 22 oder neuer installieren",
         "step2": "Die Stripe CLI installieren",
-        "step5": "Die Vorlage entpacken und ihren Ordner öffnen",
-        "step7": "Die App im Dashboard von Stripe installieren und ihren Schlüssel kopieren",
         "title": "Mit Ihrer eigenen Stripe App (so empfiehlt es Stripe)",
         "desc": "Sie laden einmal eine kleine App in Ihr eigenes Konto bei Stripe hoch, mit dem Kommandozeilenwerkzeug von Stripe. Sie erstellt einen Schlüssel mit genau dem Zugriff unten.",
         "download": "App-Vorlage herunterladen",
-        "note": "Einmal in Ihrem Testkonto und einmal in Ihrem Live-Konto hochladen."
+        "note": "Einmal in Ihrem Testkonto und einmal in Ihrem Live-Konto hochladen.",
+        "create": "Führen Sie {command} aus und beantworten Sie seine Fragen beliebig",
+        "copy": "Kopieren Sie {file} aus der heruntergeladenen Vorlage in den Ordner {folder} und ersetzen Sie die Datei dort",
+        "upload": "Führen Sie {first} aus, dann {second}",
+        "install": "Installieren Sie die App im Dashboard von Stripe, öffnen Sie „View API keys“ und kopieren Sie den Schlüssel, der mit {prefix} beginnt"
       },
       "hand": {
         "step1": "Im Dashboard von Stripe Entwickler → API-Schlüssel öffnen",
@@ -3755,7 +3767,8 @@ export default {
       "bank": "Die Bankdaten für Überweisungen wurden {when} geändert, von {by}.",
       "address": "Ihre Zahlungsadresse wurde {when} von {from} zu {to} geändert, von {by}. Ändern Sie die Webhook-Adresse bei Stripe und PayPal.",
       "heading": "Wohin das Geld geht, hat sich geändert",
-      "emailed": "Alle, die Zahlungen verwalten, wurden per E-Mail informiert."
+      "emailed": "Alle, die Zahlungen verwalten, wurden per E-Mail informiert.",
+      "gotIt": "Verstanden"
     },
     "stop": {
       "label": "Neue Zahlungen stoppen",
@@ -3937,6 +3950,7 @@ export default {
       "statusColumn": "Statusspalte",
       "statusPaidValue": "Wert, wenn vollständig bezahlt",
       "statusRefunded": "Wenn vollständig erstattet, Status setzen auf",
+      "statusNoValues": "Geben Sie dieser Spalte eine Werteliste (im Schema der Tabelle), um sie als Status zu verwenden.",
       "leaveAsIs": "Unverändert lassen",
       "pageFields": "Auf der Zahlungsseite erlaubte Spalten",
       "personal": "Persönlich: wird nie gezeigt",
@@ -3948,6 +3962,7 @@ export default {
       "previewOf": "Drei Zeilen aus {table}",
       "previewSummary": "{count, plural, one {# Problem} other {# Probleme}}",
       "previewWaiting": "Wählen Sie den Betrag, um drei Zeilen zu sehen.",
+      "previewIncomplete": "Treffen Sie die Auswahl oben vollständig, um drei Zeilen zu sehen.",
       "becomes": "nach Zahlung wird {column} zu {value}",
       "back": "Zurück",
       "stepOf": "Schritt {step} von 3",
@@ -4013,7 +4028,11 @@ export default {
       "sepa": "SEPA-Lastschrift",
       "bankTransfer": "Banküberweisung",
       "cashOnDelivery": "Nachnahme",
-      "other": "Eine andere Zahlungsart von Hand"
+      "other": "Eine andere Zahlungsart von Hand",
+      "acssDebit": "Vorautorisierte Lastschrift (Kanada)",
+      "stripeTransfer": "Banküberweisung (Stripe)",
+      "krCard": "Koreanische Karten",
+      "crypto": "Krypto"
     },
     "test": {
       "title": "Testzahlung senden",
@@ -4027,7 +4046,9 @@ export default {
       "noWebhook": "kein Webhook ist angekommen: Die Zahlung wurde durch Nachfragen gefunden",
       "wouldRecord": "das würde erfasst: eine Zahlung über {amount}.",
       "wouldRecordWith": "das würde erfasst: eine Zahlung über {amount}, {paidWith}.",
-      "nothingWritten": "In Ihre Tabellen wurde nichts geschrieben."
+      "nothingWritten": "In Ihre Tabellen wurde nichts geschrieben.",
+      "noWay": "Kunden sehen diesen Dienst erst, wenn unter „Zahlungsarten“ eine Zahlungsart eingeschaltet ist.",
+      "openWays": "„Zahlungsarten“ öffnen"
     },
     "activity": {
       "state": {
@@ -4068,7 +4089,8 @@ export default {
         "waitingLong": "Wartet seit {days} Tagen auf die Bank: {record} · {amount}.",
         "waitingLongWay": "Wartet seit {days} Tagen auf die Bank: {record} · {amount} ({way}).",
         "recordChanged": "Eine erfasste Zahlung hat sich geändert: {record} · {amount} ist nicht mehr so erfasst wie zuvor.",
-        "disputed": "Rückbuchung: {record} · {amount}. Beantworten Sie sie im Dashboard von {service}."
+        "disputed": "Rückbuchung: {record} · {amount}. Beantworten Sie sie im Dashboard von {service}.",
+        "disputeLost": "Rückbuchung verloren: {amount} ging bei {record} an die Kundschaft zurück. Als Erstattung erfasst."
       },
       "why": {
         "alreadyPaid": "Die Rechnung war bereits vollständig bezahlt.",
@@ -4079,6 +4101,7 @@ export default {
       },
       "story": {
         "refundThere": "Im Dashboard von {service} erstattet: {amount}",
+        "refundDispute": "Rückbuchung verloren — {amount} gingen an den Kunden zurück",
         "refundStarted": "Erstattung über {amount} begonnen",
         "refunded": "{service} meldet: erstattet",
         "refundFailed": "{service} meldet: Erstattung fehlgeschlagen",
@@ -4098,7 +4121,10 @@ export default {
         "notRecorded": "Nicht erfasst: muss angesehen werden",
         "disputed": "Rückbuchung vom Karteninhaber eröffnet",
         "disputeAnswer": "Beantworten Sie sie im Dashboard von {service}",
-        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}."
+        "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
+        "disputeWon": "Die Rückbuchung wurde gewonnen.",
+        "disputeLost": "Die Rückbuchung wurde verloren: Das Geld ging an die Kundschaft zurück.",
+        "refundDisputeWon": "Rückbuchung gewonnen — {amount} kamen zurück"
       },
       "checkedBy": "Geprüft von {name}",
       "someone": "jemandem",

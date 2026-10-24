@@ -15,15 +15,20 @@ test payment**, **Live key**, **Live webhook**, **First live payment arrived**. 
 kept.
 
 - **The Stripe key.** Choose one of two ways. **With your own Stripe App** (the way Stripe
-  recommends): **Download the app template**, upload it once to your test account and once to your
-  live account with the Stripe command-line tool, and copy the key it makes. Or **by hand in the
-  Stripe dashboard**: create a restricted key with the access listed on the card, and leave
-  everything else at None. Only restricted keys (`rk_…`) are accepted.
+  recommends): **Download the app template**, then with the Stripe command-line tool run
+  `stripe apps create key-app`, copy the template's `stripe-app.json` into the `key-app` folder,
+  and run `stripe apps upload` there, once in your test account and once in your live account.
+  Install the app and copy the key it shows under **View API keys**. Or **by hand in the Stripe
+  dashboard**: create a restricted key with the access listed on the card (the card says where each
+  one is on the Stripe form), and leave everything else at None. Only restricted keys (`rk_…`) are
+  accepted.
 - **The PayPal app.** Make a sandbox app for testing and a live app for real payments in the PayPal
   developer site, and paste their client id and secret.
-- **The webhook.** Copy the webhook address from the card, make the endpoint at Stripe or PayPal,
-  tick the events the card lists, and paste the signing secret (Stripe) or the webhook id (PayPal).
-  Each mode, test and live, has its own endpoint and its own secret.
+- **The webhook.** Copy the address from the **Test webhook** card (or the **Live webhook** card
+  when you go live), make the endpoint at Stripe or PayPal, tick the events the card lists (the PayPal
+  form shows them by name, such as "Payment capture completed"; the card shows both), and paste the
+  signing secret (Stripe) or the webhook id (PayPal). Each mode, test and live, has its own endpoint
+  and its own secret.
 
 A key is checked when you save it. If the service refuses it, the card says what it is missing.
 
@@ -38,6 +43,9 @@ the whole flow, refunds included, before you connect anything.
 
 Test links open only for a signed-in person who may set up payments, on the address they are using.
 A customer who gets one sees nothing.
+
+A service is offered on a record's pay page only once at least one of its ways is switched on in
+**Ways to pay**. The Setup card says so when none is.
 
 ### Go live
 
@@ -82,4 +90,5 @@ three-letter code.
 **What customers see** on every pay page: the shop's name, logo and contact, its country, and
 whether to show the invoice's lines. **Where customers pay** chooses the address in every pay link:
 your staff address or one of your customer addresses. Pay links always use the address you choose
-here. The preview shows the page as a customer sees it.
+here; until you choose one, they use this server's public address (**Address in email links** in
+Senders). The preview shows the page as a customer sees it.

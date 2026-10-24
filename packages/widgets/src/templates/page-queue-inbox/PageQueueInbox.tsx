@@ -23,7 +23,7 @@ import type { WidgetDataState } from '../../frame/WidgetHost.js';
 import { BulkActionToolbar } from '../../families/tables/BulkActionToolbar.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { LoadOlderPaginator } from '../../families/feeds/LoadOlderPaginator.js';
-import { formatRelativeTime, uiToneOf } from '../../families/tables/column-spec.js';
+import { currencyCodeOf, formatRelativeTime, rowCurrencyOf, uiToneOf } from '../../families/tables/column-spec.js';
 import { servedChoicesOf, withChoices } from '../../families/tables/choices.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import { withCurrency } from '../page-currency.js';
@@ -335,7 +335,9 @@ export function PageQueueInbox({
     (row: GridRow): string => {
       const amount = fields.amountField === undefined ? undefined : row[fields.amountField];
       if (typeof amount === 'number' && Number.isFinite(amount)) {
-        return formatters.currency(amount, currency ?? 'USD');
+        // The row's own currency, else the page's, else the plain number — never a guessed "$".
+        const code = rowCurrencyOf(row, fields.amountField ?? '') ?? currencyCodeOf(currency);
+        return code === undefined ? formatters.number(amount) : formatters.currency(amount, code);
       }
       const duration = fields.durationField === undefined ? undefined : row[fields.durationField];
       if (typeof duration === 'number' && Number.isFinite(duration)) {

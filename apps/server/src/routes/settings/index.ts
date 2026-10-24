@@ -22,6 +22,8 @@ import { BRANDING_UPDATED, readBranding } from '../../branding/service.js';
 import { encryptSecret } from '../../config/secrets.js';
 import { assertSmtpHostAllowed, emailSecretKey } from '../../email/config.js';
 import { ValidationFailedError } from '../../errors.js';
+import { raiseMoneyRedirect } from '../../payments/alarms.js';
+import { payAddressMovedWith } from '../../payments/links.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   PUBLIC_ORIGIN_SETTING,
@@ -600,8 +602,11 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         // deleting the row, so "unset" has one spelling and the server can learn
         // the origin again.
         const publicOrigin = request.body.publicOrigin;
+        let payMoved: { from: string; to: string } | null = null;
         if (publicOrigin !== undefined) {
           const normalized = publicOrigin === null ? null : normalizePublicOrigin(publicOrigin);
+          // Read before the write: with no pay address saved, pay links and webhooks follow this address.
+          payMoved = await payAddressMovedWith(meta, extrasBefore.publicOrigin, normalized);
           if (normalized === null) {
             await settings.unset(PUBLIC_ORIGIN_SETTING);
           } else if (normalized !== extrasBefore.publicOrigin) {
@@ -619,6 +624,12 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
           // absent here as it is in the reply.
           changes: { before: { ...before }, after: { ...after } },
         });
+        if (payMoved !== null) {
+          // Every pay link and webhook address moved with it: the same audit row and alarm as choosing another pay address.
+          await app.rbac.audit(request, { category: 'payments', action: 'payments.pay-address.changed', changes: { before: { origin: payMoved.from }, after: { origin: payMoved.to } } });
+          const user = (request as unknown as { user?: { email?: string; name?: string } }).user;
+          await raiseMoneyRedirect(meta, { what: 'pay-address', service: null, from: payMoved.from, to: payMoved.to, by: user?.name ?? user?.email ?? 'someone' });
+        }
 
         return emailReply();
       },

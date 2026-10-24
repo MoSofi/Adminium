@@ -107,6 +107,7 @@ export const OWN_PRINCIPALS = {
   kit: { email: 'e2e-kit-parts@adminium.local', name: 'E2E Kit Parts Admin' },
   settings: { email: 'e2e-settings@adminium.local', name: 'E2E Settings Admin' },
   pictures: { email: 'e2e-pictures@adminium.local', name: 'E2E Pictures Admin' },
+  fit: { email: 'e2e-template-fit@adminium.local', name: 'E2E Template Fit Admin' },
 } as const;
 export type OwnPrincipal = keyof typeof OWN_PRINCIPALS;
 export const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';

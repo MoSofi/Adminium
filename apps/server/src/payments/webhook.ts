@@ -15,7 +15,10 @@
  *   3. matches the event to an attempt Adminium made (by the checkout, or by
  *      the money itself), and drops everything else with a 2xx (a provider
  *      sends every event on the account: the shop's other software, a
- *      staging install);
+ *      staging install) — except a dispute or refund that names money no
+ *      attempt holds yet: it may have outrun the settle job writing that
+ *      reference down, so it is stored with no attempt and followed when one
+ *      takes it (`events.ts`);
  *   4. stores the event once (a provider's retry and the sweep finding it
  *      too are the same row) and queues the settle job, which asks the
  *      provider for the status;
@@ -32,18 +35,17 @@
  * last one is what "last event 2 minutes ago" reads.
  */
 import { PAYMENT_MODES, isProviderError, type PaymentMode } from '@adminium/add-on-contracts';
-import { isDuplicateKeyError, type PaymentEventRow, paymentAttemptsRepo, paymentCountersRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
+import { paymentAttemptsRepo, paymentCountersRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb, type PaymentAttempt } from '@adminium/meta';
 import { z } from 'zod';
 
 import type { JobRegistry } from '../jobs/registry.js';
 import type { CheckoutService } from './checkout.js';
+import { eventBodyOf, followEvent, followUnattached, keptUnattached, PAYMENTS_SETTLE_JOB } from './events.js';
 import type { NoticeDeps } from './notices.js';
-import { disputeEvent, enqueueRefund } from './refunds.js';
 import type { ProviderLookup } from './providers.js';
 import { mutateServiceState } from './services.js';
 
-export const PAYMENTS_SETTLE_JOB = 'payments.settle';
-export const PAYMENTS_SETTLE_MAX_ATTEMPTS = 20;
+export { enqueueSettle, followEvent, PAYMENTS_SETTLE_JOB, PAYMENTS_SETTLE_MAX_ATTEMPTS } from './events.js';
 
 export interface WebhookDeps {
   meta: MetaDb;
@@ -78,22 +80,6 @@ export const webhookHealthSchema = z
 export type WebhookHealth = z.infer<typeof webhookHealthSchema>;
 
 const EMPTY_HEALTH: WebhookHealth = { firstAt: null, lastAt: null, lastBadAt: null, origin: null };
-
-/** Queues a settle for an attempt. A second queue for the same attempt while one waits is "already queued". */
-export async function enqueueSettle(enqueue: WebhookDeps['enqueue'], attemptId: string, eventId: string | null): Promise<boolean> {
-  try {
-    await enqueue({
-      kind: PAYMENTS_SETTLE_JOB,
-      payload: { attemptId, ...(eventId === null ? {} : { eventId }) },
-      dedupeKey: `payments-settle:${attemptId}`,
-      maxAttempts: PAYMENTS_SETTLE_MAX_ATTEMPTS,
-    });
-    return true;
-  } catch (error) {
-    if (isDuplicateKeyError(error)) return false;
-    throw error;
-  }
-}
 
 async function noteHealth(meta: MetaDb, key: string, mode: PaymentMode, patch: Partial<WebhookHealth>, at: number): Promise<void> {
   // A partial patch over what is there; the whole document is written back.
@@ -143,7 +129,9 @@ export async function receiveWebhook(
   const refund = event.refundRef === null ? null : await refundsRepo(deps.meta).byProviderId(input.provider, mode, event.refundRef);
   // A refund Adminium asked for names its payment.
   if (attempt === null && refund?.attemptId != null) attempt = await attempts.byId(refund.attemptId);
-  if (attempt === null && refund === null) return { status: 200, matched: false };
+  // About nothing Adminium holds — or about money whose payment it has not written down yet: kept for that.
+  const unattached = attempt === null && refund === null;
+  if (unattached && !keptUnattached(event)) return { status: 200, matched: false };
 
   let stored;
   try {
@@ -159,43 +147,24 @@ export async function receiveWebhook(
         refundRef: event.refundRef,
         attemptId: attempt?.id ?? null,
         source: 'webhook',
-        // The identity only: a body that never verified a status is not kept.
-        body: null,
+        // The identity only (and a dispute's news): a body that never verified a status is not kept.
+        body: eventBodyOf(event),
       },
       at,
     );
   } catch {
     return { status: 503 };
   }
-  if (stored.fresh) await followEvent({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.notices === undefined ? {} : { notices: deps.notices }), now }, stored.event, attempt, event.occurredAt);
+  const follow = { meta: deps.meta, enqueue: deps.enqueue, ...(deps.notices === undefined ? {} : { notices: deps.notices }), now };
+  if (unattached) {
+    // Stored for a payment not known yet: followed when an attempt takes its money. The settle may have
+    // written it between the look-up above and this row: looked up once more, so neither side misses the other.
+    const late = stored.fresh && event.paymentRef !== null ? await attempts.byPaymentRef(input.provider, mode, event.paymentRef) : null;
+    if (late !== null) await followUnattached(follow, late);
+    return { status: 200, matched: late !== null };
+  }
+  if (stored.fresh) await followEvent(follow, stored.event, attempt, event.occurredAt);
   return { status: 200, matched: true };
-}
-
-/**
- * What a stored event sets going: a refund event the refund job (which asks
- * the provider); a dispute event marks its payment disputed (nothing to ask:
- * the event is what there is); anything else the settle job. An event about
- * nothing Adminium holds is marked handled, so it is never left as work.
- */
-export async function followEvent(
-  deps: { meta: MetaDb; enqueue: WebhookDeps['enqueue']; notices?: NoticeDeps; now?: () => number },
-  event: Pick<PaymentEventRow, 'id' | 'provider' | 'mode' | 'kind' | 'type' | 'refundRef'>,
-  attempt: PaymentAttempt | null,
-  occurredAt: number,
-): Promise<boolean> {
-  const at = (deps.now ?? Date.now)();
-  if (event.kind === 'refund' && event.refundRef !== null) {
-    return enqueueRefund(deps.enqueue, { provider: event.provider, mode: event.mode as PaymentMode, refundRef: event.refundRef, eventId: event.id });
-  }
-  if (event.kind === 'dispute' && attempt !== null) {
-    await disputeEvent(deps, attempt, { type: event.type, occurredAt });
-    await paymentEventsRepo(deps.meta).markProcessed(event.id, at);
-    return true;
-  }
-  // Anything else about a payment, a refund event that names no refund among it, is the settle job's.
-  if (attempt !== null && event.kind !== 'dispute') return enqueueSettle(deps.enqueue, attempt.id, event.id);
-  await paymentEventsRepo(deps.meta).markProcessed(event.id, at);
-  return false;
 }
 
 const settlePayload = z.object({ attemptId: z.string().min(1), eventId: z.string().min(1).optional() });

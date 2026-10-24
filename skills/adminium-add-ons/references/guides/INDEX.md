@@ -89,7 +89,7 @@
 | `references/guides/take-payments--who-the-seller-is.md` | Who the seller is | 883 |
 | `references/guides/take-payments--what-you-need.md` | What you need | 693 |
 | `references/guides/take-payments--who-may-do-what.md` | Who may do what | 662 |
-| `references/guides/take-payments--set-it-up.md` | Set it up | 4502 |
+| `references/guides/take-payments--set-it-up.md` | Set it up | 5140 |
 | `references/guides/take-payments--on-a-record.md` | On a record | 1201 |
 
 More: `references/guides/INDEX-2.md`

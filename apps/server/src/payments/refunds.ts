@@ -64,12 +64,44 @@
  *
  * ─── DISPUTES ──────────────────────────────────────────────────────────────
  *
- * A dispute event marks the payment disputed (and, later, closed). The
- * event says that it happened and when, and nothing more: the deadline, the
- * amount and the outcome are read in the provider's own dashboard. A dispute
- * never changes the record by itself. Events arrive in any order: each moves
- * only what is older than itself, an update after the close reopens nothing,
- * and only a new dispute after a close opens one again.
+ * A dispute event marks the payment disputed (and, later, closed). Events
+ * arrive in any order: each moves only what is older than itself, an update
+ * after the close reopens nothing, and only a new dispute after a close opens
+ * one again. The deadline is read in the provider's own dashboard.
+ *
+ * A provider that says how it ended (`PaymentEvent.dispute`) is believed:
+ *   - won: remembered, and said so; nothing else moves;
+ *   - lost: the customer's bank took the money back. That is a refund in all
+ *     but name, recorded as one (source `dispute`, done, the amount disputed,
+ *     else what was taken): the record follows it like any refund (a live
+ *     payment's balance reopens), Refund… may give only what is left, and it
+ *     is flagged in Activity for a person to look at. Once per dispute;
+ *   - closed with no outcome said: closed, its outcome in the dashboard.
+ * Short of a lost dispute, a dispute never changes the record by itself. A
+ * lost dispute the provider later says was won (PayPal reverses a capture
+ * when a chargeback is filed, before the bank decides) is undone the way a
+ * refund done and then failed is: its row fails, what it held is given back,
+ * and the record follows.
+ *
+ * A dispute starts when the provider opened it (`PaymentDispute.openedAt`),
+ * else at the first event heard about it. Money given back since it started
+ * (a refund made in the provider's dashboard, or asked here, to settle it) is
+ * the money a lost dispute returns: it is counted once, whichever is heard
+ * first, even when the close is the first event heard.
+ *
+ * ─── ONE WRITER OF AN ATTEMPT'S REFUND ROWS ────────────────────────────────
+ *
+ * A refund event (the refund job) and a dispute event (the webhook) can
+ * arrive within a second of each other about the same money. Each reads the
+ * attempt's refunds, decides, then makes a row: two of them interleaved would
+ * each miss the other's row and count the money twice. So every decision that
+ * reads the rows and makes one (a refund made at the provider, a lost
+ * dispute, a won dispute undone) runs as the attempt's one writer: queued in
+ * this process first (no connection is taken while it waits), then inside a
+ * transaction holding the attempt's row (`paymentAttemptsRepo.holding`), so a
+ * second server process waits on the database until the first commits and
+ * then reads what it made. What that does not cover: a SQLite meta store
+ * shared by two processes waits only as long as SQLite's busy timeout.
  */
 import {
   addAmounts,
@@ -79,6 +111,7 @@ import {
   isProviderError,
   sameAmount,
   subtractAmounts,
+  type PaymentDispute,
   type PaymentMode,
   type RefundReason,
   type RefundState,
@@ -92,6 +125,7 @@ import {
   refundsRepo,
   sumAmounts,
   type MetaDb,
+  type DisputeOutcome,
   type PaymentAttempt,
   type RefundRow,
   type RefundRowState,
@@ -106,6 +140,7 @@ import { exactAmount, pkOfRowKey, resolvePayable, type PayableSources } from './
 import type { ProviderLookup } from './providers.js';
 import { followDocumentStatus } from './document-status.js';
 import type { RecordDeps } from './record-deps.js';
+import { noteKeyRefused } from './services.js';
 
 export const PAYMENTS_REFUND_JOB = 'payments.refund';
 export const PAYMENTS_REFUND_MAX_ATTEMPTS = 20;
@@ -149,12 +184,36 @@ export function refundRefusalOf(attempt: PaymentAttempt): RefundRefusal | null {
   if (attempt.state === 'processing') return { code: 'PROCESSING', message: 'This payment is still waiting for the bank.' };
   if (!TAKEN_STATES.has(attempt.state) || attempt.paymentRef === null || attempt.takenAmount === null) return { code: 'NOT_TAKEN', message: 'No money was taken for this payment.' };
   if (attempt.dispute?.state === 'open') return { code: 'DISPUTED', message: `This payment is disputed. Answer it in ${providerName(attempt.provider)} first.` };
-  if (refundableOf(attempt) === '0') return { code: 'FULLY_REFUNDED', message: 'This payment is fully refunded.' };
+  if (refundableOf(attempt) === '0') {
+    if (attempt.dispute?.outcome === 'lost') return { code: 'FULLY_REFUNDED', message: 'The dispute was lost: the customer already got this money back.' };
+    return { code: 'FULLY_REFUNDED', message: 'This payment is fully refunded.' };
+  }
   return null;
 }
 
 function nowOf(deps: { now?: () => number }): number {
   return (deps.now ?? Date.now)();
+}
+
+/** Turns in this process, by attempt: the next writer of an attempt's refund rows waits for the one before. */
+const attemptTurns = new Map<string, Promise<unknown>>();
+
+/**
+ * Runs `run` as the attempt's one writer of refund rows (see the header):
+ * after every writer of it before in this process, and holding its row in the
+ * database. `run` uses only the `held` store it is handed, and does nothing
+ * slow (no provider call): the row stays held until it returns. Null when the
+ * attempt is gone.
+ */
+async function asAttemptWriter<T>(meta: MetaDb, attemptId: string, run: (held: MetaDb, attempt: PaymentAttempt) => Promise<T>): Promise<T | null> {
+  const before = attemptTurns.get(attemptId) ?? Promise.resolve();
+  const mine = before.catch(() => undefined).then(() => paymentAttemptsRepo(meta).holding(attemptId, run));
+  attemptTurns.set(attemptId, mine);
+  try {
+    return await mine;
+  } finally {
+    if (attemptTurns.get(attemptId) === mine) attemptTurns.delete(attemptId);
+  }
 }
 
 // ─── Asking ─────────────────────────────────────────────────────────────────
@@ -250,8 +309,18 @@ export async function requestRefund(deps: RefundDeps, input: RefundRequest): Pro
   return { ok: true, refund: await askProvider(deps, made.refund), fresh: true };
 }
 
-/** The provider's answers that refuse a refund in so many words: only these fail it. */
-const REFUSALS: ReadonlySet<string> = new Set(['REFUND_REFUSED', 'AMOUNT_UNREPRESENTABLE', 'CURRENCY_UNSUPPORTED', 'INVALID_REQUEST']);
+/**
+ * The provider's answers that refuse a refund in so many words: only these
+ * fail it. A key that may not refund (a permission it lacks) and a key the
+ * provider refuses (revoked, wrong, its app uninstalled) refuse before
+ * anything is made, and asking again with the same key never changes that: it
+ * fails at once, so a person sees it, and a new refund is asked once the key
+ * is put right.
+ */
+const REFUSALS: ReadonlySet<string> = new Set(['REFUND_REFUSED', 'AMOUNT_UNREPRESENTABLE', 'CURRENCY_UNSUPPORTED', 'INVALID_REQUEST', 'PERMISSION_MISSING', 'CREDENTIALS_REFUSED']);
+
+/** Refusals that are about the key, not the refund: never "try later", whatever the add-on said. */
+const KEY_REFUSALS: ReadonlySet<string> = new Set(['PERMISSION_MISSING', 'CREDENTIALS_REFUSED']);
 
 /** Asks in flight, by refund: a second ask of the same refund waits for the first, never asks beside it. */
 const asking = new Map<string, Promise<RefundRow>>();
@@ -281,10 +350,12 @@ async function askOnce(deps: RefundDeps, asked: RefundRow): Promise<RefundRow> {
   });
   if (isProviderError(answer)) {
     // Anything but a refusal may have made the refund: it stays asked, and is asked again with the same key.
-    if (answer.retryable || !REFUSALS.has(answer.code)) {
+    if ((answer.retryable && !KEY_REFUSALS.has(answer.code)) || !REFUSALS.has(answer.code)) {
       deps.log?.warn({ refund: refund.id, code: answer.code }, 'refund not answered yet; asked again with the same key');
       return refund;
     }
+    // A refused key pauses the service as it does when a payment meets it.
+    if (answer.code === 'CREDENTIALS_REFUSED') await noteKeyRefused(deps.meta, refund.provider, refund.mode as PaymentMode, answer.providerMessage, nowOf(deps)).catch(() => false);
     return moveTo(deps, refund, 'failed', { failureMessage: answer.providerMessage.slice(0, 2000) || 'The payment service refused the refund.' });
   }
   return follow(deps, refund, answer);
@@ -348,7 +419,7 @@ async function mergeInto(deps: RefundDeps, twin: RefundRow, providerRefundId: st
  * refund stands (it happened): it is flagged and queued, and the sweep finds
  * it too, until the write lands.
  */
-async function followOrRetry(deps: RefundDeps, refundId: string, attemptId: string): Promise<void> {
+async function followOrRetry(deps: FollowDeps & Pick<RefundDeps, 'enqueue'>, refundId: string, attemptId: string): Promise<void> {
   try {
     await followRecord(deps, attemptId);
   } catch (error) {
@@ -547,56 +618,67 @@ export async function refundEvent(deps: RefundDeps, input: { provider: string; m
     if (state.retryable) throw new Error('The payment service could not be asked about the refund now.');
     return null;
   }
-  const attempt = await paymentAttemptsRepo(deps.meta).byPaymentRef(input.provider, input.mode, state.paymentRef);
+  const found = await paymentAttemptsRepo(deps.meta).byPaymentRef(input.provider, input.mode, state.paymentRef);
   // About money Adminium never took: not ours to record.
-  if (attempt === null) return null;
+  if (found === null) return null;
   const at = nowOf(deps);
-  // A refund asked here whose answer was lost: the same payment and amount, still waiting for its id. It is that one.
-  const lost = (await refunds.forAttempt(attempt.id)).find((row) => row.source === 'staff' && row.state === 'requested' && row.providerRefundId === null && row.currency === state.currency && sameAmount(row.amount, state.amount));
-  if (lost !== undefined && (await refunds.adopt(lost.id, input.refundRef, at))) {
-    return follow(deps, (await refunds.byId(lost.id)) ?? lost, state);
-  }
-  const paidIn = attempt.takenCurrency ?? attempt.currency;
-  const otherCurrency = state.currency !== paidIn;
+  const otherCurrency = state.currency !== (found.takenCurrency ?? found.currency);
   // In the currency's own decimals ("20" is 20.00 EUR, 20.000 KWD), so sums and the record read it as written.
   const amount = exactAmount(state.amount, currencyScale(state.currency)) ?? state.amount;
-  let made: { refund: RefundRow; fresh: boolean };
+  let decided;
   try {
-    made = await refunds.create(
-      {
-        attemptId: attempt.id,
-        paymentId: null,
-        provider: input.provider,
-        mode: input.mode,
-        paymentRef: state.paymentRef,
-        amount,
-        currency: state.currency,
-        reason: 'other',
-        note: null,
-        idempotencyKey: `provider:${input.provider}:${input.mode}:${input.refundRef}`.slice(0, 80),
-        providerRefundId: input.refundRef,
-        source: 'provider',
-        requestedBy: null,
-        state: rowStateOf(state.status) === 'requested' ? 'pending' : rowStateOf(state.status),
-      },
-      at,
-    );
+    // Read, decided and made as the attempt's one writer: a lost dispute decided at the same moment sees this row, or this sees its.
+    decided = await asAttemptWriter(deps.meta, found.id, async (held, attempt) => {
+      const heldRefunds = refundsRepo(held);
+      // Recorded while this waited (the same event found by the sweep): that one.
+      const twin = await heldRefunds.byProviderId(input.provider, input.mode, input.refundRef);
+      if (twin !== null) return { kind: 'known', refund: twin } as const;
+      const rows = await heldRefunds.forAttempt(attempt.id);
+      // A refund asked here whose answer was lost: the same payment and amount, still waiting for its id. It is that one.
+      const lost = rows.find((row) => row.source === 'staff' && row.state === 'requested' && row.providerRefundId === null && row.currency === state.currency && sameAmount(row.amount, state.amount));
+      if (lost !== undefined && (await heldRefunds.adopt(lost.id, input.refundRef, at))) return { kind: 'lost', refund: (await heldRefunds.byId(lost.id)) ?? lost } as const;
+      // A lost dispute that already counted this money (the "resolved" event came before the "refunded" one): it is that row.
+      const counted = rows.find((row) => row.source === 'dispute' && row.state === 'succeeded' && row.providerRefundId === null && row.currency === state.currency && sameAmount(row.amount, amount));
+      if (counted !== undefined && (await heldRefunds.adoptForDispute(counted.id, input.refundRef, at))) return { kind: 'counted', refund: (await heldRefunds.byId(counted.id)) ?? counted } as const;
+      const made = await heldRefunds.create(
+        {
+          attemptId: attempt.id,
+          paymentId: null,
+          provider: input.provider,
+          mode: input.mode,
+          paymentRef: state.paymentRef,
+          amount,
+          currency: state.currency,
+          reason: 'other',
+          note: null,
+          idempotencyKey: `provider:${input.provider}:${input.mode}:${input.refundRef}`.slice(0, 80),
+          providerRefundId: input.refundRef,
+          source: 'provider',
+          requestedBy: null,
+          state: rowStateOf(state.status) === 'requested' ? 'pending' : rowStateOf(state.status),
+        },
+        at,
+      );
+      if (!made.fresh) return { kind: 'known', refund: made.refund } as const;
+      // Not in what was paid: kept and flagged, never held against it nor written to the record.
+      if (otherCurrency) await heldRefunds.setProblem(made.refund.id, 'CURRENCY_DIFFERS', at);
+      // It happened: held even past what Adminium thought was left.
+      else if (made.refund.state !== 'failed' && made.refund.state !== 'cancelled') await moveHold(held, attempt.id, made.refund.amount, at, true);
+      return { kind: 'made', refund: made.refund } as const;
+    });
   } catch (error) {
     if (!isDuplicateKeyError(error)) throw error;
     const again = await refunds.byProviderId(input.provider, input.mode, input.refundRef);
     return again === null ? null : settleRefund(deps, again.id, { strict: true });
   }
-  if (!made.fresh) return settleRefund(deps, made.refund.id, { strict: true });
-  if (otherCurrency) {
-    // Not in what was paid: kept and flagged, never held against it nor written to the record.
-    await refunds.setProblem(made.refund.id, 'CURRENCY_DIFFERS', at);
-  } else {
-    // It happened: held even past what Adminium thought was left.
-    if (made.refund.state !== 'failed' && made.refund.state !== 'cancelled') await moveHold(deps.meta, attempt.id, made.refund.amount, at, true);
-    if (made.refund.state === 'succeeded') await followOrRetry(deps, made.refund.id, attempt.id);
-  }
-  await tellMadeAtProvider(deps, attempt, made.refund).catch(() => undefined);
-  return (await refunds.byId(made.refund.id)) ?? made.refund;
+  if (decided === null) return null;
+  if (decided.kind === 'known') return settleRefund(deps, decided.refund.id, { strict: true });
+  if (decided.kind === 'lost') return follow(deps, decided.refund, state);
+  if (decided.kind === 'counted') return decided.refund;
+  const made = decided.refund;
+  if (!otherCurrency && made.state === 'succeeded') await followOrRetry(deps, made.id, found.id);
+  await tellMadeAtProvider(deps, found, made).catch(() => undefined);
+  return (await refunds.byId(made.id)) ?? made;
 }
 
 // ─── Disputes ───────────────────────────────────────────────────────────────
@@ -611,22 +693,161 @@ export function disputeOpensOn(type: string): boolean {
   return /created|opened/i.test(type);
 }
 
+/** What a dispute event does: open or close it, and with which outcome. The provider's own word first, else its type. */
+export function disputeMoveOf(event: { type: string; dispute?: PaymentDispute | null }): { state: 'open' | 'closed'; outcome: DisputeOutcome | null } {
+  const said = event.dispute ?? null;
+  if (said !== null) return said.status === 'open' ? { state: 'open', outcome: null } : { state: 'closed', outcome: said.status === 'won' || said.status === 'lost' ? said.status : null };
+  return { state: disputeClosesOn(event.type) ? 'closed' : 'open', outcome: null };
+}
+
+/** What `disputeEvent` needs: the record follows a lost dispute through the refund job, or here when its sources are at hand. */
+export type DisputeDeps = Pick<RefundDeps, 'meta' | 'notices' | 'now' | 'enqueue'> & Partial<Pick<RefundDeps, 'sources' | 'writes' | 'app' | 'log'>>;
+
 /**
- * A verified dispute event about a payment: marks it disputed (or closed) and
- * tells payment managers once per dispute. Each event moves only what is
- * older than itself (the repo's `noteDispute`).
+ * A verified dispute event about a payment: marks it disputed (or closed,
+ * won or lost) and tells payment managers once per dispute. Each event moves
+ * only what is older than itself (the repo's `noteDispute`). A lost dispute
+ * is recorded as money returned to the customer, once per dispute; a lost
+ * one then won is undone.
  */
-export async function disputeEvent(deps: Pick<RefundDeps, 'meta' | 'notices' | 'now'>, attempt: PaymentAttempt, event: { type: string; occurredAt: number }): Promise<void> {
-  const state = disputeClosesOn(event.type) ? 'closed' : 'open';
+export async function disputeEvent(deps: DisputeDeps, attempt: PaymentAttempt, event: { type: string; occurredAt: number; dispute?: PaymentDispute | null }): Promise<void> {
+  const { state, outcome } = disputeMoveOf(event);
   const at = event.occurredAt > 0 ? event.occurredAt : nowOf(deps);
-  const moved = await paymentAttemptsRepo(deps.meta).noteDispute(attempt.id, state, at, disputeOpensOn(event.type));
-  if (moved && state === 'open') await tellDisputeOpened(deps, attempt, at).catch(() => undefined);
+  const attempts = paymentAttemptsRepo(deps.meta);
+  const moved = await attempts.noteDispute(attempt.id, state, at, disputeOpensOn(event.type), outcome, openedAtOf(event.dispute));
+  // As it stands now, whichever event moved it.
+  const now = await attempts.byId(attempt.id);
+  if (moved && state === 'open' && now?.dispute?.state === 'open') await tellDisputeOpened(deps, attempt, now.dispute.at).catch(() => undefined);
+  if (now?.dispute?.state !== 'closed') return;
+  // A lost dispute is money gone back, once; one since won gives it back.
+  if (now.dispute.outcome === 'lost') await disputeLost(deps, now, event.dispute ?? null);
+  else if (now.dispute.outcome === 'won') await disputeWon(deps, now);
+}
+
+/** When the provider says the dispute opened, or null. */
+function openedAtOf(said: PaymentDispute | null | undefined): number | null {
+  const at = said?.openedAt;
+  return typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : null;
+}
+
+/** The key of the refund row a lost dispute makes: one per dispute, by when it started. */
+function disputeKeyOf(attempt: PaymentAttempt & { dispute: NonNullable<PaymentAttempt['dispute']> }): string {
+  return `dispute:${attempt.id}:${String(attempt.dispute.at)}`.slice(0, 80);
+}
+
+/**
+ * A lost dispute: the amount disputed (or, when the provider did not say, what
+ * was taken) is recorded as a refund the customer's bank made, done. Held
+ * against the payment even past what was thought left (it happened), and the
+ * record follows it. In another currency than was paid it is kept and
+ * flagged, never held nor written. Keyed by the dispute, so it is made once.
+ * Money already given back since the dispute started is this same money:
+ * only the rest is counted.
+ */
+async function disputeLost(deps: DisputeDeps, lostOn: PaymentAttempt, said: PaymentDispute | null): Promise<void> {
+  const paidIn = lostOn.takenCurrency ?? lostOn.currency;
+  const currency = said?.currency ?? paidIn;
+  const raw = said?.amount ?? (currency === paidIn ? lostOn.takenAmount : null);
+  if (raw === null) return;
+  const scale = currencyScale(currency);
+  const disputed = exactAmount(raw, scale) ?? raw;
+  if (compareAmounts(disputed, '0') !== 1) return;
+  const at = nowOf(deps);
+  // Read, decided and made as the attempt's one writer: a refund event decided at the same moment sees this row, or this sees its.
+  const decided = await asAttemptWriter(deps.meta, lostOn.id, async (held, attempt) => {
+    // Lost still (not won meanwhile), and about money taken.
+    if (attempt.paymentRef === null || attempt.dispute === null || attempt.dispute.state !== 'closed' || attempt.dispute.outcome !== 'lost') return null;
+    const dispute = { ...attempt, dispute: attempt.dispute };
+    const key = disputeKeyOf(dispute);
+    const heldRefunds = refundsRepo(held);
+    if ((await heldRefunds.byKey(key)) !== null) return null;
+    // Money given back since the dispute started is this same money (a PayPal seller settles a dispute by refunding:
+    // "refunded", then "resolved, buyer's favour"). It started when the provider opened it, when it says: the close
+    // may be the first event heard of it, after the refund that settled it. Only the rest is counted here.
+    const opened = openedAtOf(said);
+    const since = opened === null ? attempt.dispute.at : Math.min(attempt.dispute.at, opened);
+    const covered = (await heldRefunds.forAttempt(attempt.id)).filter(
+      (row) => row.source !== 'dispute' && row.currency === currency && row.createdAt >= since && row.state !== 'failed' && row.state !== 'cancelled',
+    );
+    const amount = covered.reduce<string | null>((left, row) => (left === null ? null : subtractAmounts(left, row.amount, scale)), disputed) ?? disputed;
+    if (compareAmounts(amount, '0') !== 1) return { kind: 'covered', key } as const;
+    const made = await heldRefunds.create(
+      {
+        attemptId: attempt.id,
+        paymentId: null,
+        provider: attempt.provider,
+        mode: attempt.mode,
+        paymentRef: attempt.paymentRef,
+        amount,
+        currency,
+        reason: 'other',
+        note: null,
+        idempotencyKey: key,
+        source: 'dispute',
+        requestedBy: null,
+        state: 'succeeded',
+      },
+      at,
+    );
+    if (!made.fresh) return null;
+    if (currency !== paidIn) await heldRefunds.setProblem(made.refund.id, 'CURRENCY_DIFFERS', at);
+    else await moveHold(held, attempt.id, amount, at, true);
+    return { kind: 'made', key, refund: made.refund } as const;
+  });
+  if (decided === null) return;
+  if (decided.kind === 'covered') {
+    await tellDisputeLost(deps, lostOn, { amount: disputed, currency, about: decided.key }).catch(() => undefined);
+    return;
+  }
+  await tellDisputeLost(deps, lostOn, { amount: decided.refund.amount, currency: decided.refund.currency, about: decided.key }).catch(() => undefined);
+  if (currency !== paidIn) return;
+  await recordFollowsDispute(deps, decided.refund.id, lostOn.id);
+}
+
+/**
+ * A dispute recorded lost, then won (the provider read a chargeback being
+ * filed as lost; the bank then decided for the seller): the money came back.
+ * Its row is undone the way a refund done and then failed is: it fails, what
+ * it held is given back, and the record follows. A refund the provider
+ * reported that the row had taken on (a seller's settling refund) happened,
+ * and stays.
+ */
+async function disputeWon(deps: DisputeDeps, wonOn: PaymentAttempt): Promise<void> {
+  const at = nowOf(deps);
+  const undone = await asAttemptWriter(deps.meta, wonOn.id, async (held, attempt) => {
+    if (attempt.dispute === null || attempt.dispute.state !== 'closed' || attempt.dispute.outcome !== 'won') return null;
+    const heldRefunds = refundsRepo(held);
+    const row = await heldRefunds.byKey(disputeKeyOf({ ...attempt, dispute: attempt.dispute }));
+    if (row === null || row.source !== 'dispute' || row.state !== 'succeeded' || row.providerRefundId !== null) return null;
+    if (!(await heldRefunds.move(row.id, 'failed', { failureMessage: 'The dispute was won: the money came back.' }, at))) return null;
+    // A row in another currency held nothing.
+    if (row.problemCode !== 'CURRENCY_DIFFERS') await moveHold(held, attempt.id, `-${row.amount}`, at);
+    return row;
+  });
+  if (undone === null) return;
+  await recordFollowsDispute(deps, undone.id, wonOn.id);
+}
+
+/** The record follows a dispute's row: here when the record's sources are at hand, else through the refund job. */
+async function recordFollowsDispute(deps: DisputeDeps, refundId: string, attemptId: string): Promise<void> {
+  if (deps.sources !== undefined) await followOrRetry({ ...deps, sources: deps.sources }, refundId, attemptId);
+  else if (deps.enqueue !== undefined) await enqueueRefund(deps.enqueue, { refundId }).catch(() => false);
 }
 
 // ─── Notices ────────────────────────────────────────────────────────────────
+//
+// Told in test mode too, its title marked "Test": a shop sets up in test
+// mode first, and sees there the notices it will get once it is live. The
+// demo service's are not told: it is a rehearsal with no money behind it.
+
+/** Whether a notice about this service is told at all (in either mode). */
+function told(provider: string): boolean {
+  return provider !== DEMO_PAYMENT_KEY;
+}
 
 async function tellRefundFailed(deps: RefundDeps, refund: RefundRow): Promise<void> {
-  if (deps.notices === undefined || refund.mode !== 'live') return;
+  if (deps.notices === undefined || !told(refund.provider)) return;
+  const test = refund.mode !== 'live';
   const attempt = refund.attemptId === null ? null : await paymentAttemptsRepo(deps.meta).byId(refund.attemptId);
   const paidWith = (attempt?.paidWith as { label?: string } | null)?.label ?? providerName(refund.provider);
   await tellPaymentManagers(deps.notices, {
@@ -634,18 +855,23 @@ async function tellRefundFailed(deps: RefundDeps, refund: RefundRow): Promise<vo
     about: `refund-failed:${refund.id}`,
     urgent: true,
     actionUrl: '/studio/payments?tab=activity',
-    words: (locale) => ({ title: { key: 'refundFailed.title', fallback: 'Refund failed' }, body: { key: 'refundFailed.body', fallback: '{amount} to {paidWith}' }, values: { amount: noticeMoney(refund.amount, refund.currency, locale), paidWith } }),
+    words: (locale) => ({
+      title: test ? { key: 'refundFailed.titleTest', fallback: 'Test refund failed' } : { key: 'refundFailed.title', fallback: 'Refund failed' },
+      body: { key: 'refundFailed.body', fallback: '{amount} to {paidWith}' },
+      values: { amount: noticeMoney(refund.amount, refund.currency, locale), paidWith },
+    }),
   });
 }
 
 async function tellMadeAtProvider(deps: RefundDeps, attempt: PaymentAttempt, refund: RefundRow): Promise<void> {
-  if (deps.notices === undefined || refund.mode !== 'live') return;
+  if (deps.notices === undefined || !told(refund.provider)) return;
+  const test = refund.mode !== 'live';
   await tellPaymentManagers(deps.notices, {
     kind: 'payments.needs-look',
     about: `refund-at-provider:${refund.id}`,
     actionUrl: '/studio/payments?tab=activity',
     words: (locale) => ({
-      title: { key: 'look.title', fallback: 'A payment needs a look' },
+      title: test ? { key: 'look.titleTest', fallback: 'A test payment needs a look' } : { key: 'look.title', fallback: 'A payment needs a look' },
       body: { key: 'look.refundedThere', fallback: 'Refunded in the {provider} dashboard: {amount} on {label}. Recorded.' },
       values: { provider: providerName(refund.provider), amount: noticeMoney(refund.amount, refund.currency, locale), label: attempt.payableLabel },
     }),
@@ -653,7 +879,8 @@ async function tellMadeAtProvider(deps: RefundDeps, attempt: PaymentAttempt, ref
 }
 
 async function tellDisputeOpened(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt, openedAt: number): Promise<void> {
-  if (deps.notices === undefined || attempt.mode !== 'live') return;
+  if (deps.notices === undefined || !told(attempt.provider)) return;
+  const test = attempt.mode !== 'live';
   await tellPaymentManagers(deps.notices, {
     kind: 'payments.dispute',
     // Once per dispute: keyed by when this one opened, not by the one before it.
@@ -661,9 +888,26 @@ async function tellDisputeOpened(deps: Pick<RefundDeps, 'notices'>, attempt: Pay
     urgent: true,
     actionUrl: '/studio/payments?tab=activity',
     words: () => ({
-      title: { key: 'dispute.title', fallback: 'Dispute opened' },
+      title: test ? { key: 'dispute.titleTest', fallback: 'Test dispute opened' } : { key: 'dispute.title', fallback: 'Dispute opened' },
       body: { key: 'dispute.bodyNoDate', fallback: '{label} · answer it in the {provider} dashboard' },
       values: { label: attempt.payableLabel, provider: providerName(attempt.provider) },
+    }),
+  });
+}
+
+/** A lost dispute: the money went back to the customer. Once per dispute (keyed like its refund row). */
+async function tellDisputeLost(deps: Pick<RefundDeps, 'notices'>, attempt: PaymentAttempt, refund: { amount: string; currency: string; about: string }): Promise<void> {
+  if (deps.notices === undefined || !told(attempt.provider)) return;
+  const test = attempt.mode !== 'live';
+  await tellPaymentManagers(deps.notices, {
+    kind: 'payments.dispute',
+    about: `lost:${refund.about}`,
+    urgent: true,
+    actionUrl: '/studio/payments?tab=activity',
+    words: (locale) => ({
+      title: test ? { key: 'dispute.lostTitleTest', fallback: 'Test dispute lost' } : { key: 'dispute.lostTitle', fallback: 'Dispute lost' },
+      body: { key: 'dispute.lostBody', fallback: '{label} · {amount} went back to the customer' },
+      values: { label: attempt.payableLabel, amount: noticeMoney(refund.amount, refund.currency, locale) },
     }),
   });
 }

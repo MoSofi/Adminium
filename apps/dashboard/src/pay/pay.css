@@ -612,6 +612,26 @@ button {
   color: var(--pos);
 }
 
+/* A test page's line for the staff who opened it (no real way is on for the record). */
+.pp-staff-note {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--fg);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.pp-staff-note > .pp-icon {
+  margin-block-start: 3px;
+  color: var(--warn);
+}
+
 /* ── Bank transfer ───────────────────────────────────────────────────── */
 
 .pp-bank {

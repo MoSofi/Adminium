@@ -74,6 +74,10 @@ function tag(entry: CandidateTableInput, column: CandidateColumn): string {
   return info?.semantic ?? 'plain';
 }
 
+function formatOf(entry: CandidateTableInput, column: CandidateColumn): string | null {
+  return entry.classified.columns.find((c) => c.column === column.name)?.format ?? null;
+}
+
 function ordinalOf(column: CandidateColumn): number {
   return column.ordinal ?? 0;
 }
@@ -230,7 +234,8 @@ function kpiRow(
           shape: 'single-metric',
           aggregations: [{ fn: 'sum', column: money.column.name, alias: 'value' }],
         },
-        { format: 'currency' },
+        // A minor-unit column (`amount_cents`) sums to cents, never whole units.
+        formatOf(money.entry, money.column) === 'currency-cents' ? {} : { format: 'currency' },
       ),
     );
   }

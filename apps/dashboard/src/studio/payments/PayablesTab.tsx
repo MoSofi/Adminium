@@ -77,6 +77,23 @@ function shortName(tableId: string): string {
   return tableId.replace(/^[^.]+\./, '');
 }
 
+/**
+ * The values a status column may take, as far as the schema shows them: the
+ * server's own rule (`payable-rules.ts valuesOf`) — yes/no, else the enum the
+ * column names whatever its type (a SQLite CHECK list reads as text with an
+ * enum). Adminium's own value lists only the server sees: its answer, when
+ * there is one, wins.
+ */
+export function statusValuesOf(column: SchemaColumn | undefined, enums: readonly { id: string; name?: string; values: readonly unknown[] }[]): string[] | null {
+  if (column === undefined) return null;
+  if (column.logicalType === 'boolean') return ['true', 'false'];
+  if (column.enumRef != null && column.enumRef !== '') {
+    const found = enums.find((one) => one.id === column.enumRef || one.name === column.enumRef);
+    if (found !== undefined) return found.values.map(String);
+  }
+  return null;
+}
+
 function isPersonal(column: SchemaColumn): boolean {
   return (column.semantics?.flags?.pii ?? null) !== null || column.semantics?.flags?.secret === true || column.semantics?.flags?.maskedByDefault === true;
 }
@@ -219,13 +236,19 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
   const setOwn = (patch: Partial<OwnPaymentsMapping>) => own !== null && set({ payments: { ...own, ...patch } });
 
   const ready = draft.tableId !== '' && mapping.amount.column !== '';
+  // A status being chosen is not checked until its column and paid value are: the rest is, and its column's values come back.
+  const statusIncomplete = mapping.status !== null && (mapping.status.column === '' || mapping.status.paid === '');
+  const checked: PayableMapping = statusIncomplete ? { ...mapping, status: null } : mapping;
+  const statusColumnName = mapping.status !== null && mapping.status.column !== '' ? mapping.status.column : null;
   const check = useQuery({
-    queryKey: ['payments', 'payables', 'check', draft.connectionId, draft.tableId, JSON.stringify(mapping)] as const,
-    queryFn: () => checkPayable(draft.connectionId, draft.tableId, mapping),
+    queryKey: ['payments', 'payables', 'check', draft.connectionId, draft.tableId, JSON.stringify(checked), statusColumnName] as const,
+    queryFn: () => checkPayable(draft.connectionId, draft.tableId, checked, statusIncomplete ? statusColumnName : null),
     enabled: ready,
     retry: false,
   });
-  const issues = check.data?.issues ?? [];
+  // A request the server refused (400): its mapping problems in the list, never its raw words.
+  const checkIssues = check.isError ? payableIssuesOf(check.error) : null;
+  const issues = check.data?.issues ?? checkIssues ?? [];
   const issueAt = (path: string): string | null => {
     const found = issues.find((issue) => issue.path === path || issue.path.startsWith(`${path}.`));
     return found === undefined ? null : issueSentence(found);
@@ -246,11 +269,13 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
     if (!ready || check.isPending || check.isError) return true;
     if (at === 1 && needsUnit && mapping.amount.unit === null) return true;
     if (at === 2 && own !== null && (own.table === '' || own.link === '' || own.amount === '' || own.date === '' || own.method.column === '' || own.reference === '' || mapping.due === null)) return true;
+    if (at === 2 && statusIncomplete) return true;
     return issues.some((issue) => stepPaths[at]!.some((path) => issue.path === path || issue.path.startsWith(`${path}.`)));
   };
   const refusal = check.data === undefined ? null : mayMarkSentence(check.data.mayMark.reason, table?.name ?? shortName(draft.tableId));
   const statusColumn = columns.find((column) => column.name === mapping.status?.column);
-  const statusValues = statusColumn === undefined ? null : statusColumn.logicalType === 'boolean' ? ['true', 'false'] : statusColumn.logicalType === 'enum' ? ((schema.data?.model.enums ?? []).find((one) => one.id === statusColumn.enumRef)?.values ?? null) : null;
+  // The server's answer for this column when it has one (it also sees Adminium's own value lists), else the schema's.
+  const statusValues = statusColumn === undefined ? null : check.data?.statusValues !== undefined ? check.data.statusValues : statusValuesOf(statusColumn, schema.data?.model.enums ?? []);
 
   const steps = [t('studio:payments.payables.step1', 'How much is owed'), t('studio:payments.payables.step2', 'How payments land'), t('studio:payments.payables.step3', 'What the pay page shows')];
 
@@ -461,9 +486,9 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
                             </FormField>
                           </>
                         ) : mapping.status.column !== '' ? (
-                          <FormField label={t('studio:payments.payables.statusPaidValue', 'Value when paid in full')}>
-                            <Input value={mapping.status.paid} onChange={(event) => mapping.status !== null && set({ status: { ...mapping.status, paid: event.target.value } })} />
-                          </FormField>
+                          <p className="text-[12.5px] text-fg-muted" data-testid="payments-wizard-status-no-values">
+                            {t('studio:payments.payables.statusNoValues', "Give this column a list of values (in the table's schema) to use it as a status.")}
+                          </p>
                         ) : null}
                       </div>
                     ) : null}
@@ -517,7 +542,11 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
                 {check.data === undefined ? '' : t('studio:payments.payables.previewSummary', '{count, plural, one {# problem} other {# problems}}', { count: issues.length })}
               </p>
               {!ready ? <p className="text-[12.5px] text-fg-muted">{t('studio:payments.payables.previewWaiting', 'Choose the amount to see three rows.')}</p> : null}
-              {check.isError ? <p className="text-[12.5px] text-danger">{errorText(check.error)}</p> : null}
+              {check.isError && checkIssues === null ? (
+                <p className="text-[12.5px] text-danger">
+                  {check.error instanceof ApiError && check.error.status === 400 ? t('studio:payments.payables.previewIncomplete', 'Finish the choices above to see three rows.') : errorText(check.error)}
+                </p>
+              ) : null}
               {ready && check.data !== undefined && issues.length === 0 && !check.data.mayMark.ok ? (
                 <p className="text-[12.5px] text-fg-muted" data-testid="payments-wizard-preview-hidden">
                   {t('studio:payments.payables.previewHidden', 'Rows are shown only to someone who may set this table up.')}

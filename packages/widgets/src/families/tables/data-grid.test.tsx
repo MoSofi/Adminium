@@ -13,7 +13,7 @@ import type { GridColumnSpec, GridRow } from './column-spec.js';
 const columns: GridColumnSpec[] = [
   { name: 'id', label: 'ID', primaryKey: true, logicalType: 'integer', hidden: true },
   { name: 'name', label: 'Customer', logicalType: 'varchar', isDisplay: true },
-  { name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money' },
+  { name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money', currency: 'USD' },
 ].map((input) => gridColumnSpecSchema.parse(input));
 
 // pg-serialized decimals — STRINGS (the defect input shape).

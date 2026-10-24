@@ -331,6 +331,8 @@ export interface FormColumnShape {
   name: string;
   logicalType: string;
   semantic?: string | null;
+  /** The classifier's format hint; `'currency-cents'` marks money kept in minor units. */
+  format?: string | null;
   nullable?: boolean;
   maxLength?: number | null;
   primaryKey?: boolean;
@@ -385,7 +387,9 @@ export function controlFor(column: FormColumnShape): FormControl {
 
   switch (column.semantic) {
     case 'money':
-      return 'currency';
+      // Money kept in minor units (`amount_cents`) is typed as the number it
+      // is: a currency symbol in front of 4900 reads as €4,900, not €49.00.
+      return column.format === 'currency-cents' ? 'number' : 'currency';
     case 'phone':
       return 'phone';
     case 'email':

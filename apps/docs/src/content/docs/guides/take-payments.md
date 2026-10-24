@@ -3,7 +3,7 @@ title: Take payments
 description: Let customers pay an invoice or any other record online with Stripe or PayPal, or by hand. Who the seller is, how to set it up, what the customer sees, and how refunds and disputes work.
 ---
 
-From Adminium 0.3.32, add-ons 1.0.13.
+From Adminium 0.3.33, add-ons 1.0.13.
 
 A customer opens a pay link, pays on the Stripe or PayPal page, and the payment is written down
 against the record it was for, once. The same record also takes payments that arrive another way,
@@ -60,15 +60,20 @@ test payment**, **Live key**, **Live webhook**, **First live payment arrived**. 
 kept.
 
 - **The Stripe key.** Choose one of two ways. **With your own Stripe App** (the way Stripe
-  recommends): **Download the app template**, upload it once to your test account and once to your
-  live account with the Stripe command-line tool, and copy the key it makes. Or **by hand in the
-  Stripe dashboard**: create a restricted key with the access listed on the card, and leave
-  everything else at None. Only restricted keys (`rk_…`) are accepted.
+  recommends): **Download the app template**, then with the Stripe command-line tool run
+  `stripe apps create key-app`, copy the template's `stripe-app.json` into the `key-app` folder,
+  and run `stripe apps upload` there, once in your test account and once in your live account.
+  Install the app and copy the key it shows under **View API keys**. Or **by hand in the Stripe
+  dashboard**: create a restricted key with the access listed on the card (the card says where each
+  one is on the Stripe form), and leave everything else at None. Only restricted keys (`rk_…`) are
+  accepted.
 - **The PayPal app.** Make a sandbox app for testing and a live app for real payments in the PayPal
   developer site, and paste their client id and secret.
-- **The webhook.** Copy the webhook address from the card, make the endpoint at Stripe or PayPal,
-  tick the events the card lists, and paste the signing secret (Stripe) or the webhook id (PayPal).
-  Each mode, test and live, has its own endpoint and its own secret.
+- **The webhook.** Copy the address from the **Test webhook** card (or the **Live webhook** card
+  when you go live), make the endpoint at Stripe or PayPal, tick the events the card lists (the PayPal
+  form shows them by name, such as "Payment capture completed"; the card shows both), and paste the
+  signing secret (Stripe) or the webhook id (PayPal). Each mode, test and live, has its own endpoint
+  and its own secret.
 
 A key is checked when you save it. If the service refuses it, the card says what it is missing.
 
@@ -83,6 +88,9 @@ the whole flow, refunds included, before you connect anything.
 
 Test links open only for a signed-in person who may set up payments, on the address they are using.
 A customer who gets one sees nothing.
+
+A service is offered on a record's pay page only once at least one of its ways is switched on in
+**Ways to pay**. The Setup card says so when none is.
 
 ### Go live
 
@@ -127,7 +135,8 @@ three-letter code.
 **What customers see** on every pay page: the shop's name, logo and contact, its country, and
 whether to show the invoice's lines. **Where customers pay** chooses the address in every pay link:
 your staff address or one of your customer addresses. Pay links always use the address you choose
-here. The preview shows the page as a customer sees it.
+here; until you choose one, they use this server's public address (**Address in email links** in
+Senders). The preview shows the page as a customer sees it.
 
 ## On a record
 
@@ -202,8 +211,23 @@ flagged in Activity so you can check it.
 
 When a customer disputes a payment with their bank, the payment is marked **Disputed** and the
 people who set up payments are told. Answer the dispute in the Stripe or PayPal dashboard. While it
-is open, the payment cannot be refunded. If the dispute is lost the money goes back to the
-customer, but the invoice is not changed by itself.
+is open, the payment cannot be refunded.
+
+When the dispute ends, Adminium records how:
+
+- **Won:** the payment says the dispute was won, and nothing else changes.
+- **Lost:** the money went back to the customer. It is recorded on the payment as a line of its own,
+  "Dispute lost — €120.00 returned to the customer", like a refund: the balance opens again by that
+  amount (for a live payment), **Refund…** can give only what is left, the people who set up payments
+  are told, and Activity flags it for a look. The invoice's status changes only through the
+  "refunded in full" value you mapped.
+
+A dispute you settle by refunding the customer (in the PayPal dashboard, for example) is the same
+money as the lost dispute that follows it: it is counted once, whichever Adminium hears of first.
+If a dispute recorded as lost is later reported won, the line comes back off: the money is counted
+as yours again and the balance follows.
+
+These notices go out in test mode too, marked "Test", so you can see them while you set up.
 
 ## Activity
 

@@ -27,7 +27,8 @@
     "gettingReady": "Wird vorbereitet …",
     "noteStripe": "Sie bezahlen auf der Seite von Stripe. Dieser Shop sieht Ihre Karte nie.",
     "notePaypal": "Sie bezahlen auf der Seite von PayPal. Dieser Shop sieht Ihre Karte nie.",
-    "noteBoth": "Sie bezahlen auf der Seite von Stripe oder PayPal. Dieser Shop sieht Ihre Karte nie."
+    "noteBoth": "Sie bezahlen auf der Seite von Stripe oder PayPal. Dieser Shop sieht Ihre Karte nie.",
+    "staffNoWay": "Nur Sie sehen das: Für diesen Datensatz ist keine Online-Zahlungsart eingeschaltet, deshalb bietet diese Testseite nur den Demo-Dienst an. Schalten Sie eine unter Studio → Zahlungen → Zahlungsarten ein."
   },
   "provider": {
     "stripe": "Stripe",
@@ -59,7 +60,8 @@
   "failed": {
     "title": "Die Zahlung ist nicht durchgegangen.",
     "body": "Es wurde nichts abgebucht.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "otherWay": "Andere Zahlungsart wählen"
   },
   "cancelled": {
     "title": "Sie haben die Zahlungsseite vor dem Bezahlen verlassen.",

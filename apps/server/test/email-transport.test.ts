@@ -21,6 +21,7 @@ import {
   auditRepo,
   createSqliteMetaDb,
   firstRun,
+  paymentSettingsRepo,
   rolesRepo,
   settingsRepo,
   usersRepo,
@@ -39,6 +40,8 @@ import {
   resolveSmtpConfig,
 } from '../src/email/config.js';
 import type { EmailTransport, OutboundEmail, SmtpConfig } from '../src/email/types.js';
+import { recentAlarms } from '../src/payments/alarms.js';
+import { PAY_ADDRESS_DOC, payAddressSchema } from '../src/payments/links.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { settingsRoutes } from '../src/routes/settings/index.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
@@ -249,6 +252,43 @@ describe('PUT /settings/email', () => {
     expect(rows.map((r) => r.changes?.after)).toContainEqual(
       expect.objectContaining({ publicOrigin: 'https://admin.example.com' }),
     );
+  });
+
+  // With no pay address saved, pay links and webhook addresses follow this one (payments/links.ts): moving it
+  // sends money somewhere new, and raises the alarm a pay-address change raises.
+  it('raises the pay-address alarm when the public address moves while no pay address is saved', async () => {
+    const payAddressRows = async () =>
+      (await auditRepo(t.meta).list({ category: 'payments' })).filter((r) => r.action === 'payments.pay-address.changed');
+    const notices = async () =>
+      t.meta.db.selectFrom('adminium_notifications').select(['userId', 'title']).where('kind', '=', 'payments.money-redirect').execute();
+
+    // Learned or set for the first time: nothing moved.
+    expect((await putEmail(t, { publicOrigin: 'https://admin.example.com' })).statusCode).toBe(200);
+    expect(await payAddressRows()).toEqual([]);
+    // The same again moves nothing.
+    expect((await putEmail(t, { publicOrigin: 'https://admin.example.com/' })).statusCode).toBe(200);
+    expect(await payAddressRows()).toEqual([]);
+
+    expect((await putEmail(t, { publicOrigin: 'https://elsewhere.example.net' })).statusCode).toBe(200);
+    const [moved] = await payAddressRows();
+    expect(moved?.changes).toMatchObject({ before: { origin: 'https://admin.example.com' }, after: { origin: 'https://elsewhere.example.net' } });
+    expect(await recentAlarms(t.meta, Date.now() + 1000)).toEqual([
+      expect.objectContaining({ what: 'pay-address', from: 'https://admin.example.com', to: 'https://elsewhere.example.net', by: 'Ava' }),
+    ]);
+    // Every payment manager is told at once (each Super Admin included).
+    expect((await notices()).map((n) => n.userId)).toContain(t.superAdmin.id);
+
+    // Cleared: links stop, nothing is sent anywhere new.
+    expect((await putEmail(t, { publicOrigin: null })).statusCode).toBe(200);
+    expect(await payAddressRows()).toHaveLength(1);
+  });
+
+  it('raises nothing when the public address moves under a pay address chosen in Studio', async () => {
+    expect((await putEmail(t, { publicOrigin: 'https://admin.example.com' })).statusCode).toBe(200);
+    await paymentSettingsRepo(t.meta).set(PAY_ADDRESS_DOC, payAddressSchema, { origin: 'https://pay.example.com' });
+    expect((await putEmail(t, { publicOrigin: 'https://elsewhere.example.net' })).statusCode).toBe(200);
+    expect((await auditRepo(t.meta).list({ category: 'payments' })).filter((r) => r.action === 'payments.pay-address.changed')).toEqual([]);
+    expect(await recentAlarms(t.meta, Date.now() + 1000)).toEqual([]);
   });
 
   it('stores the password encrypted and never reads it back', async () => {
