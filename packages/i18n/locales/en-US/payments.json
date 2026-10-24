@@ -14,11 +14,11 @@
     "waitingPlain": "An online payment started {date} · waiting for the bank",
     "recordedBy": "recorded by {name}",
     "online": "Online payment ({service})",
-    "refundedInline": "refunded {amount}",
     "listLabel": "Payments on this record",
     "notice": {
       "draft": "Send the invoice first. A payment can only be recorded against a sent invoice.",
       "private": "Customers cannot reach this server, so pay links are off. You can still record payments.",
+      "noAddress": "This server has no public address yet, so pay links are off. Set it as “Address in email links” in Senders. You can still record payments.",
       "update": "This invoice table needs its app's update to take online payments.",
       "voided": "This invoice was voided. No payment can be taken.",
       "noCurrency": "This record has no currency, so no payment can be recorded.",
@@ -59,15 +59,26 @@
     "disputeLine": "Disputed — answer it in the {service} dashboard",
     "disputeNote": "If the dispute is lost, the money goes back to the customer. The invoice is not changed by itself.",
     "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
-    "refundRequested": "Refund of {amount} requested",
-    "refundWaitingCustomer": "Refund of {amount} is waiting for the customer",
-    "refundFailed": "The refund of {amount} failed: {reason}. Contact the customer and record what you agree.",
-    "refundFailedPlain": "The refund of {amount} failed. Contact the customer and record what you agree.",
-    "refundCancelled": "The refund of {amount} was cancelled.",
-    "refundedOnInline": "refunded {amount} on {date}",
-    "refundedThere": "Refund of {amount} made in the {service} dashboard on {date} · recorded",
     "needsLook": "Needs a look",
-    "demoService": "the demo service"
+    "demoService": "the demo service",
+    "refund": {
+      "dispute": "Dispute lost — {amount} returned to the customer",
+      "provider": "Refund of {amount} made in the {service} dashboard",
+      "staff": "Refund of {amount} made in Adminium",
+      "done": "Done",
+      "waitingCustomer": "Waiting for the customer",
+      "failed": "Failed",
+      "failedNext": "Contact the customer and record what you agree.",
+      "cancelled": "Cancelled: nothing was refunded",
+      "requested": "Requested",
+      "written": "Refund of {amount}",
+      "disputeWon": "Dispute won — {amount} came back",
+      "undone": "Undone"
+    },
+    "partlyRefunded": "Partly refunded",
+    "disputeWon": "The dispute was won.",
+    "disputeLost": "The dispute was lost. {amount} went back to the customer.",
+    "disputeLostPlain": "The dispute was lost. The money went back to the customer."
   },
   "record": {
     "title": "Record a payment",
@@ -107,6 +118,7 @@
     },
     "look": {
       "title": "A payment needs a look",
+      "titleTest": "A test payment needs a look",
       "notRecorded": "Paid at {provider}, not recorded: {label}",
       "notYet": "Paid at {provider}, not recorded yet: {label}",
       "amount": "Paid at {provider}, not the amount asked: {label}",
@@ -143,12 +155,17 @@
     },
     "refundFailed": {
       "title": "Refund failed",
+      "titleTest": "Test refund failed",
       "body": "{amount} to {paidWith}"
     },
     "dispute": {
       "title": "Dispute opened",
+      "titleTest": "Test dispute opened",
       "body": "{label} · answer by {date}",
-      "bodyNoDate": "{label} · answer it in the {provider} dashboard"
+      "bodyNoDate": "{label} · answer it in the {provider} dashboard",
+      "lostTitle": "Dispute lost",
+      "lostTitleTest": "Test dispute lost",
+      "lostBody": "{label} · {amount} went back to the customer"
     }
   },
   "refund": {

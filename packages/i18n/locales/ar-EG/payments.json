@@ -14,11 +14,11 @@
     "waitingPlain": "بدأت دفعة عبر الإنترنت في {date} · في انتظار البنك",
     "recordedBy": "سجّلها {name}",
     "online": "دفع عبر الإنترنت ({service})",
-    "refundedInline": "استُرد {amount}",
     "listLabel": "الدفعات على هذا السجل",
     "notice": {
       "draft": "أرسل الفاتورة أولًا. لا يمكن تسجيل دفعة إلا على فاتورة مُرسلة.",
       "private": "لا يستطيع العملاء الوصول إلى هذا الخادم، لذا روابط الدفع متوقفة. لا يزال بإمكانك تسجيل الدفعات.",
+      "noAddress": "ليس لهذا الخادم عنوان عام بعد، لذا روابط الدفع متوقفة. اضبطه بوصفه «العنوان في روابط البريد» في المرسِلين. لا يزال بإمكانك تسجيل الدفعات.",
       "update": "يحتاج جدول الفواتير هذا إلى تحديث تطبيقه لقبول المدفوعات عبر الإنترنت.",
       "voided": "أُلغيت هذه الفاتورة. لا يمكن قبول أي دفعة.",
       "noCurrency": "لا توجد عملة لهذا السجل، لذا لا يمكن تسجيل دفعة.",
@@ -59,15 +59,26 @@
     "disputeLine": "نزاع — رُدّ عليه في لوحة تحكم {service}",
     "disputeNote": "إذا خُسر النزاع، يعود المبلغ إلى العميل. لا تتغير الفاتورة من تلقاء نفسها.",
     "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
-    "refundRequested": "طُلب استرداد {amount}",
-    "refundWaitingCustomer": "استرداد {amount} ينتظر العميل",
-    "refundFailed": "فشل استرداد {amount}: {reason}. تواصل مع العميل وسجّل ما تتفقان عليه.",
-    "refundFailedPlain": "فشل استرداد {amount}. تواصل مع العميل وسجّل ما تتفقان عليه.",
-    "refundCancelled": "أُلغي استرداد {amount}.",
-    "refundedOnInline": "استُرد {amount} في {date}",
-    "refundedThere": "استرداد {amount} تم في لوحة تحكم {service} في {date} · مسجّل",
     "needsLook": "يحتاج إلى مراجعة",
-    "demoService": "الخدمة التجريبية"
+    "demoService": "الخدمة التجريبية",
+    "refund": {
+      "dispute": "خُسر النزاع — أُعيد {amount} إلى العميل",
+      "provider": "استرداد {amount} تم في لوحة تحكم {service}",
+      "staff": "استرداد {amount} تم في Adminium",
+      "done": "تم",
+      "waitingCustomer": "بانتظار العميل",
+      "failed": "فشل",
+      "failedNext": "تواصل مع العميل وسجّل ما تتفقان عليه.",
+      "cancelled": "أُلغي: لم يُسترد أي مبلغ",
+      "requested": "تم طلبه",
+      "written": "استرداد {amount}",
+      "disputeWon": "كُسب النزاع — عاد {amount}",
+      "undone": "أُلغي"
+    },
+    "partlyRefunded": "مستردة جزئيًا",
+    "disputeWon": "تم كسب النزاع.",
+    "disputeLost": "خُسر النزاع. عاد {amount} إلى العميل.",
+    "disputeLostPlain": "خُسر النزاع. عاد المبلغ إلى العميل."
   },
   "record": {
     "title": "تسجيل دفعة",
@@ -107,6 +118,7 @@
     },
     "look": {
       "title": "دفعة تحتاج إلى مراجعة",
+      "titleTest": "دفعة تجريبية تحتاج إلى مراجعة",
       "notRecorded": "تم الدفع عبر {provider} ولم تُسجَّل: {label}",
       "notYet": "تم الدفع عبر {provider} ولم تُسجَّل بعد: {label}",
       "amount": "تم الدفع عبر {provider} بمبلغ غير المطلوب: {label}",
@@ -143,12 +155,17 @@
     },
     "refundFailed": {
       "title": "فشل الاسترداد",
+      "titleTest": "فشل استرداد تجريبي",
       "body": "{amount} إلى {paidWith}"
     },
     "dispute": {
       "title": "فُتح نزاع",
+      "titleTest": "فُتح نزاع تجريبي",
       "body": "{label} · الرد قبل {date}",
-      "bodyNoDate": "{label} · رُدّ عليه في لوحة تحكم {provider}"
+      "bodyNoDate": "{label} · رُدّ عليه في لوحة تحكم {provider}",
+      "lostTitle": "خُسر النزاع",
+      "lostTitleTest": "خُسر نزاع تجريبي",
+      "lostBody": "{label} · أُعيد {amount} إلى العميل"
     }
   },
   "refund": {

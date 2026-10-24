@@ -225,7 +225,7 @@ it stands on the connection (the operator's own, where they keep one); a copy th
 blank (`mode` `default`) fills only the rows still blank. It runs in one transaction of the
 database, before the new version is recorded: a failure stops the update (`APP_UPDATE_INCOMPLETE`,
 stage `derived-columns`), the running version stays, and updating again finishes it. Applying an
-app from its project folder fills them the same way. Needs Adminium 0.3.33.
+app from its project folder fills them the same way. Needs Adminium 0.3.35.
 
 A foreign key's target must be one of the package's own tables or a table that already exists in
 the database.
@@ -248,7 +248,7 @@ the database.
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
 | `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.28. |
-| `removal` | no | `{ "reason"?: true \| "required", "history"?: true }`: a removal of a row takes a reason, and the removed row stays readable through a row it linked to; see [Removed rows](#removed-rows). Needs Adminium 0.3.33. |
+| `removal` | no | `{ "reason"?: true \| "required", "history"?: true }`: a removal of a row takes a reason, and the removed row stays readable through a row it linked to; see [Removed rows](#removed-rows). Needs Adminium 0.3.35. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -408,12 +408,12 @@ change or delete is theirs from then on.
 | `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. Never of a shared link's code, nor of a code no staff member reads (`hiddenFromStaff`). From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"?, "days"? }` | A `date` column is never later than today, in the venue's time zone; or the column is never later than another column, read as `notBefore` reads it (a credit's nights end by its stay's `depart`; warm below stale). `days`, on a date: the other date moved by so many days (1–36600), so an end is at most so many days after a start (`"ends_on": { "notAfter": { "column": "starts_on", "days": 365 } }`: a cover lasts a year at most; an empty end stays allowed). A later value is refused (`out-of-range`). |
-| `notBefore` | `"now"` or `{ "column", "via"?, "when"?, "strict"?, "days"? }` | The column is never earlier than another column of the same kind: of the same row, or, with `via`, of the row its foreign key `via` points at. A `date` or `timestamptz` against a date (a payment never before its invoice's `issued_on`), a number (`int`, `bigint`, `decimal`, `money`, `float`) against a number, a time of day kept as `text` (`HH:MM`, at least 5 characters) against another (`work_from` before `work_to`, compared as times: `9:30` is before `17:00`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the two may not be the same — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). `"now"`, on a `timestamptz`: a new row's moment is not in the past, to the minute (a visit is never booked to start before now); judged on a create only, never on one that brings history (an import, sample data), so a later change may correct a visit that happened. A bound on a column that is no date, `days` and `"now"` need Adminium 0.3.33. |
+| `notBefore` | `"now"` or `{ "column", "via"?, "when"?, "strict"?, "days"? }` | The column is never earlier than another column of the same kind: of the same row, or, with `via`, of the row its foreign key `via` points at. A `date` or `timestamptz` against a date (a payment never before its invoice's `issued_on`), a number (`int`, `bigint`, `decimal`, `money`, `float`) against a number, a time of day kept as `text` (`HH:MM`, at least 5 characters) against another (`work_from` before `work_to`, compared as times: `9:30` is before `17:00`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the two may not be the same — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). `"now"`, on a `timestamptz`: a new row's moment is not in the past, to the minute (a visit is never booked to start before now); judged on a create only, never on one that brings history (an import, sample data), so a later change may correct a visit that happened. A bound on a column that is no date, `days` and `"now"` need Adminium 0.3.35. |
 | `linkable` | `{ "where"?, "same"? }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered — and, with `same`, whose columns hold what this row holds (a visit's contact works for the company of the visit's deal). Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
 | `file` | `{ "accept", "maxBytes", "maxCount"? }` | Files a signed-in person uploads for the column: one in a `text` column, a list of up to `maxCount` (1–20) in a `json` column. It holds Adminium's own file ids, never a link. `accept` names the kinds the column takes, judged by the file's bytes; `maxBytes` (1 KiB–25 MiB) the size of each. A picture loses what a camera writes beside it as it is uploaded. A write may name only a file its writer uploaded and no record holds yet. See [Files in a column](#files-in-a-column). Needs Adminium 0.3.28. |
-| `changes` | `[{ "to"?, "from"?, "while"?, "by"?, "notBy"? }]` | When, and by whom, the column may change: to some values only from others, only while another column holds a value, only by the person a staff column of the row (or of a linked row) names, never by the people others name. Judged by the server on every way a row is written but history. See [Who may change a column](#who-may-change-a-column). Needs Adminium 0.3.33. |
+| `changes` | `[{ "to"?, "from"?, "while"?, "by"?, "notBy"? }]` | When, and by whom, the column may change: to some values only from others, only while another column holds a value, only by the person a staff column of the row (or of a linked row) names, never by the people others name. Judged by the server on every way a row is written but history. See [Who may change a column](#who-may-change-a-column). Needs Adminium 0.3.35. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
-| `history` | `"audit"` | The column's earlier values are kept for the audit log only, which the install's owner reads (a removed message's text). A row's history (`GET …/{record}/history`), a [removed row's](#removed-rows) history and row, a rule's `{{was.<column>}}` and the row a removal's live frame carries leave the column out, for every reader, the owner included; the audit page keeps it. The value a row holds now is read as any other column is. A rule or a template of the manifest that reads `{{was.<column>}}` of such a column is refused. Not on the key. Needs Adminium 0.3.33. |
+| `history` | `"audit"` | The column's earlier values are kept for the audit log only, which the install's owner reads (a removed message's text). A row's history (`GET …/{record}/history`), a [removed row's](#removed-rows) history and row, a rule's `{{was.<column>}}` and the row a removal's live frame carries leave the column out, for every reader, the owner included; the audit page keeps it. The value a row holds now is read as any other column is. A rule or a template of the manifest that reads `{{was.<column>}}` of such a column is refused. Not on the key. Needs Adminium 0.3.35. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"?, "strict"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
@@ -515,7 +515,7 @@ was sent, before any stamp: a deal brought in as won with no `closed_at` (`close
 `state` becomes won or lost, and `requiredWhen` `state` is won or lost) is named in the import's
 preview, `closed_at` `required`, and not brought in, never dated by the day of the import; one that
 brings its date keeps it. Sample data is never stamped, so a sample's won deal carries its date too.
-A stamp beside `requiredWhen` needs Adminium 0.3.33.
+A stamp beside `requiredWhen` needs Adminium 0.3.35.
 
 ```json
 { "ref": "subtotal", "type": "money", "default": 0,
@@ -1028,7 +1028,7 @@ them under the caller's role, or would move more than 500, is refused before any
 A row put back by an undo of its removal takes each copy that always wins (`"mode": "always"`)
 again from the row it copies, as that row is now, with the formulas that read it: a deal's member
 removed and brought back after the deal changed hands names the deal's owner now, not the one it
-was removed under. A copy that only fills a blank comes back as it was. Needs Adminium 0.3.33.
+was removed under. A copy that only fills a blank comes back as it was. Needs Adminium 0.3.35.
 
 #### Prices by the night
 
@@ -1146,7 +1146,7 @@ values: the time a patient checked in, who took a payment.
 | `set` | What is written; see the table below. |
 | `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
 | `clearOnBack` | `true`: emptied again when a move marked [`undo`](#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
-| `strict` | `true`: the value is always Adminium's, on every door and for every writer, Super Admin included: a value a create, a change, a bulk edit, a rule, the public API or an add-on sends for the column is dropped (the stamp writes it, or the row keeps what it holds), and a line of a brought file that carries one is refused, the column named, in the preview and in the run (a line that leaves it empty is stamped as its bringer). Who ticked "may be e-mailed" and when is never typed. Only history keeps its own: an app's sample data and an undo. Not with a `byOrigin` that leaves staff their own word. Needs Adminium 0.3.33. |
+| `strict` | `true`: the value is always Adminium's, on every door and for every writer, Super Admin included: a value a create, a change, a bulk edit, a rule, the public API or an add-on sends for the column is dropped (the stamp writes it, or the row keeps what it holds), and a line of a brought file that carries one is refused, the column named, in the preview and in the run (a line that leaves it empty is stamped as its bringer). Who ticked "may be e-mailed" and when is never typed. Only history keeps its own: an app's sample data and an undo. Not with a `byOrigin` that leaves staff their own word. Needs Adminium 0.3.35. |
 
 What a stamp writes:
 
@@ -1767,7 +1767,7 @@ is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
 `STATE_MOVE_REFUSED` with `details.create: true` and `from: null`, beside `to`, `requires` and
 the parts above. The row's formulas, and its copies of a linked row's columns, are worked out
 before the conditions are judged. On a table [built on an add-on's shape](#tables-built-on-an-add-ons-shape)
-the app may add only `where` conditions on columns it added itself (Adminium 0.3.33).
+the app may add only `where` conditions on columns it added itself (Adminium 0.3.35).
 
 #### Once means once
 
@@ -2209,7 +2209,7 @@ What the app may add to a part, and nothing else:
   new quote on a closed deal, read from the deal's state the app keeps on the quote; a `create`
   the part has stays as written, a condition of the app's never reads a column of the part's, and
   a `linked`, `setting` or `time` is the part's alone; history is not held to it; needs Adminium
-  0.3.33), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
+  0.3.35), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
   the table, the part's included: a last day only ever refuses), an effect that runs through a link
   the app itself added (`effects` with `via`, or
   `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
@@ -2647,9 +2647,9 @@ are: each reader sees the heading in their language, else `label`. Both need Adm
 ```
 
 A card's figures (`aggregations[].fn`) are the query descriptor's: `count`, `count_distinct`,
-`sum`, `avg`, `min`, `max`, `median` and `percentile`. `median` (from Adminium 0.3.33) is the middle
+`sum`, `avg`, `min`, `max`, `median` and `percentile`. `median` (from Adminium 0.3.35) is the middle
 value: the mean of the two middle numbers of an even count, the earlier of the two middle days of a
-date column. `min`, `max` and `median` of a date or a time column answer the day itself (0.3.33),
+date column. `min`, `max` and `median` of a date or a time column answer the day itself (0.3.35),
 in a single figure, a figure and its prior window, or beside a number in a ranking: see
 [a figure is a number, or a day](/guides/pages/overview-widgets/#a-figure-is-a-number-or-a-day).
 
@@ -2870,7 +2870,7 @@ Any other staff column of the private row as `person` is refused, as are a `thro
 through the private row, only the rows whose private row names the reader, never one that names
 somebody they lead (another manager's one-to-one with her rep stays out). A writer held to some
 rows may set the link only to a private row that names them; with several such ways on one link,
-any one that names them is enough. Needs Adminium 0.3.33.
+any one that names them is enough. Needs Adminium 0.3.35.
 
 **`rows`**, in a role's [`limits`](#roles) for a table, says which rows its read, update and
 delete reach, each on its own:
@@ -2916,7 +2916,7 @@ is not matched). It also judges the row as a write leaves it: a target made for 
 colleague's moved onto her, is refused (`403` `COLUMN_FORBIDDEN`, reason `not-by`, naming the
 column). A record page does not show her the buttons of a row whose own staff column names her,
 where every reach of hers says so. Never on a read, a private table, or a grant on an add-on's
-table. Needs Adminium 0.3.33 (`rows.notBy`).
+table. Needs Adminium 0.3.35 (`rows.notBy`).
 
 **`via`** beside `by` judges a row of a table that hangs off a parent (its `belongs` has
 `{ "via": "<link>" }`) by a staff column of THAT parent, and by nothing else: `by` then names a
@@ -3355,7 +3355,7 @@ document that cannot be drawn (a required slot left empty) is `422` `DOCUMENT_NO
 
 ### A picture in a document
 
-An add-on's outline may have a `picture` slot (Adminium 0.3.33): the document then shows a picture
+An add-on's outline may have a `picture` slot (Adminium 0.3.35): the document then shows a picture
 the row keeps, such as a customer's drawn signature on a signed copy. Map it to a column of the
 document's own row that holds one file, a `text` column with
 [`"rules": { "file" }`](#column-rules) and no `maxCount`, whose `accept` lists `png` or `jpeg`:
@@ -3393,7 +3393,7 @@ file holds it as drawn.
 
 An app may name a document `kind` that the add-on attached to it does not draw yet: the app was
 released for the add-on's next version, and the installed one is older. The install and the update
-go through all the same (Adminium 0.3.33; an older release refused them). That document is left
+go through all the same (Adminium 0.3.35; an older release refused them). That document is left
 off, and so is the attachment a message makes of it: a template whose `attach` is `optional` goes
 without it, and one whose `attach` is not fails as for any document that cannot be drawn. The reply
 of `POST /api/v1/apps/install` and the `app` of `POST /api/v1/apps/<key>/update` say which documents
@@ -3731,7 +3731,7 @@ number has `.number`, `.percent` and `.money`, written exactly as stored in the 
 its label in the message's language (`{{order.paid_method.label}}` is "Card", not "card"); a `text`
 column of up to 8 characters holding a time of day has `.time`, in the reader's clock ("3:00 PM" in
 the US, "15:00" in Britain); a yes/no (`bool`) column reads "Yes" or "No" in the message's language
-("Ja", "Oui", "Ano", "نعم"…), in its text and in a list's rows, never `true` or `1` (Adminium 0.3.33;
+("Ja", "Oui", "Ano", "نعم"…), in its text and in a list's rows, never `true` or `1` (Adminium 0.3.35;
 a rule's e-mail reads it the same way); a [code](#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
 (see [Emails that list rows](#emails-that-list-rows)). A `{{was.<column>}}` reads a
 [`was`](#outbox) column as it was before a change, or as a removed row held it, in the same forms. A
@@ -4671,7 +4671,7 @@ the person later changes language.
 A title and a body both given in several languages give the same ones (a reader is never told half
 a notice in theirs); one text on either side is the same for everybody. Each language's text is
 held to the same placeholders. The rules page shows that a step carries other languages; a title or
-message changed there is one text for everybody from then on. Needs Adminium 0.3.33 to be told per
+message changed there is one text for everybody from then on. Needs Adminium 0.3.35 to be told per
 language; an older server tells everybody in the workspace's language.
 
 ### The lead of the person on the row
@@ -4813,7 +4813,7 @@ signed off, owned by the person the business names on its Settings screen:
 
 | Value | What it writes |
 |---|---|
-| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. `"else": { "staff": "<column>" }` beside it names, for a staff column, the person to write instead: a staff column of the rule's record, or one link further (`deal_id.owner_id`), again only somebody who signs in (the rep who sold the job, when nobody is named for aftercare). Needs Adminium 0.3.29 (`automations.settingElse`). One exception, for the [sample](#sample-people): on a run about a sample row, a sample person may be written too, by the setting or by `else` (a sample job's sign-off books its aftercare call for the sample rep who sold it); on a real row a sample person is nobody. Adminium 0.3.33. |
+| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. `"else": { "staff": "<column>" }` beside it names, for a staff column, the person to write instead: a staff column of the rule's record, or one link further (`deal_id.owner_id`), again only somebody who signs in (the rep who sold the job, when nobody is named for aftercare). Needs Adminium 0.3.29 (`automations.settingElse`). One exception, for the [sample](#sample-people): on a run about a sample row, a sample person may be written too, by the setting or by `else` (a sample job's sign-off books its aftercare call for the sample rep who sold it); on a real row a sample person is nobody. Adminium 0.3.35. |
 | `{ "daysAfter": { "column" or "now", "days", "setting"?, "at"? } }` | A day `days` (0–3650) after a `date` or `timestamptz` column of the rule's record, or after the run (`"now": true`), counted on the business's calendar (the connection's time zone). `setting`: a whole-number column of the settings row whose number is used while it holds one from 1 to 3650 (else `days`: an empty setting or a 0 is none). Written into a `date` column as the day; into a `timestamptz` column at `at` (`"HH:MM"`) on the business's clock, else at the wall time it counts from (midnight for a date), so a call booked at 09:30 is due at 09:30 after the clocks change. A record whose date is empty leaves the value empty, and the log says so. |
 
 A value is no way to read a table. The settings are read as a rule reads the connection, when the
@@ -4879,7 +4879,7 @@ rows block draws, and a rows block that names no section.
 
 #### A section of a team, with sums, a line a person and target cover
 
-Four more words on a section, each read from Adminium 0.3.28 (and `within`, below, from 0.3.33):
+Four more words on a section, each read from Adminium 0.3.28 (and `within`, below, from 0.3.35):
 
 ```json
 { "key": "reps", "table": "deals", "owner": "owner_id",
@@ -4900,7 +4900,7 @@ Four more words on a section, each read from Adminium 0.3.28 (and `within`, belo
 #### A section of this year, or of the last days
 
 `"within"` holds a section to the rows whose date column falls in the **current calendar year**, or
-in the **last N days**, on the business's calendar (the connection's time zone), from Adminium 0.3.33:
+in the **last N days**, on the business's calendar (the connection's time zone), from Adminium 0.3.35:
 
 ```json
 { "key": "won", "table": "deals", "owner": "owner_id",
@@ -5064,7 +5064,7 @@ its aftercare call for the sample rep who sold it). A real row is never handed t
 The rows such a run creates are sample rows too: they are listed with the sample, and "Remove
 sample data" takes them with the rest, and with them the sample row they hang off. A rule-made row
 somebody has since written a row of their own under stays, as any sample row their records use
-does, and a row a rule made from a real row is never listed. Adminium 0.3.33.
+does, and a row a rule made from a real row is never listed. Adminium 0.3.35.
 
 The file uses the `adminium.sample/1` format:
 

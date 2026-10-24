@@ -218,6 +218,22 @@ describe('ActivityTab', () => {
     expect(textOf(drawer)).toContain('Answer it in the Stripe dashboard');
   });
 
+  it('dates a dispute by when it opened, and says a lost one went back to the customer', async () => {
+    const opened = NOW + 18 * 60_000;
+    const stampOf = (at: number) => new Intl.DateTimeFormat('en-US-u-nu-latn', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(at));
+    const disputed = row({ id: 'pat_34', group: 'disputed', lookAt: opened, flag: { code: 'disputed', reason: null, message: null }, dispute: { state: 'open', at: opened, closedAt: null, outcome: null } });
+    const lost = row({ id: 'prf_9', kind: 'refund', at: opened + 60_000, lookAt: opened + 60_000, state: 'succeeded', group: 'refunded', refundSource: 'dispute', flag: { code: 'dispute-lost', reason: null, message: null } });
+    stub({ open: [disputed, lost], list: [lost, row({ id: 'pat_35', dispute: { state: 'closed', at: opened, closedAt: opened + 60_000, outcome: 'lost' } })] });
+    const user = show();
+    const card = await screen.findByTestId('activity-needs-look');
+    await waitFor(() => expect(textOf(card)).toContain('Dispute lost: €120.00 went back to the customer on INV-0042. Recorded as a refund.'));
+    expect(textOf(screen.getByTestId('activity-flag-pat_34'))).toContain(stampOf(opened));
+    expect(textOf(screen.getByTestId('activity-flag-pat_34'))).not.toContain(stampOf(NOW));
+    const table = await screen.findByTestId('activity-table');
+    await user.click(within(table).getAllByRole('button', { name: /INV-0042/ })[1]!);
+    expect(textOf(await screen.findByTestId('activity-drawer'))).toContain('The dispute was lost: the money went back to the customer.');
+  });
+
   it('lets someone who may only see payments read and export, with nothing to act on', async () => {
     const calls = stub({ open: [NOT_RECORDED], list: [row()] });
     const user = show({ canManage: false });
@@ -252,6 +268,32 @@ describe('ActivityTab', () => {
     expect(await screen.findByText('No payments match these filters.')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(await screen.findByTestId('activity-table')).toBeTruthy();
+  });
+
+  it('names PayPal once where the way and the service are both PayPal, in the list, a flag and the drawer', async () => {
+    const paypal = row({ id: 'pat_60', service: 'payments-paypal', paidWith: 'PayPal', way: 'paypal', currency: 'USD', amount: '25.00', asked: { amount: '25.00', currency: 'USD' } });
+    const refunded = row({ ...AT_STRIPE, id: 'prf_60', service: 'payments-paypal', paidWith: 'PayPal', way: 'paypal', currency: 'USD', amount: '10.00', asked: { amount: '10.00', currency: 'USD' } });
+    stub({ open: [refunded], list: [paypal] });
+    const user = show();
+    const card = await screen.findByTestId('activity-needs-look');
+    await waitFor(() => expect(textOf(card)).toContain('INV-0042 · PayPal · Live'));
+    expect(textOf(card)).not.toContain('PayPal · PayPal');
+    const table = await screen.findByTestId('activity-table');
+    expect(textOf(table)).toContain('PayPal');
+    expect(textOf(table)).not.toContain('PayPal · PayPal');
+    await user.click(within(table).getByRole('button', { name: /INV-0042/ }));
+    expect(textOf(await screen.findByTestId('activity-drawer'))).toContain('PayPal says paid');
+  });
+
+  it('tells a lost dispute’s money as returned to the customer in its story', async () => {
+    const lost = row({ id: 'prf_70', kind: 'refund', amount: '120.00', state: 'succeeded', group: 'refunded', refundSource: 'dispute' });
+    stub({ open: [], list: [lost] });
+    const user = show();
+    const table = await screen.findByTestId('activity-table');
+    await user.click(within(table).getByRole('button', { name: /INV-0042/ }));
+    const drawer = await screen.findByTestId('activity-drawer');
+    expect(textOf(drawer)).toContain('Dispute lost — €120.00 returned to the customer');
+    expect(textOf(drawer)).not.toContain('Refund of €120.00 started');
   });
 
   it('says when there are no payments yet, and when they could not be loaded', async () => {

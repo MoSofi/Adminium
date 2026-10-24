@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { expect, test, type Page } from '@playwright/test';
 
@@ -27,6 +27,17 @@ export function useOwnPrincipal(key: OwnPrincipal): string {
   test.beforeAll(async ({ browser }) => {
     // Room to sit out the login bucket once (below).
     test.setTimeout(150_000);
+    /*
+     * Two files may share one principal. The second reuses the first's session
+     * while it is still good, so sharing costs one login, not two: the
+     * `auth-login` bucket is 5 a minute for the whole run.
+     */
+    if (existsSync(ownStorageStatePath(key))) {
+      const kept = await browser.newContext({ baseURL: BASE_URL, storageState: ownStorageStatePath(key) });
+      const alive = (await kept.request.get('/api/v1/bootstrap')).ok();
+      await kept.close();
+      if (alive) return;
+    }
     // An empty state, stated: a context made here would otherwise load the very file it is about to write.
     const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();

@@ -332,8 +332,8 @@ describe('what would carry a private table\'s rows out, or lean on it', () => {
     // A step of a one-to-one is the rep's and the manager's whose one-to-one it is: exactly who reads that row.
     const steps = { ref: 'steps', columns: [id, fk('note_id', 'one_to_ones'), { ref: 'text', type: 'text', maxLength: 200 }], belongs: [{ column: 'note_id', person: 'rep_id' }, { column: 'note_id', person: 'manager_id' }] };
     const reader = { ...rep, permissions: [...rep.permissions, 'table:@steps:read', 'table:@steps:create', 'table:@steps:update'], limits: { ...rep.limits, steps: { rows: { read: own, update: own } } } };
-    // A way through a private row by its own people is read from 0.3.33 on (`belongs.throughPrivate`).
-    expect(messages(manifest({ tables: [...tables(), steps], roles: [reader, manager, accounts], floor: '0.3.33' }))).toEqual([]);
+    // A way through a private row by its own people is read from 0.3.35 on (`belongs.throughPrivate`).
+    expect(messages(manifest({ tables: [...tables(), steps], roles: [reader, manager, accounts], floor: '0.3.35' }))).toEqual([]);
     // A copy out of the row it hangs on stays refused, however the row is reached.
     const copied = { ...steps, columns: [...steps.columns, { ref: 'about', type: 'text', maxLength: 400, nullable: true, rules: { copy: { via: 'note_id', from: 'note' } } }] };
     expect(privately(beside(copied)).some((message) => message.endsWith('nothing is copied out of it'))).toBe(true);

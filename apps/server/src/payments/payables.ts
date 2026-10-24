@@ -369,7 +369,11 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
         };
 
   if (currency === null || !ISO.test(currency)) {
-    return { ...base, ...people, currency: '', total: '0', due: '0', refusal: refused('NO_CURRENCY', 'This record has no currency.'), status: mapping.status, recordInto };
+    // A value that is there but no code (an order number in the wrong column) is named, so the mapping can be put right.
+    const held = 'column' in mapping.currency ? row[mapping.currency.column] : null;
+    const shown = typeof held === 'string' || typeof held === 'number' ? String(held).trim().slice(0, 40) : '';
+    const message = shown === '' ? 'This record has no currency.' : `${shown} is not a currency code.`;
+    return { ...base, ...people, currency: '', total: '0', due: '0', refusal: refused('NO_CURRENCY', message), status: mapping.status, recordInto };
   }
   const scale = currencyScale(currency);
   const total = mapping.amount.unit === 'minor' ? fromMinorUnits(row[mapping.amount.column], scale) : exactAmount(row[mapping.amount.column], scale);

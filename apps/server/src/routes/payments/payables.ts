@@ -27,7 +27,7 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { isRowLimited } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
-import { payableIssues, PAYABLE_ISSUES, type PayableIssue } from '../../payments/payable-rules.js';
+import { payableIssues, PAYABLE_ISSUES, valuesOf, type PayableIssue } from '../../payments/payable-rules.js';
 import { createPayableSources, resolvePayable, rowKeyOf, type PayableSources } from '../../payments/payables.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -46,6 +46,8 @@ const tableBody = z.object({
   tableId: z.string().min(1).max(255),
   mapping: payableMappingSchema,
 });
+/** The check also names the status column being chosen while its values are not chosen yet, to read them back. */
+const checkBody = tableBody.extend({ statusColumn: z.string().min(1).max(255).nullable().optional() });
 const idParams = z.object({ id: z.string().min(1).max(64) });
 const patchBody = z.object({ mapping: payableMappingSchema.optional(), enabled: z.boolean().optional() });
 
@@ -62,7 +64,19 @@ const previewRow = z.object({
   due: z.string(),
   refusal: z.object({ code: z.string(), message: z.string() }).nullable(),
 });
-const checkReply = z.object({ data: z.object({ issues: z.array(issueView), mayMark: mayMarkView, preview: z.array(previewRow) }) });
+const checkReply = z.object({
+  data: z.object({
+    issues: z.array(issueView),
+    mayMark: mayMarkView,
+    preview: z.array(previewRow),
+    /**
+     * The values the status column (the mapping's, else `statusColumn`) may
+     * take, by the rule the save checks (`valuesOf`); null when it has no list
+     * or none is named.
+     */
+    statusValues: z.array(z.string()).nullable(),
+  }),
+});
 
 const profileView = z.object({
   id: z.string(),
@@ -141,6 +155,16 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
     return out;
   }
 
+  /** The values a status column may take (the save's own rule), or null. */
+  async function statusValuesOf(connectionId: string, tableId: string, column: string | null): Promise<string[] | null> {
+    if (column === null) return null;
+    const model = await modelOf(connectionId);
+    const found = model.tables.find((one) => one.id === tableId)?.columns.find((one) => one.name === column);
+    if (found === undefined) return null;
+    const values = valuesOf(model, found);
+    return values === null ? null : [...values];
+  }
+
   function viewOf(profile: Awaited<ReturnType<typeof profiles.byId>>) {
     if (profile === null) throw new NotFoundError('No such payable table.');
     return {
@@ -183,7 +207,7 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
       {
         preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
         config: { audit: auditExempt('checking a mapping and previewing three rows saves nothing; marking the table is what is audited') },
-        schema: { body: tableBody, response: { 200: checkReply } },
+        schema: { body: checkBody, response: { 200: checkReply } },
       },
       async (request) => {
         requirePerson(request);
@@ -196,6 +220,7 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
             mayMark: may,
             // Real rows only for someone who may read every row and column of the table.
             preview: issues.length === 0 && may.ok ? await preview(connectionId, tableId, mapping) : [],
+            statusValues: await statusValuesOf(connectionId, tableId, mapping.status?.column ?? request.body.statusColumn ?? null),
           },
         };
       },

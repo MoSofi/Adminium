@@ -22,6 +22,8 @@ export const pathBody = z.object({ path: z.enum(['app', 'by-hand']) });
 export const stoppedBody = z.object({ stopped: z.boolean() });
 export const liveBody = z.object({ on: z.boolean() });
 /** Disconnect: stop new payments, or remove the keys (with payments still waiting, only once the person says they will settle them by hand). */
+/** An alarm banner, by the id the setup page read it with. */
+export const alarmParams = z.object({ id: z.string().min(1).max(64) });
 export const disconnectBody = z.object({ action: z.enum(['stop', 'remove']), settleByHand: z.boolean().default(false) });
 
 const fieldView = z.object({
@@ -107,6 +109,8 @@ export const setupReply = z.object({
     /** Changes of where the money goes, in the last 30 days, newest first. */
     alarms: z.array(
       z.object({
+        /** What "Got it" names (`POST /payments/alarms/:id/dismiss`). */
+        id: z.string(),
         what: z.enum(['account', 'bank', 'pay-address']),
         service: z.string().nullable(),
         from: z.string().nullable(),

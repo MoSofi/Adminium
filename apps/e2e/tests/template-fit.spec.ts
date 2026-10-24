@@ -24,7 +24,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { ENGINE } from './constants.js';
-import { chooseSeededSource, signIn } from './helpers.js';
+import { chooseSeededSource, signIn, useOwnPrincipal } from './helpers.js';
+
+// Its own `api` budget: both template-fit files run late, where the shared principal's minute is nearly spent.
+useOwnPrincipal('fit');
 
 /** Reach the create screen with a template chosen and the table picker ready. */
 async function startCalendar(page: Page): Promise<void> {

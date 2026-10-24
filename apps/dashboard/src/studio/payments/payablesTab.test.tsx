@@ -15,7 +15,7 @@
  *  7. someone who may only view gets no control.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -25,7 +25,7 @@ import { jsonResponse } from '../../test/fixtures.js';
 
 import { ApiError } from '../../app/api.js';
 import { PAYABLE_ISSUES, payableIssuesOf, type PayableCheck, type PayablesList } from './paymentsApi.js';
-import { issueSentence, PayablesTab } from './PayablesTab.js';
+import { issueSentence, PayablesTab, statusValuesOf } from './PayablesTab.js';
 
 const INVOICES = {
   id: 'public.invoices',
@@ -38,8 +38,12 @@ const INVOICES = {
     { name: 'total_cents', logicalType: 'integer' },
     { name: 'balance_cents', logicalType: 'integer' },
     { name: 'customer_email', logicalType: 'text', semantics: { flags: { pii: 'email' } } },
+    // A SQLite CHECK list: `text`, with the enum it names.
+    { name: 'state', logicalType: 'text', enumRef: 'main.invoices.state' },
+    { name: 'memo', logicalType: 'text' },
   ],
 };
+const ENUMS = [{ id: 'main.invoices.state', values: ['sent', 'paid', 'refunded'] }];
 const PAYMENTS = {
   id: 'public.invoice_payments',
   schema: 'public',
@@ -74,7 +78,7 @@ function stub(list: PayablesList, check: PayableCheck | { status: number; body: 
       if (url === '/api/v1/payments/payables' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: list }));
       if (url === '/api/v1/payments/payables/check') return Promise.resolve('status' in check ? jsonResponse(check.status, check.body) : jsonResponse(200, { data: check }));
       if (url === '/api/v1/connections') return Promise.resolve(jsonResponse(200, { connections: [{ id: 'con_shop', name: 'Shop' }] }));
-      if (url === '/api/v1/connections/con_shop/schema') return Promise.resolve(jsonResponse(200, { connectionId: 'con_shop', snapshotId: 's1', model: { tables: [INVOICES, PAYMENTS], enums: [] } }));
+      if (url === '/api/v1/connections/con_shop/schema') return Promise.resolve(jsonResponse(200, { connectionId: 'con_shop', snapshotId: 's1', model: { tables: [INVOICES, PAYMENTS], enums: ENUMS } }));
       if (method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'not stubbed' } }));
     }),
@@ -212,6 +216,59 @@ describe('PayablesTab', () => {
     expect(textOf(own)).toContain('Choose the column that is unique for each payment.');
     expect(screen.getByText('A table that keeps its own payments names its balance, or a paid record would read as still owed.')).toBeTruthy();
     expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(true);
+  });
+
+  it('reads a status column\'s values by the server\'s rule: yes/no, else its enum whatever its type', () => {
+    expect(statusValuesOf({ name: 'done', logicalType: 'boolean' }, ENUMS)).toEqual(['true', 'false']);
+    expect(statusValuesOf({ name: 'state', logicalType: 'text', enumRef: 'main.invoices.state' }, ENUMS)).toEqual(['sent', 'paid', 'refunded']);
+    expect(statusValuesOf({ name: 'state', logicalType: 'enum', enumRef: 'main.invoices.state' }, ENUMS)).toEqual(['sent', 'paid', 'refunded']);
+    expect(statusValuesOf({ name: 'memo', logicalType: 'text' }, ENUMS)).toBeNull();
+    expect(statusValuesOf(undefined, ENUMS)).toBeNull();
+  });
+
+  /** Opens step 2 with the status switched on. */
+  async function statusStep(user: ReturnType<typeof userEvent.setup>) {
+    await openOnInvoices(user);
+    await user.click(within(await screen.findByTestId('payments-wizard-unit')).getByRole('radio', { name: /Cents/ }));
+    await waitFor(() => expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(false));
+    await user.click(screen.getByTestId('payments-wizard-next'));
+    await user.click(screen.getByLabelText('When it is paid in full, set Status to'));
+  }
+
+  it('offers the paid and refunded values of a CHECK-list status, and checks nothing of the status until its pair is chosen', async () => {
+    const { user, calls } = renderTab(EMPTY);
+    await statusStep(user);
+    await user.selectOptions(screen.getByLabelText('Status column'), 'state');
+    const paid = await screen.findByLabelText('Value when paid in full');
+    expect(within(paid).getAllByRole('option').map((one) => one.textContent)).toEqual(['Choose…', 'sent', 'paid', 'refunded']);
+    expect(within(screen.getByLabelText('When it is refunded in full, set Status to')).getAllByRole('option').map((one) => one.textContent)).toEqual(['Leave it as it is', 'sent', 'paid', 'refunded']);
+    // Incomplete: the check goes without the status, naming the column so its values come back; Next waits.
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/payments/payables/check').at(-1)?.body).toMatchObject({ mapping: { status: null }, statusColumn: 'state' }));
+    expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(true);
+    await user.selectOptions(paid, 'paid');
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/payments/payables/check').at(-1)?.body).toMatchObject({ mapping: { status: { column: 'state', paid: 'paid', refunded: null } } }));
+    await waitFor(() => expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(false));
+  });
+
+  it('takes the server\'s list for a column it sees values for, and offers no free text for a column with none', async () => {
+    const { user } = renderTab(EMPTY, { check: { ...CLEAN, statusValues: ['new', 'done'] } });
+    await statusStep(user);
+    await user.selectOptions(screen.getByLabelText('Status column'), 'memo');
+    await waitFor(() => expect(within(screen.getByLabelText('Value when paid in full')).getAllByRole('option').map((one) => one.textContent)).toEqual(['Choose…', 'new', 'done']));
+    cleanup();
+    const second = renderTab(EMPTY, { check: { ...CLEAN, statusValues: null } });
+    await statusStep(second.user);
+    await second.user.selectOptions(screen.getByLabelText('Status column'), 'memo');
+    expect(textOf(await screen.findByTestId('payments-wizard-status-no-values'))).toBe("Give this column a list of values (in the table's schema) to use it as a status.");
+    expect(screen.queryByLabelText('Value when paid in full')).toBeNull();
+    expect(isBlocked(screen.getByTestId('payments-wizard-next'))).toBe(true);
+  });
+
+  it('never shows a refused request\'s raw words in the preview', async () => {
+    const { user } = renderTab(EMPTY, { check: { status: 400, body: { error: { code: 'VALIDATION_FAILED', message: 'Request body failed validation.', details: { issues: [{ path: 'mapping.status.paid', message: 'Too small', code: 'too_small' }] } } } } });
+    await openOnInvoices(user);
+    expect(await screen.findByText('Finish the choices above to see three rows.')).toBeTruthy();
+    expect(screen.queryByText('Request body failed validation.')).toBeNull();
   });
 
   it('gives someone who may only view no control', async () => {

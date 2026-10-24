@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { useMaybeI18n, useMaybeT } from '../lib/i18n.js';
 
 import type { ChartTableOptions } from '../lib/chart-table.js';
-import { formatMetricValue, formatOptionsOf, type MetricFormat } from '../lib/format.js';
+import { formatChartMoney, formatMetricValue, formatOptionsOf, type MetricFormat } from '../lib/format.js';
 import type { WidgetSharedConfig } from '../registry/shared-config.js';
 import { pickLocalized, type Localized } from '../lib/localized.js';
 import { isEmptyData } from '../registry/data-empty.js';
@@ -239,14 +239,8 @@ export function WidgetHost({
         place: t('ui:frame.data.place', 'Place'),
       },
       number: (value) => (metricFormat === undefined ? numbers.format(value) : formatMetricValue(value, metricFormat, formatOptions)),
-      // A figure the answer says is money: whole, in the card's currency (a code no browser knows: the number).
-      money: (value) => {
-        try {
-          return new Intl.NumberFormat(formatOptions.locale ?? tag, { style: 'currency', currency: formatOptions.currency || 'USD', maximumFractionDigits: Number.isInteger(value) ? 0 : 2 }).format(value);
-        } catch {
-          return numbers.format(value);
-        }
-      },
+      // A figure the answer says is money: in the card's currency, else the plain number (walk fix E3).
+      money: (value) => formatChartMoney(value, { ...formatOptions, locale: formatOptions.locale ?? tag }),
       percent: (fraction) => shares.format(fraction),
       period: (iso) => {
         const at = new Date(iso);

@@ -70,7 +70,7 @@ describe('kpi-stat-card', () => {
   it('formats the value per config.metricFormat and renders label + delta', () => {
     render(
       <KpiStatCard
-        config={statCardConfig({ metricLabel: 'Revenue (30d)', metricFormat: 'currency' })}
+        config={statCardConfig({ metricLabel: 'Revenue (30d)', metricFormat: 'currency', format: { currency: 'USD' } })}
         data={{ value: 48_210, prior: 42_900 }}
         instanceId="w1"
         onEvent={noop}
@@ -85,6 +85,19 @@ describe('kpi-stat-card', () => {
 
   // At the default 3×1.5 a label under the 36px tile ran the value off the
   // card; jsdom cannot measure that, so pin the two geometries instead.
+  it('shows a money value with no currency set as a plain number, never a guessed "$" (walk fix E3)', () => {
+    render(
+      <KpiStatCard
+        config={statCardConfig({ metricLabel: 'Revenue (30d)', metricFormat: 'currency' })}
+        data={{ value: 48_210, prior: 42_900 }}
+        instanceId="w-no-currency"
+        onEvent={noop}
+      />,
+    );
+    expect(screen.getByText('48,210')).toBeDefined();
+    expect(screen.queryByText(/\$/)).toBeNull();
+  });
+
   it('takes the small tile and the tight gap only when a metric label is set', () => {
     const { container, rerender } = render(
       <KpiStatCard config={statCardConfig({ metricLabel: 'Revenue (30d)' })} data={{ value: 1284 }} instanceId="w1b" onEvent={noop} />,
@@ -518,7 +531,7 @@ describe('metric-hero', () => {
   it('renders the final value immediately when countUp is off', () => {
     render(
       <MetricHero
-        config={cfg(metricHeroConfigSchema, { countUp: false, metricFormat: 'currency' })}
+        config={cfg(metricHeroConfigSchema, { countUp: false, metricFormat: 'currency', format: { currency: 'USD' } })}
         data={{ value: 480_000, prior: 360_000 }}
         instanceId="h1"
         onEvent={noop}
@@ -530,7 +543,7 @@ describe('metric-hero', () => {
   it('renders the goal track with the computed percentage', () => {
     const { container } = render(
       <MetricHero
-        config={cfg(metricHeroConfigSchema, { countUp: false, goalValue: 650_000, goalLabel: 'Goal' })}
+        config={cfg(metricHeroConfigSchema, { countUp: false, goalValue: 650_000, goalLabel: 'Goal', format: { currency: 'USD' } })}
         data={{ value: 481_000 }}
         instanceId="h2"
         onEvent={noop}
@@ -615,6 +628,7 @@ describe('stat-pair-card', () => {
           metricBLabel: 'Customers',
           metricAFormat: 'currency',
           metricBFormat: 'plain',
+          format: { currency: 'USD' },
         })}
         data={{ value: 48_000, valueB: 1_204 }}
         instanceId="p1"
@@ -922,7 +936,7 @@ describe('period-comparison', () => {
   it('renders both period bars and the computed diff footer', () => {
     const container = comparison(
       { value: 48_200, prior: 35_100 },
-      { periodALabel: 'This month', periodBLabel: 'Last month', metricFormat: 'currency' },
+      { periodALabel: 'This month', periodBLabel: 'Last month', metricFormat: 'currency', format: { currency: 'USD' } },
     );
     expect(screen.getByText('This month')).toBeDefined();
     expect(screen.getByText('Last month')).toBeDefined();

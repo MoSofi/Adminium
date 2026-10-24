@@ -118,6 +118,8 @@ export interface Reachability {
 }
 
 export interface MoneyAlarm {
+  /** What "Got it" names. Absent from a server one step behind (no "Got it" then). */
+  id?: string;
   what: 'account' | 'bank' | 'pay-address';
   service: string | null;
   from: string | null;
@@ -145,6 +147,11 @@ export function paymentsSetupQuery() {
 }
 
 const service = (key: string) => `/api/v1/payments/services/${encodeURIComponent(key)}`;
+
+/** "Got it" on an alarm banner: hidden for this person only. */
+export async function dismissAlarm(id: string): Promise<void> {
+  await api.post(`/api/v1/payments/alarms/${encodeURIComponent(id)}/dismiss`);
+}
 
 export async function saveField(key: string, mode: PaymentMode, field: string, value: string): Promise<ServiceView> {
   return (await api.put<{ data: ServiceView }>(`${service(key)}/modes/${mode}/fields/${encodeURIComponent(field)}`, { value })).data;
@@ -372,6 +379,8 @@ export interface PayableCheck {
   issues: PayableIssue[];
   mayMark: { ok: boolean; reason: 'read' | 'update' | 'row-limit' | 'column-limit' | 'payments-create' | null };
   preview: { rowKey: string; label: string; currency: string; due: string; refusal: { code: string; message: string } | null }[];
+  /** The values the status column may take, by the rule the save checks; null when it has none. Absent from a server one step behind. */
+  statusValues?: string[] | null;
 }
 
 export const PAYMENTS_PAYABLES_QUERY_KEY = ['payments', 'payables'] as const;
@@ -384,8 +393,9 @@ export function paymentsPayablesQuery() {
   });
 }
 
-export async function checkPayable(connectionId: string, tableId: string, mapping: PayableMapping): Promise<PayableCheck> {
-  return (await api.post<{ data: PayableCheck }>('/api/v1/payments/payables/check', { connectionId, tableId, mapping })).data;
+/** `statusColumn`: the status column being chosen while its values are not, so its values come back. */
+export async function checkPayable(connectionId: string, tableId: string, mapping: PayableMapping, statusColumn: string | null = null): Promise<PayableCheck> {
+  return (await api.post<{ data: PayableCheck }>('/api/v1/payments/payables/check', { connectionId, tableId, mapping, ...(statusColumn === null ? {} : { statusColumn }) })).data;
 }
 
 export async function markPayable(connectionId: string, tableId: string, mapping: PayableMapping): Promise<PayableProfileView> {

@@ -129,6 +129,15 @@ describe('a marked table', () => {
     expect(payable).toMatchObject({ label: 'C-1042', total: '35.00', due: '35.00', customerEmail: 'lena@example.com', customerCountry: 'DE', refusal: null });
   });
 
+  it('names a currency column value that is no code, so the mapping can be put right', async () => {
+    const byColumn: ParsedPayableMapping = { ...mapping, currency: { column: 'currency' } };
+    const read = (currency: unknown) => resolvePayable(sources({ profile: async () => ({ id: 'ppf_1', enabled: true, mapping: byColumn }), rows: { '7': { id: 7, order_no: 'C-1042', total_cents: 3500, currency } } }), PROFILE);
+    expect((await read('ORD-1001'))?.refusal).toEqual({ code: 'NO_CURRENCY', message: 'ORD-1001 is not a currency code.' });
+    expect((await read(null))?.refusal).toEqual({ code: 'NO_CURRENCY', message: 'This record has no currency.' });
+    expect((await read('  '))?.refusal).toEqual({ code: 'NO_CURRENCY', message: 'This record has no currency.' });
+    expect((await read('eur'))?.refusal).toBeNull();
+  });
+
   it('is not payable when switched off or when its mapping no longer reads', async () => {
     const off = await resolvePayable(sources({ profile: async () => ({ id: 'ppf_1', enabled: false, mapping }), rows: { '7': { id: 7, total_cents: 1 } } }), PROFILE);
     expect(off?.refusal?.code).toBe('NOT_PAYABLE');

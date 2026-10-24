@@ -26,7 +26,7 @@
  *   counts the same). A link whose payments keep failing locks for the hour.
  * - Nothing is ever cached, and no referrer leaves the page.
  */
-import { subtractAmounts } from '@adminium/add-on-contracts';
+import { subtractAmounts, type PaymentMode } from '@adminium/add-on-contracts';
 import { localeFromTag, type LocaleId } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
 import { translationsRepo, paymentAttemptsRepo, paymentCountersRepo, paymentLinksRepo, paymentMethodsRepo, paymentSettingsRepo, publicProofsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
@@ -39,6 +39,7 @@ import { LINK_FAILURES_TO_LOCK, linkFailBucket, type CheckoutService } from '../
 import { linkForToken, linkOpens, linkStateForToken, payAddress, payReachable } from '../../payments/links.js';
 import { currencyScale } from '@adminium/manifest';
 import { resolvePayable, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
+import type { ProviderLookup } from '../../payments/providers.js';
 import { isTestPayable } from '../../payments/test-payables.js';
 import { waysFor, type WayOffer } from '../../payments/ways.js';
 import { checkProof, issueChallenge, proofKey } from '../../public-api/proof.js';
@@ -58,6 +59,8 @@ export interface PayRoutesDeps {
   trustProxy: boolean;
   /** Whether the receipt email went out for a payment; none sent when not given. */
   receiptSent?: (attempt: PaymentAttempt) => Promise<boolean>;
+  /** The provider for a key and mode (`paymentProviderFor`): what a staff test payment offers by default. */
+  providerFor?: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
   now?: () => number;
 }
 
@@ -120,11 +123,11 @@ const pageReply = z.object({
 });
 type PageReply = z.infer<typeof pageReply>;
 const challengeReply = z.object({ id: z.string(), salt: z.string(), difficulty: z.number(), expiresAt: z.number() });
-const checkoutReply = z.union([z.object({ url: z.string() }), z.object({ state: z.enum(PAY_STATES), message: z.string().nullable() })]);
+const checkoutReply = z.union([z.object({ url: z.string() }), z.object({ state: z.enum(PAY_STATES), message: z.string().nullable(), code: z.string().optional() })]);
 
-/** A checkout answer that is a state, not a redirect. */
-function say(state: PayState, message: string | null = null): { state: PayState; message: string | null } {
-  return { state, message };
+/** A checkout answer that is a state, not a redirect; `code` is why the service refused, so the page can say what may follow. */
+function say(state: PayState, message: string | null = null, code?: string): { state: PayState; message: string | null; code?: string } {
+  return code === undefined ? { state, message } : { state, message, code };
 }
 
 function noStore(reply: FastifyReply): void {
@@ -191,7 +194,9 @@ export function createPayPageReader(deps: PayRoutesDeps) {
       if (payable.onlyProvider === 'demo') return mode === 'test' ? [{ source: 'demo', method: 'card', label: null, details: null }] : [];
       if (!(await deps.readyProviders(mode)).includes(payable.onlyProvider)) return [];
       const methods = (await paymentMethodsRepo(meta).list()).filter((one) => one.source === payable.onlyProvider && one.enabled);
-      return methods.length === 0 ? [{ source: payable.onlyProvider, method: 'card', label: null, details: null }] : methods.map((one) => ({ source: one.source, method: one.method, label: null, details: null }));
+      if (methods.length > 0) return methods.map((one) => ({ source: one.source, method: one.method, label: null, details: null }));
+      // No way of it set up yet: the service's own first way (PayPal takes `paypal` only), else a card.
+      return [{ source: payable.onlyProvider, method: (await firstMethodOf(payable.onlyProvider, mode, payable)) ?? 'card', label: null, details: null }];
     }
     const ways = waysFor({
       methods: await paymentMethodsRepo(meta).list(),
@@ -201,6 +206,19 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     });
     // A test link opens only for staff: it also offers the demo service, so a test payment needs no account.
     return mode === 'test' && !ways.some((way) => way.source === 'demo') ? [...ways, { source: 'demo', method: 'card', label: null, details: null }] : ways;
+  }
+
+  /** The first way a service lists for this payable (the list Ways to pay offers), or null when it cannot be asked. */
+  async function firstMethodOf(key: string, mode: 'test' | 'live', payable: ResolvedPayable): Promise<string | null> {
+    if (deps.providerFor === undefined) return null;
+    try {
+      const lookup = await deps.providerFor(key, mode);
+      if (!lookup.ok) return null;
+      const answer = await lookup.provider.methodsFor({ country: null, currency: payable.currency, amount: payable.due });
+      return answer.ok === true ? (answer.methods[0]?.id ?? null) : null;
+    } catch {
+      return null;
+    }
   }
 
   async function profileIdOf(payable: ResolvedPayable): Promise<string | null> {
@@ -472,7 +490,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         if (started.kind === 'redirect') return { url: started.url };
         if (started.kind === 'in-progress') return say('processing');
         if (started.kind === 'busy') return say('checking');
-        return say('failed', started.message);
+        return say('failed', started.message, started.code);
       },
     );
 

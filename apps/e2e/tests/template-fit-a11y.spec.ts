@@ -14,7 +14,10 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { chooseSeededSource, signIn } from './helpers.js';
+import { chooseSeededSource, signIn, useOwnPrincipal } from './helpers.js';
+
+// Its own `api` budget: both template-fit files run late, where the shared principal's minute is nearly spent.
+useOwnPrincipal('fit');
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);

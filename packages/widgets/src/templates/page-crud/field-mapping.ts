@@ -209,6 +209,7 @@ export function controlForColumn(
     name: column.name,
     logicalType: column.logicalType,
     semantic: column.semantic,
+    format: column.format,
     nullable: column.nullable,
     maxLength: column.maxLength,
     primaryKey: column.primaryKey,

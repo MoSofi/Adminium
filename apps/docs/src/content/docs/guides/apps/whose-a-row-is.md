@@ -212,7 +212,7 @@ people the private row itself names: the steps of a coaching area are the rep's 
 manager's of that area (`{ "column": "area_id", "person": "rep_id" }` and the same with
 `manager_id`). Nobody else reaches them through it, not even the rep's team lead, and a writer
 held to some rows hangs a step only on an area that names them. Nothing is copied out of a private
-row. Needs Adminium 0.3.33.
+row. Needs Adminium 0.3.35.
 
 ## What a row limit does not do
 

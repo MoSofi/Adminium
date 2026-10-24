@@ -47,4 +47,18 @@ describe('a date’s bounds', () => {
       { op: 'column.bounds', tableName: 'public.order_notes', columnName: 'body', value: { notAfter: 'today', notBefore: { column: 'issued_on', via: 'invoice_id' } } },
     ]);
   });
+
+  it('says a moment not before now, and an end held to another column or to so many days after it', async () => {
+    installFetch({
+      overridesRows: () => [
+        row('column.bounds', 'body', { notBefore: 'now', notAfter: { column: 'starts_on', days: 365 } }, 'ovr_now'),
+      ],
+    });
+    renderEditor();
+    await userEvent.click(await screen.findByRole('button', { name: /Order notes/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Body/ }));
+    const decided = await screen.findByTestId('rules-decided');
+    expect(decided.textContent).toContain('At most 365 days after starts_on; Never before now, on a new row');
+    expect(decided.textContent).not.toContain('undefined');
+  });
 });

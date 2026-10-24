@@ -23,7 +23,11 @@
  *   3. A new attempt is made (`creating`), the provider is asked for a
  *      checkout with the attempt id as its reference, the page it answers
  *      with is checked against the provider's own hosts, and only then is
- *      the attempt `open` and the customer sent there.
+ *      the attempt `open` and the customer sent there. Anything that throws
+ *      on the way (the provider's call, writing its answer down) moves the
+ *      attempt to `failed` with the problem at once: a `creating` attempt
+ *      holds the payable, and every later Pay would wait on it until the
+ *      planner lets it go.
  *
  * ─── SETTLING (the return page, a webhook, the sweep) ──────────────────────
  *
@@ -33,7 +37,9 @@
  * read again: if it no longer owes what was asked, it is not captured. A
  * success whose mode is not the attempt's is not believed. A success moves
  * the attempt to `succeeded` and queues the record job, which checks the
- * amounts once more and writes the payment exactly once.
+ * amounts once more and writes the payment exactly once. The moment an
+ * attempt learns which money it took (succeeded or processing), the dispute
+ * and refund events that arrived about that money first are followed.
  *
  * Settling one attempt runs one at a time in this process (the three callers
  * can arrive together), and a provider's capture key is per capture try, so a
@@ -52,6 +58,8 @@ import { DEMO_PAYMENT_KEY, isProviderError, sameAmount, type CheckoutState, type
 import { paymentAttemptsRepo, paymentCountersRepo, paymentSettingsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
 import { randomBytes } from 'node:crypto';
 
+import { followUnattached } from './events.js';
+import type { NoticeDeps } from './notices.js';
 import { resolvePayable, type PayableSources, type ResolvedPayable } from './payables.js';
 import { checkoutUrlAllowed, type ProviderLookup } from './providers.js';
 import { enqueueRecord } from './record.js';
@@ -63,6 +71,8 @@ export interface CheckoutDeps {
   /** The provider for a key and mode, built for one operation (`paymentProviderFor`). */
   providerFor: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
   enqueue: (input: { kind: string; payload: Record<string, unknown>; dedupeKey: string; maxAttempts: number }) => Promise<unknown>;
+  /** Who is told of a dispute that arrived before its payment was known. */
+  notices?: NoticeDeps;
   now?: () => number;
 }
 
@@ -225,7 +235,21 @@ export function createCheckoutService(deps: CheckoutDeps) {
     );
     // Another request made one between our read and our write: theirs stands.
     if (attempt === null) return { kind: 'busy' };
+    try {
+      return await askForCheckout(input, lookup, attempt, nonce);
+    } catch (error) {
+      // Nothing may keep holding the payable on a throw: the attempt fails now, with what went wrong.
+      const message = error instanceof Error && error.message !== '' ? error.message.slice(0, 500) : 'The checkout could not be made.';
+      await attempts.move(attempt.id, 'failed', { problem: { code: 'CREATE_FAILED', message } }, now()).catch(() => false);
+      // The customer reads a sentence, never the error: that is kept on the attempt for staff.
+      return { kind: 'refused', code: 'CREATE_FAILED', message: 'The payment could not be started. Try again in a moment.', retryable: true };
+    }
+  }
 
+  /** The provider is asked for the attempt's checkout, and its answer written down. */
+  async function askForCheckout(input: StartInput, lookup: Extract<ProviderLookup, { ok: true }>, attempt: PaymentAttempt, nonce: string): Promise<StartOutcome> {
+    const { payable } = input;
+    const mode = input.link.mode;
     const address = input.payAddress.replace(/\/$/, '');
     const made = await lookup.provider.createCheckout({
       payable: { reference: payable.label, description: payable.label, amount: payable.due, currency: payable.currency, customerEmail: payable.customerEmail, locale: input.locale },
@@ -283,6 +307,12 @@ export function createCheckoutService(deps: CheckoutDeps) {
     }), at);
   }
 
+  /** A dispute or refund that arrived about this attempt's money before it knew the money: followed now. */
+  async function followEarlyEvents(attemptId: string): Promise<void> {
+    const fresh = await attempts.byId(attemptId);
+    if (fresh !== null) await followUnattached({ meta: deps.meta, enqueue: deps.enqueue, ...(deps.notices === undefined ? {} : { notices: deps.notices }), now }, fresh);
+  }
+
   /** Moves an attempt as the provider's own status says. */
   async function apply(attempt: PaymentAttempt, state: CheckoutState, viaEvent: boolean): Promise<void> {
     const at = now();
@@ -305,11 +335,12 @@ export function createCheckoutService(deps: CheckoutDeps) {
       if (ok) {
         await enqueueRecord(deps.enqueue, attempt.id);
         await noteFirstPayment(attempt, at);
+        await followEarlyEvents(attempt.id);
       }
       return;
     }
     if (state.status === 'processing' && attempt.state === 'open') {
-      await moved('processing', { paymentRef: state.paymentRef, takenAmount: state.amount, takenCurrency: state.currency, paidWith: state.paidWith });
+      if (await moved('processing', { paymentRef: state.paymentRef, takenAmount: state.amount, takenCurrency: state.currency, paidWith: state.paidWith })) await followEarlyEvents(attempt.id);
       return;
     }
     const closing = { failed: 'failed', expired: 'expired', cancelled: 'cancelled' } as const;

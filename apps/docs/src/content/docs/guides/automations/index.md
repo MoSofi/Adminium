@@ -69,7 +69,7 @@ hand. A "record created" rule claims a row by its key **and** its
 the new row it is; a row that was only changed carries the same `created_at`,
 and never runs it twice. A table watched by an increasing key alone has no
 moment to tell the two apart: there only a delete made through Adminium lets
-the key go (Adminium 0.3.33).
+the key go (Adminium 0.3.35).
 
 **Watching starts from now.** Switching a rule on does not send a welcome
 email to every user who ever signed up.

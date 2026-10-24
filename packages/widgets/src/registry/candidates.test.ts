@@ -35,6 +35,7 @@ interface ColumnSpec {
   name: string;
   logicalType: string;
   semantic: string;
+  format?: string;
   enumValues?: string[];
   references?: { tableId: string; column: string };
   pair?: { role: string; partner: string };
@@ -65,6 +66,7 @@ function build(
   const classifiedColumns: ClassifiedColumnInput[] = specs.map((spec) => ({
     column: spec.name,
     semantic: spec.semantic,
+    ...(spec.format === undefined ? {} : { format: spec.format }),
     pair: spec.pair ?? null,
   }));
   const table: CandidateTable = {
@@ -110,6 +112,18 @@ const orders = build(
   ],
   { displayColumn: 'order_ref', shape: 'catalog' },
 );
+
+describe('kpi.money-sum on money kept in minor units (walk fix E3)', () => {
+  it('sums an amount_cents column as a plain number, never as whole currency units', () => {
+    const cents = build('public.payments', [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'amount_cents', logicalType: 'integer', semantic: 'money', format: 'currency-cents' },
+      { name: 'created_at', logicalType: 'timestamptz', semantic: 'created-at' },
+    ]);
+    const money = emitCandidates(cents.table, cents.classified, ctx).find((c) => c.rule === 'kpi.money-sum') as WidgetCandidate;
+    expect(money.config).toEqual({ title: 'Total Amount Cents', metricFormat: 'plain' });
+  });
+});
 
 function byFamily(candidates: WidgetCandidate[], family: string): WidgetCandidate[] {
   return candidates.filter((c) => c.family === family);

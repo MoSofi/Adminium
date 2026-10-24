@@ -13,11 +13,14 @@
  * The notice's words are English fallbacks; its `kind` is the key the
  * notification centre words it by, in the reader's language, when shown.
  * The setup page reads the same changes back from the audit log (the last
- * 30 days), so the alarm stays on screen after the notice is read.
+ * 30 days), so the alarm stays on screen after the notice is read — until
+ * the person reading it says "Got it": hidden for them alone (the email went
+ * out to everyone either way; another manager still sees it).
  */
 import { randomBytes } from 'node:crypto';
 
-import type { MetaDb } from '@adminium/meta';
+import { paymentSettingsRepo, type MetaDb } from '@adminium/meta';
+import { z } from 'zod';
 
 import type { NotificationPublisher } from '../notifications/notify.js';
 import { paymentManagers, providerName, tellPaymentManagers } from './notices.js';
@@ -84,22 +87,43 @@ export async function raiseMoneyRedirect(
   );
 }
 
-/** The alarms of the last 30 days, newest first, from the audit log. */
-export async function recentAlarms(meta: MetaDb, at: number): Promise<(MoneyRedirect & { at: number })[]> {
+/** The alarms one person said "Got it" to: a document per person, the newest ids kept. */
+export function alarmsSeenDocName(userId: string): string {
+  return `alarms-seen:${userId}`;
+}
+
+const alarmsSeenSchema = z.object({ ids: z.array(z.string().max(64)).max(200) }).strict();
+
+/** How many dismissed alarms a person's document keeps (an alarm older than 30 days is not shown anyway). */
+const SEEN_KEPT = 200;
+
+/** Hides one alarm for one person. False when it is no alarm of the last 30 days. */
+export async function dismissAlarm(meta: MetaDb, userId: string, alarmId: string, at: number): Promise<boolean> {
+  if (!(await recentAlarms(meta, at)).some((alarm) => alarm.id === alarmId)) return false;
+  const docs = paymentSettingsRepo(meta);
+  const name = alarmsSeenDocName(userId);
+  const seen = (await docs.get(name, alarmsSeenSchema))?.ids ?? [];
+  if (!seen.includes(alarmId)) await docs.set(name, alarmsSeenSchema, { ids: [alarmId, ...seen].slice(0, SEEN_KEPT) }, at);
+  return true;
+}
+
+/** The alarms of the last 30 days, newest first, from the audit log; without the ones `forUser` said "Got it" to. */
+export async function recentAlarms(meta: MetaDb, at: number, forUser?: string | null): Promise<(MoneyRedirect & { id: string; at: number })[]> {
+  const hidden = new Set(forUser == null ? [] : ((await paymentSettingsRepo(meta).get(alarmsSeenDocName(forUser), alarmsSeenSchema))?.ids ?? []));
   // Asked of the database by action and age, so a busy month of other payment rows never pushes one out.
   const rows = await meta.db
     .selectFrom('adminium_audit_log')
-    .select(['action', 'actorLabel', 'changes', 'createdAt'])
+    .select(['id', 'action', 'actorLabel', 'changes', 'createdAt'])
     .where('category', '=', 'payments')
     .where('action', 'in', Object.keys(ALARM_ACTIONS))
     .where('createdAt', '>=', at - ALARM_SHOWN_MS)
     .orderBy('createdAt', 'desc')
     .limit(100)
     .execute();
-  const out: (MoneyRedirect & { at: number })[] = [];
+  const out: (MoneyRedirect & { id: string; at: number })[] = [];
   for (const row of rows) {
     const what = (ALARM_ACTIONS as Record<string, AlarmKind | undefined>)[row.action];
-    if (what === undefined) continue;
+    if (what === undefined || hidden.has(String(row.id))) continue;
     const changes = (typeof row.changes === 'string' ? JSON.parse(row.changes) : row.changes) as Record<string, unknown> | null;
     const before = (changes?.['before'] ?? null) as Record<string, unknown> | null;
     const after = (changes?.['after'] ?? null) as Record<string, unknown> | null;
@@ -108,6 +132,7 @@ export async function recentAlarms(meta: MetaDb, at: number): Promise<(MoneyRedi
     const field = what === 'account' ? 'accountId' : what === 'pay-address' ? 'origin' : null;
     const text = (value: unknown) => (typeof value === 'string' ? value : null);
     out.push({
+      id: String(row.id),
       what,
       service: text(after?.['key']),
       from: field === null ? null : text(before?.[field]),
