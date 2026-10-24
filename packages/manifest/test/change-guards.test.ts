@@ -74,7 +74,7 @@ function manifest(over: { tables?: Doc[]; roles?: unknown[]; floor?: string; aut
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: over.floor ?? '0.3.33' },
+    compatibility: { minAdminiumVersion: over.floor ?? '0.3.35' },
     requiredSchema: { tables: over.tables ?? tables() },
     pages: [{ ref: 'crm-deals', template: 'page-crud', title: { key: 't', fallback: 'Deals' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'deals' } }],
     roles: over.roles ?? [managerOf()],
@@ -94,11 +94,11 @@ describe('a reach that leaves out the person a column names (notBy)', () => {
     expect(messages(manifest())).toEqual([]);
   });
 
-  it('is a word of 0.3.33, found where it is written', () => {
+  it('is a word of 0.3.35, found where it is written', () => {
     expect(installFloorWords(manifest())).toContainEqual({ word: 'rows.notBy', path: 'roles.0.limits.targets.rows.update' });
     expect(installFloorWords(manifest())).toContainEqual({ word: 'rows.notBy', path: 'roles.0.limits.starter_goals.rows.update' });
-    expect(WORD_FLOORS['rows.notBy']).toBe('0.3.33');
-    expect(messages(manifest({ floor: '0.3.32' })).some((message) => message.includes('0.3.33'))).toBe(true);
+    expect(WORD_FLOORS['rows.notBy']).toBe('0.3.35');
+    expect(messages(manifest({ floor: '0.3.34' })).some((message) => message.includes('0.3.35'))).toBe(true);
   });
 
   it('names a staff column of the row, or of the row a link names', () => {
@@ -128,11 +128,11 @@ describe('a reach that leaves out the person a column names (notBy)', () => {
 });
 
 describe('when, and by whom, a column may change (changes)', () => {
-  it('validates the approval guard and the claimed enquiry guard, as a word of 0.3.33', () => {
+  it('validates the approval guard and the claimed enquiry guard, as a word of 0.3.35', () => {
     expect(messages(manifest())).toEqual([]);
     expect(installFloorWords(manifest())).toContainEqual({ word: 'column.changes', path: 'requiredSchema.tables.1.columns.2.rules.changes' });
     expect(installFloorWords(manifest())).toContainEqual({ word: 'column.changes', path: 'requiredSchema.tables.2.columns.3.rules.changes' });
-    expect(WORD_FLOORS['column.changes']).toBe('0.3.33');
+    expect(WORD_FLOORS['column.changes']).toBe('0.3.35');
   });
 
   it('says what a change waits for, in values the columns hold', () => {

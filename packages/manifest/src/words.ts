@@ -190,9 +190,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.belongs': '0.3.28',
   'table.private': '0.3.28',
   // A row hung on a private row, reached by a person that private row's own `belongs` names.
-  'belongs.throughPrivate': '0.3.33',
+  'belongs.throughPrivate': '0.3.35',
   // A table built on a shape holding its create to a condition on a column the app added.
-  'shape.create': '0.3.33',
+  'shape.create': '0.3.35',
   // What an app's role may be given of an add-on's table: the add-on's ceiling, cut to at every grant.
   'table.appGrants': '0.3.28',
   'roles.rows': '0.3.28',
@@ -232,7 +232,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'digest.by': '0.3.28',
   'digest.target': '0.3.28',
   // A section held to the rows of this year, or of the last days, by a date column on the business's calendar.
-  'digest.within': '0.3.33',
+  'digest.within': '0.3.35',
   // A row a step makes, read by a later step.
   'automations.stepName': '0.3.28',
   // More rules than a manifest could ship before (twelve).
@@ -287,20 +287,20 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'card.columnLabels': '0.3.28',
   'link.staffPath': '0.3.28',
   // When, and by whom, a column may change: from some values, while another holds one, by or never by a person the row names.
-  'column.changes': '0.3.33',
+  'column.changes': '0.3.35',
   // A change a role's reach leaves to everybody but the person a staff column of the row names (a manager's own target).
-  'rows.notBy': '0.3.33',
+  'rows.notBy': '0.3.35',
   // A removal's reason, and a removed row's history read through a row it linked to; a column whose earlier values only the audit log keeps.
-  'table.removal': '0.3.33',
-  'column.history': '0.3.33',
+  'table.removal': '0.3.35',
+  'column.history': '0.3.35',
   // A number or a time of day kept on one side of another column, an end at most so many days after a start (a release before refuses all but dates).
-  'bounds.other': '0.3.33',
+  'bounds.other': '0.3.35',
   // A new row's moment not before now.
-  'bounds.now': '0.3.33',
+  'bounds.now': '0.3.35',
   // A stamp that is always the server's, on every door, for every writer.
-  'stamp.strict': '0.3.33',
+  'stamp.strict': '0.3.35',
   // A stamp beside `requiredWhen`: stamped on a person's save, asked of a brought line (a release before refuses the pair).
-  'requiredWhen.stamp': '0.3.33',
+  'requiredWhen.stamp': '0.3.35',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */

@@ -214,7 +214,7 @@ What such a rule makes is sample data too. Adminium adds those records to its li
 records, so **Remove sample data** takes them with the rest, and the sample record they belong to
 goes with them. A rule-made record you have since written something of your own under (a note on
 that aftercare call) is kept, like any sample record your records use. A record a rule made from
-one of your own records is never on the list. Adminium 0.3.33.
+one of your own records is never on the list. Adminium 0.3.35.
 
 ## While it is loaded
 

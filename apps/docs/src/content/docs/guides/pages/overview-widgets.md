@@ -194,9 +194,9 @@ date or a time column, whose earliest, latest and middle value is a day (or a mo
   is a day in any other shape, which draws numbers (`"date-figure-shape"`).
 
 :::note[Upgrading]
-`min` and `max` of a date or a time column were refused before 0.3.33 (ask for the row with a
+`min` and `max` of a date or a time column were refused before 0.3.35 (ask for the row with a
 `record-list` in the column's order and a limit of one), and before that answered `0`. They now
-answer the day. `median` is new in 0.3.33.
+answer the day. `median` is new in 0.3.35.
 :::
 
 ## KPIs over a limit

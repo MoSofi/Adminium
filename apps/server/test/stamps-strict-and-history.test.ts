@@ -23,7 +23,7 @@ import { columnRuleIssue } from '../src/connections/column-rules-validation.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
 // The words tried here are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.33' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.35' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const strictStamp = (set: string) => ({ stamp: { set, on: { columns: ['may_email'] }, strict: true } });
@@ -39,7 +39,7 @@ function crm(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A small CRM.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: '0.3.33', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.35', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [
