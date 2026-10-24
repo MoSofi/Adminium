@@ -141301,6 +141301,11 @@
                                   "notBy": {
                                     "type": "string",
                                     "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                  },
+                                  "via": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
@@ -141369,6 +141374,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -141438,6 +141448,11 @@
                                   "notBy": {
                                     "type": "string",
                                     "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                  },
+                                  "via": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
@@ -141506,6 +141521,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -141575,6 +141595,11 @@
                                   "notBy": {
                                     "type": "string",
                                     "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                  },
+                                  "via": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
@@ -141643,6 +141668,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -141756,6 +141786,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -141824,6 +141859,11 @@
                                       "notBy": {
                                         "type": "string",
                                         "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                      },
+                                      "via": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
                                       }
                                     },
                                     "required": [
@@ -141893,6 +141933,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -141961,6 +142006,11 @@
                                       "notBy": {
                                         "type": "string",
                                         "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                      },
+                                      "via": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
                                       }
                                     },
                                     "required": [
@@ -142030,6 +142080,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -142098,6 +142153,11 @@
                                       "notBy": {
                                         "type": "string",
                                         "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                      },
+                                      "via": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
                                       }
                                     },
                                     "required": [
@@ -142221,6 +142281,11 @@
                                   "notBy": {
                                     "type": "string",
                                     "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                  },
+                                  "via": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
@@ -142289,6 +142354,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -142358,6 +142428,11 @@
                                   "notBy": {
                                     "type": "string",
                                     "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                  },
+                                  "via": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
@@ -142426,6 +142501,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -142495,6 +142575,11 @@
                                   "notBy": {
                                     "type": "string",
                                     "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                  },
+                                  "via": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
@@ -142563,6 +142648,11 @@
                                     "notBy": {
                                       "type": "string",
                                       "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                    },
+                                    "via": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
@@ -143524,6 +143614,11 @@
                           "notBy": {
                             "type": "string",
                             "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                          },
+                          "via": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
                           }
                         },
                         "required": [
@@ -143592,6 +143687,11 @@
                             "notBy": {
                               "type": "string",
                               "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                            },
+                            "via": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
                             }
                           },
                           "required": [
@@ -143900,6 +144000,11 @@
                                           "notBy": {
                                             "type": "string",
                                             "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                          },
+                                          "via": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
                                           }
                                         },
                                         "required": [
@@ -143968,6 +144073,11 @@
                                             "notBy": {
                                               "type": "string",
                                               "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                            },
+                                            "via": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
                                             }
                                           },
                                           "required": [
@@ -144037,6 +144147,11 @@
                                           "notBy": {
                                             "type": "string",
                                             "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                          },
+                                          "via": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
                                           }
                                         },
                                         "required": [
@@ -144105,6 +144220,11 @@
                                             "notBy": {
                                               "type": "string",
                                               "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                            },
+                                            "via": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
                                             }
                                           },
                                           "required": [
@@ -144174,6 +144294,11 @@
                                           "notBy": {
                                             "type": "string",
                                             "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                          },
+                                          "via": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
                                           }
                                         },
                                         "required": [
@@ -144242,6 +144367,11 @@
                                             "notBy": {
                                               "type": "string",
                                               "pattern": "^[^.]{1,64}(\\.[^.]{1,64})?$"
+                                            },
+                                            "via": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
                                             }
                                           },
                                           "required": [

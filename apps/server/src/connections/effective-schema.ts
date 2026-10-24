@@ -304,11 +304,25 @@ export type StoredWords = string | Record<string, string>;
  * snapshot). `set` names columns of the row, or of the new child row.
  */
 export type StateActionRule =
-  | { id: string; label: StoredWords; move: { to: string }; tone?: StateActionTone; confirm?: StoredWords; set?: Record<string, string | number | boolean | { now: true }>; ask?: string[] }
-  | { id: string; label: StoredWords; set: Record<string, string | number | boolean | { now: true }>; in: string[]; tone?: StateActionTone; confirm?: StoredWords; ask?: string[] }
+  | { id: string; label: StoredWords; move: { to: string }; tone?: StateActionTone; confirm?: StoredWords; set?: Record<string, string | number | boolean | { now: true }>; ask?: string[]; handOver?: true; carries?: CarryRule[] }
+  | { id: string; label: StoredWords; set: Record<string, string | number | boolean | { now: true }>; in: string[]; tone?: StateActionTone; confirm?: StoredWords; ask?: string[]; handOver?: true; carries?: CarryRule[] }
   | { id: string; label: StoredWords; link: { page?: string; addOnPage?: string; param: string }; in: string[]; tone?: StateActionTone }
   | { id: string; label: StoredWords; child: { table: string; via: string; form: string[] }; set?: Record<string, string | number | boolean>; in: string[]; tone?: StateActionTone; confirm?: StoredWords };
 export type StateActionTone = 'primary' | 'neutral' | 'danger';
+
+/**
+ * What a hand-over carries with its row: the rows of a child table (its id in
+ * the snapshot, linked by `via`) whose staff `column` names the row's old
+ * person in `from` (the staff column the button asks for, when it asks one)
+ * and that meet every `where`; each is given the new person in the same write.
+ */
+export interface CarryRule {
+  table: string;
+  via: string;
+  column: string;
+  from?: string;
+  where?: StateCondition[];
+}
 
 /** One side of `column.bounds`: another date, held `when` the row meets conditions, `strict` for the same day. */
 export interface EffectiveDateBound {

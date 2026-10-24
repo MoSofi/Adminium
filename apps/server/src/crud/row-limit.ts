@@ -393,7 +393,21 @@ class Build {
     if (me === null) return never();
     const parts: Bool[] = [];
     if (reach.reach === 'all') parts.push(always());
-    else {
+    else if (reach.via !== undefined) {
+      /*
+       * JUDGED BY THE PARENT'S PERSON, AND BY NOTHING ELSE. The row is reached
+       * where the row its `via` link points at names them (or somebody they
+       * lead) in `by`: a manager reaches the visits of the deals her team
+       * owns. Not by the row's own people, nor by a helper listed on the
+       * parent, nor by whoever covers for its owner: a visit her rep made on
+       * another team's deal is that team's. A link that is not one of the
+       * table's own `via` ways, or a `by` that is no staff column of the
+       * parent, reaches nobody.
+       */
+      const ids = reach.reach === 'team' ? [me, ...(who?.ledIds ?? [])] : [me];
+      const declared = (table.belongs ?? []).some((way) => 'via' in way && way.via === reach.via);
+      parts.push((declared && reach.by !== undefined ? this.someone(table, alias, reach.via, reach.by, ids) : null) ?? never());
+    } else {
       const ids = reach.reach === 'team' ? [me, ...(who?.ledIds ?? [])] : [me];
       parts.push(any([this.belongs(table, alias, ids, 0, new Set()), ...(reach.unowned === true ? [this.unowned(table, alias, 0, new Set())] : [])]));
       // …and only the rows this staff column names them in: of the notes on a deal they reach, the ones they wrote.

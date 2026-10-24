@@ -119,7 +119,7 @@ export {
   type PageTabs,
 } from './page-config.js';
 export { PAGE_BOARD_ONLY_MAX, PAGE_BOARD_ONLY_TYPES, PAGE_BOARD_ONLY_VALUES_MAX, PAGE_BOARD_TOTALS_MAX, PAGE_BOARD_TOTAL_FNS, pageBoardIssues, pageBoardOnlyValues, pageBoardSchema, type PageBoard } from './page-board.js';
-export { STATE_ACTIONS_MAX, stateActionIssues, stateActionKind, stateActionSchema, stateActionsSchema, type StateAction, type StateActionsContext } from './state-actions.js';
+export { CARRIES_MAX, STATE_ACTIONS_MAX, carrySchema, type Carry, stateActionIssues, stateActionKind, stateActionSchema, stateActionsSchema, type StateAction, type StateActionsContext } from './state-actions.js';
 
 export {
   validateManifest,
