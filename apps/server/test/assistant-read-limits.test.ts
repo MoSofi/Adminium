@@ -20,9 +20,10 @@ import { automationContext } from '../src/assistant/contexts/automation.js';
 import type { TurnSetup } from '../src/assistant/turn-setup.js';
 import { legs, person, signIn, stack, turnAs, type Stack } from './assistant-lodge.helpers.js';
 
-// What the role is not shown. Keys stay readable under a limit (the row's own, and the one to its room): the grid needs them too.
-const HIDDEN = ['guest_name', 'note', 'total', 'status', 'checked_in_by'];
-const SHOWN = ['arrive', 'depart', 'id', 'late_until', 'room_id'];
+// What the role is not shown. The row's own key stays readable under a limit (the grid needs it); a link to another row, here
+// the stay's room, only when the role's list names it, as any column.
+const HIDDEN = ['guest_name', 'note', 'total', 'status', 'checked_in_by', 'room_id'];
+const SHOWN = ['arrive', 'depart', 'id', 'late_until'];
 const SECRETS = ['Nia Obi', 'VIP', '480', 'Olga Owner'];
 
 for (const [dialect, available] of legs) {
@@ -65,6 +66,8 @@ for (const [dialect, available] of legs) {
       const tables = (out.result as { tables: { id: string; columns: { name: string }[]; foreignKeys: { columns: string[] }[] }[] }).tables;
       const stays = tables.find((table) => table.id === s.table.stays)!;
       expect(stays.columns.map((column) => column.name).sort()).toEqual(SHOWN);
+      // Nor the link to the room, as a key: the room a stay is in is not this role's to read.
+      expect(stays.foreignKeys).toEqual([]);
       // Exactly the columns the grid's own route gives this person: Milo is shown what the screen shows.
       const listed = await s.app.inject({ method: 'GET', url: `/api/v1/data/${s.connectionId}/${s.table.stays}`, headers: { cookie: hk.cookie } });
       expect(listed.statusCode, listed.body).toBe(200);
@@ -90,6 +93,7 @@ for (const [dialect, available] of legs) {
         { where: { column: 'guest_name', op: 'eq', value: 'Nia Obi' } },
         { where: { and: [{ column: 'arrive', op: 'gte', value: '2026-01-01' }, { column: 'total', op: 'gt', value: 100 }] } },
         { sort: 'total.desc' },
+        { where: { column: 'room_id', op: 'eq', value: 1 } },
       ]) {
         const refused = await run(setup, 'read_rows', { table: s.table.stays, ...args });
         expect(refused.error?.code, JSON.stringify({ args, refused })).toBe('COLUMN_FORBIDDEN');

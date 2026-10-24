@@ -160,16 +160,17 @@ function documentColumnRefused(profile: DocumentProfile, view: SnapshotView): st
   const own = (column: string | undefined) => hidden(profile.table, column);
   const listed = (source: CollectionSource): boolean =>
     // An add-on's rows found by a pair are no table of this reader's view to hide a column of: they are this row's own, wherever it is read.
+    // The link the rows are found by is read too: which rows point at this one is what the list tells.
     source.pair === undefined &&
-    ([...Object.values(source.columns), source.orderBy, source.where?.column, source.unless].some((column) => hidden(source.table, column)) ||
-      Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.column) || hidden(list.table, list.orderBy)));
+    ([source.fkColumn, ...Object.values(source.columns), source.orderBy, source.where?.column, source.unless].some((column) => hidden(source.table, column)) ||
+      Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.fkColumn) || hidden(list.table, list.column) || hidden(list.table, list.orderBy)));
   // A night's own figures are the price's dates and rates; `<via>.<column>` is a column of the rate row.
   const nightly = (source: { column: string; columns: Record<string, string> }): boolean => {
     if (own(source.column)) return true;
     if (base !== null && readsHidden(view, tableRulesFor({ view, table: base })?.perNight)) return true;
     return Object.values(source.columns).some((read) => {
       const [via, column] = read.split('.') as [string, string | undefined];
-      return column !== undefined && base !== null && hidden(outboundKey(view, base, via)?.tableId, column);
+      return column !== undefined && base !== null && (own(via) || hidden(outboundKey(view, base, via)?.tableId, column));
     });
   };
   for (const mapped of Object.values(profile.mapping as ProfileMapping)) {
@@ -180,6 +181,8 @@ function documentColumnRefused(profile: DocumentProfile, view: SnapshotView): st
         if ('nightly' in source ? nightly(source.nightly) : listed(source.collection)) return 'nightly' in source ? profile.table : source.collection.table;
       }
     } else if ('ref' in mapped) {
+      // A column of the row a link points at is read through the link: a link the role does not read hides that row.
+      if (own(mapped.ref)) return profile.table;
       const target = mapped.table ?? (base === null ? undefined : outboundKey(view, base, mapped.ref)?.tableId);
       if (hidden(target, mapped.column)) return target ?? profile.table;
     } else if (own(mapped.column)) return profile.table;

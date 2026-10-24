@@ -53,6 +53,10 @@ const INN = {
       { ...base[1], columns: [...(base[1] as { columns: unknown[] }).columns, { ref: 'guest_id', type: 'fk', references: 'guests', nullable: true }] },
     ],
   },
+  // The planner reads a stay's guest too: a link is read only when the role's list names it, and a rule one hop away goes through it.
+  roles: MANIFEST.roles.map((role) =>
+    role.key === 'planner' && role.limits !== undefined ? { ...role, limits: { stays: { readable: [...role.limits.stays.readable, 'guest_id'] } } } : role,
+  ),
 };
 
 describe('a related name, spelled', () => {

@@ -205,7 +205,7 @@ function reader(w: World) {
       }
       return post(cookie, card(table, rest), params);
     },
-    /** `limits`: a table this desk reads only some columns of (the key and links always). */
+    /** `limits`: a table this desk reads only some columns of (the key always; a link only when listed). */
     desk: async (tables: readonly string[], table: string, rest: Record<string, unknown>, params?: Record<string, unknown>, limits: Record<string, string[]> = {}) => {
       const key = `${tables.join(',')}|${JSON.stringify(limits)}`;
       let cookie = cookies.get(key);
@@ -523,9 +523,9 @@ for (const [dialect, available] of LEGS) {
       // What it shows still answers: ordered by the shows' names.
       expect(ok(await cards.desk(all, 'bookings', { ...money, orderBy: [{ column: 'event_id.name', dir: 'asc' }] }, undefined, limits))['items']).toHaveLength(4);
       expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'earnings' } }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
-      // The counts are made of the limit's own columns (a hold's end among them): refused while one is hidden, as the desk's counts route refuses them.
+      // The counts are made of the limit's own columns (a hold's end and the stay's room type, a link, among them): refused while one is hidden, as the desk's counts route refuses them.
       expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
-      const counting = { ...limits, stays: [...limits.stays, 'held_until'] };
+      const counting = { ...limits, stays: [...limits.stays, 'held_until', 'room_type_id'] };
       expect(ok(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, counting))['value']).toBe(1);
       // Earnings stay refused: the price is still not shown.
       expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'earnings' } }, undefined, counting))).toEqual([403, 'COLUMN_FORBIDDEN']);
