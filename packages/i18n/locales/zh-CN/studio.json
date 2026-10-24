@@ -2126,7 +2126,10 @@
       },
       "bounds": {
         "notAfter": "不晚于今天",
-        "notBefore": "不早于 {column}"
+        "notAfterColumn": "不晚于 {column}",
+        "notAfterDays": "最多在 {column} 之后 {days} 天",
+        "notBefore": "不早于 {column}",
+        "notBeforeNow": "新建行时不早于当前时间"
       }
     },
     "saveFailed": "保存失败：{message}",

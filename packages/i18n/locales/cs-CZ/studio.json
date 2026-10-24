@@ -2126,7 +2126,10 @@
       },
       "bounds": {
         "notAfter": "Nikdy později než dnes",
-        "notBefore": "Nikdy před {column}"
+        "notAfterColumn": "Nikdy po {column}",
+        "notAfterDays": "Nejvýše {days} dní po {column}",
+        "notBefore": "Nikdy před {column}",
+        "notBeforeNow": "Nikdy dříve než teď, u nového řádku"
       }
     },
     "saveFailed": "Uložení se nezdařilo: {message}",
