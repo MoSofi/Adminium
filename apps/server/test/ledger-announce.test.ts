@@ -12,9 +12,12 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { automationsRepo, jobsRepo } from '@adminium/meta';
+
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
-import { occurrenceKeyFor } from '../src/automations/matcher.js';
+import { AutomationMatcher, occurrenceKeyFor } from '../src/automations/matcher.js';
 import { announcePostings } from '../src/ledgers/announce.js';
+import { ledgerKitManifest } from './fixtures/ledger-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { DESK, ledgerWorld, type LedgerWorld } from './ledger.helpers.js';
 
@@ -127,5 +130,66 @@ describe.each(LEGS)('what a posting did, told after — %s', (dialect, available
     expect((await audits()).length).toBe(before);
     await announcePostings(app, { connectionId: w.h.connectionId, view: w.target('tallies').view, postings: [{ ...w.posted()[0]!, state: 'unplanned', rows: 0, written: [], announced: [] }], origin: 'automation', watches: async () => false, manager: w.h.manager, meta: w.h.meta });
     expect((await audits()).at(-1)).toMatchObject({ action: 'ledger.posted', after: { state: 'unplanned', rows: 0 } });
+  });
+});
+
+/** The kit with a second figure an account announces: drained, once nothing is left. Two takes of one save can each move one. */
+function twoFigures(): Record<string, unknown> {
+  const kit = ledgerKitManifest() as { requiredSchema: { tables: { ref: string; columns: Record<string, unknown>[] }[] } };
+  kit.requiredSchema.tables.find((table) => table.ref === 'accounts')!.columns.push({ ref: 'drained', type: 'int', nullable: true, rules: { formula: { if: [{ lte: [{ sub: ['opening', 'taken'] }, 0] }, 1, 0] }, announce: true } });
+  return kit as unknown as Record<string, unknown>;
+}
+
+describe.each(LEGS)('one save that moves one row twice is told once — %s', (dialect, available) => {
+  let w: LedgerWorld;
+  let app: FastifyInstance;
+  let matcher: AutomationMatcher;
+  const events: RecordWriteEvent[] = [];
+
+  beforeAll(async () => {
+    if (!available) return;
+    const columns = 'account_id INT NULL, qty DECIMAL(12,3) NULL, status VARCHAR(20) NULL';
+    // Two rules of one table that take from the same account: one save, two calls.
+    w = await ledgerWorld(dialect, { twins: { columns, postings: [{ ...TALLY, id: 'one' }, { ...TALLY, id: 'two' }] } }, twoFigures());
+    await w.h.rows(`INSERT INTO ledger_kit_accounts (id, name, opening, taken, balance, allow_below, reorder_at, low, drained) VALUES (3, 'Salt', 5, 0, 5, ${w.flag(false)}, 3, 0, 0)`);
+    matcher = new AutomationMatcher({ meta: w.h.meta, enqueue: (input) => jobsRepo(w.h.meta).enqueue(input, Date.now()) });
+    app = Fastify();
+    // What hears a record's change on a real server: the rules, through the real matcher.
+    app.decorate('automations', {
+      onRecordEvent: async (event: RecordWriteEvent) => {
+        events.push(event);
+        await matcher.onRecordEvent(event);
+      },
+    } as never);
+    await app.ready();
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await app.close();
+    await w.close();
+  });
+
+  it.skipIf(!available)('the first take turns it low, the second drains it: one change of the account, from before the save to as the save left it, and one run of a rule on it', async () => {
+    await w.create('twins', { account_id: 3, qty: '2.5' });
+    const calls = w.posted();
+    expect(calls).toHaveLength(2);
+    // Each call moved a figure of the same account.
+    const moved = calls.map((call) => (call.announced ?? []).filter((row) => String(row.pk['id']) === '3').flatMap((row) => row.changed));
+    expect(moved).toEqual([['low'], ['drained']]);
+    const accounts = calls[0]!.announced![0]!.table;
+    const rule = await automationsRepo(w.h.meta).create(
+      { connectionId: w.h.connectionId, name: 'An account changed', trigger: { kind: 'record', event: 'updated', connectionId: w.h.connectionId, table: accounts.id, watch: false }, graph: { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'An account changed' }] }, enabled: true },
+      Date.now(),
+    );
+    await matcher.refresh();
+
+    await announcePostings(app, { connectionId: w.h.connectionId, view: w.target('twins').view, postings: calls, origin: 'dashboard', actor: { id: 'usr_ivy', label: 'Ivy', kind: 'user' }, watches: async () => false, manager: w.h.manager, meta: w.h.meta });
+    const told = events.filter((event) => event.table.id === accounts.id);
+    expect(told, JSON.stringify(told.map((event) => [event.before?.['low'], event.before?.['drained'], event.after?.['low'], event.after?.['drained']]))).toHaveLength(1);
+    expect(told[0]).toMatchObject({ action: 'update', cause: 'settled', entity: { pk: { id: 3 } } });
+    expect([told[0]!.before!['low'], told[0]!.before!['drained']].map(Number)).toEqual([0, 0]);
+    expect([told[0]!.after!['low'], told[0]!.after!['drained']].map(Number)).toEqual([1, 1]);
+    const runs = await w.h.meta.db.selectFrom('adminium_automation_runs').select('id').where('automationId', '=', rule.id).execute();
+    expect(runs).toHaveLength(1);
   });
 });
