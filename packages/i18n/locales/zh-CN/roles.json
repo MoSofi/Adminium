@@ -135,6 +135,8 @@
       "unowned": "以及尚无人负责的行",
       "while": "仅当 {column} 为 {values} 时",
       "by": "且仅限 {column} 指明为其本人的行",
+      "viaOwn": "仅 {table} 中其 {via} 的 {column} 指明为其本人的行",
+      "viaTeam": "仅 {table} 中其 {via} 的 {column} 指明为其本人或其所带团队成员的行",
       "allWho": "{table} 的每一行，无论 {column} 是谁。",
       "only": "仅 {table} 中{ways}的行",
       "onlyTeam": "仅 {table} 中{ways}的行，或其所带团队成员的行",

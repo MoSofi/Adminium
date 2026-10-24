@@ -336,6 +336,8 @@ export interface RowReach {
   while?: { column: string; in: (string | number | boolean)[] };
   /** And only the rows this staff column names them in: set by an app, kept through every edit here. */
   by?: string;
+  /** With `by`: the link to the row this one hangs off, whose `by` column alone judges the row. Set by an app, kept here. */
+  via?: string;
 }
 export type RowAction = 'read' | 'update' | 'delete';
 export const ROW_ACTIONS: readonly RowAction[] = ['read', 'update', 'delete'];

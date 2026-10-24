@@ -897,19 +897,25 @@ export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways'>, reac
       : t('roles:rows.sentence.all', 'Every row of {table}.', { table: table.label });
   }
   const ways = anyOf(table.ways.map(wayIs));
+  // A reach judged by the parent row's person: the table's own ways and "rows nobody owns" do not apply.
+  const via = reach.via !== undefined && reach.by !== undefined && reach.reach !== 'all' ? { via: reach.via, column: reach.by } : undefined;
   const parts = [
-    reach.reach === 'all'
+    via !== undefined
+      ? reach.reach === 'own'
+        ? t('roles:rows.sentence.viaOwn', 'Only rows of {table} whose {via} names them in {column}', { table: table.label, ...via })
+        : t('roles:rows.sentence.viaTeam', 'Only rows of {table} whose {via} names them, or someone in a team they lead, in {column}', { table: table.label, ...via })
+      : reach.reach === 'all'
       ? t('roles:rows.sentence.allWhile', 'Every row of {table}', { table: table.label })
       : reach.reach === 'own'
         ? t('roles:rows.sentence.only', 'Only rows of {table} where {ways}', { table: table.label, ways })
         : only !== undefined
           ? t('roles:rows.sentence.onlyTeam', 'Only rows of {table} where {ways}, or someone in a team they lead', { table: table.label, ways })
           : t('roles:rows.sentence.onlyTeamWays', 'Only rows of {table} where {ways}, or the same for someone in a team they lead', { table: table.label, ways }),
-    ...(reach.unowned === true ? [t('roles:rows.sentence.unowned', 'and rows nobody owns yet')] : []),
+    ...(reach.unowned === true && via === undefined ? [t('roles:rows.sentence.unowned', 'and rows nobody owns yet')] : []),
     ...(reach.while === undefined
       ? []
       : [t('roles:rows.sentence.while', 'only while {column} is {values}', { column: reach.while.column, values: anyOf(reach.while.in.map(String)) })]),
-    ...(reach.by === undefined ? [] : [t('roles:rows.sentence.by', 'and only the ones {column} names them in', { column: reach.by })]),
+    ...(reach.by === undefined || via !== undefined ? [] : [t('roles:rows.sentence.by', 'and only the ones {column} names them in', { column: reach.by })]),
   ];
   return `${parts.join(', ')}.`;
 }
@@ -1086,7 +1092,7 @@ function RoleRowsTableCard(props: {
                       }}
                       data-testid={`roles-rows-${table.tableId}-${action}`}
                     />
-                    {reach === null ? null : (
+                    {reach === null || reach.via !== undefined ? null : (
                       <label className="flex items-center gap-2 text-body-sm text-fg">
                         <Checkbox
                           checked={reach.unowned === true}
