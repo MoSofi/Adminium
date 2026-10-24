@@ -2,6 +2,20 @@
 
 # Manifest spec: requiredSchema — States
 
+```json
+"states": {
+  "column": "state", "initial": "open",
+  "moves": {
+    "open": ["installed"],
+    "installed": [{ "to": "signed-off",
+                    "requires": { "children": { "sign_offs": 1 }, "where": [{ "column": "blocking_snags", "eq": 0 }] } }]
+  },
+  "children": {
+    "sign_offs": { "via": "job_id", "createIn": ["open", "installed", "signed-off"], "moveOnCreate": "signed-off" }
+  }
+}
+```
+
 When a `sign_offs` row is created, its job moves to `signed-off` by the job's own listed move,
 once the new row is in: that move's conditions are judged on the job as held, with the new row
 already counted (`children: { "sign_offs": 1 }` passes on the first sign-off), and its stamps,

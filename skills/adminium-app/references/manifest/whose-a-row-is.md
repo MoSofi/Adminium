@@ -36,10 +36,27 @@ table's [`indexes`](https://docs.adminium.dev/reference/manifest/#tables): a lim
 several times slower without it.
 
 **`private`**, on a table, with a `belongs` of plain staff columns only (no `via`, `through` or
-`person`): its rows are read by their own people and by nothing else. Nothing may be reached
-through a private table, no total of its rows is kept elsewhere, and it is not exported,
-imported, reported on a schedule, drawn into a document, read by a rule or handed to an owner's
-code. An update of the app is the only thing that sets or removes the mark.
+`person`): its rows are read by their own people and by nothing else. No other table's rows are
+reached through a private table but by those same people (below), nothing is copied out of it,
+no total of its rows is kept elsewhere, and it is not exported, imported, reported on a schedule,
+drawn into a document, read by a rule or handed to an owner's code. An update of the app is the
+only thing that sets or removes the mark.
+
+**A row hung on a private row, reached by its own people.** Another table may say its rows are
+reached through a link to a private table, with `person` naming one of that private table's own
+`belongs` columns: exactly the people who already read the private row. A step of a coaching
+area is the rep's and the manager's of that area:
+
+```json
+{ "ref": "coaching_steps", "belongs": [{ "column": "area_id", "person": "rep_id" }, { "column": "area_id", "person": "manager_id" }], "columns": [ ... ] }
+```
+
+Any other staff column of the private row as `person` is refused, as are a `through` listing or a
+`via` through it. Such a way is never widened by a team: a `team` reach of the steps reaches,
+through the private row, only the rows whose private row names the reader, never one that names
+somebody they lead (another manager's one-to-one with her rep stays out). A writer held to some
+rows may set the link only to a private row that names them; with several such ways on one link,
+any one that names them is enough. Needs Adminium 0.3.35.
 
 **`rows`**, in a role's [`limits`](https://docs.adminium.dev/reference/manifest/#roles) for a table, says which rows its read, update and
 delete reach, each on its own:
@@ -68,53 +85,34 @@ on the parent reads every row and each changes only their own:
 A rep reads every note of the deals they reach, and changes the ones `author_id` names them in.
 The column must be a staff column (`rules.staff`).
 
-An action may name **several reaches**, as a list of one to four: any one of them is enough, and
-each is its own whole test (its `while`, `unowned` and `by` hold for it alone), as two roles'
-reaches are. An account manager reads every won deal, and an open one only while he is listed on
-it:
+`notBy`, on an update or a delete reach, takes out the rows a staff column names the person in: of
+the row itself, or `<link>.<staff column>` of the row one of its foreign keys names. A sales
+manager changes her team's targets and never her own, and any starter's goal but her own:
 
 ```json
-"limits": { "deals": { "rows": { "read": [
-  { "reach": "all", "while": { "column": "state", "in": ["won"] } },
-  { "reach": "own" } ] } } }
+"limits": {
+  "targets":       { "rows": { "read": { "reach": "team" }, "update": { "reach": "team", "notBy": "rep_id" } } },
+  "starter_goals": { "rows": { "update": { "reach": "all", "notBy": "starter_id.user_id" } } } }
 ```
 
-No reach of the list is written twice, and the checks above hold for each. A private table's
-reach stays `{ "reach": "own" }` alone. A list needs Adminium 0.3.28.
+It judges the person alone, never the people they lead, and `all` takes it in place of a `while`.
+It holds on every door the reach holds on (a change on a page, a bulk edit, a file brought in, a
+record's button): a row it leaves out is a row that is not there to them (`404`, and a file's line
+is not matched). It also judges the row as a write leaves it: a target made for herself, or a
+colleague's moved onto her, is refused (`403` `COLUMN_FORBIDDEN`, reason `not-by`, naming the
+column). A record page does not show her the buttons of a row whose own staff column names her,
+where every reach of hers says so. Never on a read, a private table, or a grant on an add-on's
+table. Needs Adminium 0.3.35 (`rows.notBy`).
 
-A row of a table reached through its parent (`via`) is hung, by a writer held to some rows of it,
-only under a parent their reach of THAT table reaches: a parent that is theirs (or somebody's
-they lead, with `team`), or nobody's when the reach takes `unowned` rows. Reading the parent is
-not enough: the account manager above reads every won deal and comments only on a deal he is on
-(403, reason `parent-not-theirs`). A row a staff column of its own names them in (a stamp of
-its maker, say) is theirs whatever its parent; a table that also lists people `through`, or reads
-a person from a linked row, is not judged this way.
-
-Apart from any limit, **the columns that decide whose a row is** (the staff columns the table's
-own `belongs` names) are changed only by somebody the stored row names in one of them, or who
-leads that person where the role's reach is `team`. Somebody who reaches the row another way (a
-helper listed on it, a cover, the owner of its parent) works on the row and cannot give it away
-or take it. A record's `handOver` button frees whom the row may go to, not who may hand it over.
-
-Where such a column is kept as a copy of the row's parent (`copy` with `mode: "always"`), the
-person is decided by the link: a writer held to some rows sets that link only to a parent that
-names them there (or somebody they lead, with `set: "team"`), and is refused 403 with reason
-`parent-not-theirs` otherwise. And the person column of a table that another table's `belongs`
-reads `through` takes only somebody who reads at least one of those tables (422, the field
-marked `cannot-open`), whoever writes. See
-[Whose a row is](https://docs.adminium.dev/guides/apps/whose-a-row-is/).
-
-**`handOver`**, on one of a table's [`states.actions`](https://docs.adminium.dev/reference/manifest/#states), marks the one write in which a
-person limited to their own rows may name a colleague: the button asks for a staff column and
-sets it to anybody.
+**`via`** beside `by` judges a row of a table that hangs off a parent (its `belongs` has
+`{ "via": "<link>" }`) by a staff column of THAT parent, and by nothing else: `by` then names a
+column of the row the link points at. A sales manager reaches the visits of the deals somebody
+she leads owns, and not a visit on another team's deal, even where her rep helps on that deal or
+the visit itself names her rep:
 
 ```json
-{ "id": "hand-over", "label": { "en-US": "Hand over" }, "set": {}, "in": ["open"], "ask": ["owner_id"], "handOver": true }
+"limits": {
+  "deals":       { "rows": { "read": { "reach": "team", "by": "owner_id" }, "update": { "reach": "team", "by": "owner_id" } } },
+  "site_visits": { "rows": { "read": { "reach": "team", "via": "deal_id", "by": "owner_id" },
+                             "update": { "reach": "team", "via": "deal_id", "by": "owner_id" } } } }
 ```
-
-Anybody, that is, who can work the row: an active person whose roles read and change the table,
-with a reach that holds the row in the state it is in (an account manager who reaches a deal
-once it is won is not given an open one). Anyone else is refused 422, the field marked
-`cannot-open`. A writer held to some rows who names somebody by a plain change, in a column
-whose `belongs` way says `set: "anyone"`, is held to the same: the button is not the only door
-to the column.

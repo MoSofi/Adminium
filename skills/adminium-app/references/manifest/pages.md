@@ -80,9 +80,11 @@ open that form, with the day filled in.
     "link": "company_id.name",
     "person": "owner_id",
     "amount": "amount",
-    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 },
+    "secondAmount": { "column": "weighted_value", "label": "w", "labels": { "de-DE": "gew." } },
+    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30, "label": "in stage", "labels": { "de-DE": "in der Phase" } },
     "date": "expected_close"
   },
+  "toolbar": { "total": true, "person": "owner_id" },
   "note": { "text": "Columns come from Stages", "texts": { "de-DE": "Die Spalten kommen aus den Phasen" }, "href": "/p/crm-stages" }
 } }
 ```

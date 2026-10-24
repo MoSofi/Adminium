@@ -10,7 +10,7 @@
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
 | `references/guides/manifest-by-task--a-signature-or-photos-on-a-row.md` | A signature or photos on a row | 1269 |
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
-| `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5351 |
+| `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5868 |
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
@@ -27,7 +27,7 @@
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
 | `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 4975 |
-| `references/guides/sample-data--sample-people.md` | Sample people | 953 |
+| `references/guides/sample-data--sample-people.md` | Sample people | 1893 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1954 |
 | `references/guides/sample-data--on-uninstall.md` | On uninstall | 453 |
@@ -36,7 +36,7 @@
 | `references/guides/roles-and-staff-access--the-roles-an-app-brings.md` | The roles an app brings | 1326 |
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
-| `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
+| `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
 | `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 2301 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |

@@ -2,6 +2,12 @@
 
 # Manifest spec: Documents
 
+A profile is the app's. It is made with the real table names when the app is installed, changed in
+place by an update so documents already issued keep pointing at it, and removed when the app is
+uninstalled. A profile whose add-on is not installed is skipped, with a reason on the install
+reply. An operator's own profile is never changed. A document of a kind the attached add-on does
+not draw yet waits for the add-on's update; see [below](https://docs.adminium.dev/reference/manifest/#a-kind-the-add-on-does-not-draw-yet).
+
 When a table is [built on an add-on's shape](https://docs.adminium.dev/reference/manifest/#tables-built-on-an-add-ons-shape), the shape's own
 profiles are made for it at install. An app entry of the same kind on that table does not make a
 second profile: its slots are added to the shape's mapping (the app's slot wins on the same name,

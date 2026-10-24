@@ -26,5 +26,18 @@ rows that point at nothing, `LINK_ORPHANS`, and nothing changes until they are p
 `id`, `fk` or `blob` column cannot be added to an existing table, and a column whose type cannot
 hold the app's values is refused by name.
 
+A column an update adds starts empty on the rows already there, or holds the manifest's fixed
+`default`, except a column Adminium works out: a [`copy`](https://docs.adminium.dev/reference/manifest/#copies-that-follow) of the linked row, a
+[`formula`](https://docs.adminium.dev/reference/manifest/#formulas), a [`rollup`](https://docs.adminium.dev/reference/manifest/#totals-and-balances) and its `balance`. The update works
+each of those out for every row already there, as the next save of the row would: a quote's copy
+of its deal's state, a line's amount, a deal's total. So does a column the new version derives
+another way than the one before (a changed formula), and every derived column that reads one of
+them, each after what it reads (the total after the line amounts it adds up). It reads the rule as
+it stands on the connection (the operator's own, where they keep one); a copy that only fills a
+blank (`mode` `default`) fills only the rows still blank. It runs in one transaction of the
+database, before the new version is recorded: a failure stops the update (`APP_UPDATE_INCOMPLETE`,
+stage `derived-columns`), the running version stays, and updating again finishes it. Applying an
+app from its project folder fills them the same way. Needs Adminium 0.3.35.
+
 A foreign key's target must be one of the package's own tables or a table that already exists in
 the database.

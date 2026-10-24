@@ -2,6 +2,24 @@
 
 # Manifest spec: Sample data — Sample people
 
+Beside its `@label`, a row may carry the row directive `@byClock`, so that a sample day's
+statuses match the time it is added at:
+
+```json
+{ "@label": "visit-2", "starts_at": { "@day": 0, "@time": "10:00", "@workdays": true },
+  "status": "booked",
+  "@byClock": { "at": "starts_at",
+                "before": { "status": "seen" },
+                "around": { "status": "checked_in" } } }
+```
+
+| Field | Rule |
+|---|---|
+| `at` | The row's time: the name of a column the row sets, or a `@day` with a `@time`. |
+| `before` | Columns merged into the row when its time is more than half an hour before the moment the sample is added. |
+| `around` | Columns merged when its time is within half an hour of it. |
+| `after` | Columns merged when its time is later. |
+
 Each set holds columns of the table, and may use directives. A set with `"@skip": true` leaves the
 row out altogether: a payment for a visit that has not happened yet.
 

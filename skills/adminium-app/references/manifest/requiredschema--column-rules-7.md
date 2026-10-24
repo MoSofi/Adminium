@@ -2,123 +2,98 @@
 
 # Manifest spec: requiredSchema — Column rules
 
-- **The time that passed.** Hours are real elapsed time. A column that keeps a zone (Postgres
-  `timestamptz`, MySQL `TIMESTAMP`) holds the moment itself. One that keeps none (MySQL `DATETIME`,
-  which is what an app's `timestamptz` column becomes on MySQL, Postgres `timestamp`, and SQLite
-  text) is read on the Adminium server's clock, the clock Adminium writes such times on. So on a
-  server in Europe/London, 00:30 → 03:30 on the night the clocks go forward is `2.00`, and
-  00:30 → 02:30 on the night they go back is `3.00`, on every engine. Run the server in the zone the
-  times are kept in.
-- **A time written without a zone.** Sent for a column that keeps a zone, `2026-09-25 11:45` is
-  11:45 on the Adminium server's clock — the moment the hours are counted to and the moment that is
-  stored, whatever zone the database's session is in. A stop stamped `now` is that moment too.
-- **What SQLite keeps.** A start SQLite fills with `unixepoch()` (seconds since 1970) is read as
-  that moment, and so is a text with its zone after a space (`2026-09-25 09:15:00 +02:00`).
-- **Empty for a missing, impossible or backwards span.** An empty start or stop leaves the hours
-  empty, and so does a day or an hour the calendar does not have (30 February stays no time, not 2
-  March). So does a stop before its start: a negative number of hours would quietly take pay off a
-  total, so the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
-- **Too many to keep.** Hours the column cannot hold (centuries in a `numeric(6, 2)`) are refused,
-  `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
-  every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
-  result its column cannot hold is refused the same way.
-
-`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
-stay from its arrival to its departure. A night the clocks change is still one night. An empty
-date, or a `to` before its `from`, leaves the result empty.
-
-#### Joined text
-
-A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
-line's description.
-
-```json
-{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
-  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
-```
-
-A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
-is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
-no, or a time would be spelled differently by each database. An empty column is left out, and so
-is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
-result is trimmed, and empty when every column is. A join is the whole formula of its column,
-never a part of a sum.
-
-A join that reads personal data lands it only in a personal column. A guest's first and last
-names beside their email read as personal by their names, so the joined name needs
-`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
-and a stamp's copy.
-
-#### Numbers without gaps
-
-A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
-`sequence` with `"gapless": true` numbers rows that way.
-
-```json
-{ "ref": "number_seq", "type": "int", "nullable": true,
-  "rules": { "sequence": { "gapless": true,
-                           "startSetting": { "addOn": "invoices", "setting": "number_start_invoice" } } } },
-{ "ref": "number", "type": "text", "maxLength": 24, "nullable": true, "unique": true,
-  "rules": { "format": { "from": "number_seq",
-                         "prefixSetting": { "addOn": "invoices", "setting": "prefix_invoice" }, "pad": 4 } } }
-```
-
 | Field | Rule |
 |---|---|
-| `gapless` | `true`. The column is an `int` or `bigint`, and nullable. |
-| `start` | The first number, at least 1. |
-| `startSetting` | The first number, read from a [setting](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere) when the row is made. Not with `start`. |
-| `scope` | A foreign key of the table: the series restarts for each row it points at (a deliverable's versions, v1, v2 …). |
-| `sample` | `true`: the app's [sample rows](https://docs.adminium.dev/reference/manifest/#sample-data) may take numbers in the series, and the next real row follows them. For a series of the app's own (a job's `J-01`); never on a table built on an add-on's document. Needs Adminium 0.3.28. |
-
-`scope` and `startSetting` need `gapless`.
-
-The number is the largest the table holds (for `scope`, the largest for that parent row) plus one,
-and never less than the start. It is taken inside the transaction that inserts the row, so an
-insert that fails takes its number back with it and the next create takes the same one. Two
-creates at once never read the same largest number. When one is still taking the next number, the
-other may be answered `409` `NUMBER_BUSY`, to try again. A number a writer sends is dropped, from
-every writer but an import. A numbered row's create is never undone: undo is refused `409`, since a
-number once taken stays taken; void the row instead.
-
-`format` writes the number as text in the same statement:
-
-| Field | Rule |
-|---|---|
-| `from` | The row's numbered column (one with a `gapless` sequence). |
-| `prefix` | Up to 12 letters, digits and `- _ / .` (`INV-`). |
-| `prefixSetting` | The prefix, read from a [setting](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere) when the row is made. Not with `prefix`. A change applies to the next number. |
-| `pad` | The digits are padded with zeros to this many (0–12). |
-
-The `format` column is `text` and nullable, and its `maxLength` must hold the prefix and the
-padding. Give the text a `unique` constraint, as the example does: a second guard against a
-number twice, which MySQL's numbering also leans on.
-
-An import brings its own history: it keeps the numbers its rows carry, and a row that carries only
-the text, written as the table's prefix followed by digits, gets the number from those digits.
-The series then carries on after the largest. Sample rows spell a gapless number `null`, so they
-stay off the real series, unless the series is marked `sample`; see [Sample data](https://docs.adminium.dev/reference/manifest/#sample-data).
-
-#### Values from elsewhere
-
-A `default` rule fills a column on a create that leaves it empty, with a value read when the row is
-made:
+| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
+| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
+| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
+| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
+| `latest` | `{ "of", "by", "row"? }`, in place of `sum` and `count`: the column holds the value of `of` in the newest child row, the one whose `by` (a date, a time or a number) is the greatest (a deal's amount is the total of its last sent quote: `{ "from": "quotes", "via": "deal_id", "latest": { "of": "total", "by": "sent_at", "row": "quote_id" } }`). A row whose `by` is empty is left out; of two rows with the same `by`, the one with the greater key is taken; `where` and `unlessSet` leave rows out as they do of a total. The column is nullable (it is empty while no row qualifies) and of the type of `of`. `row` names a nullable column of this table that Adminium fills with the key of the row it took: a plain column of the key's type, not a link (a link would stop that row being deleted), with no rules of its own. No `times`, `balance` or `cap`. `of` is never a shared link's code, nor a code no staff member reads (`hiddenFromStaff`): the parent would show it. Kept in the statement that writes the child row, like a total, and it climbs like one: a line added to the quote that counts moves the deal. Needs Adminium 0.3.28. |
 
 ```json
-{ "ref": "currency", "type": "text", "maxLength": 3, "nullable": true,
-  "rules": { "default": { "from": "connection.currency" } } },
-{ "ref": "tax_rate", "type": "decimal", "scale": 3, "nullable": true,
-  "rules": { "default": { "from": { "addOn": "invoices", "setting": "default_tax_rate" } } } }
+{ "ref": "paid", "type": "money", "default": 0,
+  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
+                         "where": { "column": "voided", "eq": false },
+                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
+                         "cap": true } } }
 ```
 
-`from` is one of:
+`of` may be another total of the row, so money given back is capped by money taken: two totals
+over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
+`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
+was taken is refused, and so is lowering a payment taken below what already went back.
 
-| `from` | Reads |
+A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
+change to the parent that lowers `of` under what is already paid. Only a write that takes the
+balance below zero, or further below it, is refused: a row already negative from older data can
+still be edited or voided. Two payments at once are judged one after the other, so they cannot
+both pass.
+
+A write that touches several rows of a table feeding a capped total is refused with
+`BALANCE_ONE_AT_A_TIME`, because it cannot be judged row by row. Imports and sample data are
+settled but not capped: they record what already happened.
+
+A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
+still saves.
+
+#### Totals that count and climb
+
+A total may count its child rows instead of adding a column up: how many tickets an order holds,
+how many lines a kitchen ticket has.
+
+```json
+{ "ref": "ticket_count", "type": "int", "default": 0,
+  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
+                         "unlessSet": "refunded_at" } } }
+```
+
+A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
+column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
+for a sum.
+
+A total may also add up another table's totals: an option's price into its line, the line into
+its order, the order into the customer's lifetime total. Such totals **climb**, at most three
+tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
+other). A write that moves a total at the bottom settles every total above it in the same
+transaction: each level adds up what the level below has just written, then works out its
+formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
+create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
+writers take the rows in one order (the highest parent first), so they never wait on each other
+crosswise; a line moved to another order while a write was reading it is refused `409`
+`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
+
+Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
+never through a floating-point number.
+
+A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
+against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
+cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
+writable while the capped rows can exist: lock those columns with the table's
+[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
+written in or reached from.
+
+#### Formulas
+
+A `formula` works a number out from the other columns of the same row: a line's amount, a
+document's tax and total.
+
+```json
+{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
+```
+
+An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
+
+| Expression | Value |
 |---|---|
-| `"connection.currency"` | The connection's currency, a three-letter code. The column is `text` of at least 3 characters. |
-| `{ "table", "column" }` | A column of the app's one-row settings table. |
-| `{ "addOn", "setting" }` | A setting of an add-on. The app must require that add-on in [`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons), so the setting is always there. |
-
-The same three settings (the last two) are what `sequence.startSetting` and `format.prefixSetting`
-read. A column with a `default` rule is nullable: when there is nothing to read, it stays empty
-rather than taking a made-up value. An update never refills it.
+| `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
+| `{ "sub": [a, b] }` | `a − b`. |
+| `{ "mul": [a, b, …] }` | The product of 2–8 expressions. |
+| `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
+| `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
+| `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
+| `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
+| `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
+| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments). |
+| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
+| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |

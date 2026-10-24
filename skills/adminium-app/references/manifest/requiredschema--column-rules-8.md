@@ -2,95 +2,118 @@
 
 # Manifest spec: requiredSchema — Column rules
 
-A `{ "table", "column" }` setting, wherever a rule reads one (a default, a limit's size, a move's
-condition, a moment's time), names a table that holds **one row**: the outbox's
-[`settings.table`](https://docs.adminium.dev/reference/manifest/#outbox), or a table that stands alone, with no foreign key of its own, none
-pointing at it, and no states, limits or booking. Adminium reads that row when the rule runs. A
-moment, a state condition or a stamp's amount that finds two rows there reads nothing rather than
-guess which one is meant.
+A condition is one of:
 
-#### Copies that follow
-
-A plain `copy` is taken when the row is written. With `"follow": true` it keeps in step: when the
-row it copies from changes, every row that copies it takes the new value in the same write. A
-hotel stay's extras copy the stay's nights and guests, so breakfast for two over three nights
-becomes breakfast for three over four the moment the stay changes.
-
-```json
-{ "ref": "nights", "type": "int", "nullable": true,
-  "rules": { "copy": { "via": "stay_id", "from": "nights", "mode": "always", "follow": true } } }
-```
-
-The copy is written, then every formula over it, then the totals it moves are settled into the
-row it follows (the stay's total, tax and balance), before the change commits; if any of that is
-refused, nothing is kept. A paid stay whose balance would fall below zero is refused
-`409` `BALANCE_EXCEEDED`.
-
-The rules that keep a follow sound:
-
-- it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
-  follow another row;
-- it never follows a total, a balance or a stamp, nor a formula over one: those change without a
-  change of the row, so the copy would keep an old value;
-- the row it follows is not worked out from this table's own totals (a loop);
-- a total another table keeps of these rows reads none of what the follow writes, including the
-  link it groups by: a follow that moved rows between another table's totals would leave those
-  totals behind.
-
-More than 500 rows following one changed row refuse the whole write, `409` `FOLLOW_TOO_MANY`
-(`details.table`, `details.count`), rather than leave some behind. A bulk edit, an import or a
-public batch that would move a paid balance below zero through its followers, or could not write
-them under the caller's role, or would move more than 500, is refused before anything is written:
-`409` `BALANCE_ONE_AT_A_TIME`. Make such changes one row at a time.
-
-#### Prices by the night
-
-`perNight` works a price out night by night: for each night from `from` up to the day before `to`,
-the base rate read from the row `rate.via` points at, plus every adjustment row that matches that
-night (a weekend, a season). Each night is rounded to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places), and
-the column holds their sum.
-
-```json
-{ "ref": "room_total", "type": "money", "scale": "currency", "nullable": true,
-  "rules": { "perNight": {
-    "from": "arrive", "to": "depart",
-    "rate": { "via": "room_type_id", "column": "base_rate" },
-    "adjust": { "table": "rate_rules",
-                "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
-                "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
-```
-
-| Field | Rule |
+| Condition | Holds when |
 |---|---|
-| `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
-| `rate` | `{ "via", "column" }`: a foreign key of the row, and the number column of the row it points at that holds the base rate. Never a secret or personal column. |
-| `adjust` | Optional. `table` holds the adjustments; `add` is the number added to a night (negative for a discount) and `name` the `text` a night's line is tagged with. |
-| `of` | Optional. `{ "via", "column" }`: this row's nights are a part of another row's price by the night (a credit for the nights a stay did not use): `via` a foreign key of this row, `column` that row's priced column. While that row's rates are the ones it was priced at, the part is today's price exactly; after they changed, it is scaled to what the row was charged, and never more than it. That column may not itself be a part. |
-| `adjust.match` | Which adjustments apply to a night. `via`: a foreign key to what `rate.via` points at (empty on a row: every type). `weekdays`: a `text` column of at least 27 characters listing nights like `fri,sat` (empty: every night). `from`, `to`: `date` columns, the first and last night it applies on, both included (empty: open). |
-| `adjust.where` | `{ "column", "eq" }`: only adjustments whose column holds the value (`active` is `true`). The column may not be nullable. |
-
-The column is a `decimal`, `money`, `int` or `bigint`, and a table has one such price. A create
-always works it out. A change works it out again only when it writes the dates or the rate's link
-to something new, so rates edited later never re-price a stay already booked, and a form that
-sends the whole row back keeps the booked price. An import keeps a figure it brings and works out
-one it leaves out. Formulas read the price (a subtotal, the tax, the total), so they run after it.
-
-The nights themselves are worked out, never stored: a dry run answers them (`date`, `rate`,
-`base`, `tags`), staff read them at `GET /api/v1/data/<connection>/<table>/<id>/nightly`, and a
-[document](https://docs.adminium.dev/reference/manifest/#documents) can list them. When the rates changed after the stay was priced, the lines
-come back as one line equal to the stored figure, so a folio never prints lines that disagree with
-its total. A rate rule that cannot be read refuses the write `409` `NIGHTLY_RATE_UNREADABLE`.
-
-#### Typed codes
-
-A `lookup` fills a foreign key from a code a person types: a discount code on an order, a presale
-code on a ticket. The browser never names the codes row itself; Adminium finds it.
+| `{ "eq": [column, value] }`, `{ "neq": [column, value] }` | The column equals, or does not equal, a string, number or boolean. The column may be of any type (an enum, a bool). `neq` does not hold for an empty column. |
+| `{ "gt": [a, b] }`, `{ "gte": … }`, `{ "lt": … }`, `{ "lte": … }` | `a` is greater, greater or equal, less, or less or equal than `b`. A comparison with an empty side does not hold. |
+| `{ "isNull": column }` | The column is empty. |
+| `{ "and": [c, c, …] }`, `{ "or": [c, c, …] }` | All, or any, of 2–8 conditions. |
 
 ```json
-{ "ref": "promo_code", "type": "text", "maxLength": 32, "nullable": true },
-{ "ref": "promo_id", "type": "fk", "references": "promo_codes", "nullable": true,
-  "rules": { "lookup": { "from": "promo_code", "table": "promo_codes", "column": "code",
-                         "where": [{ "column": "active", "eq": true },
-                                   { "column": "valid_until", "notBefore": "today", "orEmpty": true }],
-                         "scope": [{ "column": "event_id", "equals": "event_id", "orEmpty": true }] } } }
+{ "if": [{ "eq": ["discount_kind", "percent"] },
+         { "mul": ["qty", "rate", { "sub": [1, { "div": [{ "coalesce": ["discount", 0] }, 100] }] }] },
+         { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] }
+```
+
+How a formula is worked out:
+
+- **Exactly.** Every value is read from its decimal text as an exact fraction, and nothing goes
+  through a floating-point number. `1 ÷ 3 × 3` is exactly 1, and a total is the same on Postgres,
+  MySQL and SQLite to the last minor unit.
+- **Rounded once**, half away from zero, to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places). A formula
+  column with no `scale` rounds to 0 places when it is an `int` or `bigint`, and to 4 when it is a
+  decimal. `round` inside a formula rounds that part early, where the arithmetic calls for it (a
+  tax rounded before it is added).
+- **Empty in, empty out.** An empty column makes the result empty unless `coalesce` says what to
+  read instead: a draft line with no rate yet has no amount, rather than an amount of 0 that looks
+  like a price.
+- **On every write.** A create works out every formula; an update works out the ones whose inputs
+  it changed, reading the stored row with the new values over it. A formula that reads another
+  formula column is worked out after it. A formula that reads a [rollup](https://docs.adminium.dev/reference/manifest/#totals-and-balances)
+  total is worked out again whenever the total moves.
+
+A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float` (a
+[`join`](https://docs.adminium.dev/reference/manifest/#joined-text) fills a `text` column). It reads only columns of its own table, and every
+column it counts with holds a number; `eq`, `neq` and `isNull` may name any column,
+`hoursBetween` names two different `timestamptz` columns and `daysBetween` two different `date`
+columns. It
+may not read itself, formulas may not read each other in a circle, and an expression nests at most
+8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
+`copy` or a `rollup`, which already keep in step when that other row changes.
+
+#### Hours between two moments
+
+`hoursBetween` works a time entry's hours out from its start and its stop:
+
+```json
+{ "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
+```
+
+09:15 → 11:45 is `2.50`; 22:30 → 01:15 the next day is `2.75`. The hours are exact and rounded
+once to the column's scale, like any formula, and they can be counted with further:
+`{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
+update that moves only the stop works the hours out again from the start as stored.
+
+- **The time that passed.** Hours are real elapsed time. A column that keeps a zone (Postgres
+  `timestamptz`, MySQL `TIMESTAMP`) holds the moment itself. One that keeps none (MySQL `DATETIME`,
+  which is what an app's `timestamptz` column becomes on MySQL, Postgres `timestamp`, and SQLite
+  text) is read on the Adminium server's clock, the clock Adminium writes such times on. So on a
+  server in Europe/London, 00:30 → 03:30 on the night the clocks go forward is `2.00`, and
+  00:30 → 02:30 on the night they go back is `3.00`, on every engine. Run the server in the zone the
+  times are kept in.
+- **A time written without a zone.** Sent for a column that keeps a zone, `2026-09-25 11:45` is
+  11:45 on the Adminium server's clock — the moment the hours are counted to and the moment that is
+  stored, whatever zone the database's session is in. A stop stamped `now` is that moment too.
+- **What SQLite keeps.** A start SQLite fills with `unixepoch()` (seconds since 1970) is read as
+  that moment, and so is a text with its zone after a space (`2026-09-25 09:15:00 +02:00`).
+- **Empty for a missing, impossible or backwards span.** An empty start or stop leaves the hours
+  empty, and so does a day or an hour the calendar does not have (30 February stays no time, not 2
+  March). So does a stop before its start: a negative number of hours would quietly take pay off a
+  total, so the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
+- **Too many to keep.** Hours the column cannot hold (centuries in a `numeric(6, 2)`) are refused,
+  `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
+  every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
+  result its column cannot hold is refused the same way.
+
+`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
+stay from its arrival to its departure. A night the clocks change is still one night. An empty
+date, or a `to` before its `from`, leaves the result empty.
+
+#### Joined text
+
+A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
+line's description.
+
+```json
+{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
+  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
+```
+
+A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
+is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
+no, or a time would be spelled differently by each database. An empty column is left out, and so
+is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
+result is trimmed, and empty when every column is. A join is the whole formula of its column,
+never a part of a sum.
+
+A join that reads personal data lands it only in a personal column. A guest's first and last
+names beside their email read as personal by their names, so the joined name needs
+`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
+and a stamp's copy.
+
+#### Numbers without gaps
+
+A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
+`sequence` with `"gapless": true` numbers rows that way.
+
+```json
+{ "ref": "number_seq", "type": "int", "nullable": true,
+  "rules": { "sequence": { "gapless": true,
+                           "startSetting": { "addOn": "invoices", "setting": "number_start_invoice" } } } },
+{ "ref": "number", "type": "text", "maxLength": 24, "nullable": true, "unique": true,
+  "rules": { "format": { "from": "number_seq",
+                         "prefixSetting": { "addOn": "invoices", "setting": "prefix_invoice" }, "pad": 4 } } }
 ```

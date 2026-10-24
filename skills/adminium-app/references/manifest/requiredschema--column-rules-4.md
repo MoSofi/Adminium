@@ -2,6 +2,75 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
+automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
+rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
+data are not [stamped](https://docs.adminium.dev/reference/manifest/#stamps), not [capped](https://docs.adminium.dev/reference/manifest/#totals-and-balances), and not held to a date's
+`notAfter` or `notBefore` — today, another date, now (they are held to [`linkable`](https://docs.adminium.dev/reference/manifest/#links-to-some-rows)); an undo puts a row back exactly as it was, with no rule at all.
+What is no history is judged on an import and on sample data too: a number against a number, a
+time of day against another, and an end at most `days` after a start (a file cannot bring in warm
+above stale, or a cover of two years). A value refused by `notAfter` or `notBefore` answers `422`
+`VALIDATION_FAILED`, the field's code `out-of-range`, on the column and, when the other column is of
+the same row, on that one too, so a form shows the pair. A bound is judged when the column is
+written, and when the other column, its `via` link or a column its conditions read changes (warm
+changed alone is judged against the stale the row holds). `required` and
+`requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
+`VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
+holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
+code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
+refuses.
+
+The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
+was refused for itself, in a column the entry lets the caller write, `params` names the column and
+why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
+`invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
+names no column: a value already taken or pointing at a row that is not there, a value outside
+`options` or a link its [`linkable`](https://docs.adminium.dev/reference/manifest/#links-to-some-rows) leaves out, a date out of bounds, and a column only a change leaves empty, since whether it may be
+empty can turn on what the stored row holds.
+
+#### Required for some values
+
+`requiredWhen` asks for a column only while another column of the same row holds one of some
+values:
+
+```json
+{ "ref": "person_id", "type": "fk", "references": "people", "nullable": true,
+  "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
+```
+
+The row is judged as the write leaves it, whenever the write changes either column: a create or an
+update that leaves `person_id` empty while `kind` is `away` or `sick` is refused, and so is moving
+an event whose `person_id` is empty to `away`. A write that changes neither column is not judged —
+a column sent back as it is stored, as the record form sends every field, is no change — so a row
+stored before the rule can still be edited. Empty means no value, or only spaces. On a create that
+leaves `kind` out, `kind` is its database default: a trip that is away unless it says otherwise
+asks for a person. The record form marks the field required as soon as the other column holds one
+of the values, and asks nothing of an edit that changes neither.
+
+- **As the database compares.** A `bool` column's yes is a yes in any spelling (`true`, `on`, `y`,
+  `1`, ` TRUE`), and it is stored as the answer it names on every engine; a word that is no yes and
+  no no is refused. On MySQL a plain text column is compared as MySQL compares it, so `AWAY ` is
+  `away` there, and asks for a person; Postgres and SQLite keep `Away` apart from `away`.
+- **Two writers at once.** An update that moves `kind` to `away` over a person it did not send, or
+  empties `person_id` over a `kind` it did not send, asks the database, in the same statement, that
+  what it read is still so. Two people changing one event at the same moment cannot together leave
+  it away with nobody named: the second is refused as the first would have been.
+
+`column` is another column of the same table, and every value in `in` must fit it (a value of an
+enum, a number for a number column, `true` or `false` for a `bool`). The rule's own column must be
+`nullable`: one that is never empty is simply `required`. A column cannot take both `required` and
+`requiredWhen`, and a column Adminium fills (`copy`, `default`, `sequence`, `format`, `code`,
+`rollup`, `formula`) takes no `requiredWhen`, because nobody is asked for it. One exception is a
+`copy` that only fills what a write leaves out (`mode: "default"`, without `follow`): the copy runs
+first, and the column is asked for only when there was nothing to copy either (an order sent by
+email needs an address: its supplier's, or one typed on the order). The other is a `stamp`: it fills
+a person's own save, and never a write that brings history. A line of a brought file is judged as it
+was sent, before any stamp: a deal brought in as won with no `closed_at` (`closed_at` stamped when
+`state` becomes won or lost, and `requiredWhen` `state` is won or lost) is named in the import's
+preview, `closed_at` `required`, and not brought in, never dated by the day of the import; one that
+brings its date keeps it. Sample data is never stamped, so a sample's won deal carries its date too.
+A stamp beside `requiredWhen` needs Adminium 0.3.35.
+
 ```json
 { "ref": "subtotal", "type": "money", "default": 0,
   "rules": { "rollup": { "from": "ticket_items", "via": "ticket_id", "sum": "unit_price",
@@ -26,77 +95,3 @@ no longer gives.
 (values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
 condition must hold. The rule's column is a foreign key, and each condition names a column of the
 table it points at that is not a `secret`.
-
-- **When it is judged.** On a new row that names a row, and on a change that moves the link to
-  another row. A change that leaves the link as the row holds it, or sends it back as it stands (as
-  the record form sends every field), is no move: a line naming a price retired since keeps it while
-  its quantity changes. An empty link names nothing, and is taken.
-- **Who it holds.** Everybody, an admin and the owner too: it is the data's own rule, not a
-  permission. It holds on every door a row is written through: a form, a bulk edit, a record's
-  action, an automation, the public API, an import (a new line, and a matched line that moves the
-  link) and sample data. An undo puts a row back as it was. A row a rule or an
-  [effect](https://docs.adminium.dev/reference/manifest/#effects) moves keeps the link it holds.
-- **The refusal.** `422` `VALIDATION_FAILED`, the field's code `not-allowed` (the code a value
-  outside `options` gets), naming nothing of the row the link named. Through the public API it is
-  `PUBLIC_WRITE_REFUSED` with no column. A key that names no row at all is the foreign key's to
-  refuse, as it always was; and somebody who does not [reach](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) the named row is
-  refused as for a row that is not there, before this rule is asked, so the rule never tells them
-  whether a row out of their reach meets it.
-- **Read as it stands.** The named row is read when the write is judged. A line retired at the same
-  moment as a quote names it may still be named, as if the quote had come first.
-- **A rule that can no longer be read.** When the link's relation is gone, or a column a condition
-  reads is no longer on the table, no row can be shown to meet the rule: every new link is refused,
-  and rows that already hold one keep it. Put the column back, or change the rule in Studio.
-
-##### A row that must match the row written
-
-`same` compares the named row with the row being written instead of with a fixed value: a site
-visit names only a contact who works for the company of the visit's deal.
-
-```json
-{ "ref": "contact_id", "type": "fk", "references": "contacts", "nullable": true,
-  "rules": { "linkable": { "same": [{ "column": "company_id", "as": "deal_id.company_id" }] } } }
-```
-
-`same` is 1–4 pairs. `column` is a column of the row the link names (here a contact's
-`company_id`); `as` is a column of the row being written, or one link further, `<link
-column>.<column>`: the column of the row a foreign key of it names (here the visit's deal's
-`company_id`). Each pair must hold: both sides hold the same value. An empty side holds nothing,
-so a deal with no company yet matches no contact; an empty link is still taken. `where` and
-`same` may be given together, and a rule gives at least one of them. Needs Adminium 0.3.28
-(`linkable.same`).
-
-- **When it is judged.** As `where` is, and also when a change moves the column `as` reads on the
-  row (a visit moved to another deal), the contact staying: the visit would no longer be the
-  deal's company's. The far row is read as it stands when the write is judged: a deal moved to
-  another company, or a contact who changes company, keeps the visits that name them.
-- **What the refusal says.** The same `422` `not-allowed` on the link's field, naming nothing of
-  either row. The far row of `as` is read through the write's own handle; a writer who names a
-  deal out of their reach is refused for that deal before this rule is asked, whichever contact
-  the visit names.
-- The validator refuses a column the linked table does not have, a secret on either side, a hop
-  through a column that is not a foreign key, the link compared with itself, and two columns that
-  can never hold one value (a number and a text). Studio checks that each column and link is
-  there.
-
-An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
-foreign key, or whose conditions name a column the linked table does not have. The screens are
-still the app's to filter: a picker that offers only active lines is kinder than a refusal.
-
-#### Files in a column
-
-`file` makes a column hold files a signed-in person uploads for it: a crew's sign-off keeps the
-customer's signature and the job's photos.
-
-```json
-{ "ref": "signature", "type": "text", "maxLength": 64, "nullable": true,
-  "rules": { "file": { "accept": ["png"], "maxBytes": 524288 } } },
-{ "ref": "photos", "type": "json", "nullable": true,
-  "rules": { "file": { "accept": ["jpeg", "png", "webp"], "maxBytes": 8388608, "maxCount": 6 } } }
-```
-
-A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength` is at least 31); a
-`json` column holds a list of ids, of at most `maxCount`, read back as a list on every database.
-`accept` takes `png`, `jpeg`, `webp`, `gif`, `pdf`, `office`, `zip`, `csv`, `text`, `markdown`,
-`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
-never `heic`, a picture whose camera notes cannot be taken out of it.

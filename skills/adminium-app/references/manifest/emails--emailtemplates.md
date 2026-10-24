@@ -48,7 +48,9 @@ number has `.number`, `.percent` and `.money`, written exactly as stored in the 
 (`{{order.tax_rate.percent}}` is "8.25%" on every engine, never "8.250"); a choice has `.label`,
 its label in the message's language (`{{order.paid_method.label}}` is "Card", not "card"); a `text`
 column of up to 8 characters holding a time of day has `.time`, in the reader's clock ("3:00 PM" in
-the US, "15:00" in Britain); a [code](https://docs.adminium.dev/reference/manifest/#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
+the US, "15:00" in Britain); a yes/no (`bool`) column reads "Yes" or "No" in the message's language
+("Ja", "Oui", "Ano", "نعم"…), in its text and in a list's rows, never `true` or `1` (Adminium 0.3.35;
+a rule's e-mail reads it the same way); a [code](https://docs.adminium.dev/reference/manifest/#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
 (see [Emails that list rows](https://docs.adminium.dev/reference/manifest/#emails-that-list-rows)). A `{{was.<column>}}` reads a
 [`was`](https://docs.adminium.dev/reference/manifest/#outbox) column as it was before a change, or as a removed row held it, in the same forms. A
 staff column (`rules.staff`) has `.name`: the person it names, by the name the people list gives
@@ -94,10 +96,3 @@ one line each: an order's dishes, an order's tickets with a QR code each.
              "amount": "{{row.line_total.money}}" },
     "empty": "Nothing on this order." } }
 ```
-
-| Field | Rule |
-|---|---|
-| `from` | `link`, one of the outbox's `links`; `table`, the child table, and `via`, its foreign key back to the linked row; then `orderBy`, `where` (`{ "column", "in" }`), `unless` (a bool column that leaves a row out) and `limit`, at most 50 rows. |
-| `joins` | 1–2 lists one level further down, gathered into one text per row under their name (a dish's options): `{ "table", "via", "column", "orderBy"?, "separator"? }`. `column` is a `text` column, never a secret, personal, code, share-code or withheld one. |
-| `row` | The text of each line: `title`, `meta`, `amount`, `note`, reading `{{row.<column>}}` in every form the column has, `{{row.<link>.<column>}}` through one of the row's own links, and a join by its name. `image` is a QR code of a code column, `{{row.<column>.qr}}`, and nothing else; without it the line has no image cell. |
-| `empty` | Said when there are no rows. Without it, the block is left out. |

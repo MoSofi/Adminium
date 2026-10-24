@@ -37,7 +37,11 @@ What the app may add to a part, and nothing else:
   move, a condition added to a move the part has (`requires.where` on a column the app itself
   added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
   written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
+  move), a condition on a new row (`create.requires.where`, on a column the app itself added: no
+  new quote on a closed deal, read from the deal's state the app keeps on the quote; a `create`
+  the part has stays as written, a condition of the app's never reads a column of the part's, and
+  a `linked`, `setting` or `time` is the part's alone; history is not held to it; needs Adminium
+  0.3.35), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
   the table, the part's included: a last day only ever refuses), an effect that runs through a link
   the app itself added (`effects` with `via`, or
   `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`

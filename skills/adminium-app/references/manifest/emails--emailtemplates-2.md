@@ -2,6 +2,13 @@
 
 # Manifest spec: Emails — emailTemplates
 
+| Field | Rule |
+|---|---|
+| `from` | `link`, one of the outbox's `links`; `table`, the child table, and `via`, its foreign key back to the linked row; then `orderBy`, `where` (`{ "column", "in" }`), `unless` (a bool column that leaves a row out) and `limit`, at most 50 rows. |
+| `joins` | 1–2 lists one level further down, gathered into one text per row under their name (a dish's options): `{ "table", "via", "column", "orderBy"?, "separator"? }`. `column` is a `text` column, never a secret, personal, code, share-code or withheld one. |
+| `row` | The text of each line: `title`, `meta`, `amount`, `note`, reading `{{row.<column>}}` in every form the column has, `{{row.<link>.<column>}}` through one of the row's own links, and a join by its name. `image` is a QR code of a code column, `{{row.<column>.qr}}`, and nothing else; without it the line has no image cell. |
+| `empty` | Said when there are no rows. Without it, the block is left out. |
+
 `{{row.…}}` is read only inside an `email.rows` block, and every language of a template lists the
 same rows (`from` and `joins` are the same in each). A message that lists rows is never sent
 without its list: when its table or link can no longer be read (after a rename), the message is

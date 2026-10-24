@@ -31,7 +31,7 @@ rows block draws, and a rows block that names no section.
 
 #### A section of a team, with sums, a line a person and target cover
 
-Four more words on a section, each read from Adminium 0.3.28:
+Four more words on a section, each read from Adminium 0.3.28 (and `within`, below, from 0.3.35):
 
 ```json
 { "key": "reps", "table": "deals", "owner": "owner_id",
@@ -48,6 +48,28 @@ Four more words on a section, each read from Adminium 0.3.28:
 | `"sum": [columns]` | Up to 4 number columns, each added up by the database over **every** row of the section, not over the rows it lists: `{{sum.<section>.<column>}}`, written as money where the column is money and as a number otherwise. A section with no row sums to 0. |
 | `"by": "owner"` | The section lists one line a person instead of one a row, by name: `{{row.owner}}` (their name in Adminium), `{{row.count}}`, `{{row.sum.<column>}}`, and with a `target`, `{{row.target}}` and `{{row.cover}}`. Such a section has no `orderBy`; `limit` is the most lines. |
 | `"target"` | What the sum `of` is measured against: `column` of the rows of `table` whose `owner` staff column names the same people. `year`, a whole-number column, keeps only the rows of the calendar year the business is in. Fills `{{target.<section>}}` and `{{cover.<section>}}` (the sum as a share of the target, a whole percentage), and each line's own. |
+
+#### A section of this year, or of the last days
+
+`"within"` holds a section to the rows whose date column falls in the **current calendar year**, or
+in the **last N days**, on the business's calendar (the connection's time zone), from Adminium 0.3.35:
+
+```json
+{ "key": "won", "table": "deals", "owner": "owner_id",
+  "where": [{ "left": { "field": "state" }, "op": "is", "right": "won" }],
+  "within": { "column": "closed_on", "this": "year" }, "sum": ["amount"] }
+```
+
+| Form | The rows it keeps |
+|---|---|
+| `{ "column": <col>, "this": "year" }` | From the business's midnight on 1 January of the year it is in when the rule runs, to the next 1 January. A summary made at 01:00 on 1 January in Auckland counts the new year, whatever the server's clock says. |
+| `{ "column": <col>, "lastDays": N }` | Today and the N − 1 days before it, each a whole day on the business's calendar (1 to 366). `"lastDays": 7` made on a Monday is that Monday and the six days before it. |
+
+The column is a `date` or a `timestamptz` of the section's table; a date is compared with the
+business's days, a moment with the instants its midnights begin. Like every condition of a section,
+it is counted from when the rule ran (a summary held for its reader's hour counts the same days),
+and its rows, counts and sums are the reader's own reach. The validator refuses a column that is
+not a date, and any other form.
 
 **Everything is the reader's own reach or nothing.** Each figure is read through the same row limit
 and the same columns as a list the person opens: a sum is never of a row they could not open, a
@@ -82,17 +104,3 @@ rule that is not there and a rule that writes to roles the person does not hold 
 `404`.
 
 #### What a summary does not do
-
-- It never reads "all rows", and it has no section without an `owner` column: whose a row is in a
-  summary is that one staff column, not every way of the table's `belongs`. A rep who covers for a
-  colleague, or helps on a colleague's deal, reads those deals on the screen and does not get them
-  in their summary.
-- "The people they lead" is read when the summary is sent, not when the rule ran: somebody moved
-  out of a team, and a manager who stopped leading it, are out of the next summary.
-- It reads no private table, no column through a link, and no count of related rows.
-- It adds no two sections together and divides no sum by another: one sum, one target. A figure
-  made of two conditions (booked plus weighted) is a column of the table, or two figures.
-- A line a person has only people with a row in the section or a target; it sorts by name.
-- It keeps no copy: the job that makes it holds the rule's sections and the person's id, and the
-  mail's own job holds the mail sealed. A summary job cannot be queued by hand.
-- "This week" is still counted from when the rule ran, whatever hour the person reads it.

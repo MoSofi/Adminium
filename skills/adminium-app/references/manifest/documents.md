@@ -86,8 +86,3 @@ The period is chosen when the statement is drawn, never as dates: `all` (the def
 the opening balance, and rows dated after today are left out. A statement is issued on the day it
 is drawn, on the venue's clock: that fills its issue date (`issuedAt`) unless the profile maps a
 column to it.
-
-A profile is the app's. It is made with the real table names when the app is installed, changed in
-place by an update so documents already issued keep pointing at it, and removed when the app is
-uninstalled. A profile whose add-on is not installed is skipped, with a reason on the install
-reply. An operator's own profile is never changed.

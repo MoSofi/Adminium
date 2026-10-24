@@ -2,78 +2,91 @@
 
 # Manifest spec: requiredSchema — Column rules
 
-| `set` | Writes | Column |
-|---|---|---|
-| `"now"` | The moment. | `timestamptz` |
-| `"today"` | Today's date on the venue's calendar. | `date` |
-| `"user-name"`, `"user-id"` | Who made the write. | `text` |
-| `{ "byOrigin": { "public", "staff"? } }` | One value for a write through the public API and another for everyone else. With no `staff`, a staff write keeps the value its writer chose (a desk records how a client approved; the portal always says "portal"). Each value must fit the column. | `text` or `enum` |
-| `{ "copy": column }` | Another column of the same row, as it stands at that moment: a client's first answer, kept when they edit it later. Both columns have the same type. | any |
-| `{ "claim": column, "staff"? }` | A column of the signed-in person's own row (their email, their name), on a public write. `column` is a column of a table the app's people sign in as (an entry with a [`claim`](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows)). `staff` is `"user-name"` or `"user-id"`: what a staff write stamps instead. | `text` |
-| `{ "addDays": { "date", "days", "map"? } }` | A date so many days after `date`, a `date` or `timestamptz` column of the row: a due date from the issue date and the terms. `days` is a number (0–3650) or a column: an `int`, or an enum or text column with `map` giving each of its values its days. | `date` |
-| `{ "hashOf": { "columns", "children"?, "linked"? } }` | A fingerprint: SHA-256 over the named columns, child rows and linked rows, in a canonical form anyone can recompute. | `text` of at least 64 characters |
-| `{ "addMinutes": { "minutes" or "hours", "notAfter"? } }` | The moment so many minutes or hours from now: a hold for ten minutes, an offer open for a day. The amount is a number or a whole-number setting. `notAfter` is a [moment](https://docs.adminium.dev/reference/manifest/#moments) it never passes (an offer ends at the doors at the latest); a missing moment caps nothing. | `timestamptz` |
-| `{ "deadline": { "days", "time", "notAfter"? } }` | `days` after today on the venue's calendar, at `time` (`"HH:MM"` or a text setting), but never later than `notAfter`: a transfer due in five days at 18:00, or three days before the show. | `timestamptz` |
-| `{ "moment": <moment> }` | A [moment](https://docs.adminium.dev/reference/manifest/#moments) of the row or a linked row, worked out whenever the stamp fires: a stay's cancel-by, from its arrival. Read from other columns, never its own. A moment that cannot be found writes nothing. | `timestamptz` |
+| Field | Rule |
+|---|---|
+| `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
+| `rate` | `{ "via", "column" }`: a foreign key of the row, and the number column of the row it points at that holds the base rate. Never a secret or personal column. |
+| `adjust` | Optional. `table` holds the adjustments; `add` is the number added to a night (negative for a discount) and `name` the `text` a night's line is tagged with. |
+| `of` | Optional. `{ "via", "column" }`: this row's nights are a part of another row's price by the night (a credit for the nights a stay did not use): `via` a foreign key of this row, `column` that row's priced column. While that row's rates are the ones it was priced at, the part is today's price exactly; after they changed, it is scaled to what the row was charged, and never more than it. That column may not itself be a part. |
+| `adjust.match` | Which adjustments apply to a night. `via`: a foreign key to what `rate.via` points at (empty on a row: every type). `weekdays`: a `text` column of at least 27 characters listing nights like `fri,sat` (empty: every night). `from`, `to`: `date` columns, the first and last night it applies on, both included (empty: open). |
+| `adjust.where` | `{ "column", "eq" }`: only adjustments whose column holds the value (`active` is `true`). The column may not be nullable. |
 
-`hashOf` takes 1–24 of the row's own `columns`; up to 4 `children`, each
-`{ "table", "via", "columns", "orderBy"? }`, a child table whose foreign key `via` points at this
-table, read in `orderBy` order and then by key; and up to 4 `linked`, each
-`{ "via", "table", "columns", "children"? }`, the row this table's foreign key `via` points at, with
-its own children.
+The column is a `decimal`, `money`, `int` or `bigint`, and a table has one such price. A create
+always works it out. A change works it out again only when it writes the dates or the rate's link
+to something new, so rates edited later never re-price a stay already booked, and a form that
+sends the whole row back keeps the booked price. An import keeps a figure it brings and works out
+one it leaves out. Formulas read the price (a subtotal, the tax, the total), so they run after it.
 
-```json
-{ "ref": "due_on", "type": "date", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "addDays": { "date": "issued_on", "days": "terms",
-                          "map": { "net7": 7, "net14": 14, "net30": 30, "on-receipt": 0 } } },
-    "on": { "column": "status", "values": ["sent"] } } } }
-```
+The nights themselves are worked out, never stored: a dry run answers them (`date`, `rate`,
+`base`, `tags`), staff read them at `GET /api/v1/data/<connection>/<table>/<id>/nightly`, and a
+[document](https://docs.adminium.dev/reference/manifest/#documents) can list them. When the rates changed after the stay was priced, the lines
+come back as one line equal to the stored figure, so a folio never prints lines that disagree with
+its total. A rate rule that cannot be read refuses the write `409` `NIGHTLY_RATE_UNREADABLE`.
 
-A change is judged against the stored row, so sending a status the row already holds stamps
-nothing again. A create that already holds one of the values (a walk-in written as checked in)
-is stamped too. A stamp wins over a value the writer sent. Between its moments a stamped column
-is Adminium's, and a value a writer sends there is dropped, with two exceptions for staff: an
-`addDays` date (the desk may still move a due date) and a `byOrigin` column with no `staff`
-value. A `byOrigin` value that is itself `now`, `today`, `user-name` or `user-id` writes what that
-stamp would.
+#### Typed codes
 
-A public write stamps like any other write, except `user-name` and `user-id`: a browser key is
-nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
-what `claim` reads. For an automation, `user-name` is the rule's name. Sample data, an app's seed
-rows and undo stamp nothing, since a stamp of today's time over history would be false.
-
-A file somebody brings in is different: each line is their own create or their own change. A
-stamp is written into a column the line leaves out or leaves empty, as it would be for a save
-(`now` is the moment of the import, `user-id` and `user-name` are the person who brought the
-file, a `byOrigin` column gets its `staff` value). So a role that may not write `received_at`
-still brings a list of enquiries in, and each row says when it arrived. A value the line does
-carry is kept, where a save would lose it to the stamp: the day an old enquiry really came is
-the file's to say. Whether the person may say it is their role's create limit, which refuses a
-file that carries a column they may not give a new row. A line that changes a stored row (an
-import that updates the rows it matches) fires the stamps a change by hand would, against the
-row as stored: moving a status stamps its moment once, and the same file brought in again
-stamps nothing. A stamped column takes
-no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup` or `perNight` as
-well, and a stamp watches a column other than its own.
-
-A stamp that works out a moment again whenever what it reads changes: a stay may be cancelled
-free until 48 hours before 15:00 on its arrival day, and moving the arrival moves the deadline.
+A `lookup` fills a foreign key from a code a person types: a discount code on an order, a presale
+code on a ticket. The browser never names the codes row itself; Adminium finds it.
 
 ```json
-{ "ref": "cancel_by", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "moment": { "column": "arrive", "time": { "table": "settings", "column": "arrive_from" },
-                         "minus": { "hours": { "table": "settings", "column": "cancel_hours" } } } },
-    "on": { "columns": ["arrive"] } } } }
+{ "ref": "promo_code", "type": "text", "maxLength": 32, "nullable": true },
+{ "ref": "promo_id", "type": "fk", "references": "promo_codes", "nullable": true,
+  "rules": { "lookup": { "from": "promo_code", "table": "promo_codes", "column": "code",
+                         "where": [{ "column": "active", "eq": true },
+                                   { "column": "valid_until", "notBefore": "today", "orEmpty": true }],
+                         "scope": [{ "column": "event_id", "equals": "event_id", "orEmpty": true }] } } }
 ```
 
-An offer that lasts as many hours as the settings row says, but never past the show's doors:
+| Field | Rule |
+|---|---|
+| `from` | The nullable `text` column of this row the code is typed into, up to 64 characters, with no rule of its own that decides it. |
+| `table`, `column` | The codes table, and its `text` column the code is found by. The rule's own column is a nullable foreign key to `table`. `column` finds one row: it is `unique`, a [`code`](https://docs.adminium.dev/reference/manifest/#column-rules) column, or unique together with the `scope` columns in one of the table's [sets](https://docs.adminium.dev/reference/manifest/#columns-unique-together). It is compared as a code, so it has `normalize: "code"` unless it is a `code` column. Never the code a shared link opens its row with. |
+| `where` | Up to 4 conditions on the codes row: `{ "column", "eq" }`; `{ "column", "notBefore": "now" or "today", "orEmpty"? }`, a date or time not yet past (`valid_until`); `{ "column", "notAfter": "now" or "today", "orEmpty"? }`, one already reached (`valid_from`). `orEmpty` lets an empty column pass. |
+| `scope` | 1–2 `{ "column", "equals", "orEmpty"? }`: the codes row's `column` equals this row's `equals` column (this show's codes). With `orEmpty`, a codes row whose `column` is empty matches any (a code good for every show). |
+
+A typed code is read the way codes are kept: upper case, spaces and dashes left out. A column
+Adminium [makes codes in](https://docs.adminium.dev/reference/manifest/#column-rules) reads it as a claim does, its prefix put back, `O` as `0`,
+`I` and `L` as `1`. Two stored codes that fold alike are told apart by the exact spelling.
+
+Every miss is one answer: no such code, a code switched off, expired, another show's, or two that
+fold alike are all refused `422` `VALIDATION_FAILED` on the typed column with the code `unknown`
+(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "unknown"`), so a guesser learns no
+more from one miss than from another. A code whose uses are all taken, counted by a
+[parent limit](https://docs.adminium.dev/reference/manifest/#parent-limits) through the link, is refused on the typed column as `used-up`.
+Emptying the typed column empties the link, and every copy made through it: a code taken off
+takes its discount with it. A bulk edit, a form's child rows and an import find each row's code
+the same way, and an unknown code refuses just that row. A table resolves at most two typed codes.
+
+A code typed to **read** rows rather than write one (a presale code that shows its ticket type) is
+a public entry's [`unlockBy`](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows).
+
+#### Codes that renew
+
+A ticket's code is the door's proof. When the ticket goes to somebody else, the old code must
+stop working at once, and the new holder gets one the old holder never saw. `code.renew` says
+what makes a new code:
 
 ```json
-{ "ref": "offer_until", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "addMinutes": { "hours": { "table": "settings", "column": "offer_hours" },
-                             "notAfter": { "column": "doors_at", "via": "event_id" } } },
-    "on": { "column": "status", "values": ["offered"] } } } }
+{ "ref": "code", "type": "text", "nullable": true,
+  "rules": { "code": { "length": 8, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } }
 ```
+
+`on` is one trigger or a list of 2–3: `{ "column", "changed": true }`, any change of another
+column of the row, or `{ "column", "values" }`, that column moving to one of 1–16 values (a
+transfer accepted). The watched column is not a code itself, not `json` or `blob`, and a `changed`
+trigger watches a column a person changes or a stamp writes (a holder stamped in as an offer is
+taken renews too).
+
+The new code is written in the same statement as the change: the old one stops as the write
+commits, and every session a [token link](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows) on that column opened stops with
+it. What never renews: a create (it makes a code anyway), an import or other history, a change that
+sends back the value the row already holds, and a server action that writes the code itself (a
+[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link)). A [timed move's](https://docs.adminium.dev/reference/manifest/#timed-moves) `set` renews like any other change.
+Undoing a change of hands renews once more, so neither the old code nor the one handed on works
+after it; see [Undo of a move](https://docs.adminium.dev/reference/manifest/#undo-of-a-move). A renewed code is never shown to a public caller
+in the change's reply, and only to staff who may read the table.
+
+#### Stamps
+
+A stamp writes a value when a row is created, or when another column changes to one of a list of
+values: the time a patient checked in, who took a payment.

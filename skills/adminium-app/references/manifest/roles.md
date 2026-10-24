@@ -65,7 +65,7 @@ values. The names are the ones [public access](https://docs.adminium.dev/referen
 | `writable` | no | The columns the update may change, at least one. |
 | `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
 | `writableFrom` | no | `{ "<column>": [1–32 values] }`: the update reaches a row only while that column of the row holds one of these values. Any column of the table, in `writable` or not. Needs `writable`, and `minAdminiumVersion` 0.3.19 or later. |
-| `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key and the table's links to other rows are always read. Needs the role's `table:@<ref>:read`. |
+| `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key is always read; a link to another row is read only when it is listed, as any column (0.3.35; before, every link was read). Needs the role's `table:@<ref>:read`. |
 | `creatable` | no | The only columns a new row the role creates may be given; the rest take their defaults or what Adminium decides. Needs the role's `table:@<ref>:create`. |
 | `creatableValues` | no | For a column in `creatable`, the only values a new row may be given (1–32). Needs `creatable`. |
 

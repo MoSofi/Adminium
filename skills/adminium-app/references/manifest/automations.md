@@ -26,7 +26,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | Field | Rule |
 |---|---|
 | `key` | kebab-case, up to 80 characters, unique in the manifest. It is how an update finds the rule it shipped before. |
-| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`, and a notice's `title` and `body`. |
+| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`. A notice's `title` and `body` keep every language: each person is told [in their own language](https://docs.adminium.dev/reference/manifest/#a-notice-in-the-readers-language). |
 | `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
 | `module` | Optional. The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |

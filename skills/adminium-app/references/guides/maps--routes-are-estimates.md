@@ -8,7 +8,11 @@ Out of the box each leg is a **straight line**: a distance, no time, and `estima
 real journey is longer. Nothing leaves your server.
 
 A leg between two stops that are both known only as the **same town** has no length anybody can
-honestly give. It is answered as `unknown`, never as zero.
+honestly give. It is answered as `unknown`, never as zero, and says why: `why: "same-town"`. A
+map's list reads "both stops are pinned to the town; place them to measure", in the viewer's
+language. Placing either stop (a dragged pin, or a place picked from the search) makes it an
+exact point, and the leg is measured. Send each stop's `by` and, for a town, its `placeId`: two
+stops of one town are recognised by the town's id, and without one only at the very same point.
 
 ### Routes along roads
 

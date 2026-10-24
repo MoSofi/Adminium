@@ -61,6 +61,13 @@ are: each reader sees the heading in their language, else `label`. Both need Adm
   "config": { "title": "Unclaimed enquiries", "binding": { "kind": "table-query", "source": { "name": "enquiries", "type": "table" }, "shape": "metric+delta", "aggregations": [{ "fn": "count", "alias": "n" }] } } }
 ```
 
+A card's figures (`aggregations[].fn`) are the query descriptor's: `count`, `count_distinct`,
+`sum`, `avg`, `min`, `max`, `median` and `percentile`. `median` (from Adminium 0.3.35) is the middle
+value: the mean of the two middle numbers of an even count, the earlier of the two middle days of a
+date column. `min`, `max` and `median` of a date or a time column answer the day itself (0.3.35),
+in a single figure, a figure and its prior window, or beside a number in a ranking: see
+[a figure is a number, or a day](https://docs.adminium.dev/guides/pages/overview-widgets/#a-figure-is-a-number-or-a-day).
+
 ```json
 "columns": [{ "name": "name", "label": "Rep", "labels": { "de-DE": "Verkäufer", "ar-EG": "المندوب" } }]
 ```

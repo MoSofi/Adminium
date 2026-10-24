@@ -6,7 +6,9 @@
 `children`). They are judged inside the create's transaction on every door but an import, which
 is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
 `STATE_MOVE_REFUSED` with `details.create: true` and `from: null`, beside `to`, `requires` and
-the parts above. The row's formulas are worked out before the conditions are judged.
+the parts above. The row's formulas, and its copies of a linked row's columns, are worked out
+before the conditions are judged. On a table [built on an add-on's shape](https://docs.adminium.dev/reference/manifest/#tables-built-on-an-add-ons-shape)
+the app may add only `where` conditions on columns it added itself (Adminium 0.3.35).
 
 #### Once means once
 
@@ -112,17 +114,3 @@ A child row may move the row it belongs to, in the same write: the crew's sign-o
 phone by somebody who reads no job, signs the job off, and the office's counts and the rules that
 run on a job signed off follow. Say it on the child, under the parent's `children`, with
 `moveOnCreate` (Adminium 0.3.30):
-
-```json
-"states": {
-  "column": "state", "initial": "open",
-  "moves": {
-    "open": ["installed"],
-    "installed": [{ "to": "signed-off",
-                    "requires": { "children": { "sign_offs": 1 }, "where": [{ "column": "blocking_snags", "eq": 0 }] } }]
-  },
-  "children": {
-    "sign_offs": { "via": "job_id", "createIn": ["open", "installed", "signed-off"], "moveOnCreate": "signed-off" }
-  }
-}
-```

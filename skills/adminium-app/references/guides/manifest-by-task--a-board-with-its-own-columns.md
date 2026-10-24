@@ -54,10 +54,17 @@ owner, an amount and a day it should close. Say which columns those are, and the
   "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
   "only": { "state": "open" },
   "card": { "link": "company_id.name", "person": "owner_id", "amount": "amount",
-            "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 }, "date": "expected_close" },
+            "secondAmount": { "column": "weighted_value", "label": "w" },
+            "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30, "label": "in stage" }, "date": "expected_close" },
+  "toolbar": { "total": true, "person": "owner_id" },
   "note": { "text": "Columns come from Stages", "href": "/p/sales-stages" }
 } }
 ```
+
+`toolbar` (0.3.35) draws a line above the board: the server's count and totals of every deal the
+person reads (`total`), and a filter by the deal's owner (`person`) that narrows the cards, the
+columns' figures and the total alike. A card's `secondAmount` is a second money line (the weighted
+value), and `daysSince.label` says what its days are ("12 days in stage").
 
 Each heading then reads "Proposal 50%", its count, and the two totals. Each card shows the
 company's name, the owner as a person, the amount, how many days the deal has been in its stage

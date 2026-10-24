@@ -9,7 +9,7 @@
 | `references/install/the-list-from-adminium-dev.md` | The list from adminium.dev | 4204 |
 | `references/install/an-app-that-needs-a-newer-adminium.md` | An app that needs a newer Adminium | 571 |
 | `references/install/installing-an-app.md` | Installing an app | 6378 |
-| `references/install/updating.md` | Updating | 2605 |
+| `references/install/updating.md` | Updating | 2870 |
 | `references/install/tables-made-before-prefixes.md` | Tables made before prefixes | 764 |
 | `references/install/sideloading-air-gapped-installs.md` | Sideloading: air-gapped installs | 1190 |
 | `references/install/an-app-you-made-yourself.md` | An app you made yourself | 2120 |

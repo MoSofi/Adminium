@@ -37,7 +37,8 @@ in Cairo". It is what an app has when all it was given is a town's name. Adminiu
 position in itself from its list (`placeId`), whatever position the writer sent beside it, so a
 point nobody measured can never be stored as a town's or the other way round. A map draws such
 a pin differently from an exact one, a distance from it is an estimate, and the way between two
-stops known only as the same town is answered as unknown, never as zero. If your app needs the
+stops known only as the same town is answered as unknown, never as zero, with why
+(`why: "same-town"`: both stops are pinned to the town; place them to measure). If your app needs the
 door, ask for an exact point.
 
 Every way of writing the row takes the same things for a place (a staff save, an import, a

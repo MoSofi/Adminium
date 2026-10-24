@@ -31,6 +31,15 @@ operator made and gave to a sample rep): that person stays until the row names s
 the next "Add sample data" takes them back instead of making a second one. An add-on's manifest
 takes neither field. Needs Adminium 0.3.28.
 
+A rule hands a row to nobody who cannot sign in, so a rule's write that names a person from the
+[settings row or the record](https://docs.adminium.dev/reference/manifest/#a-value-from-the-settings-row-and-a-day-so-many-days-on) leaves a sample person out, with one exception: when
+the row the run is about is a sample row, it may name a sample person (a sample job's sign-off books
+its aftercare call for the sample rep who sold it). A real row is never handed to a sample person.
+The rows such a run creates are sample rows too: they are listed with the sample, and "Remove
+sample data" takes them with the rest, and with them the sample row they hang off. A rule-made row
+somebody has since written a row of their own under stays, as any sample row their records use
+does, and a row a rule made from a real row is never listed. Adminium 0.3.35.
+
 The file uses the `adminium.sample/1` format:
 
 ```json
@@ -87,21 +96,3 @@ A value is plain JSON, or one of these directives:
 | `{"@month": -2, "@dom": 14}` | A date in the venue's time zone: that day of the month, so many months back (`0` is this month). Add `"@time": "10:00"` for a time on that day. A day past the month's end is its last day, and a day that has not come yet is today (a time not yet come, now). Use it for history counted in calendar months: "this month" and "in May" read the same whether the sample is added on the 3rd or the 28th. |
 | `{ "@t": { "en-US": "…" } }` | Text in the language of the person adding the sample. Keys are `xx` or `xx-XX`. |
 | `{ "@asset": "<label>" }` | A file from `assets`, added to the Files library. |
-
-Beside its `@label`, a row may carry the row directive `@byClock`, so that a sample day's
-statuses match the time it is added at:
-
-```json
-{ "@label": "visit-2", "starts_at": { "@day": 0, "@time": "10:00", "@workdays": true },
-  "status": "booked",
-  "@byClock": { "at": "starts_at",
-                "before": { "status": "seen" },
-                "around": { "status": "checked_in" } } }
-```
-
-| Field | Rule |
-|---|---|
-| `at` | The row's time: the name of a column the row sets, or a `@day` with a `@time`. |
-| `before` | Columns merged into the row when its time is more than half an hour before the moment the sample is added. |
-| `around` | Columns merged when its time is within half an hour of it. |
-| `after` | Columns merged when its time is later. |

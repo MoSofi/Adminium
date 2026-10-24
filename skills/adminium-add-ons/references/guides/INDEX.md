@@ -8,7 +8,7 @@
 | `references/guides/building-on-an-add-on--1-require-the-add-on.md` | 1. Require the add-on | 1105 |
 | `references/guides/building-on-an-add-on--2-build-a-table-on-each-part.md` | 2. Build a table on each part | 4835 |
 | `references/guides/building-on-an-add-on--3-add-what-is-yours.md` | 3. Add what is yours | 1473 |
-| `references/guides/building-on-an-add-on--4-keep-the-part-s-states.md` | 4. Keep the part's states | 1837 |
+| `references/guides/building-on-an-add-on--4-keep-the-part-s-states.md` | 4. Keep the part's states | 2254 |
 | `references/guides/building-on-an-add-on--5-send-the-shape-s-emails.md` | 5. Send the shape's emails | 2580 |
 | `references/guides/building-on-an-add-on--6-print-invoices-and-statements.md` | 6. Print invoices and statements | 2804 |
 | `references/guides/building-on-an-add-on--7-open-a-portal-for-clients.md` | 7. Open a portal for clients | 1780 |
@@ -27,9 +27,9 @@
 | `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4293 |
 | `references/guides/emails--sending.md` | Sending | 4071 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
-| `references/guides/emails--attachments.md` | Attachments | 1702 |
+| `references/guides/emails--attachments.md` | Attachments | 1887 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 7217 |
+| `references/guides/emails--variables.md` | Variables | 7565 |
 | `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
 | `references/guides/emails--links.md` | Links | 850 |
