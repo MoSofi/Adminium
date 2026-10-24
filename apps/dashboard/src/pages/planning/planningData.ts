@@ -37,7 +37,7 @@ import {
   type PageEnvelope,
   type QueryDescriptor,
 } from '@adminium/engine/config';
-import { boardColumnsInstanceId, calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
+import { boardColumnsInstanceId, boardPeopleInstanceId, boardToolbarInstanceId, calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
 
 import {
   WIDGET_DATA_KEY_ROOT,
@@ -95,6 +95,11 @@ export function extractPlanningBindings(page: PageEnvelope): PlanningBindings {
     // second query (`boardColumns.ts`): same batch, its own instance id.
     const columns = item.config['columnsBinding'];
     if (columns !== undefined) add(boardColumnsInstanceId(item.i), columns);
+    // A board's toolbar: each figure of its total (the count, then each total), and the people its filter offers.
+    const toolbar = item.config['toolbarBindings'];
+    if (Array.isArray(toolbar)) toolbar.forEach((figure, index) => add(boardToolbarInstanceId(item.i, index), figure));
+    const people = item.config['personBinding'];
+    if (people !== undefined) add(boardPeopleInstanceId(item.i), people);
   }
   return { requests, invalid };
 }

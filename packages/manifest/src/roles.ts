@@ -22,8 +22,8 @@
  *
  * `readable` limits the role's READ of the table to some columns, the same
  * way: housekeeping reads a stay's room and dates, and none of its guest or
- * its money. The key and the table's links to other rows are always read (a
- * screen moves through them). A column the role may not read is not written
+ * its money. The key is always read; a link to another row only when it is
+ * listed, as any column (before 0.3.35 every link was read). A column the role may not read is not written
  * through it either, unless `writable` names it.
  *
  * `writableFrom` says which rows the update reaches at all, by the value a
@@ -227,7 +227,7 @@ export const roleLimitSchema = z
     writableValues: z.record(refSchema, z.array(scalarSchema).min(1).max(32)).optional(),
     /** For some columns of the table, the only values a row may hold for the update to reach it. */
     writableFrom: z.record(refSchema, z.array(scalarSchema).min(1).max(32)).optional(),
-    /** The only columns the read shows (with the key and the links to other rows). */
+    /** The only columns the read shows (with the key; a link only when listed). */
     readable: z.array(refSchema).min(1).max(200).optional(),
     /** The only columns a new row it creates may be given (the rest take their defaults). */
     creatable: z.array(refSchema).min(1).optional(),

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3352 entries. */
+/** `namespace:key` — 3356 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2888,6 +2888,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:record.timedMoveSoon',
   'ui:state.empty',
   'ui:state.error',
+  'ui:templates.board.person',
+  'ui:templates.board.toolbar',
   'ui:templates.builder.publishModal.confirmSubtitle',
   'ui:templates.builder.publishModal.confirmTitle',
   'ui:templates.builder.publishModal.publishedSubtitle',
@@ -2912,6 +2914,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:templates.crud.bulkDeleteConfirm',
   'ui:templates.crud.bulkDeleteTitle',
   'ui:templates.crud.createSubtitle',
+  'ui:templates.crud.deleteReason',
+  'ui:templates.crud.deleteReasonOptional',
   'ui:templates.crud.deleteTitle',
   'ui:templates.crud.emptyTitle',
   'ui:templates.crud.emptyTitleNamed',

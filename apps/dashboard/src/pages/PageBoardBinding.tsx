@@ -16,6 +16,11 @@
  * server too — the rows of a table, or an enum's values, each with the count
  * and the totals of the cards its reader reaches (`planning/boardColumns.ts`).
  *
+ * A board with a toolbar (`config.board.toolbar`) shows the server's total of
+ * every card the reader reaches, and filters by a person: the choice is held
+ * here, and the cards, the columns' figures and the total are read again of
+ * that person's cards (`withPerson`).
+ *
  * Events re-enter the host sink: drops → `mutate` update (status, or
  * lane+status) with the CRUD promise returned for rollback; card click →
  * `record-open` → `/p/$slug/r/$id`, where this binding mounts the shared
@@ -23,25 +28,34 @@
  */
 import { useTheme } from '@adminium/ui';
 import { PageBoard } from '@adminium/widgets';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getI18nInstance, t } from '../i18n/t.js';
 import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
-import { amountWriter, useBoardColumns } from './planning/boardColumns.js';
+import { amountWriter, boardReadOf, useBoardColumns, useBoardTotalsWriter, withPerson } from './planning/boardColumns.js';
 import { useBoardLive } from './planning/boardLive.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
 import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageBoardBinding({ page, adapters, recordId, columnFacts, currency, formColumns }: PageTemplateProps) {
+export function PageBoardBinding({ page, adapters, recordId, columnFacts, currency, formColumns, tableLabelSingular, tableLabelPlural }: PageTemplateProps) {
   // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
   const narrowing = useLinkNarrowing(page, adapters.crud?.table);
   const view = useNarrowedPage(page, narrowing);
-  const states = usePlanningStates(view.page, {}, undefined, view.key);
+  // The toolbar's person (`toolbar.person`), or everyone: held for this page, let go when another opens.
+  const [person, setPerson] = useState<string | null>(null);
+  useEffect(() => setPerson(null), [page.id]);
+  const shown = useMemo(() => withPerson(view.page, person), [view.page, person]);
+  const states = usePlanningStates(shown, {}, undefined, person === null ? view.key : `${view.key ?? ''}|person:${person}`);
   // The board's columns as the server answers them, for a board that names them; undefined for any other.
   // Under a link's narrowing the cards are some of the table's, and a count of all of them would head the wrong list.
-  const boardColumns = useBoardColumns(page, { states, formColumns, currency, locale: getI18nInstance()?.language ?? 'en-US', narrowed: view.key !== undefined });
+  const boardColumns = useBoardColumns(page, { states, formColumns, currency, locale: getI18nInstance()?.language ?? 'en-US', narrowed: view.key !== undefined, person });
+  const personColumn = useMemo(() => boardReadOf(page)?.personColumn, [page]);
+  const personLabel = useMemo(() => {
+    const spec = formColumns?.find((column) => column.spec.name === personColumn)?.spec as { label?: unknown } | undefined;
+    return typeof spec?.label === 'string' && spec.label !== '' ? spec.label : undefined;
+  }, [formColumns, personColumn]);
   // A colleague's change to the cards' table or the columns' table reads the page again, once for a burst.
   useBoardLive(page);
   // The page's direction, as the shell resolved it for the person's language: the board lays its columns out by it
@@ -50,6 +64,8 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
   // A card's amount as its column is kept: money in the column's own currency, else the connection's; any other number plainly.
   const language = getI18nInstance()?.language ?? 'en-US';
   const formatAmount = useCallback((column: string, amount: number) => amountWriter(column, formColumns, currency, language)(amount), [formColumns, currency, language]);
+  // The toolbar's totals, written as each column's header writes them.
+  const formatTotals = useBoardTotalsWriter(page, formColumns, currency, language);
 
   // An empty layout renders an empty grid — nothing at all. A page created
   // without a table is the way in; the notice names the missing binding.
@@ -67,7 +83,13 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
       <PageBoard
         // The connection's currency: a money card that names none reads in it.
         {...(currency === undefined ? {} : { currency })}
-        config={page.config}
+        // As read: narrowed to the toolbar's person, when one is chosen.
+        config={shown.config}
+        person={person}
+        onPersonChange={setPerson}
+        formatTotals={formatTotals}
+        {...(tableLabelSingular === null || tableLabelSingular === undefined || tableLabelPlural === null || tableLabelPlural === undefined ? {} : { entityLabels: { one: tableLabelSingular, other: tableLabelPlural } })}
+        {...(personLabel === undefined ? {} : { personLabel })}
         states={states}
         dir={dir}
         formatAmount={formatAmount}

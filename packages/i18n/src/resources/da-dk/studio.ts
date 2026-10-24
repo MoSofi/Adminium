@@ -3468,7 +3468,6 @@ export default {
     "roleTables": {
       "summary": "Rollerne i {app} får adgang til {count, plural, one {# af dens tabeller} other {# af dens tabeller}}. Se, hvad de læser og ændrer.",
       "unchecked": "{addOn} er ikke på denne server endnu, så dette er, hvad {app} beder om. Tilføjelsen tillader måske mindre.",
-      "keyAndLinks": "En læsning viser også hver rækkes nøgle og dens links til andre rækker.",
       "everyColumn": "alle kolonner",
       "reads": "Læser {columns}",
       "readsAll": "Læser alle kolonner",
@@ -3489,6 +3488,7 @@ export default {
         "create": "tilføje rækker",
         "update": "ændre rækker"
       },
+      "keyShown": "En læsning viser også hver rækkes nøgle. Et link til en anden række vises kun, hvor det er nævnt.",
       "othersTitle": "Roller i apps får mere af en tilføjelses tabeller",
       "othersBody": "Tilføjelsens nye version lader disse roller gøre mere med dens tabeller. Når du fortsætter, tillader du det.",
       "appRoles": "Roller i {app}"

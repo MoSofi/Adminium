@@ -26,7 +26,7 @@ import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
 import type { ControlOption } from '../page-crud/controls/index.js';
 import type { ColumnFacts } from '../page-crud/field-mapping.js';
 import type { FormRelationFact } from '../../page-config/index.js';
-import { isDeletePreview } from '../page-crud/crud-api.js';
+import { DELETE_REASON_MAX, isDeletePreview } from '../page-crud/crud-api.js';
 import type { PageCrudFiles } from '../page-crud/PageCrud.js';
 import type { ResolvedFile } from '../../families/tables/cells.js';
 import { parseRefList } from '../../page-config/file-refs.js';
@@ -253,6 +253,8 @@ export interface PageRecordProps {
   maxFileBytes?: number | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
+  /** A removal of the record asks WHY (`table.removal.reason`): the delete dialog asks too. Absent: it asks nothing. */
+  removalReason?: 'optional' | 'required' | undefined;
   canUnmask?: boolean | undefined;
   /**
    * The link relations this table can write through. The record shows what
@@ -992,6 +994,7 @@ export function PageRecord({
   activity,
   canUpdate = true,
   canDelete = true,
+  removalReason,
   canUnmask = false,
   relations,
   attachments,
@@ -1203,7 +1206,10 @@ export function PageRecord({
       });
   };
 
+  // Why the record goes, for a table that asks: written in the dialog, sent with the delete.
+  const [deleteReason, setDeleteReason] = useState('');
   const openDelete = () => {
+    setDeleteReason('');
     setDeleteTarget({ references: [], loaded: false });
     api
       .remove(recordId, { dryRun: true })
@@ -1221,7 +1227,7 @@ export function PageRecord({
 
   const confirmDelete = async () => {
     try {
-      const removed = await api.remove(recordId, { confirm: true });
+      const removed = await api.remove(recordId, { confirm: true, ...(removalReason === undefined || deleteReason.trim() === '' ? {} : { reason: deleteReason.trim() }) });
       setDeleteTarget(null);
       // The record no longer exists — staying is a 404 with extra
       // steps. The host owns the navigation and the undo toast.
@@ -1600,6 +1606,20 @@ export function PageRecord({
           }
           confirmWord={displayValueOf(columns, record)}
           promptLabel={confirmPromptFor(t, displayValueOf(columns, record))}
+          {...(removalReason === undefined
+            ? {}
+            : {
+                reason: {
+                  label:
+                    removalReason === 'required'
+                      ? t('ui:templates.crud.deleteReason', 'Why is it removed?')
+                      : t('ui:templates.crud.deleteReasonOptional', 'Why is it removed? (optional)'),
+                  required: removalReason === 'required',
+                  value: deleteReason,
+                  onChange: setDeleteReason,
+                  maxLength: DELETE_REASON_MAX,
+                },
+              })}
           confirmLabel={t('ui:action.delete', 'Delete')}
           cancelLabel={t('ui:action.cancel', 'Cancel')}
           closeLabel={labels?.close ?? t('ui:action.close', 'Close')}

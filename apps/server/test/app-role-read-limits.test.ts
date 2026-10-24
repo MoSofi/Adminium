@@ -7,8 +7,9 @@
  * installed through its routes and people sign in with a password.
  *
  * One table of read paths, each asked as housekeeping and — where it tells
- * something — as someone who reads the table whole. The key and the links to
- * other rows always read; a column filtered, sorted or selected by is refused
+ * something — as someone who reads the table whole. The key always reads; a
+ * link to another row only when the list names it, as any column (a stay's
+ * room is not housekeeping's here, a note's stay is); a column filtered, sorted or selected by is refused
  * as a masked one is (403 `COLUMN_FORBIDDEN`); a hidden column is not written
  * either unless the role's update names it (`writable`). Roles add up: a
  * plain read of the table from another role lifts the limit.
@@ -46,7 +47,8 @@ const POSTGRES_URL = process.env.TEST_POSTGRES_URL;
 const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
-const HIDDEN = ['guest_name', 'note', 'total'] as const;
+/** What housekeeping does not read of a stay: its guest, its money, and its room (a link its list leaves out). */
+const HIDDEN = ['guest_name', 'note', 'total', 'room_id'] as const;
 
 const MANIFEST = {
   kind: 'app',
@@ -285,14 +287,19 @@ const published = (channel: string, row: Record<string, unknown>) =>
 
 const PATHS: [string, (c: Ctx) => Promise<void>][] = [
   [
-    'a list shows the key, the links and the columns the role reads — nothing else',
+    'a list shows the key and the columns the role reads, a link among them only when listed — nothing else',
     async (c) => {
       const res = await get(c, c.hk.cookie, data(c, c.s.table.stays));
       expect(res.statusCode, res.body).toBe(200);
       const row = res.json().data[0];
-      expect(row).toMatchObject({ id: 1, room_id: 1, late_until: '14:00' });
+      expect(row).toMatchObject({ id: 1, late_until: '14:00' });
       withoutHidden(row);
-      expect((await get(c, c.both.cookie, data(c, c.s.table.stays))).json().data[0]).toMatchObject({ guest_name: 'Nia Obi', total: 480 });
+      expect((await get(c, c.both.cookie, data(c, c.s.table.stays))).json().data[0]).toMatchObject({ guest_name: 'Nia Obi', total: 480, room_id: 1 });
+      // A link the list names is read: a note's stay.
+      const notes = await get(c, c.hk.cookie, data(c, c.s.table.notes));
+      expect(notes.statusCode, notes.body).toBe(200);
+      expect(notes.json().data[0]).toMatchObject({ id: 1, stay_id: 1 });
+      expect(notes.json().data[0]).not.toHaveProperty('body');
     },
   ],
   [
@@ -304,6 +311,25 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
     },
   ],
   ['a select of a hidden column is refused as a masked one', async (c) => refusedAsMasked(await get(c, c.hk.cookie, data(c, `${c.s.table.stays}?select=id,total`)))],
+  [
+    'a link the list leaves out is refused by name as any hidden column: selected, filtered, sorted, looked up through, counted by',
+    async (c) => {
+      refusedAsMasked(await get(c, c.hk.cookie, data(c, `${c.s.table.stays}?select=id,room_id`)));
+      refusedAsMasked(await get(c, c.hk.cookie, data(c, `${c.s.table.stays}?where=${encodeURIComponent(JSON.stringify({ column: 'room_id', op: 'eq', value: 1 }))}`)));
+      refusedAsMasked(await get(c, c.hk.cookie, data(c, `${c.s.table.stays}?order=room_id.asc`)));
+      refusedAsMasked(await get(c, c.hk.cookie, data(c, `${c.s.table.stays}?lookup=${encodeURIComponent('room:room_id.number')}`)));
+      // Which rooms have stays is told by a count of the stays by their room: kept from whoever may not read the room.
+      const compute = encodeURIComponent(JSON.stringify({ measures: [{ id: 'stays', table: c.s.table.stays, fkColumn: 'room_id', fn: 'count' }] }));
+      const counted = await get(c, c.hk.cookie, data(c, `${c.s.table.rooms}?select=id&compute=${compute}`));
+      expect(counted.statusCode, counted.body).toBe(200);
+      expect(counted.json().data[0].stays).toBeNull();
+      expect(counted.json().data[0]._masked).toContain('stays');
+      expect((await get(c, c.both.cookie, data(c, `${c.s.table.rooms}?select=id&compute=${compute}`))).json().data[0].stays).toBe(1);
+      expect((await card(c, c.hk.cookie, ['id', 'room_id'])).json().error?.code).toBe('COLUMN_FORBIDDEN');
+      // The reader of the whole table is told all of it.
+      expect((await get(c, c.both.cookie, data(c, `${c.s.table.stays}?lookup=${encodeURIComponent('room:room_id.number')}`))).json().data[0]).toMatchObject({ room: '101' });
+    },
+  ],
   [
     'a filter by one is refused',
     async (c) => refusedAsMasked(await get(c, c.hk.cookie, data(c, `${c.s.table.stays}?where=${encodeURIComponent(JSON.stringify({ column: 'total', op: 'gt', value: 100 }))}`))),
@@ -367,6 +393,16 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       expect(whole.statusCode, whole.body).toBe(200);
       expect(JSON.stringify(whole.json())).not.toContain('Nia Obi');
       expect(JSON.stringify(whole.json())).not.toContain('VIP');
+      // Nor the link its list leaves out.
+      expect(JSON.stringify(whole.json())).not.toContain('room_id');
+      refusedAsMasked(
+        await post(c, c.hk.cookie, '/api/v1/exports/preview', {
+          connectionId: c.s.connectionId,
+          source: { kind: 'table', table: c.s.table.stays, columns: [{ name: 'id', label: 'Stay' }, { name: 'room_id', label: 'Room' }] },
+          format: 'csv',
+          sampleRows: 5,
+        }),
+      );
     },
   ],
   [
@@ -420,9 +456,9 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       expect(hk).not.toBeNull();
       const shown = (await hk!(event))!.data as { row: Record<string, unknown> };
       withoutHidden(shown.row);
-      expect(shown.row).toMatchObject({ id: 1, room_id: 1, late_until: '14:00' });
+      expect(shown.row).toMatchObject({ id: 1, late_until: '14:00' });
       const whole = await frames({ id: c.both.id }, channel);
-      expect(((await whole!(event))!.data as { row: Record<string, unknown> }).row).toMatchObject({ guest_name: 'Nia Obi' });
+      expect(((await whole!(event))!.data as { row: Record<string, unknown> }).row).toMatchObject({ guest_name: 'Nia Obi', room_id: 1 });
     },
   ],
   [
@@ -457,7 +493,18 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
           mapping: { stays: { collection: { table: c.s.table.stays, fkColumn: 'room_id', columns: { from: 'arrive' }, lists: { notes: { table: c.s.table.notes, fkColumn: 'stay_id', column: 'stay_id', orderBy } } } } },
         });
       refusedAsMasked(await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: (await listed('body')).id, pk: { id: 1 } }));
-      expect((await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: (await listed('id')).id, pk: { id: 1 } })).statusCode).not.toBe(403);
+      // A room's stays are listed by the stay's room: a link housekeeping's list leaves out, so the sheet is not drawn either.
+      refusedAsMasked(await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: (await listed('id')).id, pk: { id: 1 } }));
+      // A stay's notes, by the note's stay (a link its list names), are.
+      const notes = await profiles.create({
+        addOnKey: 'invoices',
+        kind: 'stay-notes',
+        name: 'Stay notes',
+        connectionId: c.s.connectionId,
+        table: c.s.table.stays,
+        mapping: { late: { column: 'late_until' }, notes: { collection: { table: c.s.table.notes, fkColumn: 'stay_id', columns: { stay: 'stay_id' } } } },
+      });
+      expect((await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: notes.id, pk: { id: 1 } })).statusCode).not.toBe(403);
     },
   ],
   [

@@ -89,6 +89,7 @@ export function PageCrudBinding({
   formChildren,
   tableLabelSingular,
   tableLabelPlural,
+  removalReason,
   currency,
 }: PageTemplateProps) {
   // Read from the cache, never fetched here: the shell loads the bootstrap
@@ -491,6 +492,7 @@ export function PageCrudBinding({
         canCreate={canCreate}
         canUpdate={canUpdate}
         canDelete={canDelete}
+        {...(removalReason === undefined ? {} : { removalReason })}
         // The file transport. Passed only when the page has at
         // least one `file` column: a table with none must not gain an adapter
         // it would never call, and the widget's own rule is that an absent

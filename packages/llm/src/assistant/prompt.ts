@@ -33,7 +33,7 @@ import {
   type AssistantTurnVariant,
 } from './turn-schema.js';
 
-export const ASSISTANT_PROMPT_VERSION = 'adminium.assistant-prompt/v1.3';
+export const ASSISTANT_PROMPT_VERSION = 'adminium.assistant-prompt/v1.4';
 
 /** One read tool as the model is told about it. */
 export interface AssistantToolSpec {
@@ -169,7 +169,7 @@ const NOTHING_PROPOSABLE = 'You cannot change anything here; say so if asked.';
 const PROPOSABLE_LINES: Record<AssistantActionKind, string> = {
   'row.create': '- row.create: add a row to a table. Give every required column; read the table with a tool first.',
   'row.change': '- row.change: change columns of ONE row you have read. Give its id and only the columns that change.',
-  'row.delete': '- row.delete: delete ONE row you have read, by its id.',
+  'row.delete': '- row.delete: delete ONE row you have read, by its id. Where the table asks why a row is removed, give the person\'s "reason" (ask them when they have not said); where it asks nothing, give none.',
   'doc.save': '- doc.save: save the draft in "result" of this same reply as a new document.',
   'doc.change': '- doc.change: save the draft in "result" of this same reply over the document that is open on this page.',
   'doc.delete': '- doc.delete: delete one email template, report or rule, by the id a tool returned.',

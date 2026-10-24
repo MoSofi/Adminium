@@ -20,6 +20,13 @@ const fieldClass = cn(
 
 const labelClass = 'mb-1.5 block text-caption font-bold text-fg-muted';
 
+/** The reason box: prose, not a token to match, so it reads in the page's own face. */
+const reasonClass = cn(
+  'min-h-[64px] w-full resize-y rounded-md border border-border-strong bg-surface px-3 py-2 text-body text-fg',
+  'outline-none placeholder:text-fg-subtle disabled:opacity-40',
+  'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+);
+
 export interface ConfirmModalProps extends Omit<ModalProps, 'children' | 'size'> {
   /** Dialog title (e.g. "Delete project"). */
   title: ReactNode;
@@ -48,6 +55,24 @@ export interface ConfirmModalProps extends Omit<ModalProps, 'children' | 'size'>
         expected: string;
         /** Optional hint rendered under the field when it does not yet match. */
         hint?: ReactNode;
+      }
+    | undefined;
+  /**
+   * A box for WHY (a removal's reason, for a table that asks for one). The
+   * caller holds the text. `required`: the danger button stays disabled until
+   * something other than spaces is written; otherwise it may be left empty.
+   * When absent, no box reaches the DOM.
+   */
+  reason?:
+    | {
+        /** Label above the box, already localised (say "optional" in it when it is). */
+        label: ReactNode;
+        required: boolean;
+        value: string;
+        onChange: (value: string) => void;
+        /** The most characters it takes. */
+        maxLength?: number | undefined;
+        placeholder?: string | undefined;
       }
     | undefined;
   /** Danger button label (required — i18n). */
@@ -79,6 +104,7 @@ export function ConfirmModal({
   confirmWord,
   promptLabel,
   secondPrompt,
+  reason,
   confirmLabel,
   cancelLabel,
   closeLabel,
@@ -89,6 +115,7 @@ export function ConfirmModal({
   onOpenChange,
   ...modalProps
 }: ConfirmModalProps) {
+  const reasonId = useId();
   const inputId = useId();
   // Each field needs its own id. Reusing `inputId` would point both `htmlFor`
   // attributes at the first input: a screen reader then announces the override
@@ -109,7 +136,8 @@ export function ConfirmModal({
   // target counts as unmet.
   const secondMatches =
     secondExpected !== undefined && secondExpected !== '' && secondTyped === secondExpected;
-  const ready = typed === confirmWord && (secondPrompt === undefined || secondMatches);
+  const reasonGiven = reason === undefined || !reason.required || reason.value.trim() !== '';
+  const ready = typed === confirmWord && (secondPrompt === undefined || secondMatches) && reasonGiven;
 
   const hint = secondPrompt?.hint;
   const showHint = !secondMatches && hint !== undefined && hint !== null && hint !== false;
@@ -159,6 +187,27 @@ export function ConfirmModal({
         closeLabel={closeLabel}
       />
       <ModalBody>
+        {reason === undefined ? null : (
+          // Asked first: what is written here is kept with the removal, and the type-to-confirm below is only the gate.
+          <div className="mb-4">
+            <label htmlFor={reasonId} className={labelClass}>
+              {reason.label}
+            </label>
+            <textarea
+              id={reasonId}
+              value={reason.value}
+              disabled={isBusy}
+              required={reason.required}
+              aria-required={reason.required}
+              rows={2}
+              {...(reason.maxLength === undefined ? {} : { maxLength: reason.maxLength })}
+              {...(reason.placeholder === undefined ? {} : { placeholder: reason.placeholder })}
+              onChange={(event) => reason.onChange(event.target.value)}
+              data-part="confirm-reason"
+              className={reasonClass}
+            />
+          </div>
+        )}
         <label htmlFor={inputId} className={labelClass}>
           {promptLabel}
         </label>

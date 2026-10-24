@@ -92,6 +92,8 @@ export interface PageTemplateProps {
   tableLabelSingular?: string | null | undefined;
   /** What a person calls the table as a whole ("Categories"): searched, named when empty. */
   tableLabelPlural?: string | null | undefined;
+  /** A removal of one of the table's rows asks why (`table.removal.reason`): the delete dialogs ask too. Absent: it does not. */
+  removalReason?: 'optional' | 'required' | undefined;
   /**
    * The owning connection's ISO-4217 currency, resolved once by
    * `PageRenderer` from the bootstrap nav item.

@@ -1810,7 +1810,9 @@
         "gone": "That picture is no longer available.",
         "cancel": "Cancel",
         "close": "Close"
-      }
+      },
+      "deleteReason": "Why is it removed?",
+      "deleteReasonOptional": "Why is it removed? (optional)"
     },
     "queue": {
       "allSegment": "All",
@@ -2031,7 +2033,14 @@
       "columnsError": "This board’s columns could not be read from {table}.",
       "columnsCut": "{count, plural, one {Showing the first column only: the table this board takes its columns from has more rows.} other {Showing the first # columns: the table this board takes its columns from has more rows.}}",
       "noRowsBody": "Cards appear here as soon as the table has rows.",
-      "days": "{count, plural, one {# day} other {# days}}"
+      "days": "{count, plural, one {# day} other {# days}}",
+      "toolbar": "Board",
+      "person": "Person",
+      "everyone": "Everyone",
+      "toolbarCount": "{count, plural, one {# card} other {# cards}}",
+      "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
+      "daysLabelled": "{days} {label}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} event} other {{n} events}}",

@@ -1820,7 +1820,9 @@ export default {
         "gone": "那張圖片已無法使用。",
         "cancel": "取消",
         "close": "關閉"
-      }
+      },
+      "deleteReason": "為什麼要刪除？",
+      "deleteReasonOptional": "為什麼要刪除？（選填）"
     },
     "queue": {
       "allSegment": "全部",
@@ -2041,7 +2043,14 @@ export default {
       "columnsError": "無法從 {table} 讀取此看板的欄。",
       "columnsCut": "{count, plural, other {僅顯示前 # 欄：此看板取欄的資料表還有更多列。}}",
       "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。",
-      "days": "{count, plural, other {# 天}}"
+      "days": "{count, plural, other {# 天}}",
+      "toolbar": "看板",
+      "person": "人員",
+      "everyone": "所有人",
+      "toolbarCount": "{count, plural, other {# 張卡片}}",
+      "toolbarCountNamed": "{count, plural, =1 {{one}：#} other {{other}：#}}",
+      "daysLabelled": "{label} {days}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",

@@ -14,6 +14,7 @@
  *   list cannot be ordered by it.
  * - Paging by offset works; a keyset cursor is refused by name.
  */
+import { permissionsRepo, rolesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runList } from '../src/crud/list.js';
@@ -27,6 +28,7 @@ for (const [dialect, available] of legs) {
     let s: Stack;
     let all: { cookie: string; id: string };
     let hk: { cookie: string; id: string };
+    let desk: { cookie: string; id: string };
     let roomsOnly: { cookie: string; id: string };
 
     const run = (setup: TurnSetup, args: Record<string, unknown>) => setup.execute({ id: 'c1', tool: 'read_rows', args: { connectionId: s.connectionId, table: s.table.rooms, ...args } });
@@ -45,6 +47,12 @@ for (const [dialect, available] of legs) {
       }
       all = await person(s, 'all@lodge.dev', [], [`table:${s.connectionId}:${s.table.rooms}:read`, `table:${s.connectionId}:${s.table.stays}:read`]);
       hk = await person(s, 'hk@lodge.dev', ['housekeeping']);
+      // Reads a stay's room and dates, not its money: counts stays by room, never adds them up.
+      desk = await person(s, 'desk@lodge.dev', [], [`table:${s.connectionId}:${s.table.rooms}:read`]);
+      const part = await rolesRepo(s.meta).create({ slug: 'stays-in-part', name: 'Stays in part' });
+      const no = { create: false, update: false, delete: false, export: false, import: false };
+      await permissionsRepo(s.meta).grant(part.id, 'table', `${s.connectionId}/${s.table.stays}`, { read: true, ...no, readLimit: { readable: ['room_id', 'arrive', 'depart'] } } as never);
+      await rolesRepo(s.meta).assignToUser(desk.id, part.id);
       roomsOnly = await person(s, 'rooms@lodge.dev', [], [`table:${s.connectionId}:${s.table.rooms}:read`]);
     }, 180_000);
     afterAll(async () => s?.close());
@@ -79,17 +87,24 @@ for (const [dialect, available] of legs) {
     });
 
     it('is resolved as the person: a fold they may not see is empty, and no order may be made of it', async () => {
-      // Housekeeping reads stays without `total`: they may count stays, not add them up.
-      const asHk = await turnAs(s, hk.id, 'data');
-      expect(numbers(await run(asHk, { measures: [stays('stay_count')], sort: 'stay_count.desc' }))).toEqual(['102', '103', '101', '104']);
-      const hidden = await run(asHk, { measures: [stays('revenue', 'sum', money)] });
+      // The desk reads stays by their room and without `total`: they may count stays, not add them up.
+      const asDesk = await turnAs(s, desk.id, 'data');
+      expect(numbers(await run(asDesk, { measures: [stays('stay_count')], sort: 'stay_count.desc' }))).toEqual(['102', '103', '101', '104']);
+      const hidden = await run(asDesk, { measures: [stays('revenue', 'sum', money)] });
       expect(hidden.error, JSON.stringify(hidden.error)).toBeUndefined();
       // Empty for every room, and nothing of the sums in the reply.
       for (const row of rows(hidden)) expect(row.revenue ?? null).toBeNull();
       expect(JSON.stringify(hidden)).not.toMatch(/900|600/);
-      const ordered = await run(asHk, { measures: [stays('revenue', 'sum', money)], sort: 'revenue.desc' });
+      const ordered = await run(asDesk, { measures: [stays('revenue', 'sum', money)], sort: 'revenue.desc' });
       expect(ordered.error?.code).toBe('COLUMN_FORBIDDEN');
       expect(ordered.result).toBeUndefined();
+
+      // Housekeeping's list of a stay leaves its room out: a count of stays by the room is as empty, and no order is made of it.
+      const asHk = await turnAs(s, hk.id, 'data');
+      const unlinked = await run(asHk, { measures: [stays('stay_count')] });
+      expect(unlinked.error, JSON.stringify(unlinked.error)).toBeUndefined();
+      for (const row of rows(unlinked)) expect(row.stay_count ?? null).toBeNull();
+      expect((await run(asHk, { measures: [stays('stay_count')], sort: 'stay_count.desc' })).error?.code).toBe('COLUMN_FORBIDDEN');
 
       // Someone who reads rooms and not stays at all: the same, for a plain count.
       const asRooms = await turnAs(s, roomsOnly.id, 'data');

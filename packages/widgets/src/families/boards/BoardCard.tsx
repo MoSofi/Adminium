@@ -96,12 +96,25 @@ export function BoardCard({
 
       <p className="text-body-sm font-semibold leading-snug text-fg">{card.title}</p>
 
-      {(card.client !== undefined || card.budget !== undefined) && (
-        <div className="flex items-center justify-between gap-2 text-caption text-fg-muted">
-          {card.client !== undefined && <span className="truncate">{card.client}</span>}
-          {card.budget !== undefined && <MonoText className="shrink-0">{card.budget}</MonoText>}
-        </div>
-      )}
+      {card.budgetSecond === undefined
+        ? (card.client !== undefined || card.budget !== undefined) && (
+            <div className="flex items-center justify-between gap-2 text-caption text-fg-muted">
+              {card.client !== undefined && <span className="truncate">{card.client}</span>}
+              {card.budget !== undefined && <MonoText className="shrink-0">{card.budget}</MonoText>}
+            </div>
+          )
+        : (
+            // Two money lines: the row's name on its own line, then the amount and, at the line's end, the second one.
+            <>
+              {card.client !== undefined && <p className="truncate text-caption text-fg-muted">{card.client}</p>}
+              <div data-part="board-card-amounts" className="flex items-baseline gap-2">
+                {card.budget !== undefined && <MonoText className="text-body-sm font-bold text-fg">{card.budget}</MonoText>}
+                <MonoText data-part="board-card-second-amount" className="ms-auto shrink-0 text-caption text-fg-subtle">
+                  {card.budgetSecond}
+                </MonoText>
+              </div>
+            </>
+          )}
 
       {card.lines !== undefined && card.lines.length > 0 && (
         <div data-part="board-card-lines" className="flex flex-col gap-0.5 text-caption text-fg-muted">

@@ -95688,6 +95688,13 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "removalReason": {
+                              "type": "string",
+                              "enum": [
+                                "optional",
+                                "required"
+                              ]
                             }
                           },
                           "required": [

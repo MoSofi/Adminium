@@ -212,7 +212,10 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
   const measures: ResolvedMeasure[] = [];
   for (const spec of specs) {
     const refTable = view.table(spec.table); // 422 unknown
-    const fkColumn = view.column(refTable, spec.fkColumn); // 422 unknown/secret
+    // 422 unknown/secret. A link the caller's read of the folded table leaves out refuses the measure (null + `_masked`)
+    // as a hidden factor does: which rows of the base have such rows is what the figure would tell.
+    const hiddenFk = refTable.columns.get(spec.fkColumn);
+    const fkColumn = hiddenFk?.unreadable === true ? hiddenFk : view.column(refTable, spec.fkColumn);
     const toColumn = inboundFk(view, table, refTable, spec.fkColumn);
     if (toColumn === null) {
       throw new ValidationFailedError(
@@ -236,7 +239,7 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
     // Masked columns are asked about per table: the folded table's, the base's.
     let maskedTouched = fkColumn.masked;
     let baseMaskedTouched = false;
-    let unreadTouched = false;
+    let unreadTouched = fkColumn.unreadable === true;
     const baseColumn = table.columns.get(toColumn);
     if (baseColumn?.secret === true) secretTouched = true;
     else if (baseColumn?.masked === true) baseMaskedTouched = true;

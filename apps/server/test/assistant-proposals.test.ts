@@ -622,6 +622,47 @@ for (const [dialect, available] of legs) {
       expect(no.stored.status).toBe('failed');
     });
 
+    it('asks why where the table must be told, refuses a delete without it at the check, and keeps the reason it was given', async () => {
+      await switches({ delete: true });
+      const { overridesRepo } = await import('@adminium/meta');
+      const rule = await overridesRepo(s.meta).create({ connectionId: s.connectionId, op: 'table.removal', tableName: s.table.stays, value: { reason: 'required' }, origin: 'user' } as never);
+      try {
+        await s.run(`INSERT INTO lodge_stays (room_id, arrive, depart, guest_name, total, status) VALUES (1, '2027-03-01', '2027-03-02', 'Eli', 10, 'booked')`);
+        const handle = await s.manager.data(s.connectionId);
+        const id = String((await sql<{ id: number }>`SELECT id FROM lodge_stays WHERE guest_name = 'Eli'`.execute(handle.db)).rows[0]!.id);
+        // The console's delete dialogs are told the table asks why, by the page's own reply.
+        const page = await s.app.inject({ method: 'GET', url: `/api/v1/pages/${pageId}`, headers: { cookie: all.cookie } });
+        expect(page.statusCode, page.body).toBe(200);
+        expect((page.json() as { columnFacts?: { table: { removalReason?: string } } }).columnFacts?.table.removalReason).toBe('required');
+        // The model is told the table asks why.
+        const told = await on(all.id);
+        const schema = await describeSchemaTool.run({ connectionId: s.connectionId, tables: [s.table.stays] }, told.deps);
+        expect((schema.result as { tables: { removalReason?: string }[] }).tables[0]!.removalReason).toBe('required');
+        // Without a reason: refused at the check, in the route's words, and nothing is removed.
+        const bare = await proposed(all, [{ do: 'row.delete', connectionId: s.connectionId, table: s.table.stays, id }]);
+        expect((await check(all, bare)).proposal.actions![0]).toMatchObject({ refused: { code: 'VALIDATION_FAILED', message: 'Say why the row is removed.' } });
+        expect(await statusOf('Eli')).toBe('booked');
+        // With one: shown on the card as it will be kept, then sent with the delete and kept in its audit entry.
+        const made = await proposed(all, [{ do: 'row.delete', connectionId: s.connectionId, table: s.table.stays, id, reason: '  Booked twice ' }]);
+        const shown = await check(all, made);
+        expect(shown.proposal.actions![0]).toMatchObject({ preview: { kind: 'delete', row: { guest_name: 'Eli' }, reason: 'Booked twice' } });
+        const done = await apply(all, made, shown.proposal.hash);
+        expect(done.proposal, done.body).toMatchObject({ state: 'applied', outcome: { done: [{ index: 0, id }], failed: [] } });
+        expect(await statusOf('Eli')).toBeUndefined();
+        const [entry] = await auditRepo(s.meta).list({ actorId: all.id, category: 'data' });
+        expect(entry).toMatchObject({ action: 'record.delete' });
+        expect((entry!.changes as { reason?: unknown }).reason).toBe('Booked twice');
+      } finally {
+        await overridesRepo(s.meta).delete(rule.id);
+      }
+      // A table that asks nothing refuses a reason, and the card says so before anything is tried.
+      await s.run(`INSERT INTO lodge_stays (room_id, arrive, depart, guest_name, total, status) VALUES (1, '2027-03-03', '2027-03-04', 'Fay', 10, 'booked')`);
+      const handle = await s.manager.data(s.connectionId);
+      const fay = String((await sql<{ id: number }>`SELECT id FROM lodge_stays WHERE guest_name = 'Fay'`.execute(handle.db)).rows[0]!.id);
+      const given = await proposed(all, [{ do: 'row.delete', connectionId: s.connectionId, table: s.table.stays, id: fay, reason: 'Gone' }]);
+      expect((await check(all, given)).proposal.actions![0]).toMatchObject({ refused: { message: 'This table takes no reason for a removal.' } });
+    });
+
     it('away from any page: writes a table the person may write, by the view`s own ids, and its undo is theirs alone', async () => {
       await switches({ create: true, change: true, delete: true });
       const rooms = `table:${s.connectionId}:${s.table.rooms}`;

@@ -3468,7 +3468,6 @@ export default {
     "roleTables": {
       "summary": "{count, plural, other {{app} 的角色可存取它的 # 張資料表。查看它們讀取與變更的內容。}}",
       "unchecked": "{addOn} 尚未安裝在此伺服器上，因此這裡顯示的是 {app} 要求的內容。附加元件可能允許的更少。",
-      "keyAndLinks": "讀取時也會顯示每列的鍵及其指向其他列的連結。",
       "everyColumn": "所有欄位",
       "reads": "讀取 {columns}",
       "readsAll": "讀取所有欄位",
@@ -3489,6 +3488,7 @@ export default {
         "create": "新增資料列",
         "update": "變更資料列"
       },
+      "keyShown": "讀取時也會顯示每列的鍵。指向其他列的連結只有在列出時才會顯示。",
       "othersTitle": "應用程式的角色可取得附加元件資料表的更多權限",
       "othersBody": "該附加元件的新版本讓這些角色可以對它的資料表做更多操作。繼續即表示允許。",
       "appRoles": "{app} 的角色"

@@ -1820,7 +1820,9 @@ export default {
         "gone": "那张图片已不可用。",
         "cancel": "取消",
         "close": "关闭"
-      }
+      },
+      "deleteReason": "为什么要删除？",
+      "deleteReasonOptional": "为什么要删除？（可选）"
     },
     "queue": {
       "allSegment": "全部",
@@ -2041,7 +2043,14 @@ export default {
       "columnsError": "无法从 {table} 读取此看板的列。",
       "columnsCut": "{count, plural, other {仅显示前 # 列：此看板取列的数据表还有更多行。}}",
       "noRowsBody": "表中一有行，卡片就会显示在这里。",
-      "days": "{count, plural, other {# 天}}"
+      "days": "{count, plural, other {# 天}}",
+      "toolbar": "看板",
+      "person": "人员",
+      "everyone": "所有人",
+      "toolbarCount": "{count, plural, other {# 张卡片}}",
+      "toolbarCountNamed": "{count, plural, =1 {{one}：#} other {{other}：#}}",
+      "daysLabelled": "{label} {days}",
+      "secondAmount": "{label} {amount}"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",

@@ -3458,7 +3458,6 @@
     "roleTables": {
       "summary": "{count, plural, other {{app} 的角色可访问它的 # 张表。查看它们读取和更改的内容。}}",
       "unchecked": "{addOn} 尚未安装在此服务器上，因此这里显示的是 {app} 请求的内容。附加组件可能允许的更少。",
-      "keyAndLinks": "读取时也会显示每行的键及其指向其他行的链接。",
       "everyColumn": "所有列",
       "reads": "读取 {columns}",
       "readsAll": "读取所有列",
@@ -3479,6 +3478,7 @@
         "create": "添加行",
         "update": "更改行"
       },
+      "keyShown": "读取时也会显示每行的键。指向其他行的链接只有在列出时才会显示。",
       "othersTitle": "应用的角色可获得附加组件表的更多权限",
       "othersBody": "该附加组件的新版本让这些角色可以对它的表做更多操作。继续即表示允许。",
       "appRoles": "{app} 的角色"

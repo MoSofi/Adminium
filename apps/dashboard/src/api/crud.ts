@@ -370,12 +370,14 @@ export function createCrudApi(connectionId: string, table: string, opts: CrudApi
 
     undo: undoMutation,
 
-    async bulk(action, ids, values): Promise<CrudBulkResult> {
+    async bulk(action, ids, values, options): Promise<CrudBulkResult> {
       try {
         return await api.post<CrudBulkResult>(`${base}/bulk`, {
           action,
           ids: [...ids],
           ...(values === undefined ? {} : { values }),
+          // Why the rows go, for a table that asks: one reason for the batch.
+          ...(action === 'delete' && options?.reason !== undefined ? { reason: options.reason } : {}),
         });
       } catch (error) {
         // Rows that hand something to an add-on are saved one at a time: the

@@ -30,6 +30,7 @@ import { automationsRepo, emailTemplatesRepo, reportDocumentsRepo, rolesRepo, se
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
+import { personReason } from '../crud/removals.js';
 import { isBuiltinEmailKey } from '../email/document.js';
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
@@ -58,7 +59,8 @@ export interface ProposalRefusal {
 export type ProposalPreview =
   | { kind: 'create'; after: Record<string, unknown> }
   | { kind: 'change'; before: Record<string, unknown>; after: Record<string, unknown> }
-  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[] }
+  /** `reason`: why the row goes, as it will be kept with the removal (a table that asks why); absent where the table asks nothing. */
+  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[]; reason?: string | null }
   /** A draft saved as a new document of the page it was made on. */
   | { kind: 'doc.save'; what: DocKind | 'invoice' | 'invoice-template'; name: string }
   /** A draft saved over the document open on the page. A rule that is on is saved switched off. */
@@ -499,12 +501,28 @@ async function checkOne(input: CheckOneInput): Promise<{ checked: CheckedAction;
     const before = clip((read.body as { data?: unknown }).data);
     const raw = ((read.body as { data?: unknown }).data ?? {}) as Record<string, unknown>;
     if (placed.do === 'row.delete') {
+      /*
+       * Why it goes, judged as the delete route judges it, before anything is
+       * tried: a table that must be told why refuses a removal without one
+       * ("Say why the row is removed."), and one that asks nothing refuses a
+       * reason. The person sees the refusal on the card, never a later failure.
+       */
+      let reason: string | null = null;
+      const found = await viewOrError(input.deps, at.connectionId);
+      const table = 'error' in found ? null : found.view.linkTable(at.table);
+      try {
+        if (table !== null) reason = personReason(table, placed.reason);
+      } catch (error) {
+        if (!(error instanceof ValidationFailedError)) throw error;
+        const fields = Object.entries((error.details as { fields?: Record<string, { code?: unknown }> } | undefined)?.fields ?? {}).map(([column, field]) => ({ column, code: String(field.code ?? 'invalid') }));
+        return { checked: { ...placed, refused: { code: error.code, message: error.message, ...(fields.length === 0 ? {} : { fields }) } } };
+      }
       const tried = await through('row.delete.try', row);
       if (tried.status !== 200) return refusedBy(tried);
       const references = ((tried.body as { references?: { table?: unknown; count?: unknown }[] }).references ?? [])
         .filter((entry) => typeof entry.count === 'number' && entry.count > 0)
         .map((entry) => ({ table: String(entry.table), count: Number(entry.count) }));
-      return { checked: { ...placed, preview: { kind: 'delete', row: before, references } } };
+      return { checked: { ...placed, ...(reason === null ? {} : { reason }), preview: { kind: 'delete', row: before, references, ...(table?.table.removal?.reason === undefined ? {} : { reason }) } } };
     }
     const tried = await through('row.change.try', row, { values: placed.values });
     if (tried.status !== 200) return refusedBy(tried);
@@ -786,7 +804,12 @@ export async function applyProposal(input: ApplyProposalInput): Promise<{ propos
                 ? await through('row.change', { ...where, recordId: action.id }, { values: action.values, ...(action.seen === undefined || Object.keys(action.seen).length === 0 ? {} : { seen: action.seen }) })
                 : action.do === 'row.delete'
                   ? // "Yes, with what refers to it" is said only for a row whose references the person was shown.
-                    await through(action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete', { ...where, recordId: action.id })
+                    await through(
+                      action.preview?.kind === 'delete' && action.preview.references.length > 0 ? 'row.delete.confirmed' : 'row.delete',
+                      { ...where, recordId: action.id },
+                      // Why it goes, as checked and shown on the card: in the body, as the console's own delete sends it.
+                      action.reason === undefined ? undefined : { reason: action.reason },
+                    )
                   : null;
         }
         if (reply === null) {

@@ -93,12 +93,12 @@ const MANIFEST = {
       permissions: ['table:@stays:read', 'table:@stays:update', 'table:@rooms:read', 'page:@lodge-stays:view'],
       limits: { stays: { readable: ['arrive', 'depart', 'late_until'], writable: ['arrive', 'depart', 'late_until', 'note'] } },
     },
-    // Reads the status, the dates and the late leaving; changes any column it reads.
+    // Reads the status, the dates, the late leaving and the room (a link is read only when listed); changes any column it reads.
     {
       key: 'frontdesk',
       name: 'Front desk',
       permissions: ['table:@stays:read', 'table:@stays:update', 'table:@stays:create', 'table:@rooms:read', 'page:@lodge-stays:view'],
-      limits: { stays: { readable: ['status', 'arrive', 'depart', 'late_until'] } },
+      limits: { stays: { readable: ['status', 'arrive', 'depart', 'late_until', 'room_id'] } },
     },
   ],
   frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],

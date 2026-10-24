@@ -150,15 +150,21 @@ function stub(fixture: Fixture) {
         });
       }
       if (url === '/api/v1/widget-data/batch' && method === 'POST') {
-        const body = JSON.parse(String(init?.body)) as { requests: { instanceId: string; descriptor: { shape: string } }[] };
+        const body = JSON.parse(String(init?.body)) as { requests: { instanceId: string; descriptor: { shape: string; groupBy?: string[]; filters?: { column: string; op: string; value?: unknown }[]; aggregations?: { fn: string }[] } }[] };
         batches.push(body.requests);
+        // One person's cards, where the toolbar narrowed the board to them.
+        const dana = (request: (typeof body.requests)[number]) => (request.descriptor.filters ?? []).some((filter) => filter.column === 'owner_id' && filter.op === 'eq' && filter.value === 'usr_dana');
         return jsonResponse(200, {
           results: Object.fromEntries(
             body.requests.map((request) => [
               request.instanceId,
-              request.descriptor.shape === 'categorical'
-                ? { ok: true, result: { shape: 'categorical', items: [{ key: 'todo', label: 'todo', value: 41, values: { cards: 41, total0: 1250.5 } }], total: 41 }, cached: false }
-                : { ok: true, result: { shape: 'record-list', rows: DEALS, columns: [], key: 'id' }, cached: false },
+              request.descriptor.shape === 'single-metric'
+                ? { ok: true, result: { shape: 'single-metric', value: request.descriptor.aggregations?.[0]?.fn === 'count' ? (dana(request) ? 41 : 342) : dana(request) ? 2500.5 : 1450000 }, cached: false }
+                : request.descriptor.shape === 'categorical' && request.descriptor.groupBy?.[0] === 'owner_id'
+                  ? { ok: true, result: { shape: 'categorical', items: [{ key: 'usr_omar', label: 'Omar Haddad', value: 301 }, { key: 'usr_dana', label: 'Dana Ruiz', value: 41 }], total: 342 }, cached: false }
+                  : request.descriptor.shape === 'categorical'
+                    ? { ok: true, result: { shape: 'categorical', items: [{ key: 'todo', label: 'todo', value: 41, values: { cards: 41, total0: 1250.5 } }], total: 41 }, cached: false }
+                    : { ok: true, result: { shape: 'record-list', rows: DEALS, columns: [], key: 'id' }, cached: false },
             ]),
           ),
         });
@@ -534,6 +540,53 @@ describe('a board over an enum the page named', () => {
     expect(batches).toHaveLength(1);
     expect(batches[0]!.map((request) => request.instanceId).sort()).toEqual(['board-1', 'board-1:columns']);
     expect(columnReads).toHaveLength(0);
+  });
+});
+
+describe('a board with a toolbar', () => {
+  const figure = (aggregations: unknown[]) => ({ ...CARDS, shape: 'single-metric', select: undefined, limit: undefined, aggregations });
+  const TOOLBAR = boardPage({
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', order: 'position' },
+    totals: [{ column: 'amount', fn: 'sum' }],
+    toolbar: { total: true, person: 'owner_id' },
+    toolbarBindings: [figure([{ fn: 'count', alias: 'cards' }]), figure([{ fn: 'sum', column: 'amount', alias: 'total' }])],
+    personBinding: { ...CARDS, shape: 'categorical', select: undefined, limit: 30, groupBy: ['owner_id'], aggregations: [{ fn: 'count', alias: 'cards' }], filters: [{ column: 'owner_id', op: 'not_null' }] },
+    binding: CARDS,
+  });
+  const owner = (request: { descriptor?: { filters?: { column: string; op: string; value?: unknown }[] } }) => (request.descriptor?.filters ?? []).find((filter) => filter.column === 'owner_id' && filter.op === 'eq')?.value;
+
+  it("reads the server's total and the people in the page's one batch, and says the total in the table's own words", async () => {
+    await renderBoard({ stages: STAGES, page: TOOLBAR });
+    // A whole total is written as the columns' headers write theirs: no cents.
+    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('342 Deals · €1,450,000'));
+    await settle();
+    expect(batches).toHaveLength(1);
+    expect(batches[0]!.map((request) => request.instanceId).sort()).toEqual(['board-1', 'board-1:people', 'board-1:toolbar:0', 'board-1:toolbar:1']);
+    const group = screen.getByRole('group', { name: 'Person' });
+    expect(within(group).getAllByRole('button').map((button) => button.textContent)).toEqual(['Everyone', 'Omar', 'Dana']);
+  });
+
+  it("narrowed to one person, asks the cards, the columns' figures and the total again of their cards, and never the people", async () => {
+    await renderBoard({ stages: STAGES, page: TOOLBAR });
+    const group = await screen.findByRole('group', { name: 'Person' });
+    await settle();
+    fireEvent.click(within(group).getByRole('button', { name: 'Dana Ruiz' }));
+    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('41 Deals · €2,500.50'));
+    const narrowed = batches.at(-1)!;
+    expect(narrowed.filter((request) => owner(request as never) === 'usr_dana').map((request) => request.instanceId).sort()).toEqual(['board-1', 'board-1:toolbar:0', 'board-1:toolbar:1']);
+    expect(owner(narrowed.find((request) => request.instanceId === 'board-1:people') as never)).toBeUndefined();
+    // Each column's count and total: the measures ask of her cards alone.
+    const compute = JSON.parse(columnReads.at(-1)!.searchParams.get('compute')!) as { measures: { where?: unknown }[] };
+    for (const measure of compute.measures) expect(measure.where).toEqual([{ column: 'owner_id', in: ['usr_dana'] }]);
+    // The same filter, never drawn again while her cards were read: what was clicked (and focused) is still there.
+    expect(group.isConnected).toBe(true);
+    expect(within(group).getByRole('button', { name: 'Dana Ruiz' }).getAttribute('aria-pressed')).toBe('true');
+    // Everyone again: the whole board.
+    fireEvent.click(within(group).getByRole('button', { name: 'Everyone' }));
+    await waitFor(() => expect(screen.getByTestId('board-total').textContent).toBe('342 Deals · €1,450,000'));
   });
 });
 

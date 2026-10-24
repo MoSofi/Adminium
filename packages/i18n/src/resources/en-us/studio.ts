@@ -3468,7 +3468,6 @@ export default {
     "roleTables": {
       "summary": "{app}’s roles get {count, plural, one {# of its tables} other {# of its tables}}. See what they read and change.",
       "unchecked": "{addOn} isn’t on this server yet, so this is what {app} asks for. The add-on may allow less.",
-      "keyAndLinks": "A read also shows each row’s key and its links to other rows.",
       "everyColumn": "every column",
       "reads": "Reads {columns}",
       "readsAll": "Reads every column",
@@ -3489,6 +3488,7 @@ export default {
         "create": "add rows",
         "update": "change rows"
       },
+      "keyShown": "A read also shows each row’s key. A link to another row is shown only where it is listed.",
       "othersTitle": "Apps’ roles get more of an add-on’s tables",
       "othersBody": "The add-on’s new version lets these roles do more with its tables. Going ahead allows it.",
       "appRoles": "{app}’s roles"

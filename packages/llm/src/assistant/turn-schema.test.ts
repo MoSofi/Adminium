@@ -327,6 +327,15 @@ describe('a proposal', () => {
     expect(parsed.turn.propose?.actions).toEqual([create, change]);
   });
 
+  it("carries a removal's reason, and refuses an empty one", () => {
+    const variant = { document: false, propose: ['row.delete'] } as const;
+    const why = { ...remove, reason: 'Customer cancelled' };
+    const parsed = parseAssistantTurn(reply({ propose: { title: 'Remove', actions: [why] } }), undefined, variant);
+    expect(parsed.ok && parsed.turn.propose?.actions).toEqual([why]);
+    expect(parseAssistantTurn(reply({ propose: { title: 'Remove', actions: [{ ...remove, reason: '' }] } }), undefined, variant).ok).toBe(false);
+    expect(parseAssistantTurn(reply({ propose: { title: 'Remove', actions: [{ ...remove, reason: 'x'.repeat(501) }] } }), undefined, variant).ok).toBe(false);
+  });
+
   it('refuses a kind this page does not offer, naming what it does', () => {
     const parsed = parseAssistantTurn(reply({ propose: { title: 'Tidy', actions: [create, remove] } }), undefined, rows);
     expect(parsed).toMatchObject({ ok: false, errors: [{ path: 'propose.actions[1].do' }] });

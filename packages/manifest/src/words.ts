@@ -141,6 +141,9 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'linkable.same',
   'column.file',
   'config.board',
+  'board.toolbar',
+  'board.secondAmount',
+  'board.daysLabel',
   'states.notPast',
   'states.moveOnCreate',
   'publicAccess.requiresWhen',
@@ -271,6 +274,12 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.file': '0.3.28',
   // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
   'config.board': '0.3.28',
+  // A board's toolbar: the server's total of every card the reader reaches, and a filter by the person a staff column names.
+  'board.toolbar': '0.3.35',
+  // A second number or money line on a board's card, with its short label (a deal's weighted value).
+  'board.secondAmount': '0.3.35',
+  // What a card's days are, after the figure ("12 days in stage").
+  'board.daysLabel': '0.3.35',
   // A move refused once a date of its row has passed, for every writer.
   'states.notPast': '0.3.28',
   // A new child row moves its parent to a state by the parent's own move (a job signed off by the sign-off made on site).
@@ -474,6 +483,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (config['tabs'] !== undefined) out.push({ word: 'config.tabs', path: `${here}.tabs` });
     if (config['bulk'] !== undefined) out.push({ word: 'config.bulk', path: `${here}.bulk` });
     if (config['board'] !== undefined) out.push({ word: 'config.board', path: `${here}.board` });
+    const board = isDoc(config['board']) ? config['board'] : {};
+    const boardCard = isDoc(board['card']) ? board['card'] : {};
+    if (board['toolbar'] !== undefined) out.push({ word: 'board.toolbar', path: `${here}.board.toolbar` });
+    if (boardCard['secondAmount'] !== undefined) out.push({ word: 'board.secondAmount', path: `${here}.board.card.secondAmount` });
+    if (isDoc(boardCard['daysSince']) && (boardCard['daysSince']['label'] !== undefined || boardCard['daysSince']['labels'] !== undefined)) out.push({ word: 'board.daysLabel', path: `${here}.board.card.daysSince.label` });
     // A link to one screen of the app's staff side (`@staff/approvals`): on the toolbar, or a card's.
     const staffPath = (href: unknown): boolean => typeof href === 'string' && href.startsWith('@staff/');
     if (staffPath(isDoc(toolbar['link']) ? toolbar['link']['href'] : undefined)) out.push({ word: 'link.staffPath', path: `${here}.layout.toolbar.link.href` });

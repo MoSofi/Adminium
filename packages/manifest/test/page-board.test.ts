@@ -268,3 +268,55 @@ describe('a board page says what its headings, its cards and itself show', () =>
     expect(pageBoardSchema.safeParse({ column: 'stage_id', note: { text: 'Stages', href: '/p/crm-stages' } }).success).toBe(true);
   });
 });
+
+describe('a board page’s toolbar, a card’s second money line and what its days are (0.3.35)', () => {
+  const BOARD = {
+    column: 'stage_id',
+    columnsFrom: FROM,
+    totals: [{ column: 'amount', fn: 'sum' }],
+    card: {
+      amount: 'amount',
+      secondAmount: { column: 'weight', label: 'w', labels: { 'de-DE': 'gew.' } },
+      daysSince: { column: 'entered_stage_at', warnFrom: 14, alertFrom: 30, label: 'in stage', labels: { 'de-DE': 'in der Phase' } },
+    },
+    toolbar: { total: true, person: 'owner_id' },
+  };
+  const messages = (board: Record<string, unknown>, floor = '0.3.35') =>
+    issuesOf({ ...BOARD, ...board }, { floor }).map((issue) => `${Array.isArray(issue.path) ? issue.path.join('.') : String(issue.path)}: ${issue.message}`);
+
+  it('validates each, alone or together, at 0.3.35', () => {
+    expect(messages({})).toEqual([]);
+    expect(messages({ toolbar: { total: true } })).toEqual([]);
+    expect(messages({ toolbar: { person: 'owner_id' } })).toEqual([]);
+    expect(messages({ card: { secondAmount: { column: 'amount' } } })).toEqual([]);
+    expect(messages({ card: { daysSince: { column: 'entered_stage_at', label: 'in stage' } } })).toEqual([]);
+  });
+
+  it('refuses a person filter by a column that is no staff column, and a toolbar that shows nothing', () => {
+    expect(messages({ toolbar: { person: 'region' } })).toEqual(['pages.0.config.board.toolbar.person: "deals.region" is not a staff column (rules.staff), so it holds no person to choose cards by']);
+    expect(messages({ toolbar: { person: 'who' } })).toEqual(['pages.0.config.board.toolbar.person: "deals" has no column "who"']);
+    expect(messages({ toolbar: {} })).toEqual(['pages.0.config.board.toolbar: a toolbar shows the total (total: true), a person filter (person), or both']);
+    expect(messages({ toolbar: { total: false } }).length).toBeGreaterThan(0);
+    expect(messages({ toolbar: { total: true, sort: 'amount' } }).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a second amount that is no number, labels with no label, and a label too long for a card', () => {
+    expect(messages({ card: { secondAmount: { column: 'name' } } })).toEqual(['pages.0.config.board.card.secondAmount.column: "deals.name" is not a number or money']);
+    expect(messages({ card: { secondAmount: { column: 'gone' } } })).toEqual(['pages.0.config.board.card.secondAmount.column: "deals" has no column "gone"']);
+    expect(messages({ card: { secondAmount: { column: 'amount', labels: { 'de-DE': 'x' } } } })).toEqual(['pages.0.config.board.card.secondAmount: labels gives a label in other languages: say it first in label']);
+    expect(messages({ card: { daysSince: { column: 'entered_stage_at', labels: { 'de-DE': 'x' } } } })).toEqual(['pages.0.config.board.card.daysSince: labels gives a label in other languages: say it first in label']);
+    expect(messages({ card: { daysSince: { column: 'entered_stage_at', label: 'x'.repeat(41) } } }).length).toBeGreaterThan(0);
+  });
+
+  it('is found where it is written, each a word of 0.3.35, and refused under an older floor', () => {
+    const words = installFloorWords(manifest(BOARD, { floor: '0.3.35' }));
+    expect(words).toContainEqual({ word: 'board.toolbar', path: 'pages.0.config.board.toolbar' });
+    expect(words).toContainEqual({ word: 'board.secondAmount', path: 'pages.0.config.board.card.secondAmount' });
+    expect(words).toContainEqual({ word: 'board.daysLabel', path: 'pages.0.config.board.card.daysSince.label' });
+    for (const word of ['board.toolbar', 'board.secondAmount', 'board.daysLabel'] as const) expect(WORD_FLOORS[word]).toBe('0.3.35');
+    // Days with no label are the 0.3.28 board's.
+    expect(installFloorWords(manifest({ column: 'stage_id', columnsFrom: FROM, card: { daysSince: { column: 'entered_stage_at' } } })).map((word) => word.word)).not.toContain('board.daysLabel');
+    const old = messages({}, '0.3.32');
+    for (const word of ['board.toolbar', 'board.secondAmount', 'board.daysLabel']) expect(old.some((message) => message.includes(`"${word}" is read by Adminium 0.3.35 and later`)), word).toBe(true);
+  });
+});

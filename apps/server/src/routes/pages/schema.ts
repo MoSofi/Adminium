@@ -386,6 +386,8 @@ export const pageReply = z.object({
         labelSingular: z.string().nullable(),
         /** What a person calls the table as a whole ("Categories"), when it has a name. */
         labelPlural: z.string().nullable(),
+        /** A removal of one of its rows asks why (`table.removal.reason`): `required`, or `optional`. Absent: it asks nothing. */
+        removalReason: z.enum(['optional', 'required']).optional(),
       }),
       /** Link relations this table can write through (a field of chips). */
       relations: z

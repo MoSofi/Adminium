@@ -268,7 +268,8 @@ export type AssistantProposalState = 'unchecked' | 'open' | 'refused' | 'superse
 export type AssistantProposalPreview =
   | { kind: 'create'; after: Record<string, unknown> }
   | { kind: 'change'; before: Record<string, unknown>; after: Record<string, unknown> }
-  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[] }
+  /** `reason`: why the row goes, as it will be kept (a table that asks why); absent where the table asks nothing. */
+  | { kind: 'delete'; row: Record<string, unknown>; references: { table: string; count: number }[]; reason?: string | null }
   | { kind: 'doc.save'; what: string; name: string }
   | { kind: 'doc.change'; what: string; id: string; name: string; switchesOff: boolean }
   | { kind: 'doc.delete'; what: string; id: string; name: string }
@@ -345,7 +346,8 @@ function readPreview(raw: unknown): AssistantProposalPreview | null {
         const reference = record(entry);
         if (reference !== null && typeof reference.table === 'string' && typeof reference.count === 'number') references.push({ table: reference.table, count: reference.count });
       }
-      return { kind: 'delete', row: record(preview.row) ?? {}, references };
+      const why = preview.reason;
+      return { kind: 'delete', row: record(preview.row) ?? {}, references, ...(typeof why === 'string' || why === null ? { reason: why } : {}) };
     }
     case 'doc.save':
       return { kind: 'doc.save', what: text(preview.what), name: text(preview.name) };
