@@ -119,6 +119,9 @@ export const NOT_FOR_A_DRAFT: Readonly<Record<string, string>> = {
   daysAfter: 'a day so many days after a date of the record is written in an app\'s manifest',
   // A notice's `{ listed }`, and an e-mail's `{ kind: "listed" }` with it: the people a listing names, an app's word.
   listed: 'the people a table lists against the record are told by a rule an app\'s manifest writes',
+  // Words of 0.3.35, an app's to write, on the same spent budget.
+  locales: 'a notice in each reader\'s own language is written in an app\'s manifest',
+  within: 'a summary held to this year or the last days is written in an app\'s manifest',
 };
 
 /** `, a: T, b?: T` — a field that may be left out, or that has a default, carries the `?`. */
