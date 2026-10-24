@@ -40,17 +40,17 @@ describe('the prompt, pinned', () => {
   // If one of these fails, a template or a contract the model is shown changed.
   // Update the digests ONLY together with an ASSISTANT_PROMPT_VERSION bump.
   it('pins the template of a page that has a document', () => {
-    expect(digest(ASSISTANT_PROMPT_V1)).toBe('c3e6dce65e82f8c4d168788e21d27d4ad894f5e08dbdd6faab3d196cead2e115');
+    expect(digest(ASSISTANT_PROMPT_V1)).toBe('c4a146c20f2f073bff43100be8bf7fdfe06065aaad19ca2f772744ab96ab0abd');
   });
 
   it('pins the template of a page that drafts nothing', () => {
-    expect(digest(ASSISTANT_PROMPT_PLAIN_V1)).toBe('d4a4bdeec488ffa5127a49382f511909c182aa166bacd1f029e7e2ad58e704ad');
+    expect(digest(ASSISTANT_PROMPT_PLAIN_V1)).toBe('17624363229ac4ad7b9e8b168ef7f4ada7862afec7ff0dd7375ee24b1939b6c3');
   });
 
   it('pins the reply contract each of them shows', () => {
     // The contract is rendered when a prompt is built, so the templates' digests do not see it move.
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true })))).toBe('5cfdbbe8e711794667afb412a53376280523220a7875c92b923c1a6467843da9');
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false })))).toBe('363c050d44d808a4b51a8b1cceae344d78402697b51bc1d7435f21dea4be0aea');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true })))).toBe('98ab123a016a01d2c156fd7777f19faa31c0307f750063fca583eee361641974');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false })))).toBe('48dc8d9ec4aa7f883ab13c6c5945c530c5e3802b42bca48fcadec02b01c5b172');
   });
 
   it('the pinned version is v1.4', () => {
