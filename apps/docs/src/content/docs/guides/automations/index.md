@@ -62,6 +62,15 @@ increasing integer primary key — that column is how "since last time" is
 answered without scanning the whole table. Deleted rows cannot be watched at
 all: there is nothing left to find.
 
+**A row deleted outside Adminium, and its key given again.** SQLite hands a
+deleted row's key to the next row, and an import or a restore can write one by
+hand. A "record created" rule claims a row by its key **and** its
+`created_at`, so the next row with the same key, made later, runs the rule as
+the new row it is; a row that was only changed carries the same `created_at`,
+and never runs it twice. A table watched by an increasing key alone has no
+moment to tell the two apart: there only a delete made through Adminium lets
+the key go (Adminium 0.3.33).
+
 **Watching starts from now.** Switching a rule on does not send a welcome
 email to every user who ever signed up.
 

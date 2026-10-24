@@ -407,15 +407,15 @@ change or delete is theirs from then on.
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
 | `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. Never of a shared link's code, nor of a code no staff member reads (`hiddenFromStaff`). From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
-| `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
-| `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
+| `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"?, "days"? }` | A `date` column is never later than today, in the venue's time zone; or the column is never later than another column, read as `notBefore` reads it (a credit's nights end by its stay's `depart`; warm below stale). `days`, on a date: the other date moved by so many days (1–36600), so an end is at most so many days after a start (`"ends_on": { "notAfter": { "column": "starts_on", "days": 365 } }`: a cover lasts a year at most; an empty end stays allowed). A later value is refused (`out-of-range`). |
+| `notBefore` | `"now"` or `{ "column", "via"?, "when"?, "strict"?, "days"? }` | The column is never earlier than another column of the same kind: of the same row, or, with `via`, of the row its foreign key `via` points at. A `date` or `timestamptz` against a date (a payment never before its invoice's `issued_on`), a number (`int`, `bigint`, `decimal`, `money`, `float`) against a number, a time of day kept as `text` (`HH:MM`, at least 5 characters) against another (`work_from` before `work_to`, compared as times: `9:30` is before `17:00`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the two may not be the same — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). `"now"`, on a `timestamptz`: a new row's moment is not in the past, to the minute (a visit is never booked to start before now); judged on a create only, never on one that brings history (an import, sample data), so a later change may correct a visit that happened. A bound on a column that is no date, `days` and `"now"` need Adminium 0.3.33. |
 | `linkable` | `{ "where"?, "same"? }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered — and, with `same`, whose columns hold what this row holds (a visit's contact works for the company of the visit's deal). Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
 | `file` | `{ "accept", "maxBytes", "maxCount"? }` | Files a signed-in person uploads for the column: one in a `text` column, a list of up to `maxCount` (1–20) in a `json` column. It holds Adminium's own file ids, never a link. `accept` names the kinds the column takes, judged by the file's bytes; `maxBytes` (1 KiB–25 MiB) the size of each. A picture loses what a camera writes beside it as it is uploaded. A write may name only a file its writer uploaded and no record holds yet. See [Files in a column](#files-in-a-column). Needs Adminium 0.3.28. |
 | `changes` | `[{ "to"?, "from"?, "while"?, "by"?, "notBy"? }]` | When, and by whom, the column may change: to some values only from others, only while another column holds a value, only by the person a staff column of the row (or of a linked row) names, never by the people others name. Judged by the server on every way a row is written but history. See [Who may change a column](#who-may-change-a-column). Needs Adminium 0.3.33. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
 | `history` | `"audit"` | The column's earlier values are kept for the audit log only, which the install's owner reads (a removed message's text). A row's history (`GET …/{record}/history`), a [removed row's](#removed-rows) history and row, a rule's `{{was.<column>}}` and the row a removal's live frame carries leave the column out, for every reader, the owner included; the audit page keeps it. The value a row holds now is read as any other column is. A rule or a template of the manifest that reads `{{was.<column>}}` of such a column is refused. Not on the key. Needs Adminium 0.3.33. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
-| `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
+| `stamp` | `{ "set", "on", "clearOnBack"?, "strict"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
 | `personal` | `true` or `false` | Whether the column is personal data, overriding the guess Adminium makes from the column's name. |
 | `secret` | `true` or `false` | Whether the column is a secret no response carries, to anyone, overriding the guess Adminium makes from the column's name (`api_token`, `password_hash`). An entry in [public access](#public-access) that names no `select` leaves a `secret` column out, and a `code` column too. `false` is written only on a table the app's install made: on a table it reuses, a rule that would show a secret or take a personal column's mask off is skipped, the check step says so, and only an operator can show the column, in Studio, as Super Admin. A `secret` the operator set in Studio wins over the app's. On a column of an add-on's shape, only `true`. |
@@ -451,10 +451,15 @@ only.
 The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
 automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
 rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
-data are not [stamped](#stamps), not [capped](#totals-and-balances), and not held to `notAfter` or
-`notBefore` (they are held to [`linkable`](#links-to-some-rows)); an undo puts a row back exactly as it was, with no rule at all. A date refused by
-`notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
-A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
+data are not [stamped](#stamps), not [capped](#totals-and-balances), and not held to a date's
+`notAfter` or `notBefore` — today, another date, now (they are held to [`linkable`](#links-to-some-rows)); an undo puts a row back exactly as it was, with no rule at all.
+What is no history is judged on an import and on sample data too: a number against a number, a
+time of day against another, and an end at most `days` after a start (a file cannot bring in warm
+above stale, or a cover of two years). A value refused by `notAfter` or `notBefore` answers `422`
+`VALIDATION_FAILED`, the field's code `out-of-range`, on the column and, when the other column is of
+the same row, on that one too, so a form shows the pair. A bound is judged when the column is
+written, and when the other column, its `via` link or a column its conditions read changes (warm
+changed alone is judged against the stale the row holds). `required` and
 `requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
 `VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
 holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
@@ -501,10 +506,16 @@ of the values, and asks nothing of an edit that changes neither.
 enum, a number for a number column, `true` or `false` for a `bool`). The rule's own column must be
 `nullable`: one that is never empty is simply `required`. A column cannot take both `required` and
 `requiredWhen`, and a column Adminium fills (`copy`, `default`, `sequence`, `format`, `code`,
-`rollup`, `formula`, `stamp`) takes no `requiredWhen`, because nobody is asked for it. The one
-exception is a `copy` that only fills what a write leaves out (`mode: "default"`, without
-`follow`): the copy runs first, and the column is asked for only when there was nothing to copy
-either (an order sent by email needs an address: its supplier's, or one typed on the order).
+`rollup`, `formula`) takes no `requiredWhen`, because nobody is asked for it. One exception is a
+`copy` that only fills what a write leaves out (`mode: "default"`, without `follow`): the copy runs
+first, and the column is asked for only when there was nothing to copy either (an order sent by
+email needs an address: its supplier's, or one typed on the order). The other is a `stamp`: it fills
+a person's own save, and never a write that brings history. A line of a brought file is judged as it
+was sent, before any stamp: a deal brought in as won with no `closed_at` (`closed_at` stamped when
+`state` becomes won or lost, and `requiredWhen` `state` is won or lost) is named in the import's
+preview, `closed_at` `required`, and not brought in, never dated by the day of the import; one that
+brings its date keeps it. Sample data is never stamped, so a sample's won deal carries its date too.
+A stamp beside `requiredWhen` needs Adminium 0.3.33.
 
 ```json
 { "ref": "subtotal", "type": "money", "default": 0,
@@ -1135,6 +1146,7 @@ values: the time a patient checked in, who took a payment.
 | `set` | What is written; see the table below. |
 | `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
 | `clearOnBack` | `true`: emptied again when a move marked [`undo`](#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
+| `strict` | `true`: the value is always Adminium's, on every door and for every writer, Super Admin included: a value a create, a change, a bulk edit, a rule, the public API or an add-on sends for the column is dropped (the stamp writes it, or the row keeps what it holds), and a line of a brought file that carries one is refused, the column named, in the preview and in the run (a line that leaves it empty is stamped as its bringer). Who ticked "may be e-mailed" and when is never typed. Only history keeps its own: an app's sample data and an undo. Not with a `byOrigin` that leaves staff their own word. Needs Adminium 0.3.33. |
 
 What a stamp writes:
 
@@ -3680,7 +3692,9 @@ number has `.number`, `.percent` and `.money`, written exactly as stored in the 
 (`{{order.tax_rate.percent}}` is "8.25%" on every engine, never "8.250"); a choice has `.label`,
 its label in the message's language (`{{order.paid_method.label}}` is "Card", not "card"); a `text`
 column of up to 8 characters holding a time of day has `.time`, in the reader's clock ("3:00 PM" in
-the US, "15:00" in Britain); a [code](#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
+the US, "15:00" in Britain); a yes/no (`bool`) column reads "Yes" or "No" in the message's language
+("Ja", "Oui", "Ano", "نعم"…), in its text and in a list's rows, never `true` or `1` (Adminium 0.3.33;
+a rule's e-mail reads it the same way); a [code](#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
 (see [Emails that list rows](#emails-that-list-rows)). A `{{was.<column>}}` reads a
 [`was`](#outbox) column as it was before a change, or as a removed row held it, in the same forms. A
 staff column (`rules.staff`) has `.name`: the person it names, by the name the people list gives
@@ -4761,7 +4775,7 @@ signed off, owned by the person the business names on its Settings screen:
 
 | Value | What it writes |
 |---|---|
-| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. `"else": { "staff": "<column>" }` beside it names, for a staff column, the person to write instead: a staff column of the rule's record, or one link further (`deal_id.owner_id`), again only somebody who signs in (the rep who sold the job, when nobody is named for aftercare). Needs Adminium 0.3.29 (`automations.settingElse`). |
+| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. `"else": { "staff": "<column>" }` beside it names, for a staff column, the person to write instead: a staff column of the rule's record, or one link further (`deal_id.owner_id`), again only somebody who signs in (the rep who sold the job, when nobody is named for aftercare). Needs Adminium 0.3.29 (`automations.settingElse`). One exception, for the [sample](#sample-people): on a run about a sample row, a sample person may be written too, by the setting or by `else` (a sample job's sign-off books its aftercare call for the sample rep who sold it); on a real row a sample person is nobody. Adminium 0.3.33. |
 | `{ "daysAfter": { "column" or "now", "days", "setting"?, "at"? } }` | A day `days` (0–3650) after a `date` or `timestamptz` column of the rule's record, or after the run (`"now": true`), counted on the business's calendar (the connection's time zone). `setting`: a whole-number column of the settings row whose number is used while it holds one from 1 to 3650 (else `days`: an empty setting or a 0 is none). Written into a `date` column as the day; into a `timestamptz` column at `at` (`"HH:MM"`) on the business's clock, else at the wall time it counts from (midnight for a date), so a call booked at 09:30 is due at 09:30 after the clocks change. A record whose date is empty leaves the value empty, and the log says so. |
 
 A value is no way to read a table. The settings are read as a rule reads the connection, when the
@@ -5004,6 +5018,15 @@ data" takes them and their teams away, but for a person a row that stays still n
 operator made and gave to a sample rep): that person stays until the row names somebody else, and
 the next "Add sample data" takes them back instead of making a second one. An add-on's manifest
 takes neither field. Needs Adminium 0.3.28.
+
+A rule hands a row to nobody who cannot sign in, so a rule's write that names a person from the
+[settings row or the record](#a-value-from-the-settings-row-and-a-day-so-many-days-on) leaves a sample person out, with one exception: when
+the row the run is about is a sample row, it may name a sample person (a sample job's sign-off books
+its aftercare call for the sample rep who sold it). A real row is never handed to a sample person.
+The rows such a run creates are sample rows too: they are listed with the sample, and "Remove
+sample data" takes them with the rest, and with them the sample row they hang off. A rule-made row
+somebody has since written a row of their own under stays, as any sample row their records use
+does, and a row a rule made from a real row is never listed. Adminium 0.3.33.
 
 The file uses the `adminium.sample/1` format:
 

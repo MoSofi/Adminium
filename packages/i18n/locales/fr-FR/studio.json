@@ -2126,7 +2126,10 @@
       },
       "bounds": {
         "notAfter": "Jamais après aujourd’hui",
-        "notBefore": "Jamais avant {column}"
+        "notAfterColumn": "Jamais après {column}",
+        "notAfterDays": "Au plus {days} jours après {column}",
+        "notBefore": "Jamais avant {column}",
+        "notBeforeNow": "Jamais avant maintenant, sur une nouvelle ligne"
       }
     },
     "saveFailed": "Échec de l’enregistrement : {message}",

@@ -56,6 +56,40 @@ function relationOf(model: EffectiveModel, relationId: string) {
   return model.relations.find((relation) => relation.id === relationId);
 }
 
+/** What an app's or add-on's record of one of its tables says: whose it is, its short name, its real one, and whether it stands. */
+export interface ShortNamedTable {
+  appKey: string;
+  ref: string;
+  tableName: string;
+  state: string;
+}
+
+/**
+ * A list of child rows named the way the app that made the tables names them
+ * (`quote_lines`, or `crm:quote_lines` for another manifest's): the id of the
+ * one relation from that table to the parent, so the list is then resolved,
+ * granted and judged exactly as one named by its relation id. A relation id
+ * is taken as it is. A short name for a table with no relation to the parent,
+ * or two, is left as sent, and refused as a relation that is not there; so
+ * is a name no manifest gives. Among manifests that each name a table so,
+ * the parent's own maker's name is the one read.
+ */
+export function childRelationByName(view: SnapshotView, parent: ResolvedTable, name: string, records: readonly ShortNamedTable[]): string {
+  if (relationOf(view.model, name) !== undefined) return name;
+  const standing = records.filter((record) => record.state === 'created' || record.state === 'adopted');
+  const cut = name.indexOf(':');
+  const named = cut > 0 ? standing.filter((record) => record.appKey === name.slice(0, cut) && record.ref === name.slice(cut + 1)) : standing.filter((record) => record.ref === name);
+  const parentMakers = new Set(standing.filter((record) => record.tableName === parent.name).map((record) => record.appKey));
+  const own = named.filter((record) => parentMakers.has(record.appKey));
+  const candidates = new Set((own.length > 0 ? own : named).map((record) => record.tableName));
+  const relations = view.model.relations.filter((relation) => {
+    if (relation.through !== null || relation.to.tableId !== parent.table.id || relation.from.columns.length !== 1) return false;
+    const from = view.model.tables.find((table) => table.id === relation.from.tableId);
+    return from !== undefined && candidates.has(from.name);
+  });
+  return relations.length === 1 ? relations[0]!.id : name;
+}
+
 /**
  * Which table holds the rows, which column points back, and whether this
  * relation may be a field at all.
