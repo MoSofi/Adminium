@@ -34,7 +34,8 @@ describe.each(LEGS)('what a posting did, told after — %s', (dialect, available
   beforeAll(async () => {
     if (!available) return;
     const columns = 'account_id INT NULL, qty DECIMAL(12,3) NULL, status VARCHAR(20) NULL';
-    w = await ledgerWorld(dialect, { tallies: { columns, postings: [TALLY] }, asks: { columns, postings: [ASK] } });
+    // Two rules of one table that post onto the same account: one save, two calls, one account row changed twice.
+    w = await ledgerWorld(dialect, { tallies: { columns, postings: [TALLY] }, asks: { columns, postings: [ASK] }, twins: { columns, postings: [{ ...TALLY, id: 'one' }, { ...TALLY, id: 'two' }] } });
     await w.h.rows(`INSERT INTO ledger_kit_accounts (id, name, opening, taken, balance, allow_below, reorder_at, low) VALUES (1, 'Flour', 10, 0, 10, ${w.flag(false)}, 2, 0), (2, 'Sugar', 100, 0, 100, ${w.flag(false)}, 1, 0)`);
     app = Fastify();
     // What hears a record's change on a real server: the rules.
@@ -104,6 +105,20 @@ describe.each(LEGS)('what a posting did, told after — %s', (dialect, available
     // Already low: the next take moves the figure no further, and tells of none.
     await w.create('tallies', { account_id: 1, qty: '0.1' });
     expect(w.posted()[0]!.announced ?? []).toEqual([]);
+  });
+
+  it.skipIf(!available)('one save that posts twice onto one row tells that row once: as it was before the save, and as the save left it', async () => {
+    await w.h.rows(`INSERT INTO ledger_kit_accounts (id, name, opening, taken, balance, allow_below, reorder_at, low) VALUES (3, 'Salt', 5, 0, 5, ${w.flag(false)}, 1, 0)`);
+    await w.create('twins', { account_id: 3, qty: '2' });
+    const calls = w.posted();
+    expect(calls).toHaveLength(2);
+    await tell(['ledger_kit_accounts', 'ledger_kit_entries']);
+    const rows = events.map((event) => `${event.table.name}:${JSON.stringify(event.entity?.pk)}:${event.action}`);
+    // Each row the save touched is one event, however many calls wrote or moved it.
+    const twice = rows.filter((row, i) => rows.indexOf(row) !== i);
+    expect(twice, JSON.stringify(rows)).toEqual([]);
+    // Both entries are rows of their own.
+    expect(events.filter((event) => event.table.name === 'ledger_kit_entries')).toHaveLength(2);
   });
 
   it.skipIf(!available)('a quote tells nothing; a call nobody planned says so', async () => {
