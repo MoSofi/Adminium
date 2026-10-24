@@ -63,6 +63,14 @@ Two things to know:
   two roles' reaches are. The dialog shows such an action in words and leaves it as the app
   wrote it; **Try it as** counts it whole.
 
+**A team judged by the deal's owner.** A table that hangs off a parent (a deal's visits, its
+quotes) is reached, by default, through every way: a manager whose rep helps on another team's
+deal reaches that deal's visits. An app may judge such a table by the parent's person alone
+(`"via": "deal_id", "by": "owner_id"` on the reach, see the
+[manifest reference](/reference/manifest/#whose-a-row-is)): the manager then reaches the
+visits of the deals her team owns, whoever made them, and none on another team's deal, even her
+own rep's. The helper herself keeps her own reach of the deal she helps on.
+
 Super Admin reaches every row and cannot be limited.
 
 ## What a write may name
@@ -116,9 +124,17 @@ read through that listing. Anybody else is refused for every writer, with the fi
 `cannot-open`: they would be listed against rows they cannot open today, and would reach them
 unasked the day a role is added. Every writer is asked: a person on the dashboard, a bulk edit,
 a file brought in (by somebody nothing limits too, line by line), a rule's write step, the row
-an effect moves, a timed move, and the owner's code. A rule, an effect and a timed move are
-asked of the row as its rules leave it: a stamp that copies a proposed person into the listing's
-person column when a seat is confirmed is refused the same way.
+an effect moves, a timed move, and the owner's code. Each is asked of the row as its rules leave
+it, a person's own change and new row included: a stamp that copies a proposed person into the
+listing's person column when a seat is confirmed, or that puts the writer there, is refused the
+same way.
+
+**A hand-over can carry the old owner's rows along.** A record's hand-over button may name child
+tables whose rows go with it (`carries`): the old owner's booked visits and open follow-ups on the
+deal go to the new owner in the same write, while visits already made and a colleague's rows stay.
+Each carried row is changed as its own update (its rules, its audit row, its live frame), the
+person handing over must reach each one, and one the new owner could not be listed on refuses
+the whole hand-over. Such a hand-over offers no Undo.
 
 A link that is refused is refused exactly as a link to a row that is not there. Only a link this
 write sets is asked about: one the row already holds is left alone. A file brought in is judged

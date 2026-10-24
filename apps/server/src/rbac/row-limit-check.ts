@@ -15,7 +15,7 @@ import { rowReachList, type RowLimit, type RowReach } from '@adminium/meta';
 import type { EffectiveModel } from '../connections/effective-schema.js';
 
 export interface RowLimitIssue {
-  code: 'no-such-table' | 'private' | 'no-belongs' | 'no-such-column' | 'hidden-column' | 'not-a-staff-column' | 'not-by-read';
+  code: 'no-such-table' | 'private' | 'no-belongs' | 'no-such-column' | 'hidden-column' | 'not-a-staff-column' | 'not-by-read' | 'not-a-parent' | 'via-without-by';
   message: string;
   column?: string;
 }
@@ -34,7 +34,18 @@ export function rowReachIssue(model: EffectiveModel, tableId: string, reach: Row
       return { code: 'hidden-column', message: `"${reach.while.column}" is not shown to everybody who reads the table, so a limit cannot be told by it.`, column: reach.while.column };
     }
   }
-  if (reach.by !== undefined) {
+  if (reach.via !== undefined) {
+    // Judged by a staff column of the row this one hangs off: the link is one of the table's own `via` ways, `by` a staff column of the parent.
+    if (reach.by === undefined) return { code: 'via-without-by', message: 'Say which person of the parent row judges the row ("by").', column: reach.via };
+    if (reach.unowned === true || reach.reach === 'all') return { code: 'via-without-by', message: 'A reach judged by the parent\'s person is the person\'s own or their team\'s, and takes no rows nobody owns.', column: reach.via };
+    if (!(table.belongs ?? []).some((way) => 'via' in way && way.via === reach.via)) return { code: 'not-a-parent', message: `"${table.label ?? table.name}" does not belong through "${reach.via}".`, column: reach.via };
+    const hop = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === reach.via && r.to.columns.length === 1);
+    const parent = hop === undefined ? undefined : model.tables.find((candidate) => candidate.id === hop.to.tableId);
+    if (parent === undefined) return { code: 'not-a-parent', message: `"${reach.via}" links to no table.`, column: reach.via };
+    const person = parent.columns.find((candidate) => candidate.name === reach.by);
+    if (person === undefined) return { code: 'no-such-column', message: `"${parent.label ?? parent.name}" has no column "${reach.by}".`, column: reach.by };
+    if (person.staff !== true) return { code: 'not-a-staff-column', message: `"${reach.by}" does not hold a staff member, so no row is anybody's by it.`, column: reach.by };
+  } else if (reach.by !== undefined) {
     const column = table.columns.find((candidate) => candidate.name === reach.by);
     if (column === undefined) return { code: 'no-such-column', message: `"${table.label ?? table.name}" has no column "${reach.by}".`, column: reach.by };
     if (column.staff !== true) return { code: 'not-a-staff-column', message: `"${reach.by}" does not hold a staff member, so no row is anybody's by it.`, column: reach.by };

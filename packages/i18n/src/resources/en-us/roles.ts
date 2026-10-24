@@ -145,6 +145,8 @@ export default {
       "unowned": "and rows nobody owns yet",
       "while": "only while {column} is {values}",
       "by": "and only the ones {column} names them in",
+      "viaOwn": "Only rows of {table} whose {via} names them in {column}",
+      "viaTeam": "Only rows of {table} whose {via} names them, or someone in a team they lead, in {column}",
       "allWho": "Every row of {table}, whoever {column} is.",
       "only": "Only rows of {table} where {ways}",
       "onlyTeam": "Only rows of {table} where {ways}, or someone in a team they lead",

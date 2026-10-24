@@ -2935,6 +2935,30 @@ column). A record page does not show her the buttons of a row whose own staff co
 where every reach of hers says so. Never on a read, a private table, or a grant on an add-on's
 table. Needs Adminium 0.3.35 (`rows.notBy`).
 
+**`via`** beside `by` judges a row of a table that hangs off a parent (its `belongs` has
+`{ "via": "<link>" }`) by a staff column of THAT parent, and by nothing else: `by` then names a
+column of the row the link points at. A sales manager reaches the visits of the deals somebody
+she leads owns, and not a visit on another team's deal, even where her rep helps on that deal or
+the visit itself names her rep:
+
+```json
+"limits": {
+  "deals":       { "rows": { "read": { "reach": "team", "by": "owner_id" }, "update": { "reach": "team", "by": "owner_id" } } },
+  "site_visits": { "rows": { "read": { "reach": "team", "via": "deal_id", "by": "owner_id" },
+                             "update": { "reach": "team", "via": "deal_id", "by": "owner_id" } } } }
+```
+
+`reach` is `own` (the parent names the person) or `team` (the person, or somebody they lead);
+`unowned` is not taken. `via` must be one of the table's own `belongs` links and `by` a staff
+column (`rules.staff`) of the table it points at. It holds on every door a reach holds on: the
+list and the record (another team's visit is a row that is not there, `404`), a change, a new
+row (hung only under a parent whose `by` names them or somebody they lead, else `403` reason
+`parent-not-theirs`, whoever the new row names), a dashboard figure (worked out again as soon as
+the parent changes hands), a file out, the live frames (a bare "this table changed", never a
+row) and the role editor's count. It is opt-in: a reach without `via` reads the table's every
+way as before (a helper listed on the deal, the visit's own rep). Needs Adminium 0.3.35
+(`rows.via`).
+
 An action may name **several reaches**, as a list of one to four: any one of them is enough, and
 each is its own whole test (its `while`, `unowned` and `by` hold for it alone), as two roles'
 reaches are. An account manager reads every won deal, and an open one only while he is listed on
@@ -2970,8 +2994,9 @@ names them there (or somebody they lead, with `set: "team"`), and is refused 403
 reads `through` takes only somebody who reads at least one of those tables (422, the field
 marked `cannot-open`), whoever writes: a person on the dashboard, a bulk edit, an import (by
 somebody nothing limits too), a rule's write step, the row an effect moves, a timed move, and
-the owner's code. A rule, an effect and a timed move are judged on the row as their rules leave
-it, so a stamp that copies a person into such a column is held to the same. See
+the owner's code. Every one of them is judged on the row as its rules leave it, a person's own
+change and new row included (from 0.3.35), so a stamp that puts a person into such a column (its
+writer, or a person copied from another column) is held to the same. See
 [Whose a row is](/guides/apps/whose-a-row-is/).
 
 **`handOver`**, on one of a table's [`states.actions`](#states), marks the one write in which a
@@ -2988,6 +3013,36 @@ once it is won is not given an open one). Anyone else is refused 422, the field 
 `cannot-open`. A writer held to some rows who names somebody by a plain change, in a column
 whose `belongs` way says `set: "anyone"`, is held to the same: the button is not the only door
 to the column.
+
+**`carries`**, beside `handOver`, moves the old person's child rows to the new one in the
+hand-over's own write: a deal handed over takes its owner's booked visits and open follow-ups
+along, and leaves a visit already made, and a colleague's rows on the deal, where they are.
+
+```json
+{ "id": "hand-over", "label": { "en-US": "Hand over" }, "set": {}, "in": ["open"], "ask": ["owner_id"], "handOver": true,
+  "carries": [
+    { "table": "site_visits", "via": "deal_id", "column": "rep_id", "where": [{ "column": "state", "in": ["booked"] }] },
+    { "table": "follow_ups", "via": "deal_id", "column": "owner_id", "where": [{ "column": "done", "eq": false }] } ] }
+```
+
+| Key | Meaning |
+| --- | --- |
+| `table` | A table of the app with a foreign key to this one. |
+| `via` | That foreign key. |
+| `column` | The child's staff column (`rules.staff`) that moves: only rows where it names the row's OLD person move, and they are given the new one. |
+| `from` | The staff column of this row the person is read from: one of the columns the button `ask`s for. Left out when the button asks for one staff column. |
+| `where` | 1–8 conditions on the child row, as a move's `requires.where` writes them (`eq`, `in`, `isNull`, `gt`…): every one must hold. |
+
+One to eight carries, each table and column once, on a button with `handOver: true`. Each carried
+row is changed as its own update, inside the hand-over's transaction: its rules and hooks run,
+it is written to the audit log, its live frame is sent and the rules and the outbox that watch
+its table are told. The person handing over must hold the child table's update and reach each
+row moved (else `403`, and nothing moves); the column itself is the button's to write, as the
+columns it sets are, whatever the role's `writable` says. Each row is judged as a hand-over
+judges its own row: the new person works the child table, and a child that is a listing lists
+them only against rows they can open (`422`, the field marked `cannot-open`). One refusal refuses
+the whole hand-over. A hand-over that carried rows offers no Undo. Needs Adminium 0.3.35
+(`states.carries`).
 
 ## Roles
 

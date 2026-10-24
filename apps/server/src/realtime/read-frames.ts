@@ -116,6 +116,10 @@ const bare = (event: RealtimeEvent): RealtimeEvent => ({ ...event, data: { type:
  *  - It is theirs by its people, and the role reaches it only while a column
  *    holds some value: the same bare frame, and never one for a row that is
  *    not theirs by its people.
+ *  - The role reaches the table's rows by a person of the row each hangs off
+ *    (`via` with `by`): a table that hangs off another is never told from
+ *    the row alone, so the frame is the bare one at most, and a row's own
+ *    people never make it theirs.
  */
 function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: RealtimeUser, connectionId: string, table: string): RealtimeEvent | null {
   const reach = frameReachOf(event);
@@ -135,6 +139,8 @@ function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: 
   const holds = (one: RowReach, image: Readonly<Record<string, unknown>> | null): boolean => {
     if (image === null) return false;
     if (one.reach === 'all') return true;
+    // Judged by a person of the row it hangs off (`via`): nothing in this row's own columns says it is theirs.
+    if (one.via !== undefined) return false;
     if (columns.length === 0) return false;
     // Somebody is in a column that holds anything but nothing, as the query's own test reads it.
     const people = columns.map((column) => image[column]).filter((value) => value !== null && value !== undefined && value !== '').map((value) => String(value));

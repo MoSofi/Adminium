@@ -55,7 +55,7 @@
 import { teamsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
-import { rowReachesOf } from '../rbac/row-limits.js';
+import { rowReachesOf, type RowReach } from '../rbac/row-limits.js';
 import { sql, type Kysely } from 'kysely';
 
 import type { BelongsWay, EffectiveTable } from '../connections/effective-schema.js';
@@ -167,12 +167,23 @@ async function assertParentReached(ctx: RowLimitContext, db: Db, table: Effectiv
   // Set by this write: sent, with a value the stored row does not already hold there.
   const moved = vias.filter((way) => Object.prototype.hasOwnProperty.call(values, way.via) && (before === null || !same(values[way.via], before[way.via])));
   if (moved.length === 0) return;
-  const reaches = writerReaches(ctx, table.id);
+  const all = writerReaches(ctx, table.id);
   // Nothing limits them here, or a reach of every row (only while a column of the row holds a value) hangs it anywhere they read.
-  if (reaches === null || reaches.some((reach) => reach.reach === 'all')) return;
+  if (all === null || all.some((reach) => reach.reach === 'all')) return;
   const me = ctx.set.reach?.userId ?? null;
   if (me === null) throw linkRefused();
-  const ids = new Set([me, ...(reaches.some((reach) => reach.reach === 'team') ? (ctx.set.reach?.ledIds ?? []) : [])]);
+  /*
+   * A reach judged by the parent's person (`via` with `by`) hangs the row
+   * only under a parent whose `by` names them (or somebody they lead), as
+   * the row will hold its link: the row's own people do not make it theirs.
+   */
+  const next: Row = { ...(before ?? {}), ...values };
+  for (const reach of all.filter((one) => one.via !== undefined)) {
+    if (await parentHolds(ctx.model, db, table, reach, next, idsOf(ctx, [reach]))) return;
+  }
+  const reaches = all.filter((reach) => reach.via === undefined);
+  if (reaches.length === 0) throw new ForbiddenError('Your role adds here only under a record that is yours.', 'COLUMN_FORBIDDEN', { table: table.id, column: moved[0]!.via, reason: 'parent-not-theirs' });
+  const ids = idsOf(ctx, reaches);
   // Theirs by a staff column of its own: as the row will hold it, or as a stamp of its maker will fill it.
   for (const way of ways) {
     if (!('column' in way)) continue;
@@ -206,6 +217,37 @@ async function assertParentReached(ctx: RowLimitContext, db: Db, table: Effectiv
   }
   const column = moved[0]!.via;
   throw new ForbiddenError('Your role adds here only under a record that is yours.', 'COLUMN_FORBIDDEN', { table: table.id, column, reason: 'parent-not-theirs' });
+}
+
+/** The person and, where one of the reaches is their team's, the people they lead. */
+function idsOf(ctx: RowLimitContext, reaches: readonly RowReach[]): Set<string> {
+  const me = ctx.set.reach?.userId ?? null;
+  return new Set([...(me === null ? [] : [me]), ...(reaches.some((reach) => reach.reach === 'team') ? (ctx.set.reach?.ledIds ?? []) : [])]);
+}
+
+/**
+ * Whether a reach judged by the parent's person (`via` with `by`) holds a
+ * row: the row its `via` link points at, as `row` holds the link, names one
+ * of `ids` in `by`. False for an empty link, a link that is not one of the
+ * table's `via` ways or links nowhere, and a `by` that holds no staff member.
+ */
+export async function parentHolds(model: { tables: readonly EffectiveTable[]; relations: RowLimitContext['model']['relations'] }, db: Db, table: EffectiveTable, reach: RowReach, row: Row, ids: ReadonlySet<string>): Promise<boolean> {
+  const via = reach.via;
+  if (via === undefined || reach.by === undefined || ids.size === 0) return false;
+  if (!(table.belongs ?? []).some((way) => 'via' in way && way.via === via)) return false;
+  const link = row[via];
+  if (empty(link)) return false;
+  const relation = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === via && r.to.columns.length === 1);
+  const parent = relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+  if (relation === undefined || parent?.columns.find((candidate) => candidate.name === reach.by)?.staff !== true) return false;
+  const found = await db
+    .selectFrom(parent.id as never)
+    .select(sql.lit(1).as('one'))
+    .where(sql.ref(relation.to.columns[0]!), '=', link as never)
+    .where(sql.ref(reach.by), 'in', [...ids] as never)
+    .limit(1)
+    .executeTakeFirst();
+  return found !== undefined;
 }
 
 /** Who is writing, as the link check needs them where no role limits their rows: what they read, and who they are. */
@@ -431,11 +473,13 @@ export function setsListing(model: ListingModel, tableId: string, columns: Itera
  * 422 `cannot-open` on the column.
  *
  * Who writes does not matter: the data routes ask it inside
- * `assertStaffColumns` (with whether the person may be named at all), and
- * every other writer asks it here — a rule's write step, an effect, a timed
- * move, an import of somebody nothing limits, the owner's code
- * (`write-service.ts` through `writeStores`, `data-io/import-judge.ts`). A
- * hand-over that carries child rows asks it for each row it moves.
+ * `assertStaffColumns` of what a person sends (with whether the person may be
+ * named at all), and the write service asks it here of the row as its rules
+ * filled it — a person's write too (a stamp that puts its writer in), a
+ * rule's write step, an effect, a timed move, the owner's code
+ * (`write-service.ts` through `writeStores`) — as does an import of somebody
+ * nothing limits (`data-io/import-judge.ts`). A hand-over that carries child
+ * rows asks it for each row it moves.
  *
  * `model` is the connection's model as the write sees it (`view.model`).
  * Nothing is read for a table no other table is read through.
@@ -505,6 +549,8 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
     if (holds !== null) return holds;
     if (before === null || reaches === null) return (holds = true);
     if (reachesWhole(before)) return (holds = true);
+    // A reach judged by the parent's person: the row is theirs to give while its parent names them (or somebody they lead).
+    for (const reach of reaches.filter((one) => one.via !== undefined)) if (ctx !== null && (await parentHolds(model, db, table, reach, before, idsOf(ctx, [reach])))) return (holds = true);
     const people = [...deciding].map((column) => before[column]).filter((value) => !empty(value)).map((value) => String(value));
     if (people.length === 0) return (holds = reaches.some((reach) => reach.unowned === true));
     if (me !== null && people.includes(me)) return (holds = true);
