@@ -185,6 +185,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/data/:connectionId/:table/:recordId/history': rows('visible', 'The record as its reader, then its own history; a link entry leaves out targets the reader does not reach.'),
   'GET /api/v1/data/:connectionId/:table/:recordId/links/:relationId': rows(['visible', 'sub'], 'The record as its reader; the target\'s test is in the link read itself, before the page and the count.'),
   'GET /api/v1/data/:connectionId/:table/:recordId/nightly': rows('visible', 'The record as its reader; rate rows are the rule\'s own.'),
+  'GET /api/v1/data/:connectionId/:table/:recordId/removed/:childTable': rows(['visible', 'sub'], 'The parent as its reader now; each removed row judged by the child table\'s own test against the row as it was, its unread columns left out.'),
+  'GET /api/v1/data/:connectionId/:table/:recordId/removed/:childTable/:childId/history': rows(['visible', 'sub'], 'The parent as its reader now; the removed row judged by the child table\'s own test against the row as it was before its history is read.'),
   'GET /api/v1/data/:connectionId/:table/:recordId/references': rows(['visible', 'sub'], 'The record as its reader; each count under the child table\'s own test.'),
   'POST /api/v1/data/:connectionId/:table/:recordId/regenerate-code': rows('visible', 'The record as its changer.'),
   'GET /api/v1/data/:connectionId/:table/availability': rows(['whole', 'all'], 'Whole only for the columns of a booking or a limit the table declares; any other column of a limited table is refused.'),

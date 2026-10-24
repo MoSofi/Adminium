@@ -30,6 +30,9 @@ import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
+import { addOnGrantsWider, holdOf, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck } from '../add-ons/grants-wider.js';
+
+export { addOnGrantsWider, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck };
 
 type AppRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 type RoleTable = NonNullable<AppRole['tables']>[number];
@@ -38,45 +41,11 @@ type Action = RoleTable['actions'][number];
 /** What a settle gave each role of an add-on's tables (kept beside the add-on's own words, so the add-on installer reads it too). */
 export type { RoleTableResult } from '@adminium/manifest';
 
-/** A role's grants on add-on tables: the ones of the role it clones, then its own over them — a clone of a limited role is limited alike. */
-export function roleTablesOf(role: AppRole, roles: readonly AppRole[]): RoleTable[] {
-  const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
-  const by = new Map<string, RoleTable>();
-  for (const entry of [...(from?.tables ?? []), ...(role.tables ?? [])]) by.set(`${entry.addOn}/${entry.table}`, entry);
-  return [...by.values()];
-}
-
 /** What each role of the app asks of add-ons' tables, for whoever is about to install it. */
 export function roleTablesAsked(app: Manifest): { role: string; roleName: string; addOn: string; table: string; actions: string[] }[] {
   if (app.kind !== 'app') return [];
   const roles = app.roles ?? [];
   return roles.flatMap((role) => roleTablesOf(role, roles).map((entry) => ({ role: role.key, roleName: role.name, addOn: entry.addOn, table: entry.table, actions: [...entry.actions] })));
-}
-
-/** One role's hold on one of an add-on's tables, as an install or update check shows it. */
-export interface RoleTableCheck extends Omit<RoleTableHold, 'limit'> {
-  role: string;
-  roleName: string;
-  addOn: string;
-  table: string;
-  /** The add-on is not on this server to judge the grant by: what the app asks, before the add-on's own words cut it. */
-  unchecked?: true;
-  /** An update's check: what this version's role holds here that the running version's did not (`*`: every column). */
-  wider?: { actions: string[]; columns: string[] };
-}
-
-/** What a grant comes to against the add-on's words — or, with no add-on to judge it by, as the app asks it. */
-function holdOf(entry: RoleTable, addOn: AddOnManifest | undefined): Omit<RoleTableHold, 'limit'> & { unchecked?: true } {
-  if (addOn !== undefined) {
-    const { limit: _limit, ...hold } = addOnRoleTableHold(entry, addOn);
-    return hold;
-  }
-  const actions = [...new Set(entry.actions)];
-  const list = (action: Action, columns: readonly string[] | undefined) => (columns === undefined || !actions.includes(action) ? undefined : [...columns]);
-  const readable = list('read', entry.limit?.readable);
-  const writable = list('update', entry.limit?.writable);
-  const creatable = list('create', entry.limit?.creatable);
-  return { actions, ...(readable === undefined ? {} : { readable }), ...(writable === undefined ? {} : { writable }), ...(creatable === undefined ? {} : { creatable }), unchecked: true };
 }
 
 /**
@@ -112,49 +81,6 @@ export function roleTablesChecked(
       return wider === null ? out : { ...out, wider };
     }),
   );
-}
-
-/** One role of an app that an add-on's new version lets do more with the add-on's tables (`appGrants` widened). */
-export interface AddOnGrantWider extends RoleTableCheck {
-  /** The app whose role it is. */
-  app: string;
-  appName: string;
-  wider: { actions: string[]; columns: string[] };
-}
-
-/**
- * WHAT AN ADD-ON'S NEW VERSION GIVES APPS' ROLES MORE OF ITS TABLES.
- *
- * An app's grant on an add-on's table is cut to the add-on's own words
- * (`appGrants`, its ledgers, its columns). A version that widens those words
- * widens every role of every app that asks for more than the old words gave:
- * for each, the hold under the running version and under the new one, and
- * what the new one holds more (`holdWider`). An update gives it only when the
- * operator allows it, as an app's own update does.
- */
-export function addOnGrantsWider(apps: readonly Manifest[], addOnKey: string, before: AddOnManifest, after: AddOnManifest): AddOnGrantWider[] {
-  const out: AddOnGrantWider[] = [];
-  for (const app of apps) {
-    if (app.kind !== 'app') continue;
-    const roles = app.roles ?? [];
-    for (const role of roles) {
-      for (const entry of roleTablesOf(role, roles)) {
-        if (entry.addOn !== addOnKey) continue;
-        const now = holdOf(entry, after);
-        const wider = holdWider(holdOf(entry, before), now);
-        if (wider === null) continue;
-        const { unchecked: _unchecked, ...hold } = now;
-        out.push({ app: app.key, appName: app.name, role: role.key, roleName: role.name, addOn: entry.addOn, table: entry.table, ...hold, actions: [...hold.actions], wider });
-      }
-    }
-  }
-  return out;
-}
-
-/** How a refusal and a check say one widened grant. */
-export function widerWords(entry: Pick<RoleTableCheck, 'roleName' | 'addOn' | 'table'> & { wider: { actions: string[]; columns: string[] }; appName?: string | undefined }): string {
-  const what = [...entry.wider.actions, ...entry.wider.columns.map((column) => (column === '*' ? 'every column' : column))].join(', ');
-  return `${entry.appName === undefined ? '' : `${entry.appName}'s `}${entry.roleName} on ${entry.addOn}'s "${entry.table}" (${what})`;
 }
 
 const PAIR = /^table:@([a-z][a-z0-9-]{1,79})\/([A-Za-z0-9_]+):(read|create|update)$/;

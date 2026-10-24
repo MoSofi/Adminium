@@ -86,7 +86,7 @@ describe('row-limit coverage — every door of the real server is named', () => 
     expect(reading.length).toBeGreaterThan(120);
     // Every route under /data reads or writes rows: none of them may be marked as touching none.
     const data = Object.entries(ROW_COVERAGE).filter(([key]) => key.includes(' /api/v1/data/'));
-    expect(data.length).toBe(23);
+    expect(data.length).toBe(25);
     expect(data.filter(([, mark]) => mark.kind !== 'rows')).toEqual([]);
     for (const key of ['GET /api/v1/search', 'POST /api/v1/widget-data/query', 'POST /api/v1/exports', 'POST /api/v1/imports/:id/run', 'POST /api/v1/documents/render', 'GET /api/v1/audit', 'GET /api/v1/events', 'POST /api/v1/roles/rows/preview']) {
       expect(ROW_COVERAGE[key]?.kind, key).toBe('rows');

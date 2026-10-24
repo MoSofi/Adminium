@@ -42,7 +42,7 @@ import {
 } from '@adminium/manifest';
 import { appTablesRepo, auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
-import { addOnGrantsWider, widerWords, type AddOnGrantWider } from '../apps/manifest-role-tables.js';
+import { addOnGrantsWider, widerWords, type AddOnGrantWider } from './grants-wider.js';
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
