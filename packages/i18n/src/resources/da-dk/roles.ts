@@ -145,6 +145,8 @@ export default {
       "unowned": "og rækker, som ingen ejer endnu",
       "while": "kun så længe {column} er {values}",
       "by": "og kun dem, hvor {column} nævner dem",
+      "viaOwn": "Kun rækker i {table}, hvis {via} nævner dem i {column}",
+      "viaTeam": "Kun rækker i {table}, hvis {via} i {column} nævner dem eller en i et team, personen leder",
       "allWho": "Alle rækker i {table}, uanset hvem {column} er.",
       "only": "Kun rækker i {table}, hvor {ways}",
       "onlyTeam": "Kun rækker i {table}, hvor {ways}, eller en i et team, personen leder",

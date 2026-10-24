@@ -9,7 +9,8 @@
  * asks for — never the target state, never a value the rule sets. What is
  * written is read from the rule here, and saved by the PATCH's own body
  * (`changeRecord`), so the hooks, the lock, the effects, the postings, the
- * audit row and the Undo are the PATCH's.
+ * audit row and the Undo are the PATCH's. A hand-over that carries child
+ * rows (`carries`) moves them in that same write, and offers no Undo.
  *
  * A `link` is a place to go and a `child` is a plain create on the child
  * table: neither has a route of its own.
@@ -17,7 +18,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import type { StateActionRule } from '../../connections/effective-schema.js';
+import type { CarryRule, StateActionRule } from '../../connections/effective-schema.js';
 import type { ResolvedTable } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import { parseRecordId } from '../../crud/records.js';
@@ -48,7 +49,7 @@ export interface RecordActionDeps<Context extends ActionContext, Changed> {
     ctx: Context,
     recordId: string,
     body: { values: Row; from?: string | undefined; seen?: Record<string, string | number | boolean | null> | undefined },
-    own: { values: Row; judged: Row; handOver?: true },
+    own: { values: Row; judged: Row; handOver?: true; carries?: CarryRule[] },
   ): Promise<Changed>;
   /** The values a form typed, as a PATCH reads them: unknown, secret and unreadable columns refused. */
   asked(ctx: Context, values: Row): Row;
@@ -86,8 +87,13 @@ export function recordActionRoutes<Context extends ActionContext, Changed>(insta
         set[column] = deps.fixed(ctx, column, value !== null && typeof value === 'object' ? now : value);
       }
 
-      // A hand-over: the person it asks for may be anybody, whatever the role may otherwise put there.
-      const handOver = (action as { handOver?: true }).handOver === true ? { handOver: true as const } : {};
+      // A hand-over: the person it asks for may be anybody, whatever the role may otherwise put there; and the old person's
+      // child rows it carries go along in the same write.
+      const asksStaff = (action.ask ?? []).filter((column) => ctx.table.table.columns.find((candidate) => candidate.name === column)?.staff === true);
+      // Each carry follows the staff column it names, or the one the action asks for.
+      const carries = (action as { carries?: CarryRule[] }).carries?.map((carry) => ({ ...carry, from: carry.from ?? (asksStaff.length === 1 ? asksStaff[0] : undefined) }))
+        .filter((carry): carry is CarryRule & { from: string } => carry.from !== undefined);
+      const handOver = (action as { handOver?: true }).handOver === true ? { handOver: true as const, ...(carries === undefined ? {} : { carries }) } : {};
 
       if ('move' in action) {
         const to = action.move.to;

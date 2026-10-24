@@ -221,6 +221,9 @@ describe('the sentence a limit is said in', () => {
     expect(reachSentence(one, { reach: 'own', while: { column: 'state', in: ['won'] } })).toBe('Only rows of Deals where Owner is this person, only while state is won.');
     expect(reachSentence(one, { reach: 'all', while: { column: 'state', in: ['won', 'lost'] } })).toBe('Every row of Deals, only while state is won or lost.');
     expect(reachSentence({ label: 'Follow-ups', ways: [{ kind: 'listing', table: 'main.x', label: 'Crew days', dated: true }] }, { reach: 'own' })).toBe('Only rows of Follow-ups where this person is listed in Crew days on the day.');
+    // A reach judged by the parent row's person names that link and column, never the table's own ways or "rows nobody owns".
+    expect(reachSentence(one, { reach: 'team', via: 'deal_id', by: 'owner_id', unowned: true })).toBe('Only rows of Deals whose deal_id names them, or someone in a team they lead, in owner_id.');
+    expect(reachSentence(one, { reach: 'own', via: 'deal_id', by: 'owner_id' })).toBe('Only rows of Deals whose deal_id names them in owner_id.');
   });
 });
 

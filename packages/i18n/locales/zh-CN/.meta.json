@@ -22087,6 +22087,14 @@
     "status": "mt",
     "srcHash": "356329f7d492"
   },
+  "roles.rows.sentence.viaOwn": {
+    "status": "mt",
+    "srcHash": "a43403b5d4c0"
+  },
+  "roles.rows.sentence.viaTeam": {
+    "status": "mt",
+    "srcHash": "4f5a1c9be62d"
+  },
   "roles.rows.sentence.while": {
     "status": "mt",
     "srcHash": "75b7801cd982"

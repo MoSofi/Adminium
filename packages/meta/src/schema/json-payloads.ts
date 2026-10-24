@@ -148,6 +148,8 @@ export const rowReachSchema = z
     by: z.string().min(1).max(64).optional(),
     /** And never the rows this staff column (or `<link>.<staff column>`) names the person in: a manager's own target. A change only. */
     notBy: z.string().regex(/^[^.]{1,64}(\.[^.]{1,64})?$/).optional(),
+    /** With `by`: the link to the row this one hangs off, and `by` a staff column of THAT row, which alone judges the row. */
+    via: z.string().min(1).max(64).optional(),
   })
   .strict();
 export type RowReach = z.infer<typeof rowReachSchema>;
@@ -440,6 +442,24 @@ const toneSchema = z.string();
 const actionSet = z.record(z.string().min(1), z.union([z.string(), z.number(), z.boolean(), z.object({ now: z.literal(true) }).strict()]));
 const actionId = z.string().regex(/^[a-z][a-z0-9-]{0,39}$/);
 const actionTone = z.enum(['primary', 'neutral', 'danger']);
+/** What a hand-over carries with the row: a child table's rows that name the old person (`state-actions.ts` in the manifest). */
+const carryCondition = z
+  .object({
+    column: z.string().min(1),
+    eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32).optional(),
+    isNull: z.boolean().optional(),
+    gt: z.number().optional(),
+    gte: z.number().optional(),
+    lt: z.number().optional(),
+    lte: z.number().optional(),
+  })
+  .strict();
+const storedCarries = () =>
+  z
+    .array(z.object({ table: z.string().min(1), via: z.string().min(1), column: z.string().min(1), from: z.string().min(1).optional(), where: z.array(carryCondition).min(1).max(8).optional() }).strict())
+    .min(1)
+    .max(8);
 const actionWords = () =>
   z.union([z.string().min(1).max(300), z.record(localeSchema, z.string().min(1).max(300)).refine((labels) => Object.keys(labels).length > 0, 'a label needs at least one locale')]);
 
@@ -462,6 +482,8 @@ const storedStateAction = () =>
         ask: z.array(z.string().min(1)).min(1).max(4).optional(),
         /* Hands the row over: a staff column it asks for may name any person. */
         handOver: z.literal(true).optional(),
+        /* …and moves the old person's child rows to the new one, in the same write. */
+        carries: storedCarries().optional(),
       })
       .strict(),
     z
@@ -474,6 +496,7 @@ const storedStateAction = () =>
         confirm: actionWords().optional(),
         ask: z.array(z.string().min(1)).min(1).max(4).optional(),
         handOver: z.literal(true).optional(),
+        carries: storedCarries().optional(),
       })
       .strict(),
     z

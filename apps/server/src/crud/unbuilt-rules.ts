@@ -182,6 +182,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'listing.while',
   // A record's button that hands its row to anybody a role could not otherwise name.
   'states.handOver',
+  // …and the old owner's child rows it moves in the same write, each as its own update (routes/data/index.ts carriedChildren).
+  'states.carries',
   // A total that is the newest child row's value, settled by the statement that settles a sum.
   'rollup.latest',
   // Sample data's own people and teams: made as staff who cannot sign in, named by the sample's rows, removed with them.
@@ -251,6 +253,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.changes',
   // A change a role's reach leaves to everybody but the person a staff column names: judged in the row test (crud/row-limit.ts).
   'rows.notBy',
+  // A child table's reach judged by a staff column of its parent and nothing else: in the row test (crud/row-limit.ts role()).
+  'rows.via',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',
