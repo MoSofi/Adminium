@@ -1015,6 +1015,29 @@ describe('AddOnsPage', () => {
       await waitFor(() => expect(update(calls)).toBeTruthy());
       expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1' });
     });
+
+    it('an update that gives apps\' roles more of its tables lists each, app by app, and the Update button allows it', async () => {
+      const user = userEvent.setup();
+      const roleTables = [
+        { app: 'shop', appName: 'Shop', role: 'floor', roleName: 'Floor', addOn: 'stock-kit', table: 'items', actions: ['read'], readable: ['id', 'name', 'cost'], wider: { actions: [], columns: ['cost'] } },
+        { app: 'cafe', appName: 'Cafe', role: 'till', roleName: 'Till', addOn: 'stock-kit', table: 'moves', actions: ['read', 'create'], readable: ['id', 'qty'], creatable: ['qty'], wider: { actions: ['create'], columns: ['qty'] } },
+      ];
+      const respond: NonNullable<StubOptions['respond']> = (method, url) =>
+        method === 'POST' && url.endsWith('/stock-kit/update/plan') ? { status: 200, body: { ...updatePlan(false).body, roleTables } } : undefined;
+      const { calls } = await renderPage({ installed: [KIT], entries: [NEWER], respond });
+      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/lets apps’ roles do more with the add-on’s tables/)).toBeTruthy();
+      const card = within(dialog).getByTestId('add-on-role-tables-wider');
+      expect(within(card).getByText('Shop’s roles')).toBeTruthy();
+      expect(within(card).getByText('Cafe’s roles')).toBeTruthy();
+      expect(within(card).getByText('New in this version: cost')).toBeTruthy();
+      expect(within(card).getByText('New in this version: add rows, qty')).toBeTruthy();
+      expect(update(calls)).toBeUndefined();
+      await user.click(within(dialog).getByRole('button', { name: 'Update' }));
+      await waitFor(() => expect(update(calls)).toBeTruthy());
+      expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1', roleTables: true });
+    });
   });
 
   describe('an add-on with a public side', () => {

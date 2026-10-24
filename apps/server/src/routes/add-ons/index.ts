@@ -169,6 +169,7 @@ import {
   startOAuthReply,
   upgradeAddOnReply,
   updateAddOnBody,
+  upgradeAddOnBody,
   updateAddOnPlanBody,
   updateAddOnPlanReply,
   updateAddOnReply,
@@ -1399,7 +1400,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         config: { audit: audited('rbac') },
-        schema: { params: addOnKeyParams, response: { 200: upgradeAddOnReply } },
+        schema: { params: addOnKeyParams, body: upgradeAddOnBody, response: { 200: upgradeAddOnReply } },
       },
       async (request) => {
         // Re-validate, re-check `attaches`, re-hash. An upgrade is NOT a
@@ -1410,6 +1411,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const { installed, from, to, pruned } = await upgradeAddOn(installer, {
           key: request.params.key,
           actor: actorOf(request),
+          roleTables: request.body?.roleTables,
         });
         // The new version may draw a document another add-on has been waiting for (a purchase order): made now, as at an install.
         await makeSuggestedDocuments(request, request.params.key);
@@ -1428,10 +1430,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: addOnKeyParams, body: updateAddOnPlanBody, response: { 200: updateAddOnPlanReply } },
       },
       async (request) => {
-        const { plan, from, to, connectionId, checksum, manifest } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to });
+        const { plan, from, to, connectionId, checksum, manifest, roleTables } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to });
         const attached = (await manifests.findByKey(request.params.key))?.attachments.map((attachment) => attachment.attachedTo) ?? [];
         const publicAccess = connectionId === null ? undefined : await publicPlanOf(request, manifest, connectionId, attached);
-        return { plan, from, to, connectionId, ...(checksum === undefined ? {} : { checksum }), ...(publicAccess === undefined ? {} : { publicAccess }) };
+        return { plan, from, to, connectionId, ...(checksum === undefined ? {} : { checksum }), ...(publicAccess === undefined ? {} : { publicAccess }), ...(roleTables.length === 0 ? {} : { roleTables }) };
       },
     );
 
@@ -1455,6 +1457,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           planChecksum: request.body.planChecksum,
           connectionId: request.body.connectionId,
           publicAccess: request.body.publicAccess,
+          roleTables: request.body.roleTables,
           actor: actorOf(request),
           host: {
             log: request.log,

@@ -10,6 +10,13 @@
  * item that turned low) as a change of that row nobody made by hand — an
  * event with `cause: 'settled'`, and no audit row of its own.
  *
+ * ONE SAVE, ONE CHANGE A ROW. Two calls of one save may write or move the
+ * same row (two takes from one account: the first turns it low, the second
+ * empty). That row is told once — as it was before the save's first call,
+ * and as the save left it — so a rule on its change runs once. A row both
+ * written and moved is told as written; a row whose moves cancel out (low,
+ * then not low) moved no announced figure, and is not told as moved.
+ *
  * Never throws for what comes after the commit: the save stands.
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -18,8 +25,9 @@ import { auditRepo, type AutomationOrigin, type MetaDb } from '@adminium/meta';
 import { rehashSampleRow } from '../apps/sample-data.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { emitRecordEvent, invalidateWidgetData, publishChildWrite } from '../crud/after-record-write.js';
-import type { SnapshotView } from '../crud/identifiers.js';
+import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { PostedOutcome } from '../crud/ledger-write.js';
+import type { Row } from '../crud/mask.js';
 import { fetchByPk, pkLabel } from '../crud/records.js';
 
 export interface PostingsAnnouncement {
@@ -59,8 +67,8 @@ export async function announcePostings(app: FastifyInstance, input: PostingsAnno
     return { connectionId, db, dialect };
   };
 
+  // One audit row a call, about the row that posted.
   for (const call of told) {
-    // One row a call, about the row that posted.
     await safely('its audit row', async () => {
       const entry = {
         category: 'data' as const,
@@ -72,34 +80,92 @@ export async function announcePostings(app: FastifyInstance, input: PostingsAnno
       if (input.request) await app.rbac.audit(input.request, entry);
       else await auditRepo(input.meta).append({ ...entry, actorKind: input.actor?.kind ?? 'automation', actorId: input.actor?.id ?? null, actorLabel: input.actor?.label ?? 'Automation' });
     });
+  }
 
-    // The ledger's own rows: to the screens always, to rules and emails when something listens.
-    for (const written of call.written) {
+  // Every row the save's calls wrote or moved, once, in the order first met.
+  for (const row of rowsOf(told)) {
+    if (row.written) {
+      // The ledger's own rows: to the screens always, to rules and emails when something listens.
       await safely('telling its rows', async () => {
-        const pk = Object.fromEntries(written.table.primaryKey.map((column) => [column, written.row[column]]));
-        const action = written.before === null ? 'create' : 'update';
-        publishChildWrite(app, { connectionId, table: written.table, action, pk, row: written.row, ...(written.before === null ? {} : { before: written.before }) });
-        if (await heard(written.table.id)) {
-          await emitRecordEvent(app, { ...event, table: written.table, action, entity: { connectionId, table: written.table.id, pk, label: pkLabel(written.table, pk) }, before: written.before, after: written.row });
+        const after = row.moved === null ? row.after! : ((await fetchByPk((await handle()).db, row.table, row.pk)) ?? row.after!);
+        const action = row.before === null ? 'create' : 'update';
+        if (row.moved !== null) invalidateWidgetData(app, connectionId, row.table.id);
+        publishChildWrite(app, { connectionId, table: row.table, action, pk: row.pk, row: after, ...(row.before === null ? {} : { before: row.before }) });
+        if (row.moved !== null || (await heard(row.table.id))) {
+          await emitRecordEvent(app, { ...event, table: row.table, action, entity: { connectionId, table: row.table.id, pk: row.pk, label: pkLabel(row.table, row.pk) }, before: row.before, after });
         }
         // A sample row a posting changed stays the sample's own to take away.
-        if (written.before !== null) await rehashSampleRow(input.meta, { ...(await handle()), table: written.table }, pk);
+        if (row.before !== null) await rehashSampleRow(input.meta, { ...(await handle()), table: row.table }, row.pk);
       });
+      continue;
     }
-
     // The rows whose announced figures moved: a change of the row, said to be nobody's.
+    await safely('telling a figure it moved', async () => {
+      const at = await handle();
+      const after = (await fetchByPk(at.db, row.table, row.pk)) ?? null;
+      if (after === null) return;
+      const was = row.moved!;
+      // Moved, and moved back within the save: no announced figure moved.
+      if (Object.keys(was).every((column) => sameFigure(was[column], after[column]))) return;
+      invalidateWidgetData(app, connectionId, row.table.id);
+      publishChildWrite(app, { connectionId, table: row.table, action: 'update', pk: row.pk, row: after });
+      await emitRecordEvent(app, { ...event, table: row.table, action: 'update', entity: { connectionId, table: row.table.id, pk: row.pk, label: pkLabel(row.table, row.pk) }, before: { ...after, ...was }, after, cause: 'settled' });
+      await rehashSampleRow(input.meta, { ...at, table: row.table }, row.pk);
+    });
+  }
+}
+
+/** One row a save's calls wrote or moved, merged across the calls. */
+interface ToldRow {
+  table: ResolvedTable;
+  pk: Row;
+  /** Written by a call: the row before the first call wrote it (null: the save made it), and as the last call wrote it. */
+  written: boolean;
+  before: Row | null;
+  after: Row | null;
+  /** Its announced figures as they stood before the first call moved them; null when no call moved one. */
+  moved: Row | null;
+}
+
+/** The key a row is merged by: its table and its key, however a value is spelled. */
+const rowKey = (table: ResolvedTable, pk: Row): string => JSON.stringify([table.id, ...table.primaryKey.map((column) => String(pk[column]))]);
+
+/** Whether a figure stands where it stood: a number is the same number however the engine spells it. */
+function sameFigure(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || a === undefined || b === null || b === undefined) return (a ?? null) === (b ?? null);
+  const x = Number(a);
+  const y = Number(b);
+  return Number.isFinite(x) && Number.isFinite(y) ? x === y : String(a) === String(b);
+}
+
+/**
+ * The rows a save's calls wrote or moved, each once: `before` from the first
+ * call that touched it, the figures as they stood before the first call that
+ * moved one, `after` from the last call that wrote it.
+ */
+function rowsOf(calls: readonly PostedOutcome[]): ToldRow[] {
+  const rows = new Map<string, ToldRow>();
+  for (const call of calls) {
+    for (const written of call.written) {
+      const pk = Object.fromEntries(written.table.primaryKey.map((column) => [column, written.row[column]]));
+      const key = rowKey(written.table, pk);
+      const seen = rows.get(key);
+      if (seen === undefined) rows.set(key, { table: written.table, pk, written: true, before: written.before, after: written.row, moved: null });
+      else if (!seen.written) {
+        // Moved by an earlier call, written by this one: as it stood before that move, with its figures as they were.
+        rows.set(key, { ...seen, written: true, before: written.before === null ? null : { ...written.before, ...seen.moved }, after: written.row });
+      } else seen.after = written.row;
+    }
     for (const moved of call.announced ?? []) {
-      await safely('telling a figure it moved', async () => {
-        const at = await handle();
-        const after = (await fetchByPk(at.db, moved.table, moved.pk)) ?? null;
-        if (after === null) return;
-        invalidateWidgetData(app, connectionId, moved.table.id);
-        publishChildWrite(app, { connectionId, table: moved.table, action: 'update', pk: moved.pk, row: after });
-        await emitRecordEvent(app, { ...event, table: moved.table, action: 'update', entity: { connectionId, table: moved.table.id, pk: moved.pk, label: pkLabel(moved.table, moved.pk) }, before: { ...after, ...moved.was }, after, cause: 'settled' });
-        await rehashSampleRow(input.meta, { ...at, table: moved.table }, moved.pk);
-      });
+      const key = rowKey(moved.table, moved.pk);
+      const seen = rows.get(key);
+      if (seen === undefined) rows.set(key, { table: moved.table, pk: moved.pk, written: false, before: null, after: null, moved: { ...moved.was } });
+      // The figures as the first move found them win: a later move found them already moved.
+      else seen.moved = { ...moved.was, ...(seen.moved ?? {}) };
     }
   }
+  return [...rows.values()];
 }
 
 /** What a door hands over: the rest is the server's own (who listens, where the rows are). */

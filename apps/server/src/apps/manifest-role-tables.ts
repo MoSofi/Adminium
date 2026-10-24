@@ -87,7 +87,13 @@ function holdOf(entry: RoleTable, addOn: AddOnManifest | undefined): Omit<RoleTa
 /** The parts of a grant's limit that narrow it beyond its columns. */
 const NARROWING = ['rows', 'writableValues', 'creatableValues', 'writableFrom'] as const;
 
-export function roleTablesChecked(app: Manifest, addOns: ReadonlyMap<string, AddOnManifest>, before?: Manifest | null): RoleTableCheck[] {
+export function roleTablesChecked(
+  app: Manifest,
+  addOns: ReadonlyMap<string, AddOnManifest>,
+  before?: Manifest | null,
+  /** The add-ons as they run now, when the update brings another version of one: the running version's hold is judged by the running add-on. */
+  addOnsBefore?: ReadonlyMap<string, AddOnManifest>,
+): RoleTableCheck[] {
   if (app.kind !== 'app') return [];
   const roles = app.roles ?? [];
   const earlier = before?.kind === 'app' ? (before.roles ?? []) : null;
@@ -98,7 +104,7 @@ export function roleTablesChecked(app: Manifest, addOns: ReadonlyMap<string, Add
       if (earlier === null) return out;
       const was = earlier.find((one) => one.key === role.key);
       const old = was === undefined ? undefined : roleTablesOf(was, earlier).find((one) => one.addOn === entry.addOn && one.table === entry.table);
-      let wider = holdWider(old === undefined ? null : holdOf(old, addOns.get(entry.addOn)), hold);
+      let wider = holdWider(old === undefined ? null : holdOf(old, addOnsBefore?.get(entry.addOn) ?? addOns.get(entry.addOn)), hold);
       // Which rows it reaches and which values it may write narrow a grant as its columns do: one the running version
       // held that this one drops or changes is a widening too, said by the limit's name (`rows`, `writableValues`, …).
       const loosened = old === undefined ? [] : NARROWING.filter((key) => old.limit?.[key] !== undefined && JSON.stringify(old.limit[key]) !== JSON.stringify(entry.limit?.[key]));
@@ -106,6 +112,49 @@ export function roleTablesChecked(app: Manifest, addOns: ReadonlyMap<string, Add
       return wider === null ? out : { ...out, wider };
     }),
   );
+}
+
+/** One role of an app that an add-on's new version lets do more with the add-on's tables (`appGrants` widened). */
+export interface AddOnGrantWider extends RoleTableCheck {
+  /** The app whose role it is. */
+  app: string;
+  appName: string;
+  wider: { actions: string[]; columns: string[] };
+}
+
+/**
+ * WHAT AN ADD-ON'S NEW VERSION GIVES APPS' ROLES MORE OF ITS TABLES.
+ *
+ * An app's grant on an add-on's table is cut to the add-on's own words
+ * (`appGrants`, its ledgers, its columns). A version that widens those words
+ * widens every role of every app that asks for more than the old words gave:
+ * for each, the hold under the running version and under the new one, and
+ * what the new one holds more (`holdWider`). An update gives it only when the
+ * operator allows it, as an app's own update does.
+ */
+export function addOnGrantsWider(apps: readonly Manifest[], addOnKey: string, before: AddOnManifest, after: AddOnManifest): AddOnGrantWider[] {
+  const out: AddOnGrantWider[] = [];
+  for (const app of apps) {
+    if (app.kind !== 'app') continue;
+    const roles = app.roles ?? [];
+    for (const role of roles) {
+      for (const entry of roleTablesOf(role, roles)) {
+        if (entry.addOn !== addOnKey) continue;
+        const now = holdOf(entry, after);
+        const wider = holdWider(holdOf(entry, before), now);
+        if (wider === null) continue;
+        const { unchecked: _unchecked, ...hold } = now;
+        out.push({ app: app.key, appName: app.name, role: role.key, roleName: role.name, addOn: entry.addOn, table: entry.table, ...hold, actions: [...hold.actions], wider });
+      }
+    }
+  }
+  return out;
+}
+
+/** How a refusal and a check say one widened grant. */
+export function widerWords(entry: Pick<RoleTableCheck, 'roleName' | 'addOn' | 'table'> & { wider: { actions: string[]; columns: string[] }; appName?: string | undefined }): string {
+  const what = [...entry.wider.actions, ...entry.wider.columns.map((column) => (column === '*' ? 'every column' : column))].join(', ');
+  return `${entry.appName === undefined ? '' : `${entry.appName}'s `}${entry.roleName} on ${entry.addOn}'s "${entry.table}" (${what})`;
 }
 
 const PAIR = /^table:@([a-z][a-z0-9-]{1,79})\/([A-Za-z0-9_]+):(read|create|update)$/;

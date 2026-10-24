@@ -128605,6 +128605,12 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "app": {
+                                "type": "string"
+                              },
+                              "appName": {
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string"
                               },
@@ -129441,6 +129447,9 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "roleTables": {
+                    "type": "boolean"
                   },
                   "modules": {
                     "type": "object",
@@ -135341,6 +135350,28 @@
     },
     "/api/v1/add-ons/{key}/upgrade": {
       "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "roleTables": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -135984,6 +136015,89 @@
                         "canGrant"
                       ],
                       "additionalProperties": false
+                    },
+                    "roleTables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "app": {
+                            "type": "string"
+                          },
+                          "appName": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "roleName": {
+                            "type": "string"
+                          },
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "readable": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "writable": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "creatable": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "wider": {
+                            "type": "object",
+                            "properties": {
+                              "actions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "actions",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "app",
+                          "appName",
+                          "role",
+                          "roleName",
+                          "addOn",
+                          "table",
+                          "actions",
+                          "wider"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -136026,6 +136140,9 @@
                     "maxLength": 64
                   },
                   "publicAccess": {
+                    "type": "boolean"
+                  },
+                  "roleTables": {
                     "type": "boolean"
                   }
                 }

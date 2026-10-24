@@ -77,7 +77,7 @@ import { DocumentsWaitingNotice } from './DocumentsWaitingNotice.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
-import { RoleTablesUpdateCard } from './RoleTablesList.js';
+import { AppsRoleTablesWiderCard, RoleTablesUpdateCard } from './RoleTablesList.js';
 
 /** Which card an action belongs to, so its answer renders beside it. */
 export type AcquisitionOrigin = 'shelf' | 'installed';
@@ -610,6 +610,7 @@ function UpdateCheckDialog({
             <PublicAccessInstallCard access={access} checked={allowPublic} onChange={setAllowPublic} />
           )}
           <RoleTablesUpdateCard entries={wider} />
+          <AppsRoleTablesWiderCard entries={wider} />
         </div>
       </ModalBody>
       <ModalFooter>

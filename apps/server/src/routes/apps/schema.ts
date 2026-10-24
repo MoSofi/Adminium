@@ -433,6 +433,9 @@ export const appInstallPlanDto = z.object({
   roleTables: z
     .array(
       z.object({
+        /** Another app's role, named when an add-on this install or update brings a newer version of gives it more of its tables. Absent: this app's. */
+        app: z.string().optional(),
+        appName: z.string().optional(),
         role: z.string(),
         roleName: z.string(),
         addOn: z.string(),
@@ -560,6 +563,13 @@ export const installAppBody = z.object({
    * suggested one only when listed; an update only with `update: true`.
    */
   addOns: z.array(appAddOnChoice).max(16).optional(),
+  /**
+   * The check's say on what an add-on this install updates gives OTHER apps'
+   * roles more of its tables (`roleTables[].wider`, each with its `app`).
+   * Only `true` allows it; without it such an install is refused (422
+   * `ROLE_TABLES_WIDER`) before anything is written.
+   */
+  roleTables: z.boolean().optional(),
   /**
    * The parts of the app to start with, by id: `true` on, `false` off. A part
    * left out starts as its manifest says. A part that is `always` on, or one
@@ -949,8 +959,10 @@ export const updateAppBody = z
     /**
      * The check's say on what the new version's roles hold MORE of an
      * add-on's tables (`roleTables[].wider`): an action, or a column, the
-     * running version's did not. Only `true` allows it; without it such an
-     * update is refused (422 `ROLE_TABLES_WIDER`) before anything moves.
+     * running version's did not, including what an add-on it updates gives
+     * this or another app's roles more (`appGrants` widened). Only `true`
+     * allows it; without it such an update is refused (422
+     * `ROLE_TABLES_WIDER`) before anything moves.
      */
     roleTables: z.boolean().optional(),
   })
