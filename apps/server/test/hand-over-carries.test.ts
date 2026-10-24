@@ -19,9 +19,12 @@
  * and on a change, as every other writer has been held to since the listing
  * rule was asked of them all.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-server.helpers.js';
+
+// The manifest uses words read from 0.3.35 on (`rows.via`, `states.carries`); until the release this server says 0.3.34.
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.35' }));
 
 const en = (text: string) => ({ 'en-US': text });
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -41,7 +44,7 @@ function handing(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.handing.desc', fallback: 'Handing over.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.33', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.35', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'handing', label: en('Handing'), order: 1 }],
     requiredSchema: {
       prefixed: true,

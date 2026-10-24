@@ -2939,7 +2939,7 @@ row (hung only under a parent whose `by` names them or somebody they lead, else 
 `parent-not-theirs`, whoever the new row names), a dashboard figure (worked out again as soon as
 the parent changes hands), a file out, the live frames (a bare "this table changed", never a
 row) and the role editor's count. It is opt-in: a reach without `via` reads the table's every
-way as before (a helper listed on the deal, the visit's own rep). Needs Adminium 0.3.33
+way as before (a helper listed on the deal, the visit's own rep). Needs Adminium 0.3.35
 (`rows.via`).
 
 An action may name **several reaches**, as a list of one to four: any one of them is enough, and
@@ -2978,7 +2978,7 @@ reads `through` takes only somebody who reads at least one of those tables (422,
 marked `cannot-open`), whoever writes: a person on the dashboard, a bulk edit, an import (by
 somebody nothing limits too), a rule's write step, the row an effect moves, a timed move, and
 the owner's code. Every one of them is judged on the row as its rules leave it, a person's own
-change and new row included (from 0.3.33), so a stamp that puts a person into such a column (its
+change and new row included (from 0.3.35), so a stamp that puts a person into such a column (its
 writer, or a person copied from another column) is held to the same. See
 [Whose a row is](/guides/apps/whose-a-row-is/).
 
@@ -3024,7 +3024,7 @@ row moved (else `403`, and nothing moves); the column itself is the button's to 
 columns it sets are, whatever the role's `writable` says. Each row is judged as a hand-over
 judges its own row: the new person works the child table, and a child that is a listing lists
 them only against rows they can open (`422`, the field marked `cannot-open`). One refusal refuses
-the whole hand-over. A hand-over that carried rows offers no Undo. Needs Adminium 0.3.33
+the whole hand-over. A hand-over that carried rows offers no Undo. Needs Adminium 0.3.35
 (`states.carries`).
 
 ## Roles

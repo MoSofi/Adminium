@@ -72,7 +72,7 @@ function manifest(over: { tables?: Doc[]; roles?: unknown[]; floor?: string } = 
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: over.floor ?? '0.3.33' },
+    compatibility: { minAdminiumVersion: over.floor ?? '0.3.35' },
     requiredSchema: { tables: over.tables ?? tables() },
     pages: [{ ref: 'crm-deals', template: 'page-crud', title: { key: 't', fallback: 'Deals' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'deals' } }],
     roles: over.roles ?? [managerOf()],
@@ -86,12 +86,12 @@ const messages = (document: Doc): string[] => {
 };
 
 describe('a reach judged by the parent\'s person (via)', () => {
-  it('validates, as a word of 0.3.33 found where it is written', () => {
+  it('validates, as a word of 0.3.35 found where it is written', () => {
     expect(messages(manifest())).toEqual([]);
     expect(installFloorWords(manifest())).toContainEqual({ word: 'rows.via', path: 'roles.0.limits.site_visits.rows.read' });
     expect(installFloorWords(manifest())).toContainEqual({ word: 'rows.via', path: 'roles.0.limits.site_visits.rows.update' });
-    expect(WORD_FLOORS['rows.via']).toBe('0.3.33');
-    expect(messages(manifest({ floor: '0.3.32' })).some((message) => message.includes('0.3.33'))).toBe(true);
+    expect(WORD_FLOORS['rows.via']).toBe('0.3.35');
+    expect(messages(manifest({ floor: '0.3.34' })).some((message) => message.includes('0.3.35'))).toBe(true);
   });
 
   it('says `by` too, and is the person\'s own or their team\'s, never the rows nobody owns', () => {
@@ -124,10 +124,10 @@ describe('a reach judged by the parent\'s person (via)', () => {
 });
 
 describe('what a hand-over carries (carries)', () => {
-  it('validates, as a word of 0.3.33 found where it is written', () => {
+  it('validates, as a word of 0.3.35 found where it is written', () => {
     expect(messages(manifest())).toEqual([]);
     expect(installFloorWords(manifest())).toContainEqual({ word: 'states.carries', path: 'requiredSchema.tables.0.states.actions.0.carries' });
-    expect(WORD_FLOORS['states.carries']).toBe('0.3.33');
+    expect(WORD_FLOORS['states.carries']).toBe('0.3.35');
   });
 
   it('only on a hand-over that asks for one person, or says which one the rows follow', () => {
