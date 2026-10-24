@@ -23,7 +23,7 @@
  * `readable` limits the role's READ of the table to some columns, the same
  * way: housekeeping reads a stay's room and dates, and none of its guest or
  * its money. The key is always read; a link to another row only when it is
- * listed, as any column (before 0.3.33 every link was read). A column the role may not read is not written
+ * listed, as any column (before 0.3.35 every link was read). A column the role may not read is not written
  * through it either, unless `writable` names it.
  *
  * `writableFrom` says which rows the update reaches at all, by the value a

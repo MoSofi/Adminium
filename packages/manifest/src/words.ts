@@ -273,11 +273,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
   'config.board': '0.3.28',
   // A board's toolbar: the server's total of every card the reader reaches, and a filter by the person a staff column names.
-  'board.toolbar': '0.3.33',
+  'board.toolbar': '0.3.35',
   // A second number or money line on a board's card, with its short label (a deal's weighted value).
-  'board.secondAmount': '0.3.33',
+  'board.secondAmount': '0.3.35',
   // What a card's days are, after the figure ("12 days in stage").
-  'board.daysLabel': '0.3.33',
+  'board.daysLabel': '0.3.35',
   // A move refused once a date of its row has passed, for every writer.
   'states.notPast': '0.3.28',
   // A new child row moves its parent to a state by the parent's own move (a job signed off by the sign-off made on site).

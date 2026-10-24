@@ -292,7 +292,7 @@ owner, an amount and a day it should close. Say which columns those are, and the
 } }
 ```
 
-`toolbar` (0.3.33) draws a line above the board: the server's count and totals of every deal the
+`toolbar` (0.3.35) draws a line above the board: the server's count and totals of every deal the
 person reads (`total`), and a filter by the deal's owner (`person`) that narrows the cards, the
 columns' figures and the total alike. A card's `secondAmount` is a second money line (the weighted
 value), and `daysSince.label` says what its days are ("12 days in stage").

@@ -64,7 +64,7 @@ describe('appGrants on an add-on\'s table', () => {
     expect(messages(kit({ entries: { actions: ['read'], never: ['id'] } }))).toEqual([
       'requiredSchema.tables.1.appGrants.never.0: "id" is the table\'s key, which every read shows: leave it out of "writable" and "creatable" instead',
     ]);
-    // A link is a column like any other since 0.3.33: a read that does not list it does not show it.
+    // A link is a column like any other since 0.3.35: a read that does not list it does not show it.
     expect(messages(kit({ entries: { actions: ['read'], never: ['account_id'] } }))).toEqual([]);
   });
 

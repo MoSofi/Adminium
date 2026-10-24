@@ -42,8 +42,8 @@ import { packageTarball } from './app-bundle-helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
-// The toolbar and the card's words are read from 0.3.33 on, and the upload door refuses an app newer than the server: this server says it is that release.
-vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: '0.3.33' }));
+// The toolbar and the card's words are read from 0.3.35 on, and the upload door refuses an app newer than the server: this server says it is that release.
+vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: '0.3.35' }));
 
 type Dialect = 'sqlite' | 'postgres' | 'mysql';
 const POSTGRES_URL = process.env.TEST_POSTGRES_URL || undefined;
@@ -69,7 +69,7 @@ const MANIFEST = {
   license: 'AGPL-3.0-only',
   description: { key: 'd', fallback: 'A sales desk.' },
   categories: ['operations'],
-  compatibility: { minAdminiumVersion: '0.3.33' },
+  compatibility: { minAdminiumVersion: '0.3.35' },
   requiredSchema: {
     prefixed: true,
     tables: [

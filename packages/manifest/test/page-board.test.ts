@@ -269,7 +269,7 @@ describe('a board page says what its headings, its cards and itself show', () =>
   });
 });
 
-describe('a board page’s toolbar, a card’s second money line and what its days are (0.3.33)', () => {
+describe('a board page’s toolbar, a card’s second money line and what its days are (0.3.35)', () => {
   const BOARD = {
     column: 'stage_id',
     columnsFrom: FROM,
@@ -281,10 +281,10 @@ describe('a board page’s toolbar, a card’s second money line and what its da
     },
     toolbar: { total: true, person: 'owner_id' },
   };
-  const messages = (board: Record<string, unknown>, floor = '0.3.33') =>
+  const messages = (board: Record<string, unknown>, floor = '0.3.35') =>
     issuesOf({ ...BOARD, ...board }, { floor }).map((issue) => `${Array.isArray(issue.path) ? issue.path.join('.') : String(issue.path)}: ${issue.message}`);
 
-  it('validates each, alone or together, at 0.3.33', () => {
+  it('validates each, alone or together, at 0.3.35', () => {
     expect(messages({})).toEqual([]);
     expect(messages({ toolbar: { total: true } })).toEqual([]);
     expect(messages({ toolbar: { person: 'owner_id' } })).toEqual([]);
@@ -308,15 +308,15 @@ describe('a board page’s toolbar, a card’s second money line and what its da
     expect(messages({ card: { daysSince: { column: 'entered_stage_at', label: 'x'.repeat(41) } } }).length).toBeGreaterThan(0);
   });
 
-  it('is found where it is written, each a word of 0.3.33, and refused under an older floor', () => {
-    const words = installFloorWords(manifest(BOARD, { floor: '0.3.33' }));
+  it('is found where it is written, each a word of 0.3.35, and refused under an older floor', () => {
+    const words = installFloorWords(manifest(BOARD, { floor: '0.3.35' }));
     expect(words).toContainEqual({ word: 'board.toolbar', path: 'pages.0.config.board.toolbar' });
     expect(words).toContainEqual({ word: 'board.secondAmount', path: 'pages.0.config.board.card.secondAmount' });
     expect(words).toContainEqual({ word: 'board.daysLabel', path: 'pages.0.config.board.card.daysSince.label' });
-    for (const word of ['board.toolbar', 'board.secondAmount', 'board.daysLabel'] as const) expect(WORD_FLOORS[word]).toBe('0.3.33');
+    for (const word of ['board.toolbar', 'board.secondAmount', 'board.daysLabel'] as const) expect(WORD_FLOORS[word]).toBe('0.3.35');
     // Days with no label are the 0.3.28 board's.
     expect(installFloorWords(manifest({ column: 'stage_id', columnsFrom: FROM, card: { daysSince: { column: 'entered_stage_at' } } })).map((word) => word.word)).not.toContain('board.daysLabel');
     const old = messages({}, '0.3.32');
-    for (const word of ['board.toolbar', 'board.secondAmount', 'board.daysLabel']) expect(old.some((message) => message.includes(`"${word}" is read by Adminium 0.3.33 and later`)), word).toBe(true);
+    for (const word of ['board.toolbar', 'board.secondAmount', 'board.daysLabel']) expect(old.some((message) => message.includes(`"${word}" is read by Adminium 0.3.35 and later`)), word).toBe(true);
   });
 });
