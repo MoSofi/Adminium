@@ -58,6 +58,7 @@ import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
 import { SampleDataCard } from '../apps/SampleData.js';
+import { AppsRoleTablesWiderCard } from '../apps/RoleTablesList.js';
 import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
 import { MakesSummary, PlanSummary, PublicAccessChoice } from './PlanSummary.js';
@@ -794,8 +795,9 @@ export function AddOnsPage() {
     void (async () => {
       const plan = await run(() => fetchUpdatePlan(entry.key));
       if (plan === undefined) return;
-      // Shown first when it changes tables, or would open something new to the public: that is allowed by a tick, never by the click.
-      if (plan.plan.requiresSchemaChange || asksNewPublicAccess(plan.publicAccess)) setPending({ kind: 'update', entry, plan, publicAccess: false });
+      // Shown first when it changes tables, would open something new to the public (allowed by a tick, never by the click),
+      // or gives apps' roles more of its tables (allowed by the Update button under the list).
+      if (plan.plan.requiresSchemaChange || asksNewPublicAccess(plan.publicAccess) || (plan.roleTables ?? []).length > 0) setPending({ kind: 'update', entry, plan, publicAccess: false });
       else await run(() => updateAddOn(entry.key, plan.checksum));
     })();
   };
@@ -1288,9 +1290,12 @@ export function AddOnsPage() {
                                 'studio:addOns.confirm.updateBody',
                                 'This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.',
                               )
-                            : t('studio:addOns.confirm.updatePublicBody', 'This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened.')}
+                            : asksNewPublicAccess(pending.plan.publicAccess)
+                              ? t('studio:addOns.confirm.updatePublicBody', 'This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened.')
+                              : t('studio:addOns.confirm.updateRolesBody', 'This version lets apps’ roles do more with the add-on’s tables. Check what each gets before you update.')}
                         </p>
                         <PlanSummary plan={pending.plan.plan} />
+                        <AppsRoleTablesWiderCard entries={pending.plan.roleTables ?? []} />
                         <PublicAccessChoice
                           access={pending.plan.publicAccess}
                           allowed={pending.publicAccess}
@@ -1320,7 +1325,8 @@ export function AddOnsPage() {
                   () => {
                     if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
                     if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key, drop);
-                    if (current.kind === 'update') return updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess);
+                    // The widened grants were listed above the button: the click is the say.
+                    if (current.kind === 'update') return updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess, (current.plan.roleTables ?? []).length > 0);
                     return discardStaged(current.entry.key, current.entry.version);
                   },
                   current.kind === 'uninstall'

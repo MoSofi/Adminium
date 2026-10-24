@@ -234,7 +234,10 @@ first if it has to, then checks the tables again:
   would read or change more of an add-on's tables than the running version's (a new action, a new
   column, or every column where before it was some), the check lists what is new, and pressing
   **Update** allows it. Through the API, send `"roleTables": true` with the update; without it the
-  update is refused with `ROLE_TABLES_WIDER` and nothing runs.
+  update is refused with `ROLE_TABLES_WIDER` and nothing runs. The same holds when an add-on's new
+  version gives the roles more (its `appGrants` widened): an update of the add-on itself, or an
+  app's install or update that brings it along, lists each app's role that gets more, and is
+  refused without `"roleTables": true`.
 - The app keeps its place: same row, same database connection, same mounts. Older versions of the
   package are removed from disk only after the update succeeds.
 

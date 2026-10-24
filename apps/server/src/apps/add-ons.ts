@@ -657,6 +657,8 @@ export async function runAddOnSteps(
     manifestRowId: string;
     /** The app's public access was allowed with this install: an add-on installed with it opens its own key too (a guest's link to a gift card). */
     publicAccess?: boolean | undefined;
+    /** The app's install or update allowed what an add-on it updates gives apps' roles more of its tables (`ROLE_TABLES_WIDER`). */
+    roleTables?: boolean | undefined;
   },
 ): Promise<AddOnsDone> {
   const done: AddOnsDone = { installed: [], updated: [], attached: [] };
@@ -690,6 +692,7 @@ export async function runAddOnSteps(
         // Kept until the app's own install or update is done (see below).
         prune: false,
         settle: 'caller',
+        roleTables: input.roleTables,
       });
       await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller' });
       done.updated.push({ key: step.key, name: step.name, from: step.from ?? '', to: step.version });

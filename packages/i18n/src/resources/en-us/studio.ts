@@ -70,7 +70,8 @@ export default {
       "updateTitle": "Update to {version}",
       "updateBody": "This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.",
       "update": "Update",
-      "updatePublicBody": "This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened."
+      "updatePublicBody": "This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened.",
+      "updateRolesBody": "This version lets apps’ roles do more with the add-on’s tables. Check what each gets before you update."
     },
     "connect": {
       "apiKey": "API key",
@@ -3487,7 +3488,10 @@ export default {
         "read": "read",
         "create": "add rows",
         "update": "change rows"
-      }
+      },
+      "othersTitle": "Apps’ roles get more of an add-on’s tables",
+      "othersBody": "The add-on’s new version lets these roles do more with its tables. Going ahead allows it.",
+      "appRoles": "{app}’s roles"
     }
   },
   "featurePage": {

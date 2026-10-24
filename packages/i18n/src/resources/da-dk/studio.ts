@@ -70,7 +70,8 @@ export default {
       "updateTitle": "Opdater til {version}",
       "updateBody": "Denne version ændrer tilføjelsens egne tabeller. Intet af det, du har, fjernes; indtil opdateringen er færdig, gør tilføjelsen ingenting.",
       "update": "Opdater",
-      "updatePublicBody": "Denne version ville åbne mere af tilføjelsen for offentligheden. Opdater uden at sætte flueben, så åbnes intet nyt."
+      "updatePublicBody": "Denne version ville åbne mere af tilføjelsen for offentligheden. Opdater uden at sætte flueben, så åbnes intet nyt.",
+      "updateRolesBody": "Denne version lader roller i apps gøre mere med tilføjelsens tabeller. Tjek, hvad hver enkelt får, før du opdaterer."
     },
     "connect": {
       "apiKey": "API key",
@@ -3487,7 +3488,10 @@ export default {
         "read": "læse",
         "create": "tilføje rækker",
         "update": "ændre rækker"
-      }
+      },
+      "othersTitle": "Roller i apps får mere af en tilføjelses tabeller",
+      "othersBody": "Tilføjelsens nye version lader disse roller gøre mere med dens tabeller. Når du fortsætter, tillader du det.",
+      "appRoles": "Roller i {app}"
     }
   },
   "featurePage": {

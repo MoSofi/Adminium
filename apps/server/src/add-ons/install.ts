@@ -42,6 +42,7 @@ import {
 } from '@adminium/manifest';
 import { appTablesRepo, auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
+import { addOnGrantsWider, widerWords, type AddOnGrantWider } from '../apps/manifest-role-tables.js';
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
@@ -892,6 +893,12 @@ export interface UpdateAddOnInput {
   connectionId?: string | undefined;
   /** The server the update runs in: its log, and how open dashboards are told. A quiet one when absent. */
   host?: InstallHost | undefined;
+  /**
+   * The operator's say on what the version gives apps' roles MORE of the
+   * add-on's tables (its `appGrants` widened): only `true` allows it; without
+   * it such an update is refused (422 `ROLE_TABLES_WIDER`) before anything moves.
+   */
+  roleTables?: boolean | undefined;
 }
 
 export interface UpdateAddOnResult {
@@ -954,6 +961,40 @@ async function updateTarget(deps: AddOnInstallerDeps, input: Pick<UpdateAddOnInp
 }
 
 /**
+ * WHAT THE VERSION GIVES APPS' ROLES MORE OF THE ADD-ON'S TABLES: for each
+ * app it is attached to, each role's hold under the running version's words
+ * and under the new one's (`appGrants`), and what the new one holds more.
+ * An update that stopped after its version moved compares a version with
+ * itself, and finds nothing.
+ */
+async function grantsWiderOnUpdate(deps: AddOnInstallerDeps, input: { key: string; before: unknown; after: AddOnManifest; apps: readonly string[] }): Promise<AddOnGrantWider[]> {
+  // The document the running version was installed from: already checked when it was.
+  const before = input.before as Manifest | null;
+  if (before === null || typeof before !== 'object' || !isAddOnManifest(before)) return [];
+  const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
+  const apps: Manifest[] = [];
+  for (const appKey of appHosts(input.apps)) {
+    const found = await manifests.findByKey(appKey);
+    if (found === null || found.row.kind !== 'app' || found.document === null) continue;
+    apps.push(found.document as Manifest);
+  }
+  return addOnGrantsWider(apps, input.key, before, input.after);
+}
+
+/** Refused unless allowed: a version that lets apps' roles do more with the add-on's tables is the operator's call, never an update's side effect. */
+function refuseWiderUnlessAllowed(key: string, from: string, to: string, wider: readonly AddOnGrantWider[], allowed: boolean | undefined): void {
+  if (wider.length === 0 || allowed === true) return;
+  throw new ValidationFailedError(
+    `"${key}" ${to} lets apps' roles do more with its tables than ${from} did: ${wider.map(widerWords).join('; ')}. ` +
+      'Check the update and allow it ("roleTables": true), or keep the running version.',
+    { reason: 'ROLE_TABLES_WIDER', roleTables: wider.map(widerEntry) },
+  );
+}
+
+/** One widened grant, as a refusal and a check list it. */
+const widerEntry = (entry: AddOnGrantWider) => ({ app: entry.app, appName: entry.appName, role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, actions: entry.actions, ...(entry.readable === undefined ? {} : { readable: entry.readable }), ...(entry.writable === undefined ? {} : { writable: entry.writable }), ...(entry.creatable === undefined ? {} : { creatable: entry.creatable }), wider: entry.wider });
+
+/**
  * What an update would do, before it does it: the plan of the version's
  * tables against the database the add-on lives in, and that plan's identity.
  * Writes nothing.
@@ -961,9 +1002,11 @@ async function updateTarget(deps: AddOnInstallerDeps, input: Pick<UpdateAddOnInp
 export async function planAddOnUpdate(
   deps: AddOnInstallerDeps,
   input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except'>,
-): Promise<{ plan: InstallPlanDto; from: string; to: string; connectionId: string | null; checksum?: string | undefined; manifest: AddOnManifest }> {
+): Promise<{ plan: InstallPlanDto; from: string; to: string; connectionId: string | null; checksum?: string | undefined; manifest: AddOnManifest; roleTables: ReturnType<typeof widerEntry>[] }> {
   const target = await updateTarget(deps, input);
   const { manifest, attachedTo, hosts, installed } = target;
+  // What the version gives apps' roles more of its tables: shown on the check, given only when allowed.
+  const roleTables = (await grantsWiderOnUpdate(deps, { key: input.key, before: installed.document, after: manifest, apps: attachedTo })).map(widerEntry);
   if (!installsLikeAnApp(manifest)) {
     return {
       plan: (await planAddOn(deps, manifest, { attachTo: attachedTo, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) })).dto,
@@ -971,6 +1014,7 @@ export async function planAddOnUpdate(
       to: target.to,
       connectionId: installed.row.connectionId,
       manifest,
+      roleTables,
     };
   }
   const connectionId = installed.row.connectionId ?? (await deps.schemaTarget?.resolve?.({ ownsTables: true, attachTo: attachedTo })) ?? null;
@@ -978,7 +1022,7 @@ export async function planAddOnUpdate(
     throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
   }
   const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [] });
-  return { plan: planned.dto, from: target.from, to: target.to, connectionId, checksum: planned.checksum, manifest };
+  return { plan: planned.dto, from: target.from, to: target.to, connectionId, checksum: planned.checksum, manifest, roleTables };
 }
 
 /**
@@ -996,6 +1040,14 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   const target = await updateTarget(deps, input);
   const { manifests, from, to, manifest, attachedTo, hosts, resumed } = target;
   const likeApp = installsLikeAnApp(manifest);
+  /*
+   * WHAT THE VERSION GIVES APPS' ROLES MORE OF ITS TABLES (`appGrants`
+   * widened) is the operator's call, as it is on an app's own update: refused
+   * before anything moves unless the call allows it.
+   */
+  // The app whose own install or update brings this version along judges its own roles by its new version, before anything moved.
+  const judged = attachedTo.filter((app) => app !== input.except);
+  refuseWiderUnlessAllowed(key, from, to, await grantsWiderOnUpdate(deps, { key, before: target.installed.document, after: manifest, apps: judged }), input.roleTables);
   // An add-on installed before its tables were recorded: where it lives is found out now, before the version moves.
   const adopted = await adoptAddOnTables(deps, { installed: target.installed, manifest, prefer: hosts.map((host) => host.connectionId ?? null), connectionId: input.connectionId, actor: input.actor });
   const installed = adopted === target.installed.row.connectionId ? target.installed : { ...target.installed, row: { ...target.installed.row, connectionId: adopted } };

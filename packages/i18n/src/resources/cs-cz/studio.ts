@@ -70,7 +70,8 @@ export default {
       "updateTitle": "Aktualizovat na {version}",
       "updateBody": "Tato verze mění vlastní tabulky doplňku. Nic z toho, co máte, se neodebere; dokud aktualizace neskončí, doplněk nic nedělá.",
       "update": "Aktualizovat",
-      "updatePublicBody": "Tato verze by veřejnosti otevřela z doplňku víc. Aktualizujte bez zaškrtnutí a nic nového se neotevře."
+      "updatePublicBody": "Tato verze by veřejnosti otevřela z doplňku víc. Aktualizujte bez zaškrtnutí a nic nového se neotevře.",
+      "updateRolesBody": "Tato verze umožní rolím aplikací víc s tabulkami doplňku. Před aktualizací zkontrolujte, co která získá."
     },
     "connect": {
       "apiKey": "API key",
@@ -3487,7 +3488,10 @@ export default {
         "read": "číst",
         "create": "přidávat řádky",
         "update": "měnit řádky"
-      }
+      },
+      "othersTitle": "Role aplikací získají víc z tabulek doplňku",
+      "othersBody": "Nová verze doplňku umožní těmto rolím víc s jeho tabulkami. Pokračováním to povolíte.",
+      "appRoles": "Role aplikace {app}"
     }
   },
   "featurePage": {

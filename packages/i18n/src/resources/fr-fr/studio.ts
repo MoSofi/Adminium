@@ -70,7 +70,8 @@ export default {
       "updateTitle": "Mettre à jour vers {version}",
       "updateBody": "Cette version modifie les tables du module complémentaire. Rien de ce que vous avez n’est supprimé ; tant que la mise à jour n’est pas terminée, le module ne fait rien.",
       "update": "Mettre à jour",
-      "updatePublicBody": "Cette version ouvrirait davantage le module au public. Mettez à jour sans cocher la case et rien de nouveau n’est ouvert."
+      "updatePublicBody": "Cette version ouvrirait davantage le module au public. Mettez à jour sans cocher la case et rien de nouveau n’est ouvert.",
+      "updateRolesBody": "Cette version permet à des rôles d’applications d’en faire plus avec les tables du module. Vérifiez ce que chacun obtient avant de mettre à jour."
     },
     "connect": {
       "apiKey": "Clé API",
@@ -3487,7 +3488,10 @@ export default {
         "read": "lire",
         "create": "ajouter des lignes",
         "update": "modifier des lignes"
-      }
+      },
+      "othersTitle": "Des rôles d’applications obtiennent plus des tables d’un module",
+      "othersBody": "La nouvelle version du module permet à ces rôles d’en faire plus avec ses tables. Continuer l’autorise.",
+      "appRoles": "Rôles de {app}"
     }
   },
   "featurePage": {
