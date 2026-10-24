@@ -13,7 +13,9 @@ With `"lead": true` the notice goes not to the person the staff column names but
 leads a team that person is in** (Settings → Teams), never to the person themselves, and only to a
 lead who can open the record. When there is none (she is in no team, she leads her own team and
 nobody leads her, or her lead's roles do not reach the record) the holders of the `else` roles who
-can open the record are told instead, again never the person. A notice to a lead always says
-`else`; the validator refuses one without. `else` also works without `lead`: a record whose column
+can open the record are told instead, again never the person. A notice to a lead without `else`
+tells nobody then, and the run's log says so: a second step to the roles tells them every time,
+so the roles hear once when there is a lead and once when there is none (Adminium 0.3.35,
+`automations.leadAlone`; a release before refused it). `else` also works without `lead`: a record whose column
 names nobody then tells those roles instead of nobody. A team she leads herself, alone or with
 others, leads her not: a co-lead of her own team is not told as her lead. Needs Adminium 0.3.28.

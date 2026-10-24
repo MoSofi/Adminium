@@ -12,7 +12,7 @@
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 6658 |
 | `references/manifest/automations--a-notice-in-the-reader-s-language.md` | Automations — A notice in the reader's language | 1568 |
-| `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1212 |
+| `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1413 |
 | `references/manifest/automations--the-people-listed-on-the-row.md` | Automations — The people listed on the row | 1966 |
 | `references/manifest/automations--the-record-as-it-was.md` | Automations — The record as it was | 1279 |
 | `references/manifest/automations--a-person-s-name-and-the-record-s-address.md` | Automations — A person's name, and the record's address | 1290 |

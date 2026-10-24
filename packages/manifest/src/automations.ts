@@ -213,8 +213,8 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
        * the record names (or `<link>.<staff column>`). With `lead: true`, not
        * that person but whoever leads a team they are in (never the person
        * themselves), and of those only who can open the record. `else`: the
-       * roles told when the column, or its lead, names nobody; a lead always
-       * has one. Or `listed`: the people a table that lists people against the
+       * roles told when the column, or its lead, names nobody; a lead without
+       * one tells nobody then, and the run says so (from 0.3.35). Or `listed`: the people a table that lists people against the
        * record (one of its `belongs` ways `through`) names for it, of those
        * only who can open the record when the step runs.
        */
@@ -223,8 +223,7 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
         z.object({ listed: refSchema }).strict(),
         z
           .object({ column: staffPath, lead: z.literal(true).optional(), else: z.object({ roles: z.array(roleKey).min(1).max(20) }).strict().optional() })
-          .strict()
-          .refine((to) => to.lead !== true || to.else !== undefined, { message: 'a notice to a lead says who is told when there is none ("else": { "roles": [...] })', path: ['else'] }),
+          .strict(),
       ]),
       title: localized(200),
       body: localized(2000).optional(),

@@ -235,5 +235,33 @@ for (const [dialect, reachable] of LEGS) {
       // His own quote he can open.
       expect((await approve('lee', 'lee'))[0]!.text).toContain(`https://desk.crm.example/p/crm-quotes/r/${String(quotes)}`);
     });
+
+    it('a notice to a lead with no roles for when there is none tells nobody then, and the run says so', async () => {
+      const saved = await s.send('owner', 'POST', '/api/v1/automations', {
+        name: 'Approval asked: the lead alone',
+        connectionId: s.connectionId,
+        trigger: { kind: 'record', event: 'updated', connectionId: s.connectionId, table: s.t('quotes'), changedColumn: 'stage', when: [{ left: { field: 'stage' }, op: 'is', right: 'asked' }] },
+        graph: { version: 1, nodes: [{ id: 't', kind: 'trigger', title: 'Approval asked' }, { id: 'n', kind: 'action', title: 'Tell the lead', action: { kind: 'notification', to: { column: 'asked_by_id', lead: true }, title: 'Alone: {{record.name}}' } }] },
+        enabled: true,
+      });
+      expect(said(saved), saved.body).toBe('ok');
+      const alone = async (): Promise<string[]> => {
+        const out: string[] = [];
+        for (const who of everybody) {
+          const items = ((await s.get(who, '/api/v1/me/notifications?limit=100')).json() as { data: { items: { kind: string; title: string }[] } }).data.items;
+          if (items.some((item) => item.kind === 'automation.notice' && item.title === `Alone: Quote ${String(quotes)}`)) out.push(who);
+        }
+        return out;
+      };
+      // Dana is led: her leads are told.
+      await ask('dana');
+      expect(await alone()).toEqual(['mia', 'nina']);
+      // Ivy is in no team: nobody is told by this rule, the run goes through and says why.
+      await ask('ivy');
+      expect(await alone()).toEqual([]);
+      const runs = (await s.meta.db.selectFrom('adminium_automation_runs').select(['trace', 'status']).execute()) as { trace: unknown; status: string }[];
+      expect(JSON.stringify(runs)).toContain('Nobody who can open this record leads the person named in asked_by_id');
+      expect(runs.some((run) => run.status === 'failed' && JSON.stringify(run.trace).includes('Nobody leads the person'))).toBe(false);
+    });
   });
 }

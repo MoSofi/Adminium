@@ -355,10 +355,6 @@ function checkAction(
     case 'notification': {
       if (action.to !== null && 'column' in action.to && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
       if (action.to !== null && 'listed' in action.to) listingTable(action.to.listed, table, where);
-      // A notice to a lead goes somewhere when there is none: it is never quietly nobody's.
-      if (action.to !== null && 'column' in action.to && action.to.lead === true && (action.to.else?.roles.length ?? 0) === 0) {
-        throw new ValidationFailedError(`${where}: a notice to the lead of the person in ${action.to.column} says which roles are told when there is none.`, { column: action.to.column, reason: 'lead-without-else' });
-      }
       return;
     }
     case 'digest': {

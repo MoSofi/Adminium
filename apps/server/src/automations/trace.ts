@@ -48,7 +48,7 @@ export interface TraceText {
   ownerOff(): string;
   partOff(): string;
   /** A staff column that names nobody for this record: said, and the run goes on. */
-  staffNobody(column: string, why: 'empty' | 'gone' | 'away' | 'closed'): string;
+  staffNobody(column: string, why: 'empty' | 'gone' | 'away' | 'closed' | 'unled'): string;
   /** A step to the people a listing names, who are none, or none of whom may be told: said, and the run goes on. */
   listedNobody(table: string, listed: number): string;
   /** A notice or a mail held to the end of a person's quiet hours. */
@@ -141,7 +141,9 @@ export const TRACE_EN: TraceText = {
         ? `The person named in ${column} is no longer here: nobody was told.`
         : why === 'closed'
           ? `The person named in ${column} cannot open this record: nobody was told.`
-          : `The person named in ${column} cannot sign in: nobody was told.`,
+          : why === 'unled'
+            ? `Nobody who can open this record leads the person named in ${column}: nobody was told.`
+            : `The person named in ${column} cannot sign in: nobody was told.`,
   listedNobody: (table, listed) =>
     listed === 0 ? `Nobody is listed in ${table} on this record: nobody was told.` : `Nobody of the ${String(listed)} listed in ${table} on this record can sign in and open it: nobody was told.`,
   heldUntil: (name, at) => `Held for ${name} until ${at}: their quiet hours.`,

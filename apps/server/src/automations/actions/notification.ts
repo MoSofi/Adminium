@@ -103,7 +103,8 @@ async function recipientsFor(action: NotificationAction, ctx: ActionContext): Pr
     // Never the person themselves: a lead of nobody, or led by nobody who can open the record, is the roles' to hear.
     const leads = await leadsOf(ctx, found.user.id);
     if (leads.length > 0) return leads;
-    if (fallback.length === 0) throw new ActionFailure(`Nobody leads the person in ${to.column}, and this step names no roles to tell instead.`);
+    // A step that names no roles for then tells nobody, and the run says so: a request on a lead's own deal goes to the roles' other step alone.
+    if (fallback.length === 0) return { note: ctx.text.staffNobody(to.column, 'unled') };
     const others = (await holdersOf(ctx, fallback)).filter((id) => id !== found.user.id);
     return others.length === 0 ? others : readersOf(ctx, others);
   }

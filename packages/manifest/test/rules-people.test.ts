@@ -184,8 +184,16 @@ describe('rules that tell the person on the row', () => {
     lead(empty, { column: 'owner_id', else: { roles: ['manager'] } });
     expect(issuesOf(empty)).toEqual([]);
     expect(installFloorWords(empty).map((found) => found.word)).toContain('automations.lead');
-    // A lead is never quietly nobody's; the roles are the manifest's own; the column a staff column.
-    expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true }))).toContain('a notice to a lead says who is told when there is none');
+    // A lead with no roles for when there is none tells nobody then: a word of 0.3.35, told to an older server.
+    const alone = sales() as Doc;
+    lead(alone, { column: 'owner_id', lead: true });
+    (alone as unknown as { compatibility: { minAdminiumVersion: string } }).compatibility.minAdminiumVersion = '0.3.35';
+    expect(issuesOf(alone)).toEqual([]);
+    expect(installFloorWords(alone).map((found) => found.word)).toContain('automations.leadAlone');
+    expect(WORD_FLOORS['automations.leadAlone']).toBe('0.3.35');
+    expect(installFloorWords(asked).map((found) => found.word)).not.toContain('automations.leadAlone');
+    expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true }))).toContain('"automations.leadAlone" is read by Adminium 0.3.35 and later');
+    // The roles are the manifest's own; the column a staff column.
     expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true, else: { roles: ['boss'] } }))).toContain('"boss" is not one of this manifest\'s roles');
     expect(changed((doc) => lead(doc, { column: 'name', lead: true, else: { roles: ['manager'] } }))).toContain('"deals.name" is not a staff column');
     expect(changed((doc) => lead(doc, { column: 'owner_id', lead: 'yes', else: { roles: ['manager'] } }))).not.toBe('');
