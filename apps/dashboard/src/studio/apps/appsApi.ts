@@ -699,6 +699,9 @@ export interface AppInstallPlan {
 
 /** One role's hold on one of an add-on's tables, as the check shows it (mirrors the server's `roleTables`). */
 export interface PlanRoleTable {
+  /** Another app's role, named when an add-on this install or update brings a newer version of gives it more of its tables. Absent: this app's. */
+  app?: string;
+  appName?: string;
   role: string;
   roleName: string;
   addOn: string;
@@ -849,6 +852,8 @@ export function installApp(
     modules?: Record<string, boolean>;
     /** Whether maps are shown on this install, when the check asked. */
     maps?: boolean;
+    /** The check showed what an add-on this install updates gives other apps' roles more of its tables, and the operator allows it. */
+    roleTables?: boolean;
   } & InstallAnswers,
 ): Promise<InstalledAppResult> {
   return api.post<InstalledAppResult>('/api/v1/apps/install', input);

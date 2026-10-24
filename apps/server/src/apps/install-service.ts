@@ -142,7 +142,7 @@ import { installOutbox, templateProblems, type OutboxResult } from './manifest-o
 import { installAutomations } from './manifest-automations.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { addOnsNamedBy, liveAddOnsFor } from './live-add-ons.js';
-import { roleTablesAsked, roleTablesChecked, settleRoleTables, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
+import { addOnGrantsWider, roleTablesAsked, roleTablesChecked, settleRoleTables, widerWords, type AddOnGrantWider, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
 import { installAppDocuments } from '../documents/app-documents.js';
 import type { AppProfilesResult } from '../documents/app-profiles.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
@@ -1254,10 +1254,38 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * action; and, for an app already installed, what it holds more than the
    * running version (`wider`), which an update gives only when allowed.
    */
-  async function roleTablesForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined): Promise<RoleTableCheck[]> {
-    if (roleTablesAsked(manifest).length === 0) return [];
+  async function roleTablesForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined): Promise<(RoleTableCheck & { app?: string; appName?: string })[]> {
+    const addOns = await addOnManifestsForCheck(manifest, rows);
+    /*
+     * An add-on this install or update brings a newer version of may give
+     * OTHER apps' roles more of its tables (its `appGrants` widened): listed
+     * with the app named, and given only when allowed, as the app's own.
+     */
+    const others: AddOnGrantWider[] = [];
+    for (const row of rows ?? []) {
+      const next = addOns.get(row.key);
+      if (row.action !== 'update' || next === undefined) continue;
+      const found = await manifests.findByKey(row.key);
+      const running = found?.document as Manifest | null | undefined;
+      if (found === null || running === null || running === undefined || !isAddOnManifest(running)) continue;
+      const apps: Manifest[] = [];
+      for (const attachment of found.attachments) {
+        if (attachment.attachedTo === manifest.key) continue;
+        const app = await manifests.findByKey(attachment.attachedTo);
+        if (app !== null && app.row.kind === 'app' && app.document !== null) apps.push(app.document as Manifest);
+      }
+      others.push(...addOnGrantsWider(apps, row.key, running, next));
+    }
+    if (roleTablesAsked(manifest).length === 0) return others;
     const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key);
-    return roleTablesChecked(manifest, await addOnManifestsForCheck(manifest, rows), installed === undefined ? null : (installed.document as Manifest | null));
+    if (installed === undefined) return [...roleTablesChecked(manifest, addOns), ...others];
+    // The running version's hold is judged by the add-ons as they run now: a newer one this update brings may give more.
+    const running = new Map<string, AddOnManifest>();
+    for (const key of addOnsNamedBy(manifest)) {
+      const document = (await manifests.findByKey(key))?.document as Manifest | null | undefined;
+      if (document !== null && document !== undefined && isAddOnManifest(document)) running.set(key, document);
+    }
+    return [...roleTablesChecked(manifest, addOns, installed.document as Manifest | null, running), ...others];
   }
 
   /** What the app's guests could do, for the check step: its endpoints, what would stop them, who may allow them. */
@@ -2227,6 +2255,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
         manifestRowId: installed.row.id,
         publicAccess: input.publicAccess === true && (await actor.can(PERMISSIONS.apiKeysManage)),
+        // The developer applying their own folder: what an add-on it updates gives roles is theirs to see in the folder, as the app's own roles are.
+        roleTables: true,
       });
       addOnsDone = {
         installed: [...(addOnsDone?.installed ?? []), ...done.installed],
@@ -2540,6 +2570,20 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const addOnRows = await addOnRowsFor(manifest, connectionId ?? null, true);
     const addOnSteps: AddOnStep[] = decideAddOnSteps(manifest.name, addOnRows, (input.addOns ?? []) as AddOnChoice[]);
     if (input.unattended?.installAddOns === false) refuseAddOnMoves(manifest, addOnSteps);
+    /*
+     * An add-on this install updates may give OTHER apps' roles more of its
+     * tables (its `appGrants` widened): the operator's call, refused before
+     * anything is written unless allowed.
+     */
+    const updatingAddOns = new Set(addOnSteps.filter((step) => step.action === 'update').map((step) => step.key));
+    const othersWider = updatingAddOns.size === 0 ? [] : (await roleTablesForCheck(manifest, addOnRows)).filter((entry) => entry.app !== undefined && entry.wider !== undefined && updatingAddOns.has(entry.addOn));
+    if (othersWider.length > 0 && input.roleTables !== true) {
+      throw new ValidationFailedError(
+        `Installing "${key}" updates an add-on that lets other apps' roles do more with its tables: ${othersWider.map((entry) => widerWords({ ...entry, wider: entry.wider! })).join('; ')}. ` +
+          'Check the install and allow it ("roleTables": true), or leave the add-on at its running version.',
+        { reason: 'ROLE_TABLES_WIDER', roleTables: othersWider.map((entry) => ({ app: entry.app, appName: entry.appName, role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, wider: entry.wider! })) },
+      );
+    }
     const strangers = unknownPicks(manifest, input.modules);
     if (strangers.length > 0) {
       throw new ValidationFailedError(`"${key}" has no part to switch called ${strangers.map((id) => `"${id}"`).join(', ')}.`, { reason: 'NO_SUCH_PART', modules: strangers });
@@ -2605,6 +2649,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
           manifestRowId: rowId,
           publicAccess: grantsPublicAccess,
+          roleTables: input.roleTables === true,
         });
         // Their tables exist now: the app's plan is read again from the
         // database, so a foreign key into one is made with its real type.
@@ -2862,13 +2907,15 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * it only read, is the owner's call, never an update's side effect.
      * Refused before anything moves.
      */
-    const wider = (await roleTablesForCheck(manifest, addOnRows)).filter((entry) => entry.wider !== undefined);
+    const updating = new Set(addOnSteps.filter((step) => step.action === 'update').map((step) => step.key));
+    // Another app's role is asked about only for an add-on this update does bring a newer version of.
+    const wider = (await roleTablesForCheck(manifest, addOnRows)).filter((entry) => entry.wider !== undefined && (entry.app === undefined || updating.has(entry.addOn)));
     if (wider.length > 0 && input.body?.roleTables !== true) {
-      const said = wider.map((entry) => `${entry.roleName} on ${entry.addOn}'s "${entry.table}" (${[...entry.wider!.actions, ...entry.wider!.columns.map((column) => (column === '*' ? 'every column' : column))].join(', ')})`);
+      const said = wider.map((entry) => widerWords({ ...entry, wider: entry.wider! }));
       throw new ValidationFailedError(
         `"${key}" ${to} lets its roles do more with an add-on's tables than ${from} did: ${said.join('; ')}. ` +
           'Check the update and allow it ("roleTables": true), or keep the running version.',
-        { reason: 'ROLE_TABLES_WIDER', roleTables: wider.map((entry) => ({ role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, wider: entry.wider! })) },
+        { reason: 'ROLE_TABLES_WIDER', roleTables: wider.map((entry) => ({ ...(entry.app === undefined ? {} : { app: entry.app, appName: entry.appName }), role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, wider: entry.wider! })) },
       );
     }
 
@@ -2936,6 +2983,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
         manifestRowId: installed.row.id,
         publicAccess: input.body?.publicAccess === true && (await actor.can(PERMISSIONS.apiKeysManage)),
+        roleTables: input.body?.roleTables === true,
       });
       addOnsDone = {
         installed: [...(addOnsDone?.installed ?? []), ...done.installed],

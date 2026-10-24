@@ -292,7 +292,7 @@ function AddOnRow({ row, ...props }: AddOnsInstallCardProps & { row: AppAddOnRow
             </span>
           </p>
         )}
-        <RoleTablesDisclosure entries={(props.roleTables ?? []).filter((entry) => entry.addOn === row.key)} appName={appName} addOnName={row.name} />
+        <RoleTablesDisclosure entries={(props.roleTables ?? []).filter((entry) => entry.addOn === row.key && entry.app === undefined)} appName={appName} addOnName={row.name} />
         {selected && problems.length > 0 ? (
           <ul className="mt-1.5 flex flex-col gap-1" data-part="add-on-problems">
             {problems.map((problem) => (

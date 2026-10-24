@@ -22491,6 +22491,10 @@
     "status": "mt",
     "srcHash": "a6c01ece5c11"
   },
+  "studio.addOns.confirm.updateRolesBody": {
+    "status": "mt",
+    "srcHash": "3c32b87ca8c9"
+  },
   "studio.addOns.confirm.updateTitle": {
     "status": "mt",
     "srcHash": "ac9d89181b1c"
@@ -23687,6 +23691,10 @@
     "status": "mt",
     "srcHash": "580ccfffc1dd"
   },
+  "studio.appAddOns.roleTables.appRoles": {
+    "status": "mt",
+    "srcHash": "d9a4eb468b31"
+  },
   "studio.appAddOns.roleTables.changes": {
     "status": "mt",
     "srcHash": "1a12e14f0328"
@@ -23714,6 +23722,14 @@
   "studio.appAddOns.roleTables.notOffered": {
     "status": "mt",
     "srcHash": "d8b2aacc9313"
+  },
+  "studio.appAddOns.roleTables.othersBody": {
+    "status": "mt",
+    "srcHash": "785ee5169ee6"
+  },
+  "studio.appAddOns.roleTables.othersTitle": {
+    "status": "mt",
+    "srcHash": "aac6feb4b909"
   },
   "studio.appAddOns.roleTables.reads": {
     "status": "mt",

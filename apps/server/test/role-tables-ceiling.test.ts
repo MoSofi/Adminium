@@ -21,18 +21,27 @@ import { LEGS } from './invoicing-install.helpers.js';
 type Doc = Record<string, unknown>;
 const KIT = 'ledger-kit';
 
+const CEILING: Record<string, Doc> = {
+  accounts: { actions: ['read', 'update'], readable: ['id', 'name', 'balance', 'reorder_at', 'low'], writable: ['name', 'reorder_at'] },
+  settings: { actions: ['read'], never: ['misbehave'] },
+  entries: { actions: ['read'], never: ['note'] },
+};
+
 /** The kit, saying what an app's role may hold of three of its tables, and so of no other. */
-function ceilingKit(): Doc {
+function ceilingKit(grants: Record<string, Doc> = CEILING, version = '1.0.0'): Doc {
   const kit = ledgerKitManifest() as Doc & { compatibility: Doc; requiredSchema: { tables: (Doc & { ref: string })[] } };
   kit.compatibility = { ...kit.compatibility, minAdminiumVersion: '0.3.28' };
-  const grants: Record<string, Doc> = {
-    accounts: { actions: ['read', 'update'], readable: ['id', 'name', 'balance', 'reorder_at', 'low'], writable: ['name', 'reorder_at'] },
-    settings: { actions: ['read'], never: ['misbehave'] },
-    entries: { actions: ['read'], never: ['note'] },
-  };
+  kit['version'] = version;
   kit.requiredSchema.tables = kit.requiredSchema.tables.map((table) => (grants[table.ref] === undefined ? table : { ...table, appGrants: grants[table.ref] }));
   return kit;
 }
+
+/** A release of the kit that lets an app's role read an account's total and add settings rows: more than 1.0.0 gave. */
+const WIDER: Record<string, Doc> = {
+  ...CEILING,
+  accounts: { ...CEILING['accounts'], readable: [...(CEILING['accounts']!['readable'] as string[]), 'taken'] },
+  settings: { actions: ['read', 'create'], never: ['misbehave'], creatable: ['note'] },
+};
 
 const ACCOUNTS_ASKED = { readable: ['id', 'name', 'balance', 'taken'], writable: ['name', 'allow_below'], writableFrom: { name: ['Till float'] } };
 
@@ -191,5 +200,102 @@ describe.each(LEGS)('an add-on\'s ceiling on an app\'s roles — %s', (dialect, 
     const loosened = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
     expect(loosened.statusCode, loosened.body).toBe(422);
     expect(loosened.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER' } } });
+  });
+
+  it.skipIf(!available)('an update of the add-on whose appGrants give an app\'s roles more is refused at both doors until allowed; one that gives no more is not asked', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    await h.stageApp(shop());
+    expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+    await stageKit();
+    expect((await addKit()).statusCode).toBe(200);
+    expect(await held('floor')).toEqual(WRITTEN);
+    const version = async () => ((await h.inject({ method: 'GET', url: '/add-ons' })).json() as { addOns: { key: string; version: string }[] }).addOns.find((one) => one.key === KIT)?.version;
+
+    // 1.0.1 lets an app's role read an account's total and add a settings row: the floor asked for both.
+    const wider = ceilingKit(WIDER, '1.0.1');
+    await h.stageAddOn(wider, { files: ledgerKitFiles(wider) });
+    const widened = [
+      { app: 'shop', appName: 'Shop', role: 'floor', roleName: 'Floor', addOn: KIT, table: 'accounts', wider: { actions: [], columns: ['taken'] } },
+      { app: 'shop', appName: 'Shop', role: 'floor', roleName: 'Floor', addOn: KIT, table: 'settings', wider: { actions: ['create'], columns: ['note'] } },
+    ];
+    // Said on the check, each grant with its app.
+    const checked = await h.inject({ method: 'POST', url: `/add-ons/${KIT}/update/plan`, payload: {} });
+    expect(checked.statusCode, checked.body).toBe(200);
+    expect((checked.json() as { roleTables?: Doc[] }).roleTables).toEqual(widened.map((entry) => expect.objectContaining(entry)));
+    // Refused without a yes, at the update and at the old upgrade door, before anything moves.
+    for (const url of [`/add-ons/${KIT}/update`, `/add-ons/${KIT}/upgrade`]) {
+      const refused = await h.inject({ method: 'POST', url, ...(url.endsWith('update') ? { payload: {} } : {}) });
+      expect(refused.statusCode, refused.body).toBe(422);
+      expect(refused.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: widened } } });
+      expect((refused.json() as { error: { message: string } }).error.message).toContain('Shop\'s Floor on ledger-kit\'s "accounts" (taken)');
+    }
+    expect(await version()).toBe('1.0.0');
+    expect(await held('floor')).toEqual(WRITTEN);
+    // Allowed: given.
+    const allowed = await h.inject({ method: 'POST', url: `/add-ons/${KIT}/update`, payload: { roleTables: true } });
+    expect(allowed.statusCode, allowed.body).toBe(200);
+    expect(await version()).toBe('1.0.1');
+    const now = await held('floor');
+    expect(now['ledger_kit_accounts']).toMatchObject({ readLimit: { readable: ['id', 'name', 'balance', 'taken'] } });
+    expect(now['ledger_kit_settings']).toMatchObject({ read: true, create: true, createLimit: { writable: ['note'] } });
+
+    // 1.0.2 lets an app read an entry's note: the floor reads entries whole, so it is more again — allowed at the old door.
+    const notes = ceilingKit({ ...WIDER, entries: { actions: ['read'] } }, '1.0.2');
+    await h.stageAddOn(notes, { files: ledgerKitFiles(notes) });
+    const old = await h.inject({ method: 'POST', url: `/add-ons/${KIT}/upgrade` });
+    expect(old.statusCode, old.body).toBe(422);
+    expect(old.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: [{ role: 'floor', table: 'entries', wider: { actions: [], columns: ['note'] } }] } } });
+    const oldAllowed = await h.inject({ method: 'POST', url: `/add-ons/${KIT}/upgrade`, payload: { roleTables: true } });
+    expect(oldAllowed.statusCode, oldAllowed.body).toBe(200);
+    expect(await version()).toBe('1.0.2');
+
+    // 1.0.3 lets an app read an account's opening, which no role asked for: nothing more is held, and nothing is asked.
+    const quiet = ceilingKit({ ...WIDER, entries: { actions: ['read'] }, accounts: { ...(WIDER['accounts'] as Doc), readable: [...((WIDER['accounts'] as Doc)['readable'] as string[]), 'opening'] } }, '1.0.3');
+    await h.stageAddOn(quiet, { files: ledgerKitFiles(quiet) });
+    const plain = await h.inject({ method: 'POST', url: `/add-ons/${KIT}/update/plan`, payload: {} });
+    expect((plain.json() as { roleTables?: Doc[] }).roleTables).toBeUndefined();
+    const went = await h.inject({ method: 'POST', url: `/add-ons/${KIT}/update`, payload: {} });
+    expect(went.statusCode, went.body).toBe(200);
+    expect(await version()).toBe('1.0.3');
+  });
+
+  it.skipIf(!available)('an app\'s update or install that brings the widening release along asks too: for its own roles and for another app\'s', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    await h.stageApp(shop());
+    expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+    await stageKit();
+    expect((await addKit()).statusCode).toBe(200);
+    const wider = ceilingKit(WIDER, '1.0.1');
+    await h.stageAddOn(wider, { files: ledgerKitFiles(wider) });
+    const needsNewer = { suggests: [{ key: KIT, range: '>=1.0.1', reason: { 'en-US': 'Keeps units.' } }] };
+    const bring = { addOns: [{ key: KIT, version: '1.0.1', update: true }] };
+    const widened = [
+      { role: 'floor', table: 'accounts', wider: { actions: [], columns: ['taken'] } },
+      { role: 'floor', table: 'settings', wider: { actions: ['create'], columns: ['note'] } },
+    ];
+
+    // The shop's own update, which needs the kit's release: its floor would get more, so the update asks first.
+    await h.stageApp(shop(ACCOUNTS_ASKED.readable, { version: '1.0.1', addOns: needsNewer }));
+    const own = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: bring });
+    expect(own.statusCode, own.body).toBe(422);
+    expect(own.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: widened } } });
+    expect(await held('floor')).toEqual(WRITTEN);
+
+    // Another app installed with "update the kit too": the shop's floor would get more, so the install asks first.
+    const stall = shopManifest({ key: 'stall', name: 'Stall', addOns: needsNewer, publicAccess: [], pages: [{ ref: 'stall-home', template: 'page-dashboard', title: { key: 'mft.stall.page.home', fallback: 'Home' }, nav: { group: 'manifest:sample', icon: 'layout-dashboard', order: 1 } }] });
+    await h.stageApp(stall);
+    const checked = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'stall', version: '1.0.0', connectionId: h.connectionId } });
+    expect(checked.statusCode, checked.body).toBe(200);
+    expect(((checked.json() as { plan: { roleTables?: Doc[] } }).plan.roleTables ?? []).filter((entry) => entry['app'] !== undefined)).toEqual(widened.map((entry) => expect.objectContaining({ app: 'shop', appName: 'Shop', ...entry })));
+    const refused = await h.install('stall', '1.0.0', bring);
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect(refused.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER', roleTables: widened.map((entry) => ({ app: 'shop', ...entry })) } } });
+    expect(await held('floor')).toEqual(WRITTEN);
+    const allowed = await h.install('stall', '1.0.0', { ...bring, roleTables: true });
+    expect(allowed.statusCode, allowed.body).toBe(200);
+    expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ readLimit: { readable: ['id', 'name', 'balance', 'taken'] } });
+    // The release is in: the shop's update brings nothing new to its roles, and is not asked.
+    const quiet = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(quiet.statusCode, quiet.body).toBe(200);
   });
 });

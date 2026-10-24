@@ -23,6 +23,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { api, ApiError, csrfHeaders } from '../../app/api.js';
+import type { PlanRoleTable } from '../apps/appsApi.js';
 
 export const ADD_ONS_QUERY_KEY = ['add-ons'] as const;
 export const ADD_ON_CATALOG_QUERY_KEY = ['add-ons', 'catalog'] as const;
@@ -319,6 +320,8 @@ export interface UpdatePlan {
   connectionId: string | null;
   checksum?: string;
   publicAccess?: PublicAccessCheck;
+  /** What the version gives apps' roles more of the add-on's tables (its `appGrants` widened): each with its app. The update gives it only when allowed. */
+  roleTables?: (PlanRoleTable & { app: string; appName: string; wider: { actions: string[]; columns: string[] } })[];
 }
 
 /** Whether a check asks for something the public does not reach yet: a new entry on an app's key. */
@@ -336,8 +339,10 @@ export async function updateAddOn(
   planChecksum?: string,
   /** The person ticked "Allow public access": what the version adds is opened. What it dropped goes either way. */
   publicAccess?: boolean,
+  /** The person saw what the version gives apps' roles more of its tables, and goes ahead. */
+  roleTables?: boolean,
 ): Promise<{ addOn: AddOnDto; from: string; to: string; pruned: string[] }> {
-  return api.post(`/api/v1/add-ons/${key}/update`, { ...(planChecksum === undefined ? {} : { planChecksum }), ...(publicAccess === true ? { publicAccess: true } : {}) });
+  return api.post(`/api/v1/add-ons/${key}/update`, { ...(planChecksum === undefined ? {} : { planChecksum }), ...(publicAccess === true ? { publicAccess: true } : {}), ...(roleTables === true ? { roleTables: true } : {}) });
 }
 
 export async function discardStaged(key: string, version: string): Promise<void> {

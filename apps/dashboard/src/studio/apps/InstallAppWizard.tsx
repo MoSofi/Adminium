@@ -133,6 +133,7 @@ import {
 } from './InstallCheck.js';
 import { MapsInstallCard, PartsInstallCard, partChoicesOf } from './AppPartsCard.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
+import { AppsRoleTablesWiderCard } from './RoleTablesList.js';
 import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
@@ -360,6 +361,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         ...(addOnRows.length === 0 ? {} : { addOns: addOnChoicesOf(addOnRows, addOnPicks) }),
         ...(plan?.modules === undefined ? {} : { modules: partChoicesOf(plan.modules, partPicks) }),
         ...(plan?.maps === true ? { maps: showMaps } : {}),
+        // Shown on the check: what an add-on it updates gives other apps' roles more of its tables. The Install button is the say.
+        ...((plan?.roleTables ?? []).some((entry) => entry.app !== undefined && entry.wider !== undefined) ? { roleTables: true } : {}),
         ...checked,
       });
     },
@@ -565,6 +568,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             roleTables={plan.roleTables}
           />
         )}
+        <AppsRoleTablesWiderCard entries={plan.roleTables ?? []} />
         {plan.modules === undefined ? null : (
           <PartsInstallCard
             appName={appName}

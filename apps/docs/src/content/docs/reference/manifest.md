@@ -5336,6 +5336,16 @@ reply as `narrowed` with `skipped: "ceiling"`, or `skipped: "not-offered"` for a
 app. A grant on such a table always carries its column lists. The key is read with any read; a
 link to another row only when `readable` lists it, as with every read limit.
 
+**A release that widens `appGrants` asks first.** When an add-on's new version would let an app's
+role hold more of its tables than the running version did (an action, a column, or every column
+where before it was some), the update's check lists each such grant (`roleTables`: the app, the
+role, the table and what is new), and the update is refused with 422 `ROLE_TABLES_WIDER` until it
+is sent with `"roleTables": true`. Both doors take it: `POST /add-ons/{key}/update` and the old
+`POST /add-ons/{key}/upgrade`. An app's install or update that brings such a release along asks the
+same, with the same `"roleTables": true`, for its own roles and for those of every other app the
+add-on is connected to. A release that gives no role more is not asked about; one that narrows is
+applied at once.
+
 A manifest that uses `appGrants` sets `compatibility.minAdminiumVersion` to `0.3.28` or later.
 
 ### Ledgers

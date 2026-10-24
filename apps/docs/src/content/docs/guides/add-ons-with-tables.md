@@ -203,7 +203,9 @@ What an app asks for past it is left out and named. As the owner, you see each r
 columns on the install check, under the add-on's row ("…'s roles get 6 of its tables"). An app
 update that would let its roles do more with an add-on's tables shows what is new and asks before
 it is given. An add-on update that narrows its `appGrants` narrows what the apps' roles hold at
-once.
+once; one that widens them lists each app's role that would get more, and asks before it is given
+(Studio's **Update** button allows it; through the API, `"roleTables": true`, or the update is
+refused with `ROLE_TABLES_WIDER`).
 
 ## Rules, tabs and stock words
 

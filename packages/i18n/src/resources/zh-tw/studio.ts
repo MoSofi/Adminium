@@ -70,7 +70,8 @@ export default {
       "updateTitle": "更新到 {version}",
       "updateBody": "此版本會變更附加元件自己的資料表。你現有的內容不會被移除；在更新完成之前，附加元件不會執行任何動作。",
       "update": "更新",
-      "updatePublicBody": "此版本會向公眾開放該附加元件的更多內容。不勾選直接更新，則不會開放任何新內容。"
+      "updatePublicBody": "此版本會向公眾開放該附加元件的更多內容。不勾選直接更新，則不會開放任何新內容。",
+      "updateRolesBody": "此版本讓應用程式的角色可以對該附加元件的資料表做更多操作。更新前請查看每個角色取得的權限。"
     },
     "connect": {
       "apiKey": "API key",
@@ -3487,7 +3488,10 @@ export default {
         "create": "新增資料列",
         "update": "變更資料列"
       },
-      "keyShown": "讀取時也會顯示每列的鍵。指向其他列的連結只有在列出時才會顯示。"
+      "keyShown": "讀取時也會顯示每列的鍵。指向其他列的連結只有在列出時才會顯示。",
+      "othersTitle": "應用程式的角色可取得附加元件資料表的更多權限",
+      "othersBody": "該附加元件的新版本讓這些角色可以對它的資料表做更多操作。繼續即表示允許。",
+      "appRoles": "{app} 的角色"
     }
   },
   "featurePage": {

@@ -167,7 +167,9 @@ export function RoleTablesDisclosure({ entries, appName, addOnName }: { entries:
 }
 
 /** What a new version's roles hold more of add-ons' tables: the update's check, which the Update button allows. */
-export function RoleTablesUpdateCard({ entries }: { entries: readonly PlanRoleTable[] }) {
+export function RoleTablesUpdateCard({ entries: all }: { entries: readonly PlanRoleTable[] }) {
+  // Other apps' roles are their own card.
+  const entries = all.filter((entry) => entry.app === undefined);
   if (entries.length === 0) return null;
   return (
     <section className="rounded-[14px] border border-warn/30 bg-warn-soft p-[14px]" data-testid="update-role-tables">
@@ -181,6 +183,40 @@ export function RoleTablesUpdateCard({ entries }: { entries: readonly PlanRoleTa
       {[...new Set(entries.map((entry) => entry.addOn))].map((addOn) => (
         <RoleTablesLines key={addOn} entries={entries.filter((entry) => entry.addOn === addOn)} addOnName={addOn} />
       ))}
+    </section>
+  );
+}
+
+/**
+ * What an add-on's new version gives apps' roles more of its tables (its
+ * `appGrants` widened), app by app: on the add-on's own update, and on an
+ * app's install or update that brings the add-on's new version along. The
+ * button that goes ahead allows it.
+ */
+export function AppsRoleTablesWiderCard({ entries: all }: { entries: readonly PlanRoleTable[] }) {
+  const entries = all.filter((entry) => entry.app !== undefined && entry.wider !== undefined);
+  if (entries.length === 0) return null;
+  const apps = [...new Set(entries.map((entry) => entry.app!))];
+  return (
+    <section className="rounded-[14px] border border-warn/30 bg-warn-soft p-[14px]" data-testid="add-on-role-tables-wider">
+      <h3 className="flex items-center gap-[9px] text-[13px] font-extrabold">
+        <KeyRound aria-hidden className="size-4 text-warn" />
+        {t('studio:appAddOns.roleTables.othersTitle', 'Apps’ roles get more of an add-on’s tables')}
+      </h3>
+      <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
+        {t('studio:appAddOns.roleTables.othersBody', 'The add-on’s new version lets these roles do more with its tables. Going ahead allows it.')}
+      </p>
+      {apps.map((app) => {
+        const mine = entries.filter((entry) => entry.app === app);
+        return (
+          <div key={app} className="mt-2" data-role-tables-app={app}>
+            <p className="text-[12px] font-bold">{t('studio:appAddOns.roleTables.appRoles', '{app}’s roles', { app: mine[0]!.appName ?? app })}</p>
+            {[...new Set(mine.map((entry) => entry.addOn))].map((addOn) => (
+              <RoleTablesLines key={addOn} entries={mine.filter((entry) => entry.addOn === addOn)} addOnName={addOn} />
+            ))}
+          </div>
+        );
+      })}
     </section>
   );
 }

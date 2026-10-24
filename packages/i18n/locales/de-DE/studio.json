@@ -60,7 +60,8 @@
       "updateTitle": "Auf {version} aktualisieren",
       "updateBody": "Diese Version ändert die eigenen Tabellen des Add-ons. Nichts von dem, was Sie haben, wird entfernt; bis die Aktualisierung abgeschlossen ist, tut das Add-on nichts.",
       "update": "Aktualisieren",
-      "updatePublicBody": "Diese Version würde mehr vom Add-on öffentlich öffnen. Aktualisieren Sie ohne Häkchen, und nichts Neues wird geöffnet."
+      "updatePublicBody": "Diese Version würde mehr vom Add-on öffentlich öffnen. Aktualisieren Sie ohne Häkchen, und nichts Neues wird geöffnet.",
+      "updateRolesBody": "Diese Version erlaubt Rollen von Apps mehr bei den Tabellen des Add-ons. Prüfen Sie vor dem Update, was jede erhält."
     },
     "connect": {
       "apiKey": "API-Schlüssel",
@@ -3477,7 +3478,10 @@
         "create": "Zeilen hinzufügen",
         "update": "Zeilen ändern"
       },
-      "keyShown": "Beim Lesen wird auch der Schlüssel jeder Zeile angezeigt. Eine Verknüpfung zu einer anderen Zeile wird nur angezeigt, wo sie aufgeführt ist."
+      "keyShown": "Beim Lesen wird auch der Schlüssel jeder Zeile angezeigt. Eine Verknüpfung zu einer anderen Zeile wird nur angezeigt, wo sie aufgeführt ist.",
+      "othersTitle": "Rollen von Apps erhalten mehr von den Tabellen eines Add-ons",
+      "othersBody": "Die neue Version des Add-ons erlaubt diesen Rollen mehr bei seinen Tabellen. Wenn Sie fortfahren, erlauben Sie es.",
+      "appRoles": "Rollen von {app}"
     }
   },
   "featurePage": {

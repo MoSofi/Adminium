@@ -649,6 +649,36 @@ export const discardStagedReply = z.object({
   discarded: z.boolean(),
 });
 
+/**
+ * The say on what a new version gives apps' roles MORE of the add-on's tables
+ * (its `appGrants` widened; the update's check lists each as `roleTables`).
+ * Only `true` allows it; without it such an update is refused (422
+ * `ROLE_TABLES_WIDER`) before anything moves.
+ */
+const roleTablesConsent = z.boolean().optional();
+
+/** The old upgrade door takes one say, and no body at all as before. */
+export const upgradeAddOnBody = z.object({ roleTables: roleTablesConsent }).nullish();
+
+/** One role of an attached app that the new version lets do more with one of the add-on's tables. */
+const widerRoleTable = z.object({
+  /** The app whose role it is. */
+  app: z.string(),
+  appName: z.string(),
+  role: z.string(),
+  roleName: z.string(),
+  addOn: z.string(),
+  table: z.string(),
+  /** What the role will hold under the new version. */
+  actions: z.array(z.string()),
+  /** The columns each action reaches. Absent: every column (only on an add-on that sets no `appGrants`). */
+  readable: z.array(z.string()).optional(),
+  writable: z.array(z.string()).optional(),
+  creatable: z.array(z.string()).optional(),
+  /** What it holds that it did not under the running version (`*`: every column). */
+  wider: z.object({ actions: z.array(z.string()), columns: z.array(z.string()) }),
+});
+
 export const upgradeAddOnReply = z.object({
   addOn: addOnDto,
   from: z.string(),
@@ -667,6 +697,7 @@ export const updateAddOnBody = z
     /** Which database holds its tables, when an add-on installed before that was recorded is found in several (409 `ADD_ON_SCHEMA_CONNECTION` lists them). */
     connectionId: z.string().min(1).max(64).optional(),
     publicAccess: publicConsent,
+    roleTables: roleTablesConsent,
   })
   .default({});
 
@@ -678,6 +709,8 @@ export const updateAddOnPlanReply = z.object({
   connectionId: z.string().nullable(),
   checksum: z.string().optional(),
   publicAccess: addOnPublicPlan.optional(),
+  /** What the version gives apps' roles more of the add-on's tables: the update gives it only with `"roleTables": true`. Absent when nothing widens. */
+  roleTables: z.array(widerRoleTable).optional(),
 });
 
 /** An update's reply: the upgrade's, and — for an add-on that keeps tables of its own — what the update made and wrote. */

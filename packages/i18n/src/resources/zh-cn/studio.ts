@@ -70,7 +70,8 @@ export default {
       "updateTitle": "更新到 {version}",
       "updateBody": "此版本会更改附加组件自己的表。你现有的内容不会被移除；在更新完成之前，附加组件不会执行任何操作。",
       "update": "更新",
-      "updatePublicBody": "此版本会向公众开放该附加组件的更多内容。不勾选直接更新，则不会开放任何新内容。"
+      "updatePublicBody": "此版本会向公众开放该附加组件的更多内容。不勾选直接更新，则不会开放任何新内容。",
+      "updateRolesBody": "此版本让应用的角色可以对该附加组件的表做更多操作。更新前请查看每个角色获得的权限。"
     },
     "connect": {
       "apiKey": "API key",
@@ -3487,7 +3488,10 @@ export default {
         "create": "添加行",
         "update": "更改行"
       },
-      "keyShown": "读取时也会显示每行的键。指向其他行的链接只有在列出时才会显示。"
+      "keyShown": "读取时也会显示每行的键。指向其他行的链接只有在列出时才会显示。",
+      "othersTitle": "应用的角色可获得附加组件表的更多权限",
+      "othersBody": "该附加组件的新版本让这些角色可以对它的表做更多操作。继续即表示允许。",
+      "appRoles": "{app} 的角色"
     }
   },
   "featurePage": {
