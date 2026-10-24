@@ -101,7 +101,7 @@ describe('queryDescriptorSchema', () => {
     ['more than 8 aggregations', {
       aggregations: Array.from({ length: 9 }, (_, n) => ({ fn: 'count', alias: `a${n}` })),
     }],
-    ['unknown aggregation fn', { aggregations: [{ fn: 'median', alias: 'm' }] }],
+    ['unknown aggregation fn', { aggregations: [{ fn: 'mode', alias: 'm' }] }],
     ['aggregation missing alias', { aggregations: [{ fn: 'count' }] }],
     ['percentile p above 1', { aggregations: [{ fn: 'percentile', column: 'x', p: 1.5, alias: 'p' }] }],
     ['more than 2 groupBy columns', { groupBy: ['a', 'b', 'c'] }],
