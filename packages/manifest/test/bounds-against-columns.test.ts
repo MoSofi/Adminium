@@ -15,7 +15,7 @@ import { issuesText, valid, type Doc } from './invoicing-fixture.js';
 const expectIssue = (m: Doc, fragment: string) => expect(issuesText(m)).toContain(fragment);
 
 /** The fixture with one more table, whose columns carry the rules under test, on the release that reads them. */
-function withTable(columns: Doc[], floor = '0.3.33'): Doc {
+function withTable(columns: Doc[], floor = '0.3.35'): Doc {
   const m = valid();
   ((m['requiredSchema'] as Doc)['tables'] as Doc[]).push({ ref: 'pairs', columns: [{ ref: 'id', type: 'int', role: 'pk' }, ...columns] });
   m['compatibility'] = { ...(m['compatibility'] as Doc), minAdminiumVersion: floor };
@@ -23,7 +23,7 @@ function withTable(columns: Doc[], floor = '0.3.33'): Doc {
 }
 
 describe('the release that reads them', () => {
-  it('asks for 0.3.33 for a bound that is no date, a span of days, now and a strict stamp; a date against a date asks nothing', () => {
+  it('asks for 0.3.35 for a bound that is no date, a span of days, now and a strict stamp; a date against a date asks nothing', () => {
     const m = withTable(
       [
         { ref: 'stale', type: 'int' },
@@ -33,14 +33,14 @@ describe('the release that reads them', () => {
         { ref: 'at', type: 'timestamptz', rules: { notBefore: 'now' } },
         { ref: 'at_by', type: 'text', maxLength: 64, nullable: true, rules: { stamp: { set: 'user-id', on: { columns: ['warm'] }, strict: true } } },
       ],
-      '0.3.32',
+      '0.3.34',
     );
     const text = issuesText(m);
-    expect(text).toContain('columns.2.rules.notAfter: "bounds.other" is read by Adminium 0.3.33 and later');
-    expect(text).toContain('columns.4.rules.notAfter: "bounds.other" is read by Adminium 0.3.33 and later');
+    expect(text).toContain('columns.2.rules.notAfter: "bounds.other" is read by Adminium 0.3.35 and later');
+    expect(text).toContain('columns.4.rules.notAfter: "bounds.other" is read by Adminium 0.3.35 and later');
     expect(text).not.toContain('columns.4.rules.notBefore');
-    expect(text).toContain('columns.5.rules.notBefore: "bounds.now" is read by Adminium 0.3.33 and later');
-    expect(text).toContain('columns.6.rules.stamp.strict: "stamp.strict" is read by Adminium 0.3.33 and later');
+    expect(text).toContain('columns.5.rules.notBefore: "bounds.now" is read by Adminium 0.3.35 and later');
+    expect(text).toContain('columns.6.rules.stamp.strict: "stamp.strict" is read by Adminium 0.3.35 and later');
   });
 });
 
@@ -121,9 +121,9 @@ describe('a column a stamp fills and requiredWhen asks for', () => {
         { ref: 'state', type: 'enum', enum: ['open', 'won', 'lost'], default: 'open' },
         { ref: 'closed_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'state', values: ['won', 'lost'] } }, requiredWhen: { column: 'state', in: ['won', 'lost'] } } },
       ],
-      '0.3.32',
+      '0.3.34',
     );
-    expect(issuesText(older)).toContain('rules.requiredWhen: "requiredWhen.stamp" is read by Adminium 0.3.33 and later');
+    expect(issuesText(older)).toContain('rules.requiredWhen: "requiredWhen.stamp" is read by Adminium 0.3.35 and later');
   });
 
   it('still refuses it beside any other rule that fills the column', () => {

@@ -27,7 +27,8 @@
     "gettingReady": "Préparation…",
     "noteStripe": "Vous paierez sur la page Stripe. Cette boutique ne voit jamais votre carte.",
     "notePaypal": "Vous paierez sur la page PayPal. Cette boutique ne voit jamais votre carte.",
-    "noteBoth": "Vous paierez sur la page Stripe ou PayPal. Cette boutique ne voit jamais votre carte."
+    "noteBoth": "Vous paierez sur la page Stripe ou PayPal. Cette boutique ne voit jamais votre carte.",
+    "staffNoWay": "Vous seul voyez ceci : aucun moyen de paiement en ligne n’est activé pour cet enregistrement, cette page de test ne propose donc que le service de démonstration. Activez-en un dans Studio → Paiements → Moyens de paiement."
   },
   "provider": {
     "stripe": "Stripe",
@@ -59,7 +60,8 @@
   "failed": {
     "title": "Le paiement n’a pas abouti.",
     "body": "Rien n’a été débité.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "otherWay": "Choisir un autre moyen"
   },
   "cancelled": {
     "title": "Vous avez quitté la page de paiement avant de payer.",

@@ -2136,7 +2136,10 @@ export default {
       },
       "bounds": {
         "notAfter": "ليس بعد اليوم أبدًا",
-        "notBefore": "ليس قبل {column} أبدًا"
+        "notAfterColumn": "ليس بعد {column} أبدًا",
+        "notAfterDays": "بعد {column} بما لا يزيد على {days} يومًا",
+        "notBefore": "ليس قبل {column} أبدًا",
+        "notBeforeNow": "ليس قبل الآن أبدًا، في صف جديد"
       }
     },
     "saveFailed": "فشل الحفظ: {message}",
@@ -3582,10 +3585,10 @@ export default {
     "service": {
       "connectsStripe": "يتصل بـ Stripe",
       "connectsPaypal": "يتصل بـ PayPal",
-      "first": "أكمل هذه الخطوة أولًا.",
       "notLoaded": "لم تُحمَّل هذه الإضافة، لذا لا يمكن التحقق من مفاتيحها.",
       "notLoadedBody": "لا تُحمَّل خدمة الدفع إلا من حزمة يستطيع Adminium ضمانها: حزمة مضمّنة في هذا الإصدار، أو حزمة نُزّلت من الكتالوج.",
-      "paypalOnce": "يظهر PayPal مرة واحدة: عبر هذه البطاقة، لا على صفحة Stripe."
+      "paypalOnce": "يظهر PayPal مرة واحدة: عبر هذه البطاقة، لا على صفحة Stripe.",
+      "fixAddressFirst": "أصلح العنوان أعلاه أولًا: تبقى المدفوعات عبر الإنترنت متوقفة حتى ذلك الحين."
     },
     "reach": {
       "badge": {
@@ -3688,9 +3691,6 @@ export default {
       "testInLive": "هذا المفتاح لمدفوعات الاختبار، وهذا الحقل للمفتاح الحقيقي."
     },
     "webhook": {
-      "headingStripe": "Webhook (تسمّيه Stripe نقطة نهاية Webhook)",
-      "heading": "Webhook",
-      "address": "العنوان",
       "noAddress": "يحتاج هذا الخادم إلى عنوان عام أولًا.",
       "copyAddress": "نسخ عنوان Webhook",
       "events": "حدّد هذه الأحداث في {provider}",
@@ -3705,7 +3705,15 @@ export default {
       "badTest": "وصل في الساعة الأخيرة {count, plural, zero {لا أحداث} one {حدث واحد} two {حدثان} few {# أحداث} many {# حدثًا} other {# حدث}} لكن التوقيع لم يتطابق. هل هذا هو السر من صفحة نقطة النهاية، لوضع الاختبار؟",
       "caught": "وجد Adminium {when} دفعة لم يُعلن عنها أي Webhook. الـ Webhook لا يصل إلى هذا الخادم.",
       "slowed": "يتحقق Adminium من {provider} بمعدل أقل هذا الشهر: فقد استخدم نصف القراءات التي يسمح بها {provider}.",
-      "moved": "تغيّر عنوان webhook. حدِّثه لدى {provider}:"
+      "moved": "تغيّر عنوان webhook. حدِّثه لدى {provider}:",
+      "headingTestStripe": "Webhook الاختبار (تسمّيه Stripe نقطة نهاية Webhook)",
+      "headingLiveStripe": "Webhook الحقيقي (تسمّيه Stripe نقطة نهاية Webhook)",
+      "headingTest": "Webhook الاختبار",
+      "headingLive": "Webhook الحقيقي",
+      "headingSandbox": "Webhook الـ Sandbox",
+      "addressTest": "عنوان Webhook الاختبار",
+      "addressLive": "عنوان Webhook الحقيقي",
+      "addressSandbox": "عنوان Webhook الـ Sandbox"
     },
     "mode": {
       "test": "اختبار",
@@ -3724,18 +3732,22 @@ export default {
       "heading": "الوصول الذي يحتاجه المفتاح",
       "note": "الطريقتان تمنحان المفتاح هذا الوصول بالضبط. اترك كل ما عداه على None.",
       "access": "الوصول",
-      "why": "السبب"
+      "why": "السبب",
+      "where": "المكان في Stripe",
+      "optional": "(اختياري)"
     },
     "path": {
       "app": {
         "step1": "ثبّت Node.js 22 أو أحدث",
         "step2": "ثبّت Stripe CLI",
-        "step5": "فكّ ضغط القالب وافتح مجلده",
-        "step7": "ثبّت التطبيق في لوحة تحكم Stripe وانسخ مفتاحه",
         "title": "بتطبيق Stripe App خاص بك (الطريقة التي توصي بها Stripe)",
         "desc": "ترفع تطبيقًا صغيرًا إلى حساب Stripe الخاص بك مرة واحدة، باستخدام أداة سطر الأوامر من Stripe. ينشئ مفتاحًا بالوصول المذكور أدناه بالضبط.",
         "download": "تنزيل قالب التطبيق",
-        "note": "ارفعه مرة في حساب الاختبار ومرة في الحساب الحقيقي."
+        "note": "ارفعه مرة في حساب الاختبار ومرة في الحساب الحقيقي.",
+        "create": "شغّل {command} وأجب عن أسئلته بأي شيء",
+        "copy": "انسخ {file} من القالب الذي نزّلته إلى المجلد {folder}، ليحلّ محلّ الملف الموجود فيه",
+        "upload": "شغّل {first} ثم {second}",
+        "install": "ثبّت التطبيق في لوحة تحكم Stripe، وافتح View API keys، وانسخ المفتاح الذي يبدأ بـ {prefix}"
       },
       "hand": {
         "step1": "في لوحة تحكم Stripe افتح Developers ← API keys",
@@ -3755,7 +3767,8 @@ export default {
       "bank": "تغيّرت البيانات البنكية للتحويلات البنكية {when}، بواسطة {by}.",
       "address": "تغيّر عنوان الدفع من {from} إلى {to} {when}، بواسطة {by}. حدّث عنوان الـ Webhook لدى Stripe و PayPal.",
       "heading": "تغيّرت وجهة الأموال",
-      "emailed": "أُرسل بريد إلى كل من يدير المدفوعات."
+      "emailed": "أُرسل بريد إلى كل من يدير المدفوعات.",
+      "gotIt": "فهمت"
     },
     "stop": {
       "label": "إيقاف المدفوعات الجديدة",
@@ -3937,6 +3950,7 @@ export default {
       "statusColumn": "عمود الحالة",
       "statusPaidValue": "القيمة عند الدفع بالكامل",
       "statusRefunded": "عند الاسترداد بالكامل، اضبط الحالة على",
+      "statusNoValues": "أعطِ هذا العمود قائمة قيم (في مخطط الجدول) لاستخدامه حالةً.",
       "leaveAsIs": "اتركها كما هي",
       "pageFields": "الأعمدة المسموح بعرضها على صفحة الدفع",
       "personal": "بيانات شخصية: لا تُعرض أبدًا",
@@ -3948,6 +3962,7 @@ export default {
       "previewOf": "ثلاثة صفوف من {table}",
       "previewSummary": "{count, plural, zero {لا مشكلات} one {مشكلة واحدة} two {مشكلتان} few {# مشكلات} many {# مشكلة} other {# مشكلة}}",
       "previewWaiting": "اختر المبلغ لترى ثلاثة صفوف.",
+      "previewIncomplete": "أكمل الاختيارات أعلاه لترى ثلاثة صفوف.",
       "becomes": "عند الدفع، يصبح {column} {value}",
       "back": "رجوع",
       "stepOf": "الخطوة {step} من 3",
@@ -4013,7 +4028,11 @@ export default {
       "sepa": "الخصم المباشر SEPA",
       "bankTransfer": "تحويل بنكي",
       "cashOnDelivery": "الدفع عند الاستلام",
-      "other": "طريقة دفع يدوية أخرى"
+      "other": "طريقة دفع يدوية أخرى",
+      "acssDebit": "الخصم المصرّح به مسبقًا (كندا)",
+      "stripeTransfer": "تحويل بنكي (Stripe)",
+      "krCard": "البطاقات الكورية",
+      "crypto": "العملات المشفّرة"
     },
     "test": {
       "title": "إرسال دفعة اختبار",
@@ -4027,7 +4046,9 @@ export default {
       "noWebhook": "لم يصل أي Webhook: عُثر على الدفعة بالاستعلام عنها",
       "wouldRecord": "هذا ما سيُسجَّل: دفعة واحدة بقيمة {amount}.",
       "wouldRecordWith": "هذا ما سيُسجَّل: دفعة واحدة بقيمة {amount}، {paidWith}.",
-      "nothingWritten": "لم يُكتب شيء في جداولك."
+      "nothingWritten": "لم يُكتب شيء في جداولك.",
+      "noWay": "لا يرى العملاء هذه الخدمة إلا بعد تفعيل طريقة دفع في «طرق الدفع».",
+      "openWays": "فتح «طرق الدفع»"
     },
     "activity": {
       "state": {
@@ -4068,7 +4089,8 @@ export default {
         "waitingLong": "بانتظار البنك منذ {days} يومًا: {record} · {amount}.",
         "waitingLongWay": "بانتظار البنك منذ {days} يومًا: {record} · {amount} ({way}).",
         "recordChanged": "تغيّرت دفعة مسجّلة: لم تعد {record} · {amount} مسجّلة كما كانت.",
-        "disputed": "نزاع: {record} · {amount}. رُدّ عليه في لوحة تحكم {service}."
+        "disputed": "نزاع: {record} · {amount}. رُدّ عليه في لوحة تحكم {service}.",
+        "disputeLost": "خُسر النزاع: عاد مبلغ {amount} إلى العميل على {record}. سُجّل استردادًا."
       },
       "why": {
         "alreadyPaid": "كانت الفاتورة مدفوعة بالكامل.",
@@ -4079,6 +4101,7 @@ export default {
       },
       "story": {
         "refundThere": "تم الرد في لوحة تحكم {service}: {amount}",
+        "refundDispute": "خُسر النزاع — أُعيد {amount} إلى العميل",
         "refundStarted": "بدأ رد مبلغ {amount}",
         "refunded": "تقول {service}: تم الرد",
         "refundFailed": "تقول {service}: تعذّر الرد",
@@ -4098,7 +4121,10 @@ export default {
         "notRecorded": "لم تُسجَّل: تحتاج إلى نظرة",
         "disputed": "فتح حامل البطاقة نزاعًا",
         "disputeAnswer": "رُدّ عليه في لوحة تحكم {service}",
-        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}."
+        "disputeClosed": "أُغلق النزاع. نتيجته في لوحة تحكم {service}.",
+        "disputeWon": "رُبح النزاع.",
+        "disputeLost": "خُسر النزاع: عاد المال إلى العميل.",
+        "refundDisputeWon": "كُسب النزاع — عاد {amount}"
       },
       "checkedBy": "راجعها {name}",
       "someone": "شخص ما",

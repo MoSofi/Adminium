@@ -37,7 +37,8 @@ export default {
     "gettingReady": "準備中…",
     "noteStripe": "您將在 Stripe 頁面上付款。此商家絕不會看到您的卡片。",
     "notePaypal": "您將在 PayPal 頁面上付款。此商家絕不會看到您的卡片。",
-    "noteBoth": "您將在 Stripe 或 PayPal 頁面上付款。此商家絕不會看到您的卡片。"
+    "noteBoth": "您將在 Stripe 或 PayPal 頁面上付款。此商家絕不會看到您的卡片。",
+    "staffNoWay": "僅您可見：此記錄未開啟任何線上付款方式，因此此測試頁面只提供示範服務。請在 Studio → 付款 → 付款方式中開啟一種。"
   },
   "provider": {
     "stripe": "Stripe",
@@ -69,7 +70,8 @@ export default {
   "failed": {
     "title": "付款未成功。",
     "body": "未扣取任何款項。",
-    "retry": "重試"
+    "retry": "重試",
+    "otherWay": "選擇其他方式"
   },
   "cancelled": {
     "title": "您在付款前離開了付款頁面。",

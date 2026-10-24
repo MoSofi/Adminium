@@ -52,9 +52,9 @@ file. Every file is 8 KB or less.
 | `references/projects/deploy--overview.md` | Deploy a project | 731 |
 | `references/projects/deploy--what-every-host-needs.md` | What every host needs | 1624 |
 | `references/projects/deploy--docker.md` | Docker | 1996 |
-| `references/projects/deploy--render.md` | Render | 956 |
+| `references/projects/deploy--render.md` | Render | 957 |
 | `references/projects/deploy--fly-io.md` | Fly.io | 1143 |
-| `references/projects/deploy--digitalocean-app-platform.md` | DigitalOcean App Platform | 1868 |
+| `references/projects/deploy--digitalocean-app-platform.md` | DigitalOcean App Platform | 1867 |
 | `references/projects/deploy--railway.md` | Railway | 905 |
 | `references/projects/deploy--a-vps-without-docker.md` | A VPS without Docker | 1568 |
 | `references/projects/deploy--before-a-deploy-pull-what-changed.md` | Before a deploy, pull what changed | 661 |

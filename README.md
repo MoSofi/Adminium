@@ -57,7 +57,7 @@ export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}  # save this 
 adminium start   # → http://localhost:4600
 ```
 
-On a server, pin the version (`@adminiumjs/adminium@0.3.27`) and set
+On a server, pin the version (`@adminiumjs/adminium@0.3.34`) and set
 `ADMINIUM_DATA_DIR`. Do not run a server with plain `npx @adminiumjs/adminium`.
 Without a version, npx looks for a newer release on every run. With no
 terminal attached, it installs one without asking, and `start` then migrates
@@ -76,10 +76,11 @@ server ([OpenFreeMap](https://openfreemap.org/) unless you name your own).
 ## Where Adminium runs
 
 Adminium is one long-running Node.js server. It runs on any host that keeps that
-process running and gives it a disk that survives restarts. It needs about 165 MB
-idle and about 220 MB during a first boot, so **1 GB** suits a VPS where Docker and
-a proxy run beside it, and **512 MB** is enough on a managed host that runs the
-container for you. A host without a
+process running and gives it a disk that survives restarts. It holds about 245 MB
+of JavaScript heap from boot and runs with a 512 MB heap ceiling (the Docker image
+sets it), so give it **2 GB** (or 1 GB with swap) on a VPS where Docker and a proxy
+run beside it, and **1 GB** on a managed host that runs the container for you —
+512 MB is not enough. A host without a
 disk also works, as long as the meta store is a managed Postgres or MySQL
 database and files go to a storage bucket.
 

@@ -514,7 +514,7 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
   it.runIf(available)('fails a refund only on a refusal: anything else leaves it asked, and asks again with the same key, once at a time', async () => {
     const invoice = await sentInvoice('35.00');
     const attemptId = await paid(invoiceRef(invoice), 'INV', '35.00');
-    for (const code of ['CREDENTIALS_REFUSED', 'UNAVAILABLE', 'NOT_FOUND'] as const) {
+    for (const code of ['RATE_LIMITED', 'UNAVAILABLE', 'NOT_FOUND'] as const) {
       fake.answerNextWith(code, false);
       const once = key();
       const asked = await requestRefund(deps, { attemptId, amount: '5.00', reason: 'other', note: null, key: once, requestedBy: null });
@@ -531,6 +531,192 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
     fake.answerNextWith('INVALID_REQUEST', false);
     expect(await requestRefund(deps, { attemptId, amount: '5.00', reason: 'other', note: null, key: key(), requestedBy: null })).toMatchObject({ ok: true, refund: { state: 'failed' } });
     expect(refundableOf((await paymentAttemptsRepo(h.meta).byId(attemptId))!)).toBe('20.00');
+  });
+
+  it.runIf(available)('fails a refund at once when the key may not refund, or is refused, whatever the add-on said of trying later', async () => {
+    const invoice = await sentInvoice('30.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '30.00');
+    for (const [code, retryable] of [['PERMISSION_MISSING', true], ['PERMISSION_MISSING', false], ['CREDENTIALS_REFUSED', true]] as const) {
+      fake.answerNextWith(code, retryable);
+      const asked = await requestRefund(deps, { attemptId, amount: '5.00', reason: 'other', note: null, key: key(), requestedBy: null });
+      expect(asked).toMatchObject({ ok: true, refund: { state: 'failed', failureMessage: 'Not now.' } });
+      // Nothing is asked again later: it is not waiting.
+      expect((await refundsRepo(h.meta).waiting(Date.now() + 60 * 60_000, 100)).map((one) => one.id)).not.toContain((asked as { refund: { id: string } }).refund.id);
+    }
+    expect(refundableOf((await paymentAttemptsRepo(h.meta).byId(attemptId))!)).toBe('30.00');
+  });
+
+  it.runIf(available)('writes a lost dispute into the record as money gone back, flags it, and lets Refund… give only what is left', async () => {
+    const invoice = await sentInvoice('80.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '80.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'charge.dispute.created', occurredAt: now - 1000, dispute: { status: 'open', amount: '30.00', currency: 'EUR' } });
+    await disputeEvent(deps, await read(), { type: 'charge.dispute.closed', occurredAt: now, dispute: { status: 'lost', amount: '30.00', currency: 'EUR' } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'lost' });
+    const [lost] = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(lost).toMatchObject({ source: 'dispute', state: 'succeeded', amount: '30.00', currency: 'EUR' });
+    expect(lost!.appliedAt).not.toBeNull();
+    expect(Number(await refundedOnRow(attemptId))).toBe(30);
+    expect((await refundsRepo(h.meta).list({ needingLook: true })).map((one) => one.id)).toContain(lost!.id);
+    expect(await requestRefund(deps, { attemptId, amount: '50.01', reason: 'other', note: null, key: key(), requestedBy: null })).toMatchObject({ ok: false, refusal: { code: 'MORE_THAN_REFUNDABLE' } });
+    expect(await requestRefund(deps, { attemptId, amount: '50.00', reason: 'other', note: null, key: key(), requestedBy: null })).toMatchObject({ ok: true, refund: { state: 'succeeded' } });
+    expect(Number(await refundedOnRow(attemptId))).toBe(80);
+    // A resend of the close records nothing more.
+    await disputeEvent(deps, await read(), { type: 'charge.dispute.closed', occurredAt: now, dispute: { status: 'lost', amount: '30.00', currency: 'EUR' } });
+    expect(await refundsRepo(h.meta).forAttempt(attemptId)).toHaveLength(2);
+  });
+
+  it.runIf(available)('counts a dispute settled by a refund at the provider once: the refund, then the lost dispute', async () => {
+    // The walk on 2026-10-22: a PayPal seller refunds $75 to settle a dispute; PayPal then says "resolved, buyer's favour".
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const paymentRef = (await read()).paymentRef!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 60_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR' } });
+    const refund = await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: fake.madeThere(paymentRef, '75.00') });
+    expect(refund).toMatchObject({ source: 'provider', amount: '75.00', state: 'succeeded' });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'lost', amount: '75.00', currency: 'EUR' } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'lost' });
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount])).toEqual([['provider', '75.00']]);
+    expect(Number(await refundedOnRow(attemptId))).toBe(75);
+  });
+
+  it.runIf(available)('counts a dispute settled by a refund at the provider once: the lost dispute, then the refund', async () => {
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const paymentRef = (await read()).paymentRef!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 60_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR' } });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'lost', amount: '75.00', currency: 'EUR' } });
+    const ref = fake.madeThere(paymentRef, '75.00');
+    const adopted = await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: ref });
+    expect(adopted).toMatchObject({ source: 'dispute', amount: '75.00', providerRefundId: ref });
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount])).toEqual([['dispute', '75.00']]);
+    expect(Number(await refundedOnRow(attemptId))).toBe(75);
+    // The same event again changes nothing.
+    await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: ref });
+    expect(await refundsRepo(h.meta).forAttempt(attemptId)).toHaveLength(1);
+  });
+
+  it.runIf(available)('counts a refund once when no open was heard: the lost dispute names when it opened (REVIEW-A)', async () => {
+    // A dispute opened under an add-on that did not listen for it (1.0.12), or its "created" retried after the
+    // "resolved": the first the engine hears is the close, after the seller's settling refund.
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const paymentRef = (await read()).paymentRef!;
+    const now = Date.now();
+    await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: fake.madeThere(paymentRef, '75.00') });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now + 1000, dispute: { status: 'lost', amount: '75.00', currency: 'EUR', openedAt: now - 60_000 } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'lost', at: now - 60_000 });
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount])).toEqual([['provider', '75.00']]);
+    expect(Number((await read()).refundCommitted)).toBe(75);
+    expect(Number(await refundedOnRow(attemptId))).toBe(75);
+  });
+
+  it.runIf(available)('counts a part refund that settles a dispute once when no open was heard (REVIEW-A2)', async () => {
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const paymentRef = (await read()).paymentRef!;
+    const now = Date.now();
+    await refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: fake.madeThere(paymentRef, '40.00') });
+    // Stored as the webhook stores it and followed from the row: the body carries when the dispute opened.
+    await followEvent(
+      { meta: h.meta, enqueue: async () => undefined },
+      { id: 'evt_none', provider: PROVIDER, mode: 'live', kind: 'dispute', type: 'CUSTOMER.DISPUTE.RESOLVED', refundRef: null, body: { occurredAt: now + 1000, dispute: { status: 'lost', amount: '40.00', currency: 'EUR', openedAt: now - 60_000 } } },
+      await read(),
+      now + 1000,
+    );
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount])).toEqual([['provider', '40.00']]);
+    expect(Number((await read()).refundCommitted)).toBe(40);
+    expect(Number(await refundedOnRow(attemptId))).toBe(40);
+    expect(refundRefusalOf(await read())).toBeNull();
+    expect(refundableOf(await read())).toBe('35.00');
+  });
+
+  it.runIf(available)('reads a 0.3.32-era stored dispute event (no opening time) as it did: the close starts the window', async () => {
+    const invoice = await sentInvoice('60.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '60.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const now = Date.now();
+    await followEvent(
+      { meta: h.meta, enqueue: async () => undefined },
+      { id: 'evt_none', provider: PROVIDER, mode: 'live', kind: 'dispute', type: 'charge.dispute.closed', refundRef: null, body: { occurredAt: now, dispute: { status: 'lost', amount: '60.00', currency: 'EUR' } } },
+      await read(),
+      now,
+    );
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'lost', at: now });
+    expect((await refundsRepo(h.meta).forAttempt(attemptId)).map((row) => [row.source, row.amount])).toEqual([['dispute', '60.00']]);
+  });
+
+  it.runIf(available)('undoes a lost dispute the provider later says was won: the money comes back (REVIEW-B)', async () => {
+    // An add-on that read PayPal's capture reversal (sent when a chargeback is FILED) as lost; the dispute is then won.
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const now = Date.now();
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 60_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR' } });
+    await disputeEvent(deps, await read(), { type: 'PAYMENT.CAPTURE.REVERSED', occurredAt: now - 50_000, dispute: { status: 'lost', amount: '75.00', currency: 'EUR' } });
+    expect(Number(await refundedOnRow(attemptId))).toBe(75);
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'won', amount: '75.00', currency: 'EUR' } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'won' });
+    const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+    expect(rows.map((row) => [row.source, row.amount, row.state])).toEqual([['dispute', '75.00', 'failed']]);
+    expect(rows[0]!.undoneAt).not.toBeNull();
+    expect(Number((await read()).refundCommitted)).toBe(0);
+    expect(Number(await refundedOnRow(attemptId))).toBe(0);
+    expect(refundableOf(await read())).toBe('75.00');
+    // A resend of the won close, or a late lost one, moves nothing again.
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'won', amount: '75.00', currency: 'EUR' } });
+    await disputeEvent(deps, await read(), { type: 'PAYMENT.CAPTURE.REVERSED', occurredAt: now - 50_000, dispute: { status: 'lost', amount: '75.00', currency: 'EUR' } });
+    expect((await read()).dispute).toMatchObject({ outcome: 'won' });
+    expect((await refundsRepo(h.meta).forAttempt(attemptId)).map((row) => row.state)).toEqual(['failed']);
+    expect(Number((await read()).refundCommitted)).toBe(0);
+  });
+
+  it.runIf(available)('a capture reversal read as news of an open dispute changes nothing the dispute’s outcome then decides', async () => {
+    const invoice = await sentInvoice('75.00');
+    const attemptId = await paid(invoiceRef(invoice), 'INV', '75.00');
+    const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+    const now = Date.now();
+    // The reversal first (as PayPal sends it when the chargeback is filed): it opens the dispute, from when it opened.
+    await disputeEvent(deps, await read(), { type: 'PAYMENT.CAPTURE.REVERSED', occurredAt: now - 50_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR', openedAt: now - 55_000 } });
+    expect((await read()).dispute).toMatchObject({ state: 'open', at: now - 55_000, outcome: null });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 40_000, dispute: { status: 'open', amount: '75.00', currency: 'EUR', openedAt: now - 55_000 } });
+    expect((await read()).dispute).toMatchObject({ state: 'open', at: now - 55_000 });
+    await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'won', amount: '75.00', currency: 'EUR', openedAt: now - 55_000 } });
+    expect((await read()).dispute).toMatchObject({ state: 'closed', outcome: 'won' });
+    expect(await refundsRepo(h.meta).forAttempt(attemptId)).toEqual([]);
+  });
+
+  it.runIf(available)('counts a refund and a lost dispute that arrive at once a single time (REVIEW-C)', async () => {
+    // The refund job and the dispute webhook within a second of each other, on one server.
+    for (const amount of ['75.00', '30.00']) {
+      const invoice = await sentInvoice(amount);
+      const attemptId = await paid(invoiceRef(invoice), 'INV', amount);
+      const read = async () => (await paymentAttemptsRepo(h.meta).byId(attemptId))!;
+      const paymentRef = (await read()).paymentRef!;
+      const now = Date.now();
+      await disputeEvent(deps, await read(), { type: 'CUSTOMER.DISPUTE.CREATED', occurredAt: now - 60_000, dispute: { status: 'open', amount, currency: 'EUR' } });
+      const ref = fake.madeThere(paymentRef, amount);
+      const attempt = await read();
+      await Promise.all([
+        refundEvent(deps, { provider: PROVIDER, mode: 'live', refundRef: ref }),
+        disputeEvent(deps, attempt, { type: 'CUSTOMER.DISPUTE.RESOLVED', occurredAt: now, dispute: { status: 'lost', amount, currency: 'EUR' } }),
+      ]);
+      const rows = await refundsRepo(h.meta).forAttempt(attemptId);
+      expect(rows.filter((row) => row.state === 'succeeded'), amount).toHaveLength(1);
+      expect(Number((await read()).refundCommitted), amount).toBe(Number(amount));
+      expect(Number(await refundedOnRow(attemptId)), amount).toBe(Number(amount));
+    }
   });
 
   it.runIf(available)('takes dispute events in any order, and an update after the close reopens nothing', async () => {

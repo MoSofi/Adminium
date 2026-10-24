@@ -25,6 +25,7 @@ import {
   type ProviderError,
   type RefundState,
 } from '../src/index.js';
+import { demoId } from '../src/payment-demo.js';
 
 const credentials = { secretKey: 'demo_test_demofile01', webhookSecret: 'demo_whsec_demofile01' };
 const payable = { reference: 'INV-1', description: 'x', amount: '20.00', currency: 'EUR', customerEmail: null, locale: null };
@@ -158,6 +159,91 @@ describe('demo events', () => {
     expect(code(await live.verifyWebhook({ rawBody, headers: {} }))).toBe('MODE_MISMATCH');
     const bare = createDemoPaymentProvider({ http: setup().backend.http, credentials: { secretKey: credentials.secretKey }, mode: 'test' });
     expect(code(await bare.verifyWebhook({ rawBody, headers: { [DEMO_SIGNATURE_HEADER]: signed } }))).toBe('SIGNATURE_INVALID');
+  });
+});
+
+describe('demo ids', () => {
+  it('are random, so a backend started again never hands out an id the last one gave', async () => {
+    const first = setup();
+    const again = setup();
+    const refs = new Set<string>();
+    for (const { checkout, backend } of [first, again]) {
+      for (let i = 0; i < 20; i += 1) {
+        const { ref } = await checkout();
+        expect(ref).toMatch(/^cs_[0-9a-z]{16}$/);
+        await backend.pay(ref, 'succeeds');
+        refs.add(ref);
+      }
+      for (const event of backend.events()) {
+        expect(event.id).toMatch(/^evt_[0-9a-z]{16}$/);
+        refs.add(event.id);
+      }
+    }
+    // 40 checkouts and 80 events (created, succeeded), no id twice.
+    expect(refs.size).toBe(120);
+    expect(demoId('re')).toMatch(/^re_[0-9a-z]{16}$/);
+  });
+});
+
+describe('the demo forgets what is long over', () => {
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+
+  it('a checkout never paid, a lifetime after it expired; a paid one with its refunds after keepPaidMs; old events', async () => {
+    let clock = 1_000_000_000;
+    const { backend, provider, checkout, status } = setup({ now: () => clock, settleAfterMs: 1000, checkoutLifetimeMs: HOUR, keepPaidMs: 7 * DAY });
+    const unpaid = await checkout();
+    const declined = await checkout();
+    await backend.pay(declined.ref, 'fails');
+    const paid = await checkout();
+    await backend.pay(paid.ref, 'succeeds');
+    const paymentRef = (await status(paid.ref)).paymentRef!;
+    const refund = (await provider.refund({ paymentRef, amount: '5.00', currency: 'EUR', reason: 'other', idempotencyKey: 'keep-r1' })) as RefundState;
+    expect(backend.events().length).toBeGreaterThan(0);
+
+    // Expired, but within a lifetime of it: still answered.
+    clock += 2 * HOUR - 1;
+    expect((await status(unpaid.ref)).status).toBe('expired');
+    // A lifetime after it expired: forgotten, as a restart would have.
+    clock += 2 * 60_000;
+    expect(code(await provider.status(unpaid.ref))).toBe('NOT_FOUND');
+    expect(code(await provider.status(declined.ref))).toBe('NOT_FOUND');
+    expect(backend.checkoutForAttempt(unpaid.attemptId)).toBeNull();
+    // The paid one stays, with its refund, and can be refunded again.
+    expect((await status(paid.ref)).status).toBe('succeeded');
+    expect(await provider.refundStatus(refund.ref)).toMatchObject({ status: 'succeeded' });
+    expect(await provider.refund({ paymentRef, amount: '1.00', currency: 'EUR', reason: 'other', idempotencyKey: 'keep-r2' })).toMatchObject({ ok: true });
+    // Only events from the last lifetime are kept.
+    expect(backend.events().every((event) => event.refundRef !== null || event.type === 'checkout.expired')).toBe(true);
+
+    clock += 7 * DAY;
+    expect(code(await provider.status(paid.ref))).toBe('NOT_FOUND');
+    expect(code(await provider.refundStatus(refund.ref))).toBe('NOT_FOUND');
+    expect(code(await provider.refund({ paymentRef, amount: '1.00', currency: 'EUR', reason: 'other', idempotencyKey: 'keep-r3' }))).toBe('NOT_FOUND');
+    expect(backend.events()).toEqual([]);
+  });
+
+  it('keeps a late payment that has not settled, and an open checkout before it expires', async () => {
+    let clock = 1_000_000_000;
+    const { backend, checkout, status } = setup({ now: () => clock, settleAfterMs: 10 * DAY, checkoutLifetimeMs: HOUR });
+    const late = await checkout();
+    await backend.pay(late.ref, 'settles-late');
+    clock += 3 * HOUR;
+    const open = await checkout();
+    clock += 30 * 60_000;
+    expect((await status(late.ref)).status).toBe('processing');
+    expect((await status(open.ref)).status).toBe('pending');
+  });
+
+  it('does not answer a forgotten idempotency key with the old checkout', async () => {
+    let clock = 1_000_000_000;
+    const backend = createDemoPaymentBackend({ now: () => clock, checkoutLifetimeMs: HOUR });
+    const provider = createDemoPaymentProvider({ http: backend.http, credentials, mode: 'test' });
+    const input = { payable, methods: ['card'], successUrl: 'https://pay.example.test/r', cancelUrl: 'https://pay.example.test/c', attemptId: 'att-key', idempotencyKey: 'same-key' };
+    const before = (await provider.createCheckout(input)) as { ref: string };
+    clock += 3 * HOUR;
+    const after = (await provider.createCheckout(input)) as { ref: string };
+    expect(after.ref).not.toBe(before.ref);
   });
 });
 

@@ -651,7 +651,9 @@ const kpiMoneySum: CandidateRule = {
         // validation and was pruned on every mount — every money KPI on a
         // generated dashboard rendered unformatted, and `format` is skipped by
         // the config drawer so it could not be repaired by hand either.
-        config: { title: `Total ${columnTitle(column)}`, metricFormat: 'currency' },
+        // A minor-unit column (`amount_cents`) sums to cents: a currency
+        // format would print them as whole units ("$490K" for €4,900.00).
+        config: { title: `Total ${columnTitle(column)}`, metricFormat: column.format === 'currency-cents' ? 'plain' : 'currency' },
       }));
   },
 };

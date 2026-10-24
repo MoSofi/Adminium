@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * removedRowsRepo — adminium_removed_rows (0063).
+ * removedRowsRepo — adminium_removed_rows (0064).
  *
  * The removed rows of a table that keeps them (`removal: { history: true }`),
  * one row per removal and per link of the removed row that named a row: what

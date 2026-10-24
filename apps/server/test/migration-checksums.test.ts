@@ -61,6 +61,9 @@
  * 0062 ships in 0.3.32, read out of the published `@adminiumjs/adminium@0.3.32`
  * the same way; 0061 reads the same out of it.
  *
+ * 0063 ships in 0.3.33, read out of the published `@adminiumjs/adminium@0.3.33`
+ * the same way; 0061 and 0062 read the same out of it.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -247,6 +250,7 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0060_notification_switches': '8c81ad67b7ba6ba0d23602b566856b9f70c7eeae258ff0753346a7b81a71a9a5',
   '0061_user_figma_token': '1bb4fc6204984c9a5bf8e222bec93e7a23f4c411f6eb24146ba0edc6747011df',
   '0062_payments': '12b0c604a0b7c4c1c600382d5a4777476e6aa5fea76f99393329112ae9738715',
+  '0063_payment_dispute_outcome': '4f7e9c8752cd61a484b801c80c96660557960ab8c169731c2180d3ebca0ff3f0',
 });
 
 describe('shipped migration checksums', () => {

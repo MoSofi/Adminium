@@ -6,7 +6,7 @@
 import { payableMappingSchema, type PayableMapping } from '@adminium/meta';
 import { describe, expect, it } from 'vitest';
 
-import { payableIssues, type PayableRulesInput } from '../src/payments/payable-rules.js';
+import { payableIssues, valuesOf, type PayableRulesInput } from '../src/payments/payable-rules.js';
 
 type Col = Record<string, unknown> & { name: string; logicalType: string };
 
@@ -33,6 +33,10 @@ const orders = {
     column('email', 'text', { semantics: { flags: { pii: 'email', secret: false, maskedByDefault: true } } }),
     column('country', 'text'),
     column('jpy_total', 'decimal', { numericScale: 0 }),
+    // A SQLite CHECK list: the column stays `text`, its enum named by `enumRef`.
+    column('state', 'text', { enumRef: 'main.orders.state' }),
+    column('paid_flag', 'boolean'),
+    column('stage', 'text', { options: { values: [{ value: 'new' }, { value: 'done' }] } }),
   ],
 };
 
@@ -57,6 +61,7 @@ const model = {
   enums: [
     { id: 'order_status', name: 'order_status', values: ['open', 'paid', 'refunded'] },
     { id: 'deposit_kind', name: 'deposit_kind', values: ['card', 'cash'] },
+    { id: 'main.orders.state', name: 'state', values: ['sent', 'paid', 'refunded'] },
   ],
 } as unknown as PayableRulesInput['model'];
 
@@ -149,6 +154,19 @@ describe('marking a table payable', () => {
 
     it('refuses free text with no value list', () => {
       expect(issues({ status: { column: 'note', paid: 'paid', refunded: null } })).toEqual(['STATUS_NOT_A_CHOICE status']);
+    });
+
+    it('takes a text column with an enum (a SQLite CHECK list), yes/no, and Adminium\'s own value list, by the one rule', () => {
+      expect(issues({ status: { column: 'state', paid: 'paid', refunded: 'refunded' } })).toEqual([]);
+      expect(issues({ status: { column: 'state', paid: 'settled', refunded: null } })).toEqual(['STATUS_VALUE_UNKNOWN status.paid']);
+      expect(issues({ status: { column: 'paid_flag', paid: 'true', refunded: 'false' } })).toEqual([]);
+      expect(issues({ status: { column: 'stage', paid: 'done', refunded: null } })).toEqual([]);
+      const byName = (name: string) => orders.columns.find((one) => one.name === name) as unknown as Parameters<typeof valuesOf>[1];
+      expect(valuesOf(model, byName('state'))).toEqual(['sent', 'paid', 'refunded']);
+      expect(valuesOf(model, byName('status'))).toEqual(['open', 'paid', 'refunded']);
+      expect(valuesOf(model, byName('paid_flag'))).toEqual(['true', 'false']);
+      expect(valuesOf(model, byName('stage'))).toEqual(['new', 'done']);
+      expect(valuesOf(model, byName('note'))).toBeNull();
     });
   });
 

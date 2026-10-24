@@ -21,8 +21,8 @@ const conformance = (m: Doc, map = shapes()) => shapeConformanceIssues(m as neve
 /** The invoices, with a column the app added (the client's standing, kept on the invoice) and a create held to it. */
 function held(create: Doc | undefined): Doc {
   const m = valid();
-  // A create held to a column the app added is read from 0.3.33 on (`shape.create`).
-  (m['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.33';
+  // A create held to a column the app added is read from 0.3.35 on (`shape.create`).
+  (m['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.35';
   const invoices = tableOf(m, 'invoices');
   (invoices['columns'] as Doc[]).push({ ref: 'client_state', type: 'enum', enum: ['active', 'closed'], nullable: true });
   if (create !== undefined) (invoices['states'] as Doc)['create'] = create;

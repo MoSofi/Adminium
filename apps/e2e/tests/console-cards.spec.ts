@@ -228,8 +228,9 @@ test.describe('an app’s console cards', () => {
       await open(page, combo, DASH_SLUG);
       const latest = card(page, 'latest');
       await expect(latest.getByRole('columnheader')).toHaveText([...combo.headings]);
-      // Its rows are the server's, the freight written as money.
-      await expect(latest.getByRole('row').nth(1)).toContainText(/\$/);
+      // Its rows are the server's, the freight written as money: two decimals. The column names no currency and
+      // neither does Northwind's connection, so no symbol is guessed (there used to be a "$" default).
+      await expect(latest.getByRole('row').nth(1)).toContainText(/\d[.,٫]\d{2}(?!\d)/);
       await nothingSideways(page);
     });
 
@@ -244,9 +245,11 @@ test.describe('an app’s console cards', () => {
       const first = chart.getByRole('table').locator('tbody tr').first();
       const cells = await first.locator('th, td').allTextContents();
       expect(cells).toHaveLength(3);
-      // The count: a plain figure. The freight: in the currency.
+      // The count: a plain figure. The freight: money, two decimals. The column names no currency, so no
+      // symbol is guessed (the chart table used to default to "$"). Arabic writes its own digits: ٤٦٣٫٨٩.
       expect(cells[1]).not.toMatch(/\$/);
-      expect(cells[2]).toMatch(/\$/);
+      expect(cells[2]).not.toMatch(/\$/);
+      expect(cells[2]).toMatch(/[\d٠-٩][.,٫][\d٠-٩]{2}(?![\d٠-٩])/);
       await nothingSideways(page);
     });
 
@@ -261,7 +264,8 @@ test.describe('an app’s console cards', () => {
       await open(page, combo, BOARD_SLUG);
       const speedy = column(page, 'Speedy Express');
       await expect(speedy).toBeVisible();
-      await expect(speedy.locator('[data-part="column-total"]')).toContainText(/\$/);
+      // A money total: two decimals, no guessed currency symbol (the board's column names none).
+      await expect(speedy.locator('[data-part="column-total"]')).toContainText(/\d[.,٫]\d{2}(?!\d)/);
       await nothingSideways(page);
     });
 

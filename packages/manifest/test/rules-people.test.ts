@@ -307,7 +307,7 @@ describe('rules that tell the person on the row', () => {
     const section = (doc: Doc) => rule(doc, 'weekly-team').graph.nodes[1]!.action['sections'][0];
     const dated = (doc: Doc, within: unknown) => {
       doc.requiredSchema.tables.find((one) => one.ref === 'deals')!.columns.push({ ref: 'closed_on', type: 'date', nullable: true } as never, { ref: 'touched_at', type: 'timestamptz', nullable: true } as never);
-      (doc as unknown as { compatibility: { minAdminiumVersion: string } }).compatibility.minAdminiumVersion = '0.3.33';
+      (doc as unknown as { compatibility: { minAdminiumVersion: string } }).compatibility.minAdminiumVersion = '0.3.35';
       section(doc).within = within;
     };
     for (const within of [{ column: 'closed_on', this: 'year' }, { column: 'touched_at', lastDays: 30 }]) {
@@ -316,12 +316,12 @@ describe('rules that tell the person on the row', () => {
       expect(issuesOf(doc), JSON.stringify(within)).toEqual([]);
       expect(installFloorWords(doc).map((found) => `${found.word} ${found.path}`)).toContain('digest.within automations.5.graph.nodes.1.action.sections.0.within');
     }
-    expect(WORD_FLOORS['digest.within']).toBe('0.3.33');
+    expect(WORD_FLOORS['digest.within']).toBe('0.3.35');
     // An older engine is told which release reads it.
     expect(changed((doc) => {
       dated(doc, { column: 'closed_on', this: 'year' });
       (doc as unknown as { compatibility: { minAdminiumVersion: string } }).compatibility.minAdminiumVersion = '0.3.28';
-    })).toContain('0.3.33');
+    })).toContain('0.3.35');
     expect(changed((doc) => dated(doc, { column: 'name', this: 'year' }))).toContain('"deals.name" is text: a section is held to a year or to days by a date column');
     expect(changed((doc) => dated(doc, { column: 'nope', lastDays: 7 }))).toContain('"deals" has no column "nope"');
     // A year, or a number of days from one to a year's: nothing else.

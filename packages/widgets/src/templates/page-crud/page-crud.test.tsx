@@ -34,7 +34,7 @@ const columns = [
     enumTones: { active: 'pos', trialing: 'warn' },
     nullable: false,
   }),
-  spec({ name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money', nullable: false }),
+  spec({ name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money', currency: 'USD', nullable: false }),
 ];
 
 const REFERENCES: CrudReferenceCount[] = [

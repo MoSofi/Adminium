@@ -101,8 +101,9 @@ export interface PageTemplateProps {
    * Every money cell in the product has rendered `USD` since the feature
    * shipped: `formatMoney` falls back to it, the column spec's own `currency`
    * is populated by nothing, and the `currency` prop `PageCrud`/`PageRecord`
-   * already accept had no caller. This is that caller. Undefined keeps the
-   * fallback, so a connection with no currency set is unchanged.
+   * already accept had no caller. This is that caller. A row's own currency
+   * column outranks it, and with neither a money cell is the plain number —
+   * the `USD` fallback is gone (walk fix E3).
    */
   currency?: string | undefined;
 }

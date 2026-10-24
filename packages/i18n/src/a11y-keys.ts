@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3350 entries. */
+/** `namespace:key` — 3356 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1497,6 +1497,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'pay:checking.title',
   'pay:documentTitle',
   'pay:documentTitlePlain',
+  'pay:failed.otherWay',
   'pay:failed.retry',
   'pay:failed.title',
   'pay:hero.due',
@@ -2471,6 +2472,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.payables.wayToPay',
   'studio:payments.payables.wholeAmounts',
   'studio:payments.reach.portTitle',
+  'studio:payments.service.fixAddressFirst',
   'studio:payments.service.notLoaded',
   'studio:payments.step.liveKey',
   'studio:payments.step.livePayment',
@@ -2484,6 +2486,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.step.testWebhook',
   'studio:payments.stop.confirmTitle',
   'studio:payments.subtitle',
+  'studio:payments.test.noWay',
   'studio:payments.title',
   'studio:payments.viewOnly',
   'studio:payments.ways.accountNumber',
@@ -2514,6 +2517,9 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.ways.rulesKickerHand',
   'studio:payments.ways.smallest',
   'studio:payments.ways.sortCode',
+  'studio:payments.webhook.addressLive',
+  'studio:payments.webhook.addressSandbox',
+  'studio:payments.webhook.addressTest',
   'studio:payments.webhook.copyAddress',
   'studio:payments.webhook.copyEvent',
   'studio:project.actions.title',

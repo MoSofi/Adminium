@@ -11,7 +11,7 @@ import { infiniteQueryOptions, queryOptions, useQuery } from '@tanstack/react-qu
 
 import { api, ApiError, csrfHeaders } from '../../app/api.js';
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed', 'dispute-lost'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found (the server refuses an empty note). */
@@ -24,6 +24,8 @@ export interface ActivityRow {
   id: string;
   kind: 'attempt' | 'refund';
   at: number;
+  /** When what needs a look happened (a dispute's opening, a refund's own time). Absent from a server one step behind. */
+  lookAt?: number;
   service: string;
   mode: 'test' | 'live';
   payable: { kind: string; connectionId: string | null; tableName: string | null; rowKey: string; label: string | null } | null;
@@ -36,13 +38,14 @@ export interface ActivityRow {
   asked: { amount: string; currency: string };
   times: { started: number; settled: number | null; recorded: number | null; updated: number };
   refs: { attempt: string | null; checkout: string | null; payment: string | null; refund: string | null };
-  refundSource: 'staff' | 'provider' | null;
+  /** `dispute`: a lost dispute gave the money back (absent from an older server). */
+  refundSource: 'staff' | 'provider' | 'dispute' | null;
   flag: { code: ActivityFlag; reason: string | null; message: string | null } | null;
   check: { at: number; by: string | null; byName: string | null; note: string | null } | null;
   /** An attempt that took money: what may still be refunded, and why nothing may now. Null on a refund row. */
   refund: { refundable: string; refusal: { code: string; message: string } | null } | null;
-  /** A dispute the service told of; its deadline and outcome are read in the service's dashboard. */
-  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null } | null;
+  /** A dispute the service told of; `outcome` once it closed and the service said how. Its deadline is read in the service's dashboard. */
+  dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null; outcome?: 'won' | 'lost' | null } | null;
 }
 
 export interface ActivityPage {

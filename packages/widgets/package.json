@@ -1,6 +1,6 @@
 {
   "name": "@adminium/widgets",
-  "version": "0.3.32",
+  "version": "0.3.34",
   "private": true,
   "license": "AGPL-3.0-only",
   "repository": {
@@ -78,6 +78,7 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@adminium/manifest": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
     "@types/react": "^19.2.18",

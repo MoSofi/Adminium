@@ -20,18 +20,14 @@ services:
       # An exact version, never `latest` (deploy/README.md): a Blueprint redeploy
       # resolves the tag again, so `latest` upgrades the engine — and migrates the
       # meta store — on a deploy you triggered for something else. Bump it here.
-      url: ghcr.io/mosofi/adminium:0.3.27
-    # 512 MB is enough here, and that is a property of the platform rather than
-    # of Adminium. This number is the limit on THIS CONTAINER: Render's
-    # orchestrator, the container runtime and the TLS edge run outside it, so
-    # none of them is charged to you. Adminium is ~165 MB idle and ~220 MB during
-    # a first boot. The 1 GB the docs ask for is for a machine where YOU run the
-    # container runtime and a proxy beside the server — a VPS with Compose.
-    #
-    # Raise the plan if your schema is large: the first boot's cost scales with
-    # table and column count, and Node sizes its heap ceiling from the container
-    # limit, so a 512 MB container caps the old space near 256 MB.
-    plan: starter
+      url: ghcr.io/mosofi/adminium:0.3.34
+    # standard (2 GB). This number is the limit on THIS CONTAINER: Render's
+    # orchestrator, the container runtime and the TLS edge run outside it.
+    # Adminium holds ~245 MB of heap from boot and the image gives Node a 512 MB
+    # heap ceiling, which needs about 1 GB behind it; Render has no 1 GB plan,
+    # and starter's 512 MB is not enough (Node then picks a ~256 MB ceiling,
+    # which a few hours of use fill). Raise it further for a large schema.
+    plan: standard
     healthCheckPath: /api/v1/readyz
     envVars:
       - key: ADMINIUM_SECRET

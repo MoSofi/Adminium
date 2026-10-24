@@ -6,14 +6,18 @@
  * claims are about what reaches the wire and what the person reads:
  *
  *  1. each reachability state says its own sentence, and while customers
- *     cannot reach the server the services stay folded ("Set this up first.");
+ *     cannot reach the server each service card says to fix the address
+ *     first, and keeps its checklist and keys;
  *  2. a refused paste shows the sentence for its reason, and nothing else;
  *  3. a saved key shows its hint, never a value, and the checklist counts;
  *  4. a Check that finds missing permissions names them; a refused key raises
  *     the alarm;
  *  5. someone who may only view sees all of it and no control;
  *  6. "Send a test payment" opens the pay page in a new tab and shows the
- *     round trip once the payment is kept.
+ *     round trip once the payment is kept; while no way of the service is
+ *     switched on, it says customers will not see it yet;
+ *  7. the webhook cards name their mode, PayPal's events read as PayPal's
+ *     form lists them, and the key's access names Stripe's form and group.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -26,7 +30,7 @@ import { PageActionsProvider, PageActionsSlot } from '../../shell/PageActionsPro
 import { jsonResponse } from '../../test/fixtures.js';
 
 import { PaymentsPage } from './PaymentsPage.js';
-import { REACHABILITY_STATES, type ModeView, type PaymentsSetup, type ReachabilityState, type ServiceView } from './paymentsApi.js';
+import { NO_RULES, REACHABILITY_STATES, type ModeView, type PaymentsSetup, type ReachabilityState, type ServiceView, type WayView } from './paymentsApi.js';
 
 function mode(over: Partial<ModeView> = {}): ModeView {
   return {
@@ -85,7 +89,7 @@ interface Call {
   body: unknown;
 }
 
-function stub(data: PaymentsSetup, save?: { status: number; body: unknown }): Call[] {
+function stub(data: PaymentsSetup, save?: { status: number; body: unknown }, ways: WayView[] = []): Call[] {
   const calls: Call[] = [];
   vi.stubGlobal(
     'fetch',
@@ -94,6 +98,9 @@ function stub(data: PaymentsSetup, save?: { status: number; body: unknown }): Ca
       const method = init?.method ?? 'GET';
       calls.push({ method, url, body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown) });
       if (url === '/api/v1/payments/setup') return Promise.resolve(jsonResponse(200, { data }));
+      if (url === '/api/v1/payments/ways' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: { ways, manualMethods: [] } }));
+      if (url === '/api/v1/payments/ways/preview') return Promise.resolve(jsonResponse(200, { data: [] }));
+      if (url.endsWith('/methods')) return Promise.resolve(jsonResponse(200, { data: { mode: 'test', methods: [] } }));
       if (save !== undefined) return Promise.resolve(jsonResponse(save.status, save.body));
       return Promise.resolve(jsonResponse(200, { data: data.services[0] }));
     }),
@@ -101,8 +108,8 @@ function stub(data: PaymentsSetup, save?: { status: number; body: unknown }): Ca
   return calls;
 }
 
-function renderPage(data: PaymentsSetup, save?: { status: number; body: unknown }) {
-  const calls = stub(data, save);
+function renderPage(data: PaymentsSetup, save?: { status: number; body: unknown }, ways: WayView[] = []) {
+  const calls = stub(data, save, ways);
   render(
     <QueryClientProvider client={createQueryClient()}>
       <PageActionsProvider>
@@ -133,11 +140,25 @@ describe('PaymentsPage', () => {
   afterEach(() => vi.unstubAllGlobals());
   afterAll(() => vi.unstubAllGlobals());
 
-  it.each(REACHABILITY_STATES.filter((state) => state !== 'reachable'))('says what %s means and folds the services', async (state) => {
+  it.each(REACHABILITY_STATES.filter((state) => state !== 'reachable'))('says what %s means, and keeps each service card whole under one line saying to fix the address first', async (state) => {
     renderPage(setup({ reachability: { state, origin: state === 'not-set' ? null : 'http://192.168.1.20:4600', notPort443: false } }));
     expect(textOf(await screen.findByTestId('payments-reach-problem'))).toContain(SENTENCES[state as Exclude<ReachabilityState, 'reachable'>]);
-    expect(textOf(screen.getByTestId('payments-service-payments-stripe-first'))).toContain('Set this up first.');
-    expect(screen.queryByTestId('payments-payments-stripe-test')).toBeNull();
+    const card = screen.getByTestId('payments-service-payments-stripe');
+    const first = screen.getByTestId('payments-service-payments-stripe-first');
+    expect(textOf(first)).toBe('Fix the address above first: online payments stay off until then.');
+    // The line comes first in the card's body; the checklist, the key's path and both modes stay.
+    const body = first.parentElement!;
+    expect(body.firstElementChild).toBe(first);
+    expect(within(card).getByTestId('payments-service-payments-stripe-progress')).toBeTruthy();
+    expect(within(card).getByTestId('payments-payments-stripe-path')).toBeTruthy();
+    expect(within(card).getByTestId('payments-payments-stripe-test')).toBeTruthy();
+    expect(within(card).getByTestId('payments-payments-stripe-live')).toBeTruthy();
+  });
+
+  it('says nothing about the address on a card while customers can reach the server', async () => {
+    renderPage(setup());
+    await screen.findByTestId('payments-service-payments-stripe');
+    expect(screen.queryByTestId('payments-service-payments-stripe-first')).toBeNull();
   });
 
   it('names the variable the operator sets, for network features and the proxy', async () => {
@@ -215,6 +236,86 @@ describe('PaymentsPage', () => {
     expect(textOf(screen.getByTestId('payments-payments-stripe-live-log'))).toContain('No live event has arrived yet.');
   });
 
+  it('names each webhook card by its mode, and the address with it', async () => {
+    renderPage(setup());
+    const test = await screen.findByTestId('payments-payments-stripe-test-webhook');
+    const live = screen.getByTestId('payments-payments-stripe-live-webhook');
+    expect(within(test).getByRole('heading', { name: 'Test webhook (Stripe calls it a webhook endpoint)' })).toBeTruthy();
+    expect(within(live).getByRole('heading', { name: 'Live webhook (Stripe calls it a webhook endpoint)' })).toBeTruthy();
+    expect(within(test).getByText('Test webhook address')).toBeTruthy();
+    expect(within(live).getByText('Live webhook address')).toBeTruthy();
+    expect(within(test).queryByText('Live webhook address')).toBeNull();
+  });
+
+  it('names PayPal webhook cards Sandbox and Live, and each event as PayPal lists it with its code beside', async () => {
+    const paypal = stripe({
+      key: 'payments-paypal',
+      name: 'Wallet payments',
+      hasPaths: false,
+      webhookEvents: ['CHECKOUT.ORDER.APPROVED', 'PAYMENT.CAPTURE.DENIED'],
+      test: mode({ fields: [{ key: 'webhook_id', label: null, help: null, webhook: true, set: false, hint: null, setAt: null }], webhookUrl: 'https://admin.crumbandco.de/api/v1/payments/webhook/payments-paypal/test' }),
+      live: mode({ fields: [{ key: 'webhook_id', label: null, help: null, webhook: true, set: false, hint: null, setAt: null }], webhookUrl: 'https://admin.crumbandco.de/api/v1/payments/webhook/payments-paypal/live' }),
+    });
+    renderPage(setup({ services: [paypal] }));
+    const test = await screen.findByTestId('payments-payments-paypal-test-webhook');
+    expect(within(test).getByRole('heading', { name: 'Sandbox webhook' })).toBeTruthy();
+    expect(within(test).getByText('Sandbox webhook address')).toBeTruthy();
+    expect(within(screen.getByTestId('payments-payments-paypal-live-webhook')).getByRole('heading', { name: 'Live webhook' })).toBeTruthy();
+    const denied = within(test).getByTestId('payments-event-PAYMENT.CAPTURE.DENIED');
+    expect(within(denied).getByText('Payment capture denied')).toBeTruthy();
+    expect(within(denied).getByText('PAYMENT.CAPTURE.DENIED')).toBeTruthy();
+    expect(within(test).getByText('Checkout order approved')).toBeTruthy();
+    // The copy button copies the code PayPal's API names, not the name.
+    expect(within(denied).getByRole('button', { name: 'Copy PAYMENT.CAPTURE.DENIED' })).toBeTruthy();
+  });
+
+  it('lists Stripe events by their codes alone, as the Stripe form does', async () => {
+    renderPage(setup());
+    const event = await screen.findAllByTestId('payments-event-checkout.session.completed');
+    expect(textOf(event[0]!)).toBe('checkout.session.completedCopy');
+  });
+
+  it('gives the Stripe App steps from the CLI to the key, with each command as code', async () => {
+    renderPage(setup({ services: [stripe({ path: 'app' })] }));
+    const guide = await screen.findByTestId('payments-payments-stripe-guide');
+    const steps = within(guide)
+      .getAllByRole('listitem')
+      .map((item) => textOf(item));
+    expect(steps).toEqual([
+      'Install Node.js 22 or later',
+      'Install the Stripe CLI',
+      'stripe login',
+      'stripe plugin install apps',
+      'Run stripe apps create key-app and answer its questions with anything',
+      'Copy stripe-app.json from the template you downloaded into the key-app folder, replacing the one there',
+      'Run cd key-app, then stripe apps upload',
+      'Install the app in the Stripe dashboard, open View API keys and copy the key that starts with rk_test_',
+    ]);
+    const codes = [...guide.querySelectorAll('code')].map((code) => code.textContent);
+    expect(codes).toEqual(['stripe login', 'stripe plugin install apps', 'stripe apps create key-app', 'stripe-app.json', 'key-app', 'cd key-app', 'stripe apps upload', 'rk_test_']);
+  });
+
+  it('names each access as the Stripe form does, and where in the form it sits', async () => {
+    renderPage(setup());
+    const path = await screen.findByTestId('payments-payments-stripe-path');
+    expect(within(path).getByRole('columnheader', { name: 'Where in Stripe' })).toBeTruthy();
+    const rows = within(path)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell').slice(0, 2).map((cell) => textOf(cell)));
+    expect(rows).toEqual([
+      ['Checkout Sessions: write', 'Checkout Sessions'],
+      ['Checkout Sessions: read', 'Checkout Sessions'],
+      ['Payment Intents: read', 'Core'],
+      ['Charges and Refunds: write', 'Core'],
+      ['Events: read', 'Core'],
+      ['Payment Disputes: read', 'Core'],
+      ['Payment Method Configurations: read', 'Core'],
+      ['Accounts: read', 'Connect → “In your account: Read”'],
+      ['Webhook Endpoints, Event Destinations: read (optional)', 'Webhook endpoints'],
+    ]);
+  });
+
   it('chooses how the key is made with real radio inputs, and shows the access it needs', async () => {
     const { user, calls } = renderPage(setup());
     const path = await screen.findByTestId('payments-payments-stripe-path');
@@ -259,6 +360,23 @@ describe('PaymentsPage', () => {
     expect(textOf(account)).toContain('Ava Reyes');
     expect(textOf(account)).toContain('Everyone who manages payments was emailed.');
     expect(textOf(screen.getByTestId('payments-alarm-pay-address'))).toContain('Update the webhook address at Stripe and PayPal.');
+  });
+
+  it('lets a person say "Got it" to an alarm, which hides it for them', async () => {
+    const at = Date.now() - 3_600_000;
+    const { user, calls } = renderPage(
+      setup({
+        alarms: [
+          { id: 'aud_bank1', what: 'bank', service: null, from: null, to: null, by: 'Ava Reyes', at },
+          // From a server one step behind: no id, so nothing to dismiss it by.
+          { what: 'account', service: 'payments-stripe', from: 'acct_1Old', to: 'acct_1New', by: 'Ava Reyes', at },
+        ],
+      }),
+    );
+    const bank = await screen.findByTestId('payments-alarm-bank');
+    expect(within(screen.getByTestId('payments-alarm-account')).queryByRole('button', { name: 'Got it' })).toBeNull();
+    await user.click(within(bank).getByRole('button', { name: 'Got it' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'POST' && call.url === '/api/v1/payments/alarms/aud_bank1/dismiss')).toBe(true));
   });
 
   it('reads the webhook health: bad signatures, a payment no webhook announced, and slowed checks', async () => {
@@ -360,4 +478,22 @@ describe('PaymentsPage', () => {
     expect(textOf(shown)).toContain('Nothing was written to your tables.');
     open.mockRestore();
   }, 15_000);
+
+  const way = (over: Partial<WayView>): WayView => ({ source: 'payments-stripe', method: 'card', label: null, enabled: true, rules: NO_RULES, details: null, position: 0, ...over });
+
+  it('says by the test payment that customers see the service only once a way of it is on, and opens Ways to pay', async () => {
+    const checked = mode({ check: { at: 1, ok: true, code: null, message: null, missing: [] } });
+    const { user } = renderPage(setup({ services: [stripe({ test: checked })] }), undefined, [way({ enabled: false }), way({ source: 'payments-paypal', method: 'paypal' })]);
+    const note = await screen.findByTestId('payments-payments-stripe-no-way');
+    expect(within(note).getByText('Customers see this service only once a way is switched on in Ways to pay.')).toBeTruthy();
+    await user.click(within(note).getByRole('button', { name: 'Open Ways to pay' }));
+    expect(screen.getByRole('tab', { name: 'Ways to pay' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('says nothing more by the test payment once a way of the service is switched on', async () => {
+    const checked = mode({ check: { at: 1, ok: true, code: null, message: null, missing: [] } });
+    renderPage(setup({ services: [stripe({ test: checked })] }), undefined, [way({})]);
+    await screen.findByTestId('payments-payments-stripe-test-send');
+    await waitFor(() => expect(screen.queryByTestId('payments-payments-stripe-no-way')).toBeNull());
+  });
 });

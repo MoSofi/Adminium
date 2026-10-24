@@ -123,7 +123,10 @@ describe('payments activity', () => {
     const row = async () => (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(owner) })).json().data.rows.find((one: { id: string }) => one.id === id);
     expect(await row()).toMatchObject({ group: 'paid', flag: null, dispute: null, refund: { refundable: '120.00', refusal: null } });
     await repo.noteDispute(id, 'open', 5000);
-    expect(await row()).toMatchObject({ group: 'disputed', flag: { code: 'disputed' }, check: null, dispute: { state: 'open', at: 5000 }, refund: { refundable: '120.00', refusal: { code: 'DISPUTED' } } });
+    expect(await row()).toMatchObject({ group: 'disputed', flag: { code: 'disputed' }, check: null, dispute: { state: 'open', at: 5000, outcome: null }, refund: { refundable: '120.00', refusal: { code: 'DISPUTED' } } });
+    // Needs a look since the dispute opened, not since the payment started.
+    expect((await row()).lookAt).toBe(5000);
+    expect((await row()).lookAt).not.toBe((await row()).at);
     const disputed = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?state=disputed', headers: as(owner) })).json().data.rows;
     expect(disputed.map((one: { id: string }) => one.id)).toEqual([id]);
     expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity?state=paid', headers: as(owner) })).json().data.rows.map((one: { id: string }) => one.id)).not.toContain(id);
@@ -136,6 +139,19 @@ describe('payments activity', () => {
     await repo.noteDispute(id, 'open', Date.now() + 2000);
     expect(await row()).toMatchObject({ group: 'disputed', flag: { code: 'disputed' }, check: null });
     expect((await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows.map((one: { id: string }) => one.id)).toEqual([id]);
+  });
+
+  it('flags a lost dispute as a refund of its own, dated by itself, and shows how the dispute ended', async () => {
+    const id = await attempt(['open', 'succeeded', 'recording', 'recorded'], { takenAmount: '120.00', takenCurrency: 'EUR', paymentRef: 'pi_lost' });
+    const repo = paymentAttemptsRepo(meta);
+    await repo.noteDispute(id, 'open', 5000);
+    await repo.noteDispute(id, 'closed', 9000, false, 'lost');
+    const made = await refundsRepo(meta).create({ attemptId: id, paymentId: null, provider: 'payments-stripe', mode: 'live', paymentRef: 'pi_lost', amount: '120.00', currency: 'EUR', reason: 'other', note: null, idempotencyKey: `dispute:${id}:5000`, source: 'dispute', requestedBy: null, state: 'succeeded' }, 9500);
+    const rows = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity', headers: as(owner) })).json().data.rows as { id: string; lookAt: number; flag: unknown; refundSource: string | null; dispute: unknown }[];
+    expect(rows.find((one) => one.id === made.refund.id)).toMatchObject({ flag: { code: 'dispute-lost' }, refundSource: 'dispute', lookAt: 9500 });
+    expect(rows.find((one) => one.id === id)).toMatchObject({ flag: null, dispute: { state: 'closed', outcome: 'lost', closedAt: 9000 } });
+    const open = (await app.inject({ method: 'GET', url: '/api/v1/payments/activity?open=1', headers: as(owner) })).json().data.rows.map((one: { id: string }) => one.id);
+    expect(open).toEqual([made.refund.id]);
   });
 
   it('pages on the time and the id, so rows made in the same millisecond are never skipped', async () => {

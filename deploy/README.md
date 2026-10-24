@@ -53,22 +53,24 @@ Six invariants hold on every platform:
   covers the private address each edge connects from, including Fly's `fdaa::/16`
   — and never set that list while trust is off, which stops the boot on purpose.
   → [Behind a reverse proxy](https://docs.adminium.dev/self-hosting/reverse-proxy/)
-- **512 MB is enough on all four of these, and that is a fact about them rather
-  than about Adminium.** The size you pick here is the limit on **your container**:
-  the platform's orchestrator, its container runtime and its TLS edge run outside
-  it and are not charged to you. Adminium is about 165 MB idle and about 220 MB
-  during a first boot — 37 meta migrations, introspection and page generation in
-  one pass. So the sizes in these files are deliberately the small ones.
+- **1 GB on all four of these.** The size you pick here is the limit on **your
+  container**: the platform's orchestrator, its container runtime and its TLS edge
+  run outside it and are not charged to you. Adminium holds about 245 MB of
+  JavaScript heap from the moment it boots, and the image gives Node a 512 MB heap
+  ceiling (`NODE_OPTIONS=--max-old-space-size=512`); 1 GB backs that with room for
+  the rest of the process. **512 MB is not enough:** Node then picks a heap
+  ceiling near 256 MB on its own, which a few hours of use fill, and none of these
+  instances has swap. Render has no 1 GB plan, so its file asks for `standard`
+  (2 GB).
 
-  **The 1 GB the docs ask for is for a machine you run yourself.** On a VPS with
+  **The 2 GB the docs ask for is for a machine you run yourself.** On a VPS with
   Compose, `dockerd`, `containerd`, a Caddy container and the distribution's own
-  daemons all come out of the same memory as the server, which is where 512 MB
-  stops working — see [A VPS without Docker](https://docs.adminium.dev/self-hosting/vps/).
+  daemons all come out of the same memory as the server — see
+  [A VPS without Docker](https://docs.adminium.dev/self-hosting/vps/). 1 GB with
+  swap turned on also works there.
 
-  Two reasons to pick a bigger size anyway: a **large schema**, because the first
-  boot's cost scales with table and column count rather than row count, and the
-  fact that **Node takes its heap ceiling from the memory limit it can see**, so a
-  512 MB container caps the old space near 256 MB. None of these instances has swap.
+  Pick a bigger size for a **large schema**: the first boot's cost scales with
+  table and column count rather than row count.
 
 ## Railway
 

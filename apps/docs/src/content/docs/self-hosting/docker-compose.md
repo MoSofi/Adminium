@@ -75,6 +75,20 @@ Adminium reads more variables than the compose file passes through — logging,
 proxy trust, CORS, telemetry. Add them to the `environment:` block as needed:
 [Environment variables](/self-hosting/env-vars/).
 
+:::caution[Your own `NODE_OPTIONS` replaces the image's]
+The image sets `NODE_OPTIONS=--max-old-space-size=512`, the heap ceiling the
+server needs (it holds about 245 MB from boot). A `NODE_OPTIONS` in the
+`environment:` block **replaces** that value rather than adding to it, so keep
+the heap size in it:
+
+```yaml
+environment:
+  NODE_OPTIONS: --max-old-space-size=512 --enable-source-maps
+```
+
+Give the container the memory behind it: [Requirements](/self-hosting/#requirements).
+:::
+
 :::note[Your source database is `ADMINIUM_SOURCE_URL`]
 Set it and the first boot connects that database, introspects it, and generates
 the pages; leave it unset and you connect it in the first-run wizard. It runs

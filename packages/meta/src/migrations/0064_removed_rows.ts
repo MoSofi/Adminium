@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0063 — the rows a table keeps of its removed rows.
+ * Wave 0064 — the rows a table keeps of its removed rows.
  *
  * A table that says `removal: { history: true }` keeps a removed row readable
  * through a row it linked to that the reader reads now (a deal's removed

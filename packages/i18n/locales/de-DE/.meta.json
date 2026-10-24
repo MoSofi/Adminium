@@ -19599,6 +19599,10 @@
     "status": "mt",
     "srcHash": "6e684ae688ee"
   },
+  "pay.failed.otherWay": {
+    "status": "mt",
+    "srcHash": "615330c59ca7"
+  },
   "pay.failed.retry": {
     "status": "mt",
     "srcHash": "042c862e4467"
@@ -19855,6 +19859,10 @@
     "status": "mt",
     "srcHash": "58293560f293"
   },
+  "pay.ways.staffNoWay": {
+    "status": "mt",
+    "srcHash": "0e07caa9083e"
+  },
   "pay.ways.stripe": {
     "status": "mt",
     "srcHash": "2397a7bff4e1"
@@ -19875,9 +19883,25 @@
     "status": "mt",
     "srcHash": "0b4f89bee3d3"
   },
+  "payments.notice.dispute.lostBody": {
+    "status": "mt",
+    "srcHash": "5da0db6c0217"
+  },
+  "payments.notice.dispute.lostTitle": {
+    "status": "mt",
+    "srcHash": "74e381179adc"
+  },
+  "payments.notice.dispute.lostTitleTest": {
+    "status": "mt",
+    "srcHash": "e1f5398e975b"
+  },
   "payments.notice.dispute.title": {
     "status": "mt",
     "srcHash": "dc478969836e"
+  },
+  "payments.notice.dispute.titleTest": {
+    "status": "mt",
+    "srcHash": "88d2a477813c"
   },
   "payments.notice.key.body": {
     "status": "mt",
@@ -19935,6 +19959,10 @@
     "status": "mt",
     "srcHash": "91de330dd0a0"
   },
+  "payments.notice.look.titleTest": {
+    "status": "mt",
+    "srcHash": "17f6b6aacc39"
+  },
   "payments.notice.look.twice": {
     "status": "mt",
     "srcHash": "b468c9cfa928"
@@ -19982,6 +20010,10 @@
   "payments.notice.refundFailed.title": {
     "status": "mt",
     "srcHash": "901ba670fa6e"
+  },
+  "payments.notice.refundFailed.titleTest": {
+    "status": "mt",
+    "srcHash": "615a3503a453"
   },
   "payments.notice.webhook.body": {
     "status": "mt",
@@ -20039,9 +20071,21 @@
     "status": "mt",
     "srcHash": "a64d7fde6b79"
   },
+  "payments.panel.disputeLost": {
+    "status": "mt",
+    "srcHash": "3848cba3fab3"
+  },
+  "payments.panel.disputeLostPlain": {
+    "status": "mt",
+    "srcHash": "21d076870e52"
+  },
   "payments.panel.disputeNote": {
     "status": "mt",
     "srcHash": "31facbfd7898"
+  },
+  "payments.panel.disputeWon": {
+    "status": "mt",
+    "srcHash": "271f7b8b8bdb"
   },
   "payments.panel.disputed": {
     "status": "mt",
@@ -20074,6 +20118,10 @@
   "payments.panel.notice.draft": {
     "status": "mt",
     "srcHash": "d11c73b67b85"
+  },
+  "payments.panel.notice.noAddress": {
+    "status": "mt",
+    "srcHash": "71b14618532e"
   },
   "payments.panel.notice.noCurrency": {
     "status": "mt",
@@ -20111,6 +20159,10 @@
     "status": "mt",
     "srcHash": "07d99be716df"
   },
+  "payments.panel.partlyRefunded": {
+    "status": "mt",
+    "srcHash": "35e32291b453"
+  },
   "payments.panel.record": {
     "status": "mt",
     "srcHash": "23767955de35"
@@ -20119,41 +20171,57 @@
     "status": "mt",
     "srcHash": "e9a5a2fcd01d"
   },
-  "payments.panel.refundCancelled": {
+  "payments.panel.refund.cancelled": {
     "status": "mt",
-    "srcHash": "5b78e4205940"
+    "srcHash": "a6288a7bbd70"
   },
-  "payments.panel.refundFailed": {
+  "payments.panel.refund.dispute": {
     "status": "mt",
-    "srcHash": "8be00beac5f0"
+    "srcHash": "7edd007321cf"
   },
-  "payments.panel.refundFailedPlain": {
+  "payments.panel.refund.disputeWon": {
     "status": "mt",
-    "srcHash": "642c40ddf66e"
+    "srcHash": "fff1003ec250"
   },
-  "payments.panel.refundRequested": {
+  "payments.panel.refund.done": {
     "status": "mt",
-    "srcHash": "725ea00b82ae"
+    "srcHash": "e9b450d14bc2"
   },
-  "payments.panel.refundWaitingCustomer": {
+  "payments.panel.refund.failed": {
     "status": "mt",
-    "srcHash": "da2cd66a432d"
+    "srcHash": "09fef5d8d9a3"
+  },
+  "payments.panel.refund.failedNext": {
+    "status": "mt",
+    "srcHash": "bc4c8e37cd8c"
+  },
+  "payments.panel.refund.provider": {
+    "status": "mt",
+    "srcHash": "170433041463"
+  },
+  "payments.panel.refund.requested": {
+    "status": "mt",
+    "srcHash": "c26bf60fed37"
+  },
+  "payments.panel.refund.staff": {
+    "status": "mt",
+    "srcHash": "47f1373ec041"
+  },
+  "payments.panel.refund.undone": {
+    "status": "mt",
+    "srcHash": "b528b0fe2e94"
+  },
+  "payments.panel.refund.waitingCustomer": {
+    "status": "mt",
+    "srcHash": "74b4c4a45034"
+  },
+  "payments.panel.refund.written": {
+    "status": "mt",
+    "srcHash": "098b6974f713"
   },
   "payments.panel.refunded": {
     "status": "mt",
     "srcHash": "d6fbc7a82d1c"
-  },
-  "payments.panel.refundedInline": {
-    "status": "mt",
-    "srcHash": "3818da3b0bb5"
-  },
-  "payments.panel.refundedOnInline": {
-    "status": "mt",
-    "srcHash": "ba0edcfcdf6d"
-  },
-  "payments.panel.refundedThere": {
-    "status": "mt",
-    "srcHash": "939fc497a6b1"
   },
   "payments.panel.revoke": {
     "status": "mt",
@@ -29683,6 +29751,10 @@
     "status": "mt",
     "srcHash": "0fcb6db36c8a"
   },
+  "studio.payments.access.optional": {
+    "status": "src",
+    "srcHash": "b16c7ac6faff"
+  },
   "studio.payments.access.refundsWrite": {
     "status": "mt",
     "srcHash": "33ed8deb6387"
@@ -29698,6 +29770,10 @@
   "studio.payments.access.webhooksRead": {
     "status": "mt",
     "srcHash": "1afab1485950"
+  },
+  "studio.payments.access.where": {
+    "status": "mt",
+    "srcHash": "acb1dff2d20b"
   },
   "studio.payments.access.why": {
     "status": "mt",
@@ -29838,6 +29914,10 @@
   "studio.payments.activity.flag.amountDiffersRecord": {
     "status": "mt",
     "srcHash": "ba4b92578d03"
+  },
+  "studio.payments.activity.flag.disputeLost": {
+    "status": "mt",
+    "srcHash": "59396229f3e5"
   },
   "studio.payments.activity.flag.disputed": {
     "status": "mt",
@@ -30063,6 +30143,14 @@
     "status": "mt",
     "srcHash": "782cee708f92"
   },
+  "studio.payments.activity.story.disputeLost": {
+    "status": "mt",
+    "srcHash": "2ee42aa1229d"
+  },
+  "studio.payments.activity.story.disputeWon": {
+    "status": "mt",
+    "srcHash": "271f7b8b8bdb"
+  },
   "studio.payments.activity.story.disputed": {
     "status": "mt",
     "srcHash": "ca860f4c8a5c"
@@ -30106,6 +30194,14 @@
   "studio.payments.activity.story.refundApplied": {
     "status": "mt",
     "srcHash": "5dcd26339c7c"
+  },
+  "studio.payments.activity.story.refundDispute": {
+    "status": "mt",
+    "srcHash": "7edd007321cf"
+  },
+  "studio.payments.activity.story.refundDisputeWon": {
+    "status": "mt",
+    "srcHash": "fff1003ec250"
   },
   "studio.payments.activity.story.refundFailed": {
     "status": "mt",
@@ -30218,6 +30314,10 @@
   "studio.payments.alarm.emailed": {
     "status": "mt",
     "srcHash": "c9e8399a144f"
+  },
+  "studio.payments.alarm.gotIt": {
+    "status": "mt",
+    "srcHash": "5b8027fa0e81"
   },
   "studio.payments.alarm.heading": {
     "status": "mt",
@@ -30619,6 +30719,14 @@
     "status": "mt",
     "srcHash": "b79dc09a53c0"
   },
+  "studio.payments.path.app.copy": {
+    "status": "mt",
+    "srcHash": "6bac6916810c"
+  },
+  "studio.payments.path.app.create": {
+    "status": "mt",
+    "srcHash": "fe3afef0625f"
+  },
   "studio.payments.path.app.desc": {
     "status": "mt",
     "srcHash": "45993f55db18"
@@ -30626,6 +30734,10 @@
   "studio.payments.path.app.download": {
     "status": "mt",
     "srcHash": "9fee289e1f0f"
+  },
+  "studio.payments.path.app.install": {
+    "status": "mt",
+    "srcHash": "46a5ec6f40a9"
   },
   "studio.payments.path.app.note": {
     "status": "mt",
@@ -30639,17 +30751,13 @@
     "status": "mt",
     "srcHash": "6cdc585d6720"
   },
-  "studio.payments.path.app.step5": {
-    "status": "mt",
-    "srcHash": "d8ee7d393f67"
-  },
-  "studio.payments.path.app.step7": {
-    "status": "mt",
-    "srcHash": "930d3b56ade0"
-  },
   "studio.payments.path.app.title": {
     "status": "mt",
     "srcHash": "fbc5ad16dcb8"
+  },
+  "studio.payments.path.app.upload": {
+    "status": "mt",
+    "srcHash": "87007d17f052"
   },
   "studio.payments.path.hand.desc": {
     "status": "mt",
@@ -30979,6 +31087,10 @@
     "status": "mt",
     "srcHash": "4600cd0fc06e"
   },
+  "studio.payments.payables.previewIncomplete": {
+    "status": "mt",
+    "srcHash": "65fa4a30a79e"
+  },
   "studio.payments.payables.previewOf": {
     "status": "mt",
     "srcHash": "7e5aef99bfa5"
@@ -31006,6 +31118,10 @@
   "studio.payments.payables.statusColumn": {
     "status": "mt",
     "srcHash": "1e3d45e80c59"
+  },
+  "studio.payments.payables.statusNoValues": {
+    "status": "mt",
+    "srcHash": "2afb40eb2ef9"
   },
   "studio.payments.payables.statusPaid": {
     "status": "mt",
@@ -31267,9 +31383,9 @@
     "status": "mt",
     "srcHash": "4af2da0946d8"
   },
-  "studio.payments.service.first": {
+  "studio.payments.service.fixAddressFirst": {
     "status": "mt",
-    "srcHash": "033d66a732fc"
+    "srcHash": "4f8207817666"
   },
   "studio.payments.service.notLoaded": {
     "status": "mt",
@@ -31383,6 +31499,10 @@
     "status": "mt",
     "srcHash": "4c2f585e77e1"
   },
+  "studio.payments.test.noWay": {
+    "status": "mt",
+    "srcHash": "cba3630d8f13"
+  },
   "studio.payments.test.noWebhook": {
     "status": "mt",
     "srcHash": "7a7e45ea7c6d"
@@ -31390,6 +31510,10 @@
   "studio.payments.test.nothingWritten": {
     "status": "mt",
     "srcHash": "791ca8a1ced3"
+  },
+  "studio.payments.test.openWays": {
+    "status": "mt",
+    "srcHash": "cffdb0efde0c"
   },
   "studio.payments.test.send": {
     "status": "mt",
@@ -31431,6 +31555,10 @@
     "status": "mt",
     "srcHash": "6a2e86b32903"
   },
+  "studio.payments.way.acssDebit": {
+    "status": "mt",
+    "srcHash": "4abc3681a714"
+  },
   "studio.payments.way.bankTransfer": {
     "status": "mt",
     "srcHash": "ff1d79c5055b"
@@ -31443,6 +31571,14 @@
     "status": "mt",
     "srcHash": "eda24c6958d5"
   },
+  "studio.payments.way.crypto": {
+    "status": "mt",
+    "srcHash": "e849494484ed"
+  },
+  "studio.payments.way.krCard": {
+    "status": "mt",
+    "srcHash": "6d76c7b04ea3"
+  },
   "studio.payments.way.other": {
     "status": "mt",
     "srcHash": "cdf741044c9f"
@@ -31450,6 +31586,10 @@
   "studio.payments.way.sepa": {
     "status": "mt",
     "srcHash": "740b177dcd21"
+  },
+  "studio.payments.way.stripeTransfer": {
+    "status": "mt",
+    "srcHash": "0817d2dc08db"
   },
   "studio.payments.ways.accountNumber": {
     "status": "mt",
@@ -31759,9 +31899,17 @@
     "status": "mt",
     "srcHash": "fc86786c728a"
   },
-  "studio.payments.webhook.address": {
+  "studio.payments.webhook.addressLive": {
     "status": "mt",
-    "srcHash": "d70f93df5e8f"
+    "srcHash": "1e3fc058eb4b"
+  },
+  "studio.payments.webhook.addressSandbox": {
+    "status": "mt",
+    "srcHash": "4d27a335b9ef"
+  },
+  "studio.payments.webhook.addressTest": {
+    "status": "mt",
+    "srcHash": "06d3974b41d5"
   },
   "studio.payments.webhook.arrived": {
     "status": "mt",
@@ -31791,13 +31939,25 @@
     "status": "mt",
     "srcHash": "b24b9a751c10"
   },
-  "studio.payments.webhook.heading": {
-    "status": "src",
-    "srcHash": "3ac2826f1733"
-  },
-  "studio.payments.webhook.headingStripe": {
+  "studio.payments.webhook.headingLive": {
     "status": "mt",
-    "srcHash": "ea1045f930c7"
+    "srcHash": "d929fd8772c6"
+  },
+  "studio.payments.webhook.headingLiveStripe": {
+    "status": "mt",
+    "srcHash": "cef9c3023a8a"
+  },
+  "studio.payments.webhook.headingSandbox": {
+    "status": "mt",
+    "srcHash": "36bc381033c3"
+  },
+  "studio.payments.webhook.headingTest": {
+    "status": "mt",
+    "srcHash": "01c8ad4af849"
+  },
+  "studio.payments.webhook.headingTestStripe": {
+    "status": "mt",
+    "srcHash": "aec149332082"
   },
   "studio.payments.webhook.last": {
     "status": "mt",
@@ -32483,9 +32643,21 @@
     "status": "mt",
     "srcHash": "7b2ddb0fecaa"
   },
+  "studio.remap.rules.bounds.notAfterColumn": {
+    "status": "mt",
+    "srcHash": "5c098590c0e9"
+  },
+  "studio.remap.rules.bounds.notAfterDays": {
+    "status": "mt",
+    "srcHash": "87a7c6bc9867"
+  },
   "studio.remap.rules.bounds.notBefore": {
     "status": "mt",
     "srcHash": "7a34a4b811c0"
+  },
+  "studio.remap.rules.bounds.notBeforeNow": {
+    "status": "mt",
+    "srcHash": "4b828bf46c72"
   },
   "studio.remap.rules.decided.code": {
     "status": "mt",

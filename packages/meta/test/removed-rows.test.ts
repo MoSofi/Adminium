@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The removed rows a table keeps (wave 0063), on every available dialect: one
+ * The removed rows a table keeps (wave 0064), on every available dialect: one
  * row per removal and per link that named a row, found under the parent a
  * link named, newest first and paged; taken off by an undo under every
  * parent; swept with the audit log. And the two rule payloads the store

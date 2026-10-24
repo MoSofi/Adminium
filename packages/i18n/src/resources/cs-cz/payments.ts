@@ -24,11 +24,11 @@ export default {
     "waitingPlain": "Online platba zahájena {date} · čeká na banku",
     "recordedBy": "zaznamenal(a) {name}",
     "online": "Online platba ({service})",
-    "refundedInline": "vráceno {amount}",
     "listLabel": "Platby k tomuto záznamu",
     "notice": {
       "draft": "Nejdřív fakturu odešlete. Platbu lze zaznamenat jen k odeslané faktuře.",
       "private": "Zákazníci se k tomuto serveru nedostanou, proto jsou platební odkazy vypnuté. Platby můžete dál zaznamenávat.",
+      "noAddress": "Tento server zatím nemá veřejnou adresu, proto jsou platební odkazy vypnuté. Nastavte ji jako „Adresa v odkazech v e-mailech“ v části Odesílatelé. Platby můžete dál zaznamenávat.",
       "update": "Tato tabulka faktur potřebuje aktualizaci své aplikace, aby přijímala online platby.",
       "voided": "Tato faktura byla stornována. Žádnou platbu nelze přijmout.",
       "noCurrency": "Tento záznam nemá měnu, proto nelze zaznamenat žádnou platbu.",
@@ -69,15 +69,26 @@ export default {
     "disputeLine": "Spor — odpovězte v ovládacím panelu {service}",
     "disputeNote": "Pokud se spor prohraje, peníze se vrátí zákazníkovi. Faktura se tím sama nezmění.",
     "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
-    "refundRequested": "Vrácení {amount} vyžádáno",
-    "refundWaitingCustomer": "Vrácení {amount} čeká na zákazníka",
-    "refundFailed": "Vrácení {amount} se nezdařilo: {reason}. Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
-    "refundFailedPlain": "Vrácení {amount} se nezdařilo. Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
-    "refundCancelled": "Vrácení {amount} bylo zrušeno.",
-    "refundedOnInline": "vráceno {amount} dne {date}",
-    "refundedThere": "Vrácení {amount} provedené v ovládacím panelu {service} dne {date} · zaznamenáno",
     "needsLook": "Ke kontrole",
-    "demoService": "ukázková služba"
+    "demoService": "ukázková služba",
+    "refund": {
+      "dispute": "Spor prohrán — {amount} se vrátilo zákazníkovi",
+      "provider": "Vrácení {amount} provedené v ovládacím panelu {service}",
+      "staff": "Vrácení {amount} provedené v aplikaci Adminium",
+      "done": "Hotovo",
+      "waitingCustomer": "Čeká na zákazníka",
+      "failed": "Nezdařilo se",
+      "failedNext": "Spojte se se zákazníkem a zaznamenejte, na čem se dohodnete.",
+      "cancelled": "Zrušeno: nic nebylo vráceno",
+      "requested": "Vyžádáno",
+      "written": "Vrácení {amount}",
+      "disputeWon": "Spor vyhrán — {amount} se vrátilo",
+      "undone": "Vráceno zpět"
+    },
+    "partlyRefunded": "Částečně vráceno",
+    "disputeWon": "Spor byl vyhrán.",
+    "disputeLost": "Spor byl prohrán. {amount} se vrátilo zákazníkovi.",
+    "disputeLostPlain": "Spor byl prohrán. Peníze se vrátily zákazníkovi."
   },
   "record": {
     "title": "Zaznamenat platbu",
@@ -117,6 +128,7 @@ export default {
     },
     "look": {
       "title": "Platba potřebuje kontrolu",
+      "titleTest": "Testovací platba potřebuje kontrolu",
       "notRecorded": "Zaplaceno přes {provider}, nezaznamenáno: {label}",
       "notYet": "Zaplaceno přes {provider}, zatím nezaznamenáno: {label}",
       "amount": "Zaplaceno přes {provider}, ale ne požadovaná částka: {label}",
@@ -153,12 +165,17 @@ export default {
     },
     "refundFailed": {
       "title": "Vrácení peněz selhalo",
+      "titleTest": "Testovací vrácení peněz selhalo",
       "body": "{amount} na {paidWith}"
     },
     "dispute": {
       "title": "Otevřen spor",
+      "titleTest": "Otevřen testovací spor",
       "body": "{label} · odpovězte do {date}",
-      "bodyNoDate": "{label} · odpovězte v ovládacím panelu {provider}"
+      "bodyNoDate": "{label} · odpovězte v ovládacím panelu {provider}",
+      "lostTitle": "Spor prohrán",
+      "lostTitleTest": "Testovací spor prohrán",
+      "lostBody": "{label} · {amount} se vrátilo zákazníkovi"
     }
   },
   "refund": {
