@@ -1287,10 +1287,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // The listing rule, on each row a hand-over carries: the new person can open what the row lists them on.
           if (carry !== undefined) await assertListedCanOpen(meta, db, ctx.view.model, ctx.connectionId, child.child.id, change.values, before ?? null);
         }
+        // A carried row of a table that takes a resource for a time (a booked visit) is placed one at a time, under the day's lock the write named.
+        const placed = carry !== undefined ? ({ ...(limits ?? {}), booking: 'placed' } as const) : limits;
         const [prepared] = await writes.beforeEach('update', target, context, [
           // The state a row sent back whole already holds is no move.
           { match: change.key, values: withoutRepeatedState(child.child, change.values, before) },
-        ], limits);
+        ], placed);
         if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
         if (prepared.issues !== null) {
           throw new ValidationFailedError('Some values were refused.', {
@@ -1298,9 +1300,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             relation: child.relationId,
           });
         }
+        // …judged by its booking rule as a single change is: the new person's own clash refuses the hand-over, by name.
+        const picked = carry !== undefined && before !== undefined ? await writes.placeBooked({ target, context, values: prepared.values, before }) : {};
+        const toWrite = Object.keys(picked).length === 0 ? prepared.values : ({ ...prepared.values, ...picked } as typeof prepared.values);
         try {
           // A code the change renewed is made again if the new one is taken.
-          await withRenewRetry(db, ctx.dialect, prepared.values, (values) => updateRows(db, ctx.dialect, child.child, values, change.key));
+          await withRenewRetry(db, ctx.dialect, toWrite, (values) => updateRows(db, ctx.dialect, child.child, values, change.key));
         } catch (error) {
           mapDbError(error, child.child);
         }
@@ -4067,8 +4072,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
        */
       if (links.length === 0 && !children.some((requested) => requested.hooked)) {
         const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
-        const limitedRows = children.some((requested) =>
-          requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)),
+        const limitedRows = children.some(
+          (requested) =>
+            requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)) ||
+            // A hand-over's carried rows of a table that takes a resource for a time: each placed under its day's lock, named here with the rest.
+            (requested.carry !== undefined && (requested.child.child.table?.booking !== undefined || requested.child.child.table?.occupies !== undefined)),
         );
         // So is a record whose change is settled inside its own write (a stay's dates, under its extras and its balance).
         // And a change whose price is checked: its rows and its totals settle inside it, before the check.

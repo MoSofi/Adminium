@@ -96,7 +96,7 @@ import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
-import { bookingColumn, bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
+import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
@@ -166,7 +166,7 @@ import { stampNow, writeClock, type WriteClock } from './write-clock.js';
 import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
 import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
 import { hasLimits, judgeCapacity } from './capacity/judge.js';
-import { LockMoved, beginOn, withNamedLocks, type NamedLock } from './capacity/locks.js';
+import { LockMoved, beginOn, heldNames, withNamedLocks, type NamedLock } from './capacity/locks.js';
 import { refusedOn } from './refusal-table.js';
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
@@ -1639,6 +1639,13 @@ export interface BeforeEachOptions {
    */
   capacity?: 'refuse' | 'unchecked' | 'judged';
   /**
+   * `placed`: rows of a table that takes a resource for a time (a booking,
+   * `occupies`) that the caller writes one at a time under the booking-day
+   * locks it named with its own, and judges there by {@link RecordWriteService.placeBooked}
+   * (the rows a hand-over carries). Not refused as a multi-row write.
+   */
+  booking?: 'placed';
+  /**
    * Rows of a quote (a staff change tried and rolled back): no running number
    * claimed from the counter nor taken in a series, and nothing held that the
    * quote does not write. No hook runs for a quote: its caller refuses tables
@@ -1762,6 +1769,15 @@ export interface RecordWriteService {
    * time too. Nothing for a table no rule of which holds until that column.
    */
   holdEndMoved(input: { target: WriteTarget; row: Row; column: string; at: string }): Promise<void>;
+  /**
+   * One changed row of a table that takes a resource for a time, judged by its
+   * booking rule as a single update judges it, inside a write that already
+   * holds the row's booking-day lock (named by the caller with its own:
+   * {@link bookingLockNames}). Refused by name when the time is taken; answers
+   * what the rule picks for the row (a resource "anyone" finds). A row that
+   * moved to another day since the lock was named starts the write again.
+   */
+  placeBooked(input: { target: WriteTarget; context: WriteContext; values: Row; before: Row }): Promise<Row>;
   /**
    * The refusal deleting these rows would meet from the table's states (a
    * numbered or locked row, a sent invoice's line), or null — read before the
@@ -3241,6 +3257,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     );
   }
 
+  /**
+   * The booking-day locks of the changed rows of tables that take a resource
+   * for a time, among the rows a write names (its child rows): the day each
+   * will hold, as {@link RecordWriteService.placeBooked} asks for it.
+   */
+  async function bookingLockNames(rows: readonly LockNameRow[]): Promise<NamedLock[]> {
+    const out: NamedLock[] = [];
+    for (const one of rows) {
+      const rules = rulesOf(one.target);
+      const booking = rules?.booking;
+      if (booking === undefined || one.before === null || bookingNeed(booking, one.row, one.before) === null) continue;
+      const day = bookingDay(booking, one.row, (await zoneFor(rules, one.target)) ?? 'UTC');
+      if (day !== null) out.push({ name: bookingLockName(one.target, day), busy: 'BOOKING_BUSY' });
+    }
+    return out;
+  }
+
   /** Whether a multi-row write must be refused: rows that each need their slot held, or a balance kept at zero. */
   function refuseGuardedBatch(
     rules: TableRules | null,
@@ -3248,6 +3281,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     target: WriteTarget,
     rows: readonly Row[],
     capacity: BeforeEachOptions['capacity'],
+    booking?: BeforeEachOptions['booking'],
   ): void {
     if (capacity === 'unchecked') return;
     // A multi-row path settles its totals after it commits, too late to take
@@ -3265,6 +3299,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (limited && capacity !== 'judged' && rows.some((row) => batchNeedsGuard(target, action, row))) throw new GuardedBatchError(target.table.name);
     if (rules?.booking === undefined) return;
     if (action === 'update' && !rows.some((row) => movesBooking(rules.booking!, row))) return;
+    // Rows the caller places one at a time under the locks it named (a hand-over's carried rows).
+    if (action === 'update' && booking === 'placed') return;
     throw new GuardedBatchError(target.table.name);
   }
 
@@ -4890,6 +4926,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                   const moved = effectLimits ? (await statement(() => effectRows(target.db, { ...target, timezone: zone }, context, clock, checkedValues, Promise.resolve(current)), input.mapError)).filter((effect) => keepsLimits(effect.rules)) : [];
                   // A new child row's running number without gaps: its series held with the pools, as a form's rows always held it.
                   const series = below.filter((row) => row.before === null).flatMap((row) => seriesOf(rulesOf(row.target), row.target.table, row.row).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })));
+                  // A changed child row of a table that takes a resource for a time (a hand-over's carried visit): the day it will hold, held with the rest.
+                  const bookedDays = await bookingLockNames(below);
                   const merged = { ...(current ?? before ?? {}), ...checkedValues };
                   const ledger: NamedLock[] = [];
                   // The day a booked row will hold, named here for every change this call writes that is a posting table's or an order's.
@@ -4918,6 +4956,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                     ])),
                     ...series,
                     ...ledger,
+                    ...bookedDays,
                   ];
                 },
                 async (db) => {
@@ -4953,6 +4992,27 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await hooks.after({ action: 'update', target, record: after, before, context });
       }
       return outcome;
+    },
+
+    async placeBooked(input) {
+      const { target, context, values, before } = input;
+      const rules = rulesOf(target);
+      const booking = rules?.booking;
+      if (booking === undefined) return {};
+      const need = bookingNeed(booking, values, before);
+      if (need === null) return {};
+      const zone = await zoneFor(rules, target);
+      const merged = { ...before, ...values };
+      const day = bookingDay(booking, merged, zone ?? 'UTC');
+      if (day === null) throw bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(booking));
+      const held = heldNames(target.db);
+      if (!held.has(bookingLockName(target, day))) {
+        // Written where no day of the table was named (a path that holds no booking lock): one at a time, as ever.
+        if (![...held].some((name) => name.startsWith(bookingLockName(target, '')))) throw new GuardedBatchError(target.table.name);
+        // Named from a look before the lock: a row moved to another day since starts the write again, under the day it holds now.
+        throw new LockMoved('booking day');
+      }
+      return checkBooking(booking, { ...target, timezone: zone, origin: context.origin }, { row: merged, before, need, now: new Date() });
     },
 
     async holdEndMoved(input) {
@@ -5101,6 +5161,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         target,
         rows.map((row) => row.values),
         beforeOpts?.capacity,
+        beforeOpts?.booking,
       );
       // …nor may it post: judged by the table's rules even for an undo, which carries none of its own.
       const unposted = await refuseBatch({ target, rules: rulesOf(target), action, context, rows, history: beforeOpts?.capacity === 'unchecked' });

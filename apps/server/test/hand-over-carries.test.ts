@@ -21,6 +21,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { normalizeWriteValue } from '../src/crud/write-values.js';
 import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-server.helpers.js';
 
 // The manifest uses words read from 0.3.35 on (`rows.via`, `states.carries`); until the release this server says 0.3.34.
@@ -79,7 +80,17 @@ function handing(): Record<string, unknown> {
         {
           ref: 'site_visits',
           belongs: [{ column: 'rep_id', set: 'team' }, { via: 'deal_id' }],
-          columns: [id, deal, person('rep_id'), { ref: 'state', type: 'enum', enum: ['booked', 'done'], default: 'booked' }, { ref: 'note', type: 'text', maxLength: 120, nullable: true }],
+          // A rep is at one visit at a time: a booked visit takes its rep for its minutes (a visit with no time yet takes nothing).
+          occupies: { resource: 'rep_id', start: 'starts_at', minutes: 'minutes', countWhere: { column: 'state', values: ['booked'] } },
+          columns: [
+            id,
+            deal,
+            person('rep_id'),
+            { ref: 'state', type: 'enum', enum: ['booked', 'done'], default: 'booked' },
+            { ref: 'note', type: 'text', maxLength: 120, nullable: true },
+            { ref: 'starts_at', type: 'timestamptz', nullable: true },
+            { ref: 'minutes', type: 'int', nullable: true },
+          ],
         },
         { ref: 'follow_ups', belongs: [{ column: 'owner_id', set: 'team' }], columns: [id, deal, person('owner_id'), { ref: 'done', type: 'bool', default: false }] },
         // Two listings the deal notes are read through: who watches a deal, and who follows it (its person is whoever wrote it last).
@@ -201,6 +212,23 @@ for (const [dialect, available] of LEGS) {
       const res = await handOver('kim', 1, who('kim'));
       expect(said(res)).not.toBe('ok');
       expect(await people('site_visits', 'rep_id', [3])).toEqual([who('kim')]);
+    });
+
+    it('a carried visit with a time is placed as a single change is: the new rep\'s clash refuses the hand-over, by name', async () => {
+      const at = (iso: string): string => (dialect === 'postgres' ? iso : dialect === 'mysql' ? iso.slice(0, 19).replace('T', ' ') : String(normalizeWriteValue({ logicalType: 'timestamp' } as never, iso)));
+      await rows(`INSERT INTO ${real('deals')} (id, name, owner_id, state) VALUES (3, 'Quayside', '${who('ana')}', 'open')`);
+      // Ana's booked visit on deal 3 at ten for an hour; Kim is already booked from half past ten (on deal 1, as a helper).
+      await rows(`INSERT INTO ${real('site_visits')} (id, deal_id, rep_id, state, starts_at, minutes) VALUES (5, 3, '${who('ana')}', 'booked', '${at('2027-03-01T10:00:00.000Z')}', 60), (6, 1, '${who('kim')}', 'booked', '${at('2027-03-01T10:30:00.000Z')}', 30)`);
+      const clash = await handOver('ana', 3, who('kim'));
+      expect(said(clash), clash.body).toBe('409 BOOKING_TAKEN');
+      // Nothing moved: not the deal, not the visit.
+      expect(await people('deals', 'owner_id', [3])).toEqual([who('ana')]);
+      expect(await people('site_visits', 'rep_id', [5, 6])).toEqual([who('ana'), who('kim')]);
+      // Sam is free at ten: the deal goes to him with its visit.
+      const free = await handOver('ana', 3, who('sam'));
+      expect(said(free), free.body).toBe('ok');
+      expect(await people('deals', 'owner_id', [3])).toEqual([who('sam')]);
+      expect(await people('site_visits', 'rep_id', [5])).toEqual([who('sam')]);
     });
   });
 

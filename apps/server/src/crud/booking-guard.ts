@@ -131,7 +131,12 @@ export function withBookingLock<T>(
   day: string,
   write: (db: Db) => Promise<T>,
 ): Promise<T> {
-  return withNamedLock(target, `${target.connectionId}|${target.table.id}|booking|${day}`, 'BOOKING_BUSY', write);
+  return withNamedLock(target, bookingLockName(target, day), 'BOOKING_BUSY', write);
+}
+
+/** The name of a table's lock for one day's bookings: one writer at a time places a row on that day. */
+export function bookingLockName(target: { connectionId: string; table: { id: string } }, day: string): string {
+  return `${target.connectionId}|${target.table.id}|booking|${day}`;
 }
 
 /* ----------------------------------------------------------------- refusals */
