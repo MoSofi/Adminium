@@ -140,12 +140,12 @@ export type RemapOverride =
   | { op: 'column.customerKey'; tableName: string; columnName: string; value: { of: string } }
   /** A column whose earlier values only the audit log keeps. */
   | { op: 'column.history'; tableName: string; columnName: string; value: { history: 'audit' } }
-  /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
+  /** A value kept within bounds: never after today or another column (at most so many days after it), never before another column or now. */
   | {
       op: 'column.bounds';
       tableName: string;
       columnName: string;
-      value: { notAfter?: 'today'; notBefore?: { column: string; via?: string } };
+      value: { notAfter?: 'today' | { column: string; via?: string; days?: number }; notBefore?: 'now' | { column: string; via?: string } };
     }
   | {
       op: 'column.rollup';

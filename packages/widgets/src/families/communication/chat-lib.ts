@@ -307,7 +307,7 @@ export function callStateOf(value: unknown): CallState {
  * reaches us — and every `Intl` constructor (plus `toLocaleLowerCase`) throws
  * `RangeError: Incorrect locale information provided` on an empty tag. The
  * `||` (not `??`) is deliberate: it coalesces the empty string too, mirroring
- * `formatMoney`'s `currency || 'USD'` guard in tables/column-spec.
+ * `formatMoney`'s refusal of an empty currency code in tables/column-spec.
  */
 export function localeOf(tag: string | undefined): string {
   const trimmed = (tag ?? '').trim();

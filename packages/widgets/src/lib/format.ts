@@ -14,7 +14,7 @@ export type MetricFormat = 'plain' | 'compact' | 'currency' | 'percent' | 'durat
 export interface MetricFormatOptions {
   /** BCP-47 locale; defaults to the runtime locale. */
   locale?: string | undefined;
-  /** ISO 4217 code for `currency` (default USD). */
+  /** ISO 4217 code for `currency`. Without one a `currency` value reads as a plain number, never a guessed "$". */
   currency?: string | undefined;
 }
 
@@ -33,6 +33,12 @@ export function formatOptionsOf(config: Pick<WidgetSharedConfig, 'format'>): Met
     locale: locale ? locale : undefined,
     currency: currency ? currency : undefined,
   };
+}
+
+/** A usable ISO 4217 code, or undefined (empty, blank or not three letters). */
+function currencyCodeOf(value: string | undefined): string | undefined {
+  const code = value?.trim();
+  return code !== undefined && /^[A-Za-z]{3}$/.test(code) ? code.toUpperCase() : undefined;
 }
 
 /** Seconds → compact human duration ("45s", "3m 20s", "2h 14m", "3d 4h"). */
@@ -65,11 +71,17 @@ export function formatMetricValue(
       return fmt.number(value, { notation: 'compact', maximumFractionDigits: 1 });
     case 'currency': {
       const compact = Math.abs(value) >= 100_000;
+      const currency = currencyCodeOf(opts.currency);
+      const digits = compact ? 1 : Math.abs(value) >= 1000 ? 0 : 2;
       return fmt.number(value, {
-        style: 'currency',
-        currency: opts.currency ?? 'USD',
+        // No currency known: the same figure without a symbol (walk fix E3,
+        // as the grid's money cells since 0.3.33), never a guessed "$". It
+        // keeps the currency style's digits: 12.5 reads "12.50", not "12.5".
+        ...(currency === undefined
+          ? { minimumFractionDigits: compact ? 0 : digits }
+          : { style: 'currency' as const, currency }),
         notation: compact ? 'compact' : 'standard',
-        maximumFractionDigits: compact ? 1 : Math.abs(value) >= 1000 ? 0 : 2,
+        maximumFractionDigits: digits,
       });
     }
     case 'percent':
@@ -79,6 +91,24 @@ export function formatMetricValue(
     case 'plain':
       return fmt.number(value, { maximumFractionDigits: 2 });
   }
+}
+
+/**
+ * A chart figure the answer says is money (the chart's data table): whole or
+ * two decimals, in the card's currency. With no currency set, or a code no
+ * browser knows, it is the plain number, never a guessed "$" (walk fix E3).
+ */
+export function formatChartMoney(value: number, opts: MetricFormatOptions = {}): string {
+  const digits = Number.isInteger(value) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  const currency = currencyCodeOf(opts.currency);
+  if (currency !== undefined) {
+    try {
+      return new Intl.NumberFormat(opts.locale, { style: 'currency', currency, ...digits }).format(value);
+    } catch {
+      // A well-formed code this runtime does not know: the plain number below.
+    }
+  }
+  return new Intl.NumberFormat(opts.locale, digits).format(value);
 }
 
 export type DeltaMode = 'none' | 'pct' | 'abs';

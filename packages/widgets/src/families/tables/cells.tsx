@@ -9,12 +9,13 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import {
+  cellCurrencyOf,
   columnAlign,
   dateOnlyValue,
   formatAbsoluteTime,
   formatCalendarDate,
   formatDisplayValue,
-  formatMoney,
+  formatMoneyCell,
   formatRelativeTime,
   maskedColumnsOf,
   uiToneOf,
@@ -446,7 +447,7 @@ function CellContent({
       >
         {formatDisplayValue(value, column.display, {
           locale: context.locale,
-          currency: context.currency ?? column.currency,
+          currency: cellCurrencyOf(column, row, context.currency),
         })}
       </MonoText>
     );
@@ -460,7 +461,7 @@ function CellContent({
   if (column.semantic === 'money') {
     return (
       <MonoText data-part="cell-money" className="truncate font-semibold">
-        {formatMoney(value, { locale: context.locale, currency: context.currency ?? column.currency })}
+        {formatMoneyCell(column, row, { locale: context.locale, currency: context.currency })}
       </MonoText>
     );
   }

@@ -91,6 +91,16 @@ export function moreThan(a: string, b: string): boolean {
   return minor(a) > minor(b);
 }
 
+/** Plain decimal amounts added exactly, written with `scale` decimals ("20.00" + "9.5" at 2 → "29.50"). */
+export function sumAmounts(amounts: readonly string[], scale: number): string {
+  const minor = amounts.reduce((sum, value) => {
+    const [whole = '0', fraction = ''] = value.split('.');
+    return sum + BigInt(whole + fraction.padEnd(scale, '0').slice(0, scale));
+  }, BigInt(0));
+  const text = minor.toString().padStart(scale + 1, '0');
+  return scale === 0 ? text : `${text.slice(0, -scale)}.${text.slice(-scale)}`;
+}
+
 /** Today in this browser, `YYYY-MM-DD`. */
 export function today(now: Date = new Date()): string {
   const pad = (n: number): string => String(n).padStart(2, '0');

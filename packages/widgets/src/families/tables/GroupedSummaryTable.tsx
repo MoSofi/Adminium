@@ -27,13 +27,16 @@ export { groupedSummaryTableConfigSchema, groupedSummaryTableDemoData } from './
 export type { GroupedSummaryTableConfig } from './tables-track-f-config.js';
 export type { AggColumn, AggFormat, GroupedSummaryData, SummaryGroup } from './tables-track-f-types.js';
 
-function formatCell(value: number | string | undefined, column: AggColumn, locale?: string): string {
+function formatCell(value: number | string | undefined, column: AggColumn, locale?: string, currency?: string): string {
   if (value === undefined) return '—';
   if (typeof value === 'string') return value;
   const fmt = getFormatters(locale ?? 'en-US');
   switch (column.format) {
     case 'currency':
-      return formatMoney(value, { locale });
+      // The widget's own currency (`format.currency`) or none: with none the
+      // figure reads as a plain number, never a guessed "$" (as the grid's
+      // money cells do since 0.3.33).
+      return formatMoney(value, { locale, currency });
     case 'percent':
       return `${fmt.number(value, { maximumFractionDigits: 1 })}%`;
     case 'number':
@@ -52,6 +55,8 @@ export interface GroupedSummaryTableProps {
   totalsLabel?: string | undefined;
   emptyTitle?: string | undefined;
   locale?: string | undefined;
+  /** ISO 4217 code for `currency` columns; without one they read as plain numbers. */
+  currency?: string | undefined;
   testId?: string | undefined;
 }
 
@@ -63,6 +68,7 @@ export function GroupedSummaryTable({
   totalsLabel,
   emptyTitle,
   locale,
+  currency,
   testId,
 }: GroupedSummaryTableProps) {
   const t = useMaybeT();
@@ -86,7 +92,7 @@ export function GroupedSummaryTable({
         </div>
       );
     }
-    return <MonoText className="justify-self-end text-body-sm tabular-nums text-fg">{formatCell(value, column, locale)}</MonoText>;
+    return <MonoText className="justify-self-end text-body-sm tabular-nums text-fg">{formatCell(value, column, locale, currency)}</MonoText>;
   };
 
   return (
@@ -172,7 +178,7 @@ export function GroupedSummaryTable({
                     <span role="rowheader" className="truncate ps-5 text-caption text-fg-muted">{detail.label}</span>
                     {columns.map((column) => (
                       <span role="cell" key={column.key} className="justify-self-end">
-                        <MonoText className="text-caption tabular-nums text-fg-muted">{formatCell(detail.aggregates[column.key], column, locale)}</MonoText>
+                        <MonoText className="text-caption tabular-nums text-fg-muted">{formatCell(detail.aggregates[column.key], column, locale, currency)}</MonoText>
                       </span>
                     ))}
                   </div>
@@ -192,7 +198,7 @@ export function GroupedSummaryTable({
             {columns.map((column) => (
               <span role="cell" key={column.key} className="justify-self-end">
                 <MonoText className="text-body-sm tabular-nums text-fg">
-                  {formatCell(totals[column.key], { ...column, format: column.format === 'progress' ? 'percent' : column.format }, locale)}
+                  {formatCell(totals[column.key], { ...column, format: column.format === 'progress' ? 'percent' : column.format }, locale, currency)}
                 </MonoText>
               </span>
             ))}
@@ -225,6 +231,7 @@ export function GroupedSummaryTableWidget({ config, data }: WidgetProps<GroupedS
       {...(config.totalsLabel === undefined ? {} : { totalsLabel: config.totalsLabel })}
       {...(config.emptyTitle === undefined ? {} : { emptyTitle: config.emptyTitle })}
       {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
+      {...(config.format?.currency === undefined ? {} : { currency: config.format.currency })}
     />
   );
 }

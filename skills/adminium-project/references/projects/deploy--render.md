@@ -10,7 +10,7 @@ services:
     name: my-admin
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: standard
     healthCheckPath: /api/v1/readyz
     envVars:
       - key: ADMINIUM_SECRET

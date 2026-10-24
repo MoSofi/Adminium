@@ -132,7 +132,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
-| `/api/v1/payments/*` | 39 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
+| `/api/v1/payments/*` | 40 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 9 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
@@ -677,6 +677,7 @@ DELETE /api/v1/pages/{pageId}/views/{viewId}
 
 ```http
 GET /api/v1/payments/setup
+POST /api/v1/payments/alarms/{id}/dismiss
 PUT /api/v1/payments/services/{key}/modes/{mode}/fields/{field}
 DELETE /api/v1/payments/services/{key}/modes/{mode}/fields/{field}
 POST /api/v1/payments/services/{key}/modes/{mode}/check
@@ -989,7 +990,7 @@ turned into its relation before anything is judged, so its rows meet every grant
 (`creatable`, `writable`, the rows a role reaches) and rule (`linkable`) a list named by its
 relation meets; a short name for a table with no link, or two, is refused as a relation that is not
 there, and two names for one list are refused. The same holds for a row's own `children`, against
-its table, and on `PATCH` and the dry runs (Adminium 0.3.33). Each
+its table, and on `PATCH` and the dry runs (Adminium 0.3.35). Each
 row is `{ key?, values, children? }`, two levels at most and up to 1,000 rows per list, and 1,000
 below one create in all (the public API's creates take 200). A row's own
 `children` hold `{ values }` rows only. Every row is written in one transaction, or none; totals

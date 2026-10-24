@@ -116,7 +116,8 @@ export async function fetchChallenge(token: string, credentials: Credentials): P
   return json(await fetch(`/pay/api/${encodeURIComponent(token)}/challenge`, { credentials, headers }));
 }
 
-export type CheckoutAnswer = { url: string } | { state: PayState; message: string | null };
+/** `code`: why the service refused (`CURRENCY_UNSUPPORTED`, …); absent from an older server. */
+export type CheckoutAnswer = { url: string } | { state: PayState; message: string | null; code?: string | null };
 
 /** Starts paying with one service; `locale` is the page's language, handed to the service's own page. */
 export async function postCheckout(token: string, source: string, proof: string, credentials: Credentials, locale: string): Promise<{ status: number; answer: CheckoutAnswer }> {

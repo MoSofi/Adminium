@@ -24,11 +24,11 @@ export default {
     "waitingPlain": "Eine Online-Zahlung begann am {date} · wartet auf die Bank",
     "recordedBy": "erfasst von {name}",
     "online": "Online-Zahlung ({service})",
-    "refundedInline": "{amount} erstattet",
     "listLabel": "Zahlungen zu diesem Datensatz",
     "notice": {
       "draft": "Senden Sie die Rechnung zuerst. Eine Zahlung kann nur zu einer gesendeten Rechnung erfasst werden.",
       "private": "Die Kundschaft erreicht diesen Server nicht, daher sind Zahlungslinks aus. Zahlungen können Sie weiterhin erfassen.",
+      "noAddress": "Dieser Server hat noch keine öffentliche Adresse, daher sind Zahlungslinks aus. Legen Sie sie unter Absender als „Adresse in E-Mail-Links“ fest. Zahlungen können Sie weiterhin erfassen.",
       "update": "Diese Rechnungstabelle braucht das Update ihrer App, um Online-Zahlungen anzunehmen.",
       "voided": "Diese Rechnung wurde storniert. Es kann keine Zahlung angenommen werden.",
       "noCurrency": "Dieser Datensatz hat keine Währung, daher kann keine Zahlung erfasst werden.",
@@ -69,15 +69,26 @@ export default {
     "disputeLine": "Rückbuchung — beantworten Sie sie im Dashboard von {service}",
     "disputeNote": "Geht die Rückbuchung verloren, bekommt der Kunde das Geld zurück. Die Rechnung ändert sich dadurch nicht von selbst.",
     "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
-    "refundRequested": "Erstattung von {amount} angefordert",
-    "refundWaitingCustomer": "Erstattung von {amount} wartet auf den Kunden",
-    "refundFailed": "Die Erstattung von {amount} ist fehlgeschlagen: {reason}. Wenden Sie sich an den Kunden und erfassen Sie, was Sie vereinbaren.",
-    "refundFailedPlain": "Die Erstattung von {amount} ist fehlgeschlagen. Wenden Sie sich an den Kunden und erfassen Sie, was Sie vereinbaren.",
-    "refundCancelled": "Die Erstattung von {amount} wurde abgebrochen.",
-    "refundedOnInline": "{amount} erstattet am {date}",
-    "refundedThere": "Erstattung von {amount} im Dashboard von {service} am {date} · erfasst",
     "needsLook": "Bitte prüfen",
-    "demoService": "Demo-Dienst"
+    "demoService": "Demo-Dienst",
+    "refund": {
+      "dispute": "Rückbuchung verloren — {amount} gingen an den Kunden zurück",
+      "provider": "Erstattung von {amount} im Dashboard von {service}",
+      "staff": "Erstattung von {amount} in Adminium",
+      "done": "Erledigt",
+      "waitingCustomer": "Wartet auf den Kunden",
+      "failed": "Fehlgeschlagen",
+      "failedNext": "Wenden Sie sich an den Kunden und erfassen Sie, was Sie vereinbaren.",
+      "cancelled": "Abgebrochen: Es wurde nichts erstattet",
+      "requested": "Angefordert",
+      "written": "Erstattung von {amount}",
+      "disputeWon": "Rückbuchung gewonnen — {amount} kamen zurück",
+      "undone": "Rückgängig gemacht"
+    },
+    "partlyRefunded": "Teilweise erstattet",
+    "disputeWon": "Die Rückbuchung wurde zu Ihren Gunsten entschieden.",
+    "disputeLost": "Die Rückbuchung wurde zugunsten des Kunden entschieden. {amount} gingen an den Kunden zurück.",
+    "disputeLostPlain": "Die Rückbuchung wurde zugunsten des Kunden entschieden. Das Geld ging an den Kunden zurück."
   },
   "record": {
     "title": "Zahlung erfassen",
@@ -117,6 +128,7 @@ export default {
     },
     "look": {
       "title": "Eine Zahlung braucht einen Blick",
+      "titleTest": "Eine Testzahlung braucht einen Blick",
       "notRecorded": "Bei {provider} bezahlt, nicht verbucht: {label}",
       "notYet": "Bei {provider} bezahlt, noch nicht verbucht: {label}",
       "amount": "Bei {provider} bezahlt, nicht der verlangte Betrag: {label}",
@@ -153,12 +165,17 @@ export default {
     },
     "refundFailed": {
       "title": "Erstattung fehlgeschlagen",
+      "titleTest": "Test-Erstattung fehlgeschlagen",
       "body": "{amount} an {paidWith}"
     },
     "dispute": {
       "title": "Rückbuchung eröffnet",
+      "titleTest": "Test-Rückbuchung eröffnet",
       "body": "{label} · Antwort bis {date}",
-      "bodyNoDate": "{label} · beantworten Sie sie im Dashboard von {provider}"
+      "bodyNoDate": "{label} · beantworten Sie sie im Dashboard von {provider}",
+      "lostTitle": "Rückbuchung verloren",
+      "lostTitleTest": "Test-Rückbuchung verloren",
+      "lostBody": "{label} · {amount} gingen an den Kunden zurück"
     }
   },
   "refund": {

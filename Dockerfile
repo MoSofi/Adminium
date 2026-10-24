@@ -119,7 +119,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
+# NODE_OPTIONS: a 512 MB heap ceiling. The server uses about 245 MB of heap right
+# after it boots, and on a machine or container with 1 GB of memory or less Node
+# picks a ceiling near 256 MB on its own, which a few hours of use fill (owner's
+# walk, 2026-10-22). So the image asks for 512 MB and the docs ask for the memory
+# to back it: 1 GB for this container alone, 2 GB (or 1 GB and swap) for a server
+# that also runs a database and a proxy. Set NODE_OPTIONS yourself to change it.
 ENV NODE_ENV=production \
+    NODE_OPTIONS=--max-old-space-size=512 \
     ADMINIUM_DATA_DIR=/data \
     PORT=4600 \
     HOST=0.0.0.0

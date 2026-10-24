@@ -108,9 +108,10 @@ export type ColumnDisplayKind = (typeof COLUMN_DISPLAY_KINDS)[number];
  * chain.
  *
  * WHY A NEW BLOCK RATHER THAN READING THE EXISTING `format`. `column.format`
- * is written by the generator on every page already and read by zero
- * renderers, so teaching a cell to honour it would change the appearance of
- * every stored page and move byte-pinned baselines. An opt-in block, by
+ * is written by the generator on every page already and read by no renderer
+ * but one (`'currency-cents'`, walk fix E3, which only ever corrected a wrong
+ * figure), so teaching a cell to honour all of it would change the appearance
+ * of every stored page and move byte-pinned baselines. An opt-in block, by
  * construction, changes nothing that is not opted in.
  *
  * WHY ON EVERY COLUMN AND NOT ONLY DERIVED ONES. A derived value needs it (it
@@ -124,10 +125,11 @@ export const columnDisplaySchema = z
   .object({
     kind: z.enum(COLUMN_DISPLAY_KINDS),
     /**
-     * ISO-4217, for `kind: 'currency'`. Ranked ABOVE the connection's own
-     * currency, which is ranked above the `'USD'` fallback — so a per-column
-     * override exists for the mixed-currency table without making every page
-     * declare one.
+     * ISO-4217, for `kind: 'currency'`. Ranked ABOVE the row's own currency
+     * column and the connection's currency; with none of the three the value
+     * is a plain number, never a guessed `'USD'` — so a per-column override
+     * exists for the mixed-currency table without making every page declare
+     * one.
      */
     currency: z.string().regex(/^[A-Za-z]{3}$/).optional(),
     /**
@@ -257,9 +259,17 @@ export const gridColumnSpecSchema = z.object({
   logicalType: gridLogicalTypeSchema.default('text'),
   /** Primary semantic tag from the classifier (engine id). */
   semantic: z.string().nullable().default(null),
-  /** Format hint ('currency' | 'percent' | 'relative-time' | 'mono' | …). */
+  /**
+   * Format hint ('currency' | 'currency-cents' | 'percent' | 'relative-time' |
+   * 'mono' | …). Read by the money cell for `'currency-cents'` alone: money in
+   * the currency's minor unit, shown divided by its exponent.
+   */
   format: z.string().nullable().default(null),
-  /** ISO currency for money columns (config.format.currency wins per-widget). */
+  /**
+   * ISO currency for money columns, stated on the column itself. Explicit,
+   * so it outranks the row's guessed `*_currency` column and the page's
+   * currency (`cellCurrencyOf`).
+   */
   currency: z.string().optional(),
   /** Enum members, when logicalType='enum'. */
   enumValues: z.array(z.string()).optional(),

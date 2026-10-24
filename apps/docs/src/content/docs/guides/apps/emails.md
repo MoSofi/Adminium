@@ -488,7 +488,7 @@ A column's value is shown by its type:
 | a date | Tuesday, 6 October 2026 | A date column, with *x*`.day_month` too. A date is never moved by a time zone. |
 | *x*`.days_since` | 47 | A date column: the whole days from it to today, by the venue's day ("47 days past due"). |
 | money | £40.00 | A money column, in the connection's currency. |
-| a yes/no | Yes | A yes/no (`bool`) column: "Yes" or "No" in the email's language ("Ja"/"Nein" in German, "Oui"/"Non" in French, "نعم"/"لا" in Arabic), never `true`, `1` or `0`, in the text, in a list's rows and in a rule's e-mail alike. A language Adminium does not ship reads English. Needs Adminium 0.3.33. |
+| a yes/no | Yes | A yes/no (`bool`) column: "Yes" or "No" in the email's language ("Ja"/"Nein" in German, "Oui"/"Non" in French, "نعم"/"لا" in Arabic), never `true`, `1` or `0`, in the text, in a list's rows and in a rule's e-mail alike. A language Adminium does not ship reads English. Needs Adminium 0.3.35. |
 | *x*`.number` | 1,234.5 | A number or money column: the number as the language writes it, exactly as stored and no longer ("8.25", never "8.250"). |
 | *x*`.percent` | 8.25% | A number column holding a percentage: `8.25` reads "8.25%", and "8,25 %" in German. |
 | *x*`.money` | £1,234.50 | A number or money column, as an amount in the connection's currency. |

@@ -95,6 +95,11 @@ export function priceRuleWrites(orderTable: string, rule: Record<string, unknown
   return out;
 }
 
+/** The column a bound is held against: of this row, or of the row a link of it points at. */
+function boundColumn(bound: { column: string; via?: string }): string {
+  return bound.via === undefined ? bound.column : `${bound.via} → ${bound.column}`;
+}
+
 export function ColumnInspector({ model, table, column, buffer, fieldError, shapeRules = [] }: ColumnInspectorProps) {
   /*
    * A RULE A SHAPE SET is the operator's to change (it is stored like any app
@@ -242,7 +247,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
   const format = decidedOf<{ from: string; prefix?: string; prefixSetting?: Record<string, string>; pad?: number }>(formatKey, 'column.format');
   const scale = decidedOf<{ scale: number | 'currency' }>(scaleKey, 'column.scale');
   const normalize = decidedOf<{ normalize: 'trim' | 'email' }>(normalizeKey, 'column.normalize');
-  const bounds = decidedOf<{ notAfter?: 'today'; notBefore?: { column: string; via?: string } }>(boundsKey, 'column.bounds');
+  const bounds = decidedOf<{ notAfter?: 'today' | { column: string; via?: string; days?: number }; notBefore?: 'now' | { column: string; via?: string } }>(boundsKey, 'column.bounds');
   // A document's states, shown on the column they move.
   const statesKey = overrideKey({ op: 'table.states', tableName: table.id, value: {} });
   const statesEntry = buffer.get(statesKey);
@@ -941,12 +946,18 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
                 : {
                     key: boundsKey,
                     text: [
-                      bounds.notAfter === 'today' ? t('studio:remap.rules.bounds.notAfter', 'Never later than today') : null,
+                      bounds.notAfter === undefined
+                        ? null
+                        : bounds.notAfter === 'today'
+                          ? t('studio:remap.rules.bounds.notAfter', 'Never later than today')
+                          : bounds.notAfter.days !== undefined
+                            ? t('studio:remap.rules.bounds.notAfterDays', 'At most {days} days after {column}', { days: bounds.notAfter.days, column: boundColumn(bounds.notAfter) })
+                            : t('studio:remap.rules.bounds.notAfterColumn', 'Never after {column}', { column: boundColumn(bounds.notAfter) }),
                       bounds.notBefore === undefined
                         ? null
-                        : t('studio:remap.rules.bounds.notBefore', 'Never before {column}', {
-                            column: bounds.notBefore.via === undefined ? bounds.notBefore.column : `${bounds.notBefore.via} → ${bounds.notBefore.column}`,
-                          }),
+                        : bounds.notBefore === 'now'
+                          ? t('studio:remap.rules.bounds.notBeforeNow', 'Never before now, on a new row')
+                          : t('studio:remap.rules.bounds.notBefore', 'Never before {column}', { column: boundColumn(bounds.notBefore) }),
                     ]
                       .filter((part) => part !== null)
                       .join('; '),

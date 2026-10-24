@@ -774,16 +774,21 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       // Every waiting card is answered "stopped": nothing may wait on a turn that is over.
       for (const waiting of run.cards.values()) waiting.reject(new TurnStoppedError());
       run.cards.clear();
-      log.emit(turn, { kind: 'turn-finished', outcome });
-      const latest = deps.store.read(session.id);
-      deps.store.update(session.id, {
-        tokens: { in: latest.tokens.in + tokensIn, out: latest.tokens.out + tokensOut },
-        // The model finished its work on the files a person changed by hand: they are the app's now. A turn that stopped or failed is told of them again.
-        ...((outcome === 'done' || outcome === 'not-applied') && (latest.handEdits ?? []).length > 0 ? { handEdits: [] } : {}),
-      });
-      await deps.audit?.('designer.turn.finished', session, { turn, outcome, steps, tokens: tokensIn + tokensOut }).catch((error: unknown) => {
-        deps.log?.('could not record the end of a Designer turn', error);
-      });
+      try {
+        const latest = deps.store.read(session.id);
+        deps.store.update(session.id, {
+          tokens: { in: latest.tokens.in + tokensIn, out: latest.tokens.out + tokensOut },
+          // The model finished its work on the files a person changed by hand: they are the app's now. A turn that stopped or failed is told of them again.
+          ...((outcome === 'done' || outcome === 'not-applied') && (latest.handEdits ?? []).length > 0 ? { handEdits: [] } : {}),
+        });
+        await deps.audit?.('designer.turn.finished', session, { turn, outcome, steps, tokens: tokensIn + tokensOut }).catch((error: unknown) => {
+          deps.log?.('could not record the end of a Designer turn', error);
+        });
+      } finally {
+        // Said last, once the turn's writes are done: whoever reads it may start the next turn at once,
+        // and the folder is let go in the same tick this returns (a 409 TURN_RUNNING otherwise).
+        log.emit(turn, { kind: 'turn-finished', outcome });
+      }
     }
   }
 

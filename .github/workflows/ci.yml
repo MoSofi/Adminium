@@ -13,7 +13,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # The event is in the group so a late nightly run never cancels a push run
+  # on the same branch (GitHub can start the 03:00 cron hours late).
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:

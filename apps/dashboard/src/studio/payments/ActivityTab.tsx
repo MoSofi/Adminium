@@ -61,7 +61,7 @@ import {
   type StateGroup,
 } from './activityApi.js';
 import { knownProvider, type ServiceView } from './paymentsApi.js';
-import { locale as activeLocale } from './paymentsWords.js';
+import { locale as activeLocale, wayName } from './paymentsWords.js';
 
 /** The record page's two-step refund, with its own words: loaded only when someone refunds. */
 const RefundDialog = lazy(() => import('../../payments-panel/RefundDialog.js'));
@@ -136,8 +136,13 @@ function wayWord(way: string): string {
     case 'link':
       return 'Link';
     default:
-      return way;
+      return wayName({ source: '', method: way, label: null });
   }
+}
+
+/** The way and the service, leaving the service out when the way already names it ("PayPal", never "PayPal · PayPal"). */
+function wayAndService(way: string | null, service: string): string[] {
+  return way === null || way === '' ? [service] : way.trim().toLowerCase() === service.toLowerCase() ? [way] : [way, service];
 }
 
 function modeWord(mode: 'test' | 'live'): string {
@@ -230,6 +235,8 @@ export function flagSentence(row: ActivityRow, services: readonly ServiceView[],
       return t('studio:payments.activity.flag.recordChanged', 'A recorded payment changed: {record} · {amount} is no longer written down as it was.', { record, amount });
     case 'disputed':
       return t('studio:payments.activity.flag.disputed', 'Disputed: {record} · {amount}. Answer it in the {service} dashboard.', { record, amount, service });
+    case 'dispute-lost':
+      return t('studio:payments.activity.flag.disputeLost', 'Dispute lost: {amount} went back to the customer on {record}. Recorded as a refund.', { record, amount });
     default:
       return '';
   }
@@ -254,15 +261,16 @@ function flagLook(row: ActivityRow): { icon: LucideIcon; tone: Tone } {
     case 'waiting-long':
       return { icon: Landmark, tone: 'info' };
     case 'disputed':
+    case 'dispute-lost':
       return { icon: ShieldAlert, tone: 'danger' };
     default:
       return { icon: PencilLine, tone: 'neutral' };
   }
 }
 
-/** The muted line under a flag or in a row: when, how and where. */
+/** The muted line under a flag: when it happened (a dispute's opening, not the payment's start), how and where. */
 function metaLine(row: ActivityRow, services: readonly ServiceView[], locale: string): string {
-  return [stamp(row.at, locale), row.payable?.label ?? null, row.paidWith, serviceName(row.service, services), modeWord(row.mode)].filter((part): part is string => part !== null && part !== '').join(' · ');
+  return [stamp(row.lookAt ?? row.at, locale), row.payable?.label ?? null, ...wayAndService(row.paidWith, serviceName(row.service, services)), modeWord(row.mode)].filter((part): part is string => part !== null && part !== '').join(' · ');
 }
 
 interface StoryStep {
@@ -279,10 +287,14 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
     const steps: StoryStep[] = [
       row.refundSource === 'provider'
         ? { text: t('studio:payments.activity.story.refundThere', 'Refunded in the {service} dashboard: {amount}', { service, amount }), at: row.times.started, tone: 'info' }
-        : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
+        : row.refundSource === 'dispute'
+          ? row.group === 'refundFailed'
+            ? { text: t('studio:payments.activity.story.refundDisputeWon', 'Dispute won — {amount} came back', { amount }), at: row.times.started, tone: 'pos' }
+            : { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost — {amount} returned to the customer', { amount }), at: row.times.started, tone: 'warn' }
+          : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
     ];
     if (row.group === 'refunded') steps.push({ text: t('studio:payments.activity.story.refunded', '{service} says refunded', { service }), at: row.times.settled ?? row.times.updated, tone: 'pos' });
-    if (row.group === 'refundFailed') steps.push({ text: t('studio:payments.activity.story.refundFailed', '{service} says the refund failed', { service }), at: row.times.settled ?? row.times.updated, tone: 'danger' });
+    if (row.group === 'refundFailed' && row.refundSource !== 'dispute') steps.push({ text: t('studio:payments.activity.story.refundFailed', '{service} says the refund failed', { service }), at: row.times.settled ?? row.times.updated, tone: 'danger' });
     if (row.times.recorded !== null) steps.push({ text: t('studio:payments.activity.story.refundApplied', 'The record’s balance follows it'), at: row.times.recorded, tone: 'pos' });
     return steps;
   }
@@ -330,7 +342,11 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
     steps.push(
       row.dispute.state === 'open'
         ? { text: t('studio:payments.activity.story.disputeAnswer', 'Answer it in the {service} dashboard', { service }), at: null, tone: 'warn' }
-        : { text: t('studio:payments.activity.story.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service }), at: row.dispute.closedAt, tone: 'neutral' },
+        : row.dispute.outcome === 'won'
+          ? { text: t('studio:payments.activity.story.disputeWon', 'The dispute was won.'), at: row.dispute.closedAt, tone: 'pos' }
+          : row.dispute.outcome === 'lost'
+            ? { text: t('studio:payments.activity.story.disputeLost', 'The dispute was lost: the money went back to the customer.'), at: row.dispute.closedAt, tone: 'danger' }
+            : { text: t('studio:payments.activity.story.disputeClosed', 'The dispute was closed. Its outcome is in the {service} dashboard.', { service }), at: row.dispute.closedAt, tone: 'neutral' },
     );
   }
   return steps;
@@ -525,7 +541,7 @@ function NeedsLookCard({ services, locale, canManage, canRefund, onOpenSetup }: 
   const returnTo = useRef<HTMLButtonElement | null>(null);
   const silent = silences(services);
   // A checked flag stays in the group, tinted, with its line, until the page is opened again.
-  const rows = [...(open.data?.rows ?? []), ...kept.filter((one) => !(open.data?.rows ?? []).some((row) => row.id === one.id))].sort((a, b) => b.at - a.at);
+  const rows = [...(open.data?.rows ?? []), ...kept.filter((one) => !(open.data?.rows ?? []).some((row) => row.id === one.id))].sort((a, b) => (b.lookAt ?? b.at) - (a.lookAt ?? a.at));
   const headingId = useId();
   const total = count.data ?? open.data?.rows.length ?? 0;
   return (
@@ -675,7 +691,7 @@ function whatOf(row: ActivityRow): ReactNode {
 }
 
 function wayOf(row: ActivityRow, services: readonly ServiceView[]): string {
-  return [row.paidWith ?? (row.way === null ? null : wayWord(row.way)), serviceName(row.service, services)].filter((part): part is string => part !== null).join(' · ');
+  return wayAndService(row.paidWith ?? (row.way === null ? null : wayWord(row.way)), serviceName(row.service, services)).join(' · ');
 }
 
 function PaymentDrawer({ row, services, locale, onClose }: { row: ActivityRow | null; services: readonly ServiceView[]; locale: string; onClose: () => void }): ReactNode {

@@ -2126,7 +2126,10 @@
       },
       "bounds": {
         "notAfter": "Aldrig senere end i dag",
-        "notBefore": "Aldrig før {column}"
+        "notAfterColumn": "Aldrig efter {column}",
+        "notAfterDays": "Højst {days} dage efter {column}",
+        "notBefore": "Aldrig før {column}",
+        "notBeforeNow": "Aldrig før nu, på en ny række"
       }
     },
     "saveFailed": "Lagring mislykkedes: {message}",
@@ -3572,10 +3575,10 @@
     "service": {
       "connectsStripe": "Forbinder til Stripe",
       "connectsPaypal": "Forbinder til PayPal",
-      "first": "Opsæt dette først.",
       "notLoaded": "Denne tilføjelse blev ikke indlæst, så dens nøgler kan ikke tjekkes.",
       "notLoadedBody": "En betalingstjeneste indlæses kun fra en pakke, Adminium kan stå inde for: en, der følger med denne version, eller en, der er hentet fra kataloget.",
-      "paypalOnce": "PayPal vises kun én gang: gennem dette kort, ikke på siden hos Stripe."
+      "paypalOnce": "PayPal vises kun én gang: gennem dette kort, ikke på siden hos Stripe.",
+      "fixAddressFirst": "Ret først adressen ovenfor: indtil da forbliver onlinebetalinger slået fra."
     },
     "reach": {
       "badge": {
@@ -3678,9 +3681,6 @@
       "testInLive": "Denne nøgle er til testbetalinger, og dette felt er til live-nøglen."
     },
     "webhook": {
-      "headingStripe": "Webhook (Stripe kalder det et webhook-endpoint)",
-      "heading": "Webhook",
-      "address": "Adresse",
       "noAddress": "Denne server skal først have en offentlig adresse.",
       "copyAddress": "Kopiér webhook-adressen",
       "events": "Sæt flueben ved disse hændelser hos {provider}",
@@ -3695,7 +3695,15 @@
       "badTest": "{count, plural, one {# hændelse} other {# hændelser}} kom i den seneste time, men signaturen passede ikke. Er det hemmeligheden fra endpointets side, til testtilstand?",
       "caught": "Adminium fandt {when} en betaling, som ingen webhook havde meldt. Webhooken når ikke frem til denne server.",
       "slowed": "Adminium tjekker {provider} sjældnere denne måned: Den har brugt halvdelen af de opslag, {provider} tillader.",
-      "moved": "Webhook-adressen er ændret. Opdater den hos {provider}:"
+      "moved": "Webhook-adressen er ændret. Opdater den hos {provider}:",
+      "headingTestStripe": "Test-webhook (Stripe kalder det et webhook-endpoint)",
+      "headingLiveStripe": "Live-webhook (Stripe kalder det et webhook-endpoint)",
+      "headingTest": "Test-webhook",
+      "headingLive": "Live-webhook",
+      "headingSandbox": "Sandbox-webhook",
+      "addressTest": "Adresse på test-webhooken",
+      "addressLive": "Adresse på live-webhooken",
+      "addressSandbox": "Adresse på sandbox-webhooken"
     },
     "mode": {
       "test": "Test",
@@ -3714,18 +3722,22 @@
       "heading": "Den adgang, nøglen skal have",
       "note": "Begge måder giver nøglen præcis dette. Lad alt andet stå på Ingen.",
       "access": "Adgang",
-      "why": "Hvorfor"
+      "why": "Hvorfor",
+      "where": "Hvor hos Stripe",
+      "optional": "(valgfrit)"
     },
     "path": {
       "app": {
         "step1": "Installér Node.js 22 eller nyere",
         "step2": "Installér Stripe CLI",
-        "step5": "Pak skabelonen ud, og åbn dens mappe",
-        "step7": "Installér appen i dashboardet hos Stripe, og kopiér dens nøgle",
         "title": "Med din egen app i Stripe (sådan anbefaler Stripe det)",
         "desc": "Du uploader én gang en lille app til din egen konto hos Stripe med kommandolinjeværktøjet fra Stripe. Den laver en nøgle med præcis adgangen nedenfor.",
         "download": "Hent app-skabelonen",
-        "note": "Upload én gang i din testkonto og én gang i din live-konto."
+        "note": "Upload én gang i din testkonto og én gang i din live-konto.",
+        "create": "Kør {command}, og svar hvad som helst på dens spørgsmål",
+        "copy": "Kopiér {file} fra den skabelon, du hentede, til mappen {folder}, så den erstatter filen der",
+        "upload": "Kør {first} og derefter {second}",
+        "install": "Installér appen i dashboardet hos Stripe, åbn View API keys, og kopiér nøglen, der starter med {prefix}"
       },
       "hand": {
         "step1": "I dashboardet hos Stripe skal du åbne Udviklere → API-nøgler",
@@ -3745,7 +3757,8 @@
       "bank": "Bankoplysningerne til bankoverførsler blev ændret {when} af {by}.",
       "address": "Din betalingsadresse blev ændret fra {from} til {to} {when} af {by}. Opdater webhook-adressen hos Stripe og PayPal.",
       "heading": "Hvor pengene går hen, er ændret",
-      "emailed": "Alle, der administrerer betalinger, har fået en e-mail."
+      "emailed": "Alle, der administrerer betalinger, har fået en e-mail.",
+      "gotIt": "Forstået"
     },
     "stop": {
       "label": "Stop nye betalinger",
@@ -3927,6 +3940,7 @@
       "statusColumn": "Statuskolonne",
       "statusPaidValue": "Værdi, når den er betalt fuldt ud",
       "statusRefunded": "Når den er refunderet fuldt ud, sæt status til",
+      "statusNoValues": "Giv denne kolonne en liste med værdier (i tabellens skema) for at bruge den som status.",
       "leaveAsIs": "Lad den være",
       "pageFields": "Kolonner, der må vises på betalingssiden",
       "personal": "Personlig: vises aldrig",
@@ -3938,6 +3952,7 @@
       "previewOf": "Tre rækker fra {table}",
       "previewSummary": "{count, plural, one {# problem} other {# problemer}}",
       "previewWaiting": "Vælg beløbet for at se tre rækker.",
+      "previewIncomplete": "Gør valgene ovenfor færdige for at se tre rækker.",
       "becomes": "når den er betalt, bliver {column} til {value}",
       "back": "Tilbage",
       "stepOf": "Trin {step} af 3",
@@ -4003,7 +4018,11 @@
       "sepa": "SEPA-betalingsservice",
       "bankTransfer": "Bankoverførsel",
       "cashOnDelivery": "Efterkrav",
-      "other": "En anden manuel betalingsmåde"
+      "other": "En anden manuel betalingsmåde",
+      "acssDebit": "Forhåndsgodkendt debitering (Canada)",
+      "stripeTransfer": "Bankoverførsel (Stripe)",
+      "krCard": "Koreanske kort",
+      "crypto": "Krypto"
     },
     "test": {
       "title": "Send en testbetaling",
@@ -4017,7 +4036,9 @@
       "noWebhook": "ingen webhook kom frem: Betalingen blev fundet ved at spørge efter den",
       "wouldRecord": "dette ville blive registreret: én betaling på {amount}.",
       "wouldRecordWith": "dette ville blive registreret: én betaling på {amount}, {paidWith}.",
-      "nothingWritten": "Der blev ikke skrevet noget i dine tabeller."
+      "nothingWritten": "Der blev ikke skrevet noget i dine tabeller.",
+      "noWay": "Kunderne ser først denne tjeneste, når en betalingsmåde er slået til under “Betalingsmåder”.",
+      "openWays": "Åbn Betalingsmåder"
     },
     "activity": {
       "state": {
@@ -4058,7 +4079,8 @@
         "waitingLong": "Har ventet på banken i {days} dage: {record} · {amount}.",
         "waitingLongWay": "Har ventet på banken i {days} dage: {record} · {amount} ({way}).",
         "recordChanged": "En registreret betaling er ændret: {record} · {amount} står ikke længere som før.",
-        "disputed": "Indsigelse: {record} · {amount}. Besvar den i {service}-dashboardet."
+        "disputed": "Indsigelse: {record} · {amount}. Besvar den i {service}-dashboardet.",
+        "disputeLost": "Indsigelse tabt: {amount} gik tilbage til kunden på {record}. Registreret som en refusion."
       },
       "why": {
         "alreadyPaid": "Fakturaen var allerede betalt fuldt ud.",
@@ -4069,6 +4091,7 @@
       },
       "story": {
         "refundThere": "Refunderet i dashboardet hos {service}: {amount}",
+        "refundDispute": "Indsigelsen tabt — {amount} gik tilbage til kunden",
         "refundStarted": "Refundering af {amount} startet",
         "refunded": "{service} melder: refunderet",
         "refundFailed": "{service} melder: refunderingen mislykkedes",
@@ -4088,7 +4111,10 @@
         "notRecorded": "Ikke registreret: skal ses på",
         "disputed": "Kortholderen har gjort indsigelse",
         "disputeAnswer": "Besvar den i {service}-dashboardet",
-        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet."
+        "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
+        "disputeWon": "Indsigelsen blev vundet.",
+        "disputeLost": "Indsigelsen blev tabt: pengene gik tilbage til kunden.",
+        "refundDisputeWon": "Indsigelsen vundet — {amount} kom tilbage"
       },
       "checkedBy": "Tjekket af {name}",
       "someone": "nogen",

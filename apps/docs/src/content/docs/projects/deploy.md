@@ -49,7 +49,7 @@ RUN npm ci
 COPY . .
 RUN npx --no-install adminium build && rm -rf node_modules
 
-FROM ghcr.io/mosofi/adminium:0.3.27
+FROM ghcr.io/mosofi/adminium:0.3.34
 COPY --from=build --chown=node:node /project/ /project/
 ENV ADMINIUM_PROJECT_DIR=/project
 ```
@@ -107,7 +107,7 @@ services:
     name: my-admin
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: standard
     healthCheckPath: /api/v1/readyz
     envVars:
       - key: ADMINIUM_SECRET
@@ -183,7 +183,7 @@ spec:
         deploy_on_push: true
       dockerfile_path: Dockerfile
       http_port: 4600
-      instance_size_slug: basic-xxs
+      instance_size_slug: basic-xs
       instance_count: 1
       health_check:
         http_path: /api/v1/readyz
@@ -299,8 +299,8 @@ Details: [Pull and check](/projects/pull-and-check/).
 The version is pinned in two places, and they must agree:
 
 ```bash
-npm install --save-exact @adminiumjs/adminium@0.3.27
-# then change the Dockerfile's FROM tag to 0.3.27
+npm install --save-exact @adminiumjs/adminium@0.3.34
+# then change the Dockerfile's FROM tag to 0.3.34
 npm run check                # this is what compares the two
 npm run build
 ```

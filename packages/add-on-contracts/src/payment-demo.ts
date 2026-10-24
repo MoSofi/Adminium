@@ -123,6 +123,13 @@ export interface DemoPaymentBackendOptions {
   settleAfterMs?: number;
   /** How long an open checkout lives. Default one hour, as the Stripe sessions Adminium makes. */
   checkoutLifetimeMs?: number;
+  /**
+   * How long a paid checkout and its refunds are kept after it was paid, so a
+   * refund or a dispute can still find it. Default seven days. One never paid
+   * is forgotten a lifetime after it expired; an event, a lifetime after it
+   * happened.
+   */
+  keepPaidMs?: number;
   /** The demo account's id. */
   accountId?: string;
 }
@@ -187,11 +194,36 @@ export async function signDemoWebhook(rawBody: string, webhookSecret: string, at
   return `t=${t},v1=${await hmacHex(webhookSecret, `${t}.${rawBody}`)}`;
 }
 
+const ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
+
+/**
+ * A new id: the prefix and 16 random base-36 characters (about 82 bits).
+ *
+ * Random, never counted: the engine keeps every checkout, refund and event id
+ * the demo gave (`adminium_payment_attempts` is unique on provider, mode and
+ * ref), and this backend lives in memory, so a counter started again at 1
+ * after every restart and handed out ids already taken.
+ */
+export function demoId(prefix: string): string {
+  let out = '';
+  while (out.length < 16) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(24))) {
+      // 252 = 7 × 36: the bytes above it are dropped, so every character is equally likely.
+      if (byte < 252 && out.length < 16) out += ID_ALPHABET[byte % 36];
+    }
+  }
+  return `${prefix}_${out}`;
+}
+
+/** How often, at most, the backend looks for what it may forget. */
+const FORGET_EVERY_MS = 60_000;
+
 /** The pretend provider. State lives in this object; one per engine process (or test). */
 export function createDemoPaymentBackend(options: DemoPaymentBackendOptions = {}): DemoPaymentBackend {
   const now = options.now ?? (() => Date.now());
   const settleAfter = options.settleAfterMs ?? 60_000;
   const lifetime = options.checkoutLifetimeMs ?? 60 * 60 * 1000;
+  const keepPaid = options.keepPaidMs ?? 7 * 24 * 60 * 60 * 1000;
   const accountId = options.accountId ?? 'demo_account';
   const pageUrl = options.pageUrl ?? ((checkout) => `${DEMO_PAYMENT_ORIGIN}/pay/${encodeURIComponent(checkout.id)}`);
 
@@ -199,12 +231,41 @@ export function createDemoPaymentBackend(options: DemoPaymentBackendOptions = {}
   const checkoutByKey = new Map<string, string>();
   const refunds = new Map<string, DemoRefund>();
   const refundByKey = new Map<string, string>();
-  const events: DemoEvent[] = [];
-  let counter = 0;
-  const nextId = (prefix: string): string => {
-    counter += 1;
-    return `${prefix}_${counter.toString(36).padStart(6, '0')}`;
-  };
+  let events: DemoEvent[] = [];
+  const nextId = demoId;
+
+  /**
+   * Forgets what nobody can ask about any more, so a long-running engine does
+   * not keep every pretend payment for its life: a checkout never paid, a
+   * lifetime after it expired; a paid one with its refunds, `keepPaid` after it
+   * was paid; an event, a lifetime after it happened (the sweep asks every few
+   * minutes). A late payment still on its way is kept. Like a restart, but
+   * only for what is long over.
+   */
+  let forgotAt = Number.NEGATIVE_INFINITY;
+  function forget(): void {
+    const at = now();
+    if (at - forgotAt < FORGET_EVERY_MS) return;
+    forgotAt = at;
+    const gone = new Set<string>();
+    for (const checkout of checkouts.values()) {
+      age(checkout);
+      const over =
+        checkout.status === 'succeeded'
+          ? at > (checkout.settledAt ?? at) + keepPaid
+          : checkout.status !== 'processing' && at > checkout.expiresAt + lifetime;
+      if (!over) continue;
+      checkouts.delete(checkout.id);
+      checkoutByKey.delete(checkout.idempotencyKey);
+      if (checkout.paymentRef !== null) gone.add(checkout.paymentRef);
+    }
+    for (const refund of refunds.values()) {
+      if (!gone.has(refund.paymentRef)) continue;
+      refunds.delete(refund.id);
+      refundByKey.delete(refund.idempotencyKey);
+    }
+    events = events.filter((event) => at - event.occurredAt <= lifetime);
+  }
 
   function emit(type: string, kind: PaymentEventKind, refs: { checkout?: DemoCheckout; refund?: DemoRefund }): void {
     events.push({
@@ -280,6 +341,7 @@ export function createDemoPaymentBackend(options: DemoPaymentBackendOptions = {}
   }
 
   const http: PaymentHttpClient = async (url, init) => {
+    forget();
     const parsed = new URL(url);
     if (parsed.origin !== DEMO_PAYMENT_ORIGIN) return json(404, { error: 'NOT_FOUND', message: 'No such host.' });
     const auth = (init?.headers?.['authorization'] ?? init?.headers?.['Authorization'] ?? '').replace(/^Bearer /, '');

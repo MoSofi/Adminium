@@ -14,7 +14,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { keptPaymentsRepo, payableProfilesRepo, permissionsRepo, rolesRepo, usersRepo, type PayableMapping, type User } from '@adminium/meta';
+import { keptPaymentsRepo, payableProfilesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type PayableMapping, type User } from '@adminium/meta';
 
 import { errorEnvelope } from '../src/errors.js';
 import { holdsCardNumber, passesLuhn } from '../src/payments/card-number.js';
@@ -235,6 +235,17 @@ describe.each(LEGS)('the Payment panel — %s', (dialect, available) => {
       }
     } finally {
       await other.close();
+    }
+  });
+
+  it.runIf(available)('turns pay links on with the public address when no pay address was chosen, as Setup reads it', async () => {
+    const invoice = await sentInvoice('12.00');
+    expect((await panel(owner, invoicesId, invoice['id'])).json().data.links).toEqual({ on: false, reason: 'not-set' });
+    await settingsRepo(h.meta).set('system.publicOrigin', 'https://admin.crumbandco.test');
+    try {
+      expect((await panel(owner, invoicesId, invoice['id'])).json().data.links).toEqual({ on: true, reason: null });
+    } finally {
+      await settingsRepo(h.meta).set('system.publicOrigin', null);
     }
   });
 

@@ -2136,7 +2136,10 @@ export default {
       },
       "bounds": {
         "notAfter": "不晚於今天",
-        "notBefore": "不早於 {column}"
+        "notAfterColumn": "不晚於 {column}",
+        "notAfterDays": "最多在 {column} 之後 {days} 天",
+        "notBefore": "不早於 {column}",
+        "notBeforeNow": "新增資料列時不早於目前時間"
       }
     },
     "saveFailed": "儲存失敗：{message}",
@@ -3582,10 +3585,10 @@ export default {
     "service": {
       "connectsStripe": "連接到 Stripe",
       "connectsPaypal": "連接到 PayPal",
-      "first": "請先完成這一步。",
       "notLoaded": "此附加元件未載入，因此無法檢查它的金鑰。",
       "notLoadedBody": "付款服務只會從 Adminium 能夠擔保的套件載入：隨此版本附帶的套件，或從目錄下載的套件。",
-      "paypalOnce": "PayPal 只出現一次：透過此卡片，而不是在 Stripe 頁面上。"
+      "paypalOnce": "PayPal 只出現一次：透過此卡片，而不是在 Stripe 頁面上。",
+      "fixAddressFirst": "請先修正上方的網址：在此之前，線上付款保持關閉。"
     },
     "reach": {
       "badge": {
@@ -3688,9 +3691,6 @@ export default {
       "testInLive": "這個金鑰用於測試付款，而此欄位用於正式金鑰。"
     },
     "webhook": {
-      "headingStripe": "Webhook（Stripe 稱之為 Webhook 端點）",
-      "heading": "Webhook",
-      "address": "網址",
       "noAddress": "此伺服器需要先有公開網址。",
       "copyAddress": "複製 Webhook 網址",
       "events": "在 {provider} 中勾選這些事件",
@@ -3705,7 +3705,15 @@ export default {
       "badTest": "過去一小時內收到 {count, plural, other {# 個事件}}，但簽章不符。這是端點頁面上用於測試模式的密鑰嗎？",
       "caught": "Adminium 在 {when} 發現了一筆沒有任何 Webhook 通知過的付款。Webhook 沒有到達此伺服器。",
       "slowed": "本月 Adminium 會減少檢查 {provider} 的次數：它已用掉 {provider} 允許讀取次數的一半。",
-      "moved": "webhook 位址已變更。請在 {provider} 更新："
+      "moved": "webhook 位址已變更。請在 {provider} 更新：",
+      "headingTestStripe": "測試 Webhook（Stripe 稱之為 Webhook 端點）",
+      "headingLiveStripe": "正式 Webhook（Stripe 稱之為 Webhook 端點）",
+      "headingTest": "測試 Webhook",
+      "headingLive": "正式 Webhook",
+      "headingSandbox": "沙盒 Webhook",
+      "addressTest": "測試 Webhook 網址",
+      "addressLive": "正式 Webhook 網址",
+      "addressSandbox": "沙盒 Webhook 網址"
     },
     "mode": {
       "test": "測試",
@@ -3724,18 +3732,22 @@ export default {
       "heading": "金鑰需要的權限",
       "note": "兩種方式都只給金鑰這些權限。其餘全部保持為「無」。",
       "access": "權限",
-      "why": "用途"
+      "why": "用途",
+      "where": "在 Stripe 中的位置",
+      "optional": "（選用）"
     },
     "path": {
       "app": {
         "step1": "安裝 Node.js 22 或更新版本",
         "step2": "安裝 Stripe CLI",
-        "step5": "解壓縮範本並開啟其資料夾",
-        "step7": "在 Stripe 控制台中安裝該應用程式並複製它的金鑰",
         "title": "使用您自己的 Stripe App（Stripe 建議的方式）",
         "desc": "您只需用 Stripe 命令列工具把一個小應用程式上傳到您自己的 Stripe 帳戶一次。它會建立一個權限與下方完全一致的金鑰。",
         "download": "下載應用程式範本",
-        "note": "在測試帳戶上傳一次，在正式帳戶再上傳一次。"
+        "note": "在測試帳戶上傳一次，在正式帳戶再上傳一次。",
+        "create": "執行 {command}，它提出的問題隨意回答即可",
+        "copy": "把下載的範本中的 {file} 複製到 {folder} 資料夾，取代其中原有的檔案",
+        "upload": "先執行 {first}，再執行 {second}",
+        "install": "在 Stripe 控制台中安裝該應用程式，開啟 View API keys，複製以 {prefix} 開頭的金鑰"
       },
       "hand": {
         "step1": "在 Stripe 控制台中開啟「開發人員 → API 金鑰」",
@@ -3755,7 +3767,8 @@ export default {
       "bank": "銀行轉帳的銀行資訊於 {when} 被變更，操作人：{by}。",
       "address": "您的付款網址於 {when} 由 {from} 變為 {to}，操作人：{by}。請在 Stripe 和 PayPal 更新 Webhook 網址。",
       "heading": "收款去向已變更",
-      "emailed": "所有管理付款的人都已收到電子郵件。"
+      "emailed": "所有管理付款的人都已收到電子郵件。",
+      "gotIt": "我知道了"
     },
     "stop": {
       "label": "停止新付款",
@@ -3937,6 +3950,7 @@ export default {
       "statusColumn": "狀態欄",
       "statusPaidValue": "全額付清時的值",
       "statusRefunded": "全額退款時，將狀態設為",
+      "statusNoValues": "請為此欄設定值清單（在資料表的結構中），才能將其用作狀態。",
       "leaveAsIs": "保持不變",
       "pageFields": "允許在付款頁面顯示的欄",
       "personal": "個人資料：永不顯示",
@@ -3948,6 +3962,7 @@ export default {
       "previewOf": "來自 {table} 的三列",
       "previewSummary": "{count, plural, other {# 個問題}}",
       "previewWaiting": "選擇金額以查看三列。",
+      "previewIncomplete": "完成上方的選擇即可查看三列。",
       "becomes": "付清後，{column} 變為 {value}",
       "back": "返回",
       "stepOf": "第 {step} 步，共 3 步",
@@ -4013,7 +4028,11 @@ export default {
       "sepa": "SEPA 直接扣款",
       "bankTransfer": "銀行轉帳",
       "cashOnDelivery": "貨到付款",
-      "other": "其他線下付款方式"
+      "other": "其他線下付款方式",
+      "acssDebit": "預先授權扣款（加拿大）",
+      "stripeTransfer": "銀行轉帳（Stripe）",
+      "krCard": "韓國信用卡",
+      "crypto": "加密貨幣"
     },
     "test": {
       "title": "傳送測試付款",
@@ -4027,7 +4046,9 @@ export default {
       "noWebhook": "沒有收到 Webhook：付款是透過查詢找到的",
       "wouldRecord": "將會記錄的內容：一筆 {amount} 的付款。",
       "wouldRecordWith": "將會記錄的內容：一筆 {amount} 的付款，{paidWith}。",
-      "nothingWritten": "沒有在您的資料表中寫入任何內容。"
+      "nothingWritten": "沒有在您的資料表中寫入任何內容。",
+      "noWay": "只有在「付款方式」中開啟了一種方式後，客戶才會看到此服務。",
+      "openWays": "開啟「付款方式」"
     },
     "activity": {
       "state": {
@@ -4068,7 +4089,8 @@ export default {
         "waitingLong": "已等待銀行確認 {days} 天：{record} · {amount}。",
         "waitingLongWay": "已等待銀行確認 {days} 天：{record} · {amount}（{way}）。",
         "recordChanged": "一筆已記錄的付款有了變化：{record} · {amount} 的紀錄已與先前不同。",
-        "disputed": "有爭議：{record} · {amount}。請在 {service} 主控台中回覆。"
+        "disputed": "有爭議：{record} · {amount}。請在 {service} 主控台中回覆。",
+        "disputeLost": "爭議敗訴：{record} 的 {amount} 已退回客戶。已記為退款。"
       },
       "why": {
         "alreadyPaid": "該發票已全額付清。",
@@ -4079,6 +4101,7 @@ export default {
       },
       "story": {
         "refundThere": "已在 {service} 主控台中退款：{amount}",
+        "refundDispute": "爭議敗訴 — {amount} 已退回給客戶",
         "refundStarted": "已開始退款 {amount}",
         "refunded": "{service} 顯示：已退款",
         "refundFailed": "{service} 顯示：退款失敗",
@@ -4098,7 +4121,10 @@ export default {
         "notRecorded": "未記錄：需要查看",
         "disputed": "持卡人提出了爭議",
         "disputeAnswer": "請在 {service} 主控台中回覆",
-        "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。"
+        "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
+        "disputeWon": "爭議已勝訴。",
+        "disputeLost": "爭議敗訴：款項已退回客戶。",
+        "refundDisputeWon": "爭議勝訴 — {amount} 已退回"
       },
       "checkedBy": "由 {name} 核對",
       "someone": "某人",

@@ -15,8 +15,8 @@
  *   - a table that keeps its own payments names its balance column, and its
  *     payments table names a column that is UNIQUE for each payment, so a
  *     payment can never be written twice;
- *   - the status Adminium may set is an enum, yes/no or a text column with its
- *     own value list, and never a key, a link, a column Adminium decides
+ *   - the status Adminium may set has a list of values (`valuesOf`: yes/no,
+ *     an enum whatever its logical type, Adminium's own list), and never a key, a link, a column Adminium decides
  *     (a sequence, a formula, a stamp…), a personal or secret column;
  *   - the pay page shows only declared fields, none personal or secret;
  *   - no column belongs to a private table.
@@ -114,11 +114,20 @@ function unique(table: EffectiveTable, column: EffectiveColumn): boolean {
   return (table.indexes ?? []).some((index) => index.unique === true && index.partial !== true && index.columns.length === 1 && index.columns[0] === column.name);
 }
 
-function valuesOf(model: PayableRulesInput['model'], column: EffectiveColumn): readonly string[] | null {
+/**
+ * The values a status (or way-to-pay) column may hold, or null when it has no
+ * list. One rule, the wizard's too (`PayablesTab.tsx statusValuesOf`):
+ *   - yes/no: `true`, `false`;
+ *   - a column with an enum (`enumRef`), whatever its logical type: the enum's
+ *     values (a SQLite CHECK list reads as a `text` column with an enum);
+ *   - a column with Adminium's own value list: those values;
+ *   - anything else: none.
+ */
+export function valuesOf(model: Pick<PayableRulesInput['model'], 'enums'>, column: EffectiveColumn): readonly string[] | null {
   if (column.logicalType === 'boolean') return ['true', 'false'];
-  if (column.logicalType === 'enum') {
+  if (column.enumRef !== null && column.enumRef !== undefined && column.enumRef !== '') {
     const found = model.enums.find((one) => one.id === column.enumRef || one.name === column.enumRef);
-    return found === undefined ? null : found.values.map(String);
+    if (found !== undefined) return found.values.map(String);
   }
   const options = column.options;
   if (options !== undefined && 'values' in options) return options.values.map((item) => String((item as { value: unknown }).value));

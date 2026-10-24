@@ -48,7 +48,7 @@ import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { holdsCardNumber } from '../../payments/card-number.js';
-import { payAddress, payReachable } from '../../payments/links.js';
+import { payReachable } from '../../payments/links.js';
 import { exactAmount, fromMinorUnits, pkOfRowKey, resolvePayable, rowKeyOf, type PayableSources, type ResolvedPayable } from '../../payments/payables.js';
 import { recordedByOf, setPaidStatus, writePaymentRow, type PaymentActor } from '../../payments/record.js';
 import { refundableOf, refundRefusalOf } from '../../payments/refunds.js';
@@ -120,8 +120,13 @@ const paymentView = z.object({
   refundRefusal: refusalView.nullable(),
   /** Its refunds, oldest first: asked here or made in the provider's dashboard. */
   refunds: z.array(refundView),
-  /** A dispute the provider told of. Its deadline, amount and outcome are read in the provider's dashboard. */
-  dispute: z.object({ state: z.enum(['open', 'closed']), at: z.number(), closedAt: z.number().nullable() }).nullable(),
+  /**
+   * A dispute the provider told of. `outcome`: how a closed one ended, when
+   * the provider said (`lost`: the money went back to the customer, and a
+   * refund of `source: 'dispute'` stands for it). Its deadline is read in the
+   * provider's dashboard.
+   */
+  dispute: z.object({ state: z.enum(['open', 'closed']), at: z.number(), closedAt: z.number().nullable(), outcome: z.enum(['won', 'lost']).nullable() }).nullable(),
 });
 const waitingView = z.object({ id: z.string(), provider: z.string(), wayLabel: z.string().nullable(), startedAt: z.number(), test: z.boolean() });
 const panelView = z.object({
@@ -249,11 +254,15 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     return profile !== null && profile.enabled && profile.mapping !== null ? 'profile' : null;
   }
 
+  /**
+   * Pay links work when customers can reach the pay address: the same answer
+   * Setup's reachability card gives. Off, the reason is that card's state
+   * (`not-set`: this server has no public address, and none was chosen).
+   */
   async function linksOn(request: FastifyRequest): Promise<{ on: boolean; reason: string | null }> {
-    const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['forwarded'] !== undefined;
+    const forwarded = request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined || request.headers['forwarded'] !== undefined;
     const answer = await payReachable(meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded });
-    if (answer.state === 'reachable' && (await payAddress(meta)) !== null) return { on: true, reason: null };
-    return { on: false, reason: answer.state };
+    return answer.state === 'reachable' ? { on: true, reason: null } : { on: false, reason: answer.state };
   }
 
   /** The payments in the record's own payments table (live, online and by hand). */

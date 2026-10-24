@@ -159,6 +159,69 @@ describe('the pay page', () => {
     expect(screen.getByText('Test page — no money moves.')).toBeTruthy();
   });
 
+  it('tells the staff on a test page that no real way is on for the record, and only them', async () => {
+    answers[`/pay/api/${TOKEN}`] = pageOf({ test: true, ways: [{ source: 'demo', method: 'card', label: null, details: null }, BANK] });
+    await show({ kind: 'link', token: TOKEN });
+    expect((await screen.findByTestId('pay-staff-no-way')).textContent).toBe(
+      'Only you see this: no way to pay online is switched on for this record, so this test page offers only the demo service. Switch one on in Studio → Payments → Ways to pay.',
+    );
+    cleanup();
+    // A real service is on: nothing to say. A live page never says it (customers read it).
+    answers[`/pay/api/${TOKEN}`] = pageOf({ test: true, ways: [{ source: 'payments-stripe', method: 'card', label: null, details: null }, { source: 'demo', method: 'card', label: null, details: null }] });
+    await show({ kind: 'link', token: TOKEN });
+    await screen.findByRole('button', { name: /Pay by card and other ways/ });
+    expect(screen.queryByTestId('pay-staff-no-way')).toBeNull();
+    cleanup();
+    answers[`/pay/api/${TOKEN}`] = pageOf({ ways: [BANK] });
+    await show({ kind: 'link', token: TOKEN });
+    await screen.findByRole('button', { name: /Pay by bank transfer/ });
+    expect(screen.queryByTestId('pay-staff-no-way')).toBeNull();
+  });
+
+  const HELD = 'Payments in KWD are held: the Stripe pages do not agree on how KWD is written in three decimals, so no payment is taken in it until that is checked.';
+
+  it('offers the other ways, not "Try again", when the service cannot take this currency', async () => {
+    const user = userEvent.setup();
+    answers[`/pay/api/${TOKEN}`] = pageOf({ payable: { ...PAYABLE, currency: 'KWD', due: '12.500', total: '12.500' } });
+    answers[`/pay/api/${TOKEN}/challenge`] = { id: 'ch_1', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 };
+    answers[`/pay/api/${TOKEN}/checkout`] = { state: 'failed', message: HELD, code: 'CURRENCY_UNSUPPORTED' };
+    await show({ kind: 'link', token: TOKEN });
+    await user.click(await screen.findByRole('button', { name: /Pay by card and other ways/ }));
+    expect(await screen.findByText('The payment did not go through.')).toBeTruthy();
+    expect(screen.getByText(HELD)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Choose another way' }));
+    // Back on the list, without the service that cannot take it.
+    expect(await screen.findByRole('button', { name: /Pay by bank transfer/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Pay by card and other ways/ })).toBeNull();
+    expect(screen.queryByText('The payment did not go through.')).toBeNull();
+  });
+
+  it('sends the customer to the shop when the service that cannot take this currency was the only way', async () => {
+    const user = userEvent.setup();
+    answers[`/pay/api/${TOKEN}`] = pageOf({ payable: { ...PAYABLE, currency: 'KWD', due: '12.500', total: '12.500' }, ways: [{ source: 'payments-stripe', method: 'card', label: null, details: null }] });
+    answers[`/pay/api/${TOKEN}/challenge`] = { id: 'ch_1', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 };
+    answers[`/pay/api/${TOKEN}/checkout`] = { state: 'failed', message: HELD, code: 'CURRENCY_UNSUPPORTED' };
+    await show({ kind: 'link', token: TOKEN });
+    await user.click(await screen.findByRole('button', { name: /Pay by card and other ways/ }));
+    expect(await screen.findByText(HELD)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Choose another way' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'hello@crumbandco.de' }).length).toBeGreaterThan(0);
+  });
+
+  it('still offers "Try again" when the service may take it on a second try', async () => {
+    const user = userEvent.setup();
+    answers[`/pay/api/${TOKEN}`] = pageOf({});
+    answers[`/pay/api/${TOKEN}/challenge`] = { id: 'ch_1', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 };
+    answers[`/pay/api/${TOKEN}/checkout`] = { state: 'failed', message: 'Stripe is not answering.', code: 'PROVIDER_UNAVAILABLE' };
+    await show({ kind: 'link', token: TOKEN });
+    await user.click(await screen.findByRole('button', { name: /Pay by card and other ways/ }));
+    expect(await screen.findByText('Stripe is not answering.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Choose another way' })).toBeNull();
+  });
+
   it('moves through the language menu by keys and gives focus back', async () => {
     const user = userEvent.setup();
     answers[`/pay/api/${TOKEN}`] = pageOf({});

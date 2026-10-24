@@ -1589,6 +1589,8 @@ export interface AdminiumPaymentAttemptsTable {
   disputeState: ColumnType<string | null, string | null | undefined, string | null>;
   disputedAt: ColumnType<number | null, number | null | undefined, number | null>;
   disputeClosedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  /** How a closed dispute ended, when the provider said: `won` or `lost` (0063). */
+  disputeOutcome: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
 /** A webhook, or a status change a poll found, unique per provider, mode and event id (0062). */
@@ -1727,9 +1729,9 @@ export interface AdminiumPaymentCountersTable {
   hits: number;
 }
 
-// wave 0063 — the rows a table keeps of its removed rows
+// wave 0064 — the rows a table keeps of its removed rows
 
-/** One removed row, under one row it linked to (0063): the facts of its removal and the row as it was, masked. */
+/** One removed row, under one row it linked to (0064): the facts of its removal and the row as it was, masked. */
 export interface AdminiumRemovedRowsTable {
   id: Id;
   connectionId: Id;

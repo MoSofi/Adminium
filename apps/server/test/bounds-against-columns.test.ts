@@ -21,7 +21,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-server.helpers.js';
 
 // The words tried here are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.33' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.35' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
@@ -36,7 +36,7 @@ function desk(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A small desk.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.33', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.35', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [

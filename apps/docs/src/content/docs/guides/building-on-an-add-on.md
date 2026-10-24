@@ -150,7 +150,7 @@ see [states](/reference/manifest/#states)). It may also hold one of the part's m
 making of a new row, to a condition on a column you added yourself, never on one of the part's: a
 sales app keeps the deal's state on its quote and makes no new quote on a closed deal with
 `"create": { "requires": { "where": [{ "column": "deal_state", "eq": "open" }] } }` (a condition on
-the create needs Adminium 0.3.33; an import of past quotes is not held to it). The studio keeps
+the create needs Adminium 0.3.35; an import of past quotes is not held to it). The studio keeps
 voiding a sent invoice for its managers, and a recorded payment clears the client's "I've paid":
 
 ```json

@@ -17,15 +17,26 @@
  *
  * ─── THE PAY ADDRESS ───────────────────────────────────────────────────────
  *
- * Where customers open links: saved explicitly in Studio (never captured,
- * never a request's Host), either this server's public address or one of
- * its customer domains. Every pay route asks `payReachable` first: the
- * same "can customers reach this server?" answer the setup card shows, about
- * the pay address. When it is false, links stop working.
+ * Where customers open links: chosen in Studio (never captured, never a
+ * request's Host), either this server's public address or one of its
+ * customer domains. Until one is chosen it is the public address
+ * (`system.publicOrigin`): the only choice on most installs, and where the
+ * webhooks already point. Every pay route asks `payReachable` first: the same
+ * "can customers reach this server?" answer the setup card shows, about the
+ * pay address. When it is false, links stop working.
+ *
+ * `payAddress` is the one answer: the pay links, the record panel, the setup
+ * page's reachability card and the webhook addresses all read it.
+ *
+ * So while none is saved, changing the public address ("Address in email
+ * links") moves every pay link and webhook address with it: that is a pay
+ * address change, audited and alarmed as one ({@link payAddressMovedWith}).
+ * Learning the public address for the first time, or clearing it, sends no
+ * money anywhere new, and raises nothing.
  */
 import { createHash, randomBytes } from 'node:crypto';
 
-import { paymentLinksRepo, paymentSettingsRepo, type MetaDb, type PayableRef, type PaymentLink } from '@adminium/meta';
+import { paymentLinksRepo, paymentSettingsRepo, settingsRepo, type MetaDb, type PayableRef, type PaymentLink } from '@adminium/meta';
 import { z } from 'zod';
 
 import { decryptSecret, deriveKey, encryptSecret } from '../config/secrets.js';
@@ -118,10 +129,31 @@ export function linkOpens(link: PaymentLink, at: number = Date.now()): boolean {
   return link.current && link.revokedAt === null && link.expiresAt > at;
 }
 
-/** The pay address, normalised, or null when none is saved. */
-export async function payAddress(meta: MetaDb): Promise<string | null> {
+/** The pay address chosen in Studio, normalised, or null when none was. */
+export async function savedPayAddress(meta: MetaDb): Promise<string | null> {
   const saved = await paymentSettingsRepo(meta).get(PAY_ADDRESS_DOC, payAddressSchema);
   return saved === null ? null : normalizePublicOrigin(saved.origin);
+}
+
+/** The pay address, normalised: the one chosen in Studio, else this server's public address; null when there is neither. */
+export async function payAddress(meta: MetaDb): Promise<string | null> {
+  const saved = await savedPayAddress(meta);
+  if (saved !== null) return saved;
+  const publicOrigin = await settingsRepo(meta).get('system.publicOrigin');
+  return typeof publicOrigin === 'string' && publicOrigin !== '' ? normalizePublicOrigin(publicOrigin) : null;
+}
+
+/**
+ * Where the pay address moves when the public address goes from `before` to
+ * `after`: only while no pay address is saved (it then follows the public
+ * one), and only from one address to another. Null when nothing moves.
+ */
+export async function payAddressMovedWith(meta: MetaDb, before: string | null, after: string | null): Promise<{ from: string; to: string } | null> {
+  const from = before === null ? null : normalizePublicOrigin(before);
+  const to = after === null ? null : normalizePublicOrigin(after);
+  if (from === null || to === null || from === to) return null;
+  if ((await savedPayAddress(meta)) !== null) return null;
+  return { from, to };
 }
 
 /** "Can customers reach the pay page?", about the saved pay address. */

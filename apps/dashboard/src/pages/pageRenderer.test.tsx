@@ -317,13 +317,23 @@ describe('built-in page-crud binding (real template, no registration)', () => {
     expect(await screen.findByText('€1,234.50')).toBeDefined();
   });
 
-  it('is unchanged from today when the connection sets none', async () => {
+  it('is the plain number when the connection sets none, never a guessed dollar (walk fix E3)', async () => {
     await renderAt('/p/customers', {
       pageReply: () => jsonResponse(200, { data: moneyEnvelope() }),
       rows: [{ id: 1, mrr: '1234.50' }],
       currency: null,
     });
-    expect(await screen.findByText('$1,234.50')).toBeDefined();
+    expect(await screen.findByText('1,234.50')).toBeDefined();
+    expect(screen.queryByText('$1,234.50')).toBeNull();
+  });
+
+  it("reads a row in its own currency column's currency over the connection's", async () => {
+    await renderAt('/p/customers', {
+      pageReply: () => jsonResponse(200, { data: moneyEnvelope() }),
+      rows: [{ id: 1, mrr: '1234.50', currency: 'GBP' }],
+      currency: 'EUR',
+    });
+    expect(await screen.findByText('£1,234.50')).toBeDefined();
   });
 
   it('keeps the translated default when the stored label is unusable', async () => {

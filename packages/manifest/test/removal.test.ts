@@ -26,7 +26,7 @@ function firm(): Doc {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.firm.desc', fallback: 'A firm.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.33', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.35', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'work', label: en('Work'), order: 1 }],
     requiredSchema: {
       prefixed: true,
@@ -62,15 +62,15 @@ const said = (edit: (doc: Doc) => void): string => {
 };
 
 describe('table.removal', () => {
-  it('validates, is kept as written, and asks for 0.3.33', () => {
+  it('validates, is kept as written, and asks for 0.3.35', () => {
     expect(issuesOf(firm())).toEqual([]);
     const result = validateManifest(firm());
     if (!result.ok) throw new Error('expected a manifest');
     expect(result.manifest.requiredSchema.tables[1]!.removal).toEqual({ reason: 'required', history: true });
     expect(result.manifest.requiredSchema.tables[2]!.removal).toEqual({ reason: true });
     expect(installFloorWords(firm())).toContainEqual({ word: 'table.removal', path: 'requiredSchema.tables.1.removal' });
-    expect(WORD_FLOORS['table.removal']).toBe('0.3.33');
-    expect(said((doc) => ((doc['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.32'))).toMatch(/table\.removal/);
+    expect(WORD_FLOORS['table.removal']).toBe('0.3.35');
+    expect(said((doc) => ((doc['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.34'))).toMatch(/table\.removal/);
   });
 
   it('takes a reason that is asked or required, and a history that is kept: nothing else', () => {
@@ -110,9 +110,9 @@ describe('table.removal', () => {
 });
 
 describe('column rule history: "audit"', () => {
-  it('validates, and asks for 0.3.33', () => {
+  it('validates, and asks for 0.3.35', () => {
     expect(installFloorWords(firm())).toContainEqual({ word: 'column.history', path: 'requiredSchema.tables.2.columns.2.rules.history' });
-    expect(WORD_FLOORS['column.history']).toBe('0.3.33');
+    expect(WORD_FLOORS['column.history']).toBe('0.3.35');
     const result = validateManifest(firm());
     if (!result.ok) throw new Error('expected a manifest');
     expect(result.manifest.requiredSchema.tables[2]!.columns[2]!.rules?.history).toBe('audit');

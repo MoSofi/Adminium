@@ -1587,16 +1587,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   endPaymentsOnRows = async (connectionId, rows) => {
     await endPaymentsForRows({ meta, providerFor: paymentProviderLookup }, connectionId, rows);
   };
+  // Telling payment managers what needs them (every 5 minutes), and the daily check that recorded payments are still there.
+  const paymentWatchDeps = {
+    meta,
+    sources: paymentSources,
+    serviceKeys: () => paymentAddOnKeys({ manifests: appManifests }),
+    hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) },
+  };
+  const paymentNotices = { meta, hub: paymentWatchDeps.hub };
   // Starting and settling checkouts: the pay page, the webhook and the sweep share this one.
   const paymentCheckout = createCheckoutService({
     meta,
     sources: paymentSources,
     providerFor: paymentProviderLookup,
     enqueue: (input) => jobs.enqueue(input),
+    notices: paymentNotices,
   });
   // What a webhook queues (settle), and the sweep that stands in for a webhook that never came.
   registerPaymentsSettleHandler(jobs.registry, { meta, checkout: paymentCheckout });
-  registerPaymentsSweepHandler(jobs.registry, { meta, checkout: paymentCheckout, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input) });
+  registerPaymentsSweepHandler(jobs.registry, { meta, checkout: paymentCheckout, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices });
   jobs.scheduler.registerSchedule(
     PAYMENTS_SWEEP_PLAN_NAME,
     PAYMENTS_SWEEP_PLAN_CRON,
@@ -1609,15 +1618,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     { jitterMs: 30_000 },
   );
-  // Telling payment managers what needs them (every 5 minutes), and the daily check that recorded payments are still there.
-  const paymentWatchDeps = {
-    meta,
-    sources: paymentSources,
-    serviceKeys: () => paymentAddOnKeys({ manifests: appManifests }),
-    hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) },
-  };
   // Refunds: asked of the provider, followed into the record, and asked about again while on their way.
-  const paymentNotices = { meta, hub: paymentWatchDeps.hub };
   const paymentRefundDeps = {
     meta,
     sources: paymentSources,
@@ -2880,6 +2881,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     desktop: env.ADMINIUM_RUNTIME === 'desktop',
     trustProxy: env.ADMINIUM_TRUST_PROXY,
     receiptSent: (attempt) => receiptSentFor(meta, attempt),
+    providerFor: paymentProviderLookup,
   };
   await app.register(payRoutes(payDeps));
 
