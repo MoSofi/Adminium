@@ -247,7 +247,7 @@ export async function featureOn(meta: MetaDb, appKey: string, feature: string): 
 
 /**
  * The links of a message about a row, filled from that row: a column of the
- * same name (a visit's `patient_id`), else — when the row names the link's
+ * same name that points at the same table (a visit's `patient_id`), else — when the row names the link's
  * table through exactly ONE foreign key — that key (a payment's
  * `document_id` fills the message's `invoice_id`: a table built on an
  * add-on's shape names its keys the shape's way). A link still empty is then
@@ -272,8 +272,13 @@ export async function fillLinks(
   const present = (value: unknown) => value !== null && value !== undefined;
   /** The value a row gives a link, `undefined` for none, `null` when two keys make it a guess. */
   const from = (table: ResolvedTable, row: Row, column: string): unknown => {
-    if (table.columns.has(column) && present(row[column])) return row[column];
     const target = referenced(view, outbox.id, column);
+    // A column of the same name is the link only when it points where the message's link points: a sign-off's
+    // `visit_id` (a job's visit) is no `visit_id` of a message about site visits.
+    if (table.columns.has(column) && present(row[column])) {
+      const points = referenced(view, table.id, column);
+      if (target === undefined || points === undefined || points === target) return row[column];
+    }
     if (target === undefined) return undefined;
     const keys = view.model.relations.filter((relation) => relation.from.tableId === table.id && relation.from.columns.length === 1 && relation.to.tableId === target);
     if (keys.length > 1) return null;
