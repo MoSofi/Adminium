@@ -266,6 +266,13 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // to that the reader reads now (crud/removals.ts); a column whose earlier values only the audit log keeps.
   'table.removal',
   'column.history',
+  // A number or a time of day against another column, a span of days, a moment not before now: judged with the dates (write-service `boundIssues`).
+  'bounds.other',
+  'bounds.now',
+  // A stamp no writer gives: dropped from every write, refused on a brought file's line (crud/decide.ts).
+  'stamp.strict',
+  // A stamp beside `requiredWhen`: a brought line is judged as sent, before stamps (crud/decide.ts `stampLeftOut`).
+  'requiredWhen.stamp',
 ];
 
 export interface UnbuiltWord {

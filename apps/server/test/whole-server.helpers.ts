@@ -156,6 +156,8 @@ export async function wholeServer(
     install?: Record<string, unknown>;
     /** Outgoing mail set up (never delivered: nothing listens), so an email is queued and can be read. */
     smtp?: boolean;
+    /** More files of the app's package, by path: its sample data, say. */
+    files?: Record<string, string>;
   } = {},
 ): Promise<WholeServer> {
   const key = String(manifest['key']);
@@ -195,7 +197,7 @@ export async function wholeServer(
   const owner = await signIn(app, `owner@${key}.test`);
 
   const sides = (manifest['frontends'] as { side: string }[]).map((frontend) => [`${frontend.side}/index.html`, '<!doctype html><html><body></body></html>'] as const);
-  const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), ...Object.fromEntries(sides) });
+  const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), ...Object.fromEntries(sides), ...(opts.files ?? {}) });
   const staged = await app.inject({ method: 'POST', url: `/api/v1/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`, headers: { cookie: owner, 'content-type': 'application/octet-stream' }, payload: Buffer.from(tarball) });
   expect(staged.statusCode, staged.body).toBe(200);
   const installed = await app.inject({ method: 'POST', url: '/api/v1/apps/install', headers: { cookie: owner }, payload: { key, version: manifest['version'], connectionId: connection.id, ...(opts.install ?? {}) } });

@@ -587,9 +587,9 @@ describe('dates kept within dates', () => {
     expectIssue(m, '"invoices.total" is not a date');
     m = valid();
     paidOn(m)['rules'] = { notBefore: { column: 'paid_on' } };
-    expectIssue(m, 'a date is bounded by another column');
+    expectIssue(m, 'a value is bounded by another column');
     m = valid();
     (columnOf(m, 'payments', 'amount') as Doc)['rules'] = { notAfter: 'today' };
-    expectIssue(m, 'only a date is kept within dates');
+    expectIssue(m, 'only a date is kept not later than today');
   });
 });

@@ -623,6 +623,8 @@ const storedDateBound = z
     via: ruleColumn.optional(),
     when: z.array(stateCondition.strict()).min(1).max(8).optional(),
     strict: z.union([z.literal(true), z.array(stateCondition.strict()).min(1).max(8)]).optional(),
+    /** On a date: the other date moved by so many days (an end at most a year after its start). */
+    days: z.number().int().min(1).max(36_600).optional(),
   })
   .strict();
 
@@ -1243,7 +1245,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z
       .object({
         notAfter: z.union([z.literal('today'), storedDateBound]).optional(),
-        notBefore: storedDateBound.optional(),
+        /** `now`: a new row's moment is not in the past (a create only, never one that brings history). */
+        notBefore: z.union([z.literal('now'), storedDateBound]).optional(),
       })
       .refine((v) => v.notAfter !== undefined || v.notBefore !== undefined, { message: 'a bound says notAfter or notBefore' }),
   }),
@@ -1311,6 +1314,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       on: z.union([stampTrigger, z.array(stampTrigger).min(2).max(3)]),
       /** Emptied again when a move marked `undo` takes the row back out of a state it watches. */
       clearOnBack: z.literal(true).optional(),
+      /** Always the server's: a value a writer sends is dropped, and a brought file's line carrying one is refused. */
+      strict: z.literal(true).optional(),
     }),
   }),
   z.object({

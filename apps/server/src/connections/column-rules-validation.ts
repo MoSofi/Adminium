@@ -132,6 +132,8 @@ function filledByRule(related: RelatedRules | undefined, column: string): boolea
  */
 function alwaysFilledByRule(related: RelatedRules | undefined, column: string): boolean {
   const others = (related?.rules ?? []).filter((rule) => {
+    // A stamp fills a person's write, never one that brings history (an import, sample data): such a write is asked for it.
+    if (rule.columnName === column && rule.op === 'column.stamp') return false;
     if (rule.columnName !== column || rule.op !== 'column.copy') return true;
     const copy = rule.value as Value | null;
     return (copy?.['mode'] ?? 'default') !== 'default' || copy?.['follow'] === true;
@@ -445,13 +447,22 @@ export function columnRuleIssue(
     }
 
     case 'column.bounds': {
-      // SQLite keeps a date as text, and says so.
+      // A date against a date (SQLite keeps one as text, and says so), a number against a number, a time of day against another.
       const dated = (c: ColumnModel) => ['date', 'timestamp', 'timestamptz'].includes(c.logicalType) || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(c.logicalType));
-      if (!dated(column)) return `Only a date is kept within dates; ${name} is ${column.logicalType}.`;
+      const numeric = (c: ColumnModel) => ['integer', 'bigint', 'decimal', 'float'].includes(c.logicalType);
+      const clock = (c: ColumnModel) => c.logicalType === 'time' || TEXTUAL_TYPES.has(c.logicalType);
+      const kindOf = (c: ColumnModel): 'date' | 'number' | 'time' | null => (dated(c) ? 'date' : numeric(c) ? 'number' : clock(c) ? 'time' : null);
+      const kind = kindOf(column);
+      if (kind === null) return `Only a date, a number or a time of day is kept on one side of another; ${name} is ${column.logicalType}.`;
+      if (value['notAfter'] === 'today' && kind !== 'date') return `Only a date is kept not later than today; ${name} is ${column.logicalType}.`;
+      if (value['notBefore'] === 'now' && !['timestamp', 'timestamptz'].includes(column.logicalType) && !(model.dialect === 'sqlite' && TEXTUAL_TYPES.has(column.logicalType))) {
+        return `Only a moment is kept not before now; ${name} is ${column.logicalType}.`;
+      }
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       for (const side of ['notBefore', 'notAfter']) {
-        const bound = value[side] as { column?: unknown; via?: unknown; when?: { column?: unknown }[]; strict?: unknown } | 'today' | undefined;
-        if (bound === undefined || bound === 'today') continue;
+        const bound = value[side] as { column?: unknown; via?: unknown; when?: { column?: unknown }[]; strict?: unknown; days?: unknown } | 'today' | 'now' | undefined;
+        if (bound === undefined || bound === 'today' || bound === 'now') continue;
+        if (bound.days !== undefined && kind !== 'date') return `Days are counted between dates only; ${name} is ${column.logicalType}.`;
         let owner = table;
         if (typeof bound.via === 'string') {
           const relation = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === bound.via);
@@ -460,7 +471,10 @@ export function columnRuleIssue(
         }
         const other = owner?.columns.find((c) => c.name === bound.column);
         if (other === undefined) return `${owner?.name ?? 'That table'} has no column ${JSON.stringify(bound.column)}.`;
-        if (!dated(other)) return `${owner?.name ?? 'That table'}.${String(bound.column)} is not a date.`;
+        // On SQLite a text column may hold a date or a time of day: either side of a text bound is read by what it holds.
+        const otherKind = kindOf(other);
+        const sqliteText = model.dialect === 'sqlite' && TEXTUAL_TYPES.has(other.logicalType) && TEXTUAL_TYPES.has(column.logicalType);
+        if (otherKind !== kind && !sqliteText) return `${owner?.name ?? 'That table'}.${String(bound.column)} is not ${kind === 'date' ? 'a date' : kind === 'number' ? 'a number' : 'a time of day'}.`;
         const conditions = [...(bound.when ?? []), ...(Array.isArray(bound.strict) ? (bound.strict as { column?: unknown }[]) : [])];
         const missing = conditions.find((condition) => !table?.columns.some((c) => c.name === condition.column));
         if (missing !== undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(missing.column)}.`;

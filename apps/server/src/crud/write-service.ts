@@ -1970,6 +1970,44 @@ function earlyIssues(target: WriteTarget, values: Row): FieldIssues | null {
   return unstorableText(values, target.table.columns);
 }
 
+/** A time of day as minutes since midnight: `09:30`, `9:30`, a database's `09:30:00`; null for anything else. */
+function clockMinutes(value: unknown): number | null {
+  const found = /^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d+)?)?$/.exec(String(value).trim());
+  return found === null ? null : Number(found[1]) * 60 + Number(found[2]) + Number(found[3] ?? 0) / 60;
+}
+
+/** A calendar day (`2026-10-22`) as a count of days, so a span of days is a sum. */
+function dayNumber(day: string | null): number | null {
+  if (day === null) return null;
+  const ms = Date.parse(`${day}T00:00:00Z`);
+  return Number.isNaN(ms) ? null : Math.round(ms / 86_400_000);
+}
+
+/**
+ * One side of a bound as a number to compare: a day as a count of days, a
+ * number as itself, a time of day as minutes. Text is read by what it holds
+ * (a time of day, else a date), or as the other side was (`want`). Null for a
+ * value that is none of these: the column's own check is the one to refuse it.
+ */
+function comparable(
+  kind: DateBound['kind'],
+  column: string,
+  value: unknown,
+  day: (column: string, value: unknown) => string | null,
+  want?: 'day' | 'number' | 'clock',
+): { kind: 'day' | 'number' | 'clock'; value: number } | null {
+  if (kind === 'number') {
+    const n = typeof value === 'bigint' ? Number(value) : typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+    return Number.isFinite(n) ? { kind: 'number', value: n } : null;
+  }
+  if (kind === 'time' || (kind === 'text' && (want === 'clock' || (want === undefined && clockMinutes(value) !== null)))) {
+    const minutes = clockMinutes(value);
+    return minutes === null ? null : { kind: 'clock', value: minutes };
+  }
+  const days = dayNumber(day(column, value));
+  return days === null ? null : { kind: 'day', value: days };
+}
+
 function refuseEarly(target: WriteTarget, action: 'create' | 'update', values: Row, mapError: ((error: unknown) => never) | undefined): void {
   refuseUngrantedColumns(target.rights, target.table, action, Object.keys(values));
   const issues = earlyIssues(target, values);
@@ -2020,12 +2058,15 @@ export function normalizeText(rules: TableRules | null, values: Row): Row {
  * something happened and who did it — its own record of a write, never the
  * writer's. Two kinds stay open: a date worked out from another (a due date
  * the desk may move later), and a `byOrigin` word with no staff word (staff
- * say it themselves; a guest never does). An import keeps what it brings.
+ * say it themselves; a guest never does) — unless the stamp is `strict`. An
+ * import keeps what it brings (a strict stamp's is refused in `decide.ts`).
  */
 function withoutStamped(rules: TableRules | null, values: Row, origin: WriteOrigin): Row {
   if (origin === 'import' || origin === 'undo') return values;
   const guest = origin === 'public';
-  const kept = (stamp: { set: unknown }): boolean => {
+  const kept = (stamp: { set: unknown; strict?: true }): boolean => {
+    // A strict stamp keeps nothing a writer sends, whatever it writes.
+    if (stamp.strict === true) return false;
     const set = stamp.set;
     if (typeof set !== 'object' || set === null) return false;
     if ('addDays' in set) return !guest;
@@ -2182,10 +2223,22 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /**
-   * Dates kept within dates (`column.bounds`): never later than today on the
-   * venue's calendar, never earlier than another date — the row's own, or
-   * the row a foreign key points at, read through the write's own handle.
-   * History is not judged: an import brings in what happened.
+   * Values kept on one side of others (`column.bounds`): a date never later
+   * than today on the venue's calendar, never earlier than another date — the
+   * row's own, or the row a foreign key points at, read through the write's
+   * own handle — or later than it moved by so many days (a cover lasts a year
+   * at most); a number against a number (warm below stale); a time of day
+   * against another (work starts before it ends); a new row's moment not in
+   * the past (`notBefore: 'now'`, on a create only, to the minute).
+   *
+   * History is not judged where it says what happened: an import brings in
+   * the dates it brings (a payment dated before its invoice, a day already
+   * past), and an undo puts a row back as it was. What is no history — a
+   * number against a number, a time of day against another, a span of days —
+   * is judged on an import too: a file cannot bring in warm above stale.
+   *
+   * A refusal names the column, and the other one too when it is of the same
+   * row (`out-of-range` on both), so a form shows the pair.
    */
   async function boundIssues(
     rules: TableRules | null,
@@ -2195,8 +2248,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     values: Row,
     stored: Row | null,
   ): Promise<FieldIssues | null> {
-    if ((rules?.bounds?.length ?? 0) === 0 || action === 'delete' || context.origin === 'import' || context.origin === 'undo') return null;
+    if ((rules?.bounds?.length ?? 0) === 0 || action === 'delete' || context.origin === 'undo') return null;
+    const history = context.origin === 'import';
     let issues: FieldIssues | null = null;
+    const refuse = (column: string) => {
+      issues ??= {};
+      issues[column] ??= { code: 'out-of-range' };
+    };
     const row = { ...(stored ?? {}), ...values };
     const zone = (await zoneFor(rules, target)) ?? 'UTC';
     const moment = (column: string) => ['timestamp', 'timestamptz'].includes(target.table.columns.get(column)?.logicalType ?? '');
@@ -2206,9 +2264,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const at = instantOf(value);
       return at === null ? null : venueClock(new Date(at), zone).day;
     };
-    /** The other side's day: this row's date, or the one the link points at, read through the write's own handle. */
-    const otherDay = async (side: DateBoundSide): Promise<string | null> => {
-      if (side.through === undefined) return dayOf(row[side.column]);
+    /** The other side's value: this row's, or the one the link points at, read through the write's own handle. */
+    const otherValue = async (side: DateBoundSide): Promise<unknown> => {
+      if (side.through === undefined) return row[side.column];
       const key = row[side.through.via];
       if (key === null || key === undefined) return null;
       const found = (await target.db
@@ -2216,10 +2274,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         .select(sql<unknown>`${sql.ref(side.column)}`.as('value'))
         .where((eb) => eb(target.db.dynamic.ref(side.through!.key), '=', key))
         .executeTakeFirst()) as { value?: unknown } | undefined;
-      return dayOf(found?.value);
+      return found?.value;
     };
     const sent = (column: string) => Object.prototype.hasOwnProperty.call(values, column);
-    const sides = (bound: DateBound) => [bound.notBefore, bound.notAfter === 'today' ? undefined : bound.notAfter].filter((side): side is DateBoundSide => side !== undefined);
+    const sides = (bound: DateBound) =>
+      [bound.notBefore === 'now' ? undefined : bound.notBefore, bound.notAfter === 'today' ? undefined : bound.notAfter].filter((side): side is DateBoundSide => side !== undefined);
     /** The columns of this row a side reads: its link, and what its conditions look at. */
     const reads = (side: DateBoundSide) => [
       ...(side.through === undefined ? [side.column] : [side.through.via]),
@@ -2227,20 +2286,39 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       ...(Array.isArray(side.strict) ? side.strict.map((c) => c.column) : []),
     ];
     for (const bound of rules!.bounds!) {
-      // Judged when the date is written, and when what it is bounded by changes (a payment moved to another invoice, a credit's kind).
-      if (!sent(bound.column) && !sides(bound).some((side) => reads(side).some(sent))) continue;
-      const day = venueDay(bound.column, row[bound.column]);
-      if (day === null) continue;
-      let refused = bound.notAfter === 'today' && day > venueClock(new Date(), zone).day;
-      for (const [side, below] of [[bound.notBefore, true] as const, [bound.notAfter === 'today' ? undefined : bound.notAfter, false] as const]) {
-        if (refused || side === undefined) continue;
-        if (!(side.when ?? []).every((condition) => holds(condition, row))) continue;
-        const other = await otherDay(side);
-        if (other === null) continue;
-        const strict = side.strict === true || (Array.isArray(side.strict) && side.strict.every((condition) => holds(condition, row)));
-        refused = below ? (strict ? day <= other : day < other) : strict ? day >= other : day > other;
+      const value = row[bound.column];
+      if (value === null || value === undefined || value === '') continue;
+      // A new row's moment, not in the past: on a create, never one that brings history. To the minute: a form filled at 14:30 is sent a little after.
+      if (bound.notBefore === 'now' && action === 'create' && !history) {
+        const at = instantOf(value);
+        const now = (context.occurredAt ?? new Date()).getTime();
+        if (at !== null && at < now - 60_000) refuse(bound.column);
       }
-      if (refused) (issues ??= {})[bound.column] = { code: 'out-of-range' };
+      // Judged when the value is written, and when what it is bounded by changes (a payment moved to another invoice, a credit's kind).
+      if (!sent(bound.column) && !sides(bound).some((side) => reads(side).some(sent))) continue;
+      const own = comparable(bound.kind, bound.column, value, venueDay);
+      if (own === null) continue;
+      // Today is history's to say: an import brings in a payment as it came.
+      if (bound.notAfter === 'today' && !history && own.kind === 'day' && own.value > dayNumber(venueClock(new Date(), zone).day)!) {
+        refuse(bound.column);
+        continue;
+      }
+      for (const [side, below] of [[bound.notBefore === 'now' ? undefined : bound.notBefore, true] as const, [bound.notAfter === 'today' ? undefined : bound.notAfter, false] as const]) {
+        if (side === undefined) continue;
+        // A date against a date is history an import keeps; a number, a time of day and a span of days are not.
+        if (history && own.kind === 'day' && side.days === undefined) continue;
+        if (!(side.when ?? []).every((condition) => holds(condition, row))) continue;
+        const raw = await otherValue(side);
+        if (raw === null || raw === undefined || raw === '') continue;
+        const other = comparable(bound.kind, side.column, raw, (_column, v) => dayOf(v), own.kind);
+        if (other === null || other.kind !== own.kind) continue;
+        const limit = other.kind === 'day' && side.days !== undefined ? other.value + side.days : other.value;
+        const strict = side.strict === true || (Array.isArray(side.strict) && side.strict.every((condition) => holds(condition, row)));
+        const refused = below ? (strict ? own.value <= limit : own.value < limit) : strict ? own.value >= limit : own.value > limit;
+        if (!refused) continue;
+        refuse(bound.column);
+        if (side.through === undefined) refuse(side.column);
+      }
     }
     return issues;
   }

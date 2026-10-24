@@ -930,6 +930,83 @@ export async function ledgersListing(
   return out;
 }
 
+/** A sample list that names a stored row: its table, and the app or add-on whose list it is. */
+export interface SampleList {
+  ledger: string;
+  owner: string;
+}
+
+/**
+ * Every sample list that names a stored row as one of its sample rows (never
+ * a row a removal kept: that one is the operator's). The key is compared as
+ * one spelling, whatever the engine handed back (`keyIdOf`): a rule's run
+ * holds the key as its event carried it.
+ */
+export async function sampleListsNaming(meta: MetaDb, db: Kysely<SourceDatabase>, connectionId: string, table: ResolvedTable, pk: Row): Promise<SampleList[]> {
+  const wanted = keyIdOf(table, pk);
+  if (wanted === null) return [];
+  const records = await appTablesRepo(meta).forConnection(connectionId);
+  const holders = records.filter((record) => record.role === 'app' && record.tableName === table.name && record.state !== 'dropped' && record.state !== 'pending');
+  if (holders.length === 0) return [];
+  const out: SampleList[] = [];
+  for (const ledger of records.filter((record) => record.role === 'sample-ledger' && record.state === 'created')) {
+    const refs = [...new Set(holders.map((holder) => (holder.appKey === ledger.appKey ? holder.ref : `${holder.appKey}:${holder.ref}`)))];
+    const found = await sql<Pick<LedgerRow, 'pk'>>`SELECT pk FROM ${sql.table(ledger.tableName)} WHERE table_ref IN (${sql.join(refs)})`.execute(db).catch(() => ({ rows: [] as Pick<LedgerRow, 'pk'>[] }));
+    if (found.rows.some((row) => keyIdOf(table, entryKey(row as LedgerRow)) === wanted)) out.push({ ledger: ledger.tableName, owner: ledger.appKey });
+  }
+  return out;
+}
+
+/**
+ * A row a rule made from a sample row, entered in each list that names that
+ * sample row, as a sample row of its own: "Remove sample data" then takes it
+ * with the rest (the follow-up a sample job's sign-off booked), and the
+ * sample row it hangs off no longer reads as one the operator's records use.
+ * It is recorded as it stands now, so a change somebody makes to it later
+ * keeps it like any changed sample row; a row a real person wrote under it is
+ * theirs, and keeps it. A table no installed manifest holds cannot be named
+ * in a list, and its row is left out.
+ */
+export async function listRuleMadeRow(
+  meta: MetaDb,
+  target: { connectionId: string; db: Kysely<SourceDatabase>; dialect: string; table: ResolvedTable },
+  pk: Row,
+  lists: readonly SampleList[],
+  at: number,
+): Promise<number> {
+  if (lists.length === 0) return 0;
+  const db = asDb(target.db);
+  const row = await fetchByPk(db, target.table, pk);
+  if (row === undefined) return 0;
+  const key = Object.fromEntries(target.table.primaryKey.map((column) => [column, row[column]]));
+  const records = await appTablesRepo(meta).forConnection(target.connectionId);
+  const holders = records.filter((record) => record.role === 'app' && record.tableName === target.table.name && record.state !== 'dropped' && record.state !== 'pending');
+  const maker = holders.find((holder) => holder.owned) ?? holders[0];
+  const { rowHash, colHashes } = hashRow(row, target.table);
+  let listed = 0;
+  for (const list of lists) {
+    const own = holders.find((holder) => holder.appKey === list.owner);
+    const ref = own !== undefined ? own.ref : maker === undefined ? null : `${maker.appKey}:${maker.ref}`;
+    if (ref === null || ref.length > REF_WIDTH) continue;
+    // The next place in the list; two runs that take the same one at once: the second takes the one after.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const top = await sql<{ top: number | string | null }>`SELECT MAX(seq) AS top FROM ${sql.table(list.ledger)}`.execute(db);
+      const seq = Number(top.rows[0]?.top ?? 0) + 1;
+      try {
+        await db
+          .insertInto(list.ledger as never)
+          .values({ seq, table_ref: ref, pk: canonicalJson(key), label: null, row_hash: rowHash, col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }), created_at: at } as never)
+          .execute();
+        listed += 1;
+        break;
+      } catch (error) {
+        if (!isUniqueViolation(error) || attempt === 4) throw error;
+      }
+    }
+  }
+  return listed;
+}
+
 /**
  * A sample row a write of Adminium's own moved (a timed move: a held sample
  * order expired; a total another owner's sample row fed) recorded again as

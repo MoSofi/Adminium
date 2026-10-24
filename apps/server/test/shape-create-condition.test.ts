@@ -19,11 +19,14 @@ import { readFileSync } from 'node:fs';
 
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
 import { shapeConformanceIssues, shapeKey, validateManifest, type ShapeDefinitionView } from '@adminium/manifest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { mapTableRefs } from '../src/apps/real-refs.js';
 import { addOnHarness, appManifest } from './app-add-ons.helpers.js';
 import { LEGS, installInvoicing, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
+
+// The manifest uses a word read from 0.3.33 on (`shape.create`); until the release this server says 0.3.32.
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.33' }));
 
 type Doc = Record<string, unknown>;
 const en = (text: string) => ({ 'en-US': text });
@@ -52,7 +55,7 @@ function tableOnPart(part: string, ref: string, extra: Doc[] = [], states: (shap
 function crm(create: Doc | null = OPEN_ONLY): Doc {
   return appManifest('crm', {
     version: '0.2.0',
-    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.33', engines: ['postgres', 'mysql', 'sqlite'] },
     addOns: { requires: [{ key: 'invoices', range: '>=1.1.0', reason: en('Quotes are made by this add-on.') }] },
     requiredSchema: {
       prefixed: true,

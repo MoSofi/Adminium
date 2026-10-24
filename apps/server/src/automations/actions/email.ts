@@ -154,6 +154,8 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
     if (value === null || value === undefined || value === '') return undefined;
     if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') return forms.instant(name, value)[name];
     if (column.logicalType === 'date') return forms.day(name, value)[name];
+    // A yes/no reads as the reader says it ("Ja", "Non"), never `true` or `1`: whatever its name, it is no amount.
+    if (column.logicalType === 'boolean') return forms.yesNo(value);
     if (source.table.table.columns.find((c) => c.name === name)?.semantics?.primary === 'money') return forms.money(value, currency);
     return undefined;
   };

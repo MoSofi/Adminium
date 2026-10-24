@@ -245,6 +245,8 @@ export interface ColumnStampRule {
   on: StampTrigger | StampTrigger[];
   /** Emptied again when a move marked `undo` takes the row back out of a state it watches. */
   clearOnBack?: true;
+  /** Always the server's: a value a writer sends is dropped, and a brought file's line carrying one is refused. */
+  strict?: true;
 }
 
 /**
@@ -328,6 +330,8 @@ export interface EffectiveDateBound {
   via?: string;
   when?: StateCondition[];
   strict?: true | StateCondition[];
+  /** On a date: the other date moved by so many days (an end at most a year after its start). */
+  days?: number;
 }
 
 /**
@@ -623,7 +627,7 @@ export interface EffectiveColumn extends ColumnModel {
   /** `column.customerKey`: a keyed hash of the address in `of`. */
   customerKey?: { of: string };
   /** `column.bounds`: a date never later than today, never earlier than another date. */
-  bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: EffectiveDateBound };
+  bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: 'now' | EffectiveDateBound };
   /**
    * `column.linkable`: a foreign key that names only a row meeting these
    * conditions, read on the row it names; and (`same`) whose `column` holds
