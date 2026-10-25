@@ -135,6 +135,7 @@
       "unowned": "以及尚无人负责的行",
       "while": "仅当 {column} 为 {values} 时",
       "by": "且仅限 {column} 指明为其本人的行",
+      "notThrough": "但不包括作为 {listings} 中所列人员的情况",
       "viaOwn": "仅 {table} 中其 {via} 的 {column} 指明为其本人的行",
       "viaTeam": "仅 {table} 中其 {via} 的 {column} 指明为其本人或其所带团队成员的行",
       "allWho": "{table} 的每一行，无论 {column} 是谁。",

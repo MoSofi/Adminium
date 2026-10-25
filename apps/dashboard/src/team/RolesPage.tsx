@@ -889,7 +889,7 @@ function wayIs(way: RowWay): string {
  * Owner is this person."). A table whose rows are somebody's in more than one
  * way names every way, so the sentence is never narrower than the rule.
  */
-export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways'>, reach: RowReach | null): string {
+export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways' | 'listings'>, reach: RowReach | null): string {
   const only = table.ways.length === 1 ? table.ways[0] : undefined;
   if (reach === null) {
     return only?.kind === 'person'
@@ -897,6 +897,9 @@ export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways'>, reac
       : t('roles:rows.sentence.all', 'Every row of {table}.', { table: table.label });
   }
   const ways = anyOf(table.ways.map(wayIs));
+  const notThrough = reach.notThrough === undefined ? [] : typeof reach.notThrough === 'string' ? [reach.notThrough] : reach.notThrough;
+  const listingLabel = (id: string): string =>
+    table.listings?.find((one) => one.table === id)?.label ?? table.ways.find((way): way is Extract<RowWay, { kind: 'listing' }> => way.kind === 'listing' && way.table === id)?.label ?? id;
   // A reach judged by the parent row's person: the table's own ways and "rows nobody owns" do not apply.
   const via = reach.via !== undefined && reach.by !== undefined && reach.reach !== 'all' ? { via: reach.via, column: reach.by } : undefined;
   const parts = [
@@ -916,6 +919,8 @@ export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways'>, reac
       ? []
       : [t('roles:rows.sentence.while', 'only while {column} is {values}', { column: reach.while.column, values: anyOf(reach.while.in.map(String)) })]),
     ...(reach.by === undefined || via !== undefined ? [] : [t('roles:rows.sentence.by', 'and only the ones {column} names them in', { column: reach.by })]),
+    // A listing the app leaves out of a change: named by the listing's own label, never its id.
+    ...(notThrough.length === 0 ? [] : [t('roles:rows.sentence.notThrough', 'but not as someone listed in {listings}', { listings: anyOf(notThrough.map(listingLabel)) })]),
   ];
   return `${parts.join(', ')}.`;
 }
@@ -1081,7 +1086,8 @@ function RoleRowsTableCard(props: {
                       disabled={props.disabled}
                       options={[
                         // "Only the ones a column names them in" is the app's own narrowing, and every row has no such thing: not offered over it.
-                        { value: 'all', label: t('roles:rows.reach.all', 'All rows'), disabled: reach?.by !== undefined },
+                        // …nor over a listing the app leaves out of a change: every row would drop it, unsaid.
+                        { value: 'all', label: t('roles:rows.reach.all', 'All rows'), disabled: reach?.by !== undefined || reach?.notThrough !== undefined },
                         { value: 'team', label: t('roles:rows.reach.team', 'Their team’s') },
                         { value: 'own', label: t('roles:rows.reach.own', 'Their own') },
                       ]}

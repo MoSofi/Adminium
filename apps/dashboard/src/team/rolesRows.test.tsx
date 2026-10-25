@@ -227,6 +227,57 @@ describe('the sentence a limit is said in', () => {
   });
 });
 
+describe('a change that leaves a listing out, as an app wrote it', () => {
+  const HELPERS = 'main.deal_members';
+  const kept = (): RoleRowsTable[] => [
+    table({ limit: { read: { reach: 'own' }, update: { reach: 'own', notThrough: HELPERS } } }),
+    // A quote's listings are its deal's: named from the listings the table is read through.
+    table({
+      ref: 'conn_1/main.quotes',
+      tableId: 'main.quotes',
+      label: 'Quotes',
+      ways: [{ kind: 'parent', column: 'deal_id', table: 'main.deals', label: 'Deals' }],
+      listings: [{ table: HELPERS, label: 'Deal members' }, { table: 'main.covers', label: 'Covers' }],
+      limit: { read: { reach: 'own' }, update: { reach: 'own', notThrough: [HELPERS, 'main.covers'] } },
+    }),
+  ];
+  async function openKept() {
+    const user = userEvent.setup();
+    const io = installFetch();
+    const fetcher = globalThis.fetch as unknown as (input: unknown, init?: RequestInit) => Promise<Response>;
+    vi.stubGlobal('fetch', vi.fn((input: unknown, init?: RequestInit) => (String(input) === '/api/v1/roles/role_rep/rows' ? Promise.resolve(jsonResponse(200, { roleId: 'role_rep', locked: false, tables: kept() })) : fetcher(input, init))));
+    renderRoles();
+    await user.click(await screen.findByTestId('roles-rows-rep'));
+    await screen.findByTestId('roles-rows-tables');
+    return { user, ...io };
+  }
+
+  it('says it in words, by the listing\'s own name, never its id', async () => {
+    await openKept();
+    expect(screen.getByTestId('roles-rows-main.deals-update-sentence').textContent).toBe(
+      'Only rows of Deals where Owner is this person or this person is listed in Deal members, but not as someone listed in Deal members.',
+    );
+    expect(screen.getByTestId('roles-rows-main.quotes-update-sentence').textContent).toBe('Only rows of Quotes where this person reaches its Deals, but not as someone listed in Deal members or Covers.');
+    // "Every row" would drop it unsaid: not offered over it.
+    expect((within(screen.getByTestId('roles-rows-main.deals-update')).getByRole('radio', { name: 'All rows' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('is kept through a change of the reach and a save', async () => {
+    const { user, puts } = await openKept();
+    await user.click(within(screen.getByTestId('roles-rows-main.deals-update')).getByRole('radio', { name: 'Their team’s' }));
+    expect(screen.getByTestId('roles-rows-main.deals-update-sentence').textContent).toContain('but not as someone listed in Deal members');
+    await user.click(screen.getByTestId('roles-rows-save'));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]!.body.rows).toEqual({ 'conn_1/main.deals': { read: { reach: 'own' }, update: { reach: 'team', notThrough: HELPERS } } });
+  });
+
+  it('names the listing from the table\'s own ways when no list of listings came, and an unknown one as it is', () => {
+    const ways = [{ kind: 'listing' as const, table: HELPERS, label: 'Deal members', dated: false }];
+    expect(reachSentence({ label: 'Deals', ways }, { reach: 'own', notThrough: HELPERS })).toBe('Only rows of Deals where this person is listed in Deal members, but not as someone listed in Deal members.');
+    expect(reachSentence({ label: 'Deals', ways }, { reach: 'own', notThrough: 'main.gone' })).toBe('Only rows of Deals where this person is listed in Deal members, but not as someone listed in main.gone.');
+  });
+});
+
 describe('what a save of row limits sends', () => {
   it('leaves an untouched table out, takes a limit off with null, and names a table only when it is limited', () => {
     const held = table({ limit: { read: { reach: 'own' } } });

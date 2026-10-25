@@ -135,6 +135,7 @@
       "unowned": "et les lignes qui n’appartiennent encore à personne",
       "while": "seulement tant que {column} vaut {values}",
       "by": "et seulement celles où {column} les désigne",
+      "notThrough": "mais pas en tant que personne inscrite dans {listings}",
       "viaOwn": "Seulement les lignes de {table} dont le {via} les désigne dans {column}",
       "viaTeam": "Seulement les lignes de {table} dont le {via} désigne dans {column} cette personne ou quelqu’un d’une équipe qu’elle dirige",
       "allWho": "Toutes les lignes de {table}, quel que soit {column}.",

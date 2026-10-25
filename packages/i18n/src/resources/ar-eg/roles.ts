@@ -145,6 +145,7 @@ export default {
       "unowned": "والصفوف التي لا يملكها أحد بعد",
       "while": "فقط ما دام {column} يساوي {values}",
       "by": "وفقط تلك التي يذكرهم فيها {column}",
+      "notThrough": "لكن ليس بصفته شخصًا مدرجًا في {listings}",
       "viaOwn": "فقط صفوف {table} التي يذكرهم {via} الخاص بها في {column}",
       "viaTeam": "فقط صفوف {table} التي يذكر {via} الخاص بها في {column} هذا الشخص أو شخصًا في فريق يقوده",
       "allWho": "كل صفوف {table}، أيًّا كان {column}.",

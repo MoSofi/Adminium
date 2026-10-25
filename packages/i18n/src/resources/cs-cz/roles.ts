@@ -145,6 +145,7 @@ export default {
       "unowned": "a řádky, které zatím nikomu nepatří",
       "while": "jen dokud je {column} {values}",
       "by": "a jen ty, ve kterých je uvádí {column}",
+      "notThrough": "ale ne jako někdo uvedený v {listings}",
       "viaOwn": "Jen řádky tabulky {table}, jejichž {via} je uvádí v {column}",
       "viaTeam": "Jen řádky tabulky {table}, jejichž {via} uvádí v {column} je nebo někoho z týmu, který vedou",
       "allWho": "Každý řádek tabulky {table}, ať je {column} kdokoli.",
