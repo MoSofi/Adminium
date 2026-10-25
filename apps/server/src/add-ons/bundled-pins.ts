@@ -11,15 +11,15 @@
 import type { TrustedPackage } from './decide.js';
 
 export const BUNDLED_PINS: readonly TrustedPackage[] = [
-  { key: 'barcode-labels', version: '1.0.13', integrity: 'sha512-7qvweLChIzYRz08SBPhL1zZJDlUP5hgui+R9hFjG9r/VFEl09s/W+55MNfDisa2D9cMPL4Vh+xDh+7j85QO+pQ==' },
-  { key: 'design-studio', version: '1.0.13', integrity: 'sha512-9ErRRx4nxHdA+UhBANzWABc+NpLHUB+UD4aH58h/BgvcsAKXphextDh64j8qxXQn4HfKfEOGv7Z91lPdNNRHAg==' },
-  { key: 'holiday-calendars', version: '1.0.13', integrity: 'sha512-4ZdCGOXXORy2iq1Hso2gJFQO8mDOJaklK+m6EWge3X2FPnPFCCJ/DtcZw/68FcrFJQyyWSkD7a8lvPo8JQBl3A==' },
-  { key: 'import-canva', version: '1.0.13', integrity: 'sha512-5WmjPSrUYNru2mlbENBjSyc+nZNlvRnx8HU8xsJ/M76oWmPr/66LmEob/0npUU3qYhh2PT5TRTHbaZsT/nRzfA==' },
-  { key: 'inventory', version: '1.0.13', integrity: 'sha512-QoxoiOWDoQ+idLd20Hz0oYAHwUachstTMbKzLkcE0lEsC42+aarxZRD5oSQmpBlCvNap/7mVRM2YkVv+uUoTMA==' },
-  { key: 'invoices', version: '1.0.13', integrity: 'sha512-6dVR3LIB8h+wEjnCQKDlc+92UTaBh8fXAZw5t3cWnFn8RQiHijJ19DFiTv077h6JDZa2yhKiJ8Cd1+5YmUseVA==' },
-  { key: 'offers', version: '1.0.13', integrity: 'sha512-GzGNEovEMj0ckKU4KBPjLFle3KWnBLQO+O7yzXWQfi8DqfDVJX2QItO/F1aHoe6tE2ETkBP2qHqPI9gZttj3Qg==' },
-  { key: 'payments-paypal', version: '1.0.13', integrity: 'sha512-XKMFN+38vice4NMznoaJ0B/fY3v9tFZl/Z6KqHip80iJd1p1ziN0x6wCzBlFXzA3o6D6soUqot5viMFXWghKpw==' },
-  { key: 'payments-stripe', version: '1.0.13', integrity: 'sha512-Y3STDH5lVNbw4/kEUs0rTkdOT+tKoUFEsjEADzW/+Omw3c4Ct9s3CAQP3y/5yMLMNX3y/dSqUV8dLs0AxH7lXQ==' },
-  { key: 'personalizer', version: '1.0.13', integrity: 'sha512-Ecffs+9oZZCkx8HyDdAaw5UVOqDN152bhUAAS4GAzwQX3b0ZjP1bfY/1JuNxSfFDy2fkJkPIIHjqTmRwImjznQ==' },
-  { key: 'shipping-dhl', version: '1.0.13', integrity: 'sha512-BHzonC9NpT29NVZ/wAY0bxGbV3zVXuC0jqNleqwAmcr21JVlyTNUe3J0IUq2GnI4jVJRsQSxFXY1tStCJp2EDQ==' },
+  { key: 'barcode-labels', version: '1.0.14', integrity: 'sha512-AekDg4d4aBSbUE9TR1eQSaMUuqHyWsP45ZgWClSqanwFhcvBhDizqvk7SaeB0KqUtJA10E3TcZCKo8p/D2nbuA==' },
+  { key: 'design-studio', version: '1.0.14', integrity: 'sha512-p2pb3OItVvIghUFKKoo4LbC3WfrRl9MveHf0orVf1QNCLs+Fn9g2A59rkYYs01V8ko4mW/B+bENU/veYHpNyUQ==' },
+  { key: 'holiday-calendars', version: '1.0.14', integrity: 'sha512-l7eGXSGxo+LxobDsxYfYuzNmCweHTj7yafufgbdG5UsxNieqyWo+Gq2jn3cfTU12P8BDKDGunjbQhBJ03Iq/sw==' },
+  { key: 'import-canva', version: '1.0.14', integrity: 'sha512-Mn2EtTfS+GUppKXm2xtg+GYDNvXiaNDsqYrA/nsRN5SnFLxjL+c4FrqcsbsyTN4xoFr/WU1IH/VqfgDynxNgQA==' },
+  { key: 'inventory', version: '1.0.14', integrity: 'sha512-7Rx6j8Va/WDz3Q8Bj88x5rdsOZd1XzNR1qqDF5Dr+Nof8Ys4pSu4GuUBT3iFQd1jA8+Ca2NOUhf8mFnosWvgKA==' },
+  { key: 'invoices', version: '1.0.14', integrity: 'sha512-5jf4HxWPX8pqKmzqmUnNVV1nTyou6ghfr5W2k9SywBBH2dWoNDsPrplvDug5licWypYL/VeWj6sN15Vx5p1Aeg==' },
+  { key: 'offers', version: '1.0.14', integrity: 'sha512-RyKBTEOGKLNs3H3sSuGevFlJD3h2WNzlC9uyf21u+p9Y4AIzxhz4xAR2iZ7/y8i4segFciKhywgrwS/bTBCVMA==' },
+  { key: 'payments-paypal', version: '1.0.14', integrity: 'sha512-pZmvibAHzr1Ma+jNZW3ZeXBwnof0GOUpP4APBF42ZMx3EEraa374ZvtAXAW++X+9oTT8hM/b6bxDUmu4oNbydQ==' },
+  { key: 'payments-stripe', version: '1.0.14', integrity: 'sha512-OWhwwemHV6kmZSEUGq+oHjOItrtJrGHtXBJHbnaEtG/97YlFazHXNkt4E83MCMXrhpDdserdsrRTGpzxVmNnbA==' },
+  { key: 'personalizer', version: '1.0.14', integrity: 'sha512-DvGdm8gGz4JVGv5YcYvCcKLwXuB5+Yy4vqOoYLr7H3MLYzkNCKJhV9+6h+5Efmxxbmx3qg8WPFQzAqvUYn6k/A==' },
+  { key: 'shipping-dhl', version: '1.0.14', integrity: 'sha512-zUcL7onnvis4+b608DAxlHfoAzGNsE8/0uwiSXYUzXzX7tVxBpfVfaH5X3WRh8vsXdBWhQgsr1F5XTfOPHOQnQ==' },
 ];

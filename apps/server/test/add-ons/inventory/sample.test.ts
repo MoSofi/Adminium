@@ -2,7 +2,7 @@
 /**
  * INVENTORY'S SAMPLE DATA, ADDED BY THE REAL LOADER.
  *
- * The sample is a month of history: 2,454 rows written as they stand, with
+ * The sample is a month of history: 2,455 rows written as they stand, with
  * nothing posted. Every figure a fresh install shows is then a total
  * Adminium adds up — movements into levels, levels into stock points, points
  * into items, lines into their documents. This suite adds the sample on each
@@ -72,7 +72,7 @@ describe.each(LEGS)('Inventory\'s sample data — %s', (dialect, available) => {
       kit_lines: 16,
       purchase_orders: 3,
       po_lines: 8,
-      receipts: 5,
+      receipts: 6,
       receipt_lines: 43,
       transfers: 2,
       transfer_lines: 6,
@@ -85,7 +85,7 @@ describe.each(LEGS)('Inventory\'s sample data — %s', (dialect, available) => {
       movements: 707,
       on_order_moves: 9,
     });
-    expect(Object.values(counts).reduce((sum, count) => sum + count, 0)).toBe(2453);
+    expect(Object.values(counts).reduce((sum, count) => sum + count, 0)).toBe(2454);
     // The units and reasons are the install's own rows: named by the sample, never added again.
     expect([n((await one(`select count(*) as c from ${t('units')}`))['c']), n((await one(`select count(*) as c from ${t('reasons')}`))['c']), n((await one(`select count(*) as c from ${t('settings')}`))['c'])]).toEqual([12, 7, 1]);
     const units = await w.h.rows(`select i.unit as unit, count(*) as c from ${t('items')} i group by i.unit order by i.unit`);
@@ -143,7 +143,7 @@ describe.each(LEGS)('Inventory\'s sample data — %s', (dialect, available) => {
     expect(rows.map((row) => [row['batch_code'], n(row['qty'])])).toEqual([['LD118', 14], ['FV26A', 8]]);
   });
 
-  it.skipIf(!run)('the documents add up: three orders, five receipts, two transfers and a count', async () => {
+  it.skipIf(!run)('the documents add up: three orders, six receipts, two transfers and a count', async () => {
     const orders = await w.h.rows(`select number, status, total, units, line_count, supplier_name, place_name from ${t('purchase_orders')} order by id`);
     expect(orders.map((po) => [po['number'], po['status'], money(po['total']), n(po['units']), n(po['line_count']), po['supplier_name'], po['place_name']])).toEqual([
       ['PO-1001', 'received', '44.00', 700, 3, 'Medisupply Direct', 'Treatment room'],
@@ -165,7 +165,9 @@ describe.each(LEGS)('Inventory\'s sample data — %s', (dialect, available) => {
       ['RC-0002', 'opening', 'Back room', 6, 1962, '202.90', 0, 6, 1],
       ['RC-0003', 'opening', 'Treatment room', 12, 2536, '892.50', 0, 12, 1],
       ['RC-0004', 'opening', 'Linen store', 8, 1554, '6520.30', 0, 8, 1],
-      ['RC-0005', 'delivery', 'Treatment room', 3, 700, '44.00', 0, 3, 0],
+      // The order comes in two deliveries: the second two days late.
+      ['RC-0005', 'delivery', 'Treatment room', 2, 600, '26.00', 0, 2, 0],
+      ['RC-0006', 'delivery', 'Treatment room', 1, 100, '18.00', 0, 1, 0],
     ]);
     const opened = await one(`select sum(total) as v, sum(units) as u from ${t('receipts')} where kind = 'opening'`);
     expect([money(opened['v']), n(opened['u']), n((await one(`select count(*) as c from ${t('receipt_lines')} where kind = 'opening'`))['c'])]).toEqual(['8954.70', 6496, 40]);
@@ -273,7 +275,7 @@ describe.each(LEGS)('Inventory\'s sample data — %s', (dialect, available) => {
     await w.update('receipts', receipt['id'], { status: 'posted' });
     const point = await pointOf('AMP-LID', 'Treatment room');
     expect([n(point['on_hand']), n(point['on_order']), n(point['low']), n(point['cost_avg'])]).toEqual([64, 0, 0, 1.1]);
-    expect((await one(`select number from ${t('receipts')} where id = ${String(receipt['id'])}`))['number']).toBe('RC-0006');
+    expect((await one(`select number from ${t('receipts')} where id = ${String(receipt['id'])}`))['number']).toBe('RC-0007');
     expect((await one(`select status from ${t('purchase_orders')} where id = ${String(order['id'])}`))['status']).toBe('part_received');
     const made = (await w.create('purchase_orders', { supplier_id: order['supplier_id'], place_id: order['place_id'] })).row;
     expect((await one(`select number from ${t('purchase_orders')} where id = ${String(made['id'])}`))['number']).toBe('PO-1004');
@@ -298,10 +300,10 @@ describe.each(LEGS)('Inventory\'s sample data, taken out and put in again — %s
     const rowsIn = async (ref: string) => n((await w.h.rows(`select count(*) as c from ${w.real(ref)}`))[0]!['c']);
     await service.add(owner, told);
     expect(await value()).toBe('7490.43');
-    expect((await service.status(owner)).total).toBe(2453);
+    expect((await service.status(owner)).total).toBe(2454);
 
     const removed = await service.remove(owner, { keepChanged: true, userId: w.h.owner.id, userLabel: 'owner@test' });
-    expect(removed).toMatchObject({ removed: 2453, kept: 0 });
+    expect(removed).toMatchObject({ removed: 2454, kept: 0 });
     const tables = (inventory!.manifest['requiredSchema'] as { tables: { ref: string }[] }).tables.map((table) => table.ref);
     const left: Record<string, number> = {};
     for (const ref of tables) {
@@ -349,7 +351,7 @@ describe.each(LEGS)('Inventory\'s sample data beside an owner\'s own documents �
     expect(await numberOf(next)).toBe(`PO-${String(top + 1)}`);
     // And a receipt, a transfer and a count likewise: the sample wrote RC-0001 … 0005, TR-0001 / 0002 and CNT-0001.
     const receipt = (await w.create('receipts', { place_id: place, kind: 'opening' })).row['id'];
-    expect((await w.h.rows(`select number from ${w.real('receipts')} where id = ${String(receipt)}`))[0]!['number']).toBe('RC-0006');
+    expect((await w.h.rows(`select number from ${w.real('receipts')} where id = ${String(receipt)}`))[0]!['number']).toBe('RC-0007');
   }, 600_000);
 });
 
