@@ -145,7 +145,7 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
       { id: 'card-load', into: { addOn: 'offers', ledger: 'value', action: 'issue' }, via: 'ticket_id', map: { card: 'gift_card_id', amount: 'load_amount' }, post: { on: { to: ['paid'] } }, reverse: { on: { to: ['void'], from: ['paid'] } } },
     ]);
     expect((lines['columns'] as { ref: string; rules?: unknown }[]).find((column) => column.ref === 'gift_card_id')).toMatchObject({ type: 'int', nullable: true, rules: { addOnLink: { addOn: 'offers', table: 'gift_cards' } } });
-    expect(json('add-ons.json')['requires']).toEqual([expect.objectContaining({ key: 'offers', range: '>=1.0.12' })]);
+    expect(json('add-ons.json')['requires']).toEqual([expect.objectContaining({ key: 'offers', range: `>=${String(OFFERS['version'])}` })]);
     // The first Adminium the add-on itself runs on.
     expect((json('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe('0.3.22'); // what Offers & gift cards itself runs on
     expect(done.content).toContain('apps/till/manifest/tables/ticket_lines.json: added gift_card_id (int, a link to offers.gift_cards), load_amount (money); the rule "card-load" posts into offers/value (issue)');
