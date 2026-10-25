@@ -982,7 +982,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
        * rows of this child whose `column` names the old person `from`, and
        * that meet `where`, read inside the write, each given `to`.
        */
-      carry?: { column: string; from: unknown; to: unknown; where: readonly NonNullable<CarryRule['where']>[number][] };
+      carry?: {
+        column: string;
+        from: unknown;
+        to: unknown;
+        where: readonly NonNullable<CarryRule['where']>[number][];
+        /**
+         * The carried rows the writer's update reaches, judged before the write
+         * moves the record (a reach `via` the record would judge them by the NEW
+         * owner inside it), by key. Null: the writer is held to no row limit.
+         */
+        reached: ReadonlySet<string> | null;
+      };
     }
 
     function childTargetOf(
@@ -1107,9 +1118,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('This hand-over carries rows of a table that is not one of this record\'s child tables.', { fields: { [carry.via]: { code: 'not-allowed' } }, relation: carry.table });
         }
         const { child } = resolution;
-        const carried = { column: carry.column, from: was, to: now, where: carry.where ?? [] };
+        const found = { column: carry.column, from: was, to: now, where: carry.where ?? [] };
+        const rows = await carriedRows(ctx.db, child, before[child.parentKeyColumn], { ...found, reached: null });
         // Nothing to carry today: the change keeps its plain path. The rows are found again inside the write.
-        if ((await carriedRows(ctx.db, child, before[child.parentKeyColumn], carried)).length === 0) continue;
+        if (rows.length === 0) continue;
+        // Which of them the writer's update reaches, by the record as it stands now: inside the write the record already has its new owner.
+        const reached = ctx.rows === null ? null : new Set<string>();
+        if (ctx.rows !== null && reached !== null) {
+          for (const row of rows) {
+            const key = Object.fromEntries(child.child.primaryKey.map((name) => [name, row[name]]));
+            if ((await fetchVisible(ctx.rows, ctx.db, child.child, key, 'update')) !== undefined) reached.add(carriedKey(child, row));
+          }
+        }
+        const carried = { ...found, reached };
         out.push({
           child,
           rows: [],
@@ -1122,6 +1143,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         });
       }
       return out;
+    }
+
+    /** A carried row's key, as {@link RequestedChildren.carry}'s `reached` keeps it. */
+    function carriedKey(child: ResolvedChild, row: Row): string {
+      return JSON.stringify(child.child.primaryKey.map((name) => String(row[name])));
     }
 
     /** The child rows of one parent a carry moves: its column names the old person, and every `where` holds. Read whole: a row the writer cannot reach refuses the hand-over. */
@@ -1282,7 +1308,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (changesRow(change.values, before)) assertMovedFrom(requested.updateLimit, child.child.id, before ?? null, change.values);
         // …and by whose it is: theirs to change, and naming nobody and no row they may not (a carried row: anybody the hand-over names).
         if (changesRow(change.values, before)) {
-          if (before !== undefined && !(await within(before, 'update'))) refuse('update');
+          // A carried row is judged by the reach found before the record moved: one found only now is judged as it stands.
+          const reachedBefore = carry !== undefined && before !== undefined && carry.reached !== null && carry.reached.has(carriedKey(child, before));
+          if (before !== undefined && !reachedBefore && !(await within(before, 'update'))) refuse('update');
           await judgeWrite(ctx, child.child.id, change.values, before ?? null, carry === undefined ? undefined : { handOver: true }, db);
           // The listing rule, on each row a hand-over carries: the new person can open what the row lists them on.
           if (carry !== undefined) await assertListedCanOpen(meta, db, ctx.view.model, ctx.connectionId, child.child.id, change.values, before ?? null);

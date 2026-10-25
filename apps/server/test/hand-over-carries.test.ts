@@ -22,6 +22,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { normalizeWriteValue } from '../src/crud/write-values.js';
+import { teamsRepo } from '@adminium/meta';
+
 import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-server.helpers.js';
 
 // The manifest uses words read from 0.3.35 on (`rows.via`, `states.carries`); until the release this server says 0.3.34.
@@ -70,6 +72,7 @@ function handing(): Record<string, unknown> {
                   { table: 'site_visits', via: 'deal_id', column: 'rep_id', where: [{ column: 'state', in: ['booked'] }] },
                   { table: 'follow_ups', via: 'deal_id', column: 'owner_id', where: [{ column: 'done', eq: false }] },
                   { table: 'deal_watchers', via: 'deal_id', column: 'user_id' },
+                  { table: 'deal_tasks', via: 'deal_id', column: 'owner_id' },
                 ],
               },
             ],
@@ -93,6 +96,8 @@ function handing(): Record<string, unknown> {
           ],
         },
         { ref: 'follow_ups', belongs: [{ column: 'owner_id', set: 'team' }], columns: [id, deal, person('owner_id'), { ref: 'done', type: 'bool', default: false }] },
+        // A deal's tasks: a manager reaches them by whose the deal is (`via` with `by`), whoever the task names.
+        { ref: 'deal_tasks', belongs: [{ column: 'owner_id', set: 'team' }, { via: 'deal_id' }], columns: [id, deal, person('owner_id')] },
         // Two listings the deal notes are read through: who watches a deal, and who follows it (its person is whoever wrote it last).
         { ref: 'deal_watchers', columns: [id, deal, person('user_id')] },
         { ref: 'deal_followers', columns: [id, deal, person('user_id', { stamp: { set: 'user-id', on: ['create', { columns: ['reason'] }] } }), { ref: 'reason', type: 'text', maxLength: 80, nullable: true }] },
@@ -114,6 +119,7 @@ function handing(): Record<string, unknown> {
           ...grants('deal_members', 'read'),
           ...grants('site_visits', 'read', 'create', 'update'),
           ...grants('follow_ups', 'read', 'create', 'update'),
+          ...grants('deal_tasks', 'read', 'update'),
           ...grants('deal_watchers', 'read', 'update'),
           ...grants('deal_followers', 'read', 'create', 'update'),
           'page:@handing-deals:view',
@@ -123,9 +129,19 @@ function handing(): Record<string, unknown> {
           // A rep never writes a visit's rep by hand: only a hand-over moves it.
           site_visits: { writable: ['note', 'state'], rows: { read: { reach: 'own' }, update: { reach: 'own', by: 'rep_id' } } },
           follow_ups: { rows: { read: { reach: 'own' }, update: { reach: 'own' } } },
+          deal_tasks: { rows: { read: { reach: 'own' }, update: { reach: 'own' } } },
         },
       },
       { key: 'notes', name: 'Notes', permissions: [...grants('deal_notes', 'read'), 'page:@handing-notes:view'] },
+      {
+        key: 'manager',
+        name: 'Manager',
+        permissions: [...grants('deals', 'read', 'update'), ...grants('deal_tasks', 'read', 'update'), 'page:@handing-deals:view'],
+        limits: {
+          deals: { rows: { read: { reach: 'team' }, update: { reach: 'team' } } },
+          deal_tasks: { rows: { read: { reach: 'team', via: 'deal_id', by: 'owner_id' }, update: { reach: 'team', via: 'deal_id', by: 'owner_id' } } },
+        },
+      },
     ],
     pages: [
       { ref: 'handing-deals', template: 'page-crud', title: { key: 't.deals', fallback: 'Deals' }, nav: { group: 'handing', icon: 'list', order: 1 }, bindings: { rows: 'deals' } },
@@ -229,6 +245,31 @@ for (const [dialect, available] of LEGS) {
       expect(said(free), free.body).toBe('ok');
       expect(await people('deals', 'owner_id', [3])).toEqual([who('sam')]);
       expect(await people('site_visits', 'rep_id', [5])).toEqual([who('sam')]);
+    });
+  });
+
+  describe.skipIf(!available)(`a manager hands her rep's deal out of her team, its tasks with it [${dialect}]`, () => {
+    let s: WholeServer;
+    const real = (ref: string): string => s.t(ref).slice(s.t(ref).lastIndexOf('.') + 1);
+
+    beforeAll(async () => {
+      s = await wholeServer(dialect, handing(), { people: { ana: ['rep'], sam: ['rep'], mia: ['manager'] } });
+      // Mia leads Ana; Sam is in no team of hers.
+      const north = await teamsRepo(s.meta).create('North');
+      await teamsRepo(s.meta).setMember(north.id, s.ids['mia']!, true);
+      await teamsRepo(s.meta).setMember(north.id, s.ids['ana']!, false);
+      await s.rows(`INSERT INTO ${real('deals')} (id, name, owner_id, state) VALUES (1, 'Harbour', '${s.ids['ana']!}', 'open')`);
+      await s.rows(`INSERT INTO ${real('deal_tasks')} (id, deal_id, owner_id) VALUES (1, 1, '${s.ids['ana']!}')`);
+    }, 180_000);
+    afterAll(async () => {
+      await s?.close();
+    });
+
+    it('the tasks she reaches by the deal as it stood are carried, though the deal is no longer her team\'s once it moves', async () => {
+      const res = await s.send('mia', 'POST', `/api/v1/data/${s.connectionId}/${s.t('deals')}/1/actions/hand-over`, { from: 'open', values: { owner_id: s.ids['sam'] } });
+      expect(said(res), res.body).toBe('ok');
+      expect((await s.rows(`SELECT owner_id AS who FROM ${real('deals')} WHERE id = 1`))[0]!['who']).toBe(s.ids['sam']);
+      expect((await s.rows(`SELECT owner_id AS who FROM ${real('deal_tasks')} WHERE id = 1`))[0]!['who']).toBe(s.ids['sam']);
     });
   });
 
