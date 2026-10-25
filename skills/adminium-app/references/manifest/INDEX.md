@@ -55,7 +55,8 @@
 | `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
 | `references/manifest/frontends.md` | Frontends | 5714 |
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 7636 |
-| `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7070 |
+| `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7680 |
+| `references/manifest/whose-a-row-is-3.md` | Whose a row is (part 3) | 1960 |
 | `references/manifest/roles.md` | Roles | 7386 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 2199 |
 | `references/manifest/settings.md` | Settings | 1211 |

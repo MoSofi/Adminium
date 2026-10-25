@@ -13,6 +13,36 @@ row) and the role editor's count. It is opt-in: a reach without `via` reads the 
 way as before (a helper listed on the deal, the visit's own rep). Needs Adminium 0.3.35
 (`rows.via`).
 
+**`notThrough`**, on an update or a delete reach, names a listing the reach does not count: a
+`through` way whose `table` is that listing makes no row the person's for this reach, on the
+table itself or on a row it hangs off (`via`, up to two links up). Every other way counts as
+before: a staff column, another listing, the rows nobody owns. A helper listed on a deal
+(`deal_members`) reads the deal, its quotes, their lines and its visits, and comments on them,
+and changes none of them; whoever covers for the deal's owner (`covers`), and the owner, change
+them as they always did:
+
+```json
+"limits": {
+  "deals":       { "rows": { "read": { "reach": "own" }, "update": { "reach": "own", "notThrough": "deal_members" } } },
+  "quotes":      { "rows": { "read": { "reach": "own" }, "update": { "reach": "own", "notThrough": "deal_members" } } },
+  "quote_lines": { "rows": { "read": { "reach": "own" }, "delete": { "reach": "own", "notThrough": "deal_members" } } },
+  "follow_ups":  { "rows": { "read": { "reach": "own" }, "update": { "reach": "own", "by": "owner_id", "notThrough": "deal_members" } } } }
+```
+
+It is one listing's ref, or a list of one to four. Each must be the `table` of a `through` way of
+this table, or of a table it hangs off by `via` (two links at most); it is refused on a read (a
+person listed on a row still reads it), beside `via` (that reach counts no listing already), with
+`reach: all`, on a private table, and on a grant on an add-on's table. It holds on every door an
+update or a delete reach holds on (a change on a page, a child row saved with it, a bulk edit, a
+file brought in, a record's button, a document): a row it leaves out is a row that is not there to
+them (`404`). A new row hung under a parent (a quote of the deal, a follow-up or a visit on it) is
+judged by the parent without the listing too, `403` reason `parent-not-theirs`: where every reach
+of the writer on the new row's table leaves a listing out, a staff column of the new row that
+names the writer does not make it theirs while it is hung under a parent. A row hung under no
+parent is theirs by its own column as before, and a row of theirs made before is changed and
+removed as before. The role editor keeps it through a save and says it in words ("but not as
+someone listed in Deal members"). Needs Adminium 0.3.36 (`rows.notThrough`).
+
 An action may name **several reaches**, as a list of one to four: any one of them is enough, and
 each is its own whole test (its `while`, `unowned` and `by` hold for it alone), as two roles'
 reaches are. An account manager reads every won deal, and an open one only while he is listed on
@@ -32,8 +62,9 @@ only under a parent their reach of THAT table reaches: a parent that is theirs (
 they lead, with `team`), or nobody's when the reach takes `unowned` rows. Reading the parent is
 not enough: the account manager above reads every won deal and comments only on a deal he is on
 (403, reason `parent-not-theirs`). A row a staff column of its own names them in (a stamp of
-its maker, say) is theirs whatever its parent; a table that also lists people `through`, or reads
-a person from a linked row, is not judged this way.
+its maker, say) is theirs whatever its parent, unless every reach of theirs on the table leaves a
+listing out (`notThrough`, above); a table that also lists people `through`, or reads a person
+from a linked row, is not judged this way.
 
 Apart from any limit, **the columns that decide whose a row is** (the staff columns the table's
 own `belongs` names) are changed only by somebody the stored row names in one of them, or who
@@ -78,25 +109,3 @@ along, and leaves a visit already made, and a colleague's rows on the deal, wher
     { "table": "site_visits", "via": "deal_id", "column": "rep_id", "where": [{ "column": "state", "in": ["booked"] }] },
     { "table": "follow_ups", "via": "deal_id", "column": "owner_id", "where": [{ "column": "done", "eq": false }] } ] }
 ```
-
-| Key | Meaning |
-| --- | --- |
-| `table` | A table of the app with a foreign key to this one. |
-| `via` | That foreign key. |
-| `column` | The child's staff column (`rules.staff`) that moves: only rows where it names the row's OLD person move, and they are given the new one. |
-| `from` | The staff column of this row the person is read from: one of the columns the button `ask`s for. Left out when the button asks for one staff column. |
-| `where` | 1–8 conditions on the child row, as a move's `requires.where` writes them (`eq`, `in`, `isNull`, `gt`…): every one must hold. |
-
-One to eight carries, each table and column once, on a button with `handOver: true`. Each carried
-row is changed as its own update, inside the hand-over's transaction: its rules and hooks run,
-it is written to the audit log, its live frame is sent and the rules and the outbox that watch
-its table are told. The person handing over must hold the child table's update and reach each
-row moved (else `403`, and nothing moves); the column itself is the button's to write, as the
-columns it sets are, whatever the role's `writable` says. Each row is judged as a hand-over
-judges its own row: the new person works the child table, and a child that is a listing lists
-them only against rows they can open (`422`, the field marked `cannot-open`). A child table that
-takes a resource for a time ([`occupies`](https://docs.adminium.dev/reference/manifest/#a-resource-and-a-time) or [`booking`](https://docs.adminium.dev/reference/manifest/#booking)) has
-each carried row placed as a single change places it, under its day's lock: a visit the new person
-is already busy for refuses the hand-over (`409 BOOKING_TAKEN`). One refusal refuses
-the whole hand-over. A hand-over that carried rows offers no Undo. Needs Adminium 0.3.35
-(`states.carries`).
