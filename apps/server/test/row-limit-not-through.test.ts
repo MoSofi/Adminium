@@ -180,6 +180,37 @@ for (const [dialect, available] of ENGINES) {
       await w.run('DELETE FROM quotes WHERE id IN (30, 31)');
     });
 
+    it('as the helper: an agreed point under a visit of the deal (its link a copy) and a stock need of the deal (a table a crew is listed on) are not hers to add', async () => {
+      await w.run('CREATE TABLE visit_points (id INTEGER PRIMARY KEY, visit_id INTEGER, deal_id INTEGER, point VARCHAR(80) NOT NULL, FOREIGN KEY (visit_id) REFERENCES visits(id), FOREIGN KEY (deal_id) REFERENCES deals(id))');
+      await w.run('CREATE TABLE stock_needs (id INTEGER PRIMARY KEY, deal_id INTEGER, item VARCHAR(80) NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))');
+      await w.run('CREATE TABLE need_crews (id INTEGER PRIMARY KEY, need_id INTEGER, user_id VARCHAR(36), FOREIGN KEY (need_id) REFERENCES stock_needs(id))');
+      await runIntrospection({ manager: w.manager, meta: w.meta, connectionId: w.connectionId });
+      const model = await w.model();
+      const idOf = (name: string): string => model.tables.find((table) => table.name === name)!.id;
+      const [points, needs, crews] = [idOf('visit_points'), idOf('stock_needs'), idOf('need_crews')];
+      const overrides = overridesRepo(w.meta);
+      // The point's deal is a copy of its visit's: no writer sends it.
+      await overrides.create({ connectionId: w.connectionId, op: 'column.copy', tableName: points, columnName: 'deal_id', value: { via: 'visit_id', from: 'deal_id', mode: 'always' }, origin: 'user' } as never);
+      await overrides.create({ connectionId: w.connectionId, op: 'table.belongs', tableName: points, value: { ways: [{ via: 'deal_id' }] }, origin: 'user' } as never);
+      // A stock need hangs off the deal and is read by the crew it lists.
+      await overrides.create({ connectionId: w.connectionId, op: 'column.staff', tableName: crews, columnName: 'user_id', value: { staff: true }, origin: 'user' });
+      await overrides.create({ connectionId: w.connectionId, op: 'table.belongs', tableName: needs, value: { ways: [{ via: 'deal_id' }, { through: { table: crews, link: 'need_id', user: 'user_id' } }] }, origin: 'user' } as never);
+      for (const table of [points, needs]) {
+        await permissionsRepo(w.meta).grant(repId, 'table', `${w.connectionId}/${table}`, { read: true, create: true, update: true, delete: true, export: false, import: false, rowLimit: { read: { reach: 'own' }, update: notHelpers, delete: notHelpers } } as never);
+      }
+      const point = await call('kim', 'POST', data(encodeURIComponent(points)), { values: { id: 1, visit_id: 2, point: 'Kim agrees' } });
+      expect(point.statusCode, point.body).toBe(403);
+      expect(reason(point)).toBe('parent-not-theirs');
+      const need = await call('kim', 'POST', data(encodeURIComponent(needs)), { values: { id: 1, deal_id: 10, item: 'Kim needs' } });
+      expect(need.statusCode, need.body).toBe(403);
+      expect(reason(need)).toBe('parent-not-theirs');
+      // The one who covers for the owner adds both, the point's deal filled from its visit.
+      const covered = await call('mara', 'POST', data(encodeURIComponent(points)), { values: { id: 2, visit_id: 2, point: 'Mara agrees' } });
+      expect(covered.statusCode, covered.body).toBeLessThan(300);
+      expect((await call('mara', 'POST', data(encodeURIComponent(needs)), { values: { id: 2, deal_id: 10, item: 'Mara needs' } })).statusCode).toBeLessThan(300);
+      expect(await w.rows('SELECT id, deal_id FROM visit_points ORDER BY id')).toEqual([{ id: 2, deal_id: 10 }]);
+    });
+
     it('the role editor keeps the listing, names it, counts by it, and refuses one the table is not read through', async () => {
       const rows = await call('owner', 'GET', `roles/${repId}/rows`);
       expect(rows.statusCode, rows.body).toBe(200);

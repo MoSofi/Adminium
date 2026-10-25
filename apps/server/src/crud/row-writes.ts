@@ -160,14 +160,26 @@ export async function assertLinksReached(ctx: RowLimitContext | null, db: Db, ta
  * through a person's row, is not judged here (a new row is listed nowhere
  * yet), and then the write is as it always was.
  */
-async function assertParentReached(ctx: RowLimitContext, db: Db, table: EffectiveTable, values: Row, before: Row | null): Promise<void> {
+async function assertParentReached(ctx: RowLimitContext, db: Db, table: EffectiveTable, givenValues: Row, before: Row | null): Promise<void> {
   const ways = table.belongs ?? [];
   const vias = ways.filter((way): way is Extract<BelongsWay, { via: string }> => 'via' in way);
-  if (vias.length === 0 || ways.some((way) => 'through' in way || ('column' in way && way.person !== undefined))) return;
+  if (vias.length === 0) return;
+  const reachesNow = writerReaches(ctx, table.id);
+  /*
+   * A writer whose every reach leaves a listing out (`notThrough`: a helper on
+   * a colleague's deal) is judged by the parent even where the table has ways
+   * of its own through a listing or a person's row (a deal's stock needs, read
+   * by the crew it lists), and even where the link to the parent is a copy no
+   * writer sends (an agreed point under a visit's write-up): the copy is read
+   * through the link it copies by, as the write will fill it.
+   */
+  const leavesListingOut = reachesNow !== null && reachesNow.length > 0 && reachesNow.every((reach) => reach.via !== undefined || reach.notThrough !== undefined) && reachesNow.some((reach) => reach.notThrough !== undefined);
+  if (!leavesListingOut && ways.some((way) => 'through' in way || ('column' in way && way.person !== undefined))) return;
+  const values = leavesListingOut && before === null ? await withCopiedLinks(ctx, db, table, vias, givenValues) : givenValues;
   // Set by this write: sent, with a value the stored row does not already hold there.
   const moved = vias.filter((way) => Object.prototype.hasOwnProperty.call(values, way.via) && (before === null || !same(values[way.via], before[way.via])));
   if (moved.length === 0) return;
-  const all = writerReaches(ctx, table.id);
+  const all = reachesNow;
   // Nothing limits them here, or a reach of every row (only while a column of the row holds a value) hangs it anywhere they read.
   if (all === null || all.some((reach) => reach.reach === 'all')) return;
   const me = ctx.set.reach?.userId ?? null;
@@ -230,6 +242,31 @@ async function assertParentReached(ctx: RowLimitContext, db: Db, table: Effectiv
   }
   const column = moved[0]!.via;
   throw new ForbiddenError('Your role adds here only under a record that is yours.', 'COLUMN_FORBIDDEN', { table: table.id, column, reason: 'parent-not-theirs' });
+}
+
+/**
+ * A new row's `via` links that are copies (`copy: {via, from}`) no writer
+ * sends, read as the write will fill them: the row the copy's own link names,
+ * its `from` column. Only for links the write leaves out; nothing is read for
+ * a link it sends, or a copy whose own link it leaves empty.
+ */
+async function withCopiedLinks(ctx: RowLimitContext, db: Db, table: EffectiveTable, vias: readonly Extract<BelongsWay, { via: string }>[], values: Row): Promise<Row> {
+  const out: Row = { ...values };
+  for (const way of vias) {
+    if (Object.prototype.hasOwnProperty.call(values, way.via)) continue;
+    const copy = table.columns.find((candidate) => candidate.name === way.via)?.copy;
+    if (copy === undefined || empty(values[copy.via])) continue;
+    const relation = ctx.model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === copy.via && r.to.columns.length === 1);
+    if (relation === undefined) continue;
+    const source = (await db
+      .selectFrom(relation.to.tableId as never)
+      .select(sql.ref(copy.from).as('value'))
+      .where(sql.ref(relation.to.columns[0]!), '=', values[copy.via] as never)
+      .limit(1)
+      .executeTakeFirst()) as { value?: unknown } | undefined;
+    if (source !== undefined && !empty(source.value)) out[way.via] = source.value;
+  }
+  return out;
 }
 
 /** The person and, where one of the reaches is their team's, the people they lead. */
