@@ -1,5 +1,26 @@
 # @adminium/meta
 
+## 0.3.35
+
+### Patch Changes
+
+- c86b3c4: A role's update reach may say `notBy` a staff column of the row (or of a linked row), so a sales manager changes her team's targets but never her own, on every door, and a record page hides those buttons from her. A column may carry `changes` guards: it changes to some values only from others, only while another column holds a value, and only by (or never by) the person a staff column of the row or of a linked row names, judged on every write but history and refused by name. A rule whose step or e-mail names a code staff never see (`rules.code.hiddenFromStaff`) is refused when it is saved and by the validator, with the column named.
+- 8423af5: A save's child rows may be named by the app's short table name (`quote_lines`) when that table has one link to the record, and are then held to every grant, limit and rule a list named by its relation is.
+  A line of a brought file is judged as sent before any stamp, so a stamp never fills a column `requiredWhen` asks for (a won deal brought in without its closed date is named, not dated by the import), and a stamp may now sit beside `requiredWhen`.
+  `notBefore` and `notAfter` now also keep a number against a number, a time of day against another and an end at most `days` after a start, and `notBefore: "now"` keeps a new row's moment out of the past; a refusal names both columns.
+  A yes/no in an e-mail reads "Yes" or "No" in the reader's language, in its text, in an `email.rows` list and in a rule's e-mail.
+  A stamp marked `strict` is always the server's: a value any writer sends for it is dropped and a brought line carrying one is refused; an empty cell of a brought file takes its column's default instead of being refused as required.
+- fe43d32: A table can ask for a removal's reason on every person's door (the delete route, a bulk delete, the add-on kit's `remove`), written into the audit entry with "no reason" on every other door, and can keep its removed rows readable through a row they linked to that the reader reads now (`removal: { reason, history }`).
+  A column can keep its earlier values for the audit log alone (`history: "audit"`): record history, a removed row's history, a rule's `{{was.<column>}}` and a removal's live frame leave them out.
+- b5eae20: A figure can be the `median` of a column on every engine, beside any other figure, and the earliest, latest and middle of a date column now answer the day itself.
+  A route leg between two stops pinned to the same town says why it has no length (`why: "same-town"`), and the map's list says "both stops are pinned to the town; place them to measure".
+  A summary's section can keep only the rows of this year, or of the last N days, by a date column on the business's calendar (`within`), and with `orEmpty` the rows whose date is empty count too.
+- cb9f0a2: A role's reach of a table that hangs off a parent may say `via` the link and `by` a staff column of the parent, so a sales manager reaches the visits of the deals her team owns and none on another team's deal her rep helps on, on every door (the list and the record, a change, a new row, a dashboard figure, the live frames and the role editor's count). A hand-over button may say what it `carries`: the old owner's child rows (a deal's booked visits, its open follow-ups) go to the new owner in the same write, each as its own update judged by the listing rule, leaving made visits and colleagues' rows, with no Undo. The listing rule now also judges a person's own change and new row as their rules fill them, so a stamp that puts somebody in a listing's person column is refused when they could not open what it lists them on. A carried row of a table that takes a resource for a time is placed under its day's lock, so the new person's clash refuses the hand-over. A manager whose reach on a deal's rows goes through the deal hands it out of her team with those rows: each is judged as the deal stood before it moved.
+- 694ba93: A "record created" rule now claims a row by its key and its `created_at`, so a row deleted outside Adminium and a new row given the same key (SQLite reuses a deleted top rowid) runs the rule, while a changed row never runs it twice.
+  A rule's write may name a sample person when the row that started the run is a sample row (never on a real row), and the rows such a run creates are listed with the sample, so "Remove sample data" takes them too, but never a rule-made row somebody has written a row of their own under. A row the server before claimed by its key alone, made before that claim, is not run again after an upgrade, however long ago it was claimed.
+- 0b2d274: An app update fills the copy, formula, total and balance columns it adds for the rows already there, and a row an undo brings back takes its copies again from the row it copies.
+  A rule's notice is told in each reader's own language when the manifest gives its title and message in several, falling back to the rule's own words.
+
 ## 0.3.34
 
 ## 0.3.33

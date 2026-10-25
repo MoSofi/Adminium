@@ -1,5 +1,14 @@
 # @adminium/add-on-contracts
 
+## 0.3.35
+
+### Patch Changes
+
+- fe43d32: A table can ask for a removal's reason on every person's door (the delete route, a bulk delete, the add-on kit's `remove`), written into the audit entry with "no reason" on every other door, and can keep its removed rows readable through a row they linked to that the reader reads now (`removal: { reason, history }`).
+  A column can keep its earlier values for the audit log alone (`history: "audit"`): record history, a removed row's history, a rule's `{{was.<column>}}` and a removal's live frame leave them out.
+- 7fa7fec: An add-on's document can show a picture the row keeps, such as a drawn signature: a `picture` slot mapped to a file column of the document's own row is filled by Adminium with the file as a PNG or JPEG data URL and its size, only when the file is the row's own, a picture, within the column's size limit and read as the reader may read that row and column, and the add-on never reads the file store.
+  An app's document of a kind its attached add-on does not draw yet no longer refuses the app's install or update: the document and its email attachment are left off, the install and update replies list it under `documents.waiting` (shown in the console), and it is made when the add-on is updated to a version that draws it.
+
 ## 0.3.34
 
 ## 0.3.33

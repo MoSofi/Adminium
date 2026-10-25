@@ -1,5 +1,63 @@
 # @adminium/server
 
+## 0.3.35
+
+### Patch Changes
+
+- b4a4f9c: A Designer message sent the moment the last turn ends is taken, not refused with "The Designer is already working on something in this project". The turn now says it has finished only after its last writes are done.
+- ab0bcf1: A rule's notice to the lead of the person a staff column names may leave out the roles told when there is no lead: nobody is told then, and the run's log says so (`automations.leadAlone`).
+- a443954: A message's link is filled from a column of the same name on the row it is about only when both point at the same table, so a crew sign-off's job visit no longer fills, or refuses, a message's site-visit link and its mail is queued.
+- c86b3c4: A role's update reach may say `notBy` a staff column of the row (or of a linked row), so a sales manager changes her team's targets but never her own, on every door, and a record page hides those buttons from her. A column may carry `changes` guards: it changes to some values only from others, only while another column holds a value, and only by (or never by) the person a staff column of the row or of a linked row names, judged on every write but history and refused by name. A rule whose step or e-mail names a code staff never see (`rules.code.hiddenFromStaff`) is refused when it is saved and by the validator, with the column named.
+- 4913e38: A code no staff member reads (`code.hiddenFromStaff`) is now kept as a shared link's code is: no total keeps it as the newest child row's value, no column keeps its last four, no posting copies it into a ledger, no copy, stamp or formula lands it, and no public entry or hand-made API endpoint shows it, refused by the manifest check and by the server when such a rule or endpoint is saved.
+  The listing rule (a listing's person must be able to open what it lists them on) now holds for every writer: a rule's write step, the row an effect moves, a timed move, an import by somebody nothing limits and the owner's code, each judged on the row as its rules leave it.
+- 8423af5: A save's child rows may be named by the app's short table name (`quote_lines`) when that table has one link to the record, and are then held to every grant, limit and rule a list named by its relation is.
+  A line of a brought file is judged as sent before any stamp, so a stamp never fills a column `requiredWhen` asks for (a won deal brought in without its closed date is named, not dated by the import), and a stamp may now sit beside `requiredWhen`.
+  `notBefore` and `notAfter` now also keep a number against a number, a time of day against another and an end at most `days` after a start, and `notBefore: "now"` keeps a new row's moment out of the past; a refusal names both columns.
+  A yes/no in an e-mail reads "Yes" or "No" in the reader's language, in its text, in an `email.rows` list and in a rule's e-mail.
+  A stamp marked `strict` is always the server's: a value any writer sends for it is dropped and a brought line carrying one is refused; an empty cell of a brought file takes its column's default instead of being refused as required.
+- cec1781: An add-on update whose new `appGrants` would let an app's role hold more of its tables lists each widened grant on its check and in Studio's update screen, and is refused with `ROLE_TABLES_WIDER` until it is allowed (`"roleTables": true`, on `/update` and `/upgrade` alike, and on an app's install or update that brings that release along). One save whose postings write or move the same row more than once now tells that row once, as it was before the save and as the save left it, so a rule on its change runs once.
+- fe43d32: A table can ask for a removal's reason on every person's door (the delete route, a bulk delete, the add-on kit's `remove`), written into the audit entry with "no reason" on every other door, and can keep its removed rows readable through a row they linked to that the reader reads now (`removal: { reason, history }`).
+  A column can keep its earlier values for the audit log alone (`history: "audit"`): record history, a removed row's history, a rule's `{{was.<column>}}` and a removal's live frame leave them out.
+- b5eae20: A figure can be the `median` of a column on every engine, beside any other figure, and the earliest, latest and middle of a date column now answer the day itself.
+  A route leg between two stops pinned to the same town says why it has no length (`why: "same-town"`), and the map's list says "both stops are pinned to the town; place them to measure".
+  A summary's section can keep only the rows of this year, or of the last N days, by a date column on the business's calendar (`within`), and with `orEmpty` the rows whose date is empty count too.
+- cb9f0a2: A role's reach of a table that hangs off a parent may say `via` the link and `by` a staff column of the parent, so a sales manager reaches the visits of the deals her team owns and none on another team's deal her rep helps on, on every door (the list and the record, a change, a new row, a dashboard figure, the live frames and the role editor's count). A hand-over button may say what it `carries`: the old owner's child rows (a deal's booked visits, its open follow-ups) go to the new owner in the same write, each as its own update judged by the listing rule, leaving made visits and colleagues' rows, with no Undo. The listing rule now also judges a person's own change and new row as their rules fill them, so a stamp that puts somebody in a listing's person column is refused when they could not open what it lists them on. A carried row of a table that takes a resource for a time is placed under its day's lock, so the new person's clash refuses the hand-over. A manager whose reach on a deal's rows goes through the deal hands it out of her team with those rows: each is judged as the deal stood before it moved.
+- 19203c8: A board page can draw a toolbar (`config.board.toolbar`): the server's count and totals of every card the reader reaches, and a filter by the person a staff column names that narrows the cards, the columns' figures and the total alike; a card can show a second money line (`card.secondAmount`) and say what its days are (`card.daysSince.label`).
+  A role's `readable` list now hides a link column it does not list, as any column, on every read: rows, records, exports, history, live frames, widget data, search and the assistant's schema; a count by such a link answers masked, and a document that lists rows by it is refused.
+  The console's delete dialogs, for one row and in bulk, ask why a row is removed where its table takes a reason (`table.removal.reason`), and the assistant's delete proposal carries the person's reason.
+- 694ba93: A "record created" rule now claims a row by its key and its `created_at`, so a row deleted outside Adminium and a new row given the same key (SQLite reuses a deleted top rowid) runs the rule, while a changed row never runs it twice.
+  A rule's write may name a sample person when the row that started the run is a sample row (never on a real row), and the rows such a run creates are listed with the sample, so "Remove sample data" takes them too, but never a rule-made row somebody has written a row of their own under. A row the server before claimed by its key alone, made before that claim, is not run again after an upgrade, however long ago it was claimed.
+- 0b2d274: An app update fills the copy, formula, total and balance columns it adds for the rows already there, and a row an undo brings back takes its copies again from the row it copies.
+  A rule's notice is told in each reader's own language when the manifest gives its title and message in several, falling back to the rule's own words.
+- 7fa7fec: An add-on's document can show a picture the row keeps, such as a drawn signature: a `picture` slot mapped to a file column of the document's own row is filled by Adminium with the file as a PNG or JPEG data URL and its size, only when the file is the row's own, a picture, within the column's size limit and read as the reader may read that row and column, and the add-on never reads the file store.
+  An app's document of a kind its attached add-on does not draw yet no longer refuses the app's install or update: the document and its email attachment are left off, the install and update replies list it under `documents.waiting` (shown in the console), and it is made when the add-on is updated to a version that draws it.
+- 0e314dc: A table's rows may be reached through a link to a private table by one of that private table's own `belongs` columns, so they reach exactly the people who already read the private row, never whoever leads them, and a writer may set the link when any such way names them.
+  A table built on an add-on's shape may hold its create to a condition on a column the app added (`states.create.requires.where`), never on one of the shape's, and history is not held to it.
+- c328447: Money figures with no currency set no longer show a guessed "$". KPI tiles, chart labels, a chart's money figures in its data table, and the grouped summary table now show the plain number in the same shape (`48,210`, `12.50`, `1.3M`) until a currency is set on the widget, as table cells have since 0.3.33. A widget with a currency set looks the same as before, and the grouped summary table now takes its currency from the widget's format settings.
+- Updated dependencies [ab0bcf1]
+- Updated dependencies [c86b3c4]
+- Updated dependencies [4913e38]
+- Updated dependencies [8423af5]
+- Updated dependencies [cec1781]
+- Updated dependencies [fe43d32]
+- Updated dependencies [b5eae20]
+- Updated dependencies [cb9f0a2]
+- Updated dependencies [19203c8]
+- Updated dependencies [694ba93]
+- Updated dependencies [0b2d274]
+- Updated dependencies [7fa7fec]
+- Updated dependencies [0e314dc]
+  - @adminium/manifest@0.3.35
+  - @adminium/meta@0.3.35
+  - @adminium/i18n@0.3.35
+  - @adminium/add-on-contracts@0.3.35
+  - @adminium/engine@0.3.35
+  - @adminium/llm@0.3.35
+  - @adminium/adapter-mysql@0.3.35
+  - @adminium/adapter-postgres@0.3.35
+  - @adminium/adapter-sqlite@0.3.35
+  - @adminium/schema-import@0.3.35
+
 ## 0.3.34
 
 ### Patch Changes

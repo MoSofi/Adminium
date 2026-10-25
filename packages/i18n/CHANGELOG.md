@@ -1,5 +1,21 @@
 # @adminium/i18n
 
+## 0.3.35
+
+### Patch Changes
+
+- cec1781: An add-on update whose new `appGrants` would let an app's role hold more of its tables lists each widened grant on its check and in Studio's update screen, and is refused with `ROLE_TABLES_WIDER` until it is allowed (`"roleTables": true`, on `/update` and `/upgrade` alike, and on an app's install or update that brings that release along). One save whose postings write or move the same row more than once now tells that row once, as it was before the save and as the save left it, so a rule on its change runs once.
+- b5eae20: A figure can be the `median` of a column on every engine, beside any other figure, and the earliest, latest and middle of a date column now answer the day itself.
+  A route leg between two stops pinned to the same town says why it has no length (`why: "same-town"`), and the map's list says "both stops are pinned to the town; place them to measure".
+  A summary's section can keep only the rows of this year, or of the last N days, by a date column on the business's calendar (`within`), and with `orEmpty` the rows whose date is empty count too.
+- 19203c8: A board page can draw a toolbar (`config.board.toolbar`): the server's count and totals of every card the reader reaches, and a filter by the person a staff column names that narrows the cards, the columns' figures and the total alike; a card can show a second money line (`card.secondAmount`) and say what its days are (`card.daysSince.label`).
+  A role's `readable` list now hides a link column it does not list, as any column, on every read: rows, records, exports, history, live frames, widget data, search and the assistant's schema; a count by such a link answers masked, and a document that lists rows by it is refused.
+  The console's delete dialogs, for one row and in bulk, ask why a row is removed where its table takes a reason (`table.removal.reason`), and the assistant's delete proposal carries the person's reason.
+- 0b2d274: An app update fills the copy, formula, total and balance columns it adds for the rows already there, and a row an undo brings back takes its copies again from the row it copies.
+  A rule's notice is told in each reader's own language when the manifest gives its title and message in several, falling back to the rule's own words.
+- 7fa7fec: An add-on's document can show a picture the row keeps, such as a drawn signature: a `picture` slot mapped to a file column of the document's own row is filled by Adminium with the file as a PNG or JPEG data URL and its size, only when the file is the row's own, a picture, within the column's size limit and read as the reader may read that row and column, and the add-on never reads the file store.
+  An app's document of a kind its attached add-on does not draw yet no longer refuses the app's install or update: the document and its email attachment are left off, the install and update replies list it under `documents.waiting` (shown in the console), and it is made when the add-on is updated to a version that draws it.
+
 ## 0.3.34
 
 ## 0.3.33

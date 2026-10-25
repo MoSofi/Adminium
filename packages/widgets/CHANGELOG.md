@@ -1,5 +1,28 @@
 # @adminium/widgets
 
+## 0.3.35
+
+### Patch Changes
+
+- fe43d32: A table can ask for a removal's reason on every person's door (the delete route, a bulk delete, the add-on kit's `remove`), written into the audit entry with "no reason" on every other door, and can keep its removed rows readable through a row they linked to that the reader reads now (`removal: { reason, history }`).
+  A column can keep its earlier values for the audit log alone (`history: "audit"`): record history, a removed row's history, a rule's `{{was.<column>}}` and a removal's live frame leave them out.
+- b5eae20: A figure can be the `median` of a column on every engine, beside any other figure, and the earliest, latest and middle of a date column now answer the day itself.
+  A route leg between two stops pinned to the same town says why it has no length (`why: "same-town"`), and the map's list says "both stops are pinned to the town; place them to measure".
+  A summary's section can keep only the rows of this year, or of the last N days, by a date column on the business's calendar (`within`), and with `orEmpty` the rows whose date is empty count too.
+- 19203c8: A board page can draw a toolbar (`config.board.toolbar`): the server's count and totals of every card the reader reaches, and a filter by the person a staff column names that narrows the cards, the columns' figures and the total alike; a card can show a second money line (`card.secondAmount`) and say what its days are (`card.daysSince.label`).
+  A role's `readable` list now hides a link column it does not list, as any column, on every read: rows, records, exports, history, live frames, widget data, search and the assistant's schema; a count by such a link answers masked, and a document that lists rows by it is refused.
+  The console's delete dialogs, for one row and in bulk, ask why a row is removed where its table takes a reason (`table.removal.reason`), and the assistant's delete proposal carries the person's reason.
+- c328447: Money figures with no currency set no longer show a guessed "$". KPI tiles, chart labels, a chart's money figures in its data table, and the grouped summary table now show the plain number in the same shape (`48,210`, `12.50`, `1.3M`) until a currency is set on the widget, as table cells have since 0.3.33. A widget with a currency set looks the same as before, and the grouped summary table now takes its currency from the widget's format settings.
+- Updated dependencies [cec1781]
+- Updated dependencies [b5eae20]
+- Updated dependencies [19203c8]
+- Updated dependencies [0b2d274]
+- Updated dependencies [7fa7fec]
+  - @adminium/i18n@0.3.35
+  - @adminium/ui@0.3.35
+  - @adminium/charts@0.3.35
+  - @adminium/tokens@0.3.35
+
 ## 0.3.34
 
 ### Patch Changes
