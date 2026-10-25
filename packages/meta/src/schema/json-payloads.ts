@@ -150,9 +150,20 @@ export const rowReachSchema = z
     notBy: z.string().regex(/^[^.]{1,64}(\.[^.]{1,64})?$/).optional(),
     /** With `by`: the link to the row this one hangs off, and `by` a staff column of THAT row, which alone judges the row. */
     via: z.string().min(1).max(64).optional(),
+    /**
+     * And not counting these listings (each a table's id): a `through` way of the table, or of a row it hangs off, whose
+     * table is one of them makes no row the person's for this reach. A helper on a deal changes nothing of it. A change only.
+     */
+    notThrough: z.union([z.string().min(1).max(300), z.array(z.string().min(1).max(300)).min(1).max(4)]).optional(),
   })
   .strict();
 export type RowReach = z.infer<typeof rowReachSchema>;
+
+/** The listings a reach's `notThrough` names, as a list, however it is stored. */
+export function notThroughOf(reach: Pick<RowReach, 'notThrough'>): readonly string[] {
+  const written = reach.notThrough;
+  return written === undefined ? [] : typeof written === 'string' ? [written] : written;
+}
 
 /** One action's reach, or several of which any one is enough (an app's account manager: every won deal, or an open one he is on). */
 export const rowReachesSchema = z.union([rowReachSchema, z.array(rowReachSchema).min(1).max(4)]);
