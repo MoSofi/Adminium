@@ -172,7 +172,7 @@ test.describe('what an app\'s roles will hold of an add-on\'s tables, on the ins
       ['suppliersSales desk and Desk lead', 'Reads id, name', 'Asked for, not given: change rows, email'],
       ['ordersSales desk and Desk lead', 'Not given: E2E Stock shares this table with no app.'],
     ]);
-    await expect(details.getByText('A read also shows each row’s key and its links to other rows.')).toBeVisible();
+    await expect(details.getByText('A read also shows each row’s key. A link to another row is shown only where it is listed.')).toBeVisible();
     await page.keyboard.press('Enter');
     await expect(details).not.toHaveAttribute('open', '');
   });
