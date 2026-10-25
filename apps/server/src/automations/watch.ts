@@ -68,6 +68,22 @@ import { watchColumnFor } from './watch-columns.js';
 
 /** How long a plain `created` claim (the key alone) still speaks for the row the poller reads: see `claimRow`. */
 const PLAIN_CLAIM_WINDOW_MS = 60 * 60 * 1000;
+/** How far a `created_at` kept on the database's own clock may be from the server's: the widest zone offset. */
+const CLAIM_CLOCK_SLACK_MS = 14 * 60 * 60 * 1000;
+
+/** When the row was made, by its `created` watch column, as an instant; null when it cannot be read. */
+function createdMoment(table: ResolvedTable, row: Row): number | null {
+  const watched = watchColumnFor(table, 'created');
+  if (watched === null || watched.kind !== 'timestamp') return null;
+  const value = row[watched.column];
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+  if (typeof value === 'number') return Number.isFinite(value) ? (value < 1e12 ? value * 1000 : value) : null;
+  if (typeof value !== 'string' || value === '') return null;
+  // A wall time with no zone (SQLite's text, MySQL's DATETIME) is read as UTC: the slack covers a database on another clock.
+  const iso = value.includes('T') ? value : value.replace(' ', 'T');
+  const parsed = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  return Number.isNaN(parsed) ? null : parsed;
+}
 
 export interface WatchPollDeps {
   meta: MetaDb;
@@ -257,15 +273,24 @@ async function claimRow(input: {
       : createdOccurrenceKey({ ruleId: rule.id, table, pk, row, dialect });
   if (event === 'created') {
     /*
-     * A row a person made just before this server learnt to spell a claim
-     * with the row's moment was claimed by its key alone. Such a plain claim,
-     * made within the hour, is this row's: the poller leaves it. An older one
-     * belonged to a row since deleted outside Adminium, and holds nothing.
+     * A row claimed by its key alone was claimed by a server from before
+     * claims carried the row's moment (this one spells a moment for every
+     * table that has one). Such a plain claim is this row's when it was made
+     * within the hour, or made no earlier than the row itself was (with
+     * {@link CLAIM_CLOCK_SLACK_MS} for a database whose `created_at` is on
+     * another clock): the poller leaves it, so an upgrade never runs a rule
+     * again for a row the old server already ran it for (MySQL's poller reads
+     * the newest rows again on every tick). A claim made before the row
+     * existed belonged to a row since deleted outside Adminium, and holds nothing.
      */
     const plain = plainCreatedKey({ ruleId: rule.id, table, pk });
     if (plain !== dedupeKey) {
       const at = await automationRunsRepo(deps.meta).claimedAt(plain);
       if (at !== null && at > now - PLAIN_CLAIM_WINDOW_MS) return false;
+      if (at !== null) {
+        const made = createdMoment(table, row);
+        if (made === null || at >= made - CLAIM_CLOCK_SLACK_MS) return false;
+      }
     }
   }
 

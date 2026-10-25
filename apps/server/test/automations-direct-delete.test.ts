@@ -163,5 +163,31 @@ for (const [dialect, reachable] of LEGS) {
       const event = typeof started[0]!.triggerEvent === 'string' ? JSON.parse(started[0]!.triggerEvent) : started[0]!.triggerEvent;
       expect(String(event.record.pk.id)).toBe('91');
     });
+
+    it('a row the old server claimed by its key alone hours ago, made before that claim, is not run again after the upgrade', async () => {
+      const view = await loadSnapshotView(s.meta, s.connectionId, { forOthers: true });
+      const signups = view.table(s.t('signups'));
+      // Made at 10:00 (past every earlier row, so the poller reads it), claimed by the old server at 11:00; the poll runs at 15:00.
+      await s.rows(`INSERT INTO crm_signups (id, name, created_at) VALUES (92, 'Fenwick', '2099-01-03 10:00:00')`);
+      const pk = { id: (await s.rows(`SELECT id FROM crm_signups WHERE name = 'Fenwick'`))[0]!['id'] };
+      const at = Date.parse('2099-01-03T11:00:00Z');
+      const later = Date.parse('2099-01-03T15:00:00Z');
+      expect(
+        await automationRunsRepo(s.meta).begin(
+          {
+            automationId: ruleId,
+            dedupeKey: plainCreatedKey({ ruleId, table: signups, pk }),
+            origin: 'dashboard',
+            triggerEvent: { event: 'record.created', origin: 'dashboard', ruleId: null, hops: 0, record: { connectionId: s.connectionId, table: signups.id, pk, label: 'Fenwick' }, snapshot: {}, occurredAt: at },
+          },
+          at,
+        ),
+      ).not.toBeNull();
+      const before = (await runs()).filter((run) => run.origin === 'watch').length;
+      await pollWatchedTables({ meta: s.meta, manager: s.manager, enqueue: (input) => jobsRepo(s.meta).enqueue(input), now: () => later });
+      // Its own claim, older than the hour: the poller leaves the row, so its rule does not run a second time.
+      expect((await runs()).filter((run) => run.origin === 'watch').length).toBe(before);
+      expect(await marks()).not.toContain('Fenwick');
+    });
   });
 }
