@@ -21,7 +21,7 @@ import { WidgetErrorBoundary } from '@adminium/widgets';
 import type { PageEnvelope } from '@adminium/engine/config';
 import type { GeneratedPageProps } from '@adminium/server/ui';
 
-import { parsePageDocument } from '../../api/pages.js';
+import { parsePageDocument } from '../../api/pageDocument.js';
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { PageHostContext, type PageHost } from '../../pages/pageHost.js';

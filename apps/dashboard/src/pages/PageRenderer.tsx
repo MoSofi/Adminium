@@ -21,7 +21,7 @@ import { FileQuestion, PackageOpen, ShieldAlert } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Card, CardBody, CardHeader, IconTile, MonoText, Skeleton } from '@adminium/ui';
 import { WidgetErrorBoundary, isDeletePreview, type ColumnFacts, type WidgetEvent } from '@adminium/widgets';
-import { pageLayoutSchema, type PageEnvelope } from '@adminium/engine/config';
+import type { PageEnvelope } from '@adminium/engine/config';
 
 import { createCrudApi, type BoundCrudApi, type CrudMutationResult } from '../api/crud.js';
 import {
@@ -33,6 +33,7 @@ import {
   type RecordTabFact,
   type StateActionFact,
 } from '../api/pages.js';
+import { usePageReader } from '../api/pageReader.js';
 import { useDashboardData } from '../api/widgetData.js';
 import { bootstrapQuery, findPageBySlug, isDisabledAppPage, slugForTable } from '../app/bootstrap.js';
 import { hrefForPage, hrefForRecord } from '../app/links.js';
@@ -413,7 +414,8 @@ function usePageAdapters(page: PageEnvelope, slug: string, stamp: { id: string; 
   }, [page.source, stamp?.id, stamp?.revision, queryClient]);
 
   // A layout with the day control is read for the chosen day (today to start).
-  const withDay = useMemo(() => pageLayoutSchema.safeParse(page.config['layout']).data?.toolbar?.day === true, [page.config]);
+  const reader = usePageReader();
+  const withDay = useMemo(() => reader.layoutHasDay(page), [reader, page]);
   const [day, setDay] = useState('today');
   const dayParams = useMemo(() => (withDay ? { day } : NO_PARAMS), [withDay, day]);
   const dashboard = useDashboardData(page, dayParams);

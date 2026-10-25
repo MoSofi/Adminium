@@ -11,9 +11,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 import { jsonResponse, makeCrudEnvelope, makeDashboardEnvelope } from '../test/fixtures.js';
+import { extractBindings } from './pageDocument.js';
 import {
   dedupeRequests,
-  extractBindings,
   fetchWidgetDataBatch,
   useDashboardData,
   type WidgetDataRequest,

@@ -3,7 +3,9 @@
  * Page-config client (loader contract): `GET /api/v1/pages/:pageId` → run
  * client-side config migrations (`@adminium/engine/config`, the
  * browser-safe subpath — same functions the server runs on read) →
- * Zod-validate the envelope.
+ * Zod-validate the envelope. The migrate-and-validate step is
+ * `pageDocument.ts#parsePageDocument`, a chunk of its own that `pageQuery`
+ * fetches beside the document (it is zod, which the first paint never needs).
  *
  * Never-crash rules: a document with `v` newer than this build renders the
  * "config too new" card; a document failing envelope validation renders the
@@ -12,19 +14,12 @@
  * error mapping can render the matching system state.
  */
 import { queryOptions } from '@tanstack/react-query';
-import {
-  ConfigMigrationError,
-  configMigrations,
-  latestConfigVersion,
-  pageEnvelopeSchema,
-  runConfigMigrations,
-  type ConfigMigration,
-  type PageEnvelope,
-} from '@adminium/engine/config';
+import type { PageEnvelope } from '@adminium/engine/config';
 
 import type { ColumnFact, ColumnFacts } from '@adminium/widgets';
 
 import { api } from '../app/api.js';
+import { loadPageReader } from './pageReader.js';
 
 export type { PageEnvelope } from '@adminium/engine/config';
 export type { ColumnFact, ColumnFacts };
@@ -247,85 +242,6 @@ export type PageDocumentResult =
   | { status: 'too-new'; v: number; latest: number }
   | { status: 'invalid'; issues: string[] };
 
-/**
- * Post-migration envelope validator — structural so tests can inject a
- * variant schema alongside injected migrations (the real chain and the real
- * envelope schema always agree on the latest version).
- */
-export interface EnvelopeValidator {
-  safeParse(input: unknown):
-    | { success: true; data: PageEnvelope }
-    | { success: false; error: { issues: Array<{ path: ReadonlyArray<string | number>; message: string }> } };
-}
-
-export interface ParsePageOptions {
-  /** Migration-chain override (test seam; defaults to the registered chain). */
-  migrations?: readonly ConfigMigration[] | undefined;
-  /** Envelope-schema override (test seam; defaults to `pageEnvelopeSchema`). */
-  schema?: EnvelopeValidator | undefined;
-}
-
-function versionOf(raw: unknown): number | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const v = (raw as Record<string, unknown>)['v'];
-  return typeof v === 'number' && Number.isInteger(v) ? v : null;
-}
-
-/** migrate → validate; every failure mode is a value, never a throw. */
-export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}): PageDocumentResult {
-  const migrations = options.migrations ?? configMigrations;
-  let migrated: unknown;
-  try {
-    migrated = runConfigMigrations(raw, migrations);
-  } catch (error) {
-    if (!(error instanceof ConfigMigrationError)) throw error;
-    const v = versionOf(raw);
-    const latest = latestConfigVersion(migrations);
-    if (v !== null && v > latest) return { status: 'too-new', v, latest };
-    return { status: 'invalid', issues: [error.message] };
-  }
-
-  const schema: EnvelopeValidator = options.schema ?? (pageEnvelopeSchema as EnvelopeValidator);
-  const parsed = schema.safeParse(migrated);
-  if (!parsed.success) {
-    return {
-      status: 'invalid',
-      issues: parsed.error.issues.map((issue) =>
-        issue.path.length === 0 ? issue.message : `${issue.path.join('.')}: ${issue.message}`,
-      ),
-    };
-  }
-  // The per-caller server capabilities are not part of the stored document —
-  // the query wrapper fills them from the response. `canEditLayout` defaults
-  // closed (false routes builder saves to the personal override); the write
-  // capabilities default OPEN, because absent means "not computed" (a
-  // source-less page, or a server predating the field), and hiding every
-  // write affordance there would be a regression, not honesty.
-  return {
-    status: 'ok',
-    page: parsed.data,
-    revision: null,
-    canEditLayout: false,
-    canCreate: true,
-    canUpdate: true,
-    canDelete: true,
-    canAttach: true,
-    // Closed default, unlike the write capabilities: a reveal button is only
-    // honest when the server said it sent PII in clear.
-    canUnmask: false,
-    stateActions: [],
-    bulkActions: [],
-    recordTabs: [],
-    columnFacts: {},
-    formColumns: [],
-    formRelations: [],
-    formChildren: [],
-    tableLabelSingular: null,
-    tableLabelPlural: null,
-    removalReason: null,
-  };
-}
-
 /** Page documents change on regeneration/edits, both WS-invalidated — 5 min. */
 export const PAGE_STALE_TIME_MS = 5 * 60_000;
 
@@ -334,6 +250,11 @@ export function pageQuery(pageId: string) {
     queryKey: ['page', pageId] as const,
     staleTime: PAGE_STALE_TIME_MS,
     queryFn: async (): Promise<PageDocumentResult> => {
+      // The reader is zod, a chunk of its own (`pageDocument.ts`): fetched
+      // beside the document, not after it. A failed fetch of either is a
+      // transport failure, and throws like one.
+      const reading = loadPageReader();
+      reading.catch(() => undefined);
       const reply = await api.get<{
         data: unknown;
         revision?: number;
@@ -348,7 +269,7 @@ export function pageQuery(pageId: string) {
         recordTabs?: RecordTabFact[];
         columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
-      const result = parsePageDocument(reply.data);
+      const result = (await reading).parsePageDocument(reply.data);
       return result.status === 'ok'
         ? {
             ...result,

@@ -1,5 +1,5 @@
 {
-  "entryJsGzBytes": 282002,
+  "entryJsGzBytes": 260994,
   "targetGzBytes": 358400,
   "codeTabJsGzBytes": 161801,
   "codeTabNote": "The Designer's code editor, one chunk loaded when its Code tab is first opened: 155,874 bytes gz measured on 2026-10-08 (CodeMirror 6 with the language objects alone and the Lezer Markdown parser; the tab's own code is about 5 KiB of it), plus 2,048 bytes of minifier headroom. A ratchet like entryJsGzBytes: it may only go down. Raised once, on 2026-10-12 and by the owner’s word, from 157,922 to 161,801: the tab gained its search (the find bar, the all-files field and its results, the marks in the editor), which measured 159,753 bytes gz with no new package in the chunk’s source map, plus the same 2,048 bytes of headroom.",
@@ -24,6 +24,14 @@
     "whatIsStillThere": "zod is 74.2 KiB raw in the entry, reachable from the boot path through `api/pages.ts` and `api/widgetData.ts` -> @adminium/engine/config. Deferring it MEASURED 22,082 gz bytes — by far the largest remaining lever — and was deliberately not taken here: it makes `parsePageDocument` async and touches the page-document reader's never-crash rules, which is a correctness change, not a bundle change. Recorded so the next pass does not have to re-measure it."
   },
   "history": [
+    {
+      "when": "2026-10-25",
+      "by": "loading the page document's reader, and with it zod, with the first page document (`src/api/pageDocument.ts`) instead of in the entry",
+      "from": 282002,
+      "measured": "258,994 bytes (252.9 KiB gz) at zod 4.6.7, down from 289,705 measured on the same tree without the move (and 281,870 at zod 4.4.3): 30,711 bytes gz out of the entry. The ratchet is the measured weight plus 2,000.",
+      "why": "zod 4.6.7 carries the fix for a high-severity advisory (memory exhaustion validating oversized constrained collections), and its plain bump put the entry 7,703 bytes over the ratchet. Attributed through the entry's source map: zod 75,897 raw at 4.4.3 -> 98,810 raw at 4.6.7, reached only through `api/pages.ts` (the parse), `api/widgetData.ts` (the dashboard bindings and poll interval) and `pages/PageRenderer.tsx` (the day control) -> @adminium/engine/config and @adminium/widgets/page-config. After the move: zod attributes ZERO, packages/engine ZERO, packages/widgets 5,119 -> 1,113 raw; `pageReader.ts` is 278 raw. This is the 22 KiB lever the 2026-09-09 entry recorded and did not take: it is taken without making the parse async, because a page's data only exists after its reader has run.",
+      "cost": "One chunk fetch (the reader, about 28 KiB gz of zod plus the page schemas) the first time a page document is read, started BESIDE the document's own request in `pageQuery`, so a page waits for the slower of the two, not their sum. The sign-in form and every screen that shows no page document never fetch it. A failed fetch of the chunk is a transport failure and renders the route's error state, like a failed request; a too-new or invalid document is still a card, never a throw. Hooks that read a page's layout while it renders get the reader through `usePageReader()`, which has it at once on every real render and suspends only for a page that came by some other way before the chunk ran."
+    },
     {
       "when": "2026-10-05",
       "by": "loading four screens' en-US words with their screens: the `builder`, `kb`, `about` and `team` groups of `common` are their own chunk (`en-us/common-deferred`), as the widget and template words of `ui` have been since 2026-09-28",

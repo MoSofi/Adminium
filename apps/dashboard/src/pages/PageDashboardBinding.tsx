@@ -27,7 +27,7 @@ import { useRouter } from '@tanstack/react-router';
 import type { WidgetDataState, WidgetEvent } from '@adminium/widgets';
 import { staffLinkPath } from '@adminium/widgets/page-config';
 
-import { extractBindings } from '../api/widgetData.js';
+import { extractBindings } from '../api/pageDocument.js';
 import { addOnNavOf, bootstrapQuery, findPageBySlug } from '../app/bootstrap.js';
 import { DashboardBuilder } from './dashboard-builder/index.js';
 import { openStaffTarget, staffTargetFor } from './staffLink.js';
