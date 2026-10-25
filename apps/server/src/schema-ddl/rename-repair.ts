@@ -38,7 +38,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { MetaDb } from '@adminium/meta';
-import { appTablesRepo, connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo, snapshotsRepo } from '@adminium/meta';
+import { appTablesRepo, connectionsRepo, overridesRepo, pagesRepo, permissionActionsSchemaFor, permissionsRepo, publicApiStateRepo, snapshotsRepo, type RowReach, type TableActions } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import { mapTableRefs } from '../apps/real-refs.js';
@@ -602,6 +602,33 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
         .execute();
       result.grants += 1;
     }
+  }
+  // A row limit that takes a listing out of a reach (`notThrough`) names the listing by its id. Left on the old one it
+  // names no table any more, and the listing would count again: the helper on a deal could change it.
+  const limited = await meta.db
+    .selectFrom('adminium_role_permissions')
+    .select(['roleId', 'resourceRef', 'actions'])
+    .where('resourceKind', '=', 'table')
+    .where('resourceRef', 'like', `${connectionId}/%`)
+    .execute();
+  for (const row of limited) {
+    const actions = permissionActionsSchemaFor('table').safeParse(typeof row.actions === 'string' ? JSON.parse(row.actions) : row.actions);
+    if (!actions.success) continue;
+    const rowLimit = (actions.data as TableActions).rowLimit;
+    if (rowLimit === undefined) continue;
+    let changed = false;
+    const moved = (reach: RowReach): RowReach => {
+      if (reach.notThrough === undefined) return reach;
+      const one = (id: string): string => byOldId.get(id) ?? id;
+      const next = typeof reach.notThrough === 'string' ? one(reach.notThrough) : reach.notThrough.map(one);
+      if (JSON.stringify(next) === JSON.stringify(reach.notThrough)) return reach;
+      changed = true;
+      return { ...reach, notThrough: next };
+    };
+    const next = Object.fromEntries(Object.entries(rowLimit).map(([action, written]) => [action, Array.isArray(written) ? written.map(moved) : moved(written as RowReach)]));
+    if (!changed) continue;
+    await permissions.grant(row.roleId, 'table', row.resourceRef, { ...(actions.data as TableActions), rowLimit: next });
+    result.grants += 1;
   }
 
   return result;

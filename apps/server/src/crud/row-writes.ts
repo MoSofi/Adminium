@@ -184,8 +184,17 @@ async function assertParentReached(ctx: RowLimitContext, db: Db, table: Effectiv
   const reaches = all.filter((reach) => reach.via === undefined);
   if (reaches.length === 0) throw new ForbiddenError('Your role adds here only under a record that is yours.', 'COLUMN_FORBIDDEN', { table: table.id, column: moved[0]!.via, reason: 'parent-not-theirs' });
   const ids = idsOf(ctx, reaches);
+  /*
+   * A WRITER WHOSE EVERY REACH LEAVES A LISTING OUT (`notThrough`) is judged
+   * by the parent the row is hung under, whatever the row's own column says:
+   * a helper on a colleague's deal who names herself on a new visit or
+   * follow-up there is still adding to a deal she only helps on. A row hung
+   * under no parent is hers by her column as before.
+   */
+  const hungUnder = moved.some((way) => !empty(next[way.via]));
+  const byParentOnly = hungUnder && reaches.every((reach) => reach.notThrough !== undefined);
   // Theirs by a staff column of its own: as the row will hold it, or as a stamp of its maker will fill it.
-  for (const way of ways) {
+  for (const way of byParentOnly ? [] : ways) {
     if (!('column' in way)) continue;
     const column = table.columns.find((candidate) => candidate.name === way.column);
     // A copy of the parent's person says whose the parent is: that is the question asked below, not an answer to it.
@@ -211,7 +220,11 @@ async function assertParentReached(ctx: RowLimitContext, db: Db, table: Effectiv
     const relation = ctx.model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === way.via && r.to.columns.length === 1);
     if (relation === undefined) continue;
     const parentId = relation.to.tableId;
-    const limited = reaches.map((reach) => ({ grant: `table:${ctx.connectionId}:${parentId}:read`, reach: { reach: reach.reach, ...(reach.unowned === true ? { unowned: true as const } : {}) } }));
+    // Each reach as it judges the parent: who it belongs to, and by no listing the reach leaves out.
+    const limited = reaches.map((reach) => ({
+      grant: `table:${ctx.connectionId}:${parentId}:read`,
+      reach: { reach: reach.reach, ...(reach.unowned === true ? { unowned: true as const } : {}), ...(reach.notThrough === undefined ? {} : { notThrough: reach.notThrough }) },
+    }));
     const judged = { ...asParent, set: { ...asParent.set, rowLimits: { read: [{ limited, unlimited: new Set<string>() }] } } };
     if (await reachesKey(judged, db, parentId, relation.to.columns[0]!, link)) return;
   }

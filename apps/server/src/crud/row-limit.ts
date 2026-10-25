@@ -35,6 +35,7 @@
  */
 import { ForbiddenError } from '../errors.js';
 import { BELONGS_VIA_MAX_STEPS } from '@adminium/manifest';
+import { notThroughOf } from '@adminium/meta';
 import { sql, type Expression, type Kysely, type RawBuilder, type SqlBool } from 'kysely';
 
 import type { BelongsWay, EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
@@ -106,6 +107,9 @@ interface Sets {
   known: Map<number, readonly (string | number)[]>;
   asked?: { at: number; values: () => Promise<unknown[]> }[];
 }
+
+/** No listing left out of a reach. */
+const NO_LISTINGS: ReadonlySet<string> = new Set();
 
 const never = (): RawBuilder<SqlBool> => sql<SqlBool>`1 = 0`;
 const always = (): RawBuilder<SqlBool> => sql<SqlBool>`1 = 1`;
@@ -287,8 +291,12 @@ class Build {
     return { list, inner, conditions, on, own };
   }
 
-  /** "One of `ids` belongs to this row", by any of the table's ways. */
-  belongs(table: EffectiveTable, alias: string, ids: readonly string[], steps: number, seen: ReadonlySet<string>): Bool {
+  /**
+   * "One of `ids` belongs to this row", by any of the table's ways — but by
+   * no listing in `skipped` (a reach's `notThrough`): here, and in every row
+   * it hangs off, a way through one of those tables makes nobody's row.
+   */
+  belongs(table: EffectiveTable, alias: string, ids: readonly string[], steps: number, seen: ReadonlySet<string>, skipped: ReadonlySet<string> = NO_LISTINGS): Bool {
     if (ids.length === 0) return never();
     const parts: Bool[] = [];
     for (const way of table.belongs ?? []) {
@@ -296,6 +304,8 @@ class Build {
         const who = this.someone(table, alias, way.column, way.person, ids);
         if (who !== null) parts.push(who);
       } else if ('through' in way) {
+        // A listing the reach does not count: the people it lists are not, by it, the row's.
+        if (skipped.has(way.through.table)) continue;
         // The rows these people are listed against, as one set: this row's value is in it or is not.
         const listing = this.listed(table, alias, way.through, ids);
         if (listing !== null) parts.push(this.within(this.ref(alias, listing.on), listing.list, listing.inner, way.through.link, listing.own));
@@ -305,7 +315,7 @@ class Build {
         if (parent === null || seen.has(parent.table.id)) continue;
         const inner = this.alias();
         // The parent rows these people belong to, as one set: a child's page is not one parent looked up a row.
-        parts.push(this.within(this.ref(alias, way.via), parent.table, inner, parent.key, [this.belongs(parent.table, inner, ids, steps + 1, new Set([...seen, table.id]))]));
+        parts.push(this.within(this.ref(alias, way.via), parent.table, inner, parent.key, [this.belongs(parent.table, inner, ids, steps + 1, new Set([...seen, table.id]), skipped)]));
       }
     }
     return any(parts);
@@ -409,7 +419,9 @@ class Build {
       parts.push((declared && reach.by !== undefined ? this.someone(table, alias, reach.via, reach.by, ids) : null) ?? never());
     } else {
       const ids = reach.reach === 'team' ? [me, ...(who?.ledIds ?? [])] : [me];
-      parts.push(any([this.belongs(table, alias, ids, 0, new Set()), ...(reach.unowned === true ? [this.unowned(table, alias, 0, new Set())] : [])]));
+      // …by every way the table says, but the listings the reach does not count (`notThrough`: a helper on the deal changes nothing of it).
+      const skipped = reach.notThrough === undefined ? NO_LISTINGS : new Set(notThroughOf(reach));
+      parts.push(any([this.belongs(table, alias, ids, 0, new Set(), skipped), ...(reach.unowned === true ? [this.unowned(table, alias, 0, new Set())] : [])]));
       // …and only the rows this staff column names them in: of the notes on a deal they reach, the ones they wrote.
       // A column that is not there, or holds no staff member, names nobody.
       if (reach.by !== undefined) parts.push(this.someone(table, alias, reach.by, undefined, ids) ?? never());

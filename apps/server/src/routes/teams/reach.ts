@@ -27,7 +27,7 @@ import { rowsNaming } from '../../crud/rows-naming.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { handOverRows } from '../../rbac/hand-over.js';
-import { rowReachIssue } from '../../rbac/row-limit-check.js';
+import { listingsOfTable, rowReachIssue } from '../../rbac/row-limit-check.js';
 import { PERMISSIONS, grantMatches, grantsFromMatrixRows, isGranted } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowReachOfRow } from '../../rbac/row-limits.js';
@@ -77,6 +77,8 @@ const roleRowsReply = z.object({
       /** Read by its own people only, whatever a role says: nothing to choose. */
       private: z.boolean(),
       ways: z.array(wayDto),
+      /** Every listing the table's rows are read through, its own or a parent's: what a reach's `notThrough` may name, in words. */
+      listings: z.array(z.object({ table: z.string(), label: z.string() })),
       /** Whether the role holds the action on this table at all. */
       granted: z.object({ read: z.boolean(), update: z.boolean(), delete: z.boolean() }),
       /** Whether one of the role's own grants names this table (a limit is stored on such a grant). */
@@ -208,6 +210,7 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
             label: table.label ?? table.name,
             private: table.private === true,
             ways,
+            listings: [...listingsOfTable(view.model, table.id)].map((listing) => ({ table: listing, label: labelOf(listing) })),
             granted: { read: granted('read'), update: granted('update'), delete: granted('delete') },
             own: stored !== undefined,
             limit: stored === undefined ? null : ((stored.actions as TableActions).rowLimit ?? null),

@@ -260,6 +260,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'rows.notBy',
   // A child table's reach judged by a staff column of its parent and nothing else: in the row test (crud/row-limit.ts role()).
   'rows.via',
+  // A change a role's reach does not count a listing for: the listing's way is skipped in the row test (crud/row-limit.ts belongs()).
+  'rows.notThrough',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',
