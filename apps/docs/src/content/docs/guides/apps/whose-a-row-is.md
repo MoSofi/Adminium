@@ -71,6 +71,14 @@ deal reaches that deal's visits. An app may judge such a table by the parent's p
 visits of the deals her team owns, whoever made them, and none on another team's deal, even her
 own rep's. The helper herself keeps her own reach of the deal she helps on.
 
+**A helper who reads and does not change.** An app may leave a listing out of a role's change of
+a table (`"notThrough": "deal_members"` on an update or a delete reach, see the
+[manifest reference](/reference/manifest/#whose-a-row-is)): a rep listed as a helper on a
+colleague's deal then reads the deal, its quotes and its visits, and comments on them, and changes
+none of them, nor adds a quote, a visit or a follow-up under it, even one that names her. Whoever
+covers for the deal's owner, and the owner, change it as before. The dialog says such a reach in
+words ("but not as someone listed in Deal members") and keeps it through a save.
+
 Super Admin reaches every row and cannot be limited.
 
 ## What a write may name
