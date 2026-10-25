@@ -238,6 +238,24 @@ describe('what a rename repairs (D33)', () => {
   });
 });
 
+describe('a listing a row limit leaves out, after a rename', () => {
+  it('follows the listing\'s table in every reach that names it, one or several, and leaves the rest alone', async () => {
+    const role = await rolesRepo(meta).create({ slug: 'rep', name: 'Rep' });
+    const actions = { read: true, create: false, update: true, delete: true, export: false, import: false };
+    await permissionsRepo(meta).grant(role.id, 'table', `${connectionId}/public.deals`, {
+      ...actions,
+      rowLimit: { read: { reach: 'own' }, update: { reach: 'own', notThrough: 'public.deal_members' }, delete: [{ reach: 'team', notThrough: ['public.covers', 'public.deal_members'] }] },
+    });
+    await permissionsRepo(meta).grant(role.id, 'table', `${connectionId}/public.quotes`, { ...actions, rowLimit: { update: { reach: 'own', notThrough: 'public.covers' } } });
+    const result = await repairAfterRename({ meta, connectionId, renames: [{ from: 'public.deal_members', to: 'public.helpers' }], crypto });
+    expect(result.grants).toBe(1);
+    expect((await permissionsRepo(meta).find(role.id, 'table', `${connectionId}/public.deals`))!.actions).toMatchObject({
+      rowLimit: { read: { reach: 'own' }, update: { reach: 'own', notThrough: 'public.helpers' }, delete: [{ reach: 'team', notThrough: ['public.covers', 'public.helpers'] }] },
+    });
+    expect((await permissionsRepo(meta).find(role.id, 'table', `${connectionId}/public.quotes`))!.actions).toMatchObject({ rowLimit: { update: { reach: 'own', notThrough: 'public.covers' } } });
+  });
+});
+
 describe('what a rename repairs beyond pages and grants', () => {
   it('moves public endpoints, scope documents, form relations and app records — and keeps a generated page untouched', async () => {
     const { publicEndpointsRepo, publicScopesRepo, appTablesRepo, publicApiStateRepo } = await import('@adminium/meta');

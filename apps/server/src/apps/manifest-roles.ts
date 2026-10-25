@@ -34,7 +34,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
-import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
+import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type RowReach as StoredRowReach, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
@@ -77,16 +77,22 @@ function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<st
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
 
-/** A manifest's `rows` as a grant keeps it: each action's reach, or its several, copied whole (a column keeps its name through an install). */
-export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>): RowLimit {
+/**
+ * A manifest's `rows` as a grant keeps it: each action's reach, or its several, copied whole (a column keeps its name
+ * through an install). A listing `notThrough` names is a table, made real as a `belongs` way's `through.table` is
+ * (`realId`: the short ref to the table's id; a ref it cannot place is kept as written, as that way's is).
+ */
+export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>, realId: (ref: string) => string = (ref) => ref): RowLimit {
   const out: RowLimit = {};
-  const copied = (reach: RowReach): RowReach => ({
+  const listings = (written: string | readonly string[]): string | string[] => (typeof written === 'string' ? realId(written) : written.map(realId));
+  const copied = (reach: RowReach): StoredRowReach => ({
     reach: reach.reach,
     ...(reach.unowned === true ? { unowned: true as const } : {}),
     ...(reach.while === undefined ? {} : { while: { column: reach.while.column, in: [...reach.while.in] } }),
     ...(reach.by === undefined ? {} : { by: reach.by }),
     ...(reach.notBy === undefined ? {} : { notBy: reach.notBy }),
     ...(reach.via === undefined ? {} : { via: reach.via }),
+    ...(reach.notThrough === undefined ? {} : { notThrough: listings(reach.notThrough) }),
   });
   for (const action of ['read', 'update', 'delete'] as const) {
     const written = rows[action];
@@ -278,7 +284,7 @@ export async function writeManifestRoles(input: {
       const create: UpdateLimit | undefined =
         limit?.creatable === undefined ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
       // Which rows its read, update and delete reach: dropped here, the role would reach every row.
-      const rows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows);
+      const rows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows, (ref) => tableId(ref) ?? ref);
       await permissions.grant(roleId, 'table', row.resourceRef, {
         ...rest,
         ...(update === undefined ? {} : { updateLimit: update }),

@@ -338,6 +338,8 @@ export interface RowReach {
   by?: string;
   /** With `by`: the link to the row this one hangs off, whose `by` column alone judges the row. Set by an app, kept here. */
   via?: string;
+  /** A change that does not count these listings (table ids): a helper listed on a deal changes nothing of it. Set by an app, kept here. */
+  notThrough?: string | string[];
 }
 export type RowAction = 'read' | 'update' | 'delete';
 export const ROW_ACTIONS: readonly RowAction[] = ['read', 'update', 'delete'];
@@ -366,6 +368,8 @@ export interface RoleRowsTable {
   label: string;
   private: boolean;
   ways: RowWay[];
+  /** Every listing the table's rows are read through, its own or a parent's: how a reach's `notThrough` is said in words. */
+  listings?: { table: string; label: string }[];
   granted: Record<RowAction, boolean>;
   /** Whether one of the role's own grants names this table; a limit is stored on such a grant. */
   own: boolean;

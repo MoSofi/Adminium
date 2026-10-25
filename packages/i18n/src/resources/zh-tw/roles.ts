@@ -145,6 +145,7 @@ export default {
       "unowned": "以及尚無人負責的資料列",
       "while": "僅當 {column} 為 {values} 時",
       "by": "且僅限 {column} 指明為其本人的列",
+      "notThrough": "但不包括作為 {listings} 中所列人員的情況",
       "viaOwn": "僅 {table} 中其 {via} 的 {column} 指明為其本人的資料列",
       "viaTeam": "僅 {table} 中其 {via} 的 {column} 指明為其本人或其帶領團隊成員的資料列",
       "allWho": "{table} 的每一列，無論 {column} 是誰。",

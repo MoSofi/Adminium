@@ -135,6 +135,7 @@
       "unowned": "und Zeilen, die noch niemandem gehören",
       "while": "nur solange {column} {values} ist",
       "by": "und nur die, in denen {column} sie nennt",
+      "notThrough": "aber nicht als jemand, der in {listings} eingetragen ist",
       "viaOwn": "Nur Zeilen von {table}, deren {via} sie in {column} nennt",
       "viaTeam": "Nur Zeilen von {table}, deren {via} in {column} sie oder jemanden in einem Team nennt, das sie leitet",
       "allWho": "Jede Zeile von {table}, gleich wer {column} ist.",
