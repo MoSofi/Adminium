@@ -91,10 +91,16 @@ const hookSchema = z
     timeout: z.object({ before: limit(60_000), after: limit(300_000) }).strict().optional(),
     ...Object.fromEntries(HOOK_EVENTS.map((event) => [event, fn.optional()])),
   })
-  .strict()
-  .refine((value) => HOOK_EVENTS.some((event) => (value as Record<string, unknown>)[event] !== undefined), {
-    message: `must define at least one of ${HOOK_EVENTS.join(', ')}`,
-  });
+  .strict();
+
+/**
+ * Said when a hook that is otherwise valid handles no event. Checked here, after
+ * the schema, rather than as a zod refinement: zod 4.6 runs a refinement even
+ * when the object already failed (an unknown key), so a typo'd event name would
+ * be told this as well as the typo, and which of the two a hook hears would be
+ * up to the zod version.
+ */
+const NO_EVENTS = `must define at least one of ${HOOK_EVENTS.join(', ')}`;
 
 const actionSchema = z
   .object({
@@ -205,12 +211,17 @@ export async function loadProjectCode(
         continue;
       }
       const definition = exported as HookDefinition;
+      const events = HOOK_EVENTS.filter((event) => definition[event] !== undefined);
+      if (events.length === 0) {
+        problem(file.source, `The hook is not valid: ${NO_EVENTS}.`);
+        continue;
+      }
       hooks.push({
         name: file.name,
         source: file.source,
         database: definition.database ?? DEFAULT_DATABASE,
         definition,
-        events: HOOK_EVENTS.filter((event) => definition[event] !== undefined),
+        events,
       });
     } else {
       const parsed = actionSchema.safeParse(exported);
