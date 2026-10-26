@@ -76,7 +76,11 @@ function crm(): Record<string, unknown> {
             { ref: 'city', type: 'text', maxLength: 40, nullable: true },
           ],
         },
-        { ref: 'guests', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'email', type: 'text', maxLength: 254, nullable: true, rules: { personal: true } }] },
+        // Who counts as a customer, but no screen that shows the opt-out line: never offered the basis.
+        {
+          ref: 'guests',
+          columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'email', type: 'text', maxLength: 254, nullable: true, rules: { personal: true } }, { ref: 'stays', type: 'int', default: 0 }],
+        },
       ],
     },
     people: [
@@ -91,7 +95,7 @@ function crm(): Record<string, unknown> {
         customer: 'won_deals',
         optOutMark: 'opt_out_offered_at',
       },
-      { table: 'guests', kind: 'people', email: 'email', name: 'name' },
+      { table: 'guests', kind: 'people', email: 'email', name: 'name', customer: 'stays' },
     ],
     roles: [
       { key: 'marketer', name: 'Marketer', permissions: ['table:@contacts:read', 'table:@contacts:read_pii', 'table:@contacts:update', 'table:@guests:read', 'table:@guests:read_pii'] },
@@ -302,6 +306,10 @@ for (const [dialect, reachable] of LEGS) {
         const sent = await s.send(who, 'POST', `/api/v1/email-templates/${templateId}/send`, { audience: audience({ viewId }) });
         expect(errorOf(sent).details?.reason).toBe(reason);
       }
+      // A view stands for its own table, never another.
+      const elsewhere = await preview('mia', templateId, { audience: { ...audience({ viewId: byDeals }), table: s.t('guests') } });
+      expect(elsewhere.statusCode, elsewhere.body).toBe(404);
+      expect(errorOf(elsewhere).details?.reason).toBe('view-gone');
       // The "Only these" list: the shared ones and the sender's own, the searched one marked, never another person's.
       const listed = await s.get('mia', `/api/v1/email-audience/views?connectionId=${s.connectionId}&table=${encodeURIComponent(contacts)}`);
       expect(listed.statusCode, listed.body).toBe(200);
@@ -387,6 +395,26 @@ for (const [dialect, reachable] of LEGS) {
       expect(mails.map((mail) => mail.to).sort()).toEqual(['ana@harbour.dev', 'cal@harbour.dev']);
       // Not asked for, no click is counted: the link goes where it says.
       expect(mails.every((mail) => mail.html.includes('href="https://meridian.example/news"') && !mail.html.includes('/m/l/'))).toBe(true);
+    });
+
+    it('a run whose owner switches existing customers off goes on for the people who agreed, and leaves its existing customers out', async () => {
+      const leeds = await views('Leeds once more', { filters: [{ column: 'city', op: 'eq', value: 'Leeds' }] }, null);
+      await s.meta.db.deleteFrom('adminium_email_send_counters').execute();
+      const res = await sendRun('mia', { audience: audience({ viewId: leeds, existingCustomers: true }), ratePerHour: 1 });
+      expect(res.statusCode, res.body).toBe(202);
+      const runId = (res.json() as { run: { id: string } }).run.id;
+      await s.jobs();
+      expect((await s.emails()).map((mail) => mail.to)).toEqual(['ana@harbour.dev']);
+      const switchTo = (on: boolean) => s.send('mia', 'PUT', '/api/v1/email-audience/existing-customers', { connectionId: s.connectionId, table: contacts, on, optOutOffered: on });
+      expect(said(await switchTo(false))).toBe('ok');
+      await s.meta.db.deleteFrom('adminium_email_send_counters').execute();
+      await s.jobs({ all: true });
+      expect(await s.emails()).toEqual([]);
+      expect((await ledger(runId)).map((row) => `${row.address} ${row.state} ${row.reason ?? ''}`.trim())).toEqual(['ana@harbour.dev sent', 'cal@harbour.dev skipped-consent not-agreed']);
+      expect((await emailRunsRepo(s.meta).findById(runId))?.status).toBe('sent');
+      // Asked for again while off, it is refused by name.
+      expect(errorOf(await preview('mia', await campaign(), { audience: audience({ existingCustomers: true }) })).details?.reason).toBe('existing-customers-off');
+      expect(said(await switchTo(true))).toBe('ok');
     });
 
     it('the review: Confirm and Leave out each write one log row in the reviewer\'s name, the column follows, and it asks no more', async () => {

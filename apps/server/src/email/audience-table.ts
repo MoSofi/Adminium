@@ -146,7 +146,7 @@ const AUDIENCE_STATUS: Record<AudienceRefusal, number> = {
   'existing-customers-off': 409,
 };
 
-/** The refusal in a sentence, naming the table (comp 1d's style). */
+/** The refusal in a sentence, naming the table, as the send dialog says it. */
 export function audienceRefusalSentence(reason: AudienceRefusal, label: string): string {
   switch (reason) {
     case 'not-people':
@@ -319,7 +319,7 @@ async function listAsSender(access: PeopleTableAccess, filters: unknown[] | unde
  * the table, the view's filters (tried once, so a filter on a column their
  * role hides is refused here rather than half-way), and existing customers.
  */
-export async function openTableAudience(deps: AudienceDeps, userId: string | null, audience: TableAudience): Promise<Opened<AudienceAccess>> {
+export async function openTableAudience(deps: AudienceDeps, userId: string | null, audience: TableAudience, options: { running?: boolean } = {}): Promise<Opened<AudienceAccess>> {
   const opened = await openPeopleTable(deps, userId, audience.connectionId, audience.table);
   if (!('ok' in opened)) return opened;
   const access = opened.ok;
@@ -332,8 +332,11 @@ export async function openTableAudience(deps: AudienceDeps, userId: string | nul
     throw error;
   }
   const asked = audience.existingCustomers === true;
-  if (asked && !(access.offered && access.switched?.on === true)) return { refuse: 'existing-customers-off', label: access.label };
-  return { ok: { ...access, audience, filters: view.filters, existing: asked } };
+  const allowed = access.offered && access.switched?.on === true;
+  // Asked for where they are not on: refused at the dialog and the send. A run whose owner switched them off
+  // since goes on for the people who agreed, and its existing customers are left out (`tableAudienceSeams`).
+  if (asked && !allowed && options.running !== true) return { refuse: 'existing-customers-off', label: access.label };
+  return { ok: { ...access, audience, filters: view.filters, existing: asked && allowed } };
 }
 
 /** One row of the table, as the sender reads it and as it is. */
@@ -442,7 +445,7 @@ export async function judge(
   return out;
 }
 
-/** The dialog's breakdown (comp E1.4): how many each way, worked out as the run will. */
+/** The send dialog's breakdown: how many each way, worked out as the run will. */
 export interface AudienceBreakdown {
   /** Rows the sender's view lists, with or without an address. */
   rows: number;
@@ -561,7 +564,7 @@ export function localeOfLanguage(value: unknown): string | null {
  * follows refuses the run with the reason).
  */
 export async function* tableAudienceRecipients(deps: AudienceDeps, run: Pick<EmailRun, 'createdBy'>, audience: TableAudience): AsyncGenerator<EmailSendInput> {
-  const opened = await openTableAudience(deps, run.createdBy, audience);
+  const opened = await openTableAudience(deps, run.createdBy, audience, { running: true });
   if (!('ok' in opened)) return;
   const access = opened.ok;
   const install = await recipientLocale(deps.meta, null);
@@ -622,7 +625,7 @@ export function tableAudienceSeams(deps: AudienceDeps): Required<Pick<CampaignSe
 
   async function accessFor(run: EmailRun): Promise<AudienceAccess | AudienceRefusal> {
     const audience = run.audience as TableAudience;
-    const opened = await openTableAudience(deps, run.createdBy, audience);
+    const opened = await openTableAudience(deps, run.createdBy, audience, { running: true });
     if (!('ok' in opened)) return opened.refuse;
     keep(run.id, opened.ok);
     return opened.ok;
@@ -657,7 +660,7 @@ export function tableAudienceSeams(deps: AudienceDeps): Required<Pick<CampaignSe
       if (run.basis === 'existing-customers') {
         const person = { connectionId: access.declared.connectionId, table: access.wholeTable.id, key: row.personKey! };
         const standing = await deps.consent.stateFor({ person, address: row.address }, runPurpose(run));
-        const carried = access.offered && access.switched?.on === true && customerRow(access.declared, whole) && markedForOptOut(access.declared, whole);
+        const carried = access.existing && customerRow(access.declared, whole) && markedForOptOut(access.declared, whole);
         if (standing.state !== 'yes' && !carried) return { skip: 'skipped-consent', reason: CAMPAIGN_SKIP_NOT_AGREED };
       }
       vars.set(row.id, maskRow(whole, access.table, access.canReadPii));
@@ -765,7 +768,7 @@ export class NotInReviewError extends AppError {
 }
 
 /**
- * The reviewer's answer about one person (CR2): "Confirm" records a yes in
+ * The reviewer's answer about one person: "Confirm" records a yes in
  * their name ("ticked before records were kept"); "Leave out" records a no
  * ("left out at the send review"). Either is one row in the consent log,
  * after which the review never asks about them again; the table's declared
@@ -801,7 +804,7 @@ export async function answerReview(
 
 // ─── The picker ────────────────────────────────────────────────────────────
 
-/** One table the send dialog offers (comp E1.2). */
+/** One table the send dialog's table picker offers. */
 export interface AudienceTableEntry {
   connectionId: string;
   table: string;

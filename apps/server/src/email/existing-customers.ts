@@ -4,10 +4,10 @@
  *
  * "Existing customers may get marketing mail without ticking a box" is off
  * for every table until the owner turns it on, and turning it on needs their
- * tick "I offered a way to say no when we took their address" (plan Q7 = B,
- * CR1). It is kept as the owner's word on the table, beside the other
- * `table.*` words: a `table.existingCustomers` override row, whose
- * `created_by` and `created_at` say who and when. Each change writes a new
+ * tick "I offered a way to say no when we took their address". It is kept
+ * as the owner's word on the table, beside the other `table.*` words: a
+ * `table.existingCustomers` override row, whose `created_by` and
+ * `created_at` say who and when. Each change writes a new
  * row and leaves the earlier ones disabled, so the newest active row is the
  * switch and the disabled ones are its history.
  *

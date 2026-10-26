@@ -146,7 +146,7 @@ export interface CampaignSeams {
   /**
    * The recipients of an audience that reads a source table (a table's
    * people): the first batch writes them down. Without it such a run
-   * writes nobody, and its batch check refuses it.
+   * writes nobody.
    */
   tableRecipients?: ((run: EmailRun, audience: TableAudience) => AsyncIterable<EmailSendInput>) | undefined;
   /**

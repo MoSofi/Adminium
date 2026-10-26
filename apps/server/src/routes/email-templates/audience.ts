@@ -3,13 +3,13 @@
  * A campaign's audience when it is the people of a table (`email/audience-
  * table.ts`): what the send dialog reads and the two things it changes.
  *
- *   GET  /email-audience/tables              the tables the sender may pick (comp E1.2)
+ *   GET  /email-audience/tables              the tables the sender may pick
  *   GET  /email-audience/views               "Only these": a table's saved views
- *   GET  /email-audience/review              the first send's review (comp E1.7)
+ *   GET  /email-audience/review              the first send's review
  *   POST /email-audience/review/answer       "Confirm" or "Leave out", one person
- *   PUT  /email-audience/existing-customers  the owner's switch and their tick (comp E1.18)
+ *   PUT  /email-audience/existing-customers  the owner's switch and their tick
  *
- * The breakdown (comp E1.4) is the campaign's own audience preview
+ * The breakdown is the campaign's own audience preview
  * (`POST /email-templates/:id/audience/preview`), which answers it for a
  * table audience through {@link tableAudiencePreview}.
  *
@@ -52,6 +52,7 @@ import {
 import { setExistingCustomers } from '../../email/existing-customers.js';
 import { ForbiddenError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { estimateMinutes } from '../../jobs/email-campaign-run.js';
+import { pkOfRowKey } from '../../payments/payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { permissionSetAllows } from '../../rbac/resolver.js';
 
@@ -216,7 +217,7 @@ export async function registerEmailAudienceRoutes(app: FastifyInstance, meta: Me
         category: 'data',
         action: request.body.answer === 'confirm' ? 'consent.review-confirm' : 'consent.review-leave-out',
         connectionId: access.declared.connectionId,
-        entity: { connectionId: access.declared.connectionId, table: access.wholeTable.id, pk: {}, label: request.body.key },
+        entity: { connectionId: access.declared.connectionId, table: access.wholeTable.id, pk: pkOfRowKey(access.wholeTable, request.body.key) ?? {}, label: request.body.key },
         changes: { after: { event: event.id, purpose: event.purpose, state: event.state } },
       });
       return { event: { id: event.id, state: event.state as 'yes' | 'no', at: event.at } };
