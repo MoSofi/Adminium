@@ -11,10 +11,10 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nProvider } from '@adminium/i18n/react';
 
 import { exchangeBootToken } from './desktop/bootToken.js';
 import { captureBridgeTicket } from './studio/connect/bridgeSeed.js';
+import { LiveI18nProvider } from './i18n/LiveI18nProvider.js';
 import { initDashboardI18n } from './i18n/setup.js';
 import { createQueryClient } from './app/query.js';
 import { createAppRouter } from './app/router.js';
@@ -37,7 +37,7 @@ async function start(): Promise<void> {
   // `/setup`, not the `/studio/connect` the site redirected to.
   captureBridgeTicket();
 
-  const i18n = await initDashboardI18n();
+  await initDashboardI18n();
 
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient);
@@ -47,11 +47,12 @@ async function start(): Promise<void> {
 
   createRoot(container).render(
     <StrictMode>
-      <I18nProvider i18n={i18n}>
+      {/* The live instance: an override rebuild replaces the one boot made. */}
+      <LiveI18nProvider>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
-      </I18nProvider>
+      </LiveI18nProvider>
     </StrictMode>,
   );
 }

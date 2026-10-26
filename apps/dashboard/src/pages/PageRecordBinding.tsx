@@ -61,7 +61,7 @@ import {
   type FileDto,
 } from '../files/api.js';
 import { pictureChooser } from '../files/pictureChooser.js';
-import { getI18nInstance, t } from '../i18n/t.js';
+import { getI18nInstance, t, useWordsRevision } from '../i18n/t.js';
 import { formatStamp } from '../team/teamApi.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
@@ -466,6 +466,8 @@ export function PageRecordBinding({
   const profiles = useProfilesForTable(connectionId, sourceTable ?? crud?.table ?? '');
   const hasProvider = providers.data?.installed === true;
 
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const documentPanels = useMemo(() => {
     if (!hasProvider || recordId === undefined || crud === null) return [];
     return [
@@ -488,7 +490,7 @@ export function PageRecordBinding({
         ),
       },
     ];
-  }, [hasProvider, recordId, crud, sourceTable, t]);
+  }, [hasProvider, recordId, crud, sourceTable, words]);
 
   /*
    * Payment. ABSENT on a table that takes no payments: the server answers
@@ -526,7 +528,7 @@ export function PageRecordBinding({
       },
     ];
     // The record is named by its three parts; the object itself is new on every render.
-  }, [paymentView, panelRecord?.connectionId, panelRecord?.table, panelRecord?.recordId, crud, queryClient, t]);
+  }, [paymentView, panelRecord?.connectionId, panelRecord?.table, panelRecord?.recordId, crud, queryClient, words]);
 
   const documentActions = useMemo(() => {
     const usable = profiles.data ?? [];
@@ -545,7 +547,7 @@ export function PageRecordBinding({
         ),
       },
     ];
-  }, [hasProvider, profiles.data, recordId, t]);
+  }, [hasProvider, profiles.data, recordId, words]);
 
   /*
    * PROJECT ACTIONS — buttons the project's own code defines for this table.
@@ -690,7 +692,7 @@ export function PageRecordBinding({
         ),
       },
     ];
-  }, [stateActions, rowState, recordId, connectionId, sourceTable, crud, readOnly, parentClosed, afterAction, t, row, bootstrap.user.id]);
+  }, [stateActions, rowState, recordId, connectionId, sourceTable, crud, readOnly, parentClosed, afterAction, row, bootstrap.user.id, words]);
   /** Each related tab with its own empty words in the reader's language, where its page gave some. */
   const locale = bootstrap.prefs.locale;
   const tabs = useMemo(
@@ -733,7 +735,7 @@ export function PageRecordBinding({
         content: <ProjectActionButtons actions={projectActions} id={recordId} />,
       },
     ];
-  }, [stateButtons, documentActions, projectActions, recordId, t]);
+  }, [stateButtons, documentActions, projectActions, recordId, words]);
 
   if (crud === null) {
     // Bad generation output (record page without a source) — caught by the

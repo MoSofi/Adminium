@@ -49,7 +49,7 @@ import { pageQuery } from '../../api/pages.js';
 import { FormDesignerCard } from './form-designer/FormDesignerCard.js';
 import { FiltersCard } from './FiltersCard.js';
 import { destinationsQuery } from '../storage/storageApi.js';
-import { t } from '../../i18n/t.js';
+import { t, useWordsRevision } from '../../i18n/t.js';
 import { studioApi } from '../api.js';
 import { AttachmentsColumnSetup } from './AttachmentsColumnSetup.js';
 import { schemaAuthoringRefusal } from './schemaAuthoringReason.js';
@@ -641,6 +641,8 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
    * opening this screen would quietly reset a stored destination to the
    * default on the next save.
    */
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const destinationOptions = useMemo(() => {
     const chosen = attachments?.destinationId;
     const options = (destinations.data ?? [])
@@ -661,7 +663,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
       options.push({ value: chosen, label: chosen });
     }
     return options;
-  }, [destinations.data, attachments]);
+  }, [destinations.data, attachments, words]);
 
   /** Names the chip group, which is a `role="group"` and not a form control. */
   const acceptLabelId = useId();

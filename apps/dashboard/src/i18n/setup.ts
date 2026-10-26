@@ -59,6 +59,15 @@ const INIT_TIMEOUT_MS = 2_000;
 let booted: LocaleId | null = null;
 
 /**
+ * The language ThemeProvider last resolved for the reader — set the moment it
+ * says so, before the switch has loaded anything. An override rebuild is made
+ * in this language when there is one: it replaces the instance, and one made
+ * in the boot language that lands after the switch put every `t()` back to
+ * English, with nothing left to switch it again until a reload.
+ */
+let wanted: LocaleId | null = null;
+
+/**
  * The locale this page's strings booted in — the cached one, else the
  * browser's. Signed out, nothing else knows it: `ThemeProvider` (which stamps
  * `lang` and `dir`) has no user prefs yet and would fall back to `en_US`,
@@ -146,6 +155,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   // resolving the old language, so the app turns RTL while every string stays
   // English. That is precisely the split rtl-locale.spec.ts catches.
   subscribeTheme((resolved) => {
+    wanted = resolved.locale;
     const current = getI18nInstance();
     if (current === null) return;
     if (tagForLocale(resolved.locale) === current.language) return;
@@ -187,6 +197,8 @@ export async function refreshOverrides(locale: LocaleId): Promise<void> {
       loadBundle: loadLocaleBundle,
       overrides,
     });
+    // The reader's language moved while these were fetched: they are another language's.
+    if (wanted !== null && wanted !== locale) return refreshOverrides(wanted);
     setI18nInstance(next);
     bumpI18nRevision();
     pushDesktopMenuLabels();
@@ -220,6 +232,8 @@ export async function resyncOverrides(): Promise<void> {
     loadBundle: loadLocaleBundle,
     overrides: snapshot.overrides,
   });
+  // Read mid-switch, the live instance still spoke the outgoing language.
+  if (wanted !== null && wanted !== locale) return refreshOverrides(wanted);
   setI18nInstance(next);
   bumpI18nRevision();
 }

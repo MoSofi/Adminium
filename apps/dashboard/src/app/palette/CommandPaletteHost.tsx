@@ -37,7 +37,7 @@ import { PALETTE_SEARCH_LIMIT, recordHits, search, type SearchRecordHit } from '
 import { appSectionsOf, flattenNav, type BootstrapData } from '../bootstrap.js';
 import { hrefForRecord } from '../links.js';
 import { gChordTargets } from '../shortcuts.js';
-import { t } from '../../i18n/t.js';
+import { t, useWordsRevision } from '../../i18n/t.js';
 import { useCommonWords } from '../../i18n/commonWords.js';
 import { lucideByName } from '../../lib/lucide.js';
 import { pushRecent, readRecent, type RecentEntry } from './recent.js';
@@ -146,6 +146,8 @@ export function CommandPaletteHost({
     };
   }, [open, needle]);
 
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const groups: CommandGroup[] = useMemo(() => {
     const navItems = flattenNav(bootstrap.nav);
     const chords = new Map(gChordTargets(navItems).map(({ item, letter }) => [item.pageId, letter]));
@@ -316,7 +318,7 @@ export function CommandPaletteHost({
     }
 
     return out;
-  }, [bootstrap, dark, recent, records, needle]);
+  }, [bootstrap, dark, recent, records, needle, words]);
 
   const handleSelect = (item: CommandItem) => {
     if (item.id === 'action:toggle-theme') {

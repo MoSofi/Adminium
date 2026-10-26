@@ -20,7 +20,7 @@ import { useMutation } from '@tanstack/react-query';
 import { TriangleAlert } from 'lucide-react';
 
 import { ApiError } from '../app/api.js';
-import { t } from '../i18n/t.js';
+import { t, useWordsRevision } from '../i18n/t.js';
 import { HAND_WAYS, recordPayment, type HandWay, type PanelTarget, type PaymentPanelView } from './paymentPanelApi.js';
 import { approvalCodeOk, formatMoney, holdsCardNumber, lastFourOk, moreThan, newPaymentKey, today, typedAmount } from './paymentText.js';
 import { readerLocale } from './paymentsMessages.js';
@@ -77,6 +77,8 @@ export function RecordPaymentDialog({ open, onOpenChange, record, view, onRecord
   const due = formatMoney(view.due, view.currency, locale);
   const terminal = way === 'card';
 
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const errors = useMemo(() => {
     const out: Partial<Record<Field, string>> = {};
     const typed = typedAmount(amount);
@@ -90,7 +92,7 @@ export function RecordPaymentDialog({ open, onOpenChange, record, view, onRecord
       if (!lastFourOk(last4)) out.last4 = t('payments:record.last4Err', 'Enter the last four digits only.');
     }
     return out;
-  }, [amount, view.due, due, paidOn, note, terminal, approval, last4]);
+  }, [amount, view.due, due, paidOn, note, terminal, approval, last4, words]);
 
   // A field says what is wrong once the person has left it (or tried to send);
   // the server's own refusal shows on the field it names.

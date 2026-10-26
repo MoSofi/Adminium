@@ -18,7 +18,8 @@
  * renders English to every locale. `i18n/studioNamespace.test.ts` fails the build
  * on one.
  */
-import { formatFallback, type I18nInstance } from '@adminium/i18n';
+import { formatFallback, getI18nRevision, subscribeI18nRevision, type I18nInstance } from '@adminium/i18n';
+import { useSyncExternalStore } from 'react';
 
 export type { I18nInstance };
 
@@ -42,4 +43,14 @@ export function t(key: string, fallback: string, args?: Record<string, unknown>)
   // the path that has to do the work. Same implementation as `useMaybeT`.
   if (instance === null) return formatFallback(fallback, args);
   return instance.t(key, { defaultValue: fallback, ...args });
+}
+
+/**
+ * The words' revision, which moves on a language switch, an override change or
+ * a deferred chunk landing. `t()` is read where it is called, so a render
+ * follows the words by itself; a `useMemo` that bakes translated text in does
+ * not, and lists this among its dependencies so it is worked out again.
+ */
+export function useWordsRevision(): number {
+  return useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
 }
