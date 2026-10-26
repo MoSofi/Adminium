@@ -41,5 +41,6 @@
   {"repo":"Adminiumjs/add-ons","tag":"v1.0.7","commit":"50ccedf9cd9e0068fdabf6bc4736c24087fdd4d5","source":"packages/import-canva/manifest.json","file":"import-canva-1.0.7.manifest.json","sha256":"034c5802169d49f9ba9c32cda1a8457f6c731d4e957f398a327a899e2c7afed6"},
   {"repo":"Adminiumjs/add-ons","tag":"v1.0.7","commit":"50ccedf9cd9e0068fdabf6bc4736c24087fdd4d5","source":"packages/invoices/manifest.json","file":"invoices-1.0.7.manifest.json","sha256":"05e6400ef74b9e1a4d0b583ac5a5b28da72e71c22f03ace1148863dcdb9a9a4a"},
   {"repo":"Adminiumjs/add-ons","tag":"v1.0.7","commit":"50ccedf9cd9e0068fdabf6bc4736c24087fdd4d5","source":"packages/personalizer/manifest.json","file":"personalizer-1.0.7.manifest.json","sha256":"08bacdc2e401441dff63165f31dd7ebffff866c05a75cec2d114d7a0f211723b"},
-  {"repo":"Adminiumjs/add-ons","tag":"v1.0.7","commit":"50ccedf9cd9e0068fdabf6bc4736c24087fdd4d5","source":"packages/shipping-dhl/manifest.json","file":"shipping-dhl-1.0.7.manifest.json","sha256":"51733102283ce09c98642d46159b3c3955c8f7ae8507c09ee69455799dc04f86"}
+  {"repo":"Adminiumjs/add-ons","tag":"v1.0.7","commit":"50ccedf9cd9e0068fdabf6bc4736c24087fdd4d5","source":"packages/shipping-dhl/manifest.json","file":"shipping-dhl-1.0.7.manifest.json","sha256":"51733102283ce09c98642d46159b3c3955c8f7ae8507c09ee69455799dc04f86"},
+  {"repo":"Adminiumjs/sales-crm","tag":"v0.2.2","commit":"41eba35c6eadc8a538869f8094e38cc36a8f42bf","source":"manifest.json","file":"sales-crm-0.2.2.manifest.json","sha256":"e05a5e2f89c9e6860233a118aad36a9a3c60b02159ccef8695c71f427f3842bb"}
 ]
