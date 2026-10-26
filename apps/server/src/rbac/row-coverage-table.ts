@@ -232,6 +232,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/email-blocks': noRows('Reusable blocks of an email design.'),
   'POST /api/v1/email-blocks': noRows('Reusable blocks of an email design.'),
   'DELETE /api/v1/email-blocks/:id': noRows('Reusable blocks of an email design.'),
+  // --- /email/notices
+  'POST /api/v1/email/notices/:service/:token': noRows('A mail service calling back: the addresses it reports go on the do-not-email list in meta; no source row is read.'),
   // --- /email-runs
   'POST /api/v1/email-runs/:id/cancel': noRows('A campaign\'s run to workspace people.'),
   'GET /api/v1/email-runs/:id': noRows('A campaign\'s run to workspace people: its counts.'),

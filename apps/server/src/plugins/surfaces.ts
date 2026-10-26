@@ -250,6 +250,8 @@ export function isHostReservedPath(path: string, side: SurfaceSide = 'staff'): b
   // The pay page and its assets: served by their own routes on every host,
   // a customer one included (the pay address is preferably a customer domain).
   if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
+  // The mail door, the same way: a mail's links may be written on a customer domain.
+  if (path === MAIL_DOOR_PREFIX || path.startsWith(`${MAIL_DOOR_PREFIX}/`)) return true;
   // A CUSTOMER host serves no part of the dashboard: not its
   // sign-in pages, not its bundle, not its WebSocket. Those paths are refused
   // outright by the lockdown hook below rather than passed through.
@@ -276,6 +278,12 @@ export const PAY_PREFIX = '/pay';
 /** Where a payment service calls back. Public by nature: the provider signs what it sends. */
 export const PAYMENT_WEBHOOK_PREFIX = '/api/v1/payments/webhook/';
 
+/** The mail door (`/m/u/…` unsubscribe, `/m/l/…` click links): a mail's links may be written on a customer domain. */
+export const MAIL_DOOR_PREFIX = '/m';
+
+/** Where a mail service tells of bounces and spam reports. Public by nature: each service proves its call. */
+export const MAIL_NOTICE_PREFIX = '/api/v1/email/notices/';
+
 /**
  * What a CUSTOMER-mapped host may serve beyond its own root-served surface:
  * the public API, and that app's own customer mount
@@ -286,7 +294,10 @@ export const PAYMENT_WEBHOOK_PREFIX = '/api/v1/payments/webhook/';
 export function customerHostAllows(path: string, appKey: string): boolean {
   if (path.startsWith(PUBLIC_API_PREFIX)) return true;
   if (path.startsWith(PAYMENT_WEBHOOK_PREFIX)) return true;
+  if (path.startsWith(MAIL_NOTICE_PREFIX)) return true;
   if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
+  // The mail door: the default below lets it through too; named here so a narrower default keeps it.
+  if (path.startsWith(`${MAIL_DOOR_PREFIX}/`)) return true;
   if (path === '/api' || path.startsWith('/api/')) return false;
   if (path === '/apps' || path.startsWith('/apps/')) {
     const own = parseSurfacePath(path);

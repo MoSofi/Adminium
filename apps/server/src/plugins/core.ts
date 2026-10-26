@@ -321,6 +321,15 @@ export const RATE_BUCKETS = {
   // A payment service calling back: few addresses, many events at once (a
   // retry storm after an outage). Generous; the signature is the real gate.
   'payment-webhook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The mail door (`/m/`): whoever holds a mail's link, by network address.
+  // Pages and click links are read by people. The unsubscribe POST is also
+  // RFC 8058's one-click, which comes from the mail provider's servers for all
+  // its users at once after a send: few addresses, many posts. Generous; the
+  // signed link is the gate, and a press twice changes nothing.
+  'mail-door-page': { max: 120, timeWindowMs: 60_000, keyBy: 'ip' },
+  'mail-door-act': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A mail service's notices: a few addresses, bursts after a send. The service's own proof is the gate.
+  'mail-notice': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * What the mail door does, apart from drawing pages and answering HTTP: is
+ * the door open, what a link says, who the business is, which language a
+ * page is in, and the two unsubscribe actions.
+ *
+ * ─── The door is open only where the outside can reach it ──────────────────
+ * Every request asks first (`reachable`): the same check the pay page makes
+ * (`payments/reachability.ts`), about this server's public address
+ * (`system.publicOrigin`), the address every marketing mail's links are
+ * written on. While it fails, nothing a stranger sends is acted on, and
+ * the pages say "This page isn't available".
+ *
+ * ─── The two buttons ──────────────────────────────────────────────────────
+ *  - "Unsubscribe" withdraws the mail's purpose: a "no" row in the consent
+ *    log (source `unsubscribe`), with the "Why?" answer in its detail. The
+ *    RFC 8058 one-click does the same.
+ *  - "Unsubscribe from all … marketing mail" puts the address on the
+ *    do-not-email list (reason `link`) and, when the mail had a purpose, also
+ *    withdraws it, so the log says why and taking the address off the list
+ *    later does not quietly mean "yes" again.
+ *  - A mail on the existing-customers basis has no purpose: its one button,
+ *    and its one-click, put the address on the list.
+ * Each says "already" when there is nothing left to do, and writes nothing
+ * then. When the link came in a campaign send, that send's row in the send
+ * log turns "Unsubscribed".
+ */
+import { BUILTIN_LOCALE_IDS, localeFromTag, type LocaleId } from '@adminium/i18n';
+import { createServerI18n } from '@adminium/i18n/server';
+import { emailRunsRepo, emailSendsRepo, paymentSettingsRepo, settingsRepo, type ConsentPerson, type MetaDb } from '@adminium/meta';
+import type { FastifyRequest } from 'fastify';
+
+import type { ConsentService } from '../../consent/index.js';
+import { readClickLinkWith, type ClickClaim } from '../../email/click-link.js';
+import { mailLinkKeys } from '../../email/link-keys.js';
+import { businessNameOf } from '../../email/sender/marketing-settings.js';
+import { readUnsubscribeTokenWith, type UnsubscribeClaim } from '../../email/unsubscribe-token.js';
+import { loadOverrideMap, recipientLocale } from '../../i18n/server-i18n.js';
+import { bcp47 } from '../../i18n/bcp47.js';
+import { reachability } from '../../payments/reachability.js';
+import { negotiateLocale } from '../../plugins/surfaces.js';
+import { normalizePublicOrigin } from '../../security/public-origin.js';
+import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
+import { MAIL_DOOR_LANGUAGES, type MailDoorBusiness, type Translate, type UnsubscribeReason } from './page.js';
+
+/** The registry default for `branding.appName`: a workspace that never named itself. */
+const DEFAULT_WORKSPACE_NAME = 'Adminium';
+
+export interface MailDoorDeps {
+  meta: MetaDb;
+  /** `ADMINIUM_SECRET`: what the link keys are kept under. */
+  secret: string;
+  consent: ConsentService;
+  networkFeatures: boolean;
+  desktop: boolean;
+  trustProxy: boolean;
+  now?: (() => number) | undefined;
+}
+
+/** Which button, and how it came. */
+export type UnsubscribeAction = 'one' | 'all';
+export type UnsubscribeVia = 'link' | 'one-click';
+
+/** What an unsubscribe did. */
+export type UnsubscribeOutcome = { done: 'newsletter' | 'surveys' | 'all' } | { already: true };
+
+/** The request carried a proxy's forwarding headers. */
+function forwardedOf(request: FastifyRequest): boolean {
+  return request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined || request.headers['forwarded'] !== undefined;
+}
+
+export function createMailDoor(deps: MailDoorDeps) {
+  const { meta, consent } = deps;
+  const now = deps.now ?? Date.now;
+  const settings = settingsRepo(meta);
+  const linkKeys = mailLinkKeys(meta, deps.secret);
+
+  async function publicOrigin(): Promise<string | null> {
+    const stored = await settings.get('system.publicOrigin');
+    return typeof stored === 'string' && stored !== '' ? normalizePublicOrigin(stored) : null;
+  }
+
+  /** Whether the outside can reach this server at its public address (see the header). */
+  async function reachable(request: FastifyRequest): Promise<boolean> {
+    const answer = reachability({
+      networkFeatures: deps.networkFeatures,
+      desktop: deps.desktop,
+      trustProxy: deps.trustProxy,
+      publicOrigin: await publicOrigin(),
+      forwarded: forwardedOf(request),
+    });
+    return answer.state === 'reachable';
+  }
+
+  async function install(): Promise<string> {
+    const id = await settings.get('system.instanceId');
+    return typeof id === 'string' ? id : '';
+  }
+
+  /** What an unsubscribe link says; null for one this install did not make (or that was changed). */
+  async function readUnsubscribe(token: string): Promise<UnsubscribeClaim | null> {
+    return readUnsubscribeTokenWith(await linkKeys.unsubscribeAll(), await install(), token);
+  }
+
+  /** Where a click link leads; null for one this install did not sign. */
+  async function readClick(token: string): Promise<ClickClaim | null> {
+    return readClickLinkWith(await linkKeys.clickAll(), token);
+  }
+
+  /**
+   * The business the page speaks for: the name its privacy settings give
+   * (through `businessNameOf`, once they exist), else the pay page's shop
+   * name, else the workspace's name, else the public address's host. Never
+   * the software's own name. The contact address is the pay page's.
+   */
+  async function business(): Promise<MailDoorBusiness> {
+    const workspace = await settings.get('branding.appName');
+    const appName = typeof workspace === 'string' ? workspace.trim() : '';
+    const named = (await businessNameOf(meta)).trim();
+    const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
+    const shop = page?.shopName.trim() ?? '';
+    const usable = (name: string): boolean => name !== '' && name !== DEFAULT_WORKSPACE_NAME;
+    let name: string;
+    if (usable(named) && named !== appName) name = named;
+    else if (usable(shop)) name = shop;
+    else if (usable(appName)) name = appName;
+    else name = new URL((await publicOrigin()) ?? 'https://localhost').hostname;
+    return { name, email: page?.contactEmail ?? null };
+  }
+
+  /**
+   * The page's language: one picked in its own menu (`?lang=`), else the
+   * mail's (the token names it), else the browser's, else the install's.
+   */
+  async function language(request: FastifyRequest, claim: UnsubscribeClaim | null): Promise<LocaleId> {
+    const asked = (request.query as { lang?: unknown } | undefined)?.lang;
+    if (typeof asked === 'string' && MAIL_DOOR_LANGUAGES.some((one) => one.tag === asked)) return localeFromTag(asked);
+    const mail = claim?.language ?? null;
+    if (mail !== null && (BUILTIN_LOCALE_IDS as readonly string[]).includes(mail)) return mail as LocaleId;
+    const browser = negotiateLocale(request.headers['accept-language']);
+    if (browser !== null) return browser;
+    return (await recipientLocale(meta, null)) as LocaleId;
+  }
+
+  /** A translator for one page, with the owner's own wording from Translations. */
+  async function translator(locale: LocaleId): Promise<{ t: Translate; lang: string }> {
+    const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
+    return { t: (key, fallback, args) => i18n.t(key, { defaultValue: fallback, ...args }), lang: bcp47(locale) };
+  }
+
+  async function accent(): Promise<string> {
+    const value = await settings.get('appearance.accent');
+    return typeof value === 'string' ? value : 'indigo';
+  }
+
+  /** The send's row, when the link came in a campaign send to this very address. */
+  async function sendOf(claim: UnsubscribeClaim) {
+    if (claim.send === null) return null;
+    const row = await emailSendsRepo(meta).findById(claim.send);
+    return row !== null && row.address.trim().toLowerCase() === claim.address ? row : null;
+  }
+
+  /** Whether there is anything left for a press to do. */
+  async function settled(claim: UnsubscribeClaim): Promise<boolean> {
+    if (await consent.stop.has(claim.address)) return true;
+    return false;
+  }
+
+  /** The press itself: see the header. */
+  async function unsubscribe(claim: UnsubscribeClaim, action: UnsubscribeAction, via: UnsubscribeVia, why: UnsubscribeReason | null): Promise<UnsubscribeOutcome> {
+    const at = now();
+    const row = await sendOf(claim);
+    const person: ConsentPerson | null =
+      row !== null && row.connectionId !== null && row.personTable !== null && row.personKey !== null ? { connectionId: row.connectionId, table: row.personTable, key: row.personKey } : null;
+    // A mail with no purpose (the existing-customers basis) has the list as its one button.
+    const all = action === 'all' || claim.purpose === null;
+    const stopped = await consent.stop.has(claim.address);
+    const purposeOpen = claim.purpose !== null && (await consent.stateFor({ address: claim.address, person }, claim.purpose)).state !== 'no';
+    if (stopped || (!all && !purposeOpen)) return { already: true };
+    const detail = `${via}${all ? '-all' : ''}${why === null ? '' : `:${why}`}`;
+    if (all) {
+      const origin = row === null ? null : ((await emailRunsRepo(meta).content(row.runId))?.name ?? null);
+      await consent.stop.add({ address: claim.address, reason: 'link', origin, at });
+    }
+    if (claim.purpose !== null && purposeOpen) {
+      await consent.withdraw({ address: claim.address, person, purpose: claim.purpose, source: 'unsubscribe', detail, at });
+    }
+    if (row !== null) await emailSendsRepo(meta).markUnsubscribed(row.id, at);
+    return { done: all ? 'all' : claim.purpose! };
+  }
+
+  /** A followed click link: its send counts one more click (when the row is there). */
+  async function clicked(claim: ClickClaim): Promise<void> {
+    await emailSendsRepo(meta).countClick(claim.send, now());
+  }
+
+  return { reachable, readUnsubscribe, readClick, business, language, translator, accent, settled, unsubscribe, clicked };
+}
+
+export type MailDoor = ReturnType<typeof createMailDoor>;

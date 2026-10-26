@@ -303,6 +303,8 @@ import { paymentLinkEmailRoutes } from './routes/payments/link-email.js';
 import { paymentPanelRoutes } from './routes/payments/panel.js';
 import { consentRoutes } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
+import { mailDoorRoutes } from './routes/mail-door/index.js';
+import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
@@ -2144,6 +2146,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
+      // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
+      await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Refunding a payment: what the dialog shows, and the confirm step.
       await api.register(paymentRefundRoutes(paymentRefundDeps));
       await api.register(paymentActivityRoutes({ meta }));
@@ -2920,6 +2924,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
     }),
+  );
+
+  // The mail door (`/m/`): the unsubscribe page, the one-click and counted
+  // click links. Always registered, like the pay page: a marketing mail's
+  // links must work whether or not the public API is open; every route asks
+  // first whether the outside can reach this server.
+  await app.register(
+    mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }),
   );
 
   const publicBlocked = publicApiRegistrationBlocked(env);
