@@ -61,3 +61,4 @@ export * from './consent.js';
 export * from './stop-list.js';
 export * from './email-notice-endpoints.js';
 export * from './email-dkim-keys.js';
+export * from './email-sends.js';

@@ -41,6 +41,8 @@ export interface ResolvedAudience {
   recipients: User[];
   /** Active users excluded by their preference. */
   skipped: number;
+  /** Those users themselves, oldest account first: the send log lists them as skipped. */
+  optedOut: User[];
   /** `recipients.length + skipped`. */
   total: number;
 }
@@ -80,19 +82,21 @@ export async function resolveCampaignAudience(meta: MetaDb, audience: EmailAudie
 
   const prefs = notificationPrefsRepo(meta);
   const recipients: User[] = [];
-  let skipped = 0;
+  const optedOut: User[] = [];
   for (const user of byId.values()) {
     if (user.email.trim() === '') continue;
     const channels = await prefs.channelsFor(user.id, EMAIL_CAMPAIGN_PREF_KIND);
     if (!channels.email) {
-      skipped += 1;
+      optedOut.push(user);
       continue;
     }
     recipients.push(user);
   }
   // Stable order: oldest account first, the way the directory lists them.
-  recipients.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
-  return { recipients, skipped, total: recipients.length + skipped };
+  const oldestFirst = (a: User, b: User): number => a.createdAt - b.createdAt || a.id.localeCompare(b.id);
+  recipients.sort(oldestFirst);
+  optedOut.sort(oldestFirst);
+  return { recipients, skipped: optedOut.length, optedOut, total: recipients.length + optedOut.length };
 }
 
 /** The per-recipient substitutions of a workspace-user send (D11, D18). */

@@ -31,8 +31,8 @@ Variables are filled per recipient: `{{name}}` becomes each person's name. On
 confirmation the campaign shows *Campaign sent!* (or *Campaign scheduled!*), and
 the header wears a chip while the run is scheduled or in progress —
 *Scheduled · Tuesday 10:00* or *Sending · 42 %* — with **Cancel schedule** or
-**Cancel sending** beside it. Cancelling a run that is under way keeps the
-count of what was already delivered.
+**Cancel sending** beside it. Cancelling a run that is under way stops it for
+good: whoever already got the email keeps it, and nobody else is sent it.
 
 A campaign with a scheduled or running send cannot be sent again until that
 run has finished or been cancelled.
@@ -46,16 +46,28 @@ backup or is taken out.
 
 ## The run
 
-A send is one background job. It resolves the audience when it starts (not
-when you clicked), so a user added in between is included and a suspended one
-is not; it picks, for each recipient, the language variation that matches
-their language when one exists and is translated; it renders the email per
-recipient, sends through the configured relay, retries once on a transient
-error and otherwise counts the address as failed, keeping the first hundred
-failures with their reason.
+When a send starts, Adminium resolves the audience (at that moment, not when
+you clicked, so a user added in between is included and a suspended one is
+not), writes every recipient down in the campaign's **send log**, and copies
+the campaign in every language it goes out in. An edit you make afterwards
+applies to your next send, not to this one.
 
-When the run finishes the campaign's card reads *N sent · M failed*, and the
-person who sent it receives an in-app notification.
+The recipients are then handed to the mail queue a few at a time, each in the
+language variation that matches their language when one exists and is
+translated. A send can be capped at a number of emails an hour; the cap counts
+every campaign the workspace is sending in that hour, not only this one. The
+mail queue tries a refused email again several times over a few minutes before
+it counts the address as failed, keeping the first hundred failures with their
+reason.
+
+A send can be paused and resumed, and stopped for good. Because every
+recipient is written down before the first email goes, a server that restarts
+or crashes in the middle of a send carries on where it was: nobody is sent the
+email twice, and nobody is left out.
+
+When the last recipient has been handed over the campaign's card reads
+*N sent · M failed*, and the person who sent it receives an in-app
+notification. Deleting a campaign keeps its sends and their logs.
 
 ## Opting out
 

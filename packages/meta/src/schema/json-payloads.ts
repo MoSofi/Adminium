@@ -2889,6 +2889,54 @@ export const emailRunFailuresSchema = z
   .max(EMAIL_RUN_FAILURES_MAX);
 export type EmailRunFailure = z.infer<typeof emailRunFailuresSchema>[number];
 
+/**
+ * What a run is told to do (wave 0067), apart from `status`, which says where
+ * it is: `running` goes on, `paused` waits for "go on", `stopped` leaves the
+ * rest unsent for good, `done` has nobody left. NULL on an older run.
+ */
+export const emailRunStateSchema = z.enum(['running', 'paused', 'stopped', 'done']);
+export type EmailRunState = z.infer<typeof emailRunStateSchema>;
+
+/** marketing | service: what kind of mail a run sends (filled by later work). */
+export const emailRunClassSchema = z.enum(['marketing', 'service']);
+export type EmailRunClass = z.infer<typeof emailRunClassSchema>;
+
+/** The ground a marketing run stands on (filled by later work). */
+export const emailRunBasisSchema = z.enum(['consent', 'existing-customers']);
+export type EmailRunBasis = z.infer<typeof emailRunBasisSchema>;
+
+/**
+ * One recipient's place in the send ledger (wave 0067). `sending` is claimed
+ * by a batch and not yet handed over; `sent` is handed to the mail queue.
+ */
+export const emailSendStateSchema = z.enum([
+  'queued',
+  'sending',
+  'sent',
+  'skipped-stop',
+  'skipped-consent',
+  'bounced',
+  'spam',
+  'failed',
+  'unsubscribed',
+]);
+export type EmailSendState = z.infer<typeof emailSendStateSchema>;
+
+/** One language of a campaign as a run froze it: the document a message is drawn from. */
+export const emailRunContentVariantSchema = z.object({
+  templateId: z.string(),
+  locale: z.string(),
+  name: z.string(),
+  subject: z.string(),
+  preheader: z.string(),
+  blocks: emailBlocksSchema,
+  footer: z.string(),
+  brand: emailBrandSchema.nullable(),
+  attachments: emailAttachmentsSchema,
+});
+export type EmailRunContentVariant = z.infer<typeof emailRunContentVariantSchema>;
+export const emailRunContentVariantsSchema = z.array(emailRunContentVariantSchema).min(1);
+
 // --- invoice documents ---------------------------------------
 
 /** `template` (a reusable design) | `invoice` (a document built from one, or from scratch). */

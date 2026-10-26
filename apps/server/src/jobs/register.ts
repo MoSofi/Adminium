@@ -34,7 +34,7 @@ import type { DsnCrypto } from '@adminium/meta';
 
 import type { FileStore } from '../files/store.js';
 import { canonicalChannels, readLimitedFrames } from '../realtime/read-frames.js';
-import { EMAIL_CAMPAIGN_RUN_KIND, registerEmailCampaignRunHandler } from './email-campaign-run.js';
+import { EMAIL_CAMPAIGN_RUN_KIND, registerEmailCampaignRunHandler, withCampaignGiveUp, type CampaignSeams } from './email-campaign-run.js';
 import {
   EMAIL_SEND_JOB_KIND,
   registerEmailSendHandler,
@@ -98,6 +98,8 @@ export interface JobsAndRealtimeOptions {
         storage?: EmailSendHandlerDeps['storage'];
         /** A message sent for a row failed for good: tell the row. */
         onGiveUp?: EmailSendHandlerDeps['onGiveUp'];
+        /** The campaign batches' per-row and per-batch checks (`email-campaign-run.ts`); absent, every row is sent. */
+        campaignSeams?: CampaignSeams | undefined;
       }
     | undefined;
   /**
@@ -208,21 +210,21 @@ export async function registerJobsAndRealtime(
         ? {}
         : { createTransport: opts.email.createTransport }),
       ...(opts.email.storage === undefined ? {} : { storage: opts.email.storage }),
-      ...(opts.email.onGiveUp === undefined ? {} : { onGiveUp: opts.email.onGiveUp }),
+      // A campaign message's give-up finds its ledger row; every other one goes where it went before.
+      onGiveUp: withCampaignGiveUp(meta, opts.email.onGiveUp),
     });
   }
 
   const hub = new RealtimeHub();
-  // The campaign runner rides the same `email` option: same secret,
-  // same transport factory, same file store — plus the hub for the creator's
-  // notice, which is why it registers after the hub exists.
+  // The campaign batches ride the same `email` option: same secret (they seal
+  // each message for the `email.send` queue, which delivers it) — plus the hub
+  // for the creator's notice, which is why they register after the hub exists.
   if (opts.email !== undefined && !registry.has(EMAIL_CAMPAIGN_RUN_KIND)) {
     registerEmailCampaignRunHandler(registry, {
       meta,
       secret: opts.email.secret,
       hub,
-      ...(opts.email.createTransport === undefined ? {} : { createTransport: opts.email.createTransport }),
-      ...(opts.email.storage === undefined ? {} : { storage: opts.email.storage }),
+      ...(opts.email.campaignSeams === undefined ? {} : { seams: opts.email.campaignSeams }),
     });
   }
   if (opts.documents !== undefined && !registry.has(DOCUMENT_RENDER_KIND)) {

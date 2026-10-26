@@ -744,10 +744,11 @@ export interface AdminiumEmailBlocksTable {
   updatedAt: Ts;
 }
 
-/** One row per campaign send; counts, never per-recipient rows. */
+/** One row per campaign send; its recipients are `adminium_email_sends` rows (wave 0067). */
 export interface AdminiumEmailRunsTable {
   id: Id;
-  templateId: Id;
+  /** NULL once the campaign is deleted: the run and its send log stay (wave 0067). */
+  templateId: Id | null;
   /** scheduled | running | sent | failed | cancelled */
   status: string;
   /** `EmailAudience` */
@@ -765,6 +766,16 @@ export interface AdminiumEmailRunsTable {
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** Wave 0067. At most this many an hour; NULL = as fast as the mail server allows. */
+  ratePerHour: number | null;
+  /** running | paused | stopped | done; NULL on a run made before wave 0067. */
+  state: string | null;
+  /** marketing | service, filled by later work. */
+  mailClass: string | null;
+  /** consent | existing-customers, filled by later work. */
+  basis: string | null;
+  /** The frozen content (`adminium_email_run_contents`) the run sends. */
+  contentId: Id | null;
 }
 
 /**
@@ -1829,6 +1840,50 @@ export interface AdminiumEmailDkimKeysTable {
   createdAt: Ts;
 }
 
+// wave 0067 — the campaign send ledger
+
+/** A campaign run's content, frozen when it starts (wave 0067). */
+export interface AdminiumEmailRunContentsTable {
+  id: Id;
+  runId: Id;
+  name: string;
+  templateKey: string;
+  /** `EmailRunContentVariant[]` */
+  variants: JsonColumn;
+  createdAt: Ts;
+}
+
+/** One recipient of one campaign run: the send ledger and the send log (wave 0067). */
+export interface AdminiumEmailSendsTable {
+  id: Id;
+  runId: Id;
+  seq: number;
+  address: string;
+  name: string;
+  language: string | null;
+  connectionId: Id | null;
+  personTable: string | null;
+  personKey: string | null;
+  /** `EmailSendState` */
+  state: string;
+  reason: string | null;
+  attempts: number;
+  claimToken: string | null;
+  claimedAt: Ts | null;
+  sentAt: Ts | null;
+  jobId: Id | null;
+  clicks: number;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** Campaign messages handed over per hour, shared by every run (wave 0067). */
+export interface AdminiumEmailSendCountersTable {
+  bucket: string;
+  windowStart: Ts;
+  hits: number;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1912,6 +1967,9 @@ export interface MetaDB {
   adminium_stop_list: AdminiumStopListTable;
   adminium_email_notice_endpoints: AdminiumEmailNoticeEndpointsTable;
   adminium_email_dkim_keys: AdminiumEmailDkimKeysTable;
+  adminium_email_run_contents: AdminiumEmailRunContentsTable;
+  adminium_email_sends: AdminiumEmailSendsTable;
+  adminium_email_send_counters: AdminiumEmailSendCountersTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1997,4 +2055,7 @@ export const META_TABLE_NAMES = [
   'adminium_stop_list',
   'adminium_email_notice_endpoints',
   'adminium_email_dkim_keys',
+  'adminium_email_run_contents',
+  'adminium_email_sends',
+  'adminium_email_send_counters',
 ] as const satisfies readonly (keyof MetaDB)[];

@@ -234,6 +234,12 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'DELETE /api/v1/email-blocks/:id': noRows('Reusable blocks of an email design.'),
   // --- /email-runs
   'POST /api/v1/email-runs/:id/cancel': noRows('A campaign\'s run to workspace people.'),
+  'GET /api/v1/email-runs/:id': noRows('A campaign\'s run to workspace people: its counts.'),
+  'POST /api/v1/email-runs/:id/pause': noRows('A campaign\'s run to workspace people.'),
+  'POST /api/v1/email-runs/:id/resume': noRows('A campaign\'s run to workspace people.'),
+  'POST /api/v1/email-runs/:id/stop': noRows('A campaign\'s run to workspace people.'),
+  'GET /api/v1/email-runs/:id/log': noRows('The send log of a run to workspace people: who was sent it, from the run\'s own ledger.'),
+  'GET /api/v1/email-runs/:id/log.csv': noRows('The send log of a run to workspace people, as a file.'),
   // --- /email-templates
   'GET /api/v1/email-templates': noRows('Email designs and their sends to workspace people; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates': noRows('Email designs and their sends to workspace people; a picture or attachment is opened as a file.'),

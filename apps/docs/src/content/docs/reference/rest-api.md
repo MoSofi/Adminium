@@ -115,7 +115,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
 | `/api/v1/documents/*` | 14 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
-| `/api/v1/email-runs` | 1 | Campaign sends — cancel a scheduled or running run |
+| `/api/v1/email-runs/*` | 7 | Campaign sends — cancel a scheduled or running run |
 | `/api/v1/email-templates/*` | 17 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
@@ -464,6 +464,12 @@ DELETE /api/v1/email-blocks/{id}
 
 ```http
 POST /api/v1/email-runs/{id}/cancel
+GET /api/v1/email-runs/{id}
+POST /api/v1/email-runs/{id}/pause
+POST /api/v1/email-runs/{id}/resume
+POST /api/v1/email-runs/{id}/stop
+GET /api/v1/email-runs/{id}/log
+GET /api/v1/email-runs/{id}/log.csv
 ```
 
 ### `/email-templates`

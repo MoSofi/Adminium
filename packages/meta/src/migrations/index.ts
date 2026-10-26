@@ -88,6 +88,7 @@ import { up as up0063 } from './0063_payment_dispute_outcome.js';
 import { up as up0064 } from './0064_removed_rows.js';
 import { up as up0065 } from './0065_consent_log.js';
 import { up as up0066 } from './0066_stop_list.js';
+import { up as up0067 } from './0067_email_send_ledger.js';
 import { up as up0068 } from './0068_mail_relay_secrets.js';
 import { up as up0030 } from './0030_report_documents.js';
 
@@ -164,5 +165,6 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0064_removed_rows', up: up0064 },
   { name: '0065_consent_log', up: up0065 },
   { name: '0066_stop_list', up: up0066 },
+  { name: '0067_email_send_ledger', up: up0067 },
   { name: '0068_mail_relay_secrets', up: up0068 },
 ];

@@ -39,6 +39,7 @@ import {
   compareLocales,
   emailBlocksRepo,
   emailRunsRepo,
+  emailSendsRepo,
   emailTemplatesRepo,
   filesRepo,
   jobsRepo,
@@ -48,6 +49,8 @@ import {
   type EmailAttachment,
   type EmailDocumentKind,
   type EmailRun,
+  type EmailSend,
+  type EmailSendFilter,
   type EmailTemplate,
   type MetaDb,
 } from '@adminium/meta';
@@ -55,7 +58,8 @@ import { allLocales, dirForLocale, isLocaleId, localeEntry } from '@adminium/i18
 
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { campaignUnfilled, listedPlaceholders, resolveCampaignAudience } from '../../email/audience.js';
-import { EMAIL_CAMPAIGN_RUN_KIND, EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS } from '../../jobs/email-campaign-run.js';
+import { EXPORT_BOM, serializeCsvRow } from '../../data-io/csv.js';
+import { EMAIL_CAMPAIGN_RUN_KIND, EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS, estimateMinutes } from '../../jobs/email-campaign-run.js';
 import { resetBuiltinEmailTemplate, translatorForLocale } from '../../email/builtins.js';
 import {
   documentColumns,
@@ -99,7 +103,13 @@ import {
   emailPatchBody,
   emailPutBody,
   emailRunCancelReply,
+  emailRunMoveReply,
+  emailRunProgressReply,
+  emailRunStopReply,
   emailRunsReply,
+  emailSendLogCsvQuery,
+  emailSendLogQuery,
+  emailSendLogReply,
   emailSendBody,
   emailSendReply,
   emailStartersReply,
@@ -112,6 +122,7 @@ import {
   type EmailDocumentDetailView,
   type EmailDocumentSummaryView,
   type EmailRunView,
+  type EmailSendLogRowView,
 } from './schema.js';
 
 export interface EmailTemplatesRoutesDeps {
@@ -137,6 +148,9 @@ export interface EmailTemplatesRoutesDeps {
    */
   cancelRunningJob?: ((jobId: string) => boolean) | undefined;
 }
+
+/** A "go on" found the run's chain already moved on: the run goes on without a new head. */
+class HeadTaken extends Error {}
 
 function requireUserId(request: FastifyRequest): string {
   const user = (request as unknown as { user?: { id?: string } }).user;
@@ -170,7 +184,37 @@ function runView(run: EmailRun): EmailRunView {
     audience: run.audience,
     failures: run.failures,
     createdAt: run.createdAt,
+    state: run.state,
+    ratePerHour: run.ratePerHour,
   };
+}
+
+/** The send log's row: the time it was handed over or settled, and whether the mail queue is still trying. */
+function logRow(row: EmailSend, retrying: ReadonlyMap<string, string>): EmailSendLogRowView {
+  const lastError = row.jobId === null ? undefined : retrying.get(row.jobId);
+  const waits = row.state === 'queued' || row.state === 'sending';
+  return {
+    id: row.id,
+    seq: row.seq,
+    name: row.name,
+    address: row.address,
+    language: row.language,
+    state: row.state,
+    reason: row.state === 'sent' && lastError !== undefined ? lastError : row.reason,
+    time: waits ? null : (row.sentAt ?? row.updatedAt),
+    retrying: row.state === 'sent' && lastError !== undefined,
+    attempts: row.attempts,
+    clicks: row.clicks,
+  };
+}
+
+/**
+ * A spreadsheet reads a cell that starts with `=`, `+`, `-` or `@` as a
+ * formula; a name a stranger typed could be one. Such a cell is written with
+ * a leading apostrophe, which the spreadsheet shows as text.
+ */
+function csvText(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
 
 /** The registry's picker order — what `compareLocales` sorts siblings by. */
@@ -218,6 +262,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   const files = filesRepo(meta);
   const settings = settingsRepo(meta);
   const jobs = jobsRepo(meta);
+  const sends = emailSendsRepo(meta);
 
   async function knownLocale(locale: string): Promise<boolean> {
     if (!isLocaleId(locale)) return false;
@@ -336,7 +381,57 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     const run = await runs.active(templateId);
     if (run === null || run.status !== 'scheduled') return;
     if (run.jobId !== null) await jobs.cancel(run.jobId, at);
-    await runs.update(run.id, { status: 'cancelled', finishedAt: at, jobId: null }, at);
+    await runs.update(run.id, { status: 'cancelled', state: 'stopped', finishedAt: at, jobId: null }, at);
+  }
+
+  /**
+   * "Stop for good": the run is `stopped` (status `cancelled`) and the rows not
+   * yet handed over stay `queued` for ever. A batch handing a row over at this
+   * moment holds the run's row until it commits, so the count after the stop
+   * is exact. Null when the run was not running, paused or scheduled.
+   */
+  async function stopForGood(run: EmailRun, at: number, cancelRunning?: (jobId: string) => boolean): Promise<{ run: EmailRun; left: number } | null> {
+    const moved = await runs.moveState(run.id, ['running', 'paused', null], 'stopped', { status: 'cancelled', finishedAt: at, statuses: ['scheduled', 'running'] }, at);
+    if (!moved) return null;
+    await sends.releaseClaims(run.id, at);
+    if (run.jobId !== null) {
+      await jobs.cancel(run.jobId, at);
+      // A batch in flight ends at its next row; nothing it holds can be handed over now.
+      cancelRunning?.(run.jobId);
+    }
+    return { run: (await runs.findById(run.id)) ?? run, left: await sends.remaining(run.id) };
+  }
+
+  /** A deleted campaign's run in flight stops for good; the run and its log stay. */
+  async function stopActiveRun(templateId: string, at: number, cancelRunning?: (jobId: string) => boolean): Promise<void> {
+    const run = await runs.active(templateId);
+    if (run === null) return;
+    if (run.status === 'scheduled') await cancelScheduledRun(templateId, at);
+    else await stopForGood(run, at, cancelRunning);
+  }
+
+  /** Queues a new head of the run's chain at `runAt` (a "go on"); false when another batch already holds it. */
+  async function queueHead(run: EmailRun, runAt: number, at: number): Promise<boolean> {
+    try {
+      await meta.db.transaction().execute(async (trx) => {
+        const tx = { ...meta, db: trx } as MetaDb;
+        const job = await jobsRepo(tx).enqueue(
+          {
+            kind: EMAIL_CAMPAIGN_RUN_KIND,
+            payload: { runId: run.id, ...(run.templateId === null ? {} : { templateId: run.templateId }), ...(run.createdBy === null ? {} : { userId: run.createdBy }) },
+            runAt,
+            maxAttempts: EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS,
+          },
+          at,
+        );
+        const moved = run.jobId === null ? (await emailRunsRepo(tx).update(run.id, { jobId: job.id }, at)) !== null : await emailRunsRepo(tx).advance(run.id, run.jobId, job.id, at);
+        if (!moved) throw new HeadTaken();
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof HeadTaken) return false;
+      throw error;
+    }
   }
 
   async function mintFor(name: string): Promise<string> {
@@ -651,7 +746,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'delete email templates');
         const row = await mustFind(request.params.id);
         const at = app.rbac.now();
-        await cancelScheduledRun(row.id, at);
+        await stopActiveRun(row.id, at, deps.cancelRunningJob);
         if (isBuiltinEmailKey(row.key)) {
           // A built-in can never be absent: "delete for good" resets it.
           const reset = await resetBuiltinEmailTemplate(meta, row.key, row.locale, at);
@@ -922,7 +1017,12 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'send campaigns');
         const row = await mustFind(request.params.id);
         const audience = await resolveCampaignAudience(meta, request.body.audience);
-        return { total: audience.total, skipped: audience.skipped, unfilled: campaignUnfilled(await sentVariants(row)) };
+        return {
+          total: audience.total,
+          skipped: audience.skipped,
+          unfilled: campaignUnfilled(await sentVariants(row)),
+          estimateMinutes: estimateMinutes(audience.total - audience.skipped, request.body.ratePerHour ?? null),
+        };
       },
     );
 
@@ -975,20 +1075,26 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           throw new ValidationFailedError('The scheduled time is in the past.', { scheduleAt });
         }
         const runAt = scheduleAt ?? at;
-        const run = await runs.create(
-          { templateId: row.id, audience: request.body.audience, scheduledAt: runAt, createdBy: userId },
-          at,
-        );
-        const job = await jobs.enqueue(
-          {
-            kind: EMAIL_CAMPAIGN_RUN_KIND,
-            payload: { runId: run.id, templateId: row.id, userId },
-            runAt,
-            maxAttempts: EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS,
-          },
-          at,
-        );
-        const withJob = (await runs.update(run.id, { jobId: job.id }, at)) ?? run;
+        // The run, its first batch job and the run's pointer at it, together: the job is never claimed
+        // before the run names it as the head of its chain.
+        const { withJob, job } = await meta.db.transaction().execute(async (trx) => {
+          const tx = { ...meta, db: trx } as MetaDb;
+          const run = await emailRunsRepo(tx).create(
+            { templateId: row.id, audience: request.body.audience, scheduledAt: runAt, createdBy: userId, ratePerHour: request.body.ratePerHour ?? null },
+            at,
+          );
+          const queued = await jobsRepo(tx).enqueue(
+            {
+              kind: EMAIL_CAMPAIGN_RUN_KIND,
+              payload: { runId: run.id, templateId: row.id, userId },
+              runAt,
+              maxAttempts: EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS,
+            },
+            at,
+          );
+          return { withJob: (await emailRunsRepo(tx).update(run.id, { jobId: queued.id }, at)) ?? run, job: queued };
+        });
+        const run = withJob;
         await app.rbac.audit(request, {
           category: 'settings',
           action: scheduleAt === undefined ? 'email-campaign.send' : 'email-campaign.schedule',
@@ -1021,15 +1127,14 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         if (run === null) throw new NotFoundError(`Campaign run ${request.params.id} not found.`);
         const at = app.rbac.now();
         let next = run;
-        if (run.status === 'scheduled') {
+        if (run.status === 'scheduled' && run.state !== 'paused') {
           if (run.jobId !== null) await jobs.cancel(run.jobId, at);
-          next = (await runs.update(run.id, { status: 'cancelled', finishedAt: at, jobId: null }, at)) ?? run;
-        } else if (run.status === 'running') {
-          // Cooperative: the worker aborts the handler's signal, and
-          // the handler records `cancelled` with the counts so far.
-          if (run.jobId !== null) deps.cancelRunningJob?.(run.jobId);
+          next = (await runs.update(run.id, { status: 'cancelled', state: 'stopped', finishedAt: at, jobId: null }, at)) ?? run;
         } else {
-          throw new ConflictError(`This run is already ${run.status}.`, 'CONFLICT', { status: run.status });
+          // A run that has started (or a paused one) stops for good: who got it keeps it, nobody else does.
+          const stopped = await stopForGood(run, at, deps.cancelRunningJob);
+          if (stopped === null) throw new ConflictError(`This run is already ${run.status}.`, 'CONFLICT', { status: run.status });
+          next = stopped.run;
         }
         await app.rbac.audit(request, {
           category: 'settings',
@@ -1037,6 +1142,172 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           changes: { before: { runId: run.id, status: run.status }, after: { status: next.status } },
         });
         return { run: runView(next) };
+      },
+    );
+
+    // ── a run: progress, pause, go on, stop for good, the send log ─────────
+
+    async function mustFindRun(id: string): Promise<EmailRun> {
+      const run = await runs.findById(id);
+      if (run === null) throw new NotFoundError(`Campaign run ${id} not found.`);
+      return run;
+    }
+
+    app.get(
+      '/email-runs/:id',
+      { schema: { params: emailIdParams, response: { 200: emailRunProgressReply } } },
+      async (request) => {
+        requireUserId(request);
+        const run = await mustFindRun(request.params.id);
+        const content = await runs.content(run.id);
+        const left = await sends.remaining(run.id);
+        const active = run.state === 'running' || run.state === 'paused';
+        return {
+          run: runView(run),
+          name: content?.name ?? null,
+          done: run.total - left,
+          total: run.total,
+          left,
+          estimateMinutes: active && left > 0 ? estimateMinutes(left, run.ratePerHour) : null,
+        };
+      },
+    );
+
+    app.post(
+      '/email-runs/:id/pause',
+      { config: { audit: audited('rbac') }, schema: { params: emailIdParams, response: { 200: emailRunMoveReply } } },
+      async (request) => {
+        requireUserId(request);
+        await requireSettingsManage(request, 'pause campaign sends');
+        const run = await mustFindRun(request.params.id);
+        const at = app.rbac.now();
+        // A batch handing a row over now finishes that row; the next one finds the run paused.
+        if (!(await runs.moveState(run.id, ['running', null], 'paused', { statuses: ['scheduled', 'running'] }, at))) {
+          throw new ConflictError('Only a run that is sending or scheduled can be paused.', 'CONFLICT', { status: run.status, state: run.state });
+        }
+        // The waiting batch would only find the run paused: it is taken off the queue now.
+        if (run.jobId !== null) await jobs.cancel(run.jobId, at);
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-campaign.pause',
+          changes: { before: { runId: run.id, state: run.state }, after: { state: 'paused' } },
+        });
+        return { run: runView((await runs.findById(run.id)) ?? run) };
+      },
+    );
+
+    app.post(
+      '/email-runs/:id/resume',
+      { config: { audit: audited('rbac') }, schema: { params: emailIdParams, response: { 200: emailRunMoveReply } } },
+      async (request) => {
+        requireUserId(request);
+        await requireSettingsManage(request, 'resume campaign sends');
+        const run = await mustFindRun(request.params.id);
+        const at = app.rbac.now();
+        if (!(await runs.moveState(run.id, ['paused'], 'running', { statuses: ['scheduled', 'running'] }, at))) {
+          throw new ConflictError('Only a paused run can go on.', 'CONFLICT', { status: run.status, state: run.state });
+        }
+        // The same run goes on where it stopped, at its schedule if it has not started yet.
+        await queueHead(run, run.status === 'scheduled' ? Math.max(at, run.scheduledAt) : at, at);
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-campaign.resume',
+          changes: { before: { runId: run.id, state: 'paused' }, after: { state: 'running' } },
+        });
+        return { run: runView((await runs.findById(run.id)) ?? run) };
+      },
+    );
+
+    app.post(
+      '/email-runs/:id/stop',
+      { config: { audit: audited('rbac') }, schema: { params: emailIdParams, response: { 200: emailRunStopReply } } },
+      async (request) => {
+        requireUserId(request);
+        await requireSettingsManage(request, 'stop campaign sends');
+        const run = await mustFindRun(request.params.id);
+        const stopped = await stopForGood(run, app.rbac.now(), deps.cancelRunningJob);
+        if (stopped === null) throw new ConflictError(`This run is already ${run.status}.`, 'CONFLICT', { status: run.status, state: run.state });
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-campaign.stop',
+          changes: { before: { runId: run.id, state: run.state }, after: { state: 'stopped', left: stopped.left } },
+        });
+        return { run: runView(stopped.run), left: stopped.left };
+      },
+    );
+
+    /** The send log's summary: the ledger's states, grouped as the screen counts them. */
+    async function logSummary(runId: string) {
+      const counts = await sends.counts(runId);
+      const n = (state: keyof typeof counts): number => counts[state] ?? 0;
+      return {
+        total: Object.values(counts).reduce((sum, value) => sum + (value ?? 0), 0),
+        sent: n('sent'),
+        waiting: n('queued') + n('sending'),
+        skipped: n('skipped-stop') + n('skipped-consent'),
+        bounced: n('bounced'),
+        spam: n('spam'),
+        failed: n('failed'),
+        unsubscribed: n('unsubscribed'),
+      };
+    }
+
+    const filterOf = (filter: string | undefined): EmailSendFilter | undefined =>
+      filter === undefined || filter === 'all' ? undefined : (filter as EmailSendFilter);
+
+    app.get(
+      '/email-runs/:id/log',
+      { schema: { params: emailIdParams, querystring: emailSendLogQuery, response: { 200: emailSendLogReply } } },
+      async (request) => {
+        requireUserId(request);
+        // Who was mailed, by address: the grant every campaign route asks.
+        await requireSettingsManage(request, 'read campaign send logs');
+        const run = await mustFindRun(request.params.id);
+        const limit = request.query.limit ?? 50;
+        const page = await sends.list(run.id, { filter: filterOf(request.query.filter), q: request.query.q, after: request.query.after, limit: limit + 1 });
+        const rows = page.slice(0, limit);
+        const retrying = await sends.retrying(rows.flatMap((row) => (row.state === 'sent' && row.jobId !== null ? [row.jobId] : [])));
+        return {
+          summary: await logSummary(run.id),
+          rows: rows.map((row) => logRow(row, retrying)),
+          next: page.length > limit ? (rows.at(-1)?.seq ?? null) : null,
+        };
+      },
+    );
+
+    app.get(
+      '/email-runs/:id/log.csv',
+      { schema: { params: emailIdParams, querystring: emailSendLogCsvQuery } },
+      async (request, reply) => {
+        requireUserId(request);
+        await requireSettingsManage(request, 'download campaign send logs');
+        const run = await mustFindRun(request.params.id);
+        const filter = filterOf(request.query.filter);
+        const lines: string[] = [EXPORT_BOM + serializeCsvRow(['name', 'address', 'state', 'time', 'detail'])];
+        let after: number | undefined;
+        let count = 0;
+        for (;;) {
+          const page = await sends.list(run.id, { filter, q: request.query.q, after, limit: 1000 });
+          const retrying = await sends.retrying(page.flatMap((row) => (row.state === 'sent' && row.jobId !== null ? [row.jobId] : [])));
+          for (const row of page) {
+            const view = logRow(row, retrying);
+            lines.push(serializeCsvRow([csvText(view.name), csvText(view.address), view.state, view.time === null ? '' : new Date(view.time).toISOString(), csvText(view.reason ?? '')]));
+          }
+          count += page.length;
+          const last = page.at(-1);
+          if (page.length < 1000 || last === undefined) break;
+          after = last.seq;
+        }
+        // A file of addresses leaves the product: who took it is kept.
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-campaign.log-download',
+          changes: { after: { runId: run.id, rows: count, filter: request.query.filter ?? 'all', q: request.query.q ?? null } },
+        });
+        return await reply
+          .header('content-type', 'text/csv; charset=utf-8')
+          .header('content-disposition', `attachment; filename="send-log-${run.id}.csv"`)
+          .send(lines.join(''));
       },
     );
 

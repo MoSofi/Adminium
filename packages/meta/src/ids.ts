@@ -160,6 +160,9 @@ export const ID_PREFIXES = {
   // wave 0068 — a mail service's notice address, and a sending domain's DKIM key.
   ntc: 'adminium_email_notice_endpoints',
   dkim: 'adminium_email_dkim_keys',
+  // wave 0067 — the campaign send ledger: one recipient of one run, and the content a run froze.
+  esnd: 'adminium_email_sends',
+  ercn: 'adminium_email_run_contents',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
