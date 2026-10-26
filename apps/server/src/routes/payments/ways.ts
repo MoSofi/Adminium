@@ -44,6 +44,7 @@ import { paymentAddOnKeys, readyPaymentProviders } from '../../payments/ready.js
 import { emptyServiceState, serviceDocName, serviceStateSchema } from '../../payments/services.js';
 import { MANUAL_METHODS, MANUAL_SOURCE, waysFor } from '../../payments/ways.js';
 import type { FileStore } from '../../files/store.js';
+import { businessName } from '../../privacy/business.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { sniffLogo } from '../branding/index.js';
 import { LOGO_BODY_LIMIT } from '../branding/schema.js';
@@ -166,7 +167,9 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
   async function defaultPayPage(): Promise<PayPageSettings> {
     const settings = settingsRepo(meta);
     const name = await settings.get('branding.appName');
-    return { shopName: typeof name === 'string' ? name : 'Adminium', logoFileId: null, contactEmail: null, contactPhone: null, shopCountry: null, showLines: false };
+    // Until the shop names its pay page, it shows the one name strangers read (`privacy/business.ts`).
+    const shopName = (await businessName(meta)) || (typeof name === 'string' ? name : 'Adminium');
+    return { shopName, logoFileId: null, contactEmail: null, contactPhone: null, shopCountry: null, showLines: false };
   }
 
   return async (app) => {

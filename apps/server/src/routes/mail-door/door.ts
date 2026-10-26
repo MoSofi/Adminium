@@ -35,18 +35,15 @@ import type { FastifyRequest } from 'fastify';
 import type { ConsentService } from '../../consent/index.js';
 import { readClickLinkWith, type ClickClaim } from '../../email/click-link.js';
 import { mailLinkKeys } from '../../email/link-keys.js';
-import { businessNameOf } from '../../email/sender/marketing-settings.js';
 import { readUnsubscribeTokenWith, type UnsubscribeClaim } from '../../email/unsubscribe-token.js';
 import { loadOverrideMap, recipientLocale } from '../../i18n/server-i18n.js';
 import { bcp47 } from '../../i18n/bcp47.js';
 import { reachability } from '../../payments/reachability.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
+import { businessName } from '../../privacy/business.js';
 import { normalizePublicOrigin } from '../../security/public-origin.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { MAIL_DOOR_LANGUAGES, type MailDoorBusiness, type Translate, type UnsubscribeReason } from './page.js';
-
-/** The registry default for `branding.appName`: a workspace that never named itself. */
-const DEFAULT_WORKSPACE_NAME = 'Adminium';
 
 export interface MailDoorDeps {
   meta: MetaDb;
@@ -117,23 +114,14 @@ export function createMailDoor(deps: MailDoorDeps) {
   }
 
   /**
-   * The business the page speaks for: the name its privacy settings give
-   * (through `businessNameOf`, once they exist), else the pay page's shop
-   * name, else the workspace's name, else the public address's host. Never
+   * The business the page speaks for: the one name every page a stranger
+   * sees uses (`privacy/business.ts`: the pay page's, the privacy settings'
+   * "Business name", the workspace's, then the public address's host). Never
    * the software's own name. The contact address is the pay page's.
    */
   async function business(): Promise<MailDoorBusiness> {
-    const workspace = await settings.get('branding.appName');
-    const appName = typeof workspace === 'string' ? workspace.trim() : '';
-    const named = (await businessNameOf(meta)).trim();
+    const name = (await businessName(meta, { origin: await publicOrigin() })) || 'localhost';
     const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
-    const shop = page?.shopName.trim() ?? '';
-    const usable = (name: string): boolean => name !== '' && name !== DEFAULT_WORKSPACE_NAME;
-    let name: string;
-    if (usable(named) && named !== appName) name = named;
-    else if (usable(shop)) name = shop;
-    else if (usable(appName)) name = appName;
-    else name = new URL((await publicOrigin()) ?? 'https://localhost').hostname;
     return { name, email: page?.contactEmail ?? null };
   }
 

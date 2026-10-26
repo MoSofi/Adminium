@@ -33,9 +33,9 @@ import { paymentEmailLines } from '../email/builtins.js';
 import { PAYMENT_LINK_TEMPLATE_KEY, PAYMENT_RECEIPT_TEMPLATE_KEY, enqueueEmail, type EnqueueEmailDeps } from '../email/send.js';
 import { WORKSPACE_ACCENT_HEX } from '../email/render.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
+import { businessName } from '../privacy/business.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../routes/payments/ways.js';
 import { resolvePayable, type PayableSources, type ResolvedPayable } from './payables.js';
-import { payAddress } from './links.js';
 
 export interface PaymentEmailDeps extends EnqueueEmailDeps {
   sources: PayableSources;
@@ -50,14 +50,10 @@ export interface ShopFace {
   logoFileId: string | null;
 }
 
-/** The pay page settings, with an unnamed shop going by its pay address. */
+/** The pay page settings; the name is the one every page a stranger sees uses (`privacy/business.ts`). */
 export async function shopFace(meta: MetaDb): Promise<ShopFace> {
   const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
-  const named = page?.shopName.trim() ?? '';
-  const branded = named === '' ? String((await settingsRepo(meta).get('branding.appName')) ?? '').trim() : named;
-  const name =
-    branded === '' || branded === 'Adminium' ? ((await payAddress(meta)) ?? '').replace(/^https?:\/\//, '').replace(/[:/].*$/, '') : branded;
-  return { name, email: page?.contactEmail ?? null, phone: page?.contactPhone ?? null, logoFileId: page?.logoFileId ?? null };
+  return { name: await businessName(meta), email: page?.contactEmail ?? null, phone: page?.contactPhone ?? null, logoFileId: page?.logoFileId ?? null };
 }
 
 /** How the shop's contact reads in a sentence: the address, the phone, or both. */
