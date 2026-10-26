@@ -121,6 +121,8 @@ for (const engine of META_ENGINES) {
     let hub: RealtimeHub;
     /** The batches' row check: where a test holds a batch between two rows. */
     let gate: () => Promise<'send'>;
+    /** Opens a held batch; teardown calls it first, so a failed test never leaves one waiting. */
+    let release: () => void = () => {};
 
     async function role(slug: string): Promise<Role> {
       const found = await rolesRepo(meta).findBySlug(slug);
@@ -163,7 +165,8 @@ for (const engine of META_ENGINES) {
     });
 
     afterEach(async () => {
-      await worker.stop();
+      release();
+      await worker.stop({ drainTimeoutMs: 1_000 });
       hub.close();
       resetEmailRuntime();
       await app.close();
@@ -301,7 +304,6 @@ for (const engine of META_ENGINES) {
     it('a cancel mid-run stops it for good: who got it keeps it, nobody after is sent', async () => {
       await usersRepo(meta).create({ email: 'third@adminium.test', name: 'Third', status: 'active' });
       const doc = await campaign();
-      let release: () => void = () => {};
       let checks = 0;
       gate = async () => {
         checks += 1;

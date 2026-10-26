@@ -71,7 +71,7 @@ async function pollUntil(condition: () => Promise<boolean> | boolean, timeoutMs 
 }
 
 /** Runs due jobs until none is left (`runOnce` returns 0), with a deadline. */
-async function drain(worker: JobWorker, timeoutMs = 240_000): Promise<number> {
+async function drain(worker: JobWorker, timeoutMs = 60_000): Promise<number> {
   const deadline = Date.now() + timeoutMs;
   let total = 0;
   for (;;) {
@@ -120,6 +120,9 @@ for (const engine of META_ENGINES) {
     let clock: number;
     let checkRow: (row: { address: string; name: string }) => Promise<CampaignRowVerdict>;
     const workers: JobWorker[] = [];
+    /** Every gate a test holds a batch at: opened before the workers stop, so a failed test never leaves one waiting. */
+    const gates: (() => void)[] = [];
+    const held = (): Promise<void> => new Promise<void>((resolve) => gates.push(resolve));
     const now = (): number => clock;
 
     const worker = (id: string, more: Partial<ConstructorParameters<typeof JobWorker>[0]> = {}): JobWorker => {
@@ -176,6 +179,7 @@ for (const engine of META_ENGINES) {
     });
 
     afterEach(async () => {
+      for (const open of gates.splice(0)) open();
       for (const w of workers.splice(0)) await w.stop({ drainTimeoutMs: 50 });
       hub.close();
       resetEmailRuntime();
@@ -229,15 +233,15 @@ for (const engine of META_ENGINES) {
 
       // The 121st row's check never returns: the batch is stuck holding the rest of its claim, as a crash leaves it.
       let calls = 0;
-      let wake: () => void = () => {};
-      const asleep = new Promise<void>((resolve) => (wake = resolve));
+      const asleep = held();
+      const wake = gates.at(-1)!;
       checkRow = async () => {
         calls += 1;
         if (calls === 121) await asleep;
         return 'send';
       };
       const crashed = worker('crashed', { concurrency: 1, lockRefreshMs: 1_000_000_000 });
-      const crashedLoop = drain(crashed, 600_000);
+      const crashedLoop = drain(crashed, 120_000);
       await pollUntil(() => calls === 121);
       const atCrash = await states(run.id);
       expect(atCrash.sent).toBe(120);
@@ -267,8 +271,8 @@ for (const engine of META_ENGINES) {
       const run = await send(doc.id);
 
       let calls = 0;
-      let release: () => void = () => {};
-      const gate = new Promise<void>((resolve) => (release = resolve));
+      const gate = held();
+      const release = gates.at(-1)!;
       checkRow = async () => {
         calls += 1;
         if (calls === 121) await gate;
@@ -348,8 +352,8 @@ for (const engine of META_ENGINES) {
       const doc = await campaign();
       const run = await send(doc.id);
       let calls = 0;
-      let release: () => void = () => {};
-      const gate = new Promise<void>((resolve) => (release = resolve));
+      const gate = held();
+      const release = gates.at(-1)!;
       checkRow = async () => {
         calls += 1;
         if (calls === 2) await gate;
@@ -385,7 +389,11 @@ for (const engine of META_ENGINES) {
       checkRow = async () => {
         calls += 1;
         // The first run's first row, and the second run's last row, wait to be woken.
-        if (calls === 1 || calls === 4) await new Promise<void>((resolve) => wakes.push(resolve));
+        if (calls === 1 || calls === 4) {
+          const waiting = held();
+          wakes.push(gates.at(-1)!);
+          await waiting;
+        }
         return 'send';
       };
       const first = entry.run({ runId: run.id }, ctx());
