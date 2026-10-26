@@ -53,7 +53,7 @@ import { addAndReadRefusal, anonymousAddAndRead } from './anonymous-access.js';
 import { roleSlugFor } from './manifest-roles.js';
 import { mapTableRefs } from './real-refs.js';
 
-type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['publicAccess']>[number];
+export type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['publicAccess']>[number];
 
 /** The one key an add-on may declare: a link that opens one row and only reads. Undefined for an app, or an add-on with none. */
 export function linkKeyOf(manifest: Manifest): string | undefined {
@@ -426,24 +426,13 @@ function sessionOnly(entry: PublicAccessEntry): boolean {
 }
 
 /**
- * The endpoints the manifest asks for. With `view` null (the tables are not
- * made yet) each is listed with the table it will use and no issues checked.
+ * The ref of the endpoint each `publicAccess` entry becomes, in order: the
+ * real table name, with `_claimed`, `_verified`, `_unlocked` or
+ * `_availability` as the entry asks, and `_2`, `_3`… for a second of the same.
  */
-export function planPublicEndpoints(
-  manifest: Manifest,
-  names: Readonly<Record<string, string>>,
-  view: SnapshotView | null,
-  /**
-   * At plan time a table the install will make is not there yet: listed,
-   * checked at install. So are the columns it will add to a table it uses
-   * (`columnsMadeLater`, by the app's short name).
-   */
-  opts: { tablesMadeLater?: boolean; columnsMadeLater?: ReadonlyMap<string, ReadonlySet<string>> } = {},
-): PlannedPublicEndpoint[] {
-  const entries = manifest.publicAccess ?? [];
-  // Refs first: a person's own rows are opened through their key's identity, by its ref.
+export function publicEntryRefs(entries: readonly PublicAccessEntry[], names: Readonly<Record<string, string>>): string[] {
   const taken = new Set<string>();
-  const refs = entries.map((entry) => {
+  return entries.map((entry) => {
     const real = names[entry.table] ?? entry.table;
     const base =
       entry.kind === 'availability'
@@ -460,6 +449,26 @@ export function planPublicEndpoints(
     taken.add(ref);
     return ref;
   });
+}
+
+/**
+ * The endpoints the manifest asks for. With `view` null (the tables are not
+ * made yet) each is listed with the table it will use and no issues checked.
+ */
+export function planPublicEndpoints(
+  manifest: Manifest,
+  names: Readonly<Record<string, string>>,
+  view: SnapshotView | null,
+  /**
+   * At plan time a table the install will make is not there yet: listed,
+   * checked at install. So are the columns it will add to a table it uses
+   * (`columnsMadeLater`, by the app's short name).
+   */
+  opts: { tablesMadeLater?: boolean; columnsMadeLater?: ReadonlyMap<string, ReadonlySet<string>> } = {},
+): PlannedPublicEndpoint[] {
+  const entries = manifest.publicAccess ?? [];
+  // Refs first: a person's own rows are opened through their key's identity, by its ref.
+  const refs = publicEntryRefs(entries, names);
   const identityRefOf = (entry: PublicAccessEntry): string | undefined => {
     const by = entry.claimedBy;
     if (by === undefined) return undefined;
