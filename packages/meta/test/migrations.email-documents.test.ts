@@ -89,7 +89,7 @@ for (const dialect of TEST_DIALECTS) {
       });
     });
 
-    it('creates the saved-blocks and runs tables, with the run cascading on delete', async () => {
+    it('creates the saved-blocks and runs tables, with the run kept when its campaign is deleted', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
       const templates = emailTemplatesRepo(t.meta);
       const campaign = await templates.create(
@@ -118,9 +118,9 @@ for (const dialect of TEST_DIALECTS) {
       expect(run.status).toBe('scheduled');
       expect(await runs.active(campaign.id)).toMatchObject({ id: run.id });
 
-      // Delete for good takes the history with it (FK cascade), on every dialect.
+      // Delete for good leaves the history (wave 0067: the send log may not vanish with a campaign), on every dialect.
       expect(await templates.removeById(campaign.id)).toBe(true);
-      expect(await runs.findById(run.id)).toBeNull();
+      expect(await runs.findById(run.id)).toMatchObject({ id: run.id, templateId: null });
     });
   });
 }

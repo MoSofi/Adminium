@@ -154,6 +154,9 @@ export const ID_PREFIXES = {
   pmt: 'adminium_payment_methods',
   // wave 0064 — a removed row kept under a row it linked to.
   rmv: 'adminium_removed_rows',
+  // wave 0067 — the campaign send ledger: one recipient of one run, and the content a run froze.
+  esnd: 'adminium_email_sends',
+  ercn: 'adminium_email_run_contents',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
