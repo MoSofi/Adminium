@@ -302,7 +302,7 @@ async function runImport(
     const rules = tableRulesFor(writeTarget);
     // Totals it feeds, or rows that follow it (its extras, when a stay's dates change).
     const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) + (rules?.follows?.length ?? 0) > 0;
-    if (!settles && !(await writes.wants('after', action, writeTarget, context))) return;
+    if (!settles && !(await writes.wants('after', action, writeTarget, context)) && !(await writes.mirrors(writeTarget))) return;
     const record = (await (db as Kysely<SourceDatabase>)
       .selectFrom(table.id)
       .selectAll()

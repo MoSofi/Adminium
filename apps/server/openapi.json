@@ -14240,6 +14240,23 @@
                       "revision"
                     ],
                     "additionalProperties": false
+                  },
+                  "optOut": {
+                    "type": "object",
+                    "properties": {
+                      "shown": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "from": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -16563,6 +16580,23 @@
                       "revision"
                     ],
                     "additionalProperties": false
+                  },
+                  "optOut": {
+                    "type": "object",
+                    "properties": {
+                      "shown": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "from": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -18117,6 +18151,23 @@
                       "id",
                       "revision"
                     ],
+                    "additionalProperties": false
+                  },
+                  "optOut": {
+                    "type": "object",
+                    "properties": {
+                      "shown": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "from": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
                     "additionalProperties": false
                   }
                 },

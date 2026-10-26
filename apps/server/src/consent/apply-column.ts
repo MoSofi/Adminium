@@ -18,7 +18,8 @@
  *
  * Only the stamps that a change of this column fires are written (as the
  * save's own rule decides it, `stampFires`); a stamp of any other kind is
- * left as it is. One UPDATE writes the column and its stamps together, and an
+ * left as it is, and so is a column the target says to keep (the table's
+ * opt-out mark: only a screen that showed the line sets it). One UPDATE writes the column and its stamps together, and an
  * audit entry says who (the staff member, or the system), what, and the log
  * event's source. A row whose column already says so is left alone, stamps
  * and all: re-sending a value stamps nothing, as a save would.
@@ -74,7 +75,7 @@ export async function applyConsentToColumn(meta: MetaDb, source: ConsentTableSou
   const at = new Date(event.at);
   let zone: string | null = null;
   const stamped: Record<string, unknown> = {};
-  const stamps = (tableRulesFor({ view, table })?.stamps ?? []).filter((stamp: ColumnStamp) => stamp.column !== target.column && stampFires(stamp, 'update', { [target.column]: yes }, before));
+  const stamps = (tableRulesFor({ view, table })?.stamps ?? []).filter((stamp: ColumnStamp) => stamp.column !== target.column && !(target.keep ?? []).includes(stamp.column) && stampFires(stamp, 'update', { [target.column]: yes }, before));
   for (const stamp of stamps) {
     const set = stamp.set;
     let value: unknown;

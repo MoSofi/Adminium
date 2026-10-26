@@ -119,6 +119,62 @@ export interface WriteContext {
    * writer sent.
    */
   minted?: ReadonlySet<string> | undefined;
+  /**
+   * A signed-in staff member's save from a screen that showed the line "you
+   * can say no to our mail" where it took the address (`routes/data`, from
+   * the save's `optOut`): `shown`, and the mark of the row the person is made
+   * from (`carried`, a moment; null when that row has none). Set by the data
+   * routes from a staff session only; nothing else sets it, so an import, a
+   * rule, an add-on, an API key and the sample loader never mark a row.
+   */
+  optOut?: { shown: boolean; carried: unknown } | undefined;
+  /** A public entry's consent tick, on a write through that entry (`public-api/consent-tick.ts`). */
+  consentTick?: PublicConsentTick | undefined;
+}
+
+/**
+ * A public entry's consent tick ("Email me about new shows"), as the write
+ * through that entry carries it: what the box is, whose it is, and what the
+ * consent log keeps of the request it came in.
+ */
+export interface PublicConsentTick {
+  /** The table the entry writes (its id in the snapshot), and the yes/no that carries the tick. */
+  table: string;
+  column: string;
+  purpose: 'newsletter' | 'surveys';
+  /** The sentence shown beside the box, in each language the app wrote it in, and its version. */
+  wording: { version: number; text: Readonly<Record<string, string>> };
+  /**
+   * Whose tick it is: the people table (its id in the snapshot), and this
+   * table's link to it (null: the row is the person). The public routes make
+   * that link the identity's person and no other: a signed-in guest's create
+   * is their own, a change reaches only their rows.
+   */
+  person: { table: string; link: string | null };
+  /** The form, as the log names it: the app and the entry's table. */
+  form: string;
+  ip: string | null;
+  userAgent: string | null;
+  /** The request's `Accept-Language`: the wording's language when the person table keeps none. */
+  acceptLanguage: string | null;
+}
+
+/** What the write path reads of a table an app declares as people (`people/declared.ts`). */
+export interface PeopleOfTable {
+  email: string | null;
+  language: string | null;
+  consent: { column: string; purpose: 'newsletter' | 'surveys' } | null;
+  optOutMark: string | null;
+}
+
+/** A row written, as the consent log hears of it (`people/consent-writes.ts`). */
+export interface PeopleWrite {
+  action: 'create' | 'update';
+  target: WriteTarget;
+  context: WriteContext;
+  record: Row;
+  /** The row before an update; null for a create. */
+  before: Row | null;
 }
 
 /** The table a write goes to, and the connection it goes through. */

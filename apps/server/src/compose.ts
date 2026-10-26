@@ -191,6 +191,7 @@ import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/produ
 import { TIMED_MOVES_JITTER_MS, TIMED_MOVES_SCHEDULE_NAME, enqueueTimedMoves, registerTimedMovesHandler } from './states/timed-moves.js';
 import { createPayableSources } from './payments/payables.js';
 import { consentTableSource, createConsentService } from './consent/index.js';
+import { createPeopleConsent, type PeopleConsent } from './people/consent-writes.js';
 import { PAYMENTS_RECORD_PICKUP_CRON, PAYMENTS_RECORD_PICKUP_NAME, pickUpRecordings, registerPaymentsRecordHandler } from './payments/record.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
 import { createMarketingMail, type MarketingSeams } from './email/marketing.js';
@@ -301,7 +302,7 @@ import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
 import { paymentLinkEmailRoutes } from './routes/payments/link-email.js';
 import { paymentPanelRoutes } from './routes/payments/panel.js';
-import { consentRoutes } from './routes/consent/index.js';
+import { consentRoutes, emailColumnOf } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { mailDoorRoutes } from './routes/mail-door/index.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
@@ -1109,12 +1110,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.decorate('ledgerPostings', (input: PostingsTold) => announcePostings(app, { ...input, watches: (connectionId, tableId) => ledgers.watches(connectionId, tableId), manager, meta }));
   // A customer's key is made under this server's secret: said once, before any write service is built.
   installCustomerKey(env.ADMINIUM_SECRET);
+  // Consent on the write side, made once the consent log is (below); a write before then tells nothing.
+  let peopleConsent: PeopleConsent | null = null;
   const recordWrites = createWriteService({
     ledgers,
     // An app's outbox table takes only the moves a person may make: a sent message is never queued again.
     hooks: () => withOutboxMoves(hookRunner ?? NO_RECORD_HOOKS, { meta, outboxes: () => outboxProducers.all() }),
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
+    // A consent column changed by a write, or a public tick, told to the consent log in the same write (made below, with the log).
+    people: { ...writeStores(meta).people!, written: (write) => (peopleConsent === null ? Promise.resolve() : peopleConsent.written(write)) },
     // An update of a table an app's email watches for a change reads the row first.
     // …and so does one of a table a rule watches for one column's change ("status became paid").
     watched: async (connectionId, tableId) =>
@@ -1575,6 +1580,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // ledger, the erasure and the staff routes alike.
   const consentTables = consentTableSource({ meta, manager });
   const consent = createConsentService({ meta, secret: env.ADMINIUM_SECRET, tables: consentTables });
+  // …and the declared columns that mirror it: a write told to the log, a log event written into the column.
+  peopleConsent = createPeopleConsent({ meta, consent, tables: consentTables, viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
+  const consentMirror = peopleConsent;
   // A recorded live payment emails its receipt once, to the record's customer.
   registerPaymentsRecordHandler(jobs.registry, {
     meta,
@@ -2177,7 +2185,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(paymentPayablesRoutes({ meta, manager }));
       // Consent and the do-not-email list: the list for the e-mail screens' grant, a record's consent for its readers.
-      await api.register(consentRoutes({ meta, manager, service: consent, tables: consentTables }));
+      await api.register(
+        consentRoutes({
+          meta,
+          manager,
+          service: consent,
+          tables: consentTables,
+          // The address the app declares for the table's people; the one e-mail column where it declares none.
+          addressColumnOf: async (connectionId, table) => (await consentMirror.addressColumnOf(connectionId, table)) ?? emailColumnOf(table),
+          mirror: (event) => consentMirror.mirrorEvent(event),
+        }),
+      );
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
         paymentLinksRoutes({
@@ -2288,6 +2306,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // Which add-ons are loaded now: an app's documents are on only while theirs is.
         addOnRuntime: () => addOnRuntime,
         sampleData: sampleDataDeps,
+        // What an update carries over once: an old unsubscribe mark onto the do-not-email list, an old tick into the consent column.
+        consent,
         // What an app's guests may call: endpoints and a browser key made
         // through the same service the API keys page saves with.
         publicAccess: {
@@ -2931,7 +2951,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // links must work whether or not the public API is open; every route asks
   // first whether the outside can reach this server.
   await app.register(
-    mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }),
+    mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }),
   );
 
   const publicBlocked = publicApiRegistrationBlocked(env);
@@ -2955,6 +2975,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         storage,
         writes: recordWrites,
         ledgers,
+        // "Delete my details" withdraws a yes before it empties the column that held it.
+        peopleConsent: consentMirror,
       }));
       },
       { prefix: API_PREFIX },

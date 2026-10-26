@@ -16,6 +16,7 @@ import type { WriteServiceOptions } from './write-service.js';
 import { installedCustomerKey } from '../public-api/customer-key.js';
 import { createFileColumnJudge } from '../files/column-judge.js';
 import { assertListedCanOpen } from './row-writes.js';
+import { peopleTablesOf } from '../people/tables-of.js';
 
 /**
  * One of an add-on's settings: the value the install saved, else the default
@@ -38,8 +39,10 @@ export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: stri
   return 'default' in declared ? declared.default : undefined;
 }
 
-export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'listings'> {
+export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'listings' | 'people'> {
   return {
+    // The people an app declares: a table's opt-out mark is set by no trigger of its own, whoever writes (`decide.ts`).
+    people: { tableOf: (target) => peopleTablesOf(meta).of(target.connectionId, target.view?.model, target.table.id) },
     // A row that lists somebody against rows of other tables lists only somebody who can open them, whoever writes it.
     listings: (target, values, before) => assertListedCanOpen(meta, target.db, target.view.model, target.connectionId, target.table.id, values, before),
     // Which files a file column may be given: found in the meta store; a picture is shown clean only where the bytes can be read (the server's own service).

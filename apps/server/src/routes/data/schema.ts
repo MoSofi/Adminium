@@ -322,6 +322,22 @@ const recordSeenBody = z
   .refine((seen) => Object.keys(seen).length >= 1 && Object.keys(seen).length <= 8, { message: '1 to 8 columns' })
   .optional();
 
+/**
+ * A staff save's word that its screen showed the person the line "you can
+ * say no to our mail" where it took the address (`routes/data/opt-out.ts`).
+ */
+export const optOutBody = z
+  .object({
+    /** The screen showed the line under the address typed. */
+    shown: z.literal(true).optional(),
+    /** The key of the row the person is made from, whose mark comes with them (a claimed enquiry). */
+    from: z.string().min(1).max(200).optional(),
+  })
+  .strict()
+  .refine((said) => said.shown !== undefined || said.from !== undefined, { message: 'say that the line was shown, or the row the person is made from' })
+  .optional();
+export type OptOutBody = z.infer<typeof optOutBody>;
+
 export const recordCreateBody = z.object({
   values: rowValuesSchema,
   links: recordLinksBody,
@@ -343,6 +359,8 @@ export const recordCreateBody = z.object({
    * into it would be nobody's.
    */
   page: z.object({ id: z.string().min(1).max(64), revision: z.number().int().nonnegative() }).strict().optional(),
+  /** The screen showed the opt-out line: the table's opt-out mark is stamped (a signed-in staff member only). */
+  optOut: optOutBody,
 });
 export const recordUpdateBody = z.object({
   values: rowValuesSchema,
@@ -363,7 +381,8 @@ export const recordUpdateBody = z.object({
    * column that held a picture then may hold text now, and a picture saved
    * into it would be nobody's.
    */
-  page: z.object({ id: z.string().min(1).max(64), revision: z.number().int().nonnegative() }).strict().optional(),
+  page: z.object({ id: z.string().min(1).max(64), revision: z.number().int().nonnegative() }).strict().optional(),  /** The screen showed the opt-out line with the address changed: the table's opt-out mark is stamped again. */
+  optOut: optOutBody,
 });
 
 /** A change tried and not kept (`POST …/:recordId/dry-run`): the record's values and its child rows, as a change sends them. */
