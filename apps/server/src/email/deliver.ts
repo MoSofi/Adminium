@@ -30,9 +30,9 @@
 
 import { dirForLocale, isLocaleId } from '@adminium/i18n';
 
-import { renderEmail } from './render.js';
+import { renderEmail, type LockedFooter } from './render.js';
 import { replyToOf, type PreparedEmail } from './send.js';
-import type { EmailTransport, OutboundAttachment } from './types.js';
+import type { EmailTransport, OutboundAttachment, OutboundDkim } from './types.js';
 
 export interface DeliverPreparedInput {
   transport: EmailTransport;
@@ -47,6 +47,12 @@ export interface DeliverPreparedInput {
   vars: Record<string, string>;
   /** Inline images and attachments as bytes, resolved by the caller. */
   parts?: readonly OutboundAttachment[] | undefined;
+  /** A marketing mail's locked footer (`email/marketing.ts`), drawn under everything else. */
+  locked?: LockedFooter | undefined;
+  /** Headers it goes with: a marketing mail's list headers and the relay's tracking switches. */
+  headers?: Record<string, string> | undefined;
+  /** Adminium's own DKIM signature for it. */
+  dkim?: OutboundDkim | undefined;
 }
 
 export interface DeliverPreparedResult {
@@ -63,6 +69,7 @@ export async function deliverPrepared(
     locale: input.locale,
     vars: input.vars,
     dir: isLocaleId(input.locale) ? dirForLocale(input.locale) : 'ltr',
+    ...(input.locked === undefined ? {} : { locked: input.locked }),
   });
   const parts = input.parts ?? [];
   const result = await input.transport.send({
@@ -74,6 +81,8 @@ export async function deliverPrepared(
     // A Reply-To that is one plain address: never a list, a name or anything a header could be split on.
     ...(replyToOf(input.replyTo) === null ? {} : { replyTo: replyToOf(input.replyTo)! }),
     ...(parts.length === 0 ? {} : { attachments: [...parts] }),
+    ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
+    ...(input.dkim === undefined ? {} : { dkim: input.dkim }),
   });
   return {
     response: result?.response ?? null,

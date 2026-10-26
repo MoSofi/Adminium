@@ -51,9 +51,11 @@
  * that language when the campaign has it translated, else the one the send
  * was started from.
  *
- * TWO SEAMS for later work, both "send" today: a check of each row at each
- * batch (a stop list, a consent record), and a check once per batch that the
- * run may still send at all (its creator can still read the audience).
+ * THREE SEAMS: a check of each row at each batch (the do-not-email list and
+ * the consent log, `email-campaign-checks.ts`), a check once per batch that
+ * the run may still send at all (the sender checks; its creator can still
+ * read the audience), and what a row's message carries besides the campaign
+ * (a marketing run's unsubscribe headers and locked footer).
  *
  * A RUN MADE BEFORE THE LEDGER (no `state`) that a crash left `running`
  * cannot know who was mailed, so it is never sent again: it is recorded
@@ -88,6 +90,7 @@ import {
   type EmailSendReport,
   type PreparedEmail,
 } from '../email/send.js';
+import type { MarketingCarry } from '../email/marketing.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
@@ -132,6 +135,13 @@ export interface CampaignSeams {
   checkRow?: ((row: EmailSend, run: EmailRun) => Promise<CampaignRowVerdict>) | undefined;
   /** Once per batch, before any row is claimed. */
   checkBatch?: ((run: EmailRun) => Promise<CampaignBatchVerdict>) | undefined;
+  /**
+   * What a row's message carries besides the campaign (a marketing run's
+   * unsubscribe headers and locked footer, and its click links when counted);
+   * null for nothing. Asked after `checkRow` passed the row, in the variant's
+   * language.
+   */
+  carryFor?: ((row: EmailSend, run: EmailRun, locale: string) => Promise<(MarketingCarry & { clicks?: ((html: string) => string) | undefined }) | null>) | undefined;
 }
 
 export interface EmailCampaignRunDeps {
@@ -179,7 +189,9 @@ export async function campaignGaveUp(meta: MetaDb, report: EmailSendReport, erro
   const id = report.pk['id'];
   if (typeof id !== 'string') return;
   const message = error instanceof Error ? error.message : String(error);
-  const row = await emailSendsRepo(meta).markGivenUp(id, message, at);
+  // Refused for good at send time: a bounce, and the address is already on the do-not-email list.
+  const bounced = error instanceof Error && error.name === 'PermanentlyRefusedError';
+  const row = await emailSendsRepo(meta).markGivenUp(id, message, at, bounced ? 'bounced' : 'failed');
   if (row === null) return;
   const runs = emailRunsRepo(meta);
   await runs.countGivenUp(row.runId);
@@ -218,6 +230,8 @@ interface Message {
   rendered: RenderedEmail;
   from: string | undefined;
   attachments: EmailSendAttachmentRef[];
+  /** A marketing run's list headers. */
+  headers?: Record<string, string> | undefined;
 }
 
 /** Registers the `email.campaign-run` handler on `registry` (internal kind). */
@@ -400,8 +414,16 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
           info: () => {},
           warn: (obj, msg) => ctx.log(msg ?? 'generated attachment skipped', obj),
         });
-        const rendered = renderEmail({ ...prepared.render, locale: variant.locale, vars, dir: isLocaleId(variant.locale) ? dirForLocale(variant.locale) : 'ltr' });
-        return { to: row.address, locale: variant.locale, rendered, from: prepared.from, attachments: [...prepared.attachments, ...generated] };
+        const carry = deps.seams?.carryFor === undefined ? null : await deps.seams.carryFor(row, run, variant.locale);
+        const drawn = renderEmail({
+          ...prepared.render,
+          locale: variant.locale,
+          vars,
+          dir: isLocaleId(variant.locale) ? dirForLocale(variant.locale) : 'ltr',
+          ...(carry === null ? {} : { locked: carry.locked }),
+        });
+        const rendered = carry?.clicks === undefined ? drawn : { ...drawn, html: carry.clicks(drawn.html) };
+        return { to: row.address, locale: variant.locale, rendered, from: prepared.from, attachments: [...prepared.attachments, ...generated], ...(carry === null ? {} : { headers: carry.headers }) };
       };
       /** The one transaction that makes a row handed: counted, queued, marked (see the header). */
       const handOver = async (row: EmailSend, message: Message): Promise<'handed' | 'run' | 'row'> => {
@@ -420,6 +442,9 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
                 attachments: message.attachments,
                 report: reportOf(row),
                 dedupeKey: `email-campaign:${row.id}`,
+                // A run to contacts is marketing or service mail; one to the workspace's own people has no class.
+                ...(run.mailClass === null ? {} : { mailClass: run.mailClass }),
+                ...(message.headers === undefined ? {} : { headers: message.headers }),
               },
             );
             if (job === null) throw new NotQueued('the message could not be queued');

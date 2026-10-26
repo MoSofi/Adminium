@@ -17051,6 +17051,46 @@
     "status": "mt",
     "srcHash": "be01dc78063c"
   },
+  "email.marketingFooter.all": {
+    "status": "mt",
+    "srcHash": "44acd8cfda99"
+  },
+  "email.marketingFooter.newsletter": {
+    "status": "mt",
+    "srcHash": "77d58815e966"
+  },
+  "email.marketingFooter.surveys": {
+    "status": "mt",
+    "srcHash": "9ef7f0eedf8a"
+  },
+  "email.marketingRefused.body.dns-unchecked": {
+    "status": "mt",
+    "srcHash": "3ffd87d8e844"
+  },
+  "email.marketingRefused.body.free-mail-from": {
+    "status": "mt",
+    "srcHash": "8a3873164fc8"
+  },
+  "email.marketingRefused.body.no-dmarc": {
+    "status": "mt",
+    "srcHash": "6a02299d1b42"
+  },
+  "email.marketingRefused.body.no-postal-address": {
+    "status": "mt",
+    "srcHash": "d71130cfe659"
+  },
+  "email.marketingRefused.body.no-public-address": {
+    "status": "mt",
+    "srcHash": "3ddafed1e5b4"
+  },
+  "email.marketingRefused.body.not-aligned": {
+    "status": "mt",
+    "srcHash": "ab3a904c3089"
+  },
+  "email.marketingRefused.title": {
+    "status": "mt",
+    "srcHash": "bb3c3ebb9820"
+  },
   "email.mirror.applyAll": {
     "status": "mt",
     "srcHash": "232e61efd3af"

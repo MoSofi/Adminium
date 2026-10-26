@@ -928,5 +928,21 @@
     "balance": "{number} 尚有 {amount} 待付。",
     "notice": "请保留此邮件作为记录。",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "退订{business}的新闻通讯",
+    "surveys": "退订{business}的调查",
+    "all": "退订{business}的营销邮件"
+  },
+  "marketingRefused": {
+    "title": "营销邮件正被跳过",
+    "body": {
+      "no-postal-address": "{source}：在您为发件人添加邮寄地址之前，营销邮件将被跳过。",
+      "free-mail-from": "{source}：营销邮件被跳过：它将从免费邮箱地址发出。请使用您自己域名下的地址。",
+      "dns-unchecked": "{source}：营销邮件被跳过：无法检查发件人的 DNS。",
+      "no-dmarc": "{source}：营销邮件被跳过：发件人的域名还没有 DMARC 记录。",
+      "not-aligned": "{source}：营销邮件被跳过：发件人的域名没有已发布的签名密钥（DKIM）。",
+      "no-public-address": "{source}：营销邮件被跳过：此服务器没有公共地址，退订链接将无法使用。"
+    }
   }
 }

@@ -938,5 +938,21 @@ export default {
     "balance": "{amount} is still due on {number}.",
     "notice": "Keep this email for your records.",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "Unsubscribe from {business}’s newsletter",
+    "surveys": "Unsubscribe from {business}’s surveys",
+    "all": "Unsubscribe from {business}’s marketing mail"
+  },
+  "marketingRefused": {
+    "title": "Marketing mail is being skipped",
+    "body": {
+      "no-postal-address": "{source}: marketing mail is skipped until you add your postal address to the sender.",
+      "free-mail-from": "{source}: marketing mail is skipped: it would go from a free mailbox address. Use an address at your own domain.",
+      "dns-unchecked": "{source}: marketing mail is skipped: the sender’s DNS could not be checked.",
+      "no-dmarc": "{source}: marketing mail is skipped: the sender’s domain has no DMARC record yet.",
+      "not-aligned": "{source}: marketing mail is skipped: the sender’s domain has no published signing key (DKIM).",
+      "no-public-address": "{source}: marketing mail is skipped: this server has no public address, so unsubscribe links would not work."
+    }
   }
 } as const;

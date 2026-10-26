@@ -281,8 +281,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A stamp beside `requiredWhen`: a brought line is judged as sent, before stamps (crud/decide.ts `stampLeftOut`).
   'requiredWhen.stamp',
   // Marketing or service, the app's people tables and a table the law keeps: accepted and stored with the manifest (the
-  // document, the outbox's definition and a rule's e-mail step keep them), and read by what is built on them as it lands:
-  // the people tables by people/declared.ts. Until the do-not-email list is, no mail is stopped, so every class is sent as today.
+  // document, the outbox's definition and a rule's e-mail step keep them), and read by what is built on them: the people
+  // tables by people/declared.ts, the classes by the outbox sender and the rule's e-mail step (email/marketing.ts), which
+  // stop marketing mail for the do-not-email list and those with no basis, and never stop service mail.
   'outbox.classes',
   'automations.emailClass',
   'people',

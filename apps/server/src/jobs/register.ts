@@ -34,6 +34,8 @@ import type { DsnCrypto } from '@adminium/meta';
 
 import type { FileStore } from '../files/store.js';
 import { canonicalChannels, readLimitedFrames } from '../realtime/read-frames.js';
+import { createMarketingMail, type MarketingMail } from '../email/marketing.js';
+import { campaignMarketingChecks, type MarketingCampaignSeams } from './email-campaign-checks.js';
 import { EMAIL_CAMPAIGN_RUN_KIND, registerEmailCampaignRunHandler, withCampaignGiveUp, type CampaignSeams } from './email-campaign-run.js';
 import {
   EMAIL_SEND_JOB_KIND,
@@ -98,8 +100,14 @@ export interface JobsAndRealtimeOptions {
         storage?: EmailSendHandlerDeps['storage'];
         /** A message sent for a row failed for good: tell the row. */
         onGiveUp?: EmailSendHandlerDeps['onGiveUp'];
-        /** The campaign batches' per-row and per-batch checks (`email-campaign-run.ts`); absent, every row is sent. */
+        /**
+         * More per-row and per-batch checks of the campaign batches
+         * (`email-campaign-run.ts`), run after the marketing checks
+         * (`email-campaign-checks.ts`), which are always there.
+         */
         campaignSeams?: CampaignSeams | undefined;
+        /** Marketing mail's checks, signature and carry (`email/marketing.ts`); made from `meta` and the secret when absent. */
+        marketing?: MarketingMail | undefined;
       }
     | undefined;
   /**
@@ -202,8 +210,10 @@ export async function registerJobsAndRealtime(
   if (opts.llm !== undefined && !registry.has(LLM_RUN_KIND)) {
     registerLlmRunHandler(registry, { meta, resolve: opts.llm.resolve });
   }
+  const marketing = opts.email === undefined ? undefined : (opts.email.marketing ?? createMarketingMail({ meta, secret: opts.email.secret }));
   if (opts.email !== undefined && !registry.has(EMAIL_SEND_JOB_KIND)) {
     registerEmailSendHandler(registry, {
+      ...(marketing === undefined ? {} : { marketing }),
       meta,
       secret: opts.email.secret,
       ...(opts.email.createTransport === undefined
@@ -224,7 +234,7 @@ export async function registerJobsAndRealtime(
       meta,
       secret: opts.email.secret,
       hub,
-      ...(opts.email.campaignSeams === undefined ? {} : { seams: opts.email.campaignSeams }),
+      seams: withMarketingChecks(campaignMarketingChecks({ meta, marketing: marketing!, secret: opts.email.secret }), opts.email.campaignSeams),
     });
   }
   if (opts.documents !== undefined && !registry.has(DOCUMENT_RENDER_KIND)) {
@@ -343,4 +353,23 @@ export async function registerJobsAndRealtime(
   });
 
   return facade;
+}
+
+/**
+ * The campaign seams the batches run: the marketing checks first, then any
+ * the caller adds. A row the marketing checks skip, or a batch they refuse,
+ * is not asked again.
+ */
+export function withMarketingChecks(marketing: MarketingCampaignSeams, more: CampaignSeams | undefined): CampaignSeams {
+  return {
+    checkBatch: async (run) => {
+      const first = await marketing.checkBatch(run);
+      return first !== 'send' || more?.checkBatch === undefined ? first : await more.checkBatch(run);
+    },
+    checkRow: async (row, run) => {
+      const first = await marketing.checkRow(row, run);
+      return first !== 'send' || more?.checkRow === undefined ? first : await more.checkRow(row, run);
+    },
+    carryFor: more?.carryFor ?? marketing.carryFor,
+  };
 }

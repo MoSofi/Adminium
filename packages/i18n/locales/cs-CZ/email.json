@@ -928,5 +928,21 @@
     "balance": "Na {number} zbývá uhradit {amount}.",
     "notice": "Tento e-mail si uschovejte.",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "Odhlásit odběr newsletteru {business}",
+    "surveys": "Odhlásit průzkumy {business}",
+    "all": "Odhlásit marketingové e-maily {business}"
+  },
+  "marketingRefused": {
+    "title": "Marketingové e-maily se přeskakují",
+    "body": {
+      "no-postal-address": "{source}: marketingové e-maily se přeskakují, dokud k odesílateli nepřidáte svou poštovní adresu.",
+      "free-mail-from": "{source}: marketingové e-maily se přeskakují: odešly by z bezplatné e-mailové adresy. Použijte adresu na vlastní doméně.",
+      "dns-unchecked": "{source}: marketingové e-maily se přeskakují: DNS odesílatele se nepodařilo ověřit.",
+      "no-dmarc": "{source}: marketingové e-maily se přeskakují: doména odesílatele zatím nemá záznam DMARC.",
+      "not-aligned": "{source}: marketingové e-maily se přeskakují: doména odesílatele nemá zveřejněný podpisový klíč (DKIM).",
+      "no-public-address": "{source}: marketingové e-maily se přeskakují: tento server nemá veřejnou adresu, takže odkazy pro odhlášení by nefungovaly."
+    }
   }
 }

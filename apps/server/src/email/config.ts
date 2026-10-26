@@ -167,6 +167,40 @@ export async function resolveSmtpConfig(meta: MetaDb, key: Uint8Array): Promise<
 }
 
 /**
+ * What nodemailer's `sendMail` is given for one message: the one mapping the
+ * real transport uses, exported so a test can hand the same options to
+ * nodemailer's stream transport and read the message as it would leave
+ * (headers, DKIM signature and all).
+ */
+export function mailOptionsOf(msg: OutboundEmail, defaultFrom: string) {
+  return {
+    from: msg.from ?? defaultFrom,
+    to: msg.to,
+    ...(msg.replyTo === undefined ? {} : { replyTo: msg.replyTo }),
+    subject: msg.subject,
+    text: msg.text,
+    html: msg.html,
+    ...(msg.headers === undefined ? {} : { headers: msg.headers }),
+    // Adminium's own signature on a marketing mail, for this message alone (nodemailer signs per message).
+    ...(msg.dkim === undefined ? {} : { dkim: msg.dkim }),
+    // BYTES ONLY: `content` is a Buffer the delivery layer
+    // read itself. Nothing here ever becomes a `path` or an `href`, so
+    // the two `disable*Access` flags of the transport are belt and braces,
+    // not the only line of defence.
+    ...(msg.attachments === undefined || msg.attachments.length === 0
+      ? {}
+      : {
+          attachments: msg.attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+            ...(a.contentType === undefined ? {} : { contentType: a.contentType }),
+            ...(a.cid === undefined ? {} : { cid: a.cid, contentDisposition: 'inline' as const }),
+          })),
+        }),
+  };
+}
+
+/**
  * The real transport: a non-pooled nodemailer SMTP client, one connection per
  * message.
  *
@@ -214,29 +248,7 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
         disableUrlAccess: true,
       });
       try {
-        const info = await transporter.sendMail({
-          from: msg.from ?? cfg.from,
-          to: msg.to,
-          ...(msg.replyTo === undefined ? {} : { replyTo: msg.replyTo }),
-          subject: msg.subject,
-          text: msg.text,
-          html: msg.html,
-          ...(msg.headers === undefined ? {} : { headers: msg.headers }),
-          // BYTES ONLY: `content` is a Buffer the delivery layer
-          // read itself. Nothing here ever becomes a `path` or an `href`, so
-          // the two `disable*Access` flags above are belt and braces, not the
-          // only line of defence.
-          ...(msg.attachments === undefined || msg.attachments.length === 0
-            ? {}
-            : {
-                attachments: msg.attachments.map((a) => ({
-                  filename: a.filename,
-                  content: a.content,
-                  ...(a.contentType === undefined ? {} : { contentType: a.contentType }),
-                  ...(a.cid === undefined ? {} : { cid: a.cid, contentDisposition: 'inline' as const }),
-                })),
-              }),
-        });
+        const info = await transporter.sendMail(mailOptionsOf(msg, cfg.from));
         // The reply line, kept rather than discarded — see `EmailSendResult`.
         return {
           ...(typeof info.response === 'string' ? { response: info.response } : {}),

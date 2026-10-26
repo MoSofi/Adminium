@@ -136,6 +136,7 @@ import {
   placeholderPattern,
   requiredPlaceholderNames,
   showWhenNames,
+  mailClassOf,
   type AppManifest,
   type OutboxProducer,
 } from '@adminium/manifest';
@@ -158,7 +159,15 @@ import { addOnTablesFor } from '../apps/add-on-tables.js';
 import { listedReductions, type ListedColumns } from '../crud/adjust/listed.js';
 import { storedTableRef, tableRefIndex } from '../apps/table-ref.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
-import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
+import { enqueueEmail, emailRuntimeSecret, fromOf, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
+import {
+  createMarketingMail,
+  DEFAULT_MARKETING_PURPOSE,
+  marketingRefusalSentence,
+  marketingSkipSentence,
+  type MarketingMail,
+} from '../email/marketing.js';
+import { existingCustomer, recipientPerson } from './marketing.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
@@ -245,6 +254,13 @@ export interface OutboxSenderDeps {
   signInLinks?: SignInLinkMinter | undefined;
   /** The mail layer's secret; the composition's own when absent. */
   secret?: string | undefined;
+  /**
+   * Marketing mail's checks and carry (`email/marketing.ts`): a kind the app
+   * classes `marketing` skips the do-not-email list and those with no basis,
+   * is refused while the sender is not ready, and carries the unsubscribe
+   * link and the locked footer. Made from `meta` and the secret when absent.
+   */
+  marketing?: MarketingMail | undefined;
 }
 
 export interface OutboxSender {
@@ -809,6 +825,15 @@ async function houseReplyTo(box: LiveOutbox, db: Kysely<SourceDatabase>): Promis
 export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   /** Held rows with no column to write their wait into: left out of each batch until it is up. */
   const heldInMemory = createMemoryHolds();
+  /** Marketing mail's kit: the composition's, else one of its own, made at the first marketing message. */
+  let marketingKit = deps.marketing;
+  const marketing = (): MarketingMail => {
+    if (marketingKit !== undefined) return marketingKit;
+    const secret = deps.secret ?? emailRuntimeSecret();
+    if (secret === null || secret === '') throw new Error('the mail layer has no secret: marketing mail cannot be judged');
+    marketingKit = createMarketingMail({ meta: deps.meta, secret });
+    return marketingKit;
+  };
 
   /** Where the app's guest side lives: its own host, else the server's public address, else nowhere. */
   async function guestBase(appKey: string): Promise<string | null> {
@@ -1436,6 +1461,31 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       (typeof language === 'string' && language !== '' ? negotiateLocale(language.replace(/_/g, '-')) : null) ?? (await recipientLocale(deps.meta, null));
     const template = await resolveEmailTemplate(deps.meta, templateKey, locale);
     if (template === null) return { status: 'failed', error: 'The email is switched off, or has no text' };
+
+    // Marketing or service (the app's `outbox.classes`; an app built for an older Adminium says neither, and its mail is
+    // service). Marketing mail skips the do-not-email list and those with no basis, and is refused while the sender is not
+    // ready: recorded as skipped, never tried again in a loop, and the people who manage e-mail are told once.
+    const mailClass = mailClassOf((await appFacts(box.row.manifestId)).manifest ?? {}, { outboxKind: kind });
+    let marketingBasis: 'consent' | 'existing-customers' | null = null;
+    if (mailClass === 'marketing') {
+      const person = await recipientPerson(ctx, box, row, found, addressed);
+      const kit = marketing();
+      const verdict = await kit.verdict({
+        address: found.trim(),
+        person: person?.ref ?? null,
+        purpose: DEFAULT_MARKETING_PURPOSE,
+        existingCustomer: person === null ? false : await existingCustomer(deps.meta, kit, ctx.view, person),
+      });
+      if ('skip' in verdict) return { status: 'skipped', error: sentence(marketingSkipSentence(verdict.skip)) };
+      const from = await fromOf(deps.meta, template.brand);
+      if (from === null) return { status: 'failed', error: 'Email is not set up on this server' };
+      const refused = await kit.refusal(from);
+      if (refused !== null) {
+        await kit.tellRefused({ about: `outbox:${box.appKey}:${kind}`, source: `${box.appKey} · ${kind}`, refusal: refused }).catch(() => 0);
+        return { status: 'skipped', error: sentence(marketingRefusalSentence(refused)) };
+      }
+      marketingBasis = verdict.send;
+    }
     // A person's wording may read only what the template itself reads: never
     // another column of a linked row, however it is spelled.
     const reads = new Set([...placeholders([template.subject, template.preheader, template.blocks, template.footer]), ...showWhenNames(template.blocks)]);
@@ -1502,6 +1552,18 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
     // else to the house's own address, when its settings name one that is an address.
     const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? (await houseReplyTo(box, ctx.db));
+    // What a marketing mail carries: the unsubscribe link (a mail on the existing-customers basis has no purpose), its two
+    // headers and the locked footer, in the template's language, naming the business as the mail's own banner does.
+    const carry =
+      marketingBasis === null
+        ? undefined
+        : await marketing().carry({
+            to,
+            purpose: marketingBasis === 'existing-customers' ? null : DEFAULT_MARKETING_PURPOSE,
+            locale: template.locale,
+            business: vars['appName'],
+            replyTo,
+          });
     return {
       to,
       reader: await messageReader(box, ctx, holder, addressed, to),
@@ -1516,6 +1578,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
         ...(override.subject === undefined && override.body === undefined ? {} : { override }),
         ...(replyTo === null ? {} : { replyTo }),
+        // Mail to a contact says its class (a refusal for good at send time then stop-lists the address); mail to the house has none.
+        ...(mailClass === 'staff' ? {} : { mailClass }),
+        ...(carry === undefined ? {} : { marketing: carry }),
       },
       ...(written === to ? {} : { recordTo: to }),
       ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),
