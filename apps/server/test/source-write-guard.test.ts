@@ -37,6 +37,8 @@ const ALLOWED: Record<string, string> = {
     "an app update's fill of the derived columns it adds or changes (copies, formulas, rollups, balances) on the rows already there: Adminium's own columns, by key, in one transaction with the write path's own pieces, as a settle writes them — no rule of the table decides them and no hook or live frame is owed for a value nobody typed",
   'apps/sample-data.ts':
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service (and what a sample fills in a row already there, `@fillEmpty`, is written and emptied again as that list says)",
+  'consent/apply-column.ts':
+    "a consent-log event mirrored into the declared yes/no column and its strict stamps, as the system: a save would drop the stamps it is given and keep naming whoever ticked the box last, so the door writes the column, its who (the event's staff member, or nobody) and its when (the event's time) in one statement and audits it itself",
 };
 
 /** Kysely's write builders, unless their table is one of Adminium's own. */
