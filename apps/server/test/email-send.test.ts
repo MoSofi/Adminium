@@ -619,7 +619,9 @@ describe('email.send delivers attachments and inline parts as bytes', () => {
     const payload = (n: number) => ({ v: 3, templateKey: 'k', locale: 'en_US', envelope: 'enc:v1:x', inline: inline(n) });
     expect(emailSendPayloadSchema.safeParse(payload(60)).success).toBe(true);
     expect(emailSendPayloadSchema.safeParse(payload(61)).success).toBe(false);
-    expect(emailSendPayloadSchema.safeParse({ ...payload(1), v: 4 }).success).toBe(false);
+    // `4` is a marketing mail (its unsubscribe headers sealed in); a version past it is refused.
+    expect(emailSendPayloadSchema.safeParse({ ...payload(1), v: 4 }).success).toBe(true);
+    expect(emailSendPayloadSchema.safeParse({ ...payload(1), v: 5 }).success).toBe(false);
   });
 
   it('a trashed file makes the handler throw with the filename (the dead-letter path)', async () => {
