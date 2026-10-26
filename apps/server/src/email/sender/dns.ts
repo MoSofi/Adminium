@@ -185,7 +185,7 @@ const policyOf = (value: string | undefined): DmarcPolicy | null => {
 function policyFor(record: DmarcRecord, domain: string): DmarcPolicy | null {
   const own = record.name === domain;
   const policy = own ? policyOf(record.tags.get('p')) : (policyOf(record.tags.get('sp')) ?? policyOf(record.tags.get('p')));
-  // RFC 7489 §6.6.3: a record with a missing or bad `p=` that asks for reports is read as `none`.
+  // RFC 7489 section 6.6.3: a record with a missing or bad `p=` that asks for reports is read as `none`.
   if (policy === null && record.tags.has('rua')) return 'none';
   return policy;
 }

@@ -47,7 +47,7 @@ function headersOf(message: string): { headers: Header[]; body: string } {
   return { headers, body: message.slice(split + 4) };
 }
 
-/** Relaxed header canonicalisation (RFC 6376 §3.4.2). */
+/** Relaxed header canonicalisation (RFC 6376 section 3.4.2). */
 const relaxedHeader = (header: Header): string =>
   `${header.name}:${header.line
     .slice(header.line.indexOf(':') + 1)
@@ -55,7 +55,7 @@ const relaxedHeader = (header: Header): string =>
     .replace(/[ \t]+/g, ' ')
     .trim()}`;
 
-/** Relaxed body canonicalisation (RFC 6376 §3.4.4). */
+/** Relaxed body canonicalisation (RFC 6376 section 3.4.4). */
 function relaxedBody(body: string): string {
   const lines = body.split('\r\n').map((line) => line.replace(/[ \t]+/g, ' ').replace(/ $/, ''));
   while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();

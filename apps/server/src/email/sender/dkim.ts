@@ -6,7 +6,7 @@
  * ─── Which headers are signed ──────────────────────────────────────────────
  * nodemailer's default list (`dkim/sign.js` in nodemailer 10.0.10, the
  * version in the lockfile) covers `List-Unsubscribe` but not
- * `List-Unsubscribe-Post`. RFC 8058 §3.1 says both MUST be covered, or
+ * `List-Unsubscribe-Post`. RFC 8058 section 3.1 says both MUST be covered, or
  * Gmail and Yahoo do not show their unsubscribe button. So the list is
  * nodemailer's own plus `List-Unsubscribe-Post`, passed as
  * `headerFieldNames`.
