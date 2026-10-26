@@ -22055,6 +22055,10 @@
     "status": "mt",
     "srcHash": "f4ddc98746e2"
   },
+  "roles.permission.privacyManage": {
+    "status": "mt",
+    "srcHash": "ca4384fb1b57"
+  },
   "roles.permission.projectRead": {
     "status": "mt",
     "srcHash": "bb0cbe226b62"

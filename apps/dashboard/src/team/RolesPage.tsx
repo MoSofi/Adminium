@@ -172,6 +172,8 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles:permission.paymentsRefund', 'Give refunds');
     case 'system:payments:view':
       return t('roles:permission.paymentsView', 'See payment activity and export it');
+    case 'system:privacy:manage':
+      return t('roles:permission.privacyManage', 'Find, download and manage a person’s data');
     default:
       return entry.label;
   }

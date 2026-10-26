@@ -80,7 +80,8 @@
     "designerUse": "Créer des apps avec Adminium Designer",
     "paymentsManage": "Configurer les paiements",
     "paymentsRefund": "Effectuer des remboursements",
-    "paymentsView": "Voir l’activité des paiements et l’exporter"
+    "paymentsView": "Voir l’activité des paiements et l’exporter",
+    "privacyManage": "Trouver, télécharger et gérer les données d’une personne"
   },
   "rename": {
     "failed": "Impossible de renommer le rôle",

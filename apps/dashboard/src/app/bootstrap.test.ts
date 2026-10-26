@@ -193,11 +193,11 @@ describe('hostedAppByKey', () => {
 });
 
 describe('holdsSystemAction', () => {
-  it('guesses admin keys for an Admin when the server sends no list, but never the payments keys', () => {
+  it('guesses admin keys for an Admin when the server sends no list, but never the payments or privacy keys', () => {
     const admin = makeBootstrap({ roles: ['admin'] });
     expect(admin.systemActions).toBeUndefined();
     expect(holdsSystemAction(admin, 'connections.manage')).toBe(true);
-    for (const key of ['payments.manage', 'payments.view', 'payments.refund'] as const) {
+    for (const key of ['payments.manage', 'payments.view', 'payments.refund', 'privacy.manage'] as const) {
       expect(holdsSystemAction(admin, key)).toBe(false);
       expect(holdsSystemAction(makeBootstrap({ roles: ['super-admin'] }), key)).toBe(false);
     }
@@ -206,5 +206,10 @@ describe('holdsSystemAction', () => {
   it('reads the payments keys from the list the server sends', () => {
     expect(holdsSystemAction(makeBootstrap({ roles: ['bookkeeper'], systemActions: ['payments.view'] }), 'payments.view')).toBe(true);
     expect(holdsSystemAction(makeBootstrap({ roles: ['admin'], systemActions: ['connections.manage'] }), 'payments.manage')).toBe(false);
+  });
+
+  it('reads the privacy key from the list the server sends', () => {
+    expect(holdsSystemAction(makeBootstrap({ roles: ['super-admin'], systemActions: ['privacy.manage'] }), 'privacy.manage')).toBe(true);
+    expect(holdsSystemAction(makeBootstrap({ roles: ['admin'], systemActions: ['settings.manage', 'users.manage'] }), 'privacy.manage')).toBe(false);
   });
 });
