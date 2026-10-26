@@ -56,6 +56,8 @@ describe('auto-triggers — one archetype page per table, alongside page-crud', 
     expect(board['statusColumn']).toBe('status');
     expect(board['laneColumn']).toBe('team');
     expect(board['columns']).toEqual(['todo', 'in_progress', 'review', 'done']);
+    // The list stops at its limit, so it reads the newest rows: the work still on the board.
+    expect(board['binding']).toMatchObject({ orderBy: [{ column: 'created_at', dir: 'desc' }], limit: 200 });
   });
 
   it('a date + title table emits a page-calendar', () => {
@@ -84,6 +86,10 @@ describe('auto-triggers — one archetype page per table, alongside page-crud', 
     expect(matrix['personColumn']).toBe('employee_id');
     expect(matrix['dateColumn']).toBe('shift_date');
     expect(matrix['typeColumn']).toBe('shift_type');
+    // The Shift Scheduler comp: each person by the name their link reads, and no generic count card over the rota.
+    expect(matrix['personName']).toEqual(['employee_id.full_name']);
+    expect((matrix['binding'] as { lookups?: string[] }).lookups).toEqual(['adm_person_0:employee_id.full_name']);
+    expect(widgetsOn(page)).not.toContain('kpi-stat-card');
   });
 
   it('start/end + progress + phase FK emits a page hosting the gantt-chart', () => {

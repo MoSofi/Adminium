@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "建立記錄後，卡片將出現在對應的狀態欄中。",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "尚無卡片",
     "ui:widgets.boards.notAdded": "{title} 未新增。",
-    "ui:widgets.boards.notMoved": "{title} 未移動。"
+    "ui:widgets.boards.notMoved": "{title} 未移動。",
+    "ui:widgets.boards.pct": "{pct}%",
+    "ui:widgets.boards.pctComplete": "已完成 {pct}%"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "關閉",

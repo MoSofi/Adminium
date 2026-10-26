@@ -28,7 +28,7 @@
  */
 import type { DataShape } from '../page-config/data-shapes.js';
 import type { QueryDescriptor } from '../page-config/query-descriptor.js';
-import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardToolbar } from './board-facts.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LANE_ALIAS, BOARD_CARD_LINK_ALIAS, BOARD_CARD_OWNER_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardStat, type BoardToolbar } from './board-facts.js';
 import type { WidgetFamily } from './types.js';
 
 /* ------------------------------------------------------------------ inputs */
@@ -166,7 +166,7 @@ export interface CandidateContext {
   board?: BoardColumns | undefined;
 }
 
-export { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardToolbar };
+export { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LANE_ALIAS, BOARD_CARD_LINK_ALIAS, BOARD_CARD_OWNER_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardStat, type BoardToolbar };
 
 /** How a board header's figure is worked out of a column's cards. */
 export type BoardTotalFn = 'sum' | 'avg';
@@ -499,6 +499,222 @@ function timeAxis(view: CandidateView): ViewColumn | null {
         DATE_TYPES.has(c.logicalType),
     ) ??
     null
+  );
+}
+
+/**
+ * Newest rows first, for a list that stops at its limit: by the time axis, else
+ * by a single-column key (a later row has the larger key as often as not).
+ * Without an order a board read the table's FIRST rows — on a table with
+ * history all of them long done — and its working columns came up empty.
+ */
+function newestFirst(view: CandidateView): { orderBy: { column: string; dir: 'desc' }[] } | Record<string, never> {
+  const axis = timeAxis(view);
+  if (axis !== null) return { orderBy: [{ column: axis.name, dir: 'desc' }] };
+  const keys = view.columns.filter((c) => c.isPrimaryKey);
+  return keys.length === 1 && keys[0] !== undefined ? { orderBy: [{ column: keys[0].name, dir: 'desc' }] } : {};
+}
+
+/* ------------------------------------------------------- a board's cards */
+
+/** A choice column drawn as a card's priority pill. */
+const PRIORITY_RE = /(^|_)(priority|severity|urgency|importance)(_|$)/i;
+/** The aliases a rota reads a person's name and role under (`adm_person_0`, `adm_person_1`, `adm_person_role`). */
+export const SCHEDULE_PERSON_ALIAS = 'adm_person';
+export const SCHEDULE_ROLE_ALIAS = 'adm_person_role';
+/** A link that names who a card is for: preferred as its owner over any other link to people. */
+const OWNER_COLUMN_RE = /(^|_)(owner|assignee|assigned(_to)?|responsible|lead|manager|agent|host|rep|roaster|staff|employee|user|author|creator)(_id)?$/i;
+/** A table of the people who work the board, as opposed to the customers it is for. */
+const STAFF_TABLE_RE = /(^|_)(users?|employees?|staff|members?|agents?|team|teams|workers?|reps?)(_|$)/i;
+/** A date a card is due by: the comp's due chip. */
+const DUE_RE = /(^|_)(due|deadline|target|ends?|until|eta|finish)(_on|_at|_date)?$/i;
+/** A status value that means the work is under way, and one that means it is done (the summary's figures). */
+const WORKING_RE = /(^|_)(in_?progress|doing|active|working|started|roasting|open)(_|$)/i;
+const DONE_RE = /^(done|completed?|closed|shipped|delivered|paid|resolved|solved|won|released|published|approved|finished)$/i;
+
+/** The table a link points at, as the rules see it; null when the model does not hold it. */
+function targetViewOf(ctx: CandidateContext, column: ViewColumn): CandidateView | null {
+  const target = column.references === null ? undefined : ctx.model?.find((entry) => entry.table.id === column.references?.tableId);
+  return target === undefined ? null : buildCandidateView(target.table, target.classified);
+}
+
+/**
+ * What a person reached through `link` is called: a first and a last name
+ * where the table keeps them apart, else its display column. Columns that
+ * are secret are never read.
+ */
+function namePathsOf(ctx: CandidateContext, link: ViewColumn): string[] {
+  const target = targetViewOf(ctx, link);
+  if (target === null) return [];
+  const usable = (c: ViewColumn) => !c.secret && TEXTISH_TYPES.has(c.logicalType);
+  const first = target.columns.find((c) => usable(c) && /(^|_)(first|given)_?name$/i.test(c.name));
+  const last = target.columns.find((c) => usable(c) && /(^|_)(last|family|sur)_?name$/i.test(c.name));
+  if (first !== undefined && last !== undefined) return [`${link.name}.${first.name}`, `${link.name}.${last.name}`];
+  const display = target.displayColumn === null ? undefined : target.columns.find((c) => c.name === target.displayColumn && usable(c));
+  return display === undefined ? [] : [`${link.name}.${display.name}`];
+}
+
+
+/**
+ * What a generated board's card shows — the comp's card: who it is for (a
+ * link's name under the title), its owner (an avatar), its amount, the day
+ * it is due, its priority — each only where the table has one. Returned with
+ * the columns and lookups the rows are read with.
+ */
+function boardCardOf(
+  view: CandidateView,
+  ctx: CandidateContext,
+  picked: { status: ViewColumn; lane: ViewColumn | null; priority: ViewColumn | null },
+): { facts: BoardCardFacts; read: string[]; lookups: string[] } {
+  const links = view.columns.filter((c) => c.references !== null && c.references.tableId !== view.table.id && !c.secret);
+  const toPeople = (c: ViewColumn) => c.references !== null && PEOPLE_TARGET_RE.test(normalize(bareName(c.references.tableId)));
+  const toStaff = (c: ViewColumn) => c.references !== null && STAFF_TABLE_RE.test(normalize(bareName(c.references.tableId)));
+  // The owner: a link to the people who do the work, one named for it first.
+  const owner = links.find((c) => toStaff(c) && OWNER_COLUMN_RE.test(c.name)) ?? links.find((c) => toStaff(c)) ?? null;
+  const ownerPaths = owner === null ? [] : namePathsOf(ctx, owner);
+  // The line under the title: the first other link with a name to read — a company, a project — before a person.
+  const others = links.filter((c) => c.name !== owner?.name && c.name !== picked.lane?.name);
+  const linkColumn = others.find((c) => !toPeople(c) && namePathsOf(ctx, c).length > 0) ?? others.find((c) => namePathsOf(ctx, c).length > 0) ?? null;
+  const linkPath = linkColumn === null ? undefined : namePathsOf(ctx, linkColumn)[0];
+  // A lane that is a link is called by the row it points at.
+  const laneIsLink = picked.lane !== null && picked.lane.references !== null;
+  const lanePaths = !laneIsLink || picked.lane === null ? [] : picked.lane.name === owner?.name ? [] : namePathsOf(ctx, picked.lane).slice(0, 1);
+  const money = withSemantic(view, 'money').find((c) => c.name !== picked.status.name) ?? null;
+  const due =
+    view.columns.find((c) => DATE_TYPES.has(c.logicalType) && DUE_RE.test(c.name) && c.semantic !== 'created-at' && c.semantic !== 'updated-at') ??
+    view.columns.find((c) => c.semantic === 'date-range' && c.pair?.role === 'end' && DATE_TYPES.has(c.logicalType)) ??
+    null;
+
+  // At most four lookups a read: the link gives way first.
+  const budget = 4 - ownerPaths.length - lanePaths.length;
+  const facts: BoardCardFacts = {
+    ...(linkPath === undefined || budget < 1 ? {} : { link: linkPath }),
+    ...(ownerPaths.length === 0 ? {} : { owner: ownerPaths }),
+    ...(money === null ? {} : { amount: money.name }),
+    ...(due === null ? {} : { date: due.name }),
+    ...(picked.priority === null ? {} : { priority: picked.priority.name }),
+    ...(laneIsLink && picked.lane?.name === owner?.name && ownerPaths.length > 0 ? { laneName: 'owner' as const } : lanePaths.length === 0 ? {} : { laneName: lanePaths }),
+  };
+  const lookups = [
+    ...(facts.link === undefined ? [] : [`${BOARD_CARD_LINK_ALIAS}:${facts.link}`]),
+    ...ownerPaths.map((path, index) => `${BOARD_CARD_OWNER_ALIAS}_${String(index)}:${path}`),
+    ...lanePaths.map((path, index) => `${BOARD_CARD_LANE_ALIAS}_${String(index)}:${path}`),
+  ];
+  const read = [
+    ...(linkColumn === null || facts.link === undefined ? [] : [linkColumn.name]),
+    ...(owner === null || ownerPaths.length === 0 ? [] : [owner.name]),
+    ...(money === null ? [] : [money.name]),
+    ...(due === null ? [] : [due.name]),
+    ...(picked.priority === null ? [] : [picked.priority.name]),
+    ...(picked.lane === null ? [] : [picked.lane.name]),
+  ];
+  return { facts, read, lookups };
+}
+
+/**
+ * The figures above a generated board (the comp's four summary cards): every
+ * card, with how many were added in the last 30 days; those under way and
+ * those done, each with its share; and a money column's sum, else the people
+ * on the cards. Four at most.
+ */
+function boardStatsOf(
+  view: CandidateView,
+  ctx: CandidateContext,
+  status: ViewColumn,
+  facts: BoardCardFacts,
+): { stats: BoardStat[]; bindings: QueryDescriptor[] } {
+  const stats: BoardStat[] = [];
+  const bindings: QueryDescriptor[] = [];
+  const ask = (rest: Omit<QueryDescriptor, 'kind' | 'connectionId' | 'source' | 'shape'>): number => {
+    bindings.push(descriptor(view, ctx, 'single-metric', rest));
+    return bindings.length - 1;
+  };
+  const count = [{ fn: 'count' as const, alias: 'value' }];
+  const created = firstWithSemantic(view, 'created-at');
+  const total = ask({ aggregations: count });
+  stats.push({
+    kind: 'total',
+    label: `Total ${humanize(view.table.name).toLowerCase()}`,
+    figure: total,
+    ...(created === null ? {} : { delta: ask({ aggregations: count, window: { column: created.name, last: 30, unit: 'day', compareToPrior: false } }) }),
+  });
+  const working = status.enumValues.find((value) => WORKING_RE.test(value));
+  const done = status.enumValues.find((value) => DONE_RE.test(value));
+  for (const value of [working, done]) {
+    if (value === undefined) continue;
+    stats.push({ kind: 'column', value, share: true, figure: ask({ aggregations: count, filters: [{ column: status.name, op: 'eq', value }] }) });
+  }
+  if (facts.amount !== undefined) {
+    const money = view.columns.find((c) => c.name === facts.amount);
+    stats.push({ kind: 'amount', column: facts.amount, label: `Total ${columnTitle(money ?? { name: facts.amount }).toLowerCase()}`, figure: ask({ aggregations: [{ fn: 'sum', column: facts.amount, alias: 'value' }] }) });
+  } else if (facts.owner !== undefined) {
+    const ownerColumn = facts.owner[0]?.split('.')[0];
+    if (ownerColumn !== undefined) stats.push({ kind: 'people', label: 'People', figure: ask({ aggregations: [{ fn: 'count_distinct', column: ownerColumn, alias: 'value' }] }) });
+  }
+  return { stats: stats.slice(0, 4), bindings };
+}
+
+/** A link that groups work into streams: a team, a department, a project. */
+const STREAM_TABLE_RE = /(^|_)(teams?|departments?|groups?|squads?|workstreams?|streams?|units?|divisions?|projects?|epics?|categories)(_|$)/i;
+/** Fewer cards a lane than this on average, and lanes only scatter the board (one card a row). */
+const LANE_MIN_CARDS = 4;
+
+/**
+ * A board's lanes (the Kanban Swimlanes comp: "Group: Workstream"): a second
+ * choice column, or a link to the teams, departments or projects the work is
+ * grouped by — never a priority (drawn on the card) and never a person (one
+ * lane each would scatter the board). Only where each lane would hold a few
+ * cards on average; else the board is plain columns, as the Project Board comp.
+ */
+function boardLaneOf(view: CandidateView, ctx: CandidateContext, status: ViewColumn, priority: ViewColumn | null): ViewColumn | null {
+  const rows = view.stats.rowCount;
+  const enough = (lanes: number | null | undefined): boolean => rows === null || lanes === null || lanes === undefined || lanes <= 0 || rows / lanes >= LANE_MIN_CARDS;
+  const choice = enumColumns(view).find((c) => c.name !== status.name && c.semantic === 'category-enum' && c.name !== priority?.name && enough(c.enumValues.length));
+  if (choice !== undefined) return choice;
+  const stream = view.columns.find((c) => {
+    if (c.references === null || c.references.tableId === view.table.id || c.secret) return false;
+    if (!STREAM_TABLE_RE.test(normalize(bareName(c.references.tableId)))) return false;
+    return enough(targetViewOf(ctx, c)?.stats.rowCount);
+  });
+  return stream ?? null;
+}
+
+/**
+ * A table that reads as a plan over time (the Gantt Chart comp): a start/end
+ * pair, and either a progress figure or a link the work is grouped by — a
+ * project, a phase, a team. Day dates, or a grouping link: a pair of
+ * timestamps with no group (a roast slot, a booking) is minutes long, and a
+ * Gantt of it is a row of diamonds.
+ */
+export function ganttPlanOf(view: CandidateView): { start: ViewColumn; end: string; progress: ViewColumn | null; group: ViewColumn | null } | null {
+  const start = dateRangeStart(view);
+  if (start === null || start.pair === null) return null;
+  const progress = firstWithSemantic(view, 'percent');
+  const group =
+    projectFk(view) ??
+    view.columns.find(
+      (c) => c.references !== null && c.references.tableId !== view.table.id && !c.secret && STREAM_TABLE_RE.test(normalize(bareName(c.references.tableId))),
+    ) ??
+    null;
+  if (progress === null && group === null) return null;
+  if (start.logicalType !== 'date' && group === null) return null;
+  return { start, end: start.pair.partner, progress, group };
+}
+
+/** The lookup aliases a generated Gantt reads its groups' names and owners through. */
+export const GANTT_GROUP_ALIAS = 'adm_gantt_group';
+export const GANTT_OWNER_ALIAS = 'adm_gantt_owner';
+
+/**
+ * Whether a card made of a title and a status can be saved: every other
+ * column fills itself (a key, a default, a generated value) or may be left
+ * empty. Where one cannot, a board that offered "+" would only be refused.
+ */
+function quickAddable(view: CandidateView, statusColumn: string): boolean {
+  if (view.displayColumn === null || view.table.kind === 'view' || view.table.kind === 'materialized-view') return false;
+  const title = view.displayColumn;
+  return view.table.columns.every(
+    (c) => c.name === title || c.name === statusColumn || c.nullable !== false || c.isGenerated === true || (c.defaultKind !== null && c.defaultKind !== undefined),
   );
 }
 
@@ -992,9 +1208,9 @@ const tablesMasterDetail: CandidateRule = {
   family: 'tables',
   match(view, ctx) {
     const enums = enumColumns(view);
-    const start = dateRangeStart(view);
-    const domainCard =
-      start !== null && (firstWithSemantic(view, 'percent') !== null || projectFk(view) !== null);
+    const plan = ganttPlanOf(view);
+    const start = plan?.start ?? null;
+    const domainCard = plan !== null;
     if (enums.length === 0 && !domainCard) return [];
 
     const enumColumn = enums[0];
@@ -1250,16 +1466,20 @@ const calendarMonth: CandidateRule = {
     if (date === null || view.displayColumn === null) return [];
     const rowScore = byRowCount(view);
     const eventsShape = byName(view.shape === 'events', 1.05, 1);
+    // The colour of each event and the calendars it can be shown or hidden by (the comp's legend): a choice of its own.
+    const category = firstWithSemantic(view, 'category-enum') ?? firstWithSemantic(view, 'status-workflow');
+    const end = date.pair?.role === 'start' ? date.pair.partner : undefined;
     const binding = (): QueryDescriptor =>
       descriptor(view, ctx, 'calendar-events', {
-        select: listSelect(view),
+        select: [...new Set([date.name, view.displayColumn as string, ...(end === undefined ? [] : [end]), ...(category === null ? [] : [category.name]), ...listSelect(view)])],
         orderBy: [{ column: date.name, dir: 'asc' }],
         limit: 500,
       });
     const config = {
       titleColumn: view.displayColumn,
       startColumn: date.name,
-      ...(date.pair?.role === 'start' ? { endColumn: date.pair.partner } : {}),
+      ...(end === undefined ? {} : { endColumn: end }),
+      ...(category === null ? {} : { categoryColumn: category.name }),
     };
     return [
       {
@@ -1282,6 +1502,20 @@ const calendarMonth: CandidateRule = {
         binding: binding(),
         config: { title: 'Agenda', ...config },
       },
+      ...(category === null
+        ? []
+        : [
+            {
+              widget: 'calendar-legend-filter',
+              score: score(0.55, rowScore, eventsShape),
+              shape: 'calendar-events' as const,
+              family: 'calendar' as const,
+              rule: 'calendar.date-title',
+              reason: `choice "${category.name}" — the calendars an event is shown or hidden by`,
+              binding: binding(),
+              config: { title: 'Calendars', ...config },
+            },
+          ]),
     ];
   },
 };
@@ -1298,6 +1532,19 @@ const calendarScheduleMatrix: CandidateRule = {
       (c) => SHIFT_TYPE_RE.test(normalize(c.name)) || c.semantic === 'category-enum',
     );
     if (type === undefined) return [];
+    // The comp's rota: each person by name and role, each shift with its hours (the end of its range).
+    // Its end: the other half of the range, else a time column named for an end (`ends_at` beside `starts_at`).
+    const end =
+      (date.pair?.role === 'start' ? view.columns.find((c) => c.name === date.pair?.partner) : undefined) ??
+      view.columns.find((c) => c.name !== date.name && DATE_TYPES.has(c.logicalType) && c.logicalType === date.logicalType && /(^|_)(ends?|finish(es)?|until|to)(_at|_on|_time)?$/i.test(c.name)) ??
+      null;
+    const namePaths = namePathsOf(ctx, person);
+    const target = targetViewOf(ctx, person);
+    const role = target?.columns.find((c) => !c.secret && TEXTISH_TYPES.has(c.logicalType) && /(^|_)(job_?title|title|role|position|job)$/i.test(c.name)) ?? null;
+    const lookups = [
+      ...namePaths.map((path, index) => `${SCHEDULE_PERSON_ALIAS}_${String(index)}:${path}`),
+      ...(role === null ? [] : [`${SCHEDULE_ROLE_ALIAS}:${person.name}.${role.name}`]),
+    ];
     return [
       {
         widget: 'schedule-matrix',
@@ -1311,7 +1558,8 @@ const calendarScheduleMatrix: CandidateRule = {
         rule: 'calendar.person-date-shift',
         reason: `person FK "${person.name}" × date "${date.name}" × type "${type.name}" — shift matrix`,
         binding: descriptor(view, ctx, 'record-list', {
-          select: listSelect(view),
+          select: [...new Set([person.name, date.name, type.name, ...(end === null ? [] : [end.name]), ...listSelect(view)])],
+          ...(lookups.length === 0 ? {} : { lookups }),
           orderBy: [{ column: date.name, dir: 'asc' }],
           limit: 500,
         }),
@@ -1320,6 +1568,9 @@ const calendarScheduleMatrix: CandidateRule = {
           personColumn: person.name,
           dateColumn: date.name,
           typeColumn: type.name,
+          ...(end === null ? {} : { endColumn: end.name }),
+          ...(namePaths.length === 0 ? {} : { personName: namePaths }),
+          ...(role === null ? {} : { personRole: `${person.name}.${role.name}` }),
         },
       },
     ];
@@ -1379,17 +1630,19 @@ const boardsKanban: CandidateRule = {
   match(view, ctx) {
     // Somebody named the board's columns: the guess is not made beside it.
     if (ctx.board !== undefined) return [];
+    // A roadmap's columns are its quarters (`boards.roadmap`), not its statuses.
+    if (roadmapOf(view) !== null) return [];
     const status = firstWithSemantic(view, 'status-workflow');
     if (status === null || status.enumValues.length === 0 || status.enumValues.length > 6) return [];
     const boardish = status.enumValues.filter((v) => BOARD_STATE_RE.test(v.trim())).length;
     if (boardish === 0) return [];
 
-    const lane =
-      enumColumns(view).find((c) => c.name !== status.name && c.semantic === 'category-enum') ??
-      personFk(view) ??
-      projectFk(view) ??
-      null;
+    // A priority is drawn on the card (the comp's pill), so it is no lane of its own.
+    const priority = view.columns.find((c) => c.name !== status.name && c.enumValues.length > 0 && !c.secret && PRIORITY_RE.test(c.name)) ?? null;
+    const lane = boardLaneOf(view, ctx, status, priority);
     const progress = firstWithSemantic(view, 'percent');
+    const card = boardCardOf(view, ctx, { status, lane, priority });
+    const stats = boardStatsOf(view, ctx, status, card.facts);
     return [
       {
         widget: lane === null ? 'kanban-board' : 'kanban-swimlane-grid',
@@ -1407,7 +1660,11 @@ const boardsKanban: CandidateRule = {
             ? `workflow enum "${status.name}" with ${status.enumValues.length} states — kanban columns`
             : `workflow enum "${status.name}" × lane dimension "${lane.name}" — swimlane grid`,
         binding: descriptor(view, ctx, 'record-list', {
-          select: listSelect(view),
+          // The card's own facts are read with the rows: what it shows is what was asked for.
+          select: [...new Set([...listSelect(view), ...card.read])],
+          ...(card.lookups.length === 0 ? {} : { lookups: card.lookups }),
+          // The cards drawn stop at the limit: the newest are the ones still being worked.
+          ...newestFirst(view),
           limit: 200,
         }),
         config: {
@@ -1417,6 +1674,92 @@ const boardsKanban: CandidateRule = {
           ...(lane === null ? {} : { laneColumn: lane.name }),
           ...(view.displayColumn === null ? {} : { titleColumn: view.displayColumn }),
           ...(progress === null ? {} : { progressColumn: progress.name }),
+          ...(Object.keys(card.facts).length === 0 ? {} : { card: card.facts }),
+          ...(stats.stats.length === 0 ? {} : { stats: stats.stats, statBindings: stats.bindings }),
+          // "+" on a column, and "New …" above the board: only where a card of a title and a status can be saved.
+          ...(quickAddable(view, status.name) ? { allowAdd: true } : {}),
+        },
+      },
+    ];
+  },
+};
+
+/** A table of the bets a team plans by quarter: initiatives, epics, goals. */
+const ROADMAP_TABLE_RE = /(^|_)(initiatives?|epics?|features?|goals?|okrs?|objectives?|themes?|roadmaps?|bets?)(_|$)/i;
+/** The day an initiative is planned for. */
+const ROADMAP_DATE_RE = /(^|_)(target|due|launch|release|ship|planned|deliver(y|ed)?|quarter|eta)(_|$)/i;
+
+/**
+ * A table that reads as a roadmap (the Kanban Roadmap comp): named for
+ * initiatives, epics or goals, with the day each is planned for (a day, not
+ * an instant). Its cards go in the quarter that day falls in.
+ */
+export function roadmapOf(view: CandidateView): { date: ViewColumn } | null {
+  if (!ROADMAP_TABLE_RE.test(normalize(view.table.name))) return null;
+  const days = view.columns.filter((c) => !c.secret && c.logicalType === 'date' && c.semantic !== 'created-at' && c.semantic !== 'updated-at');
+  const date =
+    days.find((c) => ROADMAP_DATE_RE.test(c.name)) ??
+    days.find((c) => c.semantic === 'date-range' && c.pair?.role === 'end') ??
+    days.find((c) => c.semantic === 'date-range' && c.pair?.role === 'start') ??
+    null;
+  return date === null ? null : { date };
+}
+
+/**
+ * The Kanban Roadmap comp: a column a quarter, each card an initiative with
+ * its theme (a choice column, in its tones), its owner and how far along it
+ * is. A drop into another quarter moves the planned day to that quarter's
+ * first day.
+ */
+const boardsRoadmap: CandidateRule = {
+  id: 'boards.roadmap',
+  family: 'boards',
+  match(view, ctx) {
+    if (ctx.board !== undefined) return [];
+    const plan = roadmapOf(view);
+    if (plan === null) return [];
+    const status = firstWithSemantic(view, 'status-workflow');
+    const theme = view.columns.find((c) => c.semantic === 'category-enum' && !c.secret && c.name !== status?.name && !PRIORITY_RE.test(c.name)) ?? null;
+    const progress = firstWithSemantic(view, 'percent');
+    const links = view.columns.filter((c) => c.references !== null && c.references.tableId !== view.table.id && !c.secret);
+    const toStaff = (c: ViewColumn) => c.references !== null && STAFF_TABLE_RE.test(normalize(bareName(c.references.tableId)));
+    const owner = links.find((c) => toStaff(c) && OWNER_COLUMN_RE.test(c.name)) ?? links.find((c) => toStaff(c)) ?? null;
+    const ownerPaths = owner === null ? [] : namePathsOf(ctx, owner);
+    const facts: BoardCardFacts = {
+      ...(theme === null ? {} : { tag: theme.name }),
+      ...(ownerPaths.length === 0 ? {} : { owner: ownerPaths }),
+    };
+    const read = [
+      plan.date.name,
+      ...(status === null ? [] : [status.name]),
+      ...(theme === null ? [] : [theme.name]),
+      ...(progress === null ? [] : [progress.name]),
+      ...(owner === null || ownerPaths.length === 0 ? [] : [owner.name]),
+    ];
+    const lookups = ownerPaths.map((path, index) => `${BOARD_CARD_OWNER_ALIAS}_${String(index)}:${path}`);
+    return [
+      {
+        widget: 'kanban-board',
+        score: score(0.9, byRowCount(view)),
+        shape: 'record-list',
+        family: 'boards',
+        rule: 'boards.roadmap',
+        reason: `initiatives "${view.table.name}" planned by "${plan.date.name}" — a roadmap by quarter`,
+        binding: descriptor(view, ctx, 'record-list', {
+          select: [...new Set([...listSelect(view), ...read])],
+          ...(lookups.length === 0 ? {} : { lookups }),
+          // The latest plans: a roadmap looks ahead.
+          orderBy: [{ column: plan.date.name, dir: 'desc' }],
+          limit: 200,
+        }),
+        config: {
+          title: tableTitle(view.table),
+          bucketBy: 'quarter',
+          dateColumn: plan.date.name,
+          statusColumn: status?.name ?? plan.date.name,
+          ...(view.displayColumn === null ? {} : { titleColumn: view.displayColumn }),
+          ...(progress === null ? {} : { progressColumn: progress.name }),
+          ...(Object.keys(facts).length === 0 ? {} : { card: facts }),
         },
       },
     ];
@@ -1848,38 +2191,59 @@ const domainOrgChart: CandidateRule = {
   },
 };
 
-/** Annex — "start+end dates + phase FK → `gantt-chart`". */
+/**
+ * Annex — "start+end dates + phase FK → `gantt-chart`": the Gantt Chart comp.
+ * Bars grouped by the link the plan is cut into (its name read through a
+ * lookup), each with its owner's avatar and its progress; the newest plans,
+ * not the oldest.
+ */
 const domainGanttChart: CandidateRule = {
   id: 'domain.start-end-phase',
   family: 'domain',
   match(view, ctx) {
-    const start = dateRangeStart(view);
-    if (start === null || start.pair === null) return [];
-    const progress = firstWithSemantic(view, 'percent');
-    const phase = projectFk(view);
-    if (progress === null && phase === null) return [];
+    const plan = ganttPlanOf(view);
+    if (plan === null) return [];
+    const { start, end, progress, group } = plan;
+    const groupName = group === null ? [] : namePathsOf(ctx, group).slice(0, 1);
+    const links = view.columns.filter((c) => c.references !== null && c.references.tableId !== view.table.id && !c.secret);
+    const toStaff = (c: ViewColumn) => c.references !== null && STAFF_TABLE_RE.test(normalize(bareName(c.references.tableId)));
+    const owner = links.find((c) => toStaff(c) && OWNER_COLUMN_RE.test(c.name)) ?? links.find((c) => toStaff(c)) ?? null;
+    const ownerPaths = owner === null ? [] : namePathsOf(ctx, owner).slice(0, 3);
+    const lookups = [
+      ...groupName.map((path) => `${GANTT_GROUP_ALIAS}:${path}`),
+      ...ownerPaths.map((path, index) => `${GANTT_OWNER_ALIAS}_${String(index)}:${path}`),
+    ];
+    const read = [
+      ...(view.displayColumn === null ? [] : [view.displayColumn]),
+      start.name,
+      end,
+      ...(progress === null ? [] : [progress.name]),
+      ...(group === null ? [] : [group.name]),
+    ];
     return [
       {
         widget: 'gantt-chart',
-        score: score(0.85, byRowCount(view), byName(progress !== null && phase !== null)),
+        score: score(0.85, byRowCount(view), byName(progress !== null && group !== null)),
         shape: 'record-list',
         family: 'domain',
         rule: 'domain.start-end-phase',
-        reason: `start/end pair "${start.name}"/"${start.pair.partner}"${
-          phase === null ? '' : ` + phase FK "${phase.name}"`
-        } — gantt chart`,
+        reason: `start/end pair "${start.name}"/"${end}"${group === null ? '' : ` + group link "${group.name}"`} — gantt chart`,
         binding: descriptor(view, ctx, 'record-list', {
-          select: listSelect(view),
-          orderBy: [{ column: start.name, dir: 'asc' }],
+          select: [...new Set([...read, ...listSelect(view)])],
+          ...(lookups.length === 0 ? {} : { lookups }),
+          // The newest plans: an old table's first 200 rows by start are years gone.
+          orderBy: [{ column: start.name, dir: 'desc' }],
           limit: 200,
         }),
         config: {
           title: tableTitle(view.table),
           startColumn: start.name,
-          endColumn: start.pair.partner,
+          endColumn: end,
           ...(view.displayColumn === null ? {} : { labelColumn: view.displayColumn }),
           ...(progress === null ? {} : { progressColumn: progress.name }),
-          ...(phase === null ? {} : { groupColumn: phase.name }),
+          ...(group === null ? {} : { groupColumn: group.name }),
+          ...(groupName.length === 0 ? {} : { phaseLabelField: GANTT_GROUP_ALIAS }),
+          ...(ownerPaths.length === 0 ? {} : { ownerFields: ownerPaths.map((_, index) => `${GANTT_OWNER_ALIAS}_${String(index)}`) }),
         },
       },
     ];
@@ -1962,6 +2326,7 @@ export const candidateRules: readonly CandidateRule[] = [
   calendarCapacityBoard,
   // Boards
   boardsKanban,
+  boardsRoadmap,
   boardsNamed,
   // Geo
   geoMapBubble,
@@ -1989,7 +2354,8 @@ export const FAMILY_CAPS: Readonly<Record<WidgetFamily, number>> = {
   charts: 5,
   tables: 4,
   feeds: 2,
-  calendar: 3,
+  // A calendar page is a month, its day agenda and its legend — beside a rota or a timeline the same table may earn.
+  calendar: 5,
   boards: 2,
   geo: 1,
   media: 4,

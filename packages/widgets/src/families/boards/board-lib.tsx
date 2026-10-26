@@ -69,9 +69,13 @@ export interface BoardCardData {
   column: string;
   /** Value of the swimlane field (kanban-swimlane-grid only). */
   lane?: string | undefined;
+  /** What the card's lane is called, where the lane is a link (a person's name for their id). */
+  laneLabel?: string | undefined;
   tag?: string | undefined;
   tagTone?: Tone | undefined;
   priority?: string | undefined;
+  /** The priority's tone, from its column's own tones; absent ⇒ read from the word. */
+  priorityTone?: Tone | undefined;
   owner?: string | undefined;
   /** 0..100 completion percent → card progress bar. */
   pct?: number | undefined;
@@ -200,9 +204,12 @@ export function resolveLanes(
     const lane = card.lane ?? '';
     if (!seen.includes(lane)) seen.push(lane);
   }
+  // A lane that is a link is called by what its cards read through it; an enum's by its words.
+  const named = new Map<string, string>();
+  for (const card of cards) if (card.laneLabel !== undefined && card.laneLabel !== '' && !named.has(card.lane ?? '')) named.set(card.lane ?? '', card.laneLabel);
   return seen.map((id, index) => ({
     id,
-    name: words?.[id] ?? humanizeEnum(id),
+    name: words?.[id] ?? named.get(id) ?? humanizeEnum(id),
     tone: COLUMN_TONE_CYCLE[index % COLUMN_TONE_CYCLE.length] as Tone,
   }));
 }
@@ -256,7 +263,8 @@ export function toBoardCard(
     id: String((fields.keyField === undefined ? undefined : row[fields.keyField]) ?? row['id'] ?? row['_id'] ?? index),
     title: str(row[fields.titleField]) ?? str(row['title']) ?? `#${index + 1}`,
     column: boardKeyOf(row[fields.columnField]),
-    lane: fields.laneField === undefined ? undefined : (str(row[fields.laneField]) ?? ''),
+    // A lane is a word (an enum's) or a key (a link's, a number as often as not): both are the lane's id.
+    lane: fields.laneField === undefined ? undefined : (str(row[fields.laneField]) ?? (num(row[fields.laneField]) === undefined ? '' : String(row[fields.laneField]))),
     tag: str(row['tag']),
     tagTone: boardToneOf(row['tagTone'], 'accent'),
     priority: str(row['priority']),

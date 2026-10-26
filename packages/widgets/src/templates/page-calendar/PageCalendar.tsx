@@ -48,6 +48,7 @@ import {
   parseIsoDay,
   resolveLocale,
   toneOf,
+  addDays,
 } from '../../families/calendar/calendar-lib.js';
 import type { CalendarEvent, DateRangeValue, UpcomingEvent } from '../../families/calendar/calendar-types.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
@@ -249,6 +250,10 @@ export function calendarEventsOf(
       ...(typeof category === 'string' && categoryWords?.enumLabels?.[category] !== undefined
         ? { categoryLabel: categoryWords.enumLabels[category] }
         : {}),
+      // The category's own colour (set on its column in Studio), where it has one the calendar can draw.
+      ...(typeof category === 'string' && categoryWords?.enumTones?.[category] !== undefined && KNOWN_EVENT_TONES.has(categoryWords.enumTones[category] as string)
+        ? { tone: categoryWords.enumTones[category] as string }
+        : {}),
       ...(typeof row['ref'] === 'string' ? { ref: row['ref'] as string } : {}),
       ...(typeof row['owner'] === 'string' ? { owner: row['owner'] as string } : {}),
       ...(typeof row['status'] === 'string' ? { status: row['status'] as string } : {}),
@@ -263,6 +268,8 @@ export function calendarEventsOf(
   return events;
 }
 
+const KNOWN_EVENT_TONES: ReadonlySet<string> = new Set(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
+
 /** Minutes-since-midnight for stable agenda ordering (all-day first). */
 function minutesOf(event: CalendarEvent): number {
   if (event.time === undefined || !/^\d{1,2}:\d{2}$/.test(event.time)) return -1;
@@ -276,6 +283,16 @@ function minutesOf(event: CalendarEvent): number {
  * the shipped DayAgenda exposes neither a row-click callback nor a
  * composer.
  */
+/** A category's pill under an agenda event (the comp's "Meetings", "Deadlines"). */
+const AGENDA_PILL: Record<string, string> = {
+  neutral: 'bg-surface-3 text-fg-muted',
+  accent: 'bg-accent-soft text-accent',
+  pos: 'bg-pos-soft text-pos',
+  warn: 'bg-warn-soft text-warn',
+  danger: 'bg-danger-soft text-danger',
+  info: 'bg-info-soft text-info',
+};
+
 function AgendaPane({
   day,
   events,
@@ -301,19 +318,20 @@ function AgendaPane({
   const t = useMaybeT();
   const tag = resolveLocale(locale);
   const dayEvents = events.filter((event) => event.date === day).sort((a, b) => minutesOf(a) - minutesOf(b));
+  // The Calendar Scheduler comp's day card: the day small above, its count large, then each event on a coloured edge.
   return (
-    <div data-part="calendar-agenda" className="flex h-full flex-col">
-      <div className="flex items-baseline justify-between border-b border-border/60 px-3 py-2">
-        <h3 className="text-body-sm font-bold text-fg">{fmtDayLabel(tag, parseIsoDay(day))}</h3>
-        <span className="text-caption font-semibold text-fg-subtle">
+    <div data-part="calendar-agenda" className="flex h-full flex-col overflow-hidden rounded-[16px] border border-border bg-surface leading-[normal] shadow-card">
+      <div className="px-[18px] pb-2 pt-[18px]">
+        <p className="text-[11px] font-bold uppercase tracking-[.05em] text-fg-subtle">{fmtDayLabel(tag, parseIsoDay(day))}</p>
+        <h3 className="m-0 mt-0.5 text-[17px] font-extrabold tracking-[-0.02em] text-fg">
           {/* `count` drives the ICU plural; `n` is pre-stringified so the digits render exactly as before. */}
           {t('ui:templates.calendar.eventCount', '{count, plural, one {{n} event} other {{n} events}}', {
             count: dayEvents.length,
             n: String(dayEvents.length),
           })}
-        </span>
+        </h3>
       </div>
-      <div className="flex-1 space-y-1.5 overflow-auto p-3">
+      <div className="flex-1 space-y-3.5 overflow-auto px-[18px] pb-[18px] pt-2">
         {dayEvents.length === 0 && (
           <p className="px-1 py-2 text-body-sm text-fg-muted" data-part="agenda-empty">
             {labels?.agendaEmptyTitle ?? t('ui:widgets.calendar.dayAgenda.emptyTitle', 'Nothing scheduled')}
@@ -332,17 +350,14 @@ function AgendaPane({
               data-part="agenda-event"
               disabled={!clickable}
               onClick={clickable ? () => onOpen(event) : undefined}
-              className={`flex w-full items-start gap-3 rounded-md border-s-4 bg-surface px-3 py-2 text-start ${TONE_BORDER[tone]} ${
-                clickable
-                  ? 'hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
-                  : ''
+              className={`flex w-full flex-col items-start gap-1 border-s-[3px] py-0.5 ps-3 text-start ${TONE_BORDER[tone]} ${
+                clickable ? 'hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent' : ''
               }`}
             >
-              <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-fg">{event.title}</span>
-              {timeLabel !== '' && (
-                <span className="shrink-0 whitespace-nowrap font-mono text-caption tabular-nums text-fg-muted">
-                  {timeLabel}
-                </span>
+              <span className="w-full truncate text-[13px] font-bold text-fg">{event.title}</span>
+              {timeLabel !== '' && <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-fg-subtle">{timeLabel}</span>}
+              {(event.categoryLabel ?? event.category) === undefined ? null : (
+                <span className={`rounded-full px-2 py-px text-[10.5px] font-bold ${AGENDA_PILL[tone]}`}>{event.categoryLabel ?? event.category}</span>
               )}
             </button>
           );
@@ -581,6 +596,8 @@ export function PageCalendar({
   }
 
   const showRangePicker = parsed.toolbar.includes('date-range-picker');
+  // A page with a legend card filters by it; one without gets the same as chips beside the month.
+  const hasLegend = parsed.layout.items.some((item) => item.widget === LEGEND_WIDGET_ID);
   const addLabel = labels?.composeOpen ?? t('ui:templates.calendar.addEvent', 'Add event');
   // "Add event": the page's form when it has one; a pick-list when the title
   // is a related row; else the title composer AgendaPane draws itself.
@@ -641,7 +658,7 @@ export function PageCalendar({
             return (
               <WidgetFrame
                 state={frameState}
-                title={configString(itemConfigOf(item), 'title')}
+                frameless
                 skeleton="chart"
                 errorMessage={state.status === 'error' ? frameMessageOf(state.error) : undefined}
                 onRetry={state.refetch}
@@ -668,6 +685,24 @@ export function PageCalendar({
                   {...(locale === undefined ? {} : { locale })}
                   {...(cfg.categoryColorMap === undefined ? {} : { categoryColorMap: cfg.categoryColorMap })}
                   onDaySelect={selectDay}
+                  // The calendars an event is in, as chips beside the month (where the page has no legend card of its own).
+                  {...(cfg.categoryColumn === undefined || hasLegend
+                    ? {}
+                    : {
+                        categories: aggregateCategories(allEvents, cfg.categoryColorMap, uncategorized).map((category) => ({
+                          id: category.name,
+                          label: category.label ?? category.name,
+                          tone: category.tone,
+                          hidden: hidden.includes(category.name),
+                        })),
+                        onToggleCategory: (id: string) => setHidden((now) => (now.includes(id) ? now.filter((one) => one !== id) : [...now, id])),
+                      })}
+                  {...(onCreate !== undefined && source !== null ? { onNew: () => createOn(selectedDay), newLabel: addLabel } : {})}
+                  // Read the days on screen, not the table's first rows: a range somebody picked wins.
+                  onViewChange={(first, last) => {
+                    if (range.start !== null && range.end !== null) return;
+                    onParamsChange?.({ 'dateRange.start': first, 'dateRange.end': addDays(last, 1) });
+                  }}
                 />
               </WidgetFrame>
             );
@@ -676,7 +711,7 @@ export function PageCalendar({
             return (
               <WidgetFrame
                 state="loaded"
-                title={configString(itemConfigOf(item), 'title') ?? t('ui:templates.calendar.agendaTitle', 'Agenda')}
+                frameless
                 skeleton="list"
                 testId={`agenda-slot-${item.i}`}
               >
@@ -696,17 +731,18 @@ export function PageCalendar({
           }
           if (item.widget === LEGEND_WIDGET_ID) {
             return (
-              <WidgetFrame
-                state="loaded"
-                title={configString(itemConfigOf(item), 'title') ?? t('ui:templates.calendar.categoriesTitle', 'Categories')}
-                skeleton="list"
-                testId={`legend-slot-${item.i}`}
-              >
-                <CalendarLegendFilter
-                  categories={aggregateCategories(allEvents, cfg.categoryColorMap, uncategorized)}
-                  {...(locale === undefined ? {} : { locale })}
-                  onChange={setHidden}
-                />
+              <WidgetFrame state="loaded" frameless skeleton="list" testId={`legend-slot-${item.i}`}>
+                {/* The Calendar Scheduler comp's "Calendars" card. */}
+                <div className="flex h-full flex-col overflow-hidden rounded-[16px] border border-border bg-surface px-3 pb-3 pt-[18px] leading-[normal] shadow-card">
+                  <h3 className="m-0 px-2 pb-2 text-[13px] font-bold text-fg">
+                    {configString(itemConfigOf(item), 'title') ?? t('ui:templates.calendar.calendarsTitle', 'Calendars')}
+                  </h3>
+                  <CalendarLegendFilter
+                    categories={aggregateCategories(allEvents, cfg.categoryColorMap, uncategorized)}
+                    {...(locale === undefined ? {} : { locale })}
+                    onChange={setHidden}
+                  />
+                </div>
               </WidgetFrame>
             );
           }

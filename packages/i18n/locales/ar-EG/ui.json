@@ -476,7 +476,9 @@
         "emptyBody": "ستظهر الأحداث المجدولة في هذا التقويم.",
         "previousLabel": "الشهر السابق",
         "nextLabel": "الشهر التالي",
-        "overflowLabel": "+{count} أخرى"
+        "overflowLabel": "+{count} أخرى",
+        "today": "اليوم",
+        "newEvent": "حدث جديد"
       },
       "dayAgenda": {
         "description": "أحداث اليوم المحدد كجدول أعمال مرتب زمنيًا.",
@@ -721,7 +723,11 @@
         "addLabel": "إضافة",
         "cancelLabel": "إلغاء",
         "openLabel": "إضافة بطاقة"
-      }
+      },
+      "pctComplete": "اكتمل {pct}٪",
+      "noLane": "بلا",
+      "laneCount": "{count, plural, zero {# بطاقة} one {بطاقة واحدة} two {بطاقتان} few {# بطاقات} many {# بطاقة} other {# بطاقة}}",
+      "pct": "{pct}%"
     },
     "communication": {
       "conversationInbox": {
@@ -890,7 +896,19 @@
         "description": "أشرطة المهام على محور زمني، مجمَّعة حسب المرحلة، مع نسبة الإنجاز والمعالم وعلامة اليوم.",
         "emptyTitle": "لا توجد مهام مجدولة",
         "emptyBody": "تظهر المهام هنا بمجرد أن يكون لها تاريخا بداية ونهاية.",
-        "ungroupedLabel": "المهام"
+        "ungroupedLabel": "المهام",
+        "stats": {
+          "tasks": "إجمالي المهام",
+          "onTrack": "في الموعد",
+          "atRisk": "معرّضة للتأخير",
+          "milestones": "المراحل الرئيسية"
+        },
+        "zoom": "مقياس الجدول الزمني",
+        "weeks": "أسابيع",
+        "months": "شهور",
+        "taskColumn": "المهمة",
+        "taskCount": "{count, plural, zero {لا مهام} one {مهمة واحدة} two {مهمتان} few {# مهام} many {# مهمة} other {# مهمة}}",
+        "today": "اليوم"
       },
       "documentCanvas": {
         "description": "لوحة مستند بمظهر ورقي — فاتورة أو تقرير أو بريد — يمكن تحديد كتلها وإعادة ترتيبها وحذفها.",
@@ -2040,19 +2058,26 @@
       "toolbarCount": "{count, plural, zero {# بطاقة} one {بطاقة واحدة} two {بطاقتان} few {# بطاقات} many {# بطاقة} other {# بطاقة}}",
       "toolbarCountNamed": "{count, plural, zero {{other}: #} one {{one}: #} two {{other}: #} few {{other}: #} many {{other}: #} other {{other}: #}}",
       "daysLabelled": "{days} {label}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "إنشاء {item}",
+      "addItem": "إضافة {item}",
+      "itemName": "اسم {item}…",
+      "newCard": "بطاقة جديدة",
+      "roadmapYear": "سنة خارطة الطريق",
+      "previousYear": "السنة السابقة",
+      "nextYear": "السنة التالية",
+      "thisYear": "هذه السنة"
     },
     "calendar": {
       "eventCount": "{count, plural, zero {{n} حدث} one {حدث واحد} two {حدثان} few {{n} أحداث} many {{n} حدثًا} other {{n} حدث}}",
       "composePlaceholder": "عنوان الحدث…",
       "addEvent": "إضافة حدث",
       "dateRange": "النطاق الزمني",
-      "agendaTitle": "جدول الأعمال",
-      "categoriesTitle": "الفئات",
       "upcomingTitle": "القادمة",
       "invalidLayout": "التخطيط المخزَّن لهذا التقويم غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطه.",
       "composeChoose": "ما يخص هذا الحدث",
-      "composeChoosePlaceholder": "اختر…"
+      "composeChoosePlaceholder": "اختر…",
+      "calendarsTitle": "التقويمات"
     },
     "scheduler": {
       "previousWeek": "الأسبوع السابق",
@@ -2061,7 +2086,24 @@
       "month": "شهر",
       "invalidLayout": "التخطيط المخزَّن لهذا الجدول غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطه.",
       "shiftCount": "{count, plural, zero {{n} وردية} one {وردية واحدة} two {ورديتان} few {{n} ورديات} many {{n} وردية} other {{n} وردية}}",
-      "addShift": "إضافة وردية"
+      "addShift": "إضافة وردية",
+      "teamMember": "عضو الفريق",
+      "hoursUnit": "س",
+      "thisWeek": "هذا الأسبوع",
+      "weekOf": "أسبوع {start} – {end}",
+      "cellHint": "اختر خانة فارغة لإضافة مناوبة",
+      "addShiftSubtitle": "جدولة مناوبة لعضو في الفريق.",
+      "day": "التاريخ",
+      "start": "البداية",
+      "end": "النهاية",
+      "type": "النوع",
+      "addRefused": "لم تتم إضافة المناوبة.",
+      "stats": {
+        "staff": "الموظفون المجدولون",
+        "shifts": "إجمالي المناوبات",
+        "hours": "الساعات المجدولة",
+        "uncovered": "أيام بلا تغطية"
+      }
     },
     "settings": {
       "title": "إعدادات الإشعارات",

@@ -37,7 +37,7 @@ import {
   type PageEnvelope,
   type QueryDescriptor,
 } from '@adminium/engine/config';
-import { boardColumnsInstanceId, boardPeopleInstanceId, boardToolbarInstanceId, calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
+import { boardColumnsInstanceId, boardPeopleInstanceId, boardStatInstanceId, boardToolbarInstanceId, calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
 
 import {
   WIDGET_DATA_KEY_ROOT,
@@ -100,6 +100,9 @@ export function extractPlanningBindings(page: PageEnvelope): PlanningBindings {
     if (Array.isArray(toolbar)) toolbar.forEach((figure, index) => add(boardToolbarInstanceId(item.i, index), figure));
     const people = item.config['personBinding'];
     if (people !== undefined) add(boardPeopleInstanceId(item.i), people);
+    // A board's summary figures (`config.stats`): each its own query, in the same batch.
+    const stats = item.config['statBindings'];
+    if (Array.isArray(stats)) stats.forEach((figure, index) => add(boardStatInstanceId(item.i, index), figure));
   }
   return { requests, invalid };
 }

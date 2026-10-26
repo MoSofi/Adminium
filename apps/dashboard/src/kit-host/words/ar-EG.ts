@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "ستظهر البطاقات في أعمدة الحالة الخاصة بها عند إنشاء السجلات.",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "لا توجد بطاقات بعد",
     "ui:widgets.boards.notAdded": "لم تتم إضافة {title}.",
-    "ui:widgets.boards.notMoved": "لم يتم نقل {title}."
+    "ui:widgets.boards.notMoved": "لم يتم نقل {title}.",
+    "ui:widgets.boards.pct": "{pct}%",
+    "ui:widgets.boards.pctComplete": "اكتمل {pct}٪"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "إغلاق",

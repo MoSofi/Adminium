@@ -27,7 +27,7 @@ import {
 } from './KanbanSwimlaneGrid.js';
 import { SETTLED_OVERRIDE_WAIT_MS, announcementsFromTemplates } from './board-dnd.js';
 import { kanbanBoardDefinition, kanbanSwimlaneGridDefinition } from './boards-track.definitions.js';
-import { humanizeEnum, resolveColumns, sumPoints, toBoardCard } from './board-lib.js';
+import { humanizeEnum, resolveColumns, resolveLanes, sumPoints, toBoardCard } from './board-lib.js';
 import type { BoardCardData, ColumnDef, LaneDef } from './board-lib.js';
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import { buildRegistry } from '../../registry/index.js';
@@ -77,13 +77,36 @@ describe('board-lib helpers', () => {
 });
 
 describe('BoardCard', () => {
-  it('renders the title, tag, percent, and mono id', () => {
+  it('renders the title, tag and "% Complete" with its bar, and no row id (the Project Board comp)', () => {
     render(<BoardCard card={card('PRJ-1', 'todo', { title: 'Billing retries', tag: 'Bug', pct: 60 })} />);
     expect(screen.getByText('Billing retries')).toBeTruthy();
     expect(screen.getByText('Bug')).toBeTruthy();
-    expect(screen.getByText('60%')).toBeTruthy();
-    expect(screen.getByText('PRJ-1')).toBeTruthy();
+    expect(screen.getByText('60% Complete')).toBeTruthy();
+    expect(screen.queryByText('PRJ-1')).toBeNull();
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('60');
+  });
+
+  it('draws the comp card: priority pill in its own tone, who it is for, the amount by the progress, owner and due day', () => {
+    render(
+      <BoardCard
+        card={card('9', 'doing', { title: 'Holiday launch', priority: 'High', priorityTone: 'warn', client: 'Marketing', budget: '$38,000', pct: 62, owner: 'Juniper Walsh', due: 'Dec 20, 2026' })}
+      />,
+    );
+    const pill = document.querySelector('[data-part="board-card-priority"]')!;
+    expect(pill.textContent).toBe('High');
+    expect(pill.getAttribute('data-tone')).toBe('warn');
+    expect(pill.className).not.toContain('uppercase');
+    expect(document.querySelector('[data-part="board-card-client"]')!.textContent).toBe('Marketing');
+    expect(screen.getByText('62% Complete')).toBeTruthy();
+    expect(screen.getByText('$38,000')).toBeTruthy();
+    expect(document.querySelector('[data-part="board-card-due"]')!.textContent).toBe('Dec 20, 2026');
+    expect(screen.getByText('JW')).toBeTruthy();
+  });
+
+  it('the swimlane card (compact) prints the card id at its foot, as the Kanban Swimlanes comp does', () => {
+    render(<BoardCard compact card={card('DS-3', 'todo', { title: 'Dark mode tokens', points: 2 })} />);
+    expect(screen.getByText('DS-3')).toBeTruthy();
+    expect(screen.getByText('2pt')).toBeTruthy();
   });
 });
 
@@ -123,13 +146,13 @@ describe('kanban-board: what a host may add (each left out, the board is as it w
     expect(screen.getByText('D-7')).toBeTruthy();
     expect(screen.queryByText('7')).toBeNull();
     cleanup();
-    // An empty foot prints nothing; with none given the id is printed, as before.
+    // An empty foot prints nothing, and neither does none: a row's id is no word for a person (the comp prints none).
     render(<BoardCard card={card('7', 'todo', { foot: '' })} />);
     expect(screen.queryByText('7')).toBeNull();
     expect(document.querySelector('[data-part="board-card-lines"]')).toBeNull();
     cleanup();
     render(<BoardCard card={card('7', 'todo')} />);
-    expect(screen.getByText('7')).toBeTruthy();
+    expect(screen.queryByText('7')).toBeNull();
   });
 
   it('a card that may not be moved is not picked up; with a way to open it, Tab stops there and Enter opens it', () => {
@@ -519,12 +542,21 @@ describe('kanban-swimlane-grid', () => {
     expect(within(screen.getByTestId('cell-drop-platform-in_progress')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
   });
 
-  it('insets the column header row (px-2) to line up with each lane’s p-2 cell columns', () => {
+  it('lines the column headers up with the cells: the header row starts with a space as wide as the lane names', () => {
     const { container } = render(
       <KanbanSwimlaneGrid cards={[card('1', 'todo', { lane: 'growth' })]} columns={COLUMNS} lanes={LANES} />,
     );
     const header = container.querySelector('[data-part="column-header-row"]')!;
-    expect(header.className).toContain('px-2');
+    const laneName = container.querySelector('[data-board-lane] header')!;
+    expect(header.firstElementChild!.className).toContain('w-[150px]');
+    expect(laneName.className).toContain('w-[150px]');
+  });
+
+  it('names a lane that is a link by what its cards read through it, and counts a lane with no points', () => {
+    const cards = [card('1', 'todo', { lane: '5', laneLabel: 'Ana Ferreira' }), card('2', 'done', { lane: '5', laneLabel: 'Ana Ferreira' })];
+    render(<KanbanSwimlaneGrid cards={cards} columns={COLUMNS} lanes={resolveLanes(cards)} />);
+    expect(screen.getByRole('heading', { name: 'Ana Ferreira' })).toBeTruthy();
+    expect(screen.getByText('2 cards')).toBeTruthy();
   });
 
   it('shows a lane summary of Σpoints · count', () => {
@@ -708,8 +740,8 @@ describe('kanban-board — a card’s own actions, a column’s badge, and openi
     expect(container.querySelector('[data-part="board-card-actions"]')).toBeNull();
     expect(container.querySelector('[data-part="column-badge"]')).toBeNull();
     expect(container.querySelector('[data-part="board-open-hint"]')).toBeNull();
-    // The card stands in its cell as it always did, with nothing round it.
-    expect(grabCardEl('Card 1').parentElement?.hasAttribute('data-board-cell')).toBe(true);
+    // The card stands in its column's list, with nothing round it.
+    expect(grabCardEl('Card 1').parentElement?.getAttribute('data-part')).toBe('column-cards');
     rerender(<KanbanBoard cards={[card('1', 'todo', { actions: ACTIONS })]} columns={COLUMNS} />);
     expect(container.querySelector('[data-part="board-card-actions"]')).toBeNull();
     rerender(<KanbanBoard cards={[card('1', 'todo', { actions: [] })]} columns={COLUMNS} onCardAction={vi.fn()} />);

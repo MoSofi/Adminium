@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "Add a status field to group cards into columns.",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "No board columns",
     "ui:widgets.boards.notAdded": "{title} was not added.",
-    "ui:widgets.boards.notMoved": "{title} was not moved."
+    "ui:widgets.boards.notMoved": "{title} was not moved.",
+    "ui:widgets.boards.pct": "{pct}%",
+    "ui:widgets.boards.pctComplete": "{pct}% Complete"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "Dismiss",

@@ -19139,6 +19139,22 @@
     "status": "mt",
     "srcHash": "f888c4304dff"
   },
+  "onboarding.done.database.connected": {
+    "status": "mt",
+    "srcHash": "a3b13b48f07d"
+  },
+  "onboarding.done.database.failed": {
+    "status": "mt",
+    "srcHash": "d1dfc5cf5800"
+  },
+  "onboarding.done.database.pages": {
+    "status": "mt",
+    "srcHash": "45c4237fe55a"
+  },
+  "onboarding.done.database.tables": {
+    "status": "mt",
+    "srcHash": "db10bd636e41"
+  },
   "onboarding.done.invited": {
     "status": "mt",
     "srcHash": "dba6e9556208"
@@ -19151,9 +19167,21 @@
     "status": "mt",
     "srcHash": "b0c2d3c2eacf"
   },
+  "onboarding.done.next.connected": {
+    "status": "mt",
+    "srcHash": "4396bed457a3"
+  },
+  "onboarding.done.next.connectedNoPages": {
+    "status": "mt",
+    "srcHash": "4fda5f5fa99c"
+  },
   "onboarding.done.next.generate": {
     "status": "mt",
     "srcHash": "d94609f8a3fa"
+  },
+  "onboarding.done.next.ready": {
+    "status": "mt",
+    "srcHash": "66fcf674ae23"
   },
   "onboarding.done.storage.local": {
     "status": "mt",
@@ -19207,6 +19235,10 @@
     "status": "mt",
     "srcHash": "66e456e4ba1d"
   },
+  "onboarding.meta.bodyConnected": {
+    "status": "mt",
+    "srcHash": "6f3b927d1832"
+  },
   "onboarding.meta.label": {
     "status": "mt",
     "srcHash": "81f430530d5b"
@@ -19246,6 +19278,10 @@
   "onboarding.meta.sameDb.alreadyAdminium": {
     "status": "mt",
     "srcHash": "de73a4ddce29"
+  },
+  "onboarding.meta.sameDb.alreadyConnected": {
+    "status": "mt",
+    "srcHash": "0557ee5d8995"
   },
   "onboarding.meta.sameDb.body": {
     "status": "mt",
@@ -36419,6 +36455,10 @@
     "srcHash": "9ac0b366494f",
     "status": "mt"
   },
+  "ui.templates.board.addItem": {
+    "status": "mt",
+    "srcHash": "13fbb26d5625"
+  },
   "ui.templates.board.columnsCut": {
     "status": "mt",
     "srcHash": "a01282e576b1"
@@ -36447,6 +36487,22 @@
     "status": "mt",
     "srcHash": "d1b81f700d2f"
   },
+  "ui.templates.board.itemName": {
+    "status": "mt",
+    "srcHash": "b9e1a0d0ce11"
+  },
+  "ui.templates.board.newCard": {
+    "status": "mt",
+    "srcHash": "cf9c15135944"
+  },
+  "ui.templates.board.newItem": {
+    "status": "mt",
+    "srcHash": "163dabd83cca"
+  },
+  "ui.templates.board.nextYear": {
+    "status": "mt",
+    "srcHash": "22c6f667e410"
+  },
   "ui.templates.board.noColumnsBody": {
     "status": "mt",
     "srcHash": "32c513e11a5f"
@@ -36467,9 +36523,21 @@
     "status": "mt",
     "srcHash": "8c41ae88467f"
   },
+  "ui.templates.board.previousYear": {
+    "status": "mt",
+    "srcHash": "2f866c70871d"
+  },
+  "ui.templates.board.roadmapYear": {
+    "status": "mt",
+    "srcHash": "7a325251a212"
+  },
   "ui.templates.board.secondAmount": {
     "status": "src",
     "srcHash": "d8a3ffc0b8cc"
+  },
+  "ui.templates.board.thisYear": {
+    "status": "mt",
+    "srcHash": "094c097f3b07"
   },
   "ui.templates.board.toolbar": {
     "status": "mt",
@@ -36807,13 +36875,9 @@
     "srcHash": "7f8a6fad8b7c",
     "status": "mt"
   },
-  "ui.templates.calendar.agendaTitle": {
-    "status": "src",
-    "srcHash": "891e9d6d47f1"
-  },
-  "ui.templates.calendar.categoriesTitle": {
-    "srcHash": "6ccb60071be8",
-    "status": "mt"
+  "ui.templates.calendar.calendarsTitle": {
+    "status": "mt",
+    "srcHash": "9444501818e6"
   },
   "ui.templates.calendar.composeChoose": {
     "status": "mt",
@@ -37883,9 +37947,33 @@
     "status": "mt",
     "srcHash": "4d78c667b740"
   },
+  "ui.templates.scheduler.addRefused": {
+    "status": "mt",
+    "srcHash": "6cb81a08d555"
+  },
   "ui.templates.scheduler.addShift": {
     "srcHash": "402f0f9825b6",
     "status": "mt"
+  },
+  "ui.templates.scheduler.addShiftSubtitle": {
+    "status": "mt",
+    "srcHash": "0348d9745a09"
+  },
+  "ui.templates.scheduler.cellHint": {
+    "status": "mt",
+    "srcHash": "b94c564177bb"
+  },
+  "ui.templates.scheduler.day": {
+    "status": "mt",
+    "srcHash": "eb9a4bc1c0c1"
+  },
+  "ui.templates.scheduler.end": {
+    "status": "mt",
+    "srcHash": "a2bb9d34b8a1"
+  },
+  "ui.templates.scheduler.hoursUnit": {
+    "status": "mt",
+    "srcHash": "a23c4292a16b"
   },
   "ui.templates.scheduler.invalidLayout": {
     "srcHash": "7a1488e82961",
@@ -37907,9 +37995,45 @@
     "srcHash": "18f7bc8dfe90",
     "status": "mt"
   },
+  "ui.templates.scheduler.start": {
+    "status": "mt",
+    "srcHash": "952f375412e8"
+  },
+  "ui.templates.scheduler.stats.hours": {
+    "status": "mt",
+    "srcHash": "61ec42f6af2c"
+  },
+  "ui.templates.scheduler.stats.shifts": {
+    "status": "mt",
+    "srcHash": "83760bbe0fbd"
+  },
+  "ui.templates.scheduler.stats.staff": {
+    "status": "mt",
+    "srcHash": "d27542ce6d93"
+  },
+  "ui.templates.scheduler.stats.uncovered": {
+    "status": "mt",
+    "srcHash": "edea56a83386"
+  },
+  "ui.templates.scheduler.teamMember": {
+    "status": "mt",
+    "srcHash": "1ce7812936cb"
+  },
+  "ui.templates.scheduler.thisWeek": {
+    "status": "mt",
+    "srcHash": "7b72883e078a"
+  },
+  "ui.templates.scheduler.type": {
+    "status": "mt",
+    "srcHash": "3deb74565196"
+  },
   "ui.templates.scheduler.week": {
     "srcHash": "f82be68a7fb4",
     "status": "mt"
+  },
+  "ui.templates.scheduler.weekOf": {
+    "status": "mt",
+    "srcHash": "fa356226036f"
   },
   "ui.templates.settings.emptyBody": {
     "srcHash": "9f2eeeb902fa",
@@ -38059,9 +38183,17 @@
     "srcHash": "2c4ff6ad8f40",
     "status": "mt"
   },
+  "ui.widgets.boards.laneCount": {
+    "status": "mt",
+    "srcHash": "28eb22aade73"
+  },
   "ui.widgets.boards.laneSummary": {
     "srcHash": "bf27a547e5ff",
     "status": "mt"
+  },
+  "ui.widgets.boards.noLane": {
+    "status": "mt",
+    "srcHash": "6eef6648406c"
   },
   "ui.widgets.boards.notAdded": {
     "status": "mt",
@@ -38070,6 +38202,14 @@
   "ui.widgets.boards.notMoved": {
     "status": "mt",
     "srcHash": "671050a01b6d"
+  },
+  "ui.widgets.boards.pct": {
+    "status": "mt",
+    "srcHash": "e95f652018ff"
+  },
+  "ui.widgets.boards.pctComplete": {
+    "status": "mt",
+    "srcHash": "578be9d3b956"
   },
   "ui.widgets.boards.pointsUnit": {
     "srcHash": "4abdfc6d463e",
@@ -38107,6 +38247,10 @@
     "srcHash": "18bef0ef5909",
     "status": "mt"
   },
+  "ui.widgets.calendar.calendarMonth.newEvent": {
+    "status": "mt",
+    "srcHash": "2ef3795c9792"
+  },
   "ui.widgets.calendar.calendarMonth.nextLabel": {
     "srcHash": "8abf7cf1d0b3",
     "status": "mt"
@@ -38118,6 +38262,10 @@
   "ui.widgets.calendar.calendarMonth.previousLabel": {
     "srcHash": "46a299215300",
     "status": "mt"
+  },
+  "ui.widgets.calendar.calendarMonth.today": {
+    "status": "mt",
+    "srcHash": "24345a14377f"
   },
   "ui.widgets.calendar.capacityBoard.assignmentLabel": {
     "srcHash": "06538dfeb7dc",
@@ -39911,9 +40059,49 @@
     "srcHash": "18bef0ef5909",
     "status": "mt"
   },
+  "ui.widgets.domain.ganttChart.months": {
+    "status": "mt",
+    "srcHash": "200dcdce9b5a"
+  },
+  "ui.widgets.domain.ganttChart.stats.atRisk": {
+    "status": "mt",
+    "srcHash": "b04189af9434"
+  },
+  "ui.widgets.domain.ganttChart.stats.milestones": {
+    "status": "mt",
+    "srcHash": "e7bdefe8f85d"
+  },
+  "ui.widgets.domain.ganttChart.stats.onTrack": {
+    "status": "mt",
+    "srcHash": "38350e8c01fa"
+  },
+  "ui.widgets.domain.ganttChart.stats.tasks": {
+    "status": "mt",
+    "srcHash": "d0ecac34cbfb"
+  },
+  "ui.widgets.domain.ganttChart.taskColumn": {
+    "status": "mt",
+    "srcHash": "7bb0ddf9221c"
+  },
+  "ui.widgets.domain.ganttChart.taskCount": {
+    "status": "mt",
+    "srcHash": "dd34a0e7389e"
+  },
+  "ui.widgets.domain.ganttChart.today": {
+    "status": "mt",
+    "srcHash": "24345a14377f"
+  },
   "ui.widgets.domain.ganttChart.ungroupedLabel": {
     "srcHash": "090ec5f560fc",
     "status": "mt"
+  },
+  "ui.widgets.domain.ganttChart.weeks": {
+    "status": "mt",
+    "srcHash": "7d75266a53b9"
+  },
+  "ui.widgets.domain.ganttChart.zoom": {
+    "status": "mt",
+    "srcHash": "1de902004a07"
   },
   "ui.widgets.domain.ipAllowlistCard.copiedLabel": {
     "srcHash": "8e3df45a49db",

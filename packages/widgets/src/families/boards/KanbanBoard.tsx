@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
 import { BoardCard } from './BoardCard.js';
@@ -72,6 +72,10 @@ const DOT_TONE: Record<Tone, string> = {
 export interface KanbanBoardLabels {
   announcements?: Partial<BoardAnnouncements> | undefined;
   addLabel?: string | undefined;
+  /** The column composer's words: its placeholder, its add button ("Add project") and cancel. */
+  composePlaceholder?: string | undefined;
+  composeAdd?: string | undefined;
+  composeCancel?: string | undefined;
   gripLabel?: string | undefined;
   pointsUnit?: string | undefined;
   emptyTitle?: string | undefined;
@@ -116,6 +120,16 @@ export interface KanbanBoardProps {
   canMoveCard?: ((cardId: string) => boolean) | undefined;
   /** Drawn at the foot of each column, under its cards (a composer of the host's). */
   columnFooter?: ((column: ColumnDef) => ReactNode) | undefined;
+  /**
+   * A card typed into a column's own composer (the comp's "+": a name, then
+   * Add or Enter). Given, the "+" opens the composer instead of adding at
+   * once; return the save's promise so the name is kept until it holds.
+   */
+  onCompose?: ((columnId: string, title: string) => MoveResult) | undefined;
+  /** Open the composer in a column from outside the board (a "New …" button): a new `at` opens it again. */
+  composeRequest?: { column: string; at: number } | null | undefined;
+  /** The Kanban Roadmap comp's card: its theme, the title, progress with the owner. */
+  roadmapCards?: boolean | undefined;
   testId?: string | undefined;
 }
 
@@ -135,6 +149,9 @@ export function KanbanBoard({
   onDismissAddRefusal,
   canMoveCard,
   columnFooter,
+  onCompose,
+  composeRequest,
+  roadmapCards = false,
   testId,
 }: KanbanBoardProps) {
   const t = useMaybeT();
@@ -142,6 +159,17 @@ export function KanbanBoard({
   const { message, announce } = useLiveRegion();
   // An add from a column's own button that was refused; the host's (a composer's) comes in `addRefusal`.
   const [ownAddRefusal, setOwnAddRefusal] = useState<BoardAddRefusal | null>(null);
+  // The column whose composer is open (the comp's "+"), or none.
+  const [composing, setComposing] = useState<string | null>(null);
+  const requestAt = composeRequest?.at;
+  useEffect(() => {
+    if (composeRequest === null || composeRequest === undefined) return;
+    setComposing(composeRequest.column);
+    // The column it opened in is brought into view.
+    const column = root.current?.querySelector<HTMLElement>(`[data-board-column="${CSS.escape(composeRequest.column)}"]`);
+    column?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    // Only a new request opens it (a new `at`): the column alone changing is not one.
+  }, [requestAt]);
   const notAdded = ownAddRefusal ?? addRefusal ?? null;
   useAnnounceAddRefusal(notAdded, announce);
   const announcements: BoardAnnouncements = useBoardAnnouncements(labels?.announcements);
@@ -197,6 +225,29 @@ export function KanbanBoard({
   };
 
   const locked = (cardId: string): boolean => canMoveCard !== undefined && !canMoveCard(cardId);
+
+  const composeIn = (columnId: string): void => {
+    setOwnAddRefusal(null);
+    setComposing(columnId);
+  };
+  const saveComposed = (columnId: string, title: string): MoveResult => {
+    setOwnAddRefusal(null);
+    const result = onCompose?.(columnId, title);
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      return (result as Promise<unknown>).then(
+        (value) => {
+          setComposing(null);
+          return value;
+        },
+        (error: unknown) => {
+          setOwnAddRefusal({ title, reason: refusalReasonOf(error) });
+          throw error;
+        },
+      );
+    }
+    setComposing(null);
+    return result;
+  };
 
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>, card: BoardCardData): void => {
     if (locked(card.id)) {
@@ -264,7 +315,8 @@ export function KanbanBoard({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div data-board-scroller="" className="flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto p-3">
+        {/* The comp's board: columns side by side and as wide as the room allows, never narrower than a card. */}
+        <div data-board-scroller="" className="grid h-full min-h-0 flex-1 auto-cols-[minmax(260px,1fr)] grid-flow-col items-start gap-4 overflow-x-auto pb-2">
           {columns.map((column) => {
             const columnCards = cards.filter((card) => moves.cellKeyOf(card) === column.id);
             // The count somebody made of ALL the column's cards, moved by the cards a drop has just put in or taken
@@ -281,16 +333,21 @@ export function KanbanBoard({
                       saving.filter((card) => card.column === column.id).length,
                   );
             const overWip = column.wip !== undefined && held > column.wip;
+            const canAdd = allowAdd && (onCompose !== undefined || onAdd !== undefined);
             return (
-              <section
+              <DroppableCell
                 key={column.id}
-                data-board-column={column.id}
-                className="flex w-72 shrink-0 flex-col rounded-xl bg-surface-2/60"
+                id={column.id}
+                column={column.id}
+                testId={`column-drop-${column.id}`}
+                highlight={moves.grabTargetKey === column.id}
+                className="flex max-h-full min-h-[120px] min-w-0 flex-col rounded-[16px] border border-border bg-surface-2 px-3 pb-3.5 pt-3 leading-[normal] transition-colors duration-150"
+                activeClassName="border-dashed border-accent bg-accent-soft outline outline-[0.5px] outline-accent"
               >
                 {/* It wraps: a total of two figures takes a line of its own under the heading, never cut short. */}
-                <header className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5">
-                  <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${DOT_TONE[column.tone]}`} />
-                  <span className="min-w-0 truncate text-body-sm font-semibold text-fg">{column.label}</span>
+                <header className="flex flex-wrap items-center gap-x-[9px] gap-y-1 px-1 pb-3 pt-0.5">
+                  <span aria-hidden="true" className={`size-[9px] shrink-0 rounded-full ${DOT_TONE[column.tone]}`} />
+                  <h3 className="m-0 min-w-0 truncate text-[13.5px] font-extrabold tracking-[-0.01em] text-fg">{column.label}</h3>
                   {column.badge === undefined ? null : (
                     <span data-part="column-badge" className="shrink-0 rounded-full border border-border px-1.5 text-[10.5px] font-medium tabular-nums text-fg-muted">
                       {column.badge}
@@ -299,8 +356,8 @@ export function KanbanBoard({
                   <span
                     data-part="column-count"
                     className={
-                      'ms-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[10.5px] font-bold tabular-nums ' +
-                      (overWip ? 'bg-danger text-accent-fg' : 'bg-surface-3 text-fg-muted')
+                      'inline-flex shrink-0 items-center justify-center rounded-full px-2 py-px font-mono text-[11px] font-semibold tabular-nums ' +
+                      (overWip ? 'bg-danger text-accent-fg' : 'bg-surface-3 text-fg-subtle')
                     }
                   >
                     {column.wip === undefined ? held : `${held}/${column.wip}`}
@@ -310,24 +367,29 @@ export function KanbanBoard({
                       {column.total}
                     </span>
                   )}
-                  {allowAdd && (
+                  {canAdd && (
                     <button
                       type="button"
                       data-part="column-add"
-                      onClick={() => addTo(column.id)}
+                      onClick={() => (onCompose === undefined ? addTo(column.id) : composeIn(column.id))}
                       aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
-                      className={`${column.total === undefined ? 'ms-auto' : ''} flex size-6 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`}
+                      title={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
+                      className={`${column.total === undefined ? 'ms-auto' : ''} flex size-[26px] shrink-0 items-center justify-center rounded-[7px] text-fg-subtle transition-colors hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:scale-[.92]`}
                     >
                       <Plus className="size-4" aria-hidden="true" />
                     </button>
                   )}
                 </header>
-                <DroppableCell
-                  id={column.id}
-                  testId={`column-drop-${column.id}`}
-                  highlight={moves.grabTargetKey === column.id}
-                  className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2"
-                >
+                {composing === column.id && onCompose !== undefined ? (
+                  <ColumnComposer
+                    placeholder={labels?.composePlaceholder ?? t('ui:widgets.boards.inlineComposeCard.placeholder', 'Card title…')}
+                    addLabel={labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')}
+                    cancelLabel={labels?.composeCancel ?? t('ui:widgets.boards.inlineComposeCard.cancelLabel', 'Cancel')}
+                    onSave={(title) => saveComposed(column.id, title)}
+                    onCancel={() => setComposing(null)}
+                  />
+                ) : null}
+                <div data-part="column-cards" className="flex min-h-[60px] flex-col gap-2.5 overflow-y-auto">
                   {columnCards.map((card) => {
                     const actions = onCardAction === undefined ? undefined : card.actions;
                     const withMenu = actions !== undefined && actions.length > 0;
@@ -338,13 +400,14 @@ export function KanbanBoard({
                         grabbed={moves.isGrabbed(card.id)}
                         {...(locked(card.id) ? { disabled: true, tabbable: onCardOpen !== undefined } : opensByKey ? { ariaDescribedBy: openHintId } : {})}
                         ariaLabel={card.title}
-                        className={`${withMenu ? 'peer ' : ''}rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+                        className={`${withMenu ? 'peer ' : ''}cursor-grab rounded-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
                         onKeyDown={(event) => onCardKeyDown(event, card)}
                         {...(onCardOpen === undefined ? {} : { onClick: () => onCardOpen(card.id) })}
                       >
                         <BoardCard
                           card={card}
                           columnTone={column.tone}
+                          {...(roadmapCards ? { roadmap: true } : {})}
                           {...(withMenu ? { actionsSpace: true } : {})}
                           {...(locale === undefined ? {} : { locale })}
                           {...(labels?.gripLabel === undefined ? {} : { gripLabel: labels.gripLabel })}
@@ -366,28 +429,108 @@ export function KanbanBoard({
                       </div>
                     );
                   })}
-                </DroppableCell>
+                </div>
                 {columnFooter === undefined ? null : (
-                  <div data-part="column-footer" className="px-2 pb-2">
+                  <div data-part="column-footer" className="pt-2">
                     {columnFooter(column)}
                   </div>
                 )}
-              </section>
+              </DroppableCell>
             );
           })}
         </div>
         <DragOverlay>
           {activeCard === null ? null : (
-            <div className="w-72">
+            <div className="w-[280px]">
               <BoardCard
                 card={activeCard}
                 columnTone={columnById.get(moves.cellKeyOf(activeCard))?.tone ?? 'accent'}
+                {...(roadmapCards ? { roadmap: true } : {})}
                 {...(locale === undefined ? {} : { locale })}
               />
             </div>
           )}
         </DragOverlay>
       </DndContext>
+    </div>
+  );
+}
+
+/**
+ * A column's own composer (the comp's "+"): an accent-edged card with the
+ * name field, Add and Cancel; Enter adds, Escape closes. The name stays, and
+ * cannot be edited, until the save answers; a refused one is kept to fix.
+ */
+function ColumnComposer({
+  placeholder,
+  addLabel,
+  cancelLabel,
+  onSave,
+  onCancel,
+}: {
+  placeholder: string;
+  addLabel: string;
+  cancelLabel: string;
+  onSave: (title: string) => MoveResult;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const save = (): void => {
+    const title = draft.trim();
+    if (title === '' || saving) return;
+    const result = onSave(title);
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      setSaving(true);
+      (result as Promise<unknown>).then(
+        () => setSaving(false),
+        () => setSaving(false),
+      );
+    }
+  };
+  return (
+    <div data-part="column-composer" className="mb-2.5 animate-[nb-pop_.16s_ease] rounded-[12px] border border-accent bg-surface p-3 shadow-card">
+      <input
+        type="text"
+        autoFocus
+        value={draft}
+        readOnly={saving}
+        aria-busy={saving || undefined}
+        aria-label={placeholder}
+        placeholder={placeholder}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            save();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            onCancel();
+          }
+        }}
+        className="w-full rounded-[8px] border border-border bg-surface-2 px-2.5 py-2 text-[13px] font-semibold text-fg outline-none placeholder:font-medium placeholder:text-fg-subtle focus-visible:border-accent"
+      />
+      <div className="mt-[9px] flex gap-1.5">
+        <button
+          type="button"
+          data-part="compose-add"
+          disabled={saving || draft.trim() === ''}
+          onClick={save}
+          className="flex-1 rounded-[8px] bg-accent p-[7px] text-[12px] font-bold text-accent-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {addLabel}
+        </button>
+        <button
+          type="button"
+          data-part="compose-cancel"
+          onClick={onCancel}
+          className="rounded-[8px] border border-border bg-surface px-[11px] py-[7px] text-[12px] font-bold text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          {cancelLabel}
+        </button>
+      </div>
     </div>
   );
 }

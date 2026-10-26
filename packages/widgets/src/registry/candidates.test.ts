@@ -125,6 +125,149 @@ describe('kpi.money-sum on money kept in minor units (walk fix E3)', () => {
   });
 });
 
+describe('boards.workflow-enum reads the newest rows first', () => {
+  /*
+   * The board's list stops at 200 rows. With no order it read the table's
+   * first rows — on a table with history all long done — and the working
+   * columns came up empty.
+   */
+  const boardOf = (input: CandidateTableInput) =>
+    emitCandidates(input.table, input.classified, ctx).find((c) => c.rule === 'boards.workflow-enum') as WidgetCandidate;
+  const status = { name: 'status', logicalType: 'enum', semantic: 'status-workflow', enumValues: ['todo', 'doing', 'done'] };
+
+  it('orders by the created-at column, newest first', () => {
+    expect(boardOf(orders).binding).toMatchObject({ orderBy: [{ column: 'created_at', dir: 'desc' }], limit: 200 });
+  });
+
+  it('orders a scheduled table (no created-at) by the start of its date range', () => {
+    const batches = build('public.roast_batches', [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'batch_code', logicalType: 'varchar', semantic: 'plain' },
+      status,
+      { name: 'scheduled_start', logicalType: 'timestamptz', semantic: 'date-range', pair: { role: 'start', partner: 'scheduled_end' } },
+      { name: 'scheduled_end', logicalType: 'timestamptz', semantic: 'date-range', pair: { role: 'end', partner: 'scheduled_start' } },
+    ]);
+    expect(boardOf(batches).binding.orderBy).toEqual([{ column: 'scheduled_start', dir: 'desc' }]);
+  });
+
+  it('falls back to a single-column key when the table has no date', () => {
+    const tasks = build('public.tasks', [
+      { name: 'task_id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'title', logicalType: 'varchar', semantic: 'plain' },
+      status,
+    ]);
+    expect(boardOf(tasks).binding.orderBy).toEqual([{ column: 'task_id', dir: 'desc' }]);
+  });
+
+  it('asks for no order when there is neither a date nor a single key', () => {
+    const keyless = build('public.cards', [
+      { name: 'title', logicalType: 'varchar', semantic: 'plain' },
+      status,
+    ]);
+    expect(boardOf(keyless).binding.orderBy).toBeUndefined();
+  });
+});
+
+describe('boards.workflow-enum draws the Project Board comp’s card and summary', () => {
+  const employees = build(
+    'public.employees',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'first_name', logicalType: 'varchar', semantic: 'person-name' },
+      { name: 'last_name', logicalType: 'varchar', semantic: 'person-name' },
+    ],
+    { displayColumn: 'first_name', shape: 'people' },
+  );
+  const departments = build(
+    'public.departments',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+    ],
+    { displayColumn: 'name' },
+  );
+  const projects = build(
+    'public.projects',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+      { name: 'status', logicalType: 'enum', semantic: 'status-workflow', enumValues: ['planning', 'active', 'on_hold', 'completed'] },
+      { name: 'priority', logicalType: 'enum', semantic: 'category-enum', enumValues: ['low', 'normal', 'high'] },
+      { name: 'owner_id', logicalType: 'integer', semantic: 'fk', references: { tableId: 'public.employees', column: 'id' } },
+      { name: 'department_id', logicalType: 'integer', semantic: 'fk', references: { tableId: 'public.departments', column: 'id' } },
+      { name: 'budget', logicalType: 'decimal', semantic: 'money' },
+      { name: 'progress_pct', logicalType: 'integer', semantic: 'percent' },
+      { name: 'due_on', logicalType: 'date', semantic: 'event-timestamp' },
+      { name: 'created_at', logicalType: 'timestamptz', semantic: 'created-at' },
+    ],
+    { displayColumn: 'name', shape: 'workflow' },
+  );
+  const model = [projects, employees, departments];
+  const boardOf = (input: CandidateTableInput) =>
+    emitCandidates(input.table, input.classified, { ...ctx, model }).find((c) => c.rule === 'boards.workflow-enum') as WidgetCandidate;
+
+  it('reads who it is for, its owner (first and last name), amount, due day and priority with the rows', () => {
+    const board = boardOf(projects);
+    expect(board.config['card']).toEqual({
+      link: 'department_id.name',
+      owner: ['owner_id.first_name', 'owner_id.last_name'],
+      amount: 'budget',
+      date: 'due_on',
+      priority: 'priority',
+    });
+    expect(board.binding.lookups).toEqual([
+      'adm_card_link:department_id.name',
+      'adm_card_owner_0:owner_id.first_name',
+      'adm_card_owner_1:owner_id.last_name',
+    ]);
+    expect(board.binding.select).toEqual(expect.arrayContaining(['name', 'status', 'owner_id', 'department_id', 'budget', 'due_on', 'priority']));
+  });
+
+  it('gives a board no lanes from a priority (drawn on the card) or a person, nor where a lane would hold a card or two', () => {
+    // The Project Board comp: plain columns. A department link would group 5,000 projects into 5,000 departments.
+    expect(boardOf(projects).config['laneColumn']).toBeUndefined();
+    expect(boardOf(projects).widget).toBe('kanban-board');
+  });
+
+  it('groups cards by a team or project link where each lane holds a few cards, and names each lane through the link', () => {
+    const fewDepartments = structuredClone(departments);
+    fewDepartments.table.rowCountEstimate = 6;
+    const board = emitCandidates(projects.table, projects.classified, { ...ctx, model: [projects, employees, fewDepartments] }).find((c) => c.rule === 'boards.workflow-enum') as WidgetCandidate;
+    expect(board.widget).toBe('kanban-swimlane-grid');
+    expect(board.config['laneColumn']).toBe('department_id');
+    expect((board.config['card'] as Record<string, unknown>)['laneName']).toEqual(['department_id.name']);
+    expect(board.binding.lookups).toContain('adm_card_lane_0:department_id.name');
+  });
+
+  it('asks for the four summary figures: all cards (with those added lately), under way, done, and the money', () => {
+    const board = boardOf(projects);
+    expect(board.config['stats']).toEqual([
+      { kind: 'total', label: 'Total projects', figure: 0, delta: 1 },
+      { kind: 'column', value: 'active', share: true, figure: 2 },
+      { kind: 'column', value: 'completed', share: true, figure: 3 },
+      { kind: 'amount', column: 'budget', label: 'Total budget', figure: 4 },
+    ]);
+    const asked = board.config['statBindings'] as QueryDescriptorLike[];
+    expect(asked).toHaveLength(5);
+    expect(asked[1]).toMatchObject({ shape: 'single-metric', window: { column: 'created_at', last: 30, unit: 'day' } });
+    expect(asked[2]).toMatchObject({ filters: [{ column: 'status', op: 'eq', value: 'active' }] });
+    expect(asked[4]).toMatchObject({ aggregations: [{ fn: 'sum', column: 'budget', alias: 'value' }] });
+  });
+
+  it('offers "+" and "New …" only where a card of a title and a status can be saved', () => {
+    expect(boardOf(projects).config['allowAdd']).toBe(true);
+    const required = structuredClone(projects);
+    required.table.columns = required.table.columns.map((c) => (c.name === 'owner_id' ? { ...c, nullable: false } : c));
+    expect(boardOf(required).config['allowAdd']).toBeUndefined();
+    // A required column the database fills itself is no reason to refuse.
+    const filled = structuredClone(required);
+    filled.table.columns = filled.table.columns.map((c) => (c.name === 'owner_id' ? { ...c, defaultKind: 'literal' } : c));
+    expect(boardOf(filled).config['allowAdd']).toBe(true);
+  });
+});
+
+type QueryDescriptorLike = Record<string, unknown>;
+
 function byFamily(candidates: WidgetCandidate[], family: string): WidgetCandidate[] {
   return candidates.filter((c) => c.family === family);
 }
@@ -339,6 +482,120 @@ describe('emitCandidates — determinism (H5 regeneration must be byte-identical
     );
     expect(money.map((c) => c.score)).toEqual([0.935, 0.935]);
     expect(money.map((c) => c.config['title'])).toEqual(['Total Budget', 'Total Revenue']);
+  });
+});
+
+describe('domain.start-end-phase draws the Gantt Chart comp', () => {
+  const employees = build(
+    'public.employees',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'first_name', logicalType: 'varchar', semantic: 'person-name' },
+      { name: 'last_name', logicalType: 'varchar', semantic: 'person-name' },
+    ],
+    { displayColumn: 'first_name', shape: 'people' },
+  );
+  const departments = build(
+    'public.departments',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+    ],
+    { displayColumn: 'name' },
+  );
+  const projects = build(
+    'public.projects',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+      { name: 'owner_id', logicalType: 'integer', semantic: 'fk', references: { tableId: 'public.employees', column: 'id' } },
+      { name: 'department_id', logicalType: 'integer', semantic: 'fk', references: { tableId: 'public.departments', column: 'id' } },
+      { name: 'start_on', logicalType: 'date', semantic: 'date-range', pair: { role: 'start', partner: 'due_on' } },
+      { name: 'due_on', logicalType: 'date', semantic: 'date-range', pair: { role: 'end', partner: 'start_on' } },
+      { name: 'progress_pct', logicalType: 'integer', semantic: 'percent' },
+    ],
+    { displayColumn: 'name' },
+  );
+  const model = [projects, employees, departments];
+  const ganttOf = (input: CandidateTableInput) =>
+    emitCandidates(input.table, input.classified, { ...ctx, model: [...model, input] }).find((c) => c.rule === 'domain.start-end-phase');
+
+  it('groups the plan by its team link, named through it, with each owner and the newest plans', () => {
+    const gantt = ganttOf(projects) as WidgetCandidate;
+    expect(gantt.config).toMatchObject({
+      startColumn: 'start_on',
+      endColumn: 'due_on',
+      progressColumn: 'progress_pct',
+      groupColumn: 'department_id',
+      phaseLabelField: 'adm_gantt_group',
+      ownerFields: ['adm_gantt_owner_0', 'adm_gantt_owner_1'],
+    });
+    expect(gantt.binding.lookups).toEqual([
+      'adm_gantt_group:department_id.name',
+      'adm_gantt_owner_0:owner_id.first_name',
+      'adm_gantt_owner_1:owner_id.last_name',
+    ]);
+    expect(gantt.binding.orderBy).toEqual([{ column: 'start_on', dir: 'desc' }]);
+    expect(gantt.binding.select).toEqual(expect.arrayContaining(['name', 'start_on', 'due_on', 'progress_pct', 'department_id']));
+  });
+
+  it('is no Gantt of minutes-long timestamp slots with nothing to group them by', () => {
+    const batches = build(
+      'public.roast_batches',
+      [
+        { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+        { name: 'batch_code', logicalType: 'varchar', semantic: 'plain' },
+        { name: 'scheduled_start', logicalType: 'timestamptz', semantic: 'date-range', pair: { role: 'start', partner: 'scheduled_end' } },
+        { name: 'scheduled_end', logicalType: 'timestamptz', semantic: 'date-range', pair: { role: 'end', partner: 'scheduled_start' } },
+        { name: 'development_pct', logicalType: 'decimal', semantic: 'percent' },
+      ],
+      { displayColumn: 'batch_code' },
+    );
+    expect(ganttOf(batches)).toBeUndefined();
+  });
+});
+
+describe('boards.roadmap draws the Kanban Roadmap comp', () => {
+  const employees = build(
+    'public.employees',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'first_name', logicalType: 'varchar', semantic: 'person-name' },
+      { name: 'last_name', logicalType: 'varchar', semantic: 'person-name' },
+    ],
+    { displayColumn: 'first_name', shape: 'people' },
+  );
+  const initiatives = build(
+    'public.initiatives',
+    [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+      { name: 'theme', logicalType: 'enum', semantic: 'category-enum', enumValues: ['growth', 'platform', 'wholesale'] },
+      { name: 'status', logicalType: 'enum', semantic: 'status-workflow', enumValues: ['planned', 'in_progress', 'shipped'] },
+      { name: 'owner_id', logicalType: 'integer', semantic: 'fk', references: { tableId: 'public.employees', column: 'id' } },
+      { name: 'target_on', logicalType: 'date', semantic: 'event-timestamp' },
+      { name: 'progress_pct', logicalType: 'integer', semantic: 'percent' },
+    ],
+    { displayColumn: 'name' },
+  );
+  const all = () => emitCandidates(initiatives.table, initiatives.classified, { ...ctx, model: [initiatives, employees] });
+
+  it('buckets the initiatives by the quarter they are planned for, with their theme, owner and progress', () => {
+    const roadmap = all().find((c) => c.rule === 'boards.roadmap') as WidgetCandidate;
+    expect(roadmap.widget).toBe('kanban-board');
+    expect(roadmap.config).toMatchObject({
+      bucketBy: 'quarter',
+      dateColumn: 'target_on',
+      statusColumn: 'status',
+      titleColumn: 'name',
+      progressColumn: 'progress_pct',
+      card: { tag: 'theme', owner: ['owner_id.first_name', 'owner_id.last_name'] },
+    });
+    expect(roadmap.binding.lookups).toEqual(['adm_card_owner_0:owner_id.first_name', 'adm_card_owner_1:owner_id.last_name']);
+  });
+
+  it('is the roadmap, not a status board beside it', () => {
+    expect(all().find((c) => c.rule === 'boards.workflow-enum')).toBeUndefined();
   });
 });
 

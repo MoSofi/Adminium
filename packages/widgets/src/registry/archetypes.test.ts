@@ -393,6 +393,40 @@ describe('auto-triggers — one archetype per table', () => {
     expect(selected.get('public.messages')?.template).not.toBe('page-chat');
   });
 
+  it('a plan that also moves through a workflow is a board first (the Project Board comp is a projects table)', () => {
+    const projects = build(
+      'public.projects',
+      [
+        pk,
+        { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+        { name: 'status', logicalType: 'enum', semantic: 'status-workflow', enumValues: ['planning', 'active', 'on_hold', 'completed', 'cancelled'] },
+        { name: 'start_on', logicalType: 'date', semantic: 'date-range', pair: { role: 'start', partner: 'due_on' } },
+        { name: 'due_on', logicalType: 'date', semantic: 'date-range', pair: { role: 'end', partner: 'start_on' } },
+        { name: 'progress_pct', logicalType: 'integer', semantic: 'percent' },
+      ],
+      { displayColumn: 'name' },
+    );
+    expect(pick(projects)).toBe('page-board');
+    // The timeline is still offered, below it.
+    expect(scoreArchetypes(projects.table, projects.classified, ctx).map((a) => a.template)).toContain('page-master-detail');
+  });
+
+  it('initiatives planned by a day → page-board as a roadmap by quarter', () => {
+    const initiatives = build(
+      'public.initiatives',
+      [
+        pk,
+        { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+        { name: 'theme', logicalType: 'enum', semantic: 'category-enum', enumValues: ['growth', 'platform'] },
+        { name: 'target_on', logicalType: 'date', semantic: 'event-timestamp' },
+      ],
+      { displayColumn: 'name' },
+    );
+    const selection = selectArchetype(initiatives.table, initiatives.classified, ctx);
+    expect(selection?.template).toBe('page-board');
+    expect(selection?.reasons.join(' ')).toContain('roadmap');
+  });
+
   it('start/end + progress + phase FK → page-master-detail (gantt detail pane)', () => {
     const projectTasks = build(
       'public.project_tasks',

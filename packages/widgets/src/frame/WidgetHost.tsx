@@ -66,6 +66,8 @@ export interface WidgetHostProps {
    * the global registry.
    */
   registry?: ReadonlyMap<string, WidgetDefinition> | undefined;
+  /** No card chrome: for a widget that draws its own cards and is the whole page body. */
+  frameless?: boolean | undefined;
 }
 
 const noopEvent = (): void => {};
@@ -134,6 +136,7 @@ export function WidgetHost({
   menu,
   info,
   registry,
+  frameless: framelessProp,
 }: WidgetHostProps) {
   const map = registry ?? widgetRegistry;
   // The offline asset policy, applied BEFORE the map is read — resolving the id
@@ -274,7 +277,7 @@ export function WidgetHost({
   }
 
   const Component = definition.component;
-  const frameless = definition.placement === 'page';
+  const frameless = framelessProp ?? definition.placement === 'page';
 
   // Raster export (`capabilities.exportPng`). The module is dynamic
   // it is DOM-only code nobody has clicked yet, and the dashboard entry chunk

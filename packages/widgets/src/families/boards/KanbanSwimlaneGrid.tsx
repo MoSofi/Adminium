@@ -216,12 +216,13 @@ export function KanbanSwimlaneGrid({
       card={card}
       grabbed={moves.isGrabbed(card.id)}
       ariaLabel={card.title}
-      className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="cursor-grab rounded-[11px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       onKeyDown={(event) => onCardKeyDown(event, card)}
       {...(onCardOpen === undefined ? {} : { onClick: () => onCardOpen(card.id) })}
     >
       <BoardCard
         card={card}
+        compact
         columnTone={columnById.get(card.column)?.tone ?? 'accent'}
         {...(locale === undefined ? {} : { locale })}
         {...(labels?.gripLabel === undefined ? {} : { gripLabel: labels.gripLabel })}
@@ -243,47 +244,59 @@ export function KanbanSwimlaneGrid({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="flex min-w-max flex-col gap-3 p-3">
-          {/* Column header row (mirrors under RTL via logical flex order). The
-              `px-2` matches each lane <section>'s p-2 inline padding so every
-              header column lines up with the DroppableCell beneath it. */}
-          <div className="flex items-center gap-3 px-2" data-part="column-header-row">
+        {/* The Kanban Swimlanes comp: a column of lane names, then a cell per status; the headers stay in view. */}
+        <div className="flex min-w-[900px] flex-col leading-[normal]">
+          <div className="sticky top-0 z-[5] flex gap-3.5 bg-bg pb-3" data-part="column-header-row">
+            <div className="w-[150px] shrink-0" />
             {columns.map((column) => (
-              <div key={column.id} className="flex w-64 shrink-0 items-center gap-2">
-                <span aria-hidden="true" className={`size-2.5 rounded-full ${DOT_TONE[column.tone]}`} />
-                <span className="text-body-sm font-semibold text-fg">{column.label}</span>
+              <div key={column.id} className="flex min-w-0 flex-1 items-center gap-2 px-1 py-0.5">
+                <span aria-hidden="true" className={`size-[9px] shrink-0 rounded-full ${DOT_TONE[column.tone]}`} />
+                <span className="truncate text-[12.5px] font-extrabold tracking-[-0.01em] text-fg">{column.label}</span>
+                <span className="shrink-0 rounded-full bg-surface-3 px-2 py-px font-mono text-[10.5px] font-semibold tabular-nums text-fg-subtle">
+                  {cards.filter((card) => decodeCell(moves.cellKeyOf(card)).columnId === column.id).length}
+                </span>
               </div>
             ))}
           </div>
 
           {lanes.map((lane) => {
             const laneCards = cards.filter((card) => decodeCell(moves.cellKeyOf(card)).laneId === lane.id);
+            const points = sumPoints(laneCards);
             return (
-              <section key={lane.id} data-board-lane={lane.id} className="flex flex-col gap-2 rounded-xl bg-surface-2/50 p-2">
-                <header className="flex items-center gap-2 px-1">
-                  <span aria-hidden="true" className={`size-2 rounded-full ${DOT_TONE[lane.tone]}`} />
-                  <span className="text-body-sm font-semibold text-fg">{lane.name}</span>
-                  <MonoText className="ms-auto text-caption text-fg-muted">
-                    {summary(sumPoints(laneCards), laneCards.length)}
+              <section key={lane.id} data-board-lane={lane.id} className="flex items-stretch gap-3.5 border-t border-border py-3.5">
+                <header className="flex w-[150px] shrink-0 flex-col gap-2 px-1 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-[3px] ${DOT_TONE[lane.tone]}`} />
+                    <h3 className="m-0 min-w-0 truncate text-[13px] font-extrabold tracking-[-0.01em] text-fg" title={lane.name}>
+                      {lane.name === '' ? t('ui:widgets.boards.noLane', 'None') : lane.name}
+                    </h3>
+                  </div>
+                  <MonoText className="text-[11px] text-fg-subtle">
+                    {points > 0 ? summary(points, laneCards.length) : t('ui:widgets.boards.laneCount', '{count, plural, one {# card} other {# cards}}', { count: laneCards.length })}
                   </MonoText>
                 </header>
-                <div className="flex items-stretch gap-3">
-                  {columns.map((column) => {
-                    const cellKey = encodeCell(lane.id, column.id);
-                    const cellCards = cards.filter((card) => moves.cellKeyOf(card) === cellKey);
-                    return (
-                      <DroppableCell
-                        key={column.id}
-                        id={cellKey}
-                        testId={`cell-drop-${lane.id}-${column.id}`}
-                        highlight={moves.grabTargetKey === cellKey}
-                        className="flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-surface/40 p-1.5"
-                      >
-                        {cellCards.map((card) => renderCard(card))}
-                      </DroppableCell>
-                    );
-                  })}
-                </div>
+                {columns.map((column) => {
+                  const cellKey = encodeCell(lane.id, column.id);
+                  const cellCards = cards.filter((card) => moves.cellKeyOf(card) === cellKey);
+                  return (
+                    <DroppableCell
+                      key={column.id}
+                      id={cellKey}
+                      testId={`cell-drop-${lane.id}-${column.id}`}
+                      highlight={moves.grabTargetKey === cellKey}
+                      className="flex min-h-[90px] min-w-0 flex-1 flex-col gap-2.5 rounded-[12px] border border-border bg-surface-2 p-2 transition-colors duration-100"
+                      activeClassName="border-dashed border-accent bg-accent-soft outline outline-[0.5px] outline-accent"
+                    >
+                      {cellCards.length === 0 ? (
+                        <div aria-hidden="true" className="flex min-h-10 flex-1 items-center justify-center text-[11px] text-fg-subtle">
+                          —
+                        </div>
+                      ) : (
+                        cellCards.map((card) => renderCard(card))
+                      )}
+                    </DroppableCell>
+                  );
+                })}
               </section>
             );
           })}
@@ -293,6 +306,7 @@ export function KanbanSwimlaneGrid({
             <div className="w-64">
               <BoardCard
                 card={activeCard}
+                compact
                 columnTone={columnById.get(activeCard.column)?.tone ?? 'accent'}
                 {...(locale === undefined ? {} : { locale })}
               />

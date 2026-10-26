@@ -130,7 +130,13 @@ export const ganttChartConfigSchema = widgetSharedConfigSchema.extend({
   progressField: z.string().default('progress'),
   phaseField: z.string().default('phase'),
   ownerField: z.string().optional(),
+  /** A person's name in parts (first and last), joined; wins over `ownerField`. */
+  ownerFields: z.array(z.string()).max(3).optional(),
+  /** What a group is called where `phaseField` holds a link's key. */
+  phaseLabelField: z.string().optional(),
   milestoneField: z.string().optional(),
+  /** The Gantt Chart comp's figures above the timeline: tasks, on track, at risk, milestones. */
+  showStats: z.boolean().default(false),
   /** Force the axis length in days; else derived from the data span. */
   totalDays: z.number().int().min(1).max(3650).optional(),
   /** Draw the today marker (resolved from `format.referenceTime`, else now). */

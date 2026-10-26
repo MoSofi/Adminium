@@ -79,8 +79,8 @@ export const WORKFLOW_VALUE_RE =
   /^(todo|to_do|backlog|open|new|pending|draft|queued|in_progress|inprogress|doing|review|in_review|approved|rejected|blocked|on_hold|done|completed?|closed|cancell?ed|archived|active|paused|failed|error|shipped|delivered|paid|overdue|refunded|trial|churned|q[1-4])$/i;
 const CREATED_AT_RE = /^(created_at|created_on|created|creation_date|date_created|inserted_at)$/;
 const UPDATED_AT_RE = /^(updated_at|updated_on|modified_at|last_modified|updatedat)$/;
-const START_RE = /(^|_)(start|begin|from|opens?)(_date|_at|_time)?$/;
-const END_RE = /(^|_)(end|finish|until|to|due|closes?)(_date|_at|_time)?$/;
+const START_RE = /(^|_)(starts?|begins?|from|opens?)(_date|_at|_time|_on)?$/;
+const END_RE = /(^|_)(ends?|finish|until|to|due|closes?)(_date|_at|_time|_on)?$/;
 const EVENT_TS_RE = /(_at|_date|_on|_time|_ts)$/;
 /**
  * Row 13 lists `_seconds|_secs|_ms|_minutes|_mins|_hours` inside the

@@ -37,11 +37,13 @@ import {
   enumColumns,
   eventDate,
   firstWithSemantic,
+  ganttPlanOf,
   isFileShaped,
   messagesChildOf,
   namedBoardColumn,
   personFk,
   projectFk,
+  roadmapOf,
   withSemantic,
   type BoardColumns,
   type CandidateContext,
@@ -162,6 +164,11 @@ export function shiftTypeColumn(view: CandidateView): ViewColumn | null {
 const pageBoard: ArchetypeRule = {
   template: 'page-board',
   match(view, ctx) {
+    // Initiatives planned by quarter: the Kanban Roadmap comp.
+    const roadmap = ctx.board === undefined ? roadmapOf(view) : null;
+    if (roadmap !== null) {
+      return { score: score(0.9), reasons: [`initiatives planned by "${roadmap.date.name}" — a roadmap by quarter`] };
+    }
     const hit = boardStatus(view, ctx.board);
     if (hit === null) return null;
     const { column: status, boardish } = hit;
@@ -379,13 +386,14 @@ const pageQueueInbox: ArchetypeRule = {
  */
 const pageMasterDetail: ArchetypeRule = {
   template: 'page-master-detail',
-  match(view) {
-    const start = dateRangeStart(view);
-    const gantt =
-      start !== null && (firstWithSemantic(view, 'percent') !== null || projectFk(view) !== null);
-    if (gantt && start !== null) {
+  match(view, ctx) {
+    const start = ganttPlanOf(view)?.start ?? null;
+    if (start !== null) {
+      // A plan that also moves through a workflow is a board first (the Project
+      // Board comp is a projects table); its timeline is a page added beside it.
+      const board = boardStatus(view, ctx.board) !== null;
       return {
-        score: score(0.8),
+        score: score(board ? 0.72 : 0.8),
         reasons: [
           `start/end pair "${start.name}"/"${start.pair?.partner ?? '?'}" with progress/phase — gantt-chart detail pane`,
         ],

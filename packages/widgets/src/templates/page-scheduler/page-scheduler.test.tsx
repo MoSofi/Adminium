@@ -150,7 +150,7 @@ describe('PageScheduler — shift matrix', () => {
     });
   });
 
-  it('an open cell slot inserts a first-type shift (the modal→grid fix)', () => {
+  it('an open cell opens the Add shift form for its person and day, and its save inserts the shift', async () => {
     const onEvent = vi.fn(() => Promise.resolve({}));
     render(
       <PageScheduler
@@ -161,13 +161,53 @@ describe('PageScheduler — shift matrix', () => {
       />,
     );
     fireEvent.click(screen.getAllByRole('button', { name: /Add shift: Ava Reyes, 2026-07-15/ })[0] as HTMLElement);
-    expect(onEvent).toHaveBeenCalledWith('sched-1', {
-      type: 'mutate',
-      intent: 'insert',
-      connectionId: CONN,
-      table: 'public.shifts',
-      values: { employee_id: 'emp-1', shift_date: '2026-07-15', shift_type: 'morning' },
-    });
+    // Nothing is written by the click itself: a real shift needs its type (and times, where the table keeps them).
+    expect(onEvent).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog');
+    expect((dialog.querySelector('select') as HTMLSelectElement).value).toBe('emp-1');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add shift' }).find((button) => dialog.contains(button)) as HTMLElement);
+    await waitFor(() =>
+      expect(onEvent).toHaveBeenCalledWith('sched-1', {
+        type: 'mutate',
+        intent: 'insert',
+        connectionId: CONN,
+        table: 'public.shifts',
+        values: { employee_id: 'emp-1', shift_date: '2026-07-15', shift_type: 'morning' },
+      }),
+    );
+  });
+
+  it('draws the Shift Scheduler comp: names read through the link, roles, chip times, hours and the week’s figures', () => {
+    const timed = {
+      ...MATRIX_CONFIG,
+      dateColumn: 'starts_at',
+      endColumn: 'ends_at',
+      personName: ['employee_id.first_name', 'employee_id.last_name'],
+    };
+    const rows = [
+      { id: 'S-1', employee_id: 5, adm_person_0: 'Ana', adm_person_1: 'Ferreira', adm_person_role: 'Production Roaster', starts_at: '2026-07-13T06:30:00Z', ends_at: '2026-07-13T14:00:00Z', shift_type: 'roastery' },
+      { id: 'S-2', employee_id: 5, adm_person_0: 'Ana', adm_person_1: 'Ferreira', adm_person_role: 'Production Roaster', starts_at: '2026-07-14T06:30:00Z', ends_at: '2026-07-14T14:00:00Z', shift_type: 'roastery' },
+    ];
+    const data = {
+      rows,
+      total: 2,
+      columns: [
+        { name: 'starts_at', logicalType: 'timestamptz' },
+        { name: 'ends_at', logicalType: 'timestamptz' },
+        { name: 'shift_type', logicalType: 'enum', enumLabels: { roastery: 'Roastery' }, enumTones: { roastery: 'warn' } },
+      ],
+    };
+    const { container } = render(<PageScheduler config={schedulerPage(timed)} states={{ 'sched-1': { status: 'success', data } }} referenceDate={TODAY} timeZone="UTC" />);
+    expect(screen.getByText('Ana Ferreira')).toBeTruthy();
+    expect(screen.getByText('Production Roaster')).toBeTruthy();
+    // The type's own words, and its times on the chip.
+    expect(screen.getAllByText('Roastery').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('06:30–14:00')).toHaveLength(2);
+    // Hours: two shifts of 7.5 hours.
+    expect(container.querySelector('[role="rowheader"]')!.textContent).toContain('15');
+    const stats = container.querySelector('[data-part="shift-stats"]')!;
+    expect(stats.textContent).toContain('Scheduled staff');
+    expect(stats.textContent).toContain('Scheduled hours');
   });
 
   it('coverage micro-bars flag zero-coverage days in danger tone', () => {

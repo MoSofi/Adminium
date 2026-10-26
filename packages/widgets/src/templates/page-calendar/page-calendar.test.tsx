@@ -199,6 +199,16 @@ describe('PageCalendar', () => {
     });
   });
 
+  it('reads the days on screen: the month’s whole grid when drawn, and the next one after "next month"', () => {
+    // A table with years of history would otherwise answer its first rows, all long past, and leave the month empty.
+    const onParamsChange = vi.fn();
+    render(<PageCalendar config={calendarPage()} states={{ 'cal-1': recordList(ROWS) }} referenceDate={TODAY} timeZone="UTC" onParamsChange={onParamsChange} />);
+    // July 2026 in an en-US grid: Sun 28 June … Sat 8 August; the end is the day after the last cell.
+    expect(onParamsChange).toHaveBeenLastCalledWith({ 'dateRange.start': '2026-06-28', 'dateRange.end': '2026-08-09' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    expect(onParamsChange).toHaveBeenLastCalledWith({ 'dateRange.start': '2026-07-26', 'dateRange.end': '2026-09-06' });
+  });
+
   it('renders the invalid-layout notice for a corrupt stored config', () => {
     render(<PageCalendar config={{ templateVersion: 1, layout: 'nope' }} />);
     expect(screen.getByTestId('page-calendar-invalid')).toBeDefined();

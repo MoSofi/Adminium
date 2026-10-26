@@ -10,6 +10,7 @@ export {
   boardColumnDefsOf,
   boardColumnsInstanceId,
   boardPeopleInstanceId,
+  boardStatInstanceId,
   boardToolbarInstanceId,
   shortNames,
   boardItemConfigOf,

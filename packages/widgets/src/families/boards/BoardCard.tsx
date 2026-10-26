@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Avatar, EmptyState, MonoText, ProgressBar, Tag } from '@adminium/ui';
+import { Avatar, EmptyState, MonoText, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
-import { GripVertical } from 'lucide-react';
+import { Calendar, GripVertical, User } from 'lucide-react';
 
 import { boardCardConfigSchema, boardCardDemoData } from './boards-config.js';
 import { boardToneOf, ownerInitials, priorityTone, toBoardCard } from './board-lib.js';
@@ -47,6 +47,30 @@ export interface BoardCardProps {
    * card's "more" button over that corner, and the grip stands before it.
    */
   actionsSpace?: boolean | undefined;
+  /** The swimlane comp's smaller card: tag and points, the title, the owner and the card's id. */
+  compact?: boolean | undefined;
+  /** The Kanban Roadmap comp's card: its theme and the grip, the title, then progress beside the owner, the bar in the theme's colour. */
+  roadmap?: boolean | undefined;
+}
+
+/** The progress bar's fill, by its column's tone: the comp's Planning grey, In Progress accent, On Hold amber, Completed green. */
+const BAR_TONE: Record<Tone, string> = {
+  neutral: 'bg-fg-subtle',
+  accent: 'bg-accent',
+  pos: 'bg-pos',
+  warn: 'bg-warn',
+  danger: 'bg-danger',
+  info: 'bg-info',
+};
+
+/** A priority's pill: the comp's rounded chip; its tone is the column's own where it has one, else read from the word. */
+function PriorityPill({ card }: { card: BoardCardData }) {
+  if (card.priority === undefined) return null;
+  return (
+    <Tag data-part="board-card-priority" tone={card.priorityTone ?? priorityTone(card.priority)} className="rounded-full px-2 py-[2px]">
+      {card.priority}
+    </Tag>
+  );
 }
 
 export function BoardCard({
@@ -57,67 +81,139 @@ export function BoardCard({
   pointsUnit,
   showGrip = true,
   actionsSpace = false,
+  compact = false,
+  roadmap = false,
 }: BoardCardProps) {
   const t = useMaybeT();
   const grip = gripLabel ?? t('ui:widgets.boards.grip', 'Drag to move card');
   const initials = ownerInitials(card.owner, locale);
   const hasPct = typeof card.pct === 'number';
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-sm">
-      <div className={actionsSpace ? 'flex min-h-5 items-start gap-2 pe-7' : 'flex items-start gap-2'}>
-        {card.tag !== undefined && (
-          <Tag tone={boardToneOf(card.tagTone, columnTone)}>{card.tag}</Tag>
+  const pct = Math.max(0, Math.min(100, Math.round(card.pct ?? 0)));
+  const gripMark = showGrip ? (
+    <span aria-hidden="true" data-part="board-card-grip" title={grip} className="ms-auto flex shrink-0 cursor-grab text-fg-subtle">
+      <GripVertical className="size-[15px]" />
+    </span>
+  ) : null;
+
+  if (compact) {
+    // A swimlane's card (Kanban Swimlanes comp): tag and points, the title, then the owner and the card's id.
+    return (
+      <div className="flex flex-col rounded-[11px] border border-border bg-surface p-3 leading-[normal] shadow-card transition-[box-shadow,border-color] duration-150 hover:border-border-strong hover:shadow-[0_6px_18px_-8px_rgba(20,20,35,.28)]">
+        {(card.tag !== undefined || card.priority !== undefined || card.points !== undefined || actionsSpace) && (
+          <div className={`mb-2 flex min-h-[18px] items-center gap-1.5${actionsSpace ? ' pe-7' : ''}`}>
+            {card.tag !== undefined && <Tag tone={boardToneOf(card.tagTone, columnTone)}>{card.tag}</Tag>}
+            <PriorityPill card={card} />
+            {card.points !== undefined && (
+              <MonoText className="ms-auto rounded-[6px] bg-surface-3 px-1.5 py-px text-[10px] font-bold text-fg-subtle">
+                {card.points}
+                {pointsUnit === undefined ? 'pt' : ` ${pointsUnit}`}
+              </MonoText>
+            )}
+          </div>
         )}
-        {card.priority !== undefined && (
-          <Tag tone={priorityTone(card.priority)} className="uppercase">
-            {card.priority}
-          </Tag>
+        <p className="mb-2.5 text-[13px] font-bold leading-[1.35] text-fg">{card.title}</p>
+        <div className="flex items-center gap-[7px]">
+          {initials !== undefined && <Avatar size="sm" name={card.owner ?? ''} className="size-[22px]" {...(locale === undefined ? {} : { locale })} />}
+          <span className="min-w-0 truncate text-[11px] text-fg-subtle">{card.foot ?? card.id}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (roadmap) {
+    // The theme's colour is the card's: its tag and its bar.
+    const tone = card.tag === undefined ? columnTone : boardToneOf(card.tagTone, columnTone);
+    return (
+      <div className="flex flex-col rounded-[12px] border border-border bg-surface p-[13px] leading-[normal] shadow-card transition-[box-shadow,border-color] duration-150 hover:border-border-strong hover:shadow-[0_6px_18px_-8px_rgba(20,20,35,.28)]">
+        <div className={`mb-[9px] flex min-h-[18px] items-center gap-1.5${actionsSpace ? ' pe-7' : ''}`}>
+          {card.tag !== undefined && (
+            <Tag data-part="board-card-tag" tone={tone} className="rounded-full px-2 py-[2px] text-[10px] font-bold">
+              {card.tag}
+            </Tag>
+          )}
+          {gripMark}
+        </div>
+        <p className="mb-[11px] text-[13.5px] font-bold leading-[1.35] text-fg">{card.title}</p>
+        {(hasPct || initials !== undefined) && (
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            {hasPct ? <span className="text-[11px] font-semibold text-fg-subtle">{t('ui:widgets.boards.pct', '{pct}%', { pct })}</span> : <span />}
+            {initials !== undefined && (
+              <Avatar size="sm" name={card.owner ?? ''} title={card.owner} className="size-6 text-[9.5px]" {...(locale === undefined ? {} : { locale })} />
+            )}
+          </div>
         )}
-        {card.points !== undefined && (
-          <MonoText className="ms-auto text-caption font-semibold text-fg-muted">
-            {card.points}
-            {pointsUnit === undefined ? '' : ` ${pointsUnit}`}
-          </MonoText>
-        )}
-        {showGrip && (
-          <span
-            aria-hidden="true"
-            data-part="board-card-grip"
-            title={grip}
-            className={
-              (card.points === undefined ? 'ms-auto ' : '') +
-              'shrink-0 cursor-grab text-fg-subtle'
-            }
-          >
-            <GripVertical className="size-4" />
-          </span>
+        {hasPct && (
+          <div role="progressbar" aria-label={card.title} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="h-1.5 overflow-hidden rounded-[6px] bg-surface-3">
+            <div className={`h-full w-[var(--adm-pct)] rounded-[6px] ${BAR_TONE[tone]}`} style={{ '--adm-pct': `${String(pct)}%` }} />
+          </div>
         )}
       </div>
+    );
+  }
 
-      <p className="text-body-sm font-semibold leading-snug text-fg">{card.title}</p>
-
-      {card.budgetSecond === undefined
-        ? (card.client !== undefined || card.budget !== undefined) && (
-            <div className="flex items-center justify-between gap-2 text-caption text-fg-muted">
-              {card.client !== undefined && <span className="truncate">{card.client}</span>}
-              {card.budget !== undefined && <MonoText className="shrink-0">{card.budget}</MonoText>}
-            </div>
-          )
-        : (
-            // Two money lines: the row's name on its own line, then the amount and, at the line's end, the second one.
-            <>
-              {card.client !== undefined && <p className="truncate text-caption text-fg-muted">{card.client}</p>}
-              <div data-part="board-card-amounts" className="flex items-baseline gap-2">
-                {card.budget !== undefined && <MonoText className="text-body-sm font-bold text-fg">{card.budget}</MonoText>}
-                <MonoText data-part="board-card-second-amount" className="ms-auto shrink-0 text-caption text-fg-subtle">
-                  {card.budgetSecond}
-                </MonoText>
-              </div>
-            </>
+  // The Project Board comp's card: priority and grip, title, who it is for, progress with the amount, owner and due day.
+  return (
+    <div className="flex flex-col rounded-[12px] border border-border bg-surface p-[14px] leading-[normal] shadow-card transition-[box-shadow,border-color] duration-150 hover:border-border-strong hover:shadow-[0_6px_18px_-8px_rgba(20,20,35,.28)]">
+      {card.tag !== undefined || card.priority !== undefined || card.points !== undefined ? (
+        <div className={`mb-2.5 flex min-h-[18px] items-center gap-2${actionsSpace ? ' pe-7' : ''}`}>
+          {card.tag !== undefined && <Tag tone={boardToneOf(card.tagTone, columnTone)}>{card.tag}</Tag>}
+          <PriorityPill card={card} />
+          {card.points !== undefined && (
+            <MonoText className={`${showGrip ? '' : 'ms-auto '}text-[11px] font-semibold text-fg-muted`}>
+              {card.points}
+              {pointsUnit === undefined ? '' : ` ${pointsUnit}`}
+            </MonoText>
           )}
+          {gripMark}
+        </div>
+      ) : null}
+
+      {/* With nothing to put in the first line (no priority on the table), the grip stands beside the title. */}
+      <div className={`mb-[5px] flex items-start gap-2${card.tag === undefined && card.priority === undefined && card.points === undefined && actionsSpace ? ' pe-7' : ''}`}>
+        <p className="min-w-0 flex-1 text-[14px] font-bold tracking-[-0.01em] text-fg">{card.title}</p>
+        {card.tag === undefined && card.priority === undefined && card.points === undefined ? gripMark : null}
+      </div>
+
+      {card.client !== undefined && (
+        <p data-part="board-card-client" className="mb-[13px] flex min-w-0 items-center gap-[5px] text-[11.5px] text-fg-muted">
+          <User aria-hidden="true" className="size-[13px] shrink-0" />
+          <span className="truncate">{card.client}</span>
+        </p>
+      )}
+
+      {card.budgetSecond !== undefined ? (
+        // Two money lines: the amount and, at the line's end, the second one.
+        <div data-part="board-card-amounts" className="mb-[13px] flex items-baseline gap-2">
+          {card.budget !== undefined && <MonoText className="text-body-sm font-bold text-fg">{card.budget}</MonoText>}
+          <MonoText data-part="board-card-second-amount" className="ms-auto shrink-0 text-caption text-fg-subtle">
+            {card.budgetSecond}
+          </MonoText>
+        </div>
+      ) : hasPct ? (
+        <>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-fg-subtle">{t('ui:widgets.boards.pctComplete', '{pct}% Complete', { pct })}</span>
+            {card.budget !== undefined && <MonoText className="text-[11px] font-semibold text-fg-muted">{card.budget}</MonoText>}
+          </div>
+          <div
+            role="progressbar"
+            aria-label={card.title}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+            className="mb-[13px] h-1.5 overflow-hidden rounded-[6px] bg-surface-3"
+          >
+            <div className={`h-full w-[var(--adm-pct)] rounded-[6px] ${BAR_TONE[columnTone]}`} style={{ '--adm-pct': `${String(pct)}%` }} />
+          </div>
+        </>
+      ) : card.budget !== undefined ? (
+        <MonoText data-part="board-card-amount" className="mb-[13px] text-[12px] font-bold text-fg-muted">
+          {card.budget}
+        </MonoText>
+      ) : null}
 
       {card.lines !== undefined && card.lines.length > 0 && (
-        <div data-part="board-card-lines" className="flex flex-col gap-0.5 text-caption text-fg-muted">
+        <div data-part="board-card-lines" className="mb-[13px] flex flex-col gap-0.5 text-caption text-fg-muted">
           {card.lines.map((line, index) => (
             <div key={index} className="flex items-baseline justify-between gap-2">
               {line.label === undefined ? null : <span className="shrink-0 text-fg-subtle">{line.label}</span>}
@@ -127,26 +223,22 @@ export function BoardCard({
         </div>
       )}
 
-      {hasPct && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-end text-caption text-fg-muted">
-            <MonoText className="font-semibold text-fg">{`${Math.round(card.pct ?? 0)}%`}</MonoText>
+      {(initials !== undefined || card.due !== undefined || (card.foot !== undefined && card.foot !== '')) && (
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <div className="flex items-center">
+            {initials !== undefined && (
+              <Avatar size="sm" name={card.owner ?? ''} title={card.owner} className="ring-2 ring-surface" {...(locale === undefined ? {} : { locale })} />
+            )}
+            {card.foot !== undefined && card.foot !== '' && <MonoText className={`${initials === undefined ? '' : 'ms-2 '}text-[10px] text-fg-subtle`}>{card.foot}</MonoText>}
           </div>
-          <ProgressBar value={card.pct ?? 0} tone={columnTone} animated={false} label={card.title} />
+          {card.due !== undefined && (
+            <span data-part="board-card-due" className="inline-flex shrink-0 items-center gap-[5px] rounded-full border border-border bg-surface-2 px-[9px] py-[3px] text-[11px] font-semibold text-fg-muted">
+              <Calendar aria-hidden="true" className="size-3" />
+              {card.due}
+            </span>
+          )}
         </div>
       )}
-
-      <div className="flex items-center justify-between gap-2 pt-0.5">
-        <div className="flex items-center gap-2">
-          {initials !== undefined && (
-            <Avatar size="xs" name={card.owner ?? ''} {...(locale === undefined ? {} : { locale })} />
-          )}
-          {card.due !== undefined && (
-            <MonoText className="rounded-sm bg-surface-3 px-1.5 py-0.5 text-[10px] text-fg-muted">{card.due}</MonoText>
-          )}
-        </div>
-        <MonoText className="text-[10px] text-fg-subtle">{card.foot ?? card.id}</MonoText>
-      </div>
     </div>
   );
 }

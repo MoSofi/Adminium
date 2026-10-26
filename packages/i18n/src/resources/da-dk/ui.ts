@@ -486,7 +486,9 @@ export default {
         "emptyBody": "Planlagte begivenheder vises i denne kalender.",
         "previousLabel": "Forrige måned",
         "nextLabel": "Næste måned",
-        "overflowLabel": "+{count} mere"
+        "overflowLabel": "+{count} mere",
+        "today": "I dag",
+        "newEvent": "Ny begivenhed"
       },
       "dayAgenda": {
         "description": "Den valgte dags begivenheder som en tidsordnet dagsorden.",
@@ -731,7 +733,11 @@ export default {
         "addLabel": "Tilføj",
         "cancelLabel": "Annuller",
         "openLabel": "Tilføj kort"
-      }
+      },
+      "pctComplete": "{pct} % færdig",
+      "noLane": "Ingen",
+      "laneCount": "{count, plural, one {# kort} other {# kort}}",
+      "pct": "{pct} %"
     },
     "communication": {
       "conversationInbox": {
@@ -900,7 +906,19 @@ export default {
         "description": "Opgavebjælker på en tidsakse grupperet efter fase, med fremdrift, milepæle og en dags-markør.",
         "emptyTitle": "Intet planlagt",
         "emptyBody": "Opgaver vises her, når de har start- og slutdato.",
-        "ungroupedLabel": "Opgaver"
+        "ungroupedLabel": "Opgaver",
+        "stats": {
+          "tasks": "Opgaver i alt",
+          "onTrack": "På sporet",
+          "atRisk": "I fare",
+          "milestones": "Milepæle"
+        },
+        "zoom": "Tidslinjens skala",
+        "weeks": "Uger",
+        "months": "Måneder",
+        "taskColumn": "Opgave",
+        "taskCount": "{count, plural, one {# opgave} other {# opgaver}}",
+        "today": "I dag"
       },
       "documentCanvas": {
         "description": "Et dokumentlærred i papirstil — faktura, rapport eller e-mail — hvis blokke kan vælges, omarrangeres og fjernes.",
@@ -2050,19 +2068,26 @@ export default {
       "toolbarCount": "{count, plural, one {# kort} other {# kort}}",
       "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
       "daysLabelled": "{days} {label}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "Opret {item}",
+      "addItem": "Tilføj {item}",
+      "itemName": "Navn på {item}…",
+      "newCard": "Nyt kort",
+      "roadmapYear": "Køreplanens år",
+      "previousYear": "Forrige år",
+      "nextYear": "Næste år",
+      "thisYear": "I år"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}",
       "composePlaceholder": "Titel på begivenhed…",
       "addEvent": "Tilføj begivenhed",
       "dateRange": "Datointerval",
-      "agendaTitle": "Dagsorden",
-      "categoriesTitle": "Kategorier",
       "upcomingTitle": "Kommende",
       "invalidLayout": "Denne kalenders gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
       "composeChoose": "Hvad denne begivenhed gælder",
-      "composeChoosePlaceholder": "Vælg…"
+      "composeChoosePlaceholder": "Vælg…",
+      "calendarsTitle": "Kalendere"
     },
     "scheduler": {
       "previousWeek": "Forrige uge",
@@ -2071,7 +2096,24 @@ export default {
       "month": "Måned",
       "invalidLayout": "Denne plans gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
       "shiftCount": "{count, plural, one {{n} vagt} other {{n} vagter}}",
-      "addShift": "Tilføj vagt"
+      "addShift": "Tilføj vagt",
+      "teamMember": "Teammedlem",
+      "hoursUnit": "t",
+      "thisWeek": "Denne uge",
+      "weekOf": "Uge fra {start} – {end}",
+      "cellHint": "Vælg en tom celle for at tilføje en vagt",
+      "addShiftSubtitle": "Planlæg en vagt for et teammedlem.",
+      "day": "Dato",
+      "start": "Start",
+      "end": "Slut",
+      "type": "Type",
+      "addRefused": "Vagten blev ikke tilføjet.",
+      "stats": {
+        "staff": "Planlagte personer",
+        "shifts": "Vagter i alt",
+        "hours": "Planlagte timer",
+        "uncovered": "Udækkede dage"
+      }
     },
     "settings": {
       "title": "Notifikationsindstillinger",

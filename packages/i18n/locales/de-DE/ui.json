@@ -476,7 +476,9 @@
         "emptyBody": "Geplante Termine erscheinen in diesem Kalender.",
         "previousLabel": "Voriger Monat",
         "nextLabel": "Nächster Monat",
-        "overflowLabel": "+{count} weitere"
+        "overflowLabel": "+{count} weitere",
+        "today": "Heute",
+        "newEvent": "Neuer Termin"
       },
       "dayAgenda": {
         "description": "Die Termine des ausgewählten Tages als zeitlich geordnete Agenda.",
@@ -721,7 +723,11 @@
         "addLabel": "Hinzufügen",
         "cancelLabel": "Abbrechen",
         "openLabel": "Karte hinzufügen"
-      }
+      },
+      "pctComplete": "{pct} % erledigt",
+      "noLane": "Keine",
+      "laneCount": "{count, plural, one {# Karte} other {# Karten}}",
+      "pct": "{pct} %"
     },
     "communication": {
       "conversationInbox": {
@@ -890,7 +896,19 @@
         "description": "Aufgabenbalken auf einer Zeitachse, nach Phase gruppiert, mit Fortschritt, Meilensteinen und Heute-Markierung.",
         "emptyTitle": "Nichts geplant",
         "emptyBody": "Aufgaben erscheinen hier, sobald sie ein Start- und Enddatum haben.",
-        "ungroupedLabel": "Aufgaben"
+        "ungroupedLabel": "Aufgaben",
+        "stats": {
+          "tasks": "Aufgaben gesamt",
+          "onTrack": "Im Plan",
+          "atRisk": "Gefährdet",
+          "milestones": "Meilensteine"
+        },
+        "zoom": "Zeitachse",
+        "weeks": "Wochen",
+        "months": "Monate",
+        "taskColumn": "Aufgabe",
+        "taskCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
+        "today": "Heute"
       },
       "documentCanvas": {
         "description": "Eine Dokumentfläche im Papierstil — Rechnung, Bericht oder E-Mail — deren Blöcke ausgewählt, umsortiert und entfernt werden können.",
@@ -2040,19 +2058,26 @@
       "toolbarCount": "{count, plural, one {# Karte} other {# Karten}}",
       "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
       "daysLabelled": "{days} {label}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "{item} anlegen",
+      "addItem": "{item} hinzufügen",
+      "itemName": "Name ({item})…",
+      "newCard": "Neue Karte",
+      "roadmapYear": "Roadmap-Jahr",
+      "previousYear": "Vorheriges Jahr",
+      "nextYear": "Nächstes Jahr",
+      "thisYear": "Dieses Jahr"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} Termin} other {{n} Termine}}",
       "composePlaceholder": "Termintitel…",
       "addEvent": "Termin hinzufügen",
       "dateRange": "Zeitraum",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Kategorien",
       "upcomingTitle": "Anstehend",
       "invalidLayout": "Das gespeicherte Layout dieses Kalenders ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück.",
       "composeChoose": "Wofür dieser Termin ist",
-      "composeChoosePlaceholder": "Auswählen…"
+      "composeChoosePlaceholder": "Auswählen…",
+      "calendarsTitle": "Kalender"
     },
     "scheduler": {
       "previousWeek": "Vorherige Woche",
@@ -2061,7 +2086,24 @@
       "month": "Monat",
       "invalidLayout": "Das gespeicherte Layout dieses Dienstplans ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück.",
       "shiftCount": "{count, plural, one {{n} Schicht} other {{n} Schichten}}",
-      "addShift": "Schicht hinzufügen"
+      "addShift": "Schicht hinzufügen",
+      "teamMember": "Teammitglied",
+      "hoursUnit": "Std.",
+      "thisWeek": "Diese Woche",
+      "weekOf": "Woche vom {start} – {end}",
+      "cellHint": "Leere Zelle wählen, um eine Schicht hinzuzufügen",
+      "addShiftSubtitle": "Eine Schicht für ein Teammitglied planen.",
+      "day": "Datum",
+      "start": "Beginn",
+      "end": "Ende",
+      "type": "Art",
+      "addRefused": "Die Schicht wurde nicht hinzugefügt.",
+      "stats": {
+        "staff": "Eingeplante Personen",
+        "shifts": "Schichten gesamt",
+        "hours": "Geplante Stunden",
+        "uncovered": "Unbesetzte Tage"
+      }
     },
     "settings": {
       "title": "Benachrichtigungseinstellungen",

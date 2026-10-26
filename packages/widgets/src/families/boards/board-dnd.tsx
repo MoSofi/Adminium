@@ -566,16 +566,22 @@ function RefusalLine({ part, sentence, reason, onDismiss }: { part: string; sent
 export function DroppableCell({
   id,
   className,
+  activeClassName,
   children,
   testId,
   highlight,
+  column,
 }: {
   id: string;
   className?: string | undefined;
+  /** The classes the cell takes while a card is over it, in place of the default dashed accent outline. */
+  activeClassName?: string | undefined;
   children: ReactNode;
   testId?: string | undefined;
   /** Keyboard drop-target highlight (pointer hover is detected internally). */
   highlight?: boolean | undefined;
+  /** The cell IS a whole column (`data-board-column`): a keyboard move scrolls it into view. */
+  column?: string | undefined;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const active = isOver || highlight === true;
@@ -583,11 +589,12 @@ export function DroppableCell({
     <div
       ref={setNodeRef}
       data-board-cell={id}
+      data-board-column={column}
       data-over={isOver ? '' : undefined}
       data-drop-target={active ? '' : undefined}
       data-testid={testId}
       className={
-        (className ?? '') + (active ? ' rounded-lg border-2 border-dashed border-accent bg-accent-soft/40' : '')
+        (className ?? '') + (active ? ` ${activeClassName ?? 'rounded-lg border-2 border-dashed border-accent bg-accent-soft/40'}` : '')
       }
     >
       {children}

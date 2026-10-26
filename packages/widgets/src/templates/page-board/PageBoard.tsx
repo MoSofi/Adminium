@@ -33,7 +33,7 @@
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
 import { pickLocalized } from '../../lib/localized.js';
-import { Columns3 } from 'lucide-react';
+import { Activity, ChevronLeft, ChevronRight, CircleCheck, Columns3, LayoutList, Plus, TrendingUp, Users, Wallet, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { KanbanBoard } from '../../families/boards/KanbanBoard.js';
@@ -42,6 +42,8 @@ import { InlineComposeCard } from '../../families/boards/InlineComposeCard.js';
 import { refusalReasonOf, type BoardAddRefusal } from '../../families/boards/board-dnd.js';
 import {
   boardRowsOf,
+  boardToneOf,
+  priorityTone,
   resolveColumns,
   resolveLanes,
   toBoardCard,
@@ -51,8 +53,9 @@ import {
   type LaneDefInput,
 } from '../../families/boards/board-lib.js';
 import { servedChoicesOf } from '../../families/tables/choices.js';
-import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardToolbar } from '../../registry/board-facts.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LANE_ALIAS, BOARD_CARD_LINK_ALIAS, BOARD_CARD_OWNER_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote, type BoardStat, type BoardToolbar } from '../../registry/board-facts.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
+import { fmtMonthDay } from '../../families/calendar/calendar-lib.js';
 import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
@@ -71,6 +74,7 @@ import {
   quarterLabelOf,
   quarterStartIso,
   splitInstant,
+  todayIso,
   type PlanningDateOptions,
   useTemplateStates,
   type TemplateDataStates,
@@ -129,6 +133,11 @@ export function boardToolbarInstanceId(instanceId: string, index: number): strin
   return `${instanceId}:toolbar:${String(index)}`;
 }
 
+/** The instance id of the n-th figure of board item `i`'s summary (`config.statBindings`). */
+export function boardStatInstanceId(instanceId: string, index: number): string {
+  return `${instanceId}:stat:${String(index)}`;
+}
+
 /** The instance id of the people board item `i`'s person filter offers (`config.personBinding`). */
 export function boardPeopleInstanceId(instanceId: string): string {
   return `${instanceId}:people`;
@@ -154,6 +163,8 @@ export interface PageBoardProps {
    * first midnight in it). Absent ⇒ the viewer's zone.
    */
   timeZone?: string | undefined;
+  /** Today's day (`YYYY-MM-DD`), which year a roadmap opens on; pinned by stories and tests. Absent ⇒ today in `timeZone`. */
+  today?: string | undefined;
   locale?: string | undefined;
   dir?: 'ltr' | 'rtl' | undefined;
   labels?: PageBoardLabels | undefined;
@@ -314,6 +325,95 @@ function BoardToolbarLine({
   );
 }
 
+/**
+ * A table's name inside a sentence ("New project"): lower case where the
+ * language writes common nouns so, unless it reads as an acronym ("API key").
+ * German keeps its capital; scripts without case are left as they are.
+ */
+export function inSentence(word: string, language: string | undefined): string {
+  const lang = (language ?? 'en').slice(0, 2).toLowerCase();
+  if (!['en', 'fr', 'da', 'cs'].includes(lang) || word.length === 0) return word;
+  const second = word.charAt(1);
+  if (second !== '' && second === second.toUpperCase() && second !== second.toLowerCase()) return word;
+  // The app writes its locales `en_US`; a language tag is `en-US`, and a malformed one must not take the page down.
+  let lower: string;
+  try {
+    lower = word.charAt(0).toLocaleLowerCase(lang);
+  } catch {
+    lower = word.charAt(0).toLowerCase();
+  }
+  return lower + word.slice(1);
+}
+
+const STAT_ICONS: Record<BoardStat['kind'], LucideIcon> = { total: LayoutList, column: Activity, amount: Wallet, people: Users };
+
+/**
+ * The figures above the board (the Project Board comp's summary cards): an
+ * icon, a pill (the share of all cards, or those added lately), the figure
+ * and what it is. Each figure is the server's, one query each; a figure not
+ * answered yet reads "—".
+ */
+function BoardStats({
+  stats,
+  states,
+  columnLabel,
+  formatAmount,
+  language,
+}: {
+  stats: readonly BoardStat[];
+  states: readonly (WidgetDataState | undefined)[];
+  columnLabel: (value: string) => string;
+  formatAmount: PageBoardProps['formatAmount'];
+  language: string | undefined;
+}) {
+  const fmt = getFormatters(language ?? 'en-US');
+  const total = (() => {
+    const first = stats.find((stat) => stat.kind === 'total');
+    return first === undefined ? undefined : figureOf(states[first.figure]);
+  })();
+  const grid = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-2 xl:grid-cols-3', 'sm:grid-cols-2 xl:grid-cols-4'][stats.length] ?? 'sm:grid-cols-2 xl:grid-cols-4';
+  return (
+    <div data-testid="board-stats" className={`grid grid-cols-1 gap-4 ${grid}`}>
+      {stats.map((stat, index) => {
+        const value = figureOf(states[stat.figure]);
+        const Icon = stat.kind === 'column' && index > 1 ? CircleCheck : STAT_ICONS[stat.kind];
+        const written =
+          value === undefined || value === null
+            ? '—'
+            : stat.kind === 'amount' && stat.column !== undefined
+              ? (formatAmount?.(stat.column, value) ?? fmt.number(value, { maximumFractionDigits: 2 }))
+              : fmt.number(value, { maximumFractionDigits: 0 });
+        const label = stat.kind === 'column' && stat.value !== undefined ? columnLabel(stat.value) : (stat.label ?? '');
+        const delta = stat.delta === undefined ? undefined : figureOf(states[stat.delta]);
+        const share = stat.share === true && typeof value === 'number' && typeof total === 'number' && total > 0 ? Math.round((value / total) * 100) : undefined;
+        const pill =
+          delta !== undefined && delta !== null
+            ? { text: `+${fmt.number(delta, { maximumFractionDigits: 0 })}`, Glyph: TrendingUp, good: delta > 0 }
+            : share !== undefined
+              ? { text: fmt.number(share / 100, { style: 'percent', maximumFractionDigits: 0 }), Glyph: Activity, good: false }
+              : undefined;
+        return (
+          <div key={`${stat.kind}-${String(index)}`} data-part="board-stat" className="rounded-[14px] border border-border bg-surface px-5 py-[18px] leading-[normal] shadow-card">
+            <div className="mb-3.5 flex items-center justify-between">
+              <span aria-hidden="true" className="flex size-[34px] items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+                <Icon className="size-[17px]" />
+              </span>
+              {pill === undefined ? null : (
+                <span className={`inline-flex items-center gap-[3px] rounded-full px-[7px] py-[2px] text-[11.5px] font-bold ${pill.good ? 'bg-pos-soft text-pos' : 'bg-surface-3 text-fg-muted'}`}>
+                  <pill.Glyph aria-hidden="true" className="size-3" />
+                  {pill.text}
+                </span>
+              )}
+            </div>
+            <div className="font-mono text-[26px] font-semibold tabular-nums tracking-[-0.03em] text-fg">{written}</div>
+            <div className="mt-[3px] text-[12.5px] text-fg-muted">{label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The stored board item config, normalized from the candidate vocabulary. */
 interface BoardItemConfig {
   statusColumn: string;
@@ -346,6 +446,8 @@ interface BoardItemConfig {
   toolbar: BoardToolbar | undefined;
   /** How many figures the toolbar's total is asked as (`config.toolbarBindings`): the count, then each total. */
   toolbarFigures: number;
+  /** The summary figures above the board (`config.stats`, asked as `config.statBindings`). */
+  stats: BoardStat[];
 }
 
 /** One test a card passes to be on its board: its `column` holds one of `in`. */
@@ -424,7 +526,45 @@ function cardFactsOf(config: Record<string, unknown>): BoardCardFacts {
     ...(secondColumn === undefined ? {} : { secondAmount: { column: secondColumn, ...labelsOf(rawSecond) } }),
     ...(daysColumn === undefined ? {} : { daysSince: { column: daysColumn, warnFrom: whole(rawDays?.['warnFrom']), alertFrom: whole(rawDays?.['alertFrom']), ...labelsOf(rawDays) } }),
     ...(configString(card, 'date') === undefined ? {} : { date: configString(card, 'date') }),
+    ...(pathsOf(card['owner']) === undefined ? {} : { owner: pathsOf(card['owner']) }),
+    ...(configString(card, 'priority') === undefined ? {} : { priority: configString(card, 'priority') }),
+    ...(configString(card, 'tag') === undefined ? {} : { tag: configString(card, 'tag') }),
+    ...(card['laneName'] === 'owner' ? { laneName: 'owner' as const } : pathsOf(card['laneName']) === undefined ? {} : { laneName: pathsOf(card['laneName']) }),
   };
+}
+
+/** One or two stored `<link>.<column>` paths, or nothing. */
+function pathsOf(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const paths = raw.filter((path): path is string => typeof path === 'string' && /^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(path)).slice(0, 2);
+  return paths.length === 0 ? undefined : paths;
+}
+
+/** The stored summary figures (`config.stats`): each names its query by index, and nothing it cannot read is kept. */
+function statsOf(config: Record<string, unknown>): BoardStat[] {
+  const raw = config['stats'];
+  const asked = Array.isArray(config['statBindings']) ? (config['statBindings'] as unknown[]).length : 0;
+  if (!Array.isArray(raw)) return [];
+  const index = (value: unknown): number | undefined => (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < asked ? value : undefined);
+  const out: BoardStat[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const stat = entry as Record<string, unknown>;
+    const kind = stat['kind'];
+    const figure = index(stat['figure']);
+    if ((kind !== 'total' && kind !== 'column' && kind !== 'amount' && kind !== 'people') || figure === undefined) continue;
+    const delta = index(stat['delta']);
+    out.push({
+      kind,
+      figure,
+      ...(configString(stat, 'label') === undefined ? {} : { label: configString(stat, 'label') }),
+      ...(configString(stat, 'value') === undefined ? {} : { value: configString(stat, 'value') }),
+      ...(configString(stat, 'column') === undefined ? {} : { column: configString(stat, 'column') }),
+      ...(stat['share'] === true ? { share: true as const } : {}),
+      ...(delta === undefined ? {} : { delta }),
+    });
+  }
+  return out.slice(0, 4);
 }
 
 /** The stored `note`: its sentence, by language, and an address inside this workspace (any other is dropped). */
@@ -555,6 +695,7 @@ export function boardItemConfigOf(config: Record<string, unknown>): BoardItemCon
     note: noteOf(config),
     toolbar: toolbarOf(config),
     toolbarFigures: Array.isArray(config['toolbarBindings']) ? (config['toolbarBindings'] as unknown[]).length : 0,
+    stats: statsOf(config),
   };
 }
 
@@ -631,6 +772,8 @@ export interface BoardCardWriter {
   daysLabelled?: ((days: string, label: string) => string) | undefined;
   /** "w €12,000": a second amount after its label. Absent ⇒ the two with a space. */
   secondAmount?: ((label: string, amount: string) => string) | undefined;
+  /** A choice column's words and tone for one of its values, as the answer gave them. */
+  choice?: ((column: string, value: string) => { label?: string | undefined; tone?: string | undefined }) | undefined;
 }
 
 /**
@@ -675,16 +818,48 @@ function writeCardFacts(card: BoardCardData, row: Record<string, unknown>, asked
     }
   }
   if (asked.date !== undefined) card.due = facts.day(asked.date, row[asked.date]);
+  // The person a link names, and the lane's name where the lane is a link: the values read through it, joined.
+  const joined = (alias: string, count: number): string | undefined => {
+    const parts = Array.from({ length: count }, (_, index) => row[`${alias}_${String(index)}`]).filter((part): part is string | number => (typeof part === 'string' && part.trim() !== '') || typeof part === 'number');
+    return parts.length === 0 ? undefined : parts.map(String).join(' ');
+  };
+  if (asked.owner !== undefined) card.owner = joined(BOARD_CARD_OWNER_ALIAS, asked.owner.length);
+  if (asked.laneName === 'owner') card.laneLabel = card.owner;
+  else if (asked.laneName !== undefined) card.laneLabel = joined(BOARD_CARD_LANE_ALIAS, asked.laneName.length);
+  if (asked.priority !== undefined) {
+    const raw = row[asked.priority];
+    const value = typeof raw === 'string' && raw !== '' ? raw : undefined;
+    const words = value === undefined ? undefined : facts.choice?.(asked.priority, value);
+    card.priority = value === undefined ? undefined : (words?.label ?? value);
+    card.priorityTone = words?.tone === undefined ? undefined : boardToneOf(words.tone, priorityTone(value));
+  }
+  if (asked.tag !== undefined) {
+    const raw = row[asked.tag];
+    const value = typeof raw === 'string' && raw !== '' ? raw : undefined;
+    const words = value === undefined ? undefined : facts.choice?.(asked.tag, value);
+    card.tag = value === undefined ? undefined : (words?.label ?? value);
+    card.tagTone = value === undefined ? undefined : boardToneOf(words?.tone, 'accent');
+  }
 }
 
-/** Roadmap columns: the distinct quarters present, chronologically. */
-export function quarterColumnsOf(cards: readonly BoardCardData[]): ColumnDef[] {
-  const keys = [...new Set(cards.map((card) => card.column).filter((key) => key !== ''))].sort();
-  const tones: ColumnDef['tone'][] = ['accent', 'info', 'warn', 'pos'];
-  return keys.map((key, index) => ({
+/** A quarter's colour, as the Kanban Roadmap comp heads them: Q1 green, Q2 accent, Q3 amber, Q4 grey. */
+const QUARTER_TONES: Record<string, ColumnDef['tone']> = { '1': 'pos', '2': 'accent', '3': 'warn', '4': 'neutral' };
+
+/**
+ * Roadmap columns, chronologically. With `year`, the Kanban Roadmap comp's
+ * year: its four quarters, empty or not (the board steps from year to year).
+ * Without it, the quarters the cards are in.
+ */
+export function quarterColumnsOf(cards: readonly BoardCardData[], year?: number): ColumnDef[] {
+  const keys =
+    year === undefined
+      ? [...new Set(cards.map((card) => card.column).filter((key) => key !== ''))].sort()
+      : [1, 2, 3, 4].map((q) => `${String(year)}-Q${String(q)}`);
+  return keys.map((key) => ({
     id: key,
-    label: quarterLabelOf(key),
-    tone: tones[index % tones.length] as ColumnDef['tone'],
+    // The year stands in the header's switcher; a column is its quarter alone, as in the comp.
+    label: year === undefined ? quarterLabelOf(key) : key.slice(-2),
+    tone: QUARTER_TONES[key.slice(-1)] ?? 'accent',
   }));
 }
 
@@ -702,14 +877,19 @@ function BoardSlot({
   trackAdd,
   formatAmount,
   toolbarStates,
+  statStates,
   person,
   onPersonChange,
   formatTotals,
   entityLabels,
   personLabel,
+  today,
 }: {
+  today: string | undefined;
   formatAmount: PageBoardProps['formatAmount'];
   toolbarStates: BoardToolbarStates;
+  /** The summary figures' answers, by the index `config.stats` names them with. */
+  statStates: readonly (WidgetDataState | undefined)[];
   person: string | null;
   onPersonChange: PageBoardProps['onPersonChange'];
   formatTotals: PageBoardProps['formatTotals'];
@@ -751,6 +931,8 @@ function BoardSlot({
   const language = useMaybeI18n()?.locale ?? locale;
   // The card's own facts, written from what the server answered: its names for the people in these rows, its count of days.
   const people = (state.data as { people?: unknown } | null | undefined)?.people;
+  // The answer's words for a status and a lane, read in the reader's language.
+  const served = useMemo(() => servedChoicesOf(state.data), [state.data]);
   const writer = useMemo<BoardCardWriter | undefined>(() => {
     if (Object.keys(cfg.card).length === 0) return undefined;
     const fmt = getFormatters(language ?? 'en-US');
@@ -760,28 +942,34 @@ function BoardSlot({
       day: (column, value) => {
         // A day with no time is that day everywhere; an instant is the day it falls on where the board's dates are read.
         const day = splitInstant(value, { timeZone, kind: planningDateKindOf(state.data, column) })?.day;
-        return day === undefined || day === '' ? undefined : fmt.date(`${day}T12:00:00Z`, 'medium', { timeZone: 'UTC' });
+        // The comp's due chip: "Sep 3", with the year only when it is not this one.
+        return day === undefined || day === '' ? undefined : fmtMonthDay(language ?? 'en-US', day, new Date().getUTCFullYear());
       },
       days: (count) => t('ui:templates.board.days', '{count, plural, one {# day} other {# days}}', { count }),
       label: (label, labels) => pickLocalized(label, labels, language),
       daysLabelled: (days, label) => t('ui:templates.board.daysLabelled', '{days} {label}', { days, label }),
       secondAmount: (label, amount) => t('ui:templates.board.secondAmount', '{label} {amount}', { label, amount }),
+      choice: (column, value) => ({ label: served.get(column)?.enumLabels?.[value], tone: served.get(column)?.enumTones?.[value] }),
     };
-  }, [cfg.card, people, language, formatAmount, timeZone, state.data, t]);
+  }, [cfg.card, people, language, formatAmount, timeZone, state.data, t, served]);
   const cards = useMemo(
     () => boardCardsOf(rows, cfg, { timeZone, kind: dateKind }, keyField, writer),
     [rows, cfg, timeZone, dateKind, keyField, writer],
   );
   const roadmap = cfg.roadmap && cfg.dateColumn !== undefined;
-  // The answer's words for a status and a lane, read in the reader's language.
-  const served = useMemo(() => servedChoicesOf(state.data), [state.data]);
+  // A roadmap shows a year, the reader's own first; the header steps through the years.
+  const thisYear = Number((today ?? todayIso(timeZone)).slice(0, 4));
+  const [shownYear, setShownYear] = useState<number | null>(null);
+  const year = shownYear ?? thisYear;
   const columns = useMemo(() => {
-    if (roadmap) return quarterColumnsOf(cards);
+    if (roadmap) return quarterColumnsOf(cards, year);
     const words = served.get(cfg.statusColumn)?.enumLabels;
+    const tones = served.get(cfg.statusColumn)?.enumTones;
     if (fromTable) return boardColumnDefsOf([], read ?? [], true);
-    const own = resolveColumns(cards, cfg.columnDefs, words);
+    // A status with its own tones (the column's colours, set in Studio) heads its columns with them.
+    const own = resolveColumns(cards, cfg.columnDefs, words).map((column) => (tones?.[column.id] === undefined ? column : { ...column, tone: boardToneOf(tones[column.id], column.tone) }));
     return read === undefined ? own : boardColumnDefsOf(own, read, false);
-  }, [roadmap, cards, cfg.columnDefs, cfg.statusColumn, served, fromTable, read]);
+  }, [roadmap, cards, cfg.columnDefs, cfg.statusColumn, served, fromTable, read, year]);
   // What a drop writes: the column row's own key (a number, for most links), not the text it is matched by.
   const valueOf = (columnId: string): unknown => (fromTable ? (read?.find((row) => row.id === columnId)?.value ?? columnId) : columnId);
   // Cards with no status — or one outside the declared columns — are not on
@@ -864,10 +1052,37 @@ function BoardSlot({
       ? (labels?.noRowsBody ??
         t('ui:templates.board.noRowsBody', 'Cards appear here as soon as the table has rows.'))
       : labels?.emptyBody;
+  // What one card is called, in a sentence ("New project"); the board's own words where the host named none.
+  const one = entityLabels === undefined ? undefined : inSentence(entityLabels.one, language);
   const boardLabels = {
-    ...(labels?.addLabel === undefined ? {} : { addLabel: labels.addLabel }),
+    ...(one === undefined
+      ? labels?.addLabel === undefined
+        ? {}
+        : { addLabel: labels.addLabel }
+      : { addLabel: t('ui:templates.board.addItem', 'Add {item}', { item: one }) }),
     ...(emptyTitle === undefined ? {} : { emptyTitle, emptyBody }),
+    composePlaceholder:
+      entityLabels === undefined
+        ? (labels?.composePlaceholder ?? t('ui:widgets.boards.inlineComposeCard.placeholder', 'Card title…'))
+        : t('ui:templates.board.itemName', '{item} name…', { item: entityLabels.one }),
+    composeAdd: one === undefined ? (labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')) : t('ui:templates.board.addItem', 'Add {item}', { item: one }),
+    ...(labels?.composeCancel === undefined ? {} : { composeCancel: labels.composeCancel }),
   };
+  // "+" and "New …" type a card's name into its column: a board of quarters places by date and takes none.
+  const canCompose = !roadmap && !swimlane && cfg.allowAdd && source !== null && onEvent !== undefined;
+  const [composeRequest, setComposeRequest] = useState<{ column: string; at: number } | null>(null);
+  const compose = (columnId: string, title: string) =>
+    trackAdd(
+      onEvent?.(item.i, {
+        type: 'mutate',
+        intent: 'insert',
+        connectionId: source?.connectionId ?? '',
+        table: source?.table ?? '',
+        // A board of some of its rows: the card is given what puts it among them; then its column and its name.
+        values: { ...onlyDefaultsOf(cfg.only), [cfg.statusColumn]: valueOf(columnId), [cfg.titleColumn]: title },
+      }),
+      title,
+    );
 
   if (cfg.onlyInvalid) {
     // Not drawn at all: a board of every row, or one whose headers count other cards than it lists, would be read as the real one.
@@ -1019,7 +1234,9 @@ function BoardSlot({
               dir={dir}
               {...(locale === undefined ? {} : { locale })}
               allowAdd={!roadmap && cfg.allowAdd}
+              roadmapCards={roadmap}
               labels={boardLabels}
+              {...(canCompose ? { onCompose: compose, composeRequest } : {})}
               onCardMove={(cardId, _from, toColumn) => mutate(cardId, moveValues(toColumn))}
               onCardOpen={openCard}
               addRefusal={addRefusal}
@@ -1044,10 +1261,59 @@ function BoardSlot({
       </div>
     </WidgetFrame>
   );
-  if (toolbarLine === null) return framed;
+  const newButton =
+    !canCompose || columns.length === 0 ? null : (
+      // The comp's header button: a new card, typed into the board's first column.
+      <button
+        type="button"
+        data-testid="board-new"
+        onClick={() => setComposeRequest({ column: columns[0]?.id ?? '', at: Date.now() })}
+        className="ms-auto flex shrink-0 items-center gap-[7px] rounded-[10px] bg-accent py-2 pe-[13px] ps-2.5 text-[13px] font-bold leading-[normal] text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_35%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <Plus aria-hidden="true" className="size-4" />
+        {one === undefined ? t('ui:templates.board.newCard', 'New card') : t('ui:templates.board.newItem', 'New {item}', { item: one })}
+      </button>
+    );
+  const stats =
+    cfg.stats.length === 0 || roadmap ? null : (
+      <BoardStats
+        stats={cfg.stats}
+        states={statStates}
+        columnLabel={(value) => columns.find((column) => column.id === value)?.label ?? served.get(cfg.statusColumn)?.enumLabels?.[value] ?? value}
+        formatAmount={formatAmount}
+        language={language}
+      />
+    );
+  const step = 'flex size-8 items-center justify-center rounded-[9px] border border-border bg-surface text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent';
+  const yearNav = !roadmap ? null : (
+    <div role="group" aria-label={t('ui:templates.board.roadmapYear', 'Roadmap year')} data-testid="roadmap-year" className="flex items-center gap-2">
+      <button type="button" className={step} aria-label={t('ui:templates.board.previousYear', 'Previous year')} onClick={() => setShownYear(year - 1)}>
+        <ChevronLeft aria-hidden="true" className="size-4 rtl:-scale-x-100" />
+      </button>
+      <span aria-live="polite" className="min-w-12 text-center font-mono text-[15px] font-semibold tabular-nums text-fg">
+        {String(year)}
+      </span>
+      <button type="button" className={step} aria-label={t('ui:templates.board.nextYear', 'Next year')} onClick={() => setShownYear(year + 1)}>
+        <ChevronRight aria-hidden="true" className="size-4 rtl:-scale-x-100" />
+      </button>
+      {year === thisYear ? null : (
+        <button type="button" onClick={() => setShownYear(null)} className="rounded-[9px] border border-border bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent">
+          {t('ui:templates.board.thisYear', 'This year')}
+        </button>
+      )}
+    </div>
+  );
+  if (toolbarLine === null && newButton === null && stats === null && yearNav === null) return framed;
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {toolbarLine}
+    <div className="flex h-full min-h-0 flex-col gap-5">
+      {toolbarLine === null && newButton === null && yearNav === null ? null : (
+        <div className="flex items-center gap-3">
+          {toolbarLine === null ? null : <div className="min-w-0 flex-1">{toolbarLine}</div>}
+          {yearNav}
+          {newButton}
+        </div>
+      )}
+      {stats}
       <div className="min-h-0 flex-1">{framed}</div>
     </div>
   );
@@ -1139,6 +1405,7 @@ export function PageBoard({
   states,
   onEvent,
   timeZone,
+  today,
   locale,
   dir = 'ltr',
   labels,
@@ -1193,6 +1460,7 @@ export function PageBoard({
               boardColumns={boardColumns}
               onEvent={onEvent}
               timeZone={timeZone}
+              today={today}
               locale={locale}
               dir={dir}
               labels={labels}
@@ -1205,6 +1473,7 @@ export function PageBoard({
                 figures: Array.from({ length: Array.isArray(item.config['toolbarBindings']) ? (item.config['toolbarBindings'] as unknown[]).length : 0 }, (_, index) => states?.[boardToolbarInstanceId(item.i, index)]),
                 people: states?.[boardPeopleInstanceId(item.i)],
               }}
+              statStates={Array.from({ length: Array.isArray(item.config['statBindings']) ? (item.config['statBindings'] as unknown[]).length : 0 }, (_, index) => states?.[boardStatInstanceId(item.i, index)])}
               person={person}
               onPersonChange={onPersonChange}
               formatTotals={formatTotals}
