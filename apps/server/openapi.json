@@ -72453,6 +72453,56 @@
                                       "kind"
                                     ],
                                     "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "table"
+                                        ]
+                                      },
+                                      "connectionId": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
+                                      },
+                                      "table": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "viewId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "purpose": {
+                                        "type": "string",
+                                        "enum": [
+                                          "newsletter",
+                                          "surveys"
+                                        ]
+                                      },
+                                      "existingCustomers": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "connectionId",
+                                      "table",
+                                      "purpose"
+                                    ],
+                                    "additionalProperties": false
                                   }
                                 ]
                               },
@@ -72505,6 +72555,37 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "mailClass": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "marketing",
+                                      "service"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "basis": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "consent",
+                                      "existing-customers"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "trackClicks": {
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -72522,7 +72603,10 @@
                               "failures",
                               "createdAt",
                               "state",
-                              "ratePerHour"
+                              "ratePerHour",
+                              "mailClass",
+                              "basis",
+                              "trackClicks"
                             ],
                             "additionalProperties": false
                           }
@@ -72796,6 +72880,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -72848,6 +72982,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -72865,7 +73030,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -73932,6 +74100,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -73984,6 +74202,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -74001,7 +74250,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -74550,6 +74802,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -74602,6 +74904,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -74619,7 +74952,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -75431,6 +75767,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -75483,6 +75869,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -75500,7 +75917,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -76084,6 +76504,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -76136,6 +76606,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -76153,7 +76654,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     }
@@ -76368,6 +76872,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -76420,6 +76974,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -76437,7 +77022,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -76989,6 +77577,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -77041,6 +77679,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -77058,7 +77727,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -77627,6 +78299,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -77679,6 +78401,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -77696,7 +78449,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -78262,6 +79018,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -78314,6 +79120,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -78331,7 +79168,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -78946,6 +79786,56 @@
                         "required": [
                           "kind"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "table"
+                            ]
+                          },
+                          "connectionId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "table": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "viewId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "enum": [
+                              "newsletter",
+                              "surveys"
+                            ]
+                          },
+                          "existingCustomers": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "connectionId",
+                          "table",
+                          "purpose"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -79016,6 +79906,86 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "breakdown": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "recipients": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "consent": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "existingCustomers": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "doNotEmail": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "notAgreed": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "awaitingReview": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "notMarked": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "sample": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "reservedDomain": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "noAddress": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "recipients",
+                        "consent",
+                        "existingCustomers",
+                        "doNotEmail",
+                        "notAgreed",
+                        "awaitingReview",
+                        "notMarked",
+                        "sample",
+                        "reservedDomain",
+                        "noAddress"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "variables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
@@ -79064,6 +80034,56 @@
                         "required": [
                           "kind"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "table"
+                            ]
+                          },
+                          "connectionId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "table": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "viewId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "enum": [
+                              "newsletter",
+                              "surveys"
+                            ]
+                          },
+                          "existingCustomers": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "connectionId",
+                          "table",
+                          "purpose"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -79083,6 +80103,9 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "trackClicks": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -79185,6 +80208,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -79237,6 +80310,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -79254,7 +80358,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     }
@@ -79367,6 +80474,56 @@
                                   "kind"
                                 ],
                                 "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "table"
+                                    ]
+                                  },
+                                  "connectionId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  },
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "viewId": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "purpose": {
+                                    "type": "string",
+                                    "enum": [
+                                      "newsletter",
+                                      "surveys"
+                                    ]
+                                  },
+                                  "existingCustomers": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "connectionId",
+                                  "table",
+                                  "purpose"
+                                ],
+                                "additionalProperties": false
                               }
                             ]
                           },
@@ -79419,6 +80576,37 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "mailClass": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "marketing",
+                                  "service"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "basis": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "consent",
+                                  "existing-customers"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "trackClicks": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -79436,7 +80624,10 @@
                           "failures",
                           "createdAt",
                           "state",
-                          "ratePerHour"
+                          "ratePerHour",
+                          "mailClass",
+                          "basis",
+                          "trackClicks"
                         ],
                         "additionalProperties": false
                       }
@@ -79548,6 +80739,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -79600,6 +80841,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -79617,7 +80889,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     }
@@ -79728,6 +81003,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -79780,6 +81105,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -79797,7 +81153,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -79946,6 +81305,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -79998,6 +81407,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -80015,7 +81455,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     }
@@ -80126,6 +81569,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -80178,6 +81671,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -80195,7 +81719,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     }
@@ -80306,6 +81833,56 @@
                                 "kind"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "table"
+                                  ]
+                                },
+                                "connectionId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "viewId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "purpose": {
+                                  "type": "string",
+                                  "enum": [
+                                    "newsletter",
+                                    "surveys"
+                                  ]
+                                },
+                                "existingCustomers": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "connectionId",
+                                "table",
+                                "purpose"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         },
@@ -80358,6 +81935,37 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "mailClass": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "marketing",
+                                "service"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "basis": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "consent",
+                                "existing-customers"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trackClicks": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -80375,7 +81983,10 @@
                         "failures",
                         "createdAt",
                         "state",
-                        "ratePerHour"
+                        "ratePerHour",
+                        "mailClass",
+                        "basis",
+                        "trackClicks"
                       ],
                       "additionalProperties": false
                     },
@@ -81054,6 +82665,523 @@
         "responses": {
           "204": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/email-audience/tables": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "appKey": {
+                            "type": "string"
+                          },
+                          "appName": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "people",
+                              "companies"
+                            ]
+                          },
+                          "consentPurpose": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "newsletter",
+                                  "surveys"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "addresses": {
+                            "type": "string",
+                            "enum": [
+                              "readable",
+                              "masked",
+                              "hidden"
+                            ]
+                          },
+                          "existingCustomers": {
+                            "type": "object",
+                            "properties": {
+                              "offered": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "at": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "by": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "offered",
+                              "on",
+                              "at",
+                              "by"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "table",
+                          "label",
+                          "appKey",
+                          "appName",
+                          "kind",
+                          "consentPurpose",
+                          "addresses",
+                          "existingCustomers"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "tables"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-audience/views": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "views": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "shared": {
+                            "type": "boolean"
+                          },
+                          "refused": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "view-search",
+                                  "view-hidden-column"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "shared",
+                          "refused"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "views"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-audience/review": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "purpose": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "newsletter",
+                            "surveys"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "tickedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "tickedAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "address",
+                          "tickedBy",
+                          "tickedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "purpose",
+                    "total",
+                    "people"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-audience/review/answer": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "answer": {
+                    "type": "string",
+                    "enum": [
+                      "confirm",
+                      "leave-out"
+                    ]
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "key",
+                  "answer"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "event": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "yes",
+                            "no"
+                          ]
+                        },
+                        "at": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "event"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-audience/existing-customers": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "on": {
+                    "type": "boolean"
+                  },
+                  "optOutOffered": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "on",
+                  "optOutOffered"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "existingCustomers": {
+                      "type": "object",
+                      "properties": {
+                        "offered": {
+                          "type": "boolean"
+                        },
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "at": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "by": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "offered",
+                        "on",
+                        "at",
+                        "by"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "existingCustomers"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
