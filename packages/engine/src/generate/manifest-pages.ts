@@ -167,6 +167,11 @@ export function modelFromRequiredSchema(manifest: ManifestPagesInput): DatabaseM
         } else if (column.default !== undefined) {
           base['default'] = { kind: 'literal', text: String(column.default) };
         }
+        if (column.type === 'fk' && column.references !== undefined && !tables.some((t) => t.ref === column.references)) {
+          // A link to a table the database already has: this model holds the manifest's tables alone.
+          base['logicalType'] = 'integer';
+          return base;
+        }
         if (column.type === 'fk' && column.references !== undefined) {
           const target = pkOf(column.references);
           base['logicalType'] = target === undefined ? 'integer' : (LOGICAL[target.type] ?? 'integer');

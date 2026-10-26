@@ -85,6 +85,28 @@ describe('checkManifestPages', () => {
       'PAGE_BINDING_AMBIGUOUS',
     ]);
   });
+
+  it('judges a table that links to one the database already has, which the model leaves out', () => {
+    // A loyalty app on a shop: `customers` is the shop's own table, not the app's.
+    const loyalty: ManifestPagesInput = {
+      requiredSchema: {
+        tables: [
+          {
+            ref: 'accounts',
+            columns: [
+              { ref: 'id', type: 'int', role: 'pk' },
+              { ref: 'customer_id', type: 'fk', references: 'customers' },
+              { ref: 'points', type: 'int', default: 0 },
+            ],
+          },
+        ],
+      },
+      pages: [page('accounts', 'page-crud', { rows: 'accounts' })],
+    };
+    expect(checkManifestPages(loyalty)).toEqual([]);
+    const column = modelFromRequiredSchema(loyalty).tables[0]?.columns.find((c) => c.name === 'customer_id');
+    expect(column).toMatchObject({ logicalType: 'integer', references: null });
+  });
 });
 
 /** Deals that move through stages a sales team keeps in a table: no workflow enum anywhere. */

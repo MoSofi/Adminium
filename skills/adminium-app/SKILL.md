@@ -64,8 +64,8 @@ Rules that catch people:
 - A `page-board` needs a status column with at least two of Adminium's workflow words as values
   (`new`, `in_progress`, `done`, …; the list is in the page task guide). Otherwise the page is
   created empty and **try** fails on it: use those words with your own labels, or `page-crud`.
-- An `fk` column's `references` must be the `ref` of a table of the app. **check** does not catch a
-  wrong one; the install does, so **try** does.
+- An `fk` may name a table of the app or one their database has (`customers`): link to it, never
+  declare it again. **check** marks that link `!`.
 - A role may grant only things inside the app: `table:@<table>:read|create|update|delete`,
   `page:@<page ref>:view`, `app:@:staff` (open the staff screens). `@` stands for this app. A role
   sees a page in the sidebar only with that page's grant, and reads a person's name, phone or

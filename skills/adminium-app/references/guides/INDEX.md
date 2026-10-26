@@ -6,7 +6,7 @@
 |---|---|---|
 | `references/guides/manifest-by-task--overview.md` | A manifest, task by task | 1610 |
 | `references/guides/manifest-by-task--add-a-table.md` | Add a table | 2907 |
-| `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 3273 |
+| `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 3472 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
 | `references/guides/manifest-by-task--a-signature-or-photos-on-a-row.md` | A signature or photos on a row | 1269 |
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
