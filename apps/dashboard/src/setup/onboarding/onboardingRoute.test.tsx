@@ -46,12 +46,20 @@ interface StubOptions {
   postStatus?: number;
   /** Once true, /bootstrap answers 200 instead of 401. */
   authed?: boolean;
+  /**
+   * The server connected a database before the wizard opened — what
+   * `adminium new shop --database …` + `npm run dev` leaves behind (V7). Its
+   * connections list answers with it once signed in.
+   */
+  connected?: { name: string; status: string; tableCount: number | null; pageCount: number }[];
 }
 
 function stubFetch(opts: StubOptions) {
   const setupCalls: SetupCall[] = [];
   const telemetryCalls: TelemetryCall[] = [];
   let authed = opts.authed ?? false;
+  let connectionReads = 0;
+  let connectionCreates = 0;
 
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
     const url = String(input);
@@ -68,8 +76,25 @@ function stubFetch(opts: StubOptions) {
     }
     if (url === '/api/v1/setup/state' && method === 'GET') {
       return Promise.resolve(
-        jsonResponse(200, { data: { required: opts.required, passwordMinLength: 10 } }),
+        jsonResponse(200, {
+          data: {
+            required: opts.required,
+            passwordMinLength: 10,
+            ...(opts.connected === undefined ? {} : { databaseConnected: true }),
+          },
+        }),
       );
+    }
+    if (url === '/api/v1/connections' && method === 'GET' && authed) {
+      connectionReads += 1;
+      return Promise.resolve(
+        jsonResponse(200, {
+          connections: (opts.connected ?? []).map((c, i) => ({ id: `con_${String(i)}`, engine: 'postgres', ...c })),
+        }),
+      );
+    }
+    if (url === '/api/v1/connections' && method === 'POST') {
+      connectionCreates += 1;
     }
     if (url === '/api/v1/setup/super-admin' && method === 'POST') {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -109,7 +134,13 @@ function stubFetch(opts: StubOptions) {
   });
 
   vi.stubGlobal('fetch', fetchMock);
-  return { fetchMock, setupCalls, telemetryCalls };
+  return {
+    fetchMock,
+    setupCalls,
+    telemetryCalls,
+    connectionReads: () => connectionReads,
+    connectionCreates: () => connectionCreates,
+  };
 }
 
 async function renderAt(path: string, opts: StubOptions) {
@@ -330,5 +361,77 @@ describe('the six-step wizard, on the route', () => {
     expect(screen.getByRole('alert').textContent ?? '').toContain('already been set up');
     // Still on the account step: there is nothing to advance to.
     expect(screen.getByRole('heading', { name: 'Create your account' })).toBeDefined();
+  });
+});
+
+/**
+ * Walkthrough finding V7: `adminium new shop --database …` then `npm run dev`
+ * connects `databases.main` and generates its pages on boot, before anyone
+ * signs in. The wizard used to open on "What will you build first?", ask for
+ * the database again, and end on "nothing was generated".
+ */
+describe('an instance whose database the project already connected', () => {
+  const MAIN = { name: 'main', status: 'connected', tableCount: 7, pageCount: 13 };
+
+  it('opens on the account, leaves the database alone and says what was generated', async () => {
+    const user = userEvent.setup();
+    const stub = await renderAt('/', { required: true, connected: [MAIN] });
+
+    // The first screen is the account — the docs quickstart's "create the first super admin".
+    expect(await screen.findByRole('heading', { name: 'Create your account' })).toBeDefined();
+    expect(screen.getByText('Step 1 of 4')).toBeDefined();
+    expect(screen.queryByText('Starting point')).toBeNull();
+    expect(screen.queryByText('Connect data')).toBeNull();
+    // Nothing to go back to.
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+
+    await user.type(screen.getByLabelText(/^Email/), 'ada@adminium.test');
+    await user.type(screen.getByLabelText(/^Password/), 'correct-horse-battery');
+    await user.type(screen.getByLabelText(/^Confirm password/), 'correct-horse-battery');
+    await user.click(screen.getByRole('button', { name: /Create account/ }));
+
+    await screen.findByRole('heading', { name: 'Where Adminium keeps its own data' });
+    expect(screen.getByText('Step 2 of 4')).toBeDefined();
+    expect(screen.queryByText(/have not connected a database yet/)).toBeNull();
+    expect(screen.getByText(/connected before this wizard opened/)).toBeDefined();
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+
+    await screen.findByRole('heading', { name: 'Bring your team' });
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+
+    await screen.findByRole('heading', { name: /You’re all set/ });
+    expect(await screen.findByText('“main” connected · 7 tables.')).toBeDefined();
+    expect(screen.getByText('13 pages generated from “main”.')).toBeDefined();
+    expect(screen.getByText(/pages made from your database are on the dashboard/)).toBeDefined();
+    expect(screen.queryByText(/nothing was generated/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => {
+      expect(stub.router.state.location.pathname).toBe('/');
+    });
+    // One account, and no second connection to the same database.
+    expect(stub.setupCalls).toHaveLength(1);
+    expect(stub.connectionCreates()).toBe(0);
+    expect(stub.connectionReads()).toBeGreaterThan(0);
+  });
+
+  it('says so when that database could not be reached', async () => {
+    const user = userEvent.setup();
+    await renderAt('/setup', {
+      required: true,
+      connected: [{ name: 'main', status: 'error', tableCount: null, pageCount: 0 }],
+    });
+    await screen.findByRole('heading', { name: 'Create your account' });
+    await user.type(screen.getByLabelText(/^Email/), 'ada@adminium.test');
+    await user.type(screen.getByLabelText(/^Password/), 'correct-horse-battery');
+    await user.type(screen.getByLabelText(/^Confirm password/), 'correct-horse-battery');
+    await user.click(screen.getByRole('button', { name: /Create account/ }));
+    await screen.findByRole('heading', { name: 'Where Adminium keeps its own data' });
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await screen.findByRole('heading', { name: 'Bring your team' });
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+
+    expect(await screen.findByText(/“main” could not be reached/)).toBeDefined();
+    expect(screen.queryByText(/nothing was generated/)).toBeNull();
   });
 });

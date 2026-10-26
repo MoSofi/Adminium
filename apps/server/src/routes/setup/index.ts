@@ -84,7 +84,11 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
       async (): Promise<SetupStateReply> => {
         const state = await service.state();
         return {
-          data: { required: state.required, passwordMinLength: state.passwordMinLength },
+          data: {
+            required: state.required,
+            passwordMinLength: state.passwordMinLength,
+            databaseConnected: state.databaseConnected,
+          },
         };
       },
     );

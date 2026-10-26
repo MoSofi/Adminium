@@ -37,6 +37,8 @@ export function sameDbBlockedReason(
   connection: LandedConnection | null,
   existing: ExistingStore | null = null,
   park = false,
+  /** A database was connected before the wizard opened (a project's, V7). */
+  alreadyConnected = false,
 ): string | null {
   // What the connect step found in there, and what the operator decided about
   // it. Unparked, the relocation would refuse — so the card says so
@@ -45,6 +47,15 @@ export function sameDbBlockedReason(
     return t(
       'onboarding:meta.sameDb.alreadyAdminium',
       'That database already holds an Adminium instance. Go back a step to keep its tables and start beside them, or sign in to it instead.',
+    );
+  }
+  if (connection === null && alreadyConnected) {
+    // Moving the store needs the database's address in this tab, and that one
+    // came from the project's config or the environment: the server never
+    // hands a stored address back.
+    return t(
+      'onboarding:meta.sameDb.alreadyConnected',
+      'That database was connected before this wizard opened, so this step cannot move Adminium’s data into it. Keep it in a file, or give Adminium a database of its own.',
     );
   }
   if (connection === null) {
@@ -106,6 +117,8 @@ export interface StorageStepProps {
   /** Where the store lives now; `null` while it loads. */
   placement: MetaStoreLocation | null;
   connection: LandedConnection | null;
+  /** A database was connected before the wizard opened (a project's, V7). */
+  alreadyConnected?: boolean | undefined;
   /** What the connect step's probe found in that database, and what was decided. */
   existing: ExistingStore | null;
   park: boolean;
@@ -122,6 +135,7 @@ export function StorageStep({
   onSeparateTested,
   placement,
   connection,
+  alreadyConnected = false,
   existing,
   park,
   relocating,
@@ -148,7 +162,7 @@ export function StorageStep({
     );
   }
 
-  const blocked = sameDbBlockedReason(connection, existing, park);
+  const blocked = sameDbBlockedReason(connection, existing, park, alreadyConnected);
   const dsnError = separateDsnError(separateDsn);
 
   function testSeparate(): void {

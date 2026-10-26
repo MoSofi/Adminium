@@ -65,11 +65,20 @@
       "reading": "Forbundet — Adminium læser dit skema nu.",
       "tables": "Forbundet · fandt {count, plural, one {# tabel} other {# tabeller}}."
     },
+    "database": {
+      "connected": "“{name}” forbundet.",
+      "failed": "“{name}” kunne ikke nås. Ret adressen, og genstart Adminium.",
+      "pages": "{count, plural, one {# side} other {# sider}} genereret fra “{name}”.",
+      "tables": "“{name}” forbundet · {count, plural, one {# tabel} other {# tabeller}}."
+    },
     "invited": "{count, plural, one {# invitation} other {# invitationer}} oprettet.",
     "label": "Klar",
     "next": {
       "blank": "Dit arbejdsrum er klar. Tilføj en side, når du vil — der blev ikke genereret noget, præcis som du bad om.",
-      "generate": "Dit arbejdsrum er klar. Nu vælger vi tabellerne og genererer dine sider."
+      "connected": "Dit arbejdsrum er klar. Siderne lavet ud fra din database ligger på dashboardet.",
+      "connectedNoPages": "Dit arbejdsrum er klar. Din database er forbundet; tilføj sider fra Studio, når du vil.",
+      "generate": "Dit arbejdsrum er klar. Nu vælger vi tabellerne og genererer dine sider.",
+      "ready": "Dit arbejdsrum er klar."
     },
     "storage": {
       "local": "Adminium gemmer sine egne data i en fil på denne maskine.",
@@ -90,6 +99,7 @@
   "kicker": "Trin {n} af {total}",
   "meta": {
     "body": "Dit login, de sider du genererer, og dine gemte indstillinger. Det er adskilt fra den database, du lige forbandt, som Adminium kun læser.",
+    "bodyConnected": "Dit login, de sider du genererer, og dine gemte indstillinger. Det er adskilt fra den database, der allerede er forbundet, som Adminium kun læser.",
     "label": "Adminiums data",
     "local": {
       "body": "Intet at sætte op. Rigtigt til at prøve Adminium eller til en enkelt instans.",
@@ -107,6 +117,7 @@
     },
     "sameDb": {
       "alreadyAdminium": "Den database indeholder allerede en Adminium-instans. Gå et trin tilbage for at beholde dens tabeller og starte ved siden af — eller log ind på den i stedet.",
+      "alreadyConnected": "Den database blev forbundet, før denne guide åbnede, så dette trin kan ikke flytte Adminiums data derind. Behold dem i en fil, eller giv Adminium sin egen database.",
       "body": "Adminium tilføjer sine egne `adminium_`-tabeller ved siden af dine. Én database at sikkerhedskopiere.",
       "disabledFile": "En SQLite-fil er ikke en server, Adminium kan tilføje sine egne tabeller til.",
       "disabledNoDdl": "Den rolle kan ikke køre CREATE TABLE, som Adminiums egne migreringer har brug for.",

@@ -45,7 +45,13 @@ import { DoneStep } from './steps/DoneStep.js';
 import { connectionNameFromDsn } from './submitHeldAnswers.js';
 import { DEFAULT_HELD_ANSWERS, type HeldAnswers } from './heldAnswers.js';
 import { submitHeldAnswers, type LandedConnection } from './submitHeldAnswers.js';
-import { stepAfter, stepBefore, type OnboardingStepId } from './wizardState.js';
+import type { ConnectedDatabase } from './steps/DoneStep.js';
+import {
+  onboardingStepIds,
+  stepAfter,
+  stepBefore,
+  type OnboardingStepId,
+} from './wizardState.js';
 
 /** Long enough that typing a DSN is one probe, short enough that waiting on it is cheap. */
 const PROBE_DEBOUNCE_MS = 400;
@@ -55,11 +61,22 @@ const NO_CONSENT: SetupConsent = { telemetry: false, updateCheck: false };
 
 export interface OnboardingPageProps {
   passwordMinLength: number;
+  /**
+   * The server connected a database before anyone signed in — a project's
+   * `databases.main`, or the first-boot source seed (`GET /setup/state`). The
+   * wizard then opens on the account and leaves out the starting-point and
+   * connect steps (walkthrough finding V7).
+   */
+  databaseConnected?: boolean | undefined;
 }
 
-export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): ReactNode {
+export function OnboardingPage({
+  passwordMinLength,
+  databaseConnected = false,
+}: OnboardingPageProps): ReactNode {
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStepId>('start');
+  const steps = onboardingStepIds(databaseConnected);
+  const [step, setStep] = useState<OnboardingStepId>(steps[0] ?? 'start');
   const [held, setHeld] = useState<HeldAnswers>(DEFAULT_HELD_ANSWERS);
   const [account, setAccount] = useState<AccountValues>(EMPTY_ACCOUNT);
   const [accountErrors, setAccountErrors] = useState<AccountErrors>({});
@@ -152,6 +169,25 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
     enabled: signedIn,
     retry: false,
   });
+
+  /**
+   * What the server connected and generated before the wizard opened, for the
+   * last screen. Read once signed in, for the same reason as `placement`.
+   */
+  const preconnected = useQuery({
+    queryKey: ['setup', 'preconnected'],
+    queryFn: () => studioApi.listConnections(),
+    enabled: databaseConnected && signedIn,
+    retry: false,
+  });
+  const connectedDatabases: readonly ConnectedDatabase[] | undefined = databaseConnected
+    ? (preconnected.data ?? []).map((dto) => ({
+        name: dto.name,
+        status: dto.status,
+        tableCount: dto.tableCount,
+        pageCount: dto.pageCount,
+      }))
+    : undefined;
 
   function goto(next: OnboardingStepId | null): void {
     if (next === null) return;
@@ -365,7 +401,7 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
       finish();
       return;
     }
-    goto(stepAfter(step));
+    goto(stepAfter(step, steps));
   }
 
   const dsnError = connectDsnError(held.dsn);
@@ -373,6 +409,7 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
   return (
     <OnboardingWizard
       step={step}
+      steps={steps}
       busy={busy}
       error={error}
       nextDisabled={
@@ -393,8 +430,8 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
         if (signedIn && (target === 'start' || target === 'connect')) return;
         goto(target);
       }}
-      onBack={() => goto(stepBefore(step))}
-      onSkip={() => goto(stepAfter(step))}
+      onBack={() => goto(stepBefore(step, steps))}
+      onSkip={() => goto(stepAfter(step, steps))}
       onNext={onNext}
       {...(step === 'account'
         ? { nextLabel: t('onboarding:account.submit', 'Create account') }
@@ -443,6 +480,7 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
           onSeparateTested={setSeparateTested}
           placement={placement.data ?? null}
           connection={connection}
+          alreadyConnected={databaseConnected}
           existing={held.existing}
           park={held.park}
           relocating={relocating}
@@ -457,6 +495,7 @@ export function OnboardingPage({ passwordMinLength }: OnboardingPageProps): Reac
       {step === 'done' ? (
         <DoneStep
           connection={connection}
+          connectedDatabases={connectedDatabases}
           storage={storage}
           start={held.start}
           invitedCount={invited.length}

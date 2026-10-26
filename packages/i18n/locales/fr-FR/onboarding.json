@@ -65,11 +65,20 @@
       "reading": "Connecté — Adminium lit votre schéma.",
       "tables": "Connecté · {count, plural, one {# table trouvée} other {# tables trouvées}}."
     },
+    "database": {
+      "connected": "« {name} » connectée.",
+      "failed": "« {name} » est injoignable. Corrigez son adresse et redémarrez Adminium.",
+      "pages": "{count, plural, one {# page générée} other {# pages générées}} à partir de « {name} ».",
+      "tables": "« {name} » connectée · {count, plural, one {# table} other {# tables}}."
+    },
     "invited": "{count, plural, one {# invitation créée} other {# invitations créées}}.",
     "label": "Tout est prêt",
     "next": {
       "blank": "Votre espace est prêt. Ajoutez une page quand vous voulez — rien n’a été généré, exactement comme demandé.",
-      "generate": "Votre espace est prêt. Nous allons maintenant choisir les tables à inclure et générer vos pages."
+      "connected": "Votre espace est prêt. Les pages créées à partir de votre base sont sur le tableau de bord.",
+      "connectedNoPages": "Votre espace est prêt. Votre base est connectée ; ajoutez des pages depuis le Studio quand vous voulez.",
+      "generate": "Votre espace est prêt. Nous allons maintenant choisir les tables à inclure et générer vos pages.",
+      "ready": "Votre espace est prêt."
     },
     "storage": {
       "local": "Adminium conserve ses propres données dans un fichier sur cette machine.",
@@ -90,6 +99,7 @@
   "kicker": "Étape {n} sur {total}",
   "meta": {
     "body": "Votre connexion, les pages générées et vos réglages enregistrés. C’est distinct de la base que vous venez de connecter, qu’Adminium se contente de lire.",
+    "bodyConnected": "Votre connexion, les pages générées et vos réglages enregistrés. C’est distinct de la base déjà connectée, qu’Adminium se contente de lire.",
     "label": "Les données d’Adminium",
     "local": {
       "body": "Rien à configurer. Idéal pour essayer Adminium, ou pour une instance unique.",
@@ -107,6 +117,7 @@
     },
     "sameDb": {
       "alreadyAdminium": "Cette base contient déjà une instance Adminium. Revenez à l’étape précédente pour conserver ses tables et repartir à côté, ou connectez-vous à elle.",
+      "alreadyConnected": "Cette base a été connectée avant l’ouverture de cet assistant : cette étape ne peut donc pas y déplacer les données d’Adminium. Gardez-les dans un fichier, ou donnez à Adminium une base à lui.",
       "body": "Adminium ajoute ses propres tables `adminium_` à côté des vôtres. Une seule base à sauvegarder.",
       "disabledFile": "Un fichier SQLite n’est pas un serveur auquel Adminium peut ajouter ses propres tables.",
       "disabledNoDdl": "Ce rôle ne peut pas exécuter CREATE TABLE, dont les migrations d’Adminium ont besoin.",

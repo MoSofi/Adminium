@@ -65,11 +65,20 @@
       "reading": "已连接——Adminium 正在读取你的数据库结构。",
       "tables": "已连接 · 找到 {count, plural, other {# 张表}}。"
     },
+    "database": {
+      "connected": "“{name}”已连接。",
+      "failed": "无法连接“{name}”。请修正它的地址并重启 Adminium。",
+      "pages": "已从“{name}”生成 {count, plural, other {# 个页面}}。",
+      "tables": "“{name}”已连接 · {count, plural, other {# 张表}}。"
+    },
     "invited": "已创建 {count, plural, other {# 份邀请}}。",
     "label": "全部就绪",
     "next": {
       "blank": "你的工作区已就绪。随时都可以添加页面——正如你所选择的，我们没有生成任何内容。",
-      "generate": "你的工作区已就绪。接下来我们会挑选要包含的表并生成页面。"
+      "connected": "你的工作区已就绪。根据你的数据库生成的页面都在仪表盘上。",
+      "connectedNoPages": "你的工作区已就绪。数据库已连接；随时可以在 Studio 中添加页面。",
+      "generate": "你的工作区已就绪。接下来我们会挑选要包含的表并生成页面。",
+      "ready": "你的工作区已就绪。"
     },
     "storage": {
       "local": "Adminium 把自己的数据保存在这台机器的一个文件里。",
@@ -90,6 +99,7 @@
   "kicker": "第 {n} 步，共 {total} 步",
   "meta": {
     "body": "你的登录信息、生成的页面和保存的设置。它与你刚连接的数据库是分开的，Adminium 只读取后者。",
+    "bodyConnected": "你的登录信息、生成的页面和保存的设置。它与已连接的数据库是分开的，Adminium 只读取后者。",
     "label": "Adminium 的数据",
     "local": {
       "body": "无需任何配置。适合试用 Adminium，或只运行一个实例。",
@@ -107,6 +117,7 @@
     },
     "sameDb": {
       "alreadyAdminium": "那个数据库里已经有一个 Adminium 实例。返回上一步保留它的表并在旁边新建，或者直接登录到它。",
+      "alreadyConnected": "这个数据库在向导打开之前就已连接，所以这一步无法把 Adminium 的数据移进去。请保存在文件里，或者给 Adminium 一个单独的数据库。",
       "body": "Adminium 会在你的表旁边添加自己的 `adminium_` 表。只需备份一个数据库。",
       "disabledFile": "SQLite 文件不是服务器，Adminium 无法在其中添加自己的表。",
       "disabledNoDdl": "该角色无法执行 CREATE TABLE，而 Adminium 自身的迁移需要它。",

@@ -16,6 +16,7 @@
 
 import BetterSqlite3 from 'better-sqlite3';
 import {
+  connectionsRepo,
   createSqliteMetaDb,
   firstRun,
   rolesRepo,
@@ -27,6 +28,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { makeEnv, type InjectPayload } from './helpers.js';
+import { TEST_STORAGE_CRYPTO } from './helpers/file-store.js';
 
 interface Harness {
   app: AdminiumServer;
@@ -66,6 +68,30 @@ describe('first-run super-admin bootstrap', () => {
     const body = res.json() as { data: { required: boolean; passwordMinLength: number } };
     expect(body.data.required).toBe(true);
     expect(body.data.passwordMinLength).toBe(10); // registry default
+  });
+
+  /**
+   * Walkthrough finding V7: a project's `databases.main` (or the first-boot
+   * source seed) is connected before anyone signs in, and the wizard has to
+   * know, or it asks for the database a second time. One yes/no, and only
+   * while setup is open.
+   */
+  it('says whether a database was connected before setup, and stops saying it once setup closes', async () => {
+    const before = (await getState()).json() as { data: { databaseConnected: boolean } };
+    expect(before.data.databaseConnected).toBe(false);
+
+    await connectionsRepo(t.meta, TEST_STORAGE_CRYPTO).create({
+      name: 'main',
+      engine: 'postgres',
+      introspectDsn: 'postgres://app@localhost/shop',
+      projectKey: 'main',
+    });
+    const connected = (await getState()).json() as { data: Record<string, unknown> };
+    expect(connected.data).toEqual({ required: true, passwordMinLength: 10, databaseConnected: true });
+
+    expect((await postSetup(GOOD)).statusCode).toBe(201);
+    const closed = (await getState()).json() as { data: { required: boolean; databaseConnected: boolean } };
+    expect(closed.data).toMatchObject({ required: false, databaseConnected: false });
   });
 
   it('creates the super admin, signs the wizard in, and closes setup', async () => {

@@ -49,6 +49,14 @@ export interface SetupState {
   required: boolean;
   /** Password policy the wizard should enforce client-side too. */
   passwordMinLength: number;
+  /**
+   * A source database is already connected while setup is still open: a
+   * project's `databases` in `adminium.config.ts`, or the first-boot
+   * `ADMINIUM_SOURCE_URL` seed, made it before anyone signed in. The wizard
+   * then opens on the account step instead of asking for a database a second
+   * time (walkthrough finding V7). Always `false` once setup is closed.
+   */
+  databaseConnected: boolean;
 }
 
 /** Bootstrap already happened — permanently closed. Front doors map this to 409. */
@@ -91,7 +99,13 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
       isBootstrapRequired(meta),
       settings.get('auth.passwordMinLength'),
     ]);
-    return { required, passwordMinLength };
+    return { required, passwordMinLength, databaseConnected: required && (await hasConnection()) };
+  }
+
+  /** Any connection row at all, healthy or not: either way it is not the wizard's to make. */
+  async function hasConnection(): Promise<boolean> {
+    const row = await meta.db.selectFrom('adminium_connections').select('id').limit(1).executeTakeFirst();
+    return row !== undefined;
   }
 
   return {
