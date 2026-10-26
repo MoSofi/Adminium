@@ -306,6 +306,8 @@ import { paymentPanelRoutes } from './routes/payments/panel.js';
 import { consentRoutes, emailColumnOf } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { mailDoorRoutes } from './routes/mail-door/index.js';
+import { privacyRoutes } from './routes/privacy/index.js';
+import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
@@ -462,6 +464,10 @@ export const FILES_RETENTION_CRON = '45 4 * * *';
  * daily in there would contend with both on the same meta store.
  */
 export const RETENTION_GC_SCHEDULE_NAME = 'retention-gc';
+
+/** Daily: a person's downloaded data whose time is up is deleted (`privacy/export.ts`), after the meta sweep. */
+export const PRIVACY_EXPORTS_SWEEP_NAME = 'privacy-exports-sweep';
+export const PRIVACY_EXPORTS_SWEEP_CRON = '30 3 * * *';
 
 /** Minute flush of the public API's request counts. */
 export const PUBLIC_STATS_FLUSH_NAME = 'public-request-stats-flush';
@@ -1591,6 +1597,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // …and the declared columns that mirror it: a write told to the log, a log event written into the column.
   peopleConsent = createPeopleConsent({ meta, consent, tables: consentTables, viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
   const consentMirror = peopleConsent;
+  // A person's data downloaded for them ("Download everything"): written by a job, deleted once its time is up.
+  registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET });
+  jobs.scheduler.registerSchedule(PRIVACY_EXPORTS_SWEEP_NAME, PRIVACY_EXPORTS_SWEEP_CRON, async () => {
+    const swept = await sweepPrivacyExports(meta, storage);
+    if (swept > 0) app.log.info({ swept }, 'privacy downloads sweep');
+  });
   // A recorded live payment emails its receipt once, to the record's customer.
   registerPaymentsRecordHandler(jobs.registry, {
     meta,
@@ -2211,6 +2223,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           mirror: (event) => consentMirror.mirrorEvent(event),
         }),
       );
+      // A person's data by address, the privacy notice and the sender's postal address: the privacy action's.
+      await api.register(privacyRoutes({ meta, manager, consent, storage, secret: env.ADMINIUM_SECRET, enqueue: (input) => jobs.enqueue(input) }));
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
         paymentLinksRoutes({

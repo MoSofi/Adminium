@@ -441,6 +441,19 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/people': noRows('Names and ids of staff, to pick somebody.'),
   // --- /permissions
   'GET /api/v1/permissions/catalog': noRows('What can be granted.'),
+  // --- /privacy
+  'GET /api/v1/privacy/notice': noRows('The privacy notice: two settings, no source row.'),
+  'PUT /api/v1/privacy/notice': noRows('The privacy notice: two settings, no source row.'),
+  'GET /api/v1/privacy/notice/public': noRows('The name strangers read and the privacy notice\'s address: settings, no source row.'),
+  'GET /api/v1/privacy/postal-address': noRows('The sender\'s postal address: a setting, no source row.'),
+  'PUT /api/v1/privacy/postal-address': noRows('The sender\'s postal address: a setting, no source row.'),
+  'POST /api/v1/privacy/find': rows('system', 'A person\'s rows by their address, read whole under the privacy action (only the Super Admin holds it unless granted), past every role\'s table and row limits; a private table is not read; counts and keys only.'),
+  'POST /api/v1/privacy/what-stays': rows('system', 'The same search as a person\'s data, under the privacy action; answers kinds and counts only.'),
+  'GET /api/v1/privacy/keeping': noRows('How long things are kept: fixed rows and settings.'),
+  'POST /api/v1/privacy/exports': rows('system', 'Queues the download of a person\'s data, under the privacy action; the job reads as the search does.'),
+  'GET /api/v1/privacy/exports': noRows('The downloads the person asked for: meta rows of their own.'),
+  'GET /api/v1/privacy/exports/:id': noRows('One of the person\'s own downloads: a meta row.'),
+  'GET /api/v1/privacy/exports/:id/download': rows('own', 'The file is its requester\'s alone, and only while they hold the privacy action.'),
   // --- /project
   'GET /api/v1/project/actions': noRows('A project folder\'s files, its apps and what it would remove: no source row is read.'),
   'POST /api/v1/project/actions/:id': rows(['visible', 'system'], 'The rows chosen are read as the caller; what the owner\'s code then reads is the system\'s, and a private table is not handed to it.'),
@@ -596,4 +609,5 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'app-download': noRows('Fetches a package.'),
   'app-catalog-refresh': noRows('Refreshes the app catalogue.'),
   'app-sample-add': rows('system', 'Adds an app\'s sample rows as the system, under the manifests grant.'),
+  'privacy.export': rows('system', 'Writes a person\'s data for the person who asked, read as the privacy search reads it, only while they still hold the privacy action.'),
 };
