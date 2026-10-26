@@ -3742,6 +3742,27 @@ row](#the-person-on-the-row) (`staff`) or to [the people listed on the row](#the
 `mailClassOf(manifest, { outboxKind } | { step })` in `@adminiumjs/manifest` answers `marketing`,
 `service` or `staff` for one mail.
 
+What a marketing kind or step meets when it is sent:
+
+- **Who it skips.** An address on the do-not-email list; a person whose latest answer in the
+  consent log for the newsletter is not a yes (unless the owner turned "existing customers" on for
+  their table, the row carries the app's opt-out mark and the person is a customer, and they never
+  said no); and, for a rule's second or later mail, a person staff marked "Replied" since the run
+  began. The message is written `skipped` with the reason (a rule's step says it in its log), and
+  is not tried again.
+- **When it is refused.** While the sender has no postal address, sends from a free mailbox
+  (Gmail, Outlook), has no DMARC record or no published Adminium signing key (DKIM) for its
+  domain, or the server has no public address for the unsubscribe link. An outbox kind is then
+  written `skipped` with the reason and the people who manage e-mail are told once; a rule's step
+  fails with the reason.
+- **What it carries.** The unsubscribe link and the one-click `List-Unsubscribe` headers, a footer
+  with the postal address and "Unsubscribe from …" in the reader's language, which the template
+  cannot remove, and Adminium's DKIM signature.
+
+A permanent refusal from the mail server while a contact's mail of either class is sent (a `550`
+for the address, from your own mail server rather than one of the large mail services) puts the
+address on the do-not-email list; a `4xx` is tried again.
+
 ### Held messages
 
 A producer with `hold` writes its messages `held`, each with its own due moment, and nothing is
