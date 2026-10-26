@@ -776,6 +776,8 @@ export interface AdminiumEmailRunsTable {
   basis: string | null;
   /** The frozen content (`adminium_email_run_contents`) the run sends. */
   contentId: Id | null;
+  /** Wave 0069. Whether the run counts clicks (signed links); off unless its sender switched it on. */
+  trackClicks: BoolColumn;
 }
 
 /**

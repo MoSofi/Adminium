@@ -279,6 +279,8 @@ for (const dialect of TEST_DIALECTS) {
         mailClass: null,
         basis: null,
         contentId: null,
+        // 0069: a run made before the click switch counts no clicks.
+        trackClicks: false,
       });
       expect((await runs.latestByTemplates([doc.id])).get(doc.id)?.id).toBe(values.id);
       await emailTemplatesRepo(t.meta).removeById(doc.id);

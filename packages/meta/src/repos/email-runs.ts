@@ -46,7 +46,7 @@ import {
   type EmailRunStatus,
 } from '../schema/json-payloads.js';
 import type { AdminiumEmailRunsTable } from '../schema/tables.js';
-import { affected, packJson, readJson, readJsonOrNull } from './util.js';
+import { affected, packJson, readBool, readJson, readJsonOrNull, writeBool } from './util.js';
 
 export interface EmailRun {
   id: string;
@@ -74,6 +74,8 @@ export interface EmailRun {
   basis: EmailRunBasis | null;
   /** The content frozen when the run started; null until then. */
   contentId: string | null;
+  /** Whether the run counts clicks (signed links); off unless its sender switched it on. */
+  trackClicks: boolean;
 }
 
 export interface CreateEmailRunInput {
@@ -86,6 +88,7 @@ export interface CreateEmailRunInput {
   ratePerHour?: number | null | undefined;
   mailClass?: EmailRunClass | null | undefined;
   basis?: EmailRunBasis | null | undefined;
+  trackClicks?: boolean | undefined;
 }
 
 /** A run's content as it froze: the campaign in every language it goes out in, the started-from one first. */
@@ -139,6 +142,7 @@ function decode(row: Selectable<AdminiumEmailRunsTable>): EmailRun {
     mailClass: row.mailClass === null ? null : emailRunClassSchema.parse(row.mailClass),
     basis: row.basis === null ? null : emailRunBasisSchema.parse(row.basis),
     contentId: row.contentId,
+    trackClicks: readBool(row.trackClicks),
   };
 }
 
@@ -181,6 +185,7 @@ export function emailRunsRepo(meta: MetaDb) {
           mailClass: input.mailClass ?? null,
           basis: input.basis ?? null,
           contentId: null,
+          trackClicks: writeBool(meta, input.trackClicks === true),
         })
         .execute();
       const row = await findById(id);
