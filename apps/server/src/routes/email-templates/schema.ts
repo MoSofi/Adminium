@@ -15,7 +15,9 @@ import {
   emailCategorySchema,
   emailDocumentKindSchema,
   emailMirrorOpsSchema,
+  emailRunStateSchema,
   emailRunStatusSchema,
+  emailSendStateSchema,
 } from '@adminium/meta';
 
 import { emailDocumentInputSchema, emailDocumentSchema } from '../../email/document.js';
@@ -35,6 +37,10 @@ export const emailRunView = z.object({
   audience: emailAudienceSchema,
   failures: z.array(z.object({ to: z.string(), error: z.string() })),
   createdAt: z.number(),
+  /** What the run is told to do (running, paused, stopped, done); null on a run from before the ledger. */
+  state: emailRunStateSchema.nullable(),
+  /** At most this many an hour; null = as fast as the mail server allows. */
+  ratePerHour: z.number().int().nullable(),
 });
 export type EmailRunView = z.infer<typeof emailRunView>;
 
@@ -257,19 +263,96 @@ export const savedBlockDetailReply = z.object({ block: savedBlockView });
 // --- campaigns
 // ------------------------------------------------------------------
 
-export const emailAudiencePreviewBody = z.object({ audience: emailAudienceSchema });
+/** "At most N an hour": a whole number of messages; absent or null = as fast as the mail server allows. */
+export const EMAIL_RATE_MAX = 100_000;
+const ratePerHour = z.number().int().min(1).max(EMAIL_RATE_MAX).nullable().optional();
+
+export const emailAudiencePreviewBody = z.object({ audience: emailAudienceSchema, ratePerHour });
 export const emailAudiencePreviewReply = z.object({
   total: z.number().int(),
   skipped: z.number().int(),
   /** The placeholders no recipient's send would fill; while there is one, the send is refused. */
   unfilled: z.array(z.string()),
+  /** How long the people who get it take at `ratePerHour`, in minutes; null without a cap. */
+  estimateMinutes: z.number().int().nullable(),
 });
 
 export const emailSendBody = z.object({
   audience: emailAudienceSchema,
   /** Epoch ms; absent = now. Never in the past by more than a minute. */
   scheduleAt: z.number().int().positive().optional(),
+  ratePerHour,
 });
 export const emailSendReply = z.object({ run: emailRunView });
 export const emailRunsReply = z.object({ runs: z.array(emailRunView) });
 export const emailRunCancelReply = z.object({ run: emailRunView });
+
+/** One run, as the sending bar shows it: "Sending · 120 of 470", and how long the rest takes. */
+export const emailRunProgressReply = z.object({
+  run: emailRunView,
+  /** The campaign's name when the run started (its own after it was deleted); null before it started. */
+  name: z.string().nullable(),
+  /** Recipients handed over or settled, and all of them. */
+  done: z.number().int(),
+  total: z.number().int(),
+  /** Not yet handed over: what "stop for good" would leave unsent. */
+  left: z.number().int(),
+  /** Minutes the rest takes at the run's cap; null without one, or with nobody left. */
+  estimateMinutes: z.number().int().nullable(),
+});
+
+export const emailRunMoveReply = z.object({ run: emailRunView });
+export const emailRunStopReply = z.object({
+  run: emailRunView,
+  /** How many people will not get it. */
+  left: z.number().int(),
+});
+
+/** The send log's filters (comp E1.11): all, or one group of states. */
+export const emailSendLogFilter = z.enum(['all', 'sent', 'waiting', 'skipped', 'bounced', 'spam', 'failed', 'unsubscribed']);
+
+export const emailSendLogQuery = z.object({
+  filter: emailSendLogFilter.optional(),
+  /** Part of a name or an address. */
+  q: z.string().max(200).optional(),
+  /** The `seq` of the last row of the page before. */
+  after: z.coerce.number().int().min(-1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+export const emailSendLogCsvQuery = emailSendLogQuery.omit({ after: true, limit: true });
+
+export const emailSendLogSummary = z.object({
+  total: z.number().int(),
+  sent: z.number().int(),
+  waiting: z.number().int(),
+  skipped: z.number().int(),
+  bounced: z.number().int(),
+  spam: z.number().int(),
+  failed: z.number().int(),
+  unsubscribed: z.number().int(),
+});
+
+export const emailSendLogRow = z.object({
+  id: z.string(),
+  seq: z.number().int(),
+  name: z.string(),
+  address: z.string(),
+  language: z.string().nullable(),
+  state: emailSendStateSchema,
+  /** A code the screen words (`campaign-mail-off`), or what the mail server said. */
+  reason: z.string().nullable(),
+  /** When it was handed over, or settled; null while it waits. */
+  time: z.number().nullable(),
+  /** Handed over, and the mail queue is still trying after a refusal: `reason` is the last one. */
+  retrying: z.boolean(),
+  attempts: z.number().int(),
+  clicks: z.number().int(),
+});
+export type EmailSendLogRowView = z.infer<typeof emailSendLogRow>;
+
+export const emailSendLogReply = z.object({
+  summary: emailSendLogSummary,
+  rows: z.array(emailSendLogRow),
+  /** The `after` of the next page; null on the last. */
+  next: z.number().int().nullable(),
+});
