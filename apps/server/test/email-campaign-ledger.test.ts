@@ -373,6 +373,38 @@ for (const engine of META_ENGINES) {
       mailedOnce(5);
     });
 
+    it('a batch that wakes after its rows were taken back hands none of them, even as the head of a running run', async () => {
+      await people(1);
+      const doc = await campaign();
+      const run = await send(doc.id);
+      // Two runs of the same job, as a reclaim makes them: the first stuck on its first row.
+      const entry = registry.get(EMAIL_CAMPAIGN_RUN_KIND)!;
+      const ctx = (signal = new AbortController().signal) => ({ jobId: run.jobId!, kind: EMAIL_CAMPAIGN_RUN_KIND, attempt: 1, maxAttempts: 5, signal, progress: () => {}, log: () => {} });
+      const wakes: (() => void)[] = [];
+      let calls = 0;
+      checkRow = async () => {
+        calls += 1;
+        // The first run's first row, and the second run's last row, wait to be woken.
+        if (calls === 1 || calls === 4) await new Promise<void>((resolve) => wakes.push(resolve));
+        return 'send';
+      };
+      const first = entry.run({ runId: run.id }, ctx());
+      await pollUntil(() => calls === 1);
+      const second = entry.run({ runId: run.id }, ctx());
+      await pollUntil(() => calls === 4);
+      // The second took the first's rows back and handed two; the run is still running, under the same job.
+      expect(await states(run.id)).toMatchObject({ sent: 2, sending: 1 });
+      wakes[0]!();
+      await first;
+      wakes[1]!();
+      await second;
+      // The first, as the head, queued the next batch; the second lost the head at its last row.
+      await drain(worker('rest'));
+      expect(await states(run.id)).toEqual({ sent: 3 });
+      expect(await emailSendJobs()).toBe(3);
+      mailedOnce(3);
+    });
+
     it('a batch job that is not the head of its run hands nothing', async () => {
       await people(3);
       const doc = await campaign();
