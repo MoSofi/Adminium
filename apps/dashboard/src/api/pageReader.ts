@@ -6,29 +6,25 @@
  * `loadPageReader()` fetches it; `pageQuery` starts that beside its request,
  * so a page document is parsed the moment both are in. `usePageReader()` is
  * for the hooks that read a page's layout while it renders: a page's data
- * only exists once the reader has run, so on every real render the reader is
- * already here and the hook returns it at once. It suspends only for a
- * caller that came by a page some other way and before the chunk ran.
+ * only exists once the reader is in, so on every real render the hook
+ * returns it at once. It suspends only for a caller that came by a page some
+ * other way before the chunk was asked for.
  *
- * The chunk hands itself in (`providePageReader`) when it runs, so a module
- * that imports it statically (the project kit, a test) has the reader without
- * ever calling `loadPageReader()`.
+ * A module that imports the reader statically to parse a document of its
+ * own (the project kit) hands it in with `providePageReader`, so the page it
+ * then renders reads its layout without waiting. The reader never calls in
+ * here itself: this module loads it, and a call back would be an import cycle.
  */
 import { use } from 'react';
 
-import type * as PageDocument from './pageDocument.js';
+import type { pageReader as PageReaderValue } from './pageDocument.js';
 
-export interface PageReader {
-  parsePageDocument: typeof PageDocument.parsePageDocument;
-  extractBindings: typeof PageDocument.extractBindings;
-  layoutHasDay: typeof PageDocument.layoutHasDay;
-  layoutRefreshMs: typeof PageDocument.layoutRefreshMs;
-}
+export type PageReader = typeof PageReaderValue;
 
 let reader: PageReader | null = null;
 let loading: Promise<PageReader> | null = null;
 
-/** Called once, by `pageDocument.ts` as it runs. */
+/** For a module that already holds the reader (it imported `pageDocument.ts`). */
 export function providePageReader(provided: PageReader): void {
   reader = provided;
 }
@@ -37,7 +33,10 @@ export function providePageReader(provided: PageReader): void {
 export function loadPageReader(): Promise<PageReader> {
   if (reader !== null) return Promise.resolve(reader);
   loading ??= import('./pageDocument.js').then(
-    () => reader as PageReader,
+    (module) => {
+      reader = module.pageReader;
+      return reader;
+    },
     (error: unknown) => {
       loading = null;
       throw error;

@@ -14,16 +14,15 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import type { PageEnvelope, QueryDescriptor } from '@adminium/engine/config';
+import type { PageEnvelope } from '@adminium/engine/config';
 import type { WidgetDataState } from '@adminium/widgets';
 
 import { api } from '../app/api.js';
+import type { WidgetDataRequest } from './pageDocument.js';
 import { usePageReader } from './pageReader.js';
 
-export interface WidgetDataRequest {
-  instanceId: string;
-  descriptor: QueryDescriptor;
-}
+// Declared with the reader that produces them; a type import keeps zod out.
+export type { ExtractedBindings, WidgetDataRequest } from './pageDocument.js';
 
 /** Page-control published params (date range, filter facets). */
 export type WidgetDataParams = Record<string, unknown>;
@@ -62,12 +61,6 @@ export interface DashboardData {
   stateFor(instanceId: string): WidgetDataState | null;
   /** Refetch the page batch (kebab → Refresh, `R` shortcut). */
   refetch(): void;
-}
-
-export interface ExtractedBindings {
-  requests: WidgetDataRequest[];
-  /** instanceId → validation message for items whose binding failed Zod. */
-  invalid: Map<string, string>;
 }
 
 // `extractBindings` (layout → query descriptors) is zod, so it lives with the

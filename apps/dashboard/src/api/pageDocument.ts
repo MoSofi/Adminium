@@ -6,7 +6,7 @@
  * Every schema of a page document (`@adminium/engine/config`, and the layout
  * and query-descriptor schemas it re-exports from `@adminium/widgets`) is
  * zod, and zod is the largest single package a page needs that the first
- * paint does not: 30,711 bytes gz of the entry at zod 4.6.7 (chunk-budget.json,
+ * paint does not: 30,700 bytes gz of the entry at zod 4.6.7 (chunk-budget.json,
  * 2026-10-25). Imported from `pages.ts`, `widgetData.ts` or `PageRenderer.tsx`
  * it rode in the entry on every route for every user, the sign-in form
  * included. Here it loads with the first page
@@ -17,7 +17,9 @@
  * run, so the parse and the layout reads stay the plain functions they were.
  * Import this module only from code that is itself lazy (a template, the
  * project kit, a test); an import from the first paint puts zod back in the
- * entry, which `check-entry-budget` measures.
+ * entry, which `check-entry-budget` measures. It imports nothing of the
+ * dashboard but types (`pageFacts.ts`), so `pageReader.ts` can load it
+ * without an import cycle.
  */
 import {
   ConfigMigrationError,
@@ -29,11 +31,21 @@ import {
   runConfigMigrations,
   type ConfigMigration,
   type PageEnvelope,
+  type QueryDescriptor,
 } from '@adminium/engine/config';
 
-import type { PageDocumentResult } from './pages.js';
-import { providePageReader } from './pageReader.js';
-import type { ExtractedBindings, WidgetDataRequest } from './widgetData.js';
+import type { PageDocumentResult } from './pageFacts.js';
+
+export interface WidgetDataRequest {
+  instanceId: string;
+  descriptor: QueryDescriptor;
+}
+
+export interface ExtractedBindings {
+  requests: WidgetDataRequest[];
+  /** instanceId → validation message for items whose binding failed Zod. */
+  invalid: Map<string, string>;
+}
 
 /**
  * Post-migration envelope validator — structural so tests can inject a
@@ -155,4 +167,5 @@ export function layoutRefreshMs(page: PageEnvelope): number | false {
   return intervals.length === 0 ? false : Math.min(...intervals) * 1000;
 }
 
-providePageReader({ parsePageDocument, extractBindings, layoutHasDay, layoutRefreshMs });
+/** What `pageReader.ts` hands out once this chunk is in. */
+export const pageReader = { parsePageDocument, extractBindings, layoutHasDay, layoutRefreshMs };
