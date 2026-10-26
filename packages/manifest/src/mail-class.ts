@@ -33,9 +33,9 @@ import type { ManifestAction, ManifestAutomation } from './automations.js';
 import type { Outbox } from './outbox.js';
 import { compareSemver } from './semver.js';
 
-/** The two classes of mail to a contact. */
-export const MAIL_CLASSES = ['marketing', 'service'] as const;
-export type MailClass = (typeof MAIL_CLASSES)[number];
+import type { MailClass } from './mail-classes.js';
+
+export { MAIL_CLASSES, type MailClass } from './mail-classes.js';
 
 /** What `mailClassOf` answers: a class, or `staff` for mail to staff that has none. */
 export type MailClassAnswer = MailClass | 'staff';

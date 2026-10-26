@@ -22,7 +22,7 @@
  */
 import { z } from 'zod';
 
-import { MAIL_CLASSES } from './mail-class.js';
+import { MAIL_CLASSES } from './mail-classes.js';
 import { placeholderNames, requiredNamesOfEmail, showWhenNames } from './placeholders.js';
 import { bcp47TagSchema, refSchema, type ReferenceIssue } from './refs.js';
 

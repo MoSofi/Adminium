@@ -29,7 +29,7 @@ import { z } from 'zod';
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
 import { OTHERWISE_BLOCKS, placeholderPattern } from './placeholders.js';
-import { MAIL_CLASSES } from './mail-class.js';
+import { MAIL_CLASSES } from './mail-classes.js';
 import { personalColumn, unlistedColumn } from './public-access.js';
 import { reachedOnlyByUndo, type StateMove } from './states.js';
 import {

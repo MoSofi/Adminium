@@ -71,7 +71,7 @@ import {
   type RenderEmailInput,
   type RenderedEmail,
 } from './render.js';
-import type { MarketingCarry } from './marketing.js';
+import type { MarketingCarry } from './marketing-carry.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */

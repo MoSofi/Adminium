@@ -80,7 +80,7 @@ import {
   type TxtLookup,
 } from './sender/index.js';
 import { businessNameOf, postalAddressOf } from './sender/marketing-settings.js';
-import type { LockedFooter } from './render.js';
+import type { MarketingCarry } from './marketing-carry.js';
 import type { OutboundDkim } from './types.js';
 import { mailLinkKeys } from './link-keys.js';
 import { makeUnsubscribeToken, unsubscribeUrl } from './unsubscribe-token.js';
@@ -106,11 +106,7 @@ export interface MarketingVerdictInput {
   repliedSince?: number | null | undefined;
 }
 
-/** What a marketing mail carries: its two list headers and the locked footer. */
-export interface MarketingCarry {
-  headers: Record<string, string>;
-  locked: LockedFooter;
-}
+export type { MarketingCarry } from './marketing-carry.js';
 
 export interface MarketingCarryInput {
   to: string;
