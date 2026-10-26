@@ -154,6 +154,9 @@ export const ID_PREFIXES = {
   pmt: 'adminium_payment_methods',
   // wave 0064 — a removed row kept under a row it linked to.
   rmv: 'adminium_removed_rows',
+  // wave 0068 — a mail service's notice address, and a sending domain's DKIM key.
+  ntc: 'adminium_email_notice_endpoints',
+  dkim: 'adminium_email_dkim_keys',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
