@@ -30,6 +30,7 @@
 import { emailRunsRepo, type ConsentPurpose, type EmailRun, type EmailSend, type MetaDb } from '@adminium/meta';
 
 import { withClickLinks } from '../email/click-link.js';
+import { mailLinkKeys } from '../email/link-keys.js';
 import { DEFAULT_MARKETING_PURPOSE, type MarketingCarry, type MarketingMail, type MarketingVerdict } from '../email/marketing.js';
 import { fromOf } from '../email/send.js';
 import { UNSUBSCRIBE_PATH } from '../email/unsubscribe-token.js';
@@ -48,7 +49,7 @@ export function runPurpose(run: Pick<EmailRun, 'audience'>): ConsentPurpose {
 export interface CampaignChecksOptions {
   meta: MetaDb;
   marketing: MarketingMail;
-  /** `ADMINIUM_SECRET`: signs click links. */
+  /** `ADMINIUM_SECRET`: what the click link key is kept under (`link-keys.ts`). */
   secret: string;
   /** Whether the run counts clicks (signed links); off unless its own switch says so. */
   trackClicks?: ((run: EmailRun) => boolean) | undefined;
@@ -100,7 +101,8 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
       const carry = await marketing.carry({ to: row.address, purpose, locale, send: row.id });
       if (options.trackClicks?.(run) !== true) return carry;
       const origin = new URL(carry.locked.link.href).origin;
-      return { ...carry, clicks: (html) => withClickLinks(html, { secret: options.secret, origin, send: row.id, keep: (href) => href.startsWith(`${origin}${UNSUBSCRIBE_PATH}`) }) };
+      const key = await mailLinkKeys(options.meta, options.secret).click();
+      return { ...carry, clicks: (html) => withClickLinks(html, { key, origin, send: row.id, keep: (href) => href.startsWith(`${origin}${UNSUBSCRIBE_PATH}`) }) };
     },
   };
 }

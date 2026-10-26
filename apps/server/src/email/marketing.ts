@@ -82,6 +82,7 @@ import {
 import { businessNameOf, postalAddressOf } from './sender/marketing-settings.js';
 import type { LockedFooter } from './render.js';
 import type { OutboundDkim } from './types.js';
+import { mailLinkKeys } from './link-keys.js';
 import { makeUnsubscribeToken, unsubscribeUrl } from './unsubscribe-token.js';
 
 /** Why a marketing mail is not sent to one person. */
@@ -214,6 +215,7 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
   const consent = createConsentService({ meta, secret, ...(deps.now === undefined ? {} : { now: deps.now }) });
   const lookup = deps.lookup ?? createTxtLookup();
   const keys = createDkimKeys({ meta, secret });
+  const linkKeys = mailLinkKeys(meta, secret);
   const reach = deps.reach ?? { networkFeatures: true, desktop: false, trustProxy: true };
   const settings = settingsRepo(meta);
   /** What was told already in this process: not asked of the notifications again. */
@@ -283,7 +285,9 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
       // The refusal comes first on every path; a carry without a public address is a caller's mistake.
       if (origin === null) throw new Error('a marketing mail needs this server’s public address for its unsubscribe link');
       const install = (await settings.get('system.instanceId')) ?? '';
-      const token = makeUnsubscribeToken(secret, install, { address: input.to, purpose: input.purpose, send: input.send ?? null });
+      // Signed with the link key, which outlives a change of the server's secret, and naming the mail's language for the page.
+      const key = await linkKeys.unsubscribe();
+      const token = makeUnsubscribeToken(key, install, { address: input.to, purpose: input.purpose, send: input.send ?? null, language: input.locale });
       const url = unsubscribeUrl(origin, token);
       const replyTo = input.replyTo?.trim() ?? '';
       const headers: Record<string, string> = {

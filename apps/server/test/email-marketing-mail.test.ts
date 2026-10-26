@@ -31,7 +31,8 @@ import { createMarketingMail, type MarketingMail } from '../src/email/marketing.
 import { enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
 import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import type { EmailTransport, OutboundEmail } from '../src/email/types.js';
-import { readUnsubscribeToken } from '../src/email/unsubscribe-token.js';
+import { mailLinkKeys } from '../src/email/link-keys.js';
+import { readUnsubscribeTokenWith } from '../src/email/unsubscribe-token.js';
 import { campaignMarketingChecks } from '../src/jobs/email-campaign-checks.js';
 import { registerEmailCampaignRunHandler, withCampaignGiveUp } from '../src/jobs/email-campaign-run.js';
 import { PermanentlyRefusedError, registerEmailSendHandler } from '../src/jobs/email-send.js';
@@ -239,8 +240,9 @@ for (const engine of META_ENGINES) {
         expect(headers.get('list-unsubscribe-post')).toBe('List-Unsubscribe=One-Click');
         // The token reads back as this address and the newsletter, on this install only.
         const token = /\/m\/u\/([^>]+)>/.exec(list)![1]!;
-        expect(readUnsubscribeToken(TEST_SECRET, 'install-1', token)).toEqual({ address: 'ana@cobaltlegal.dev', purpose: 'newsletter', send: null });
-        expect(readUnsubscribeToken(TEST_SECRET, 'install-2', token)).toBeNull();
+        const linkKeys = await mailLinkKeys(meta, TEST_SECRET).unsubscribeAll();
+        expect(readUnsubscribeTokenWith(linkKeys, 'install-1', token)).toEqual({ address: 'ana@cobaltlegal.dev', purpose: 'newsletter', send: null, language: 'de_DE' });
+        expect(readUnsubscribeTokenWith(linkKeys, 'install-2', token)).toBeNull();
         expect(raw).not.toContain('ana%40cobaltlegal');
 
         const signed = signedHeaders(raw);
@@ -384,7 +386,7 @@ for (const engine of META_ENGINES) {
         expect(sink.messages.map((one) => one.to)).toEqual([['agreed@cobaltlegal.dev']]);
         const raw = sink.messages[0]!.raw;
         const token = /\/m\/u\/([^>]+)>/.exec(headersOf(raw).get('list-unsubscribe') ?? '')![1]!;
-        expect(readUnsubscribeToken(TEST_SECRET, 'install-1', token)).toEqual({ address: 'agreed@cobaltlegal.dev', purpose: 'newsletter', send: agreed!.id });
+        expect(readUnsubscribeTokenWith(await mailLinkKeys(meta, TEST_SECRET).unsubscribeAll(), 'install-1', token)).toMatchObject({ address: 'agreed@cobaltlegal.dev', purpose: 'newsletter', send: agreed!.id });
         expect(signedHeaders(raw)).toEqual(expect.arrayContaining(['list-unsubscribe', 'list-unsubscribe-post']));
         expect(decodedBody(raw)).toContain(POSTAL);
         expect(decodedBody(raw)).toContain('Unsubscribe from Meridian’s newsletter');

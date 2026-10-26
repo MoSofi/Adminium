@@ -15,6 +15,8 @@
  *
  * The route itself lives with the mail door (under `/m/`, `CLICK_PATH`); this
  * module is what it calls, and what the sending side calls to write the links.
+ * The key is the click link key (`link-keys.ts`), which outlives a change of
+ * `ADMINIUM_SECRET`, so a link in an old mail still leads where it did.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
@@ -33,7 +35,7 @@ export interface ClickClaim {
   send: string;
 }
 
-const keyOf = (secret: string): Buffer => deriveKey(secret, SALT, 'click');
+const keyOf = (key: string): Buffer => deriveKey(key, SALT, 'click');
 const sign = (key: Buffer, text: string): string => createHmac('sha256', key).update(text).digest('base64url');
 
 /** A web address a mail may link to: `https:` or `http:`, absolute, no credentials. */
@@ -51,20 +53,29 @@ function webTarget(value: unknown): string | null {
 }
 
 /** A signed token for a link to `target` in the send `send`; null when the target is no web address. */
-export function signClickLink(secret: string, claim: ClickClaim): string | null {
+export function signClickLink(key: string, claim: ClickClaim): string | null {
   const target = webTarget(claim.target);
   if (target === null) return null;
   const text = Buffer.from(JSON.stringify({ v: 1, t: target, s: claim.send })).toString('base64url');
-  return `${text}~${sign(keyOf(secret), text)}`;
+  return `${text}~${sign(keyOf(key), text)}`;
 }
 
-/** Where a click token leads, or null for anything this server did not sign as it is. */
-export function readClickLink(secret: string, token: unknown): ClickClaim | null {
+/** Where a click token leads, read with any of `keys` (the click key's every version); null when none signed it. */
+export function readClickLinkWith(keys: readonly string[], token: unknown): ClickClaim | null {
+  for (const key of keys) {
+    const claim = readClickLink(key, token);
+    if (claim !== null) return claim;
+  }
+  return null;
+}
+
+/** Where a click token leads, or null for anything this server did not sign with `key` as it is. */
+export function readClickLink(key: string, token: unknown): ClickClaim | null {
   if (typeof token !== 'string' || token.length > TOKEN_MAX) return null;
   const match = TOKEN.exec(token);
   if (match === null) return null;
   const [, text = '', signature = ''] = match;
-  const want = Buffer.from(sign(keyOf(secret), text), 'base64url');
+  const want = Buffer.from(sign(keyOf(key), text), 'base64url');
   const got = Buffer.from(signature, 'base64url');
   if (want.length !== got.length || !timingSafeEqual(want, got)) return null;
   let payload: { v?: unknown; t?: unknown; s?: unknown };
@@ -88,11 +99,11 @@ export function clickUrl(origin: string, token: string): string {
  * click link. `keep` names links left as they are (the unsubscribe link: a
  * person must reach it without passing through a count).
  */
-export function withClickLinks(html: string, input: { secret: string; origin: string; send: string; keep?: (href: string) => boolean }): string {
+export function withClickLinks(html: string, input: { key: string; origin: string; send: string; keep?: (href: string) => boolean }): string {
   return html.replace(/href="(https?:\/\/[^"]*)"/g, (whole, raw: string) => {
     const href = raw.replaceAll('&amp;', '&');
     if (input.keep?.(href) === true) return whole;
-    const token = signClickLink(input.secret, { target: href, send: input.send });
+    const token = signClickLink(input.key, { target: href, send: input.send });
     return token === null ? whole : `href="${clickUrl(input.origin, token)}"`;
   });
 }

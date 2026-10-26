@@ -7,8 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { clickUrl, readClickLink, signClickLink, withClickLinks } from '../src/email/click-link.js';
-import { makeUnsubscribeToken, readUnsubscribeToken, unsubscribeUrl } from '../src/email/unsubscribe-token.js';
+import { clickUrl, readClickLink, readClickLinkWith, signClickLink, withClickLinks } from '../src/email/click-link.js';
+import { makeUnsubscribeToken, readUnsubscribeToken, readUnsubscribeTokenWith, unsubscribeUrl } from '../src/email/unsubscribe-token.js';
 
 const SECRET = 'a-test-secret-of-enough-length-0123456789';
 
@@ -32,11 +32,14 @@ function oneByteChanged(token: string): string[] {
 
 describe('the unsubscribe token', () => {
   it('reads back the address, the purpose and the send it was made for, on its own install', () => {
-    const token = makeUnsubscribeToken(SECRET, 'install-1', { address: ' Ana.Kovac@CobaltLegal.dev ', purpose: 'newsletter', send: 'esnd_1' });
-    expect(readUnsubscribeToken(SECRET, 'install-1', token)).toEqual({ address: 'ana.kovac@cobaltlegal.dev', purpose: 'newsletter', send: 'esnd_1' });
+    const token = makeUnsubscribeToken(SECRET, 'install-1', { address: ' Ana.Kovac@CobaltLegal.dev ', purpose: 'newsletter', send: 'esnd_1', language: 'de-DE' });
+    expect(readUnsubscribeToken(SECRET, 'install-1', token)).toEqual({ address: 'ana.kovac@cobaltlegal.dev', purpose: 'newsletter', send: 'esnd_1', language: 'de_DE' });
     // A mail on the existing-customers basis has no purpose: its page has the one button.
-    const plain = makeUnsubscribeToken(SECRET, 'install-1', { address: 'bo@cobaltlegal.dev', purpose: null });
-    expect(readUnsubscribeToken(SECRET, 'install-1', plain)).toEqual({ address: 'bo@cobaltlegal.dev', purpose: null, send: null });
+    const plain = makeUnsubscribeToken(SECRET, 'install-1', { address: 'bo@cobaltlegal.dev', purpose: null, language: 'not a language' });
+    expect(readUnsubscribeToken(SECRET, 'install-1', plain)).toEqual({ address: 'bo@cobaltlegal.dev', purpose: null, send: null, language: null });
+    // Read with a key's every version: the one that made it answers.
+    expect(readUnsubscribeTokenWith([`${SECRET}-newer`, SECRET], 'install-1', plain)).toMatchObject({ address: 'bo@cobaltlegal.dev' });
+    expect(readUnsubscribeTokenWith([`${SECRET}-newer`], 'install-1', plain)).toBeNull();
     expect(unsubscribeUrl('https://crm.meridian.example/', token)).toBe(`https://crm.meridian.example/m/u/${token}`);
   });
 
@@ -64,6 +67,8 @@ describe('a counted click link', () => {
   it('goes only where it was signed to, for the send it was signed in', () => {
     const token = signClickLink(SECRET, { target: 'https://meridian.example/autumn?x=1', send: 'esnd_9' })!;
     expect(readClickLink(SECRET, token)).toEqual({ target: 'https://meridian.example/autumn?x=1', send: 'esnd_9' });
+    expect(readClickLinkWith([`${SECRET}-newer`, SECRET], token)).toEqual({ target: 'https://meridian.example/autumn?x=1', send: 'esnd_9' });
+    expect(readClickLinkWith([`${SECRET}-newer`], token)).toBeNull();
     expect(clickUrl('https://crm.meridian.example', token)).toBe(`https://crm.meridian.example/m/l/${token}`);
   });
 
@@ -83,7 +88,7 @@ describe('a counted click link', () => {
 
   it('rewrites a mail’s web links, and leaves the unsubscribe link as it is', () => {
     const html = '<a href="https://meridian.example/a?x=1&amp;y=2">A</a> <a href="mailto:hi@meridian.example">M</a> <a href="https://crm.meridian.example/m/u/tok~sig">U</a>';
-    const out = withClickLinks(html, { secret: SECRET, origin: 'https://crm.meridian.example', send: 'esnd_3', keep: (href) => href.startsWith('https://crm.meridian.example/m/u/') });
+    const out = withClickLinks(html, { key: SECRET, origin: 'https://crm.meridian.example', send: 'esnd_3', keep: (href) => href.startsWith('https://crm.meridian.example/m/u/') });
     const links = [...out.matchAll(/href="([^"]+)"/g)].map((match) => match[1]!);
     expect(links[0]).toMatch(/^https:\/\/crm\.meridian\.example\/m\/l\//);
     expect(readClickLink(SECRET, links[0]!.slice('https://crm.meridian.example/m/l/'.length))).toEqual({ target: 'https://meridian.example/a?x=1&y=2', send: 'esnd_3' });
