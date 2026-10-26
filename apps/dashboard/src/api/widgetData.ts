@@ -14,20 +14,15 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import {
-  pageLayoutSchema,
-  queryDescriptorSchema,
-  type PageEnvelope,
-  type QueryDescriptor,
-} from '@adminium/engine/config';
+import type { PageEnvelope } from '@adminium/engine/config';
 import type { WidgetDataState } from '@adminium/widgets';
 
 import { api } from '../app/api.js';
+import type { WidgetDataRequest } from './pageDocument.js';
+import { usePageReader } from './pageReader.js';
 
-export interface WidgetDataRequest {
-  instanceId: string;
-  descriptor: QueryDescriptor;
-}
+// Declared with the reader that produces them; a type import keeps zod out.
+export type { ExtractedBindings, WidgetDataRequest } from './pageDocument.js';
 
 /** Page-control published params (date range, filter facets). */
 export type WidgetDataParams = Record<string, unknown>;
@@ -68,34 +63,8 @@ export interface DashboardData {
   refetch(): void;
 }
 
-export interface ExtractedBindings {
-  requests: WidgetDataRequest[];
-  /** instanceId → validation message for items whose binding failed Zod. */
-  invalid: Map<string, string>;
-}
-
-/**
- * Collect `config.binding` query descriptors from a dashboard document's
- * layout. Invalid descriptors surface as per-instance errors, never a throw.
- */
-export function extractBindings(page: PageEnvelope): ExtractedBindings {
-  const requests: WidgetDataRequest[] = [];
-  const invalid = new Map<string, string>();
-  if (page.kind !== 'dashboard') return { requests, invalid };
-  const layout = pageLayoutSchema.safeParse(page.config['layout']);
-  if (!layout.success) return { requests, invalid };
-  for (const item of layout.data.items) {
-    const binding = item.config['binding'];
-    if (binding === undefined) continue;
-    const descriptor = queryDescriptorSchema.safeParse(binding);
-    if (descriptor.success) {
-      requests.push({ instanceId: item.i, descriptor: descriptor.data });
-    } else {
-      invalid.set(item.i, descriptor.error.issues.map((issue) => issue.message).join('; '));
-    }
-  }
-  return { requests, invalid };
-}
+// `extractBindings` (layout → query descriptors) is zod, so it lives with the
+// page document's reader: `pageDocument.ts`.
 
 /** Batch-level dedupe: identical descriptors are sent once. */
 export function dedupeRequests(requests: WidgetDataRequest[]): {
@@ -165,7 +134,8 @@ export const WIDGET_DATA_KEY_ROOT = 'widget-data';
  */
 export function useDashboardData(page: PageEnvelope, params: WidgetDataParams = {}): DashboardData {
   const queryClient = useQueryClient();
-  const { requests, invalid } = useMemo(() => extractBindings(page), [page]);
+  const reader = usePageReader();
+  const { requests, invalid } = useMemo(() => reader.extractBindings(page), [reader, page]);
 
   // `refreshInterval` (seconds) has been in `widgetSharedConfigSchema` from the
   // start with no consumer anywhere — it rendered as a control in every widget's
@@ -173,14 +143,7 @@ export function useDashboardData(page: PageEnvelope, params: WidgetDataParams = 
   // widget, so the honest interpretation of N per-instance intervals is the
   // tightest one: poll the batch at the shortest interval any bound widget asks
   // for. Nothing set → no polling, exactly as before.
-  const refreshMs = useMemo<number | false>(() => {
-    const layout = pageLayoutSchema.safeParse(page.config['layout']);
-    if (!layout.success) return false;
-    const intervals = layout.data.items
-      .map((item) => item.config['refreshInterval'])
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0);
-    return intervals.length === 0 ? false : Math.min(...intervals) * 1000;
-  }, [page.config]);
+  const refreshMs = useMemo<number | false>(() => reader.layoutRefreshMs(page), [reader, page]);
 
   const query = useQuery({
     queryKey: [WIDGET_DATA_KEY_ROOT, page.id, params] as const,

@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ConfigMigration } from '@adminium/engine/config';
 
 import { jsonResponse, makeCrudEnvelope } from '../test/fixtures.js';
-import { PAGE_STALE_TIME_MS, pageQuery, parsePageDocument } from './pages.js';
+import { parsePageDocument } from './pageDocument.js';
+import { PAGE_STALE_TIME_MS, pageQuery } from './pages.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();

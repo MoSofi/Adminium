@@ -58,26 +58,18 @@
       "type": "object",
       "properties": {
         "database": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The database key from adminium.config.ts, or null for a page with no data source."
+          "description": "The database key from adminium.config.ts, or null for a page with no data source.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "table": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The table the page shows, e.g. public.orders."
+          "description": "The table the page shows, e.g. public.orders.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

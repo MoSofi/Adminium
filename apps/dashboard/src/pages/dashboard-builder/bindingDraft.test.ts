@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { getWidget } from '@adminium/widgets';
 import type { PageLayout, QueryDescriptor } from '@adminium/engine/config';
 
-import { extractBindings } from '../../api/widgetData.js';
+import { extractBindings } from '../../api/pageDocument.js';
 import { makeDashboardEnvelope } from '../../test/fixtures.js';
 import {
   authorableShapes,

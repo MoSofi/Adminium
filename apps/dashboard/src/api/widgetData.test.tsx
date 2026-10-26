@@ -11,13 +11,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 import { jsonResponse, makeCrudEnvelope, makeDashboardEnvelope } from '../test/fixtures.js';
+import { extractBindings, pageReader } from './pageDocument.js';
+import { providePageReader } from './pageReader.js';
 import {
   dedupeRequests,
-  extractBindings,
   fetchWidgetDataBatch,
   useDashboardData,
   type WidgetDataRequest,
 } from './widgetData.js';
+
+// A page's reader is in by the time it renders (`pageQuery` loaded it); these
+// hooks are rendered without a page query, so the test hands it in.
+providePageReader(pageReader);
 
 afterEach(() => {
   vi.unstubAllGlobals();

@@ -89,11 +89,14 @@ afterEach(() => {
 describe('the shell resyncs when its socket opens', () => {
   it('refetches the bootstrap on open, so an event missed before the subscription was live is recovered', async () => {
     renderApp();
+    // The shell mounts once the first route's loader is done, and a page's
+    // loader waits for the page document's reader, a chunk of its own: the
+    // socket opens a moment after the bootstrap call, not with it.
     await waitFor(() => {
-      expect(bootstrapCalls).toBe(1);
+      expect(sockets[0], 'the shell opened no socket').toBeDefined();
     });
+    expect(bootstrapCalls).toBe(1);
     const socket = sockets[0];
-    expect(socket, 'the shell opened no socket').toBeDefined();
 
     // The server published while this tab had no live subscription. Nothing
     // delivers it; only the open itself says "resync".

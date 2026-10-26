@@ -21,7 +21,8 @@ import { WidgetErrorBoundary } from '@adminium/widgets';
 import type { PageEnvelope } from '@adminium/engine/config';
 import type { GeneratedPageProps } from '@adminium/server/ui';
 
-import { parsePageDocument } from '../../api/pages.js';
+import { pageReader, parsePageDocument } from '../../api/pageDocument.js';
+import { providePageReader } from '../../api/pageReader.js';
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { PageHostContext, type PageHost } from '../../pages/pageHost.js';
@@ -29,6 +30,10 @@ import type { PageTemplateComponent } from '../../pages/template-types.js';
 import { projectOf } from '../bootstrapProject.js';
 import { ProjectMessageCard } from '../MessageCard.js';
 import { toLocalPageEnvelope, useProjectPage, type ProjectPageInfo } from '../pageConfig.js';
+
+// This module parses its page document itself, so the reader is here already:
+// handing it in lets the page it renders read its layout without suspending.
+providePageReader(pageReader);
 
 type TemplateLoad =
   | { status: 'loading' }
