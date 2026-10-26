@@ -577,6 +577,68 @@ follow [An app's emails](/guides/apps/emails/) step by step rather than writing 
 
 Reference: [Emails](/reference/manifest/#emails).
 
+## Marketing or service mail
+
+Each kind of mail the outbox sends is marketing (a newsletter, an offer) or service (a booking
+confirmation, a receipt). Say which in `emails.json`, beside `kinds`:
+
+```json title="manifest/emails.json (part)"
+"kinds":   { "job-done": "repairs-job-done", "spring-offer": "repairs-spring-offer" },
+"classes": { "job-done": "service",          "spring-offer": "marketing" }
+```
+
+- From `"minAdminiumVersion": "0.3.37"` every kind needs a class, and so does a rule's e-mail to an
+  address of its record (`"class": "service"` on the step in `automations.json`). The check names
+  each one that has none.
+- A mail to staff (`to.kind` `staff` or `listed`) takes no class: it is never stopped.
+- Marketing mail is not sent to an address on the do-not-email list. Mark a mail service only when
+  the person needs it whatever they said about offers.
+
+`automations.json` holds up to 32 rules; more than 24 also needs `0.3.37`.
+
+Reference: [Marketing or service](/reference/manifest/#marketing-or-service).
+
+## The people the app keeps
+
+`people.json` says which tables hold people (or companies), so e-mail to contacts and a person's
+data (find, export, erase) can find them.
+
+```json title="manifest/people.json"
+[
+  { "table": "customers", "kind": "people", "email": "email", "name": "name",
+    "consent": { "column": "news_ok", "purpose": "newsletter" },
+    "copies": [{ "table": "jobs", "column": "contact_name", "holds": "name", "via": "customer_id" }] }
+]
+```
+
+- `email` must be the column the outbox writes to (`recipient.email`) when the outbox's
+  `recipient.table` is this table.
+- `consent` is a yes/no column. Leave it out if the app has none: the consent log holds it.
+- List under `copies` every column on another table that holds the person's address or name, so
+  an erasure blanks it too.
+- `optOutMark` is a moment column with a strict stamp, set where your screen shows "you can say no
+  to our mail". Leave it out unless your screens show that line.
+- A name kept in parts is named by a formula column that joins them; never by the address.
+- Moving off an old "unsubscribed" column or a tick kept on orders? `carry` brings it over once on
+  the update. Keep the old column declared for that release.
+- A tick a customer gives on your public pages is `consent` on that `access.json` entry, with the
+  sentence shown and its version ([A consent tick](/reference/manifest/#a-consent-tick)).
+
+Reference: [People](/reference/manifest/#people).
+
+## A table the law keeps
+
+Rows the law makes the business keep (invoices, a patient's records) say so in their table file:
+
+```json title="manifest/tables/invoices.json (part)"
+"keep": { "law": "tax" }
+```
+
+`law` is `tax`, `health`, `contract` or `safety`. An erasure leaves these rows as they are and
+lists them, with the reason, under "What stays". Needs `0.3.37`.
+
+Reference: [Kept by law](/reference/manifest/#kept-by-law).
+
 ## Build on an add-on
 
 `add-ons.json` names the add-ons the app needs. Use one that exists rather than building the same
