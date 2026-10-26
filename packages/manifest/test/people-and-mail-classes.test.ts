@@ -362,8 +362,10 @@ describe('room for thirty-two rules', () => {
   });
 });
 
+// A byte-exact copy of the Sales CRM's v0.2.2 manifest (git show v0.2.2:manifest.json, commit 41eba35c6). It is kept
+// beside the released set, not in it: that set is what was released before an add-on could install like an app.
 describe('the Sales CRM as released, and as K6 and K9 will declare it', () => {
-  const released = (): Doc => JSON.parse(readFileSync(new URL('./fixtures/released/sales-crm-0.2.2.manifest.json', import.meta.url), 'utf8')) as Doc;
+  const released = (): Doc => JSON.parse(readFileSync(new URL('./fixtures/sales-crm-0.2.2.manifest.json', import.meta.url), 'utf8')) as Doc;
 
   /** The CRM with its people declared and every mail classed, at the floor that reads them. */
   function declared(): Doc {
