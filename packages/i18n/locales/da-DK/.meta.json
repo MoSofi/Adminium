@@ -18991,6 +18991,98 @@
     "srcHash": "27644ba48600",
     "status": "mt"
   },
+  "mailDoor.language": {
+    "status": "mt",
+    "srcHash": "89b86ab0e66f"
+  },
+  "mailDoor.optional": {
+    "status": "mt",
+    "srcHash": "0c6c4102d4df"
+  },
+  "mailDoor.questions": {
+    "status": "mt",
+    "srcHash": "330603f0cdba"
+  },
+  "mailDoor.reason.neverSignedUp": {
+    "status": "mt",
+    "srcHash": "ee6a72d7ed8a"
+  },
+  "mailDoor.reason.notUseful": {
+    "status": "mt",
+    "srcHash": "ab19e4433b04"
+  },
+  "mailDoor.reason.other": {
+    "status": "mt",
+    "srcHash": "48f88ac322a0"
+  },
+  "mailDoor.reason.tooMany": {
+    "status": "mt",
+    "srcHash": "1dc99f540fd8"
+  },
+  "mailDoor.unavailable.title": {
+    "status": "mt",
+    "srcHash": "5ca41e5bae2a"
+  },
+  "mailDoor.unsubscribe.all": {
+    "status": "mt",
+    "srcHash": "901bd1c7ca9d"
+  },
+  "mailDoor.unsubscribe.already": {
+    "status": "mt",
+    "srcHash": "c445dd96d3e4"
+  },
+  "mailDoor.unsubscribe.dead": {
+    "status": "mt",
+    "srcHash": "63fe2f41f016"
+  },
+  "mailDoor.unsubscribe.deadAsk": {
+    "status": "mt",
+    "srcHash": "b0df872e9442"
+  },
+  "mailDoor.unsubscribe.deadWrite": {
+    "status": "mt",
+    "srcHash": "05b27fca7816"
+  },
+  "mailDoor.unsubscribe.done": {
+    "status": "mt",
+    "srcHash": "4a59d6911d4f"
+  },
+  "mailDoor.unsubscribe.doneAll": {
+    "status": "mt",
+    "srcHash": "48129dc75484"
+  },
+  "mailDoor.unsubscribe.doneNewsletter": {
+    "status": "mt",
+    "srcHash": "6fedd1b6537d"
+  },
+  "mailDoor.unsubscribe.doneSurveys": {
+    "status": "mt",
+    "srcHash": "d5c79d62bdf5"
+  },
+  "mailDoor.unsubscribe.one": {
+    "status": "mt",
+    "srcHash": "834cc0ee6089"
+  },
+  "mailDoor.unsubscribe.stillService": {
+    "status": "mt",
+    "srcHash": "a1e4e77a00ae"
+  },
+  "mailDoor.unsubscribe.titleAll": {
+    "status": "mt",
+    "srcHash": "5ed555236bd3"
+  },
+  "mailDoor.unsubscribe.titleNewsletter": {
+    "status": "mt",
+    "srcHash": "d048c676a84c"
+  },
+  "mailDoor.unsubscribe.titleSurveys": {
+    "status": "mt",
+    "srcHash": "d29a5753e8ea"
+  },
+  "mailDoor.why": {
+    "status": "mt",
+    "srcHash": "d77989c1e3c0"
+  },
   "onboarding.account.body": {
     "status": "mt",
     "srcHash": "bc80d2dce780"

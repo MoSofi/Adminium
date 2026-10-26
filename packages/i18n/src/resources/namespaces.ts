@@ -34,6 +34,7 @@ export const NAMESPACES = [
   'desktop',
   'pay',
   'payments',
+  'mailDoor',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -197,6 +198,12 @@ export const DEFERRED_NAMESPACES = [
    * namespace first. Its title alone is a `ui:` word, read by the record page.
    */
   'payments',
+  /*
+   * The mail door's pages (unsubscribe, "not available"): drawn by the
+   * server, with no script, for a stranger who opened a link in a mail. No
+   * dashboard screen reads a `mailDoor:` key.
+   */
+  'mailDoor',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 
