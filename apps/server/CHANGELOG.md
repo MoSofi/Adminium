@@ -1,5 +1,24 @@
 # @adminium/server
 
+## 0.3.36
+
+### Patch Changes
+
+- b959e33: The bundled add-ons move to 1.0.14: Inventory's receipts say whether a delivery came late, and Invoices & Receipts draws a signed copy of a handover with the signature.
+- 6af48a5: A role's update or delete reach may leave a listing out (`notThrough`, read from 0.3.36), so a helper listed on a deal reads the deal, its quotes and its visits and comments on them, but changes none of them and adds nothing under it, even a row that names her, while whoever covers for the owner and the owner change them as before, on every door; the role editor keeps the word through a save and says it in words. A reach that leaves a listing out is also judged by the parent for a new row whose link to it is a copy, and on a table that a listing reads too.
+- a32535b: Adminium now uses zod 4.6.7, which fixes a memory-exhaustion advisory, and the dashboard loads its page-document checks with the first page instead of on every first paint. A moment sent with a zone (a record's `occurredAt`, a price tried `at`) now carries its seconds, as RFC 3339 writes it: `2026-10-02T19:04:00+02:00`, not `2026-10-02T19:04+02:00`.
+- Updated dependencies [6af48a5]
+  - @adminium/manifest@0.3.36
+  - @adminium/meta@0.3.36
+  - @adminium/i18n@0.3.36
+  - @adminium/engine@0.3.36
+  - @adminium/llm@0.3.36
+  - @adminium/adapter-mysql@0.3.36
+  - @adminium/adapter-postgres@0.3.36
+  - @adminium/adapter-sqlite@0.3.36
+  - @adminium/schema-import@0.3.36
+  - @adminium/add-on-contracts@0.3.36
+
 ## 0.3.35
 
 ### Patch Changes

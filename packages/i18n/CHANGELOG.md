@@ -1,5 +1,11 @@
 # @adminium/i18n
 
+## 0.3.36
+
+### Patch Changes
+
+- 6af48a5: A role's update or delete reach may leave a listing out (`notThrough`, read from 0.3.36), so a helper listed on a deal reads the deal, its quotes and its visits and comments on them, but changes none of them and adds nothing under it, even a row that names her, while whoever covers for the owner and the owner change them as before, on every door; the role editor keeps the word through a save and says it in words. A reach that leaves a listing out is also judged by the parent for a new row whose link to it is a copy, and on a table that a listing reads too.
+
 ## 0.3.35
 
 ### Patch Changes
