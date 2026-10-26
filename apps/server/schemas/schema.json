@@ -26,6 +26,7 @@
               "table.label",
               "table.exclude",
               "table.keyField",
+              "table.people",
               "column.label",
               "column.semanticType",
               "column.enumLabels",
