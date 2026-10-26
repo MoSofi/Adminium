@@ -46,7 +46,7 @@ import { staticPlugin } from './plugins/static.js';
 import { designSessionCookie, registerDesignMode, type DesignModeOptions } from './designer/design-mode.js';
 import { registerSharedHosts, type SharedHostsOptions } from './desktop/shared-hosts.js';
 import { MILO_LOADER_PATH } from './plugins/surface-index.js';
-import { DEV_BUILD_ADDRESS, isHostReservedPath, PAY_PREFIX, surfacesPlugin } from './plugins/surfaces.js';
+import { DEV_BUILD_ADDRESS, isHostReservedPath, MAIL_DOOR_PREFIX, PAY_PREFIX, surfacesPlugin } from './plugins/surfaces.js';
 import {
   compileProxyTrust,
   DEFAULT_TRUSTED_PROXIES,
@@ -599,7 +599,8 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     // The pay page answers its own paths, on every host. One it does not know
     // is not there: never a surface's index, never the dashboard's, which a
     // customer host must not serve and a customer holding a link must not see.
-    if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) {
+    // The mail door the same way (its own pages answer every GET under `/m/`; this is the rest).
+    if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`) || path === MAIL_DOOR_PREFIX || path.startsWith(`${MAIL_DOOR_PREFIX}/`)) {
       return reply.status(404).send(errorEnvelope('NOT_FOUND', `Route ${request.method}:${path} not found.`, request.id));
     }
 

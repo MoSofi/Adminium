@@ -120366,7 +120366,8 @@
                 "designer",
                 "desktop",
                 "pay",
-                "payments"
+                "payments",
+                "mailDoor"
               ]
             },
             "in": "path",
@@ -120505,7 +120506,8 @@
                 "designer",
                 "desktop",
                 "pay",
-                "payments"
+                "payments",
+                "mailDoor"
               ]
             },
             "in": "query",
@@ -120703,7 +120705,8 @@
                       "designer",
                       "desktop",
                       "pay",
-                      "payments"
+                      "payments",
+                      "mailDoor"
                     ]
                   },
                   "key": {
@@ -120849,7 +120852,8 @@
                 "designer",
                 "desktop",
                 "pay",
-                "payments"
+                "payments",
+                "mailDoor"
               ]
             },
             "in": "query",
@@ -120999,7 +121003,8 @@
                             "designer",
                             "desktop",
                             "pay",
-                            "payments"
+                            "payments",
+                            "mailDoor"
                           ]
                         },
                         "key": {

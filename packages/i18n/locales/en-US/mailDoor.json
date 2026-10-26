@@ -1,0 +1,31 @@
+{
+  "language": "Language",
+  "questions": "Questions? Write to",
+  "optional": "Optional",
+  "why": "Why?",
+  "reason": {
+    "tooMany": "Too many e-mails",
+    "notUseful": "Not useful to me",
+    "neverSignedUp": "I never signed up",
+    "other": "Something else"
+  },
+  "unsubscribe": {
+    "titleNewsletter": "Unsubscribe {address} from {business}’s newsletter?",
+    "titleSurveys": "Unsubscribe {address} from {business}’s surveys?",
+    "titleAll": "Unsubscribe {address} from all {business} marketing mail?",
+    "one": "Unsubscribe",
+    "all": "Unsubscribe from all {business} marketing mail",
+    "done": "You’re unsubscribed.",
+    "doneNewsletter": "You won’t get {business}’s newsletter again.",
+    "doneSurveys": "You won’t get {business}’s surveys again.",
+    "doneAll": "You won’t get {business}’s marketing mail again.",
+    "stillService": "Mails about your own orders and visits still reach you.",
+    "already": "You’re already unsubscribed.",
+    "dead": "This link doesn’t work.",
+    "deadWrite": "Write to {email} and we’ll take you off the list.",
+    "deadAsk": "Write to {business} and they’ll take you off the list."
+  },
+  "unavailable": {
+    "title": "This page isn’t available."
+  }
+}

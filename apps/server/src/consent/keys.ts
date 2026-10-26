@@ -17,6 +17,12 @@
  * no hash changes, so every entry keeps matching, an erased person's (which
  * keeps the hash alone) included.
  *
+ * The signed links a mail carries (its unsubscribe link, its click links)
+ * must outlive a change of secret the same way: the law asks an unsubscribe
+ * link to work for at least thirty days, and people open old mail. Their
+ * keys are taken from these keys, one per purpose ({@link AddressKeyRing.derivedForWrite}),
+ * and checked under every version there is.
+ *
  * ─── Fail closed ───────────────────────────────────────────────────────────
  * The server has no rotation command today: the deploy guide says to never
  * change the secret, because every stored connection string is lost with it.
@@ -31,7 +37,7 @@
  * it. An erased person's entry cannot be, so it stays under its version, and
  * every lookup hashes the address under every version there is.
  */
-import { randomBytes } from 'node:crypto';
+import { hkdfSync, randomBytes } from 'node:crypto';
 
 import { addressKeysRepo, stopListRepo, type AddressHash, type MetaDb } from '@adminium/meta';
 
@@ -78,6 +84,20 @@ export interface AddressKeyRing {
   hashesOfMany(addresses: readonly string[]): Promise<Map<string, AddressHash[]>>;
   /** The address under one version (a re-hash). */
   hashUnder(address: string, version: number): Promise<AddressHash>;
+  /**
+   * A key of its own for `purpose`, taken from the newest address key (made
+   * when there is none): what a signed link that must outlive a change of
+   * `ADMINIUM_SECRET` is signed with (the unsubscribe link, a click link).
+   * Hex, 32 bytes.
+   */
+  derivedForWrite(purpose: string): Promise<string>;
+  /** The same key under every version there is, newest first: what such a link is checked against. */
+  derivedAll(purpose: string): Promise<string[]>;
+}
+
+/** A key for one purpose, from an address key: HKDF, so it says nothing about the address key or another purpose's. */
+function deriveFrom(key: Buffer, purpose: string): string {
+  return Buffer.from(hkdfSync('sha256', key, Buffer.from(purpose, 'utf8'), Buffer.from('adminium:address-key-derived', 'utf8'), 32)).toString('hex');
 }
 
 /**
@@ -130,6 +150,12 @@ export function addressKeyRing(meta: MetaDb, secret: string): AddressKeyRing {
       const found = (await keys()).find((one) => one.version === version);
       if (found === undefined) throw new Error(`No address key of version ${String(version)}.`);
       return { hash: hashAddress(found.key, address), version };
+    },
+    async derivedForWrite(purpose) {
+      return deriveFrom((await newest()).key, purpose);
+    },
+    async derivedAll(purpose) {
+      return (await keys()).reverse().map(({ key }) => deriveFrom(key, purpose));
     },
   };
 }

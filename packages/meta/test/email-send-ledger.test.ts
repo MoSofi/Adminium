@@ -18,6 +18,7 @@ import {
   emailSendsRepo,
   emailTemplatesRepo,
   EMAIL_CAMPAIGN_COUNTER_BUCKET,
+  EMAIL_SEND_CLICKS_MAX,
   type EmailSendInput,
   type MetaDb,
 } from '../src/index.js';
@@ -208,6 +209,33 @@ for (const dialect of TEST_DIALECTS) {
       expect(await counters.hit(EMAIL_CAMPAIGN_COUNTER_BUCKET, 401 * HOUR)).toBe(1);
       expect(await counters.gc(401 * HOUR + 10)).toBe(1);
       expect(await counters.read(EMAIL_CAMPAIGN_COUNTER_BUCKET, at)).toBe(0);
+    });
+
+    it('marks only a sent row unsubscribed, and counts clicks up to the column’s top', async () => {
+      const doc = await campaign(t.meta);
+      const run = await emailRunsRepo(t.meta).create({ templateId: doc.id, audience: { kind: 'users' }, scheduledAt: 1 }, 1);
+      const sends = emailSendsRepo(t.meta);
+      await sends.write(run.id, [person(1), person(2)], 0, 1);
+      const [sent, waiting] = await sends.claim(run.id, 2, 'tok-u', 2);
+      expect(await sends.markHanded(sent!.id, 'tok-u', 'job_1', 3)).toBe(true);
+      expect(await sends.unclaimAll(run.id, 'tok-u', 4)).toBe(1);
+
+      expect(await sends.markUnsubscribed(waiting!.id, 5)).toBe(false);
+      expect(await sends.markUnsubscribed(sent!.id, 5)).toBe(true);
+      expect(await sends.findById(sent!.id)).toMatchObject({ state: 'unsubscribed', updatedAt: 5 });
+      // Once said, it stays: a second press, or a bounce notice after it, does not move it.
+      expect(await sends.markUnsubscribed(sent!.id, 6)).toBe(false);
+      expect(await sends.markGivenUp(sent!.id, '550', 7, 'bounced')).toBeNull();
+      expect(await sends.findById(waiting!.id)).toMatchObject({ state: 'queued' });
+
+      expect(await sends.countClick(sent!.id, 8)).toBe(true);
+      expect(await sends.countClick(sent!.id, 9)).toBe(true);
+      expect((await sends.findById(sent!.id))?.clicks).toBe(2);
+      expect(await sends.countClick('esnd_none', 9)).toBe(false);
+      // The column is 32 bits on every engine: at its top the count stays.
+      await t.meta.db.updateTable('adminium_email_sends').set({ clicks: EMAIL_SEND_CLICKS_MAX }).where('id', '=', sent!.id).execute();
+      expect(await sends.countClick(sent!.id, 10)).toBe(false);
+      expect((await sends.findById(sent!.id))?.clicks).toBe(EMAIL_SEND_CLICKS_MAX);
     });
   });
 
