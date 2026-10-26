@@ -30,6 +30,12 @@
  * `maxAttempts: 1` — a run that throws (no SMTP, a vanished campaign) is
  * terminal with its reason on the row; re-running a campaign is an operator's
  * decision, never the worker's backoff.
+ *
+ * A RUN STARTS ONCE. A process that dies mid-run leaves its job `running`
+ * with a lock that goes stale, and the claim hands it to the next worker
+ * whatever its attempts. Nothing records who was already mailed, so a run
+ * found past `scheduled` is never sent again: one still `running` is
+ * recorded `failed` with the reason, a finished one is left as it is.
  */
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -119,12 +125,21 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
       // Cancelled between the enqueue and the claim (the cancel route could not
       // reach the job): nothing to do, and nothing to record over the cancel.
       if (run.status === 'cancelled') return { runId: run.id, status: 'cancelled', sent: 0 };
+      // Finished, and the process died before its job was marked done: nothing to do again.
+      if (run.status === 'sent' || run.status === 'failed') return { runId: run.id, status: run.status, sent: run.sent };
 
       const now = Date.now();
       const fail = async (error: string): Promise<never> => {
         await runs.update(run.id, { status: 'failed', finishedAt: Date.now(), failures: [{ to: '', error }] });
         throw new Error(error);
       };
+
+      // Reclaimed after the process sending it died (see the header).
+      if (run.status === 'running') {
+        return await fail(
+          'the server stopped while this run was sending; it was not restarted, so nobody is mailed twice — some recipients may not have received it',
+        );
+      }
 
       const campaign = await templates.findById(run.templateId);
       if (campaign === null || campaign.kind !== 'campaign' || campaign.archivedAt !== null) {

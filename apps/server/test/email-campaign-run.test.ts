@@ -17,6 +17,7 @@ import {
   createSqliteMetaDb,
   emailRunsRepo,
   firstRun,
+  JOB_STALE_LOCK_MS,
   jobsRepo,
   notificationPrefsRepo,
   notificationsRepo,
@@ -308,6 +309,68 @@ describe('email.campaign-run', () => {
     // arrived; the third never started.
     expect(finished?.sent).toBe(2);
     expect(transport.sent).toHaveLength(2);
+  });
+
+  it('a run whose server died mid-send is never re-sent when its stale job is reclaimed', async () => {
+    await usersRepo(meta).create({ email: 'third@adminium.test', name: 'Third', status: 'active' });
+    const doc = await campaign();
+    // The first process mails one address, then hangs inside the second send
+    // and never comes back: no graceful stop, no cancel, its lock goes stale.
+    let release: () => void = () => {};
+    let sends = 0;
+    transport.gate = async () => {
+      sends += 1;
+      if (sends === 2) await new Promise<void>((resolve) => (release = resolve));
+    };
+    const { run } = (await send(doc.id)).json() as { run: EmailRunView };
+    const crashed = new JobWorker({ meta, registry, hub, workerId: 'campaign-test:crashed', backoffBaseMs: 1 });
+    crashed.start();
+    await pollUntil(() => sends === 2);
+    expect(transport.sent.map((m) => m.to)).toEqual(['ava@adminium.test']);
+
+    // A second process, past the stale window, reclaims the job.
+    const later = new JobWorker({
+      meta,
+      registry,
+      hub,
+      workerId: 'campaign-test:later',
+      backoffBaseMs: 1,
+      now: () => Date.now() + JOB_STALE_LOCK_MS + 1_000,
+    });
+    expect(await later.runOnce()).toBe(1);
+
+    // Nobody is mailed twice: the reclaimed run sends nothing.
+    const mailed = transport.sent.map((m) => m.to);
+    expect(mailed).toEqual(['ava@adminium.test']);
+    const finished = await emailRunsRepo(meta).findById(run.id);
+    expect(finished?.status).toBe('failed');
+    expect(finished?.failures[0]?.error).toContain('stopped while this run was sending');
+    expect((await jobsRepo(meta).findById(run.jobId ?? ''))?.status).toBe('failed');
+
+    // Let the hung process settle so the test can tear down.
+    crashed.requestCancel(run.jobId ?? '');
+    release();
+    await crashed.stop();
+  });
+
+  it('a run that finished before its job was marked done is not sent again', async () => {
+    const doc = await campaign();
+    const { run } = (await send(doc.id)).json() as { run: EmailRunView };
+    // The process claimed the job, sent the run, then died before `complete`.
+    expect((await jobsRepo(meta).claim('campaign-test:gone'))?.id).toBe(run.jobId);
+    await emailRunsRepo(meta).update(run.id, { status: 'sent', sent: 2, total: 2 });
+
+    const later = new JobWorker({
+      meta,
+      registry,
+      hub,
+      workerId: 'campaign-test:later',
+      now: () => Date.now() + JOB_STALE_LOCK_MS + 1_000,
+    });
+    expect(await later.runOnce()).toBe(1);
+    expect(transport.sent).toHaveLength(0);
+    expect(await emailRunsRepo(meta).findById(run.id)).toMatchObject({ status: 'sent', sent: 2 });
+    expect((await jobsRepo(meta).findById(run.jobId ?? ''))?.status).toBe('succeeded');
   });
 
   it('schedules with runAt, refuses a second send while scheduled, and cancels the scheduled job', async () => {
