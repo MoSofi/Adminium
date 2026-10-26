@@ -280,6 +280,17 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'stamp.strict',
   // A stamp beside `requiredWhen`: a brought line is judged as sent, before stamps (crud/decide.ts `stampLeftOut`).
   'requiredWhen.stamp',
+  // Marketing or service, the app's people tables and a table the law keeps: accepted and stored with the manifest (the
+  // document, the outbox's definition and a rule's e-mail step keep them), and read by what is built on them as it lands:
+  // the people tables by people/declared.ts. Until the do-not-email list is, no mail is stopped, so every class is sent as today.
+  'outbox.classes',
+  'automations.emailClass',
+  'people',
+  'table.keep',
+  // A stranger's consent tick: stored with the entry's manifest; the consent log row it writes comes with the log.
+  'publicAccess.consent',
+  // Up to thirty-two rules in one manifest: each is installed as the first twenty-four are.
+  'automations.more',
 ];
 
 export interface UnbuiltWord {

@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { shapeConformanceIssues } from '@adminium/manifest';
+import { MAIL_CLASS_FLOOR, shapeConformanceIssues } from '@adminium/manifest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { shapesOfDocument } from '../src/apps/app-shapes.js';
@@ -55,7 +55,8 @@ describe('the parts of an app built on a shape', () => {
     });
     write('pages/studio-clients.json', { ref: 'studio-clients', template: 'page-crud', title: { key: 'studio.clients', fallback: 'Clients' }, nav: { group: 'main', icon: 'users', order: 1 }, bindings: { rows: 'clients' } });
 
-    const made = shapeParts({ appKey: 'studio', addOn: 'invoices', document: INVOICES, shape: 'invoice@1', recipient: { table: 'clients', email: 'email', name: 'name' } });
+    // The app's floor is this release's, as the scaffold writes it: the check below holds on the release that reads mail classes too.
+    const made = shapeParts({ appKey: 'studio', addOn: 'invoices', document: INVOICES, shape: 'invoice@1', recipient: { table: 'clients', email: 'email', name: 'name' }, floor: APP_VERSION });
     if (!made.ok) throw new Error(made.problem);
     // The invoice's three parts, and the quote's two, which an invoice and its lines point at.
     expect(made.tables.map((table) => `${table.ref} ← ${table.builtOn} ${table.part}`)).toEqual([
@@ -86,6 +87,17 @@ describe('the parts of an app built on a shape', () => {
 
     // The same comparison an install makes against the add-on it runs on.
     expect(shapeConformanceIssues(manifest as never, shapesOfDocument('invoices', INVOICES))).toEqual([]);
+  });
+
+  it('from the release that reads mail classes, every kind it writes is service mail; before it, none says a class', () => {
+    const at = (floor: string) => {
+      const made = shapeParts({ appKey: 'studio', addOn: 'invoices', document: INVOICES, shape: 'invoice@1', recipient: { table: 'clients', email: 'email' }, floor });
+      if (!made.ok) throw new Error(made.problem);
+      return (made.files['emails.json'] as { outbox: { kinds: Record<string, string>; classes?: Record<string, string> } }).outbox;
+    };
+    const classed = at(MAIL_CLASS_FLOOR);
+    expect(classed.classes).toEqual(Object.fromEntries(Object.keys(classed.kinds).map((kind) => [kind, 'service'])));
+    expect(at('0.3.36').classes).toBeUndefined();
   });
 
   it('takes other table names, and refuses what it cannot build', () => {
