@@ -1046,6 +1046,20 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       .strict()
       .refine((value) => Object.keys(value).length > 0, 'the owner\'s word on a people table says canEmail, email or name'),
   }),
+  /*
+   * The owner's switch "Existing customers may get marketing mail without
+   * ticking a box" on a people table, and their tick "I offered a way to say
+   * no when we took their address", which switching it on needs. The row's
+   * `created_by` and `created_at` say who and when; the newest active row
+   * stands (turning it off writes another row).
+   */
+  z.object({
+    op: z.literal('table.existingCustomers'),
+    value: z
+      .object({ on: z.boolean(), optOutOffered: z.boolean() })
+      .strict()
+      .refine((value) => !value.on || value.optOutOffered, 'existing customers are switched on only with the tick "I offered a way to say no"'),
+  }),
   z.object({ op: z.literal('column.label'), value: z.object({ label: labelTextSchema }) }),
   z.object({
     op: z.literal('column.semanticType'),
@@ -2872,10 +2886,26 @@ export const emailMirrorOpSchema = z.discriminatedUnion('kind', [
 export type EmailMirrorOp = z.infer<typeof emailMirrorOpSchema>;
 export const emailMirrorOpsSchema = z.array(emailMirrorOpSchema).max(200);
 
-/** Who a campaign goes to. `users` is phase 1; a table audience joins in the
- * next wave (O1). */
+/**
+ * Who a campaign goes to: the workspace's own people (`users`), or the people
+ * of a table an installed app declares as people (`table`), narrowed by a
+ * saved view of it ("Only these"), mailed for one purpose, and, when the
+ * owner switched it on for the table, also its existing customers who never
+ * ticked a box. The table is its id in the connection's snapshot.
+ */
 export const emailAudienceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('users'), roleIds: z.array(z.string().min(1)).max(50).optional() }),
+  z
+    .object({
+      kind: z.literal('table'),
+      connectionId: z.string().min(1).max(64),
+      table: z.string().min(1).max(200),
+      viewId: z.string().min(1).max(64).nullable().optional(),
+      // The consent log's purposes (`CONSENT_PURPOSES`, repos/consent.ts), spelled here so this file imports no repo.
+      purpose: z.enum(['newsletter', 'surveys']),
+      existingCustomers: z.boolean().optional(),
+    })
+    .strict(),
 ]);
 export type EmailAudience = z.infer<typeof emailAudienceSchema>;
 

@@ -17,6 +17,8 @@ import {
   emailMirrorOpsSchema,
   emailRunStateSchema,
   emailRunStatusSchema,
+  emailRunBasisSchema,
+  emailRunClassSchema,
   emailSendStateSchema,
 } from '@adminium/meta';
 
@@ -41,6 +43,12 @@ export const emailRunView = z.object({
   state: emailRunStateSchema.nullable(),
   /** At most this many an hour; null = as fast as the mail server allows. */
   ratePerHour: z.number().int().nullable(),
+  /** Marketing (a table's people) or none (the workspace's own people). */
+  mailClass: emailRunClassSchema.nullable(),
+  /** The ground a marketing run stands on: consent, or consent and existing customers. */
+  basis: emailRunBasisSchema.nullable(),
+  /** Whether the run counts clicks. */
+  trackClicks: z.boolean(),
 });
 export type EmailRunView = z.infer<typeof emailRunView>;
 
@@ -275,6 +283,24 @@ export const emailAudiencePreviewReply = z.object({
   unfilled: z.array(z.string()),
   /** How long the people who get it take at `ratePerHour`, in minutes; null without a cap. */
   estimateMinutes: z.number().int().nullable(),
+  /** A table audience: who gets it and who is left out, each way (`email/audience-table.ts`). */
+  breakdown: z
+    .object({
+      rows: z.number().int(),
+      recipients: z.number().int(),
+      consent: z.number().int(),
+      existingCustomers: z.number().int(),
+      doNotEmail: z.number().int(),
+      notAgreed: z.number().int(),
+      awaitingReview: z.number().int(),
+      notMarked: z.number().int(),
+      sample: z.number().int(),
+      reservedDomain: z.number().int(),
+      noAddress: z.number().int(),
+    })
+    .optional(),
+  /** A table audience: the placeholders it fills besides the four every campaign gives (its columns the sender reads). */
+  variables: z.array(z.string()).optional(),
 });
 
 export const emailSendBody = z.object({
@@ -282,6 +308,8 @@ export const emailSendBody = z.object({
   /** Epoch ms; absent = now. Never in the past by more than a minute. */
   scheduleAt: z.number().int().positive().optional(),
   ratePerHour,
+  /** Count clicks (signed links) on a marketing send; off unless asked for. */
+  trackClicks: z.boolean().optional(),
 });
 export const emailSendReply = z.object({ run: emailRunView });
 export const emailRunsReply = z.object({ runs: z.array(emailRunView) });

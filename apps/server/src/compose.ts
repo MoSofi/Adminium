@@ -195,6 +195,7 @@ import { createPeopleConsent, type PeopleConsent } from './people/consent-writes
 import { PAYMENTS_RECORD_PICKUP_CRON, PAYMENTS_RECORD_PICKUP_NAME, pickUpRecordings, registerPaymentsRecordHandler } from './payments/record.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
 import { createMarketingMail, type MarketingSeams } from './email/marketing.js';
+import { tableAudienceSeams } from './email/audience-table.js';
 import { announceEffects } from './states/effects.js';
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
 import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
@@ -1441,7 +1442,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // unconditionally: whether mail actually goes out is decided by the
     // `email.smtp` SETTING at enqueue time, not by boot configuration.
     // A message an app's outbox row asked for that fails for good turns the row `failed`.
-    email: { secret: env.ADMINIUM_SECRET, storage, onGiveUp: (report, error) => outboxSender.markUndelivered(report, error), marketing: marketingMail },
+    // A campaign to a table's people reads the table as its sender at every batch (`email/audience-table.ts`).
+    email: {
+      secret: env.ADMINIUM_SECRET,
+      storage,
+      onGiveUp: (report, error) => outboxSender.markUndelivered(report, error),
+      marketing: marketingMail,
+      campaignSeams: tableAudienceSeams({ meta, manager, consent: marketingMail.consent }),
+    },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
     // The assistant's turn runner. The GUARDED resolver, not the enrichment
     // job's: it re-checks the stored base URL against the outbound guard at the
@@ -2022,7 +2030,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(automationRunsRoutes({ meta }));
       await api.register(
-        emailTemplatesRoutes({ meta, storage, reachesRecord: fileRecordCheck(meta, manager), cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
+        emailTemplatesRoutes({
+          meta,
+          storage,
+          reachesRecord: fileRecordCheck(meta, manager),
+          cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId),
+          // A campaign to a table's people: its tables, the consent log, and the declared column following the log.
+          audience: { manager, consent, mirror: (event) => consentMirror.mirrorEvent(event) },
+        }),
       );
       // The authored `/invoices` surface — the same deps shape as the
       // email documents; rendering is a later wave's.

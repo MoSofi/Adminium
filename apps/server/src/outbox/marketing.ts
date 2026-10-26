@@ -27,7 +27,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { pkLabel } from '../crud/records.js';
 import type { MarketingMail } from '../email/marketing.js';
-import { declaredPeople, type PeopleModel } from '../people/declared.js';
+import { declaredPeople, type DeclaredPeopleTable, type PeopleModel } from '../people/declared.js';
 import type { LiveOutbox } from './producers.js';
 import { rowOf, type Addressed } from './recipient.js';
 
@@ -66,13 +66,28 @@ export function isCustomer(value: unknown): boolean {
   return false;
 }
 
+/** Whether a table offers the basis at all: its app declares the opt-out mark and who counts as a customer. */
+export function offersExistingCustomers(declared: Pick<DeclaredPeopleTable, 'optOutMark' | 'customer'>): boolean {
+  return declared.optOutMark !== null && declared.customer !== null;
+}
+
+/** The row's own half of the basis: whether it carries the mark (a screen showed the person the opt-out line). */
+export function markedForOptOut(declared: Pick<DeclaredPeopleTable, 'optOutMark'>, record: Row): boolean {
+  if (declared.optOutMark === null) return false;
+  const mark = record[declared.optOutMark];
+  return mark !== null && mark !== undefined && mark !== '';
+}
+
+/** Whether the row's "who counts as a customer" column says they are one. */
+export function customerRow(declared: Pick<DeclaredPeopleTable, 'customer'>, record: Row): boolean {
+  return declared.customer !== null && isCustomer(record[declared.customer]);
+}
+
 /** Whether the existing-customers basis carries this person (see the header). */
 export async function existingCustomer(meta: MetaDb, marketing: MarketingMail, view: SnapshotView, person: { ref: ConsentPerson; record: Row }): Promise<boolean> {
   if (!(await marketing.existingCustomersOn(person.ref.connectionId, person.ref.table))) return false;
   const declared = (await declaredPeople(meta, async (connectionId) => (connectionId === person.ref.connectionId ? (view.model as unknown as PeopleModel) : null))).find(
     (entry) => entry.connectionId === person.ref.connectionId && entry.table === person.ref.table,
   );
-  if (declared === undefined || declared.optOutMark === null || declared.customer === null) return false;
-  const mark = person.record[declared.optOutMark];
-  return mark !== null && mark !== undefined && mark !== '' && isCustomer(person.record[declared.customer]);
+  return declared !== undefined && offersExistingCustomers(declared) && markedForOptOut(declared, person.record) && customerRow(declared, person.record);
 }

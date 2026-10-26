@@ -14,7 +14,7 @@
  * again from the beginning by the next try (`email-campaign-run.ts`), which
  * is safe because nothing is handed over before the run is `running`.
  */
-import { emailSendsRepo, type EmailAudience, type EmailSendInput, type MetaDb } from '@adminium/meta';
+import { emailSendsRepo, type EmailAudience, type EmailRun, type EmailSendInput, type MetaDb } from '@adminium/meta';
 
 import { resolveCampaignAudience } from '../email/audience.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
@@ -95,10 +95,26 @@ export async function* usersAudienceRecipients(
   }
 }
 
+/** A run to the people of a table an app declares (`email/audience-table.ts`). */
+export type TableAudience = Extract<EmailAudience, { kind: 'table' }>;
+
+/** What reads an audience that is not the workspace's own: a source table's people, for the run named. */
+export interface AudienceSources {
+  run: EmailRun;
+  table?: ((run: EmailRun, audience: TableAudience) => AsyncIterable<EmailSendInput>) | undefined;
+}
+
+/** Nobody: a table audience on a server that cannot read its tables (its batch check then refuses the run). */
+async function* nobody(): AsyncGenerator<EmailSendInput> {
+  // Nothing to write.
+}
+
 /** The recipients of any audience a run can name: where a new audience kind joins. */
-export function campaignRecipients(meta: MetaDb, audience: EmailAudience): AsyncIterable<EmailSendInput> {
+export function campaignRecipients(meta: MetaDb, audience: EmailAudience, sources?: AudienceSources): AsyncIterable<EmailSendInput> {
   switch (audience.kind) {
     case 'users':
       return usersAudienceRecipients(meta, audience);
+    case 'table':
+      return sources?.table === undefined ? nobody() : sources.table(sources.run, audience);
   }
 }

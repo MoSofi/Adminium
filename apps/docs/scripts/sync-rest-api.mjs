@@ -89,6 +89,9 @@ const DESCRIPTIONS = {
   designer:
     'Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself ' +
     '(a Super Admin, with their password). The Designer’s own routes exist only while the server runs it',
+  'email-audience':
+    'A campaign to the people of a table — the tables you may send to, their saved views, the first send’s ' +
+    'review of people ticked before records were kept, and the owner’s switch for existing customers',
   'email-blocks': 'Reusable email sections saved from the editor — list, save one, delete one',
   'email-runs': 'Campaign sends — cancel a scheduled or running run',
   'email-templates':

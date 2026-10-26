@@ -82,6 +82,7 @@ import {
 import { businessNameOf, postalAddressOf } from './sender/marketing-settings.js';
 import type { MarketingCarry } from './marketing-carry.js';
 import type { OutboundDkim } from './types.js';
+import { existingCustomersOn as readExistingCustomersOn } from './existing-customers.js';
 import { mailLinkKeys } from './link-keys.js';
 import { makeUnsubscribeToken, unsubscribeUrl } from './unsubscribe-token.js';
 
@@ -133,7 +134,7 @@ export interface MarketingReach {
 export interface MarketingSeams {
   lookup?: TxtLookup | undefined;
   postalAddress?: ((meta: MetaDb) => Promise<string | null>) | undefined;
-  /** Whether the owner switched "existing customers" on for a people table; off for every table until that switch exists. */
+  /** Whether the owner switched "existing customers" on for a people table; read from the owner's switch when absent (`existing-customers.ts`). */
   existingCustomersOn?: ((connectionId: string, table: string) => Promise<boolean>) | undefined;
 }
 
@@ -324,7 +325,8 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
     },
 
     async existingCustomersOn(connectionId, table) {
-      return deps.existingCustomersOn === undefined ? false : await deps.existingCustomersOn(connectionId, table);
+      // The owner's switch, whichever path asks (the outbox, a rule's e-mail step, a campaign).
+      return deps.existingCustomersOn === undefined ? await readExistingCustomersOn(meta, connectionId, table) : await deps.existingCustomersOn(connectionId, table);
     },
 
     async tellRefused(input) {
