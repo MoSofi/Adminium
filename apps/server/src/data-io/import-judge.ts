@@ -283,9 +283,11 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
   // Hooks judge rows one at a time, so a table with any hook for this import
   // is written row by row. Asked once: the hooks in force when the import
   // started decide how the whole file is written.
+  // So is one whose rows the consent log hears of (a consent column), so each row's change is told.
+  const consentTold = await writes.mirrors(writeTarget);
   const hooked = {
-    create: (await writes.wants('before', 'create', writeTarget, context)) || (await writes.wants('after', 'create', writeTarget, context)),
-    update: (await writes.wants('before', 'update', writeTarget, context)) || (await writes.wants('after', 'update', writeTarget, context)),
+    create: consentTold || (await writes.wants('before', 'create', writeTarget, context)) || (await writes.wants('after', 'create', writeTarget, context)),
+    update: consentTold || (await writes.wants('before', 'update', writeTarget, context)) || (await writes.wants('after', 'update', writeTarget, context)),
   };
 
   const mode: ImportMode = row.options.mode ?? 'insert';

@@ -74,6 +74,7 @@ import {
   type ReferenceCount,
 } from '../../crud/records.js';
 import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
+import { optOutContext } from './opt-out.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import { copiesAgain } from '../../crud/copies-again.js';
@@ -2442,7 +2443,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // Totals it feeds, or rows that follow it (an undone change of a stay's dates brings its extras back into step).
       const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) + (rules?.follows?.length ?? 0) > 0;
       const written: WrittenRow[] = [];
-      if (outcome.written.length > 0 && (settles || (await writes.wants('after', UNDO_WRITE[entry.action], target, context)))) {
+      // …and a consent column the log hears of (an undone tick is a tick taken back).
+      if (outcome.written.length > 0 && (settles || (await writes.wants('after', UNDO_WRITE[entry.action], target, context)) || (await writes.mirrors(target)))) {
         for (const row of outcome.written) {
           const record = row.record ?? (await fetchByPk(target.db, table, row.pk));
           if (record !== undefined) written.push({ record, before: row.before });
@@ -3533,7 +3535,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await judgeWrite(ctx, ctx.table.id, { [repeated.name]: normalizeWriteValue(repeated, value) }, null);
         }
         answersRow.add(request);
-        const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
+        // The screen showed the opt-out line (a signed-in staff member's word only): the row's mark is stamped.
+        const context = { ...withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt), ...(await optOutContext(meta, request, ctx, request.body.optOut, values)) };
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, sentChildren, true, values);
         const repeat = request.body.repeat;
@@ -4032,7 +4035,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // What the row was judged by is such a condition too.
       const seenValues = withSeenValues(ctx, sent, before, body.seen);
       const values = held === null ? seenValues : attachSeen(seenValues, held);
-      const context = withOccurredAt(requestWriteContext(request, 'dashboard'), body.occurredAt);
+      const context = { ...withOccurredAt(requestWriteContext(request, 'dashboard'), body.occurredAt), ...(await optOutContext(meta, request, ctx, body.optOut, null)) };
       const links = await requestedLinks(request, ctx, context, body.links);
       // …and the rows a hand-over carries along with the record: changed in this same write, each as its own update.
       const carried = own?.handOver === true && own.carries !== undefined ? await carriedChildren(request, ctx, context, own.carries, own.values, before) : [];

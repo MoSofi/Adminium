@@ -21,13 +21,15 @@
  *    later does not quietly mean "yes" again.
  *  - A mail on the existing-customers basis has no purpose: its one button,
  *    and its one-click, put the address on the list.
+ * A withdrawal reaches the person's declared consent column (the CRM's
+ * `may_email`) through the column door, as the system (`mirror`).
  * Each says "already" when there is nothing left to do, and writes nothing
  * then. When the link came in a campaign send, that send's row in the send
  * log turns "Unsubscribed".
  */
 import { BUILTIN_LOCALE_IDS, localeFromTag, type LocaleId } from '@adminium/i18n';
 import { createServerI18n } from '@adminium/i18n/server';
-import { emailRunsRepo, emailSendsRepo, paymentSettingsRepo, settingsRepo, type ConsentPerson, type MetaDb } from '@adminium/meta';
+import { emailRunsRepo, emailSendsRepo, paymentSettingsRepo, settingsRepo, type ConsentEvent, type ConsentPerson, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 
 import type { ConsentService } from '../../consent/index.js';
@@ -55,6 +57,13 @@ export interface MailDoorDeps {
   desktop: boolean;
   trustProxy: boolean;
   now?: (() => number) | undefined;
+  /**
+   * A withdrawal mirrored into the declared consent column of the person it
+   * names, or of every row holding the address (`people/consent-writes.ts`):
+   * the column door writes it, with nobody as "by". Without it, the log alone
+   * says it.
+   */
+  mirror?: ((event: ConsentEvent, address: string) => Promise<unknown>) | undefined;
 }
 
 /** Which button, and how it came. */
@@ -183,7 +192,8 @@ export function createMailDoor(deps: MailDoorDeps) {
       await consent.stop.add({ address: claim.address, reason: 'link', origin, at });
     }
     if (claim.purpose !== null && purposeOpen) {
-      await consent.withdraw({ address: claim.address, person, purpose: claim.purpose, source: 'unsubscribe', detail, at });
+      const withdrawn = await consent.withdraw({ address: claim.address, person, purpose: claim.purpose, source: 'unsubscribe', detail, at });
+      await deps.mirror?.(withdrawn, claim.address);
     }
     if (row !== null) await emailSendsRepo(meta).markUnsubscribed(row.id, at);
     return { done: all ? 'all' : claim.purpose! };

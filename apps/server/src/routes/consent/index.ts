@@ -75,6 +75,8 @@ export interface ConsentRoutesDeps {
    * (by its kind, or by the name `email`).
    */
   addressColumnOf?: ((connectionId: string, table: ResolvedTable) => Promise<string | null>) | undefined;
+  /** A recorded yes mirrored into the record's declared consent column, through the column door (`people/consent-writes.ts`). */
+  mirror?: ((event: ConsentEvent) => Promise<unknown>) | undefined;
 }
 
 /** The one column of a table read as an e-mail address; `email` when there are several; null when none. */
@@ -240,6 +242,8 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
         const body = request.body;
         const { table, person, address, grant } = await reach(request, body, 'update');
         const event = await service.record({ person, address, purpose: body.purpose, state: 'yes', source: 'staff', how: body.how, note: body.note, staff });
+        // The record's declared column follows the log: ticked, by this staff member.
+        await deps.mirror?.(event);
         await app.rbac.audit(request, {
           category: 'data',
           action: 'consent.record',

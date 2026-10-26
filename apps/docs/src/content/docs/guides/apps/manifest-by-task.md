@@ -617,7 +617,8 @@ data (find, export, erase) can find them.
 - List under `copies` every column on another table that holds the person's address or name, so
   an erasure blanks it too.
 - `optOutMark` is a moment column with a strict stamp, set where your screen shows "you can say no
-  to our mail". Leave it out unless your screens show that line.
+  to our mail": the screen's save sends `"optOut": { "shown": true }` beside its values. Leave it
+  out unless your screens show that line.
 - A name kept in parts is named by a formula column that joins them; never by the address.
 - Moving off an old "unsubscribed" column or a tick kept on orders? `carry` brings it over once on
   the update. Keep the old column declared for that release.

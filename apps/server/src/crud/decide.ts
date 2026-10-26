@@ -49,6 +49,17 @@
  * today's time or today's person over them would be false. A file a person
  * brings in is the one exception, and a narrow one: its stamps fill what a
  * line leaves out and nothing else is decided (`stampLeftOut`).
+ *
+ * OPT-OUT MARK (`people[].optOutMark`): the moment the app's own screen told
+ * the person "you can say no to our mail" where it took their address. It is
+ * a strict stamp whose own trigger never fires: the mark says something only
+ * a screen knows. It is set to now by a signed-in staff member's own save
+ * (`dashboard`, a user) that says the line was shown, on a create or when
+ * the address changes, with an address in the row; or, on a create, to the
+ * mark of the row the person is made from (a claimed enquiry's). An import,
+ * a rule, an add-on, an API key, a guest and the sample loader never set it,
+ * and a brought file's line that carries one is refused, as for any strict
+ * stamp.
  */
 import type { Kysely } from 'kysely';
 import type { Dialect, Relation } from '@adminium/engine';
@@ -91,6 +102,12 @@ export interface DecideContext {
   rights?: TablePrivileges | null | undefined;
   /** A file a person brings in: a stamp fills what a line leaves out (`WriteContext.stamps`). */
   stamps?: 'left-out' | undefined;
+  /**
+   * The table's opt-out mark, when its app declares one (`people[].optOutMark`):
+   * the column, the address column, and what the save says of the line
+   * (`WriteContext.optOut`). See OPT-OUT MARK below.
+   */
+  optOut?: { column: string; email: string | null; shown: boolean; carried: unknown } | undefined;
 }
 
 /** Writes that put back what already happened: nothing is decided over them. */
@@ -162,7 +179,8 @@ export async function decideRow(
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
   // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
   const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;
-  const stamps = undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo));
+  // The opt-out mark is never fired by its own trigger (see OPT-OUT MARK).
+  const stamps = (undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo))).filter((stamp) => stamp.column !== context.optOut?.column);
   const worked = await momentStamps(stamps, action, out, before, context);
   const stamped = stampRow(stamps, action, out, before, context, worked);
   const emptied = undo === null ? [] : (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
@@ -172,8 +190,29 @@ export async function decideRow(
   const cleared = undo === null ? [] : clearedByUndo(rules.states!, undo).filter((column) => !has(moved, column) && context.table.columns.has(column));
   if (cleared.length > 0) moved = { ...moved, ...Object.fromEntries(cleared.map((column) => [column, null])) };
   // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
-  return renewCodes(rules.codes, action, moved, before, context);
+  return markOptOut(rules, action, await renewCodes(rules.codes, action, moved, before, context), before, context);
 }
+
+/** Two addresses, the same one: trimmed and in lower case. */
+const sameAddress = (a: unknown, b: unknown) => typeof a === 'string' && typeof b === 'string' && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** The opt-out mark, set by a staff save that showed the line, or carried from the row the person is made from (see OPT-OUT MARK). */
+function markOptOut(rules: TableRules, action: WriteAction, values: Row, before: Row | null, context: DecideContext): Row {
+  const optOut = context.optOut;
+  if (optOut === undefined || context.origin !== 'dashboard' || context.actor?.kind !== 'user') return values;
+  const stamp = (rules.stamps ?? []).find((one) => one.column === optOut.column);
+  if (stamp === undefined || optOut.email === null) return values;
+  // A line about mailing them is said where an address is taken: a row with none is not marked.
+  const address = has(values, optOut.email) ? values[optOut.email] : before?.[optOut.email];
+  if (empty(address)) return values;
+  const spell = (at: Date) => renderNow({ logicalType: stamp.logicalType }, at) ?? instantFor(at);
+  const carried = action === 'create' ? slotInstant(optOut.carried) : null;
+  if (carried !== null) return { ...values, [stamp.column]: spell(carried) };
+  if (!optOut.shown) return values;
+  const taken = action === 'create' || (has(values, optOut.email) && !sameAddress(before?.[optOut.email], values[optOut.email]));
+  return taken ? { ...values, [stamp.column]: spell(context.now) } : values;
+}
+
 
 /**
  * A LINE OF A FILE SOMEBODY BRINGS IN. A new row is made now, by them; a
@@ -200,7 +239,8 @@ async function stampLeftOut(rules: TableRules, action: WriteAction, values: Row,
       .filter((check) => check.requiredWhen !== undefined && requiredBy(check, has(row, check.requiredWhen.column) ? row[check.requiredWhen.column] : action === 'create' ? check.requiredWhenDefault : undefined))
       .map((check) => check.column),
   );
-  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]) && !asked.has(stamp.column));
+  // The opt-out mark is never a file's: no line stamps it (see OPT-OUT MARK).
+  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]) && !asked.has(stamp.column) && stamp.column !== context.optOut?.column);
   if (stamps.length === 0) return values;
   return stampRow(stamps, action, values, before, context, await momentStamps(stamps, action, values, before, context));
 }

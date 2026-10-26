@@ -265,6 +265,8 @@ import {
   type RateDecision,
 } from '../../public-api/limiter.js';
 import { parseBearerPublishableKey, parsePublicSessionToken } from '../../public-api/keys.js';
+import { createConsentTicks } from '../../public-api/consent-tick.js';
+import type { PeopleConsent } from '../../people/consent-writes.js';
 
 export interface PublicRoutesDeps {
   env: Env;
@@ -287,6 +289,12 @@ export interface PublicRoutesDeps {
   storage?: FileStore | undefined;
   /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
   writes?: RecordWriteService | undefined;
+  /**
+   * Consent on the write side (`people/consent-writes.ts`): "delete my
+   * details" that empties a declared consent column first appends the
+   * person's withdrawal. Without it the column is emptied with no log row.
+   */
+  peopleConsent?: Pick<PeopleConsent, 'withdrawOnForget'> | undefined;
   /** The add-ons a stock-words entry is answered by. Absent = nothing answers, and such an entry says every row is in. */
   ledgers?: LedgerRuntime | undefined;
   /**
@@ -957,19 +965,27 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     ok: { key: ResolvedKey; session: PublicSessionContext | null },
     /** The entry written through, and its table: a verified session whose grant is the entry's own claim proves that customer for this save. */
     entry?: { table: string; claim?: { ref?: string | undefined; column?: string | undefined } | null | undefined },
-  ): Promise<WriteContext> => ({
+  ): Promise<WriteContext> => {
+    const claimed = await claimedRowOf(ok);
+    // A consent tick the entry declares: what the write path keeps of it, and whose it is.
+    const view = await viewFor(ok.key.connectionId);
+    const consentTick = view === null ? undefined : await consentTicks.tickFor({ request, key: ok.key, view });
+    return {
     origin: 'public',
     hops: 0,
     actor: { kind: 'public', id: null, label: `public:${ok.key.keyId}` },
     request,
-    claimed: await claimedRowOf(ok),
+    claimed,
+    ...(consentTick === undefined ? {} : { consentTick }),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
       ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
         ? {}
         : { proved: { table: entry.table, column: entry.claim.column, link: ok.session.grant.value } }),
     },
-  });
+    };
+  };
+  const consentTicks = createConsentTicks(meta);
 
   /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
   /**
@@ -5602,6 +5618,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
         }
+        // A yes they gave is withdrawn, by them, before the column that held it is emptied: the log never says yes for a forgotten person.
+        await deps.peopleConsent?.withdrawOnForget({ connectionId: ok.key.connectionId, view: found.view, table: found.table, row, columns: forget.columns });
         try {
           await writes.update({
             target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },

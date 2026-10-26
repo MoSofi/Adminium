@@ -121,6 +121,8 @@ export interface ConsentColumnTarget {
   /** The row's key, as `pkLabel` writes it. */
   key: string;
   column: string;
+  /** Columns never stamped here, whatever their trigger: the table's opt-out mark, which only a screen sets. */
+  keep?: readonly string[] | undefined;
 }
 
 /** What `applyToColumn` did: wrote the column and its stamps, found it already so, or found no row. */

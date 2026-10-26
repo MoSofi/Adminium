@@ -179,6 +179,7 @@ import { NO_NEW_FILES, type FileColumnJudge } from '../files/column-judge.js';
 // every caller still finds them here. `WriteContext` joined them because the
 // outbox's own context (`outbox/context.ts`) is read here and names it.
 export type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
+import type { PeopleOfTable, PeopleWrite } from './write-context.js';
 
 
 /**
@@ -1805,6 +1806,13 @@ export interface RecordWriteService {
    */
   afterEach(action: WriteAction, target: WriteTarget, context: WriteContext, rows: WrittenRow[]): Promise<void>;
   /**
+   * Whether a write to this table is told to the consent log (its app
+   * declares a consent column for it, `WriteServiceOptions.people`): a path
+   * that writes rows by itself (an import's chunk) then goes row by row and
+   * calls {@link afterEach}, so each changed row is heard.
+   */
+  mirrors(target: WriteTarget): Promise<boolean>;
+  /**
    * Settle the parent totals rows written without `afterEach` feed — the
    * import's fast path, a parent form's child rows. `record` is the row as
    * written (or as it was, for a delete). `cap` refuses a capped balance
@@ -1928,6 +1936,22 @@ export interface WriteServiceOptions {
    * a column holds and name no new file: nothing here can vouch for one.
    */
   files?: FileColumnJudge | undefined;
+  /**
+   * The people an app declares (`people/declared.ts`): which of a table's
+   * columns is the address, the consent and the opt-out mark (`tableOf`, read
+   * by DECIDE on a table with a strict stamp), and what the consent log
+   * hears of a row written (`written`): a staff change of a consent column,
+   * a public tick (`people/consent-writes.ts`). Told after the statement, in
+   * the same write, before its after hooks. Without it a mark is never set
+   * and nothing is told.
+   */
+  people?: PeopleWrites | undefined;
+}
+
+/** What the write service asks of the people an app declares (see {@link WriteServiceOptions.people}). */
+export interface PeopleWrites {
+  tableOf(target: WriteTarget): Promise<PeopleOfTable | null>;
+  written?(write: PeopleWrite): Promise<void>;
 }
 
 /** How many times a create whose generated code collided is tried again. */
@@ -2034,8 +2058,9 @@ function refuseEarly(target: WriteTarget, action: 'create' | 'update', values: R
 }
 
 /** What DECIDE needs to know about a write. */
-function decideContext(target: WriteTarget, context: WriteContext, now: Date, zone: string | undefined): DecideContext {
+function decideContext(target: WriteTarget, context: WriteContext, now: Date, zone: string | undefined, people: Pick<DecideContext, 'optOut'> = {}): DecideContext {
   return {
+    ...people,
     db: target.db,
     dialect: target.dialect,
     table: target.table,
@@ -2107,6 +2132,30 @@ function mergeIssues(a: FieldIssues | null, b: FieldIssues | null): FieldIssues 
 
 export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteService {
   const current = (): RecordHooks => opts.hooks?.() ?? NO_RECORD_HOOKS;
+
+  /**
+   * What DECIDE reads of the people a table holds: its opt-out mark, looked up
+   * only for a table with a strict stamp (every other table costs nothing).
+   */
+  const peopleDecide = async (rules: TableRules | null, target: WriteTarget, context: WriteContext): Promise<Pick<DecideContext, 'optOut'>> => {
+    if (opts.people === undefined || !(rules?.stamps ?? []).some((stamp) => stamp.strict === true)) return {};
+    const declared = await opts.people.tableOf(target);
+    if (declared?.optOutMark == null) return {};
+    return { optOut: { column: declared.optOutMark, email: declared.email, shown: context.optOut?.shown === true, carried: context.optOut?.carried ?? null } };
+  };
+
+  /** Whether the consent log hears of writes to this table: its consent column, or a public tick on it. */
+  const mirrored = async (target: WriteTarget, context?: WriteContext): Promise<boolean> => {
+    if (opts.people?.written === undefined) return false;
+    if (context?.consentTick !== undefined && context.consentTick.table === target.table.id) return true;
+    return (await opts.people.tableOf(target))?.consent != null;
+  };
+
+  /** A row written, told to the consent log (a staff change of a consent column, a public tick): after the statement, before the after hooks. */
+  const toldPeople = async (action: WriteAction, target: WriteTarget, context: WriteContext, record: Row | null, before: Row | null): Promise<void> => {
+    if (opts.people?.written === undefined || action === 'delete' || record === null) return;
+    await opts.people.written({ action, target, context, record, before });
+  };
 
   const rulesOf = (target: WriteTarget): TableRules | null => {
     const rules = tableRulesFor(target);
@@ -2633,7 +2682,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values: { [column]: state }, record: before }], effect: moved.table.name });
     const zone = await zoneFor(rules, moved);
     let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
-    values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
+    values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone, await peopleDecide(rules, moved, declared)));
     values = await formulate(rules, 'update', moved, values, before, declared.origin);
     // …judged again on the row as it will be written: a point may be reached by what the move stamps or works out, not by the state alone.
     await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values, record: before }], effect: moved.table.name });
@@ -3410,7 +3459,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       opts.settings,
     );
     // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
-    const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
+    const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
     // A total, a formula and a number are Adminium's alone, whatever a hook set.
     const hooked =
       input.hooks && (await hooks.wants('before', 'create', target, context))
@@ -3446,7 +3495,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const zone = await zoneFor(rules, target);
       const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), opts.settings);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), opts.settings);
-      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
+      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
       return await formulate(rules, 'create', target, decided, null, context.origin);
     } catch {
       return values;
@@ -3640,7 +3689,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }
       const zone = await zoneFor(rules, target);
       let values = await prepareValues(rules, 'update', target, declared, set, clock.startedAt);
-      values = await decideRow(rules, 'update', values, before, decideContext(target, declared, stampNow(clock), zone));
+      values = await decideRow(rules, 'update', values, before, decideContext(target, declared, stampNow(clock), zone, await peopleDecide(rules, target, declared)));
       values = await formulate(rules, 'update', target, values, before, declared.origin);
       const checked = await carry(rules, 'update', target, declared, await checkAllOrThrow(rules, 'update', target, declared, values, before, undefined), before, clock);
       await updateRows(target.db, target.dialect, target.table, checked, key);
@@ -3902,6 +3951,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     wants: (timing, action, target, context) => current().wants(timing, action, target, context),
 
+    mirrors: (target) => mirrored(target),
+
     async check(action, target, context, rows, checkOpts) {
       if (action !== 'delete') refuseUnbuiltTable(target);
       if (action !== 'delete') await freshCodes(target);
@@ -3939,7 +3990,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         let stamped: Row = prepared;
         if (action === 'create' && context.stamps === 'left-out') {
           try {
-            stamped = await decideRow(rules, 'create', prepared, null, decideContext(target, context, stampNow(clock), (stampZone ??= { zone: await zoneFor(rules, target) }).zone));
+            stamped = await decideRow(rules, 'create', prepared, null, decideContext(target, context, stampNow(clock), (stampZone ??= { zone: await zoneFor(rules, target) }).zone, await peopleDecide(rules, target, context)));
           } catch (error) {
             const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
             issues.push({ [column]: { code: 'not-allowed' } });
@@ -4152,6 +4203,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return save(posting);
       });
       await input.announce(row, written, posted, adjusted);
+      await toldPeople('create', target, context, row, null);
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
       }
@@ -4606,6 +4658,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       for (const row of outcome.rows) {
         await input.announce(row);
         const target = rights.get(row.node.target.table.id) ?? row.node.target;
+        await toldPeople('create', target, context, row.record, null);
         if (await hooks.wants('after', 'create', target, context)) {
           await hooks.after({ action: 'create', target, record: row.record, before: null, context });
         }
@@ -4641,7 +4694,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // The stored row: for the hooks, and for what Adminium decides and works out from it.
       const stored = needsStored(rules);
       const watched = input.before === undefined && !(wantsBefore || wantsAfter || stored) && (await opts.watched?.(target.connectionId, target.table.id)) === true;
-      if ((wantsBefore || wantsAfter || stored || watched) && input.before === undefined) {
+      // …and so does one the consent log hears of: whether its consent column (or a tick) changed is told against the stored row.
+      const told = input.before === undefined && !(wantsBefore || wantsAfter || stored || watched) && (await mirrored(target, context));
+      if ((wantsBefore || wantsAfter || stored || watched || told) && input.before === undefined) {
         before = input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null);
       }
       // DECIDE: what this change makes Adminium write (a late cancellation's
@@ -4649,7 +4704,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // checked, written in the same statement, and carried into the undo entry.
       if (stored) {
         values = await guardedValue(
-          () => decideRow(rules, 'update', values, before, decideContext(target, context, stampNow(clock), zone)),
+          async () => decideRow(rules, 'update', values, before, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context))),
           input.mapError,
         );
       }
@@ -4988,6 +5043,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const effects = guardOf(checkedValues)?.effected;
       const outcome: UpdateOutcome = { before, after, values, count, ...(effects === undefined || effects.length === 0 ? {} : { effects }), ...(posted.length === 0 ? {} : { postings: posted }), ...(adjusted.length === 0 ? {} : { adjusted }) };
       await input.announce(outcome);
+      if (count > 0) await toldPeople('update', target, context, after, before);
       if (count > 0 && after !== null && wantsAfter) {
         await hooks.after({ action: 'update', target, record: after, before, context });
       }
@@ -5215,7 +5271,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const decided = async (values: Row, record: Row | null): Promise<{ values: Row; refused: FieldIssues | null }> => {
         if (!withRules || action === 'delete' || (action === 'update' && !needsStored(rules))) return { values, refused: null };
         try {
-          return { values: await decideRow(rules, action, values, record, decideContext(target, context, stampNow(clock), zone)), refused: null };
+          return { values: await decideRow(rules, action, values, record, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context))), refused: null };
         } catch (error) {
           const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
           return { values, refused: { [column]: { code: 'not-allowed' } } };
@@ -5297,6 +5353,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async afterEach(action, target, context, rows) {
       if (rows.length === 0) return;
       await settle(action, target, rows);
+      if (action !== 'delete') for (const row of rows) await toldPeople(action, target, context, row.record, row.before);
       const hooks = current();
       if (!(await hooks.wants('after', action, target, context))) return;
       for (const row of rows) {

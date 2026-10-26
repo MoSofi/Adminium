@@ -35,6 +35,8 @@ const ALLOWED: Record<string, string> = {
     "a removed row's mail (`outbox.onDelete: release`): inside the delete's own write, the outbox rows that link to it lose the link, as a foreign key's ON DELETE SET NULL would, and its messages that had not gone are skipped as removed — put back as they were when the delete removes nothing; the delete's audit and live frame carry it",
   'apps/derived-fill.ts':
     "an app update's fill of the derived columns it adds or changes (copies, formulas, rollups, balances) on the rows already there: Adminium's own columns, by key, in one transaction with the write path's own pieces, as a settle writes them — no rule of the table decides them and no hook or live frame is owed for a value nobody typed",
+  'apps/people-carry.ts':
+    "an app update's one-time carry of each person's newest old answer into their declared consent column, as a yes (or no) with no record: by key, in one transaction, never through a save, which would stamp the update's runner as the one who ticked it and tell the consent log a change nobody made",
   'apps/sample-data.ts':
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service (and what a sample fills in a row already there, `@fillEmpty`, is written and emptied again as that list says)",
   'consent/apply-column.ts':
