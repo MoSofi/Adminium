@@ -2,8 +2,7 @@
 /**
  * Wave 0069 — whether a campaign run counts clicks.
  *
- * Click counting is off unless the person sending switches it on (plan
- * D13): each link of the mail is then signed and sent through Adminium so a
+ * Click counting is off unless the person sending switches it on: each link of the mail is then signed and sent through Adminium so a
  * click counts on its send log row. The switch is chosen on the send screen
  * and kept on the run, so every batch of that run (a later one, after a
  * restart) reads the same answer. Off for every run made before.
