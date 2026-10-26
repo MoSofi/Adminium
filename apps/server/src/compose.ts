@@ -193,6 +193,7 @@ import { createPayableSources } from './payments/payables.js';
 import { consentTableSource, createConsentService } from './consent/index.js';
 import { PAYMENTS_RECORD_PICKUP_CRON, PAYMENTS_RECORD_PICKUP_NAME, pickUpRecordings, registerPaymentsRecordHandler } from './payments/record.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
+import { createMarketingMail, type MarketingSeams } from './email/marketing.js';
 import { announceEffects } from './states/effects.js';
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
 import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
@@ -543,6 +544,11 @@ export interface ComposeServerOptions {
    * pictures they name), so a fake answers in their place. There is no setting for this either.
    */
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /**
+   * For tests only: marketing mail's DNS answers, the sender's postal address and the per-table "existing
+   * customers" switch, given in place of the real ones (`email/marketing.ts`). There is no setting for this.
+   */
+  marketingSeams?: MarketingSeams | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
 }
@@ -1166,9 +1172,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
   // A record's live pay link, for printed invoices and reminders; found once the payment parts exist (below).
   let documentPayLink: ((entity: RecordRef) => Promise<string | null>) | null = null;
+  // Marketing mail's checks, signature and carry: one for every send path (the outbox, the campaigns, a rule's e-mail step).
+  const marketingMail = createMarketingMail({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+    ...(opts.marketingSeams ?? {}),
+  });
   const outboxSender = createOutboxSender({
     meta,
     manager,
+    marketing: marketingMail,
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
     writes: recordWrites,
     live: () => outboxProducers.live(),
@@ -1420,7 +1434,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // unconditionally: whether mail actually goes out is decided by the
     // `email.smtp` SETTING at enqueue time, not by boot configuration.
     // A message an app's outbox row asked for that fails for good turns the row `failed`.
-    email: { secret: env.ADMINIUM_SECRET, storage, onGiveUp: (report, error) => outboxSender.markUndelivered(report, error) },
+    email: { secret: env.ADMINIUM_SECRET, storage, onGiveUp: (report, error) => outboxSender.markUndelivered(report, error), marketing: marketingMail },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
     // The assistant's turn runner. The GUARDED resolver, not the enrichment
     // job's: it re-checks the stored base URL against the outbound guard at the
@@ -1494,6 +1508,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // inside the renderer.
     documents,
     hub: jobs.hub,
+    marketing: marketingMail,
     enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
   });
   jobs.scheduler.registerSchedule(
