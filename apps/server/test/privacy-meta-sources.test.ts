@@ -74,6 +74,8 @@ for (const engine of META_ENGINES) {
           { address: 'ben@other.example', name: 'Ben', connectionId: conn, personTable: 'public.crm_contacts', personKey: '8' },
           // Same key, another table: not her.
           { address: 'quote@other.example', name: 'Quote', connectionId: conn, personTable: 'public.crm_quotes', personKey: '7' },
+          // Her contact's key on the invoices table, whose found row is another: not her either.
+          { address: 'cross@other.example', name: 'Cross', connectionId: conn, personTable: 'public.crm_invoices', personKey: '7' },
         ],
         1,
       );
@@ -177,7 +179,7 @@ for (const engine of META_ENGINES) {
 
       // Nothing of another person anywhere in what would be downloaded.
       const written = JSON.stringify(found.map((one) => one.rows));
-      for (const other of ['ben@other.example', `x${MARTA}`, `${MARTA}.org`, 'quote@other.example', 'Xavier']) expect(written).not.toContain(other);
+      for (const other of ['ben@other.example', `x${MARTA}`, `${MARTA}.org`, 'quote@other.example', 'cross@other.example', 'Xavier']) expect(written).not.toContain(other);
     });
 
     it('finds nothing for an address nobody has', async () => {
