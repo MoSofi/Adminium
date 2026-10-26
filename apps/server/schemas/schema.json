@@ -27,6 +27,7 @@
               "table.exclude",
               "table.keyField",
               "table.people",
+              "table.existingCustomers",
               "column.label",
               "column.semanticType",
               "column.enumLabels",
