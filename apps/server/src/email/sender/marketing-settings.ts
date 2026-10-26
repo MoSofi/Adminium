@@ -18,7 +18,9 @@
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 /** The sender's postal address, or null while it is not set. */
-export async function postalAddressOf(_meta: MetaDb): Promise<string | null> {
+export async function postalAddressOf(meta: MetaDb): Promise<string | null> {
+  // Not stored anywhere yet: the privacy settings bring the setting this reads.
+  void meta;
   return null;
 }
 
