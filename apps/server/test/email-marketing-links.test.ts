@@ -12,11 +12,19 @@ import { makeUnsubscribeToken, readUnsubscribeToken, unsubscribeUrl } from '../s
 
 const SECRET = 'a-test-secret-of-enough-length-0123456789';
 
-/** Every token with one character changed: none may read. */
+const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+/**
+ * Every token with one character changed: none may read. Each character moves
+ * by half the alphabet, which changes its top bit: the last character of a
+ * base64url run carries spare low bits, and a change there alone would decode
+ * to the same bytes.
+ */
 function oneByteChanged(token: string): string[] {
   const out: string[] = [];
   for (let i = 0; i < token.length; i += 1) {
-    const swap = token[i] === 'A' ? 'B' : 'A';
+    const at = BASE64URL.indexOf(token[i]!);
+    const swap = at < 0 ? 'A' : BASE64URL[(at + 32) % 64]!;
     out.push(`${token.slice(0, i)}${swap}${token.slice(i + 1)}`);
   }
   return out;
