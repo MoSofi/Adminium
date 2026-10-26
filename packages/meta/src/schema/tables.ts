@@ -1749,6 +1749,55 @@ export interface AdminiumRemovedRowsTable {
   image: string;
 }
 
+// wave 0065 — the consent log, and the keys addresses are hashed under
+
+/** A key addresses are hashed under, by version (0065): 32 random bytes, `enc:v1:` under the server's secret. */
+export interface AdminiumAddressKeysTable {
+  version: number;
+  keyEncrypted: string;
+  createdAt: Ts;
+}
+
+/** One consent event (0065): never changed, deleted only with its person. */
+export interface AdminiumConsentLogTable {
+  id: Id;
+  connectionId: Id | null;
+  personTable: string | null;
+  personKey: string | null;
+  addressHash: string | null;
+  keyVersion: number | null;
+  purpose: string | null;
+  state: string;
+  source: string;
+  detail: string | null;
+  how: string | null;
+  note: string | null;
+  staffId: Id | null;
+  staffLabel: string | null;
+  wording: string | null;
+  wordingVersion: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  at: Ts;
+  confirmedAt: Ts | null;
+}
+
+// wave 0066 — the stop list
+
+/** One stopped address (0066): its keyed hash, and its address encrypted until its person is erased. */
+export interface AdminiumStopListTable {
+  id: Id;
+  addressHash: string;
+  keyVersion: number;
+  addressEncrypted: string | null;
+  reason: string;
+  origin: string | null;
+  addedAt: Ts;
+  addedById: Id | null;
+  addedByLabel: string | null;
+  erasedAt: Ts | null;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1827,6 +1876,9 @@ export interface MetaDB {
   adminium_payment_settings: AdminiumPaymentSettingsTable;
   adminium_payment_counters: AdminiumPaymentCountersTable;
   adminium_removed_rows: AdminiumRemovedRowsTable;
+  adminium_address_keys: AdminiumAddressKeysTable;
+  adminium_consent_log: AdminiumConsentLogTable;
+  adminium_stop_list: AdminiumStopListTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1907,4 +1959,7 @@ export const META_TABLE_NAMES = [
   'adminium_payment_settings',
   'adminium_payment_counters',
   'adminium_removed_rows',
+  'adminium_address_keys',
+  'adminium_consent_log',
+  'adminium_stop_list',
 ] as const satisfies readonly (keyof MetaDB)[];

@@ -86,6 +86,8 @@ import { up as up0061 } from './0061_user_figma_token.js';
 import { up as up0062 } from './0062_payments.js';
 import { up as up0063 } from './0063_payment_dispute_outcome.js';
 import { up as up0064 } from './0064_removed_rows.js';
+import { up as up0065 } from './0065_consent_log.js';
+import { up as up0066 } from './0066_stop_list.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -159,4 +161,6 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0062_payments', up: up0062 },
   { name: '0063_payment_dispute_outcome', up: up0063 },
   { name: '0064_removed_rows', up: up0064 },
+  { name: '0065_consent_log', up: up0065 },
+  { name: '0066_stop_list', up: up0066 },
 ];
