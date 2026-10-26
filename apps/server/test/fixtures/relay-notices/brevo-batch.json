@@ -1,0 +1,7 @@
+[
+  { "event": "hard_bounce", "email": "gone@example.com", "id": 26224, "date": "2020-08-28 19:08:29", "ts": 1598634509, "message-id": "<1@relay.domain.com>", "ts_event": 1598634509, "ts_epoch": 1598634509223, "reason": "unknown user" },
+  { "event": "soft_bounce", "email": "full@example.com", "id": 26224, "date": "2020-08-28 19:08:30", "ts": 1598634510, "message-id": "<2@relay.domain.com>", "ts_event": 1598634510, "ts_epoch": 1598634510223, "reason": "mailbox full" },
+  { "event": "spam", "email": "angry@example.com", "id": 26224, "date": "2020-08-28 19:08:31", "ts": 1598634511, "message-id": "<3@relay.domain.com>", "ts_event": 1598634511, "ts_epoch": 1598634511223 },
+  { "event": "unsubscribed", "email": "bye@example.com", "id": 26224, "date": "2020-08-28 19:08:32", "ts": 1598634512, "message-id": "<4@relay.domain.com>", "ts_event": 1598634512, "ts_epoch": 1598634512223 },
+  { "event": "delivered", "email": "fine@example.com", "id": 26224, "date": "2020-08-28 19:08:33", "ts": 1598634513, "message-id": "<5@relay.domain.com>", "ts_event": 1598634513, "ts_epoch": 1598634513223 }
+]

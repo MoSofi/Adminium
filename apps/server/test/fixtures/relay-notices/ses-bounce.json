@@ -1,0 +1,33 @@
+{
+  "notificationType": "Bounce",
+  "bounce": {
+    "feedbackId": "000001378603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000",
+    "bounceType": "Permanent",
+    "bounceSubType": "General",
+    "bouncedRecipients": [
+      { "emailAddress": "jane@example.com", "action": "failed", "status": "5.1.1", "diagnosticCode": "smtp; 550 5.1.1 <jane@example.com>... User" },
+      { "emailAddress": "Richard@Example.com", "action": "failed", "status": "5.1.1", "diagnosticCode": "smtp; 550 5.1.1 <richard@example.com>... User" }
+    ],
+    "timestamp": "2016-01-27T14:59:38.237Z",
+    "remoteMtaIp": "127.0.2.0",
+    "reportingMTA": "dsn; a8-70.smtp-out.amazonses.com"
+  },
+  "mail": {
+    "timestamp": "2016-01-27T14:59:38.237Z",
+    "messageId": "00000138111222aa-33322211-cccc-cccc-cccc-ddddaaaa0680-000000",
+    "source": "john@example.com",
+    "sourceArn": "arn:aws:ses:us-east-1:888888888888:identity/example.com",
+    "sourceIp": "127.0.3.0",
+    "sendingAccountId": "123456789012",
+    "callerIdentity": "IAM_user_or_role_name",
+    "destination": ["jane@example.com", "mary@example.com", "richard@example.com"],
+    "headersTruncated": false,
+    "commonHeaders": {
+      "from": ["John Doe <john@example.com>"],
+      "date": "Wed, 27 Jan 2016 14:05:45 +0000",
+      "to": ["Jane Doe <jane@example.com>, Mary Doe <mary@example.com>, Richard Doe <richard@example.com>"],
+      "messageId": "custom-message-ID",
+      "subject": "Hello"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "signature": { "timestamp": "1529006854", "token": "b8ce0edb2dd8301dee6c2405235584e45aa91d1e9f979f3de1", "signature": "(made by the test)" },
+  "event-data": {
+    "event": "failed",
+    "id": "Fs7-5t81S2aKPkIhT8WjZw",
+    "timestamp": 1521233195.375624,
+    "log-level": "warn",
+    "severity": "temporary",
+    "reason": "generic",
+    "recipient": "alice@example.com",
+    "delivery-status": { "code": 452, "message": "4.2.2 The email account that you tried to reach is over quota.", "attempt-no": 1, "retry-seconds": 600 }
+  }
+}

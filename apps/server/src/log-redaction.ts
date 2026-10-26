@@ -117,6 +117,12 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'cookie',
   'ADMINIUM_SECRET',
   'ADMINIUM_BOOT_TOKEN',
+  // A mail service's webhook signing key (Mailgun), and a sending domain's DKIM
+  // private key in nodemailer's own `dkim.privateKey` field. Neither name ends in
+  // a word above, and either one logged would let anyone forge the calls or sign
+  // mail as the owner's domain.
+  'signingKey',
+  'privateKey',
 ];
 
 /**

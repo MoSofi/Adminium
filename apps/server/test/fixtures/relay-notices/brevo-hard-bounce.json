@@ -1,0 +1,15 @@
+{
+  "event": "hard_bounce",
+  "email": "example@example.com",
+  "id": 26224,
+  "date": "2020-08-28 19:08:29",
+  "ts": 1598634509,
+  "message-id": "<201798300811.5787683@relay.domain.com>",
+  "ts_event": 1598034509,
+  "subject": "Subject Line",
+  "tag": "[\"transactionalTag\"]",
+  "sending_ip": "185.41.28.109",
+  "ts_epoch": 1598634509223,
+  "tags": ["myFirstTransactional"],
+  "reason": "server relay error"
+}

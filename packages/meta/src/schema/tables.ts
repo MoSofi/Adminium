@@ -1749,6 +1749,37 @@ export interface AdminiumRemovedRowsTable {
   image: string;
 }
 
+// wave 0068 — what marketing mail keeps secret
+
+/** A mail service's notice address and what proves its calls (0068). */
+export interface AdminiumEmailNoticeEndpointsTable {
+  id: Id;
+  service: string;
+  tokenHash: string;
+  tokenEncrypted: string;
+  secretEncrypted: string | null;
+  secretSetAt: Ts | null;
+  publicKey: string | null;
+  topicArn: string | null;
+  confirmedAt: Ts | null;
+  lastNoticeAt: Ts | null;
+  noticeCount: ColumnType<number, number | undefined, number>;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** A sending domain's DKIM key (0068): the private key encrypted, the public key as the DNS record shows it. */
+export interface AdminiumEmailDkimKeysTable {
+  id: Id;
+  domain: string;
+  selector: string;
+  privateKeyEncrypted: string;
+  publicKey: string;
+  createdBy: Id | null;
+  createdAt: Ts;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1827,6 +1858,8 @@ export interface MetaDB {
   adminium_payment_settings: AdminiumPaymentSettingsTable;
   adminium_payment_counters: AdminiumPaymentCountersTable;
   adminium_removed_rows: AdminiumRemovedRowsTable;
+  adminium_email_notice_endpoints: AdminiumEmailNoticeEndpointsTable;
+  adminium_email_dkim_keys: AdminiumEmailDkimKeysTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1907,4 +1940,6 @@ export const META_TABLE_NAMES = [
   'adminium_payment_settings',
   'adminium_payment_counters',
   'adminium_removed_rows',
+  'adminium_email_notice_endpoints',
+  'adminium_email_dkim_keys',
 ] as const satisfies readonly (keyof MetaDB)[];
