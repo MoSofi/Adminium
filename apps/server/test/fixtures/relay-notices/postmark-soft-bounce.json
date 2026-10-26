@@ -1,0 +1,17 @@
+{
+  "RecordType": "Bounce",
+  "MessageStream": "outbound",
+  "ID": 42,
+  "Type": "SoftBounce",
+  "TypeCode": 4096,
+  "Name": "Soft bounce/Undeliverable",
+  "MessageID": "00000000-0000-0000-0000-000000000001",
+  "ServerID": 23,
+  "Description": "Unable to temporarily deliver this email.",
+  "Details": "Test soft bounce details",
+  "Email": "full-mailbox@example.com",
+  "From": "sender@example.com",
+  "BouncedAt": "2019-11-05T16:33:54.9070259Z",
+  "Inactive": false,
+  "CanActivate": true
+}

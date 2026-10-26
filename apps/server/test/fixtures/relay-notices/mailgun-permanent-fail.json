@@ -1,0 +1,25 @@
+{
+  "signature": {
+    "timestamp": "1529006854",
+    "token": "a8ce0edb2dd8301dee6c2405235584e45aa91d1e9f979f3de0",
+    "signature": "(made by the test)"
+  },
+  "event-data": {
+    "event": "failed",
+    "id": "G9Bn5sl1TC6nu79C8C0bwg",
+    "timestamp": 1521233195.375624,
+    "log-level": "error",
+    "severity": "permanent",
+    "reason": "suppress-bounce",
+    "recipient": "alice@example.com",
+    "recipient-domain": "example.com",
+    "envelope": { "sender": "bob@sandboxes.mailgun.org", "transport": "smtp", "targets": "alice@example.com" },
+    "delivery-status": { "code": 605, "message": "", "description": "Not delivering to previously bounced address", "attempt-no": 1 },
+    "flags": { "is-routed": false, "is-authenticated": true, "is-system-test": false, "is-test-mode": false },
+    "message": { "headers": { "to": "Alice <alice@example.com>", "message-id": "20130503192659.13651.20287@sandboxes.mailgun.org", "from": "Bob <bob@sandboxes.mailgun.org>", "subject": "Test permanent_fail webhook" }, "attachments": [], "size": 111 },
+    "storage": { "url": "https://se.api.mailgun.net/v3/domains/sandboxes.mailgun.org/messages/message_key", "key": "message_key" },
+    "campaigns": [],
+    "tags": ["my_tag_1", "my_tag_2"],
+    "user-variables": { "my_var_1": "Mailgun Variable #1", "my-var-2": "awesome" }
+  }
+}

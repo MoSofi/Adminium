@@ -1,0 +1,8 @@
+{
+  "events": [
+    { "address": "Gone@Example.com", "kind": "bounce", "id": "evt-1", "at": "2026-10-26T10:00:00Z" },
+    { "address": "full@example.com", "kind": "bounce", "permanent": false, "id": "evt-2" },
+    { "address": "angry@example.com", "kind": "complaint", "at": 1793000000000 },
+    { "address": "bye@example.com", "kind": "unsubscribe" }
+  ]
+}

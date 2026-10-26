@@ -1,0 +1,13 @@
+{
+  "RecordType": "SubscriptionChange",
+  "MessageID": "00000000-0000-0000-0000-000000000000",
+  "ServerID": 23,
+  "MessageStream": "bulk",
+  "ChangedAt": "2020-02-01T10:53:34.416071Z",
+  "Recipient": "bounced-address@example.com",
+  "Origin": "Recipient",
+  "SuppressSending": true,
+  "SuppressionReason": "ManualSuppression",
+  "Tag": "my-tag",
+  "Metadata": { "example": "value", "example_2": "value" }
+}
