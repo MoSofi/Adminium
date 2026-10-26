@@ -31,6 +31,8 @@ export const EMAIL_SEND_NAME_MAX = 120;
 export const EMAIL_SEND_LANGUAGE_MAX = 35;
 export const EMAIL_SEND_KEY_MAX = 200;
 export const EMAIL_SEND_REASON_MAX = 500;
+/** The most clicks a row counts: the column is a 32-bit integer. */
+export const EMAIL_SEND_CLICKS_MAX = 2_147_483_647;
 
 /** Rows per INSERT when a run's recipients are written. */
 const WRITE_CHUNK = 200;
@@ -301,6 +303,35 @@ export function emailSendsRepo(meta: MetaDb) {
         .executeTakeFirst();
       if (affected(res.numUpdatedRows) === 0) return null;
       return await findById(id);
+    },
+
+    /**
+     * The person unsubscribed through this send's link (the page or the
+     * one-click): a row that went (`sent`) says so in the log. Only a sent
+     * row moves; one already marked bounced, as spam or unsubscribed keeps
+     * what it says. True when the row moved.
+     */
+    async markUnsubscribed(id: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_email_sends')
+        .set({ state: 'unsubscribed', updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'sent')
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** A signed link in this send was followed: one more click. False when there is no such row (or it is full). */
+    async countClick(id: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_email_sends')
+        // The count always changes, so MySQL reports the row as touched.
+        .set((eb) => ({ clicks: eb('clicks', '+', 1), updatedAt: at }))
+        .where('id', '=', id)
+        // The column is a 32-bit integer on every engine: a count at its top stays there.
+        .where('clicks', '<', EMAIL_SEND_CLICKS_MAX)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
     },
 
     /** How many rows of a run are in each state (absent = none). */
