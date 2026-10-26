@@ -466,6 +466,10 @@ describe('the fleet\'s own cases', () => {
     // To an address a column of the row holds (a friend, a copy, a supplier): a contact's mail.
     const typedAddress = withHouseKind({ column: 'sent_to_email' });
     expect(issuesOf(typedAddress)).toContain('the outbox\'s kind "house-note" says no class');
+    // One producer to the house and one to a typed address: the kind reaches a contact, and says its class.
+    const both = withHouseKind({ setting: { table: 'settings', column: 'reply_to' } });
+    (both.outbox as unknown as { producers: Doc[] }).producers.push({ kind: 'house-note', link: 'quote_id', recipient: { column: 'sent_to_email' }, onChange: { table: 'quotes', column: 'stage', to: 'sent' } });
+    expect(issuesOf(both)).toContain('the outbox\'s kind "house-note" says no class');
   });
 
   it('a consent column need not be the outbox\'s service opt-in', () => {
