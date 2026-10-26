@@ -190,6 +190,7 @@ import { createAutomations, decorateAutomations } from './automations/register.j
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
 import { TIMED_MOVES_JITTER_MS, TIMED_MOVES_SCHEDULE_NAME, enqueueTimedMoves, registerTimedMovesHandler } from './states/timed-moves.js';
 import { createPayableSources } from './payments/payables.js';
+import { consentTableSource, createConsentService } from './consent/index.js';
 import { PAYMENTS_RECORD_PICKUP_CRON, PAYMENTS_RECORD_PICKUP_NAME, pickUpRecordings, registerPaymentsRecordHandler } from './payments/record.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
 import { announceEffects } from './states/effects.js';
@@ -299,6 +300,7 @@ import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
 import { paymentLinkEmailRoutes } from './routes/payments/link-email.js';
 import { paymentPanelRoutes } from './routes/payments/panel.js';
+import { consentRoutes } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
@@ -1552,6 +1554,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // Payments: the job that records a payment exactly once, and the
   // pickup that queues it again for any attempt a dead job left behind.
   const paymentSources = createPayableSources({ meta, manager });
+  // Consent and the do-not-email list: one door for the mail door, the send
+  // ledger, the erasure and the staff routes alike.
+  const consentTables = consentTableSource({ meta, manager });
+  const consent = createConsentService({ meta, secret: env.ADMINIUM_SECRET, tables: consentTables });
   // A recorded live payment emails its receipt once, to the record's customer.
   registerPaymentsRecordHandler(jobs.registry, {
     meta,
@@ -2151,6 +2157,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       await api.register(paymentPayablesRoutes({ meta, manager }));
+      // Consent and the do-not-email list: the list for the e-mail screens' grant, a record's consent for its readers.
+      await api.register(consentRoutes({ meta, manager, service: consent, tables: consentTables }));
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
         paymentLinksRoutes({
