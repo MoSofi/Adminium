@@ -57,12 +57,14 @@ describe('the vocabulary', () => {
     expect(installFloorWords(kit([LOW])).map((found) => found.word)).toContain('automations');
   });
 
-  it('takes at most twenty-four rules, each with its own key of at most 80 characters, and says when it ships more than twelve', () => {
+  it('takes at most thirty-two rules, each with its own key of at most 80 characters, and says when it ships more than twelve, and more than twenty-four', () => {
     const many = (count: number) => Array.from({ length: count }, (_, i) => ({ ...LOW, key: `low-${String(i)}` }));
-    expect(manifestAutomationsSchema.safeParse(many(25)).success).toBe(false);
-    expect(manifestAutomationsSchema.safeParse(many(24)).success).toBe(true);
+    expect(manifestAutomationsSchema.safeParse(many(33)).success).toBe(false);
+    expect(manifestAutomationsSchema.safeParse(many(32)).success).toBe(true);
     expect(installFloorWords(kit(many(12))).map((found) => found.word)).not.toContain('automations.many');
     expect(installFloorWords(kit(many(13))).map((found) => found.word)).toContain('automations.many');
+    expect(installFloorWords(kit(many(24))).map((found) => found.word)).not.toContain('automations.more');
+    expect(installFloorWords(kit(many(25))).map((found) => found.word)).toContain('automations.more');
     expect(manifestAutomationsSchema.safeParse([LOW, LOW]).success).toBe(false);
     expect(manifestAutomationsSchema.safeParse([{ ...LOW, key: `r${'x'.repeat(80)}` }]).success).toBe(false);
   });

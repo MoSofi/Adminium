@@ -18,7 +18,7 @@
  *
  * Pure: no I/O. The caller reads the add-on's manifest and writes the files.
  */
-import { mapShapeRules, mapShapeStates, postingPointSchema, shapeDefinitionSchema, shapeKey, type PostingPoint, type ShapeDefinition } from '@adminium/manifest';
+import { MAIL_CLASS_FLOOR, compareSemver, mapShapeRules, mapShapeStates, postingPointSchema, shapeDefinitionSchema, shapeKey, type PostingPoint, type ShapeDefinition } from '@adminium/manifest';
 
 import { declaredLedgers } from './ledger-parts.js';
 
@@ -42,6 +42,11 @@ export interface ShapePartsInput {
   tables?: Readonly<Record<string, string>> | undefined;
   /** The outbox table's name. */
   outboxTable?: string | undefined;
+  /**
+   * The app's own `minAdminiumVersion`. From the release that reads mail
+   * classes on, every kind says one, so the kinds written here say theirs.
+   */
+  floor?: string | undefined;
 }
 
 export type ShapePartsResult =
@@ -242,6 +247,8 @@ export function shapeParts(input: ShapePartsInput): ShapePartsResult {
         links: Object.fromEntries([[linkName(personLink), personLink], ...[...links.keys()].filter((link) => link !== personLink).map((link) => [linkName(link), link])]),
         recipient: { via: personLink, table: recipient.table, email: recipient.email, ...(recipient.name === undefined ? {} : { name: recipient.name }) },
         kinds: Object.fromEntries(kinds.map((kind) => [kind, `${input.appKey}-${kind}`])),
+        // What a shape sends is about a document of the person's own (an invoice, a receipt): service mail, never stopped.
+        ...(input.floor !== undefined && compareSemver(input.floor, MAIL_CLASS_FLOOR) >= 0 ? { classes: Object.fromEntries(kinds.map((kind) => [kind, 'service'])) } : {}),
         producers: mappedProducers,
       },
       // Plain words, to be reworded: the app's emails are its own.

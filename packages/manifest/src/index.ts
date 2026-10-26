@@ -135,6 +135,28 @@ export {
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
 export { occupiesSchema, type OccupiesRule } from './occupies.js';
 export { REMOVAL_REASON_MAX, auditOnlyColumns, columnHistorySchema, removalIssues, removalSchema, type RemovalRule } from './removal.js';
+export { MAIL_CLASSES, MAIL_CLASS_FLOOR, mailClassFloorIssues, mailClassOf, sentToTheHouse, type MailClass, type MailClassAnswer, type MailClassManifest } from './mail-class.js';
+export {
+  CONSENT_PURPOSES,
+  COPY_HOLDS,
+  FIRST_WORD_OF_NAME,
+  KEPT_BY_LAW_REASONS,
+  PEOPLE_KINDS,
+  keepSchema,
+  optOutMarkColumn,
+  peopleEntrySchema,
+  peopleIssues,
+  peopleSchema,
+  publicConsentIssues,
+  publicConsentSchema,
+  type Keep,
+  type KeptByLawReason,
+  type People,
+  type PeopleCarry,
+  type PeopleCopy,
+  type PeopleEntry,
+  type PublicConsent,
+} from './people.js';
 export {
   MODULE_DEFAULTS,
   modulesSchema,
@@ -479,6 +501,7 @@ export {
   AUTOMATION_CONDITION_OPS,
   AUTOMATION_NODES_MAX,
   MANIFEST_AUTOMATIONS_MAX,
+  MANIFEST_AUTOMATIONS_SECOND_MAX,
   RULE_EMAIL_VARS,
   automationIssues,
   manifestActionSchema,

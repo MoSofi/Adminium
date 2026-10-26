@@ -249,6 +249,7 @@ the database.
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
 | `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.28. |
 | `removal` | no | `{ "reason"?: true \| "required", "history"?: true }`: a removal of a row takes a reason, and the removed row stays readable through a row it linked to; see [Removed rows](#removed-rows). Needs Adminium 0.3.35. |
+| `keep` | no | `{ "law": "tax" \| "health" \| "contract" \| "safety" }`: the law makes the business keep the table's rows; see [Kept by law](#kept-by-law). Needs Adminium 0.3.37. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -2146,6 +2147,23 @@ their row limit there is judged on the row as it was, and the columns their role
 are left out, as a live read leaves them out. A table that never says `history` keeps nothing: a
 rep cannot read a contact the admin removed, through anything.
 
+### Kept by law
+
+`keep`, on a table, says the law makes the business keep its rows, and why:
+
+```json
+{ "ref": "invoices", "columns": [ … ], "keep": { "law": "tax" } }
+```
+
+`law` is one of `tax` (invoices, receipts, payments), `health` (a patient's records), `contract`
+(a signed agreement) and `safety` (a certificate, an incident). When a person's data is erased,
+the rows of such a table are left as they are, a [copy of the person](#people) on them included,
+and the erasure lists them under "What stays" with the reason, in the reader's language. Their
+copies are still found and exported with the person.
+
+`keep` is not [`states.noDelete`](#states): that refuses a delete of a row in some states (a sent
+invoice is voided, not deleted) and says nothing of the law. Needs Adminium 0.3.37.
+
 ### Shared tables
 
 Two apps may use one table between them: a restaurant's point of sale and its online ordering
@@ -3533,6 +3551,7 @@ there for the same kind and source is what stops a second send.
 | `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"?, "phone"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. `phone` is a `text` column: when it holds a number, the notice sent to a person's old address after a change of email tells them to ring it; without one, the notice says to contact you. `replyTo` is a `text` column: when it holds one plain address, every message the app sends carries it as its Reply-To, so a guest's reply reaches the house rather than the no-reply sender; empty, or anything but one address, adds none. |
 | `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
 | `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
+| `classes` | from 0.3.37 | Each kind's class, `marketing` or `service`; see [Marketing or service](#marketing-or-service). Needs Adminium 0.3.37, and from that floor every kind has one. |
 | `producers` | no | Up to 24 rules that queue rows by themselves. See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
@@ -3687,6 +3706,41 @@ Reply-To otherwise. It is sent either way: a missing rep never holds a message b
 
 The customer sees the rep's sign-in address in the reply field of their mail program. Use
 `replyTo` only where that is what you want.
+
+### Marketing or service
+
+Mail to a contact is marketing or service. **Marketing** (a newsletter, a thank-you that gives a
+code for the next order) is not sent to an address on the install's do-not-email list, and carries
+an unsubscribe link. **Service** (a quote, a booking confirmation, a receipt, a sign-in link) is
+always sent: a person who said no to marketing still gets their receipt.
+
+An outbox says each kind's class in `classes`, beside `kinds`:
+
+```json
+"kinds":   { "quote-sent": "crm-quote-sent", "referral-thanks": "crm-referral-thanks" },
+"classes": { "quote-sent": "service",        "referral-thanks": "marketing" }
+```
+
+A rule's e-mail to an address of its record (`to: { "kind": "field" }`) says it with `class`:
+
+```json
+{ "kind": "email", "templateKey": "crm-note", "to": { "kind": "field", "column": "email" }, "class": "service" }
+```
+
+From `minAdminiumVersion` `0.3.37` every kind, and every rule's e-mail to an address of its record,
+must say which: the validator refuses a gap and names the kind or the rule. That is every kind
+written to somebody outside the business: the outbox's person, a supplier, an address somebody
+typed (a friend a ticket is offered to, a copy of a signed sheet), and a kind sent only by hand. A
+kind whose every producer writes to the house's own address (`recipient: { "setting" }`) is mail to
+staff: it needs no class, and one it says is taken. A manifest with an
+older floor says no class, and all its mail is read as service, as it was sent before. A class
+needs the floor `0.3.37`.
+
+Mail to staff has no class and is never stopped: a rule's e-mail to [the person on the
+row](#the-person-on-the-row) (`staff`) or to [the people listed on the row](#the-people-listed-on-the-row)
+(`listed`), a [summary](#a-summary-for-each-person) and a notice. `class` on such a step is refused.
+`mailClassOf(manifest, { outboxKind } | { step })` in `@adminiumjs/manifest` answers `marketing`,
+`service` or `staff` for one mail.
 
 ### Held messages
 
@@ -3898,6 +3952,49 @@ An `email.rows` block may list an add-on's rows for the row a link names, found 
 While the add-on is absent, detached or switched off the list is empty and the message still goes
 (the block's `empty` text is said, or the block is left out). A `match` column the add-on's table
 no longer has fails the message with a reason.
+
+## People
+
+`people` says which of the app's tables hold people (or companies), and where. E-mail to contacts
+reads it for an audience, a person's data (find, export, erase) for where a person is, and the
+consent log for the column it keeps in step. One entry per table, up to eight:
+
+```json
+"people": [
+  { "table": "contacts", "kind": "people", "email": "email", "name": "name",
+    "company": "company_id", "language": "language", "firstName": "firstWordOfName",
+    "consent": { "column": "may_email", "purpose": "newsletter" },
+    "customer": "won_deals", "optOutMark": "opt_out_offered_at",
+    "copies": [
+      { "table": "quotes", "column": "sent_to_email", "holds": "email", "via": "sent_to_contact_id" },
+      { "table": "sign_offs", "column": "signer_name", "holds": "name" }
+    ] },
+  { "table": "companies", "kind": "companies", "name": "name" }
+]
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `table` | yes | One of the app's tables, declared once. |
+| `kind` | yes | `people`, or `companies`. |
+| `email` | for `people` | A `text` column: the address. When the outbox's `recipient.table` is this table, it is `recipient.email`; when a [public entry](#public-access) on this table claims by an emailed code or link, it is that claim's `email`. |
+| `name` | no | A `text` column that names the person. Default: the table's `keyField`; a table with neither is refused, and so is a name that is the address column. A name kept in parts (`first_name`, `last_name`) is named by a [formula](#formulas) column that joins them. |
+| `company` | no | A link (`fk`) to the company the person works for. It may not point at a table declared as `people`. |
+| `language` | no | A `text` column of the table with the language the person is written to in. An app that keeps the language only on an order adds one, filled when the person is made (`identity.fill`); rows without one read the install's language. |
+| `firstName` | no | `{ "column" }`, a `text` column, or `"firstWordOfName"`: what a mail's `{{first_name}}` reads. |
+| `consent` | no | `{ "column", "purpose" }`: a `bool` column that mirrors one purpose of the consent log, `newsletter` or `surveys`. With none, the consent log alone holds consent. |
+| `copies` | no | Up to 32 columns on **other** tables that hold a copy of the person's address, name or phone number: `{ "table", "column", "holds": "email" \| "name" \| "phone", "via"? }`. `column` is `text`; `via`, when there is one, is that table's link (`fk`) back to this table. A copy is found and exported with the person and blanked when they are erased, except on a table [kept by law](#kept-by-law). |
+| `customer` | no | A `bool` or number column that says the person is a customer (a count of won deals): "existing customers" counts them. |
+| `optOutMark` | no | A `timestamptz` column that is a strict [stamp](#stamps) (`"strict": true`). Declaring it says the app's staff screens show the line "you can say no to our mail" where they take the address. Only a signed-in staff member's save on such a screen sets it (or a carry, below); never a public page, an import, a rule or an add-on. Only marked rows may be mailed as existing customers. `{ "column", "carryFrom": { "table", "column" } }` also names the mark of the row a person is made from (a claimed enquiry's, itself a strict stamp on another table), copied in the save that makes them. |
+| `carry` | no | Up to 4 things an app update carries over once: `{ "stopList": { "column" } }` puts the address of every row whose column holds a value on the do-not-email list (an old "unsubscribed" mark); `{ "consent": { "from", "via", "column", "latest" } }` writes each person's newest answer on a linked table (`via` links it to this table, `column` is its `bool`, `latest` a date, moment or number that orders the answers) into the `consent` column, as a yes with no record that the first send's review asks about. A carried column is declared in the same manifest: keep it one more release, and drop it in the next. A second update adds nothing. |
+
+`consent`, `customer`, `optOutMark` and `carry` are read to mail the table's people, so an entry
+with no `email` names none of them. The `consent` column is not the outbox's `recipient.optIn`:
+that is a switch for service mail (a reminder), and the two may differ. A [part](#parts) left out takes its tables' entries and the copies
+kept on them with it. Needs Adminium 0.3.37.
+
+The owner can switch campaigns off for a table, or name another column for the address or the
+name, on the table's e-mail sheet. That is the owner's word and stays theirs across updates.
 
 ## Public access
 
@@ -4350,6 +4447,24 @@ stored in another case. The entry asks the human check and limits creates per ad
 message on create: each would tell a stranger's order apart from its owner's. Nothing on the row
 reads through `link`.
 
+### A consent tick
+
+A public entry that takes a tick ("Email me about new shows") says so with `consent`:
+
+```json
+{ "table": "orders", "methods": ["PATCH"], "writable": ["opt_in"], "claimedBy": { "table": "customers", "column": "customer_id" },
+  "consent": { "column": "opt_in", "purpose": "newsletter",
+               "wording": { "version": 2, "text": { "en-US": "Email me about new shows", "de-DE": "Schreibt mir zu neuen Shows" } } } }
+```
+
+`column` is a `bool` of the entry's table that the entry writes (`writable`), on a create or a
+change. `purpose` is `newsletter` or `surveys`. `wording` is the sentence shown beside the box, in
+several languages with `en-US` among them, and its `version` (raise it when the words change): the
+consent log keeps the version and the language shown, never a text the request sends. The tick is
+kept for the person the entry finds by address (`identity`), whose rows it writes (`claimedBy`), or
+the row itself on a [people](#people) table's own entry; that table is declared in `people`. A box
+left unticked writes nothing: it takes back no earlier yes. Needs Adminium 0.3.37.
+
 ### A row's own link
 
 A row's **own link** opens that one row to its owner: an order's confirmation link, a ticket sent
@@ -4642,7 +4757,7 @@ claims `by: "token"`, and every entry on it is `GET` only, reaching the rest thr
 
 ## Automations
 
-`automations` lists up to 24 rules (more than 12 needs `minAdminiumVersion` `0.3.28`) an app or an add-on brings with it: "when a stock point falls
+`automations` lists up to 32 rules (more than 12 needs `minAdminiumVersion` `0.3.28`, more than 24 needs `0.3.37`) an app or an add-on brings with it: "when a stock point falls
 to its reorder level, write a request and tell the managers". A rule is written the way the
 [rules page](/guides/automations/) stores one, a trigger and then a flow of steps. A manifest
 that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
@@ -4677,7 +4792,7 @@ A step's action is one of six:
 | `kind` | Keys | What it does |
 |---|---|---|
 | `notification` | `to: { "roles" }`, `to: { "column", "lead"?, "else"? }` or `to: { "listed" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](#the-person-on-the-row), or [the lead of that person](#the-lead-of-the-person-on-the-row), or [the people listed on the row](#the-people-listed-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](#the-person-on-the-row), or one to each of [the people listed on the row](#the-people-listed-on-the-row). |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }`, `vars`?, `replyTo: { "staff": column }`?, `class`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](#the-person-on-the-row), or one to each of [the people listed on the row](#the-people-listed-on-the-row). A mail to the record's address says `class`, [marketing or service](#marketing-or-service) (from `0.3.37`, always). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |

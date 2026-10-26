@@ -1033,6 +1033,19 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   z.object({ op: z.literal('table.exclude'), value: z.object({ excluded: z.boolean() }) }),
   z.object({ op: z.literal('table.keyField'), value: z.object({ column: z.string() }) }),
+  /*
+   * The owner's word on a table an app declares as people (its `people`
+   * entry): whether campaigns may mail it, and which columns hold the address
+   * and the name, when the owner's differ from the app's. A key left out
+   * keeps the app's.
+   */
+  z.object({
+    op: z.literal('table.people'),
+    value: z
+      .object({ canEmail: z.boolean().optional(), email: z.string().min(1).max(128).optional(), name: z.string().min(1).max(128).optional() })
+      .strict()
+      .refine((value) => Object.keys(value).length > 0, 'the owner\'s word on a people table says canEmail, email or name'),
+  }),
   z.object({ op: z.literal('column.label'), value: z.object({ label: labelTextSchema }) }),
   z.object({
     op: z.literal('column.semanticType'),
@@ -2158,6 +2171,14 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
      */
     replyTo: z.object({ staff: z.string().max(260) }).strict().optional(),
     /**
+     * Marketing or service mail, said only of a mail to the record's own
+     * address (`to.kind` `field`): the do-not-email list stops marketing mail
+     * and never service mail. A mail to staff (`staff`, `listed`) or to
+     * addresses the rule's maker typed (`fixed`) has no class and is never
+     * stopped. A step that says none is service, as it was before.
+     */
+    class: z.enum(['marketing', 'service']).optional(),
+    /**
      * What fills a placeholder of the template that the record does not:
      * the placeholder's name → a text, which may carry `{{record.x}}` tokens
      * like every other field of a rule. A name the record already fills is
@@ -2167,7 +2188,7 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
       .record(z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/), z.string().max(2000))
       .refine((value) => Object.keys(value).length <= 60, 'At most 60 placeholders')
       .default({}),
-  }),
+  }).refine((action) => action.class === undefined || action.to?.kind === 'field', { message: 'a class is said of a mail to the record\'s own address (to.kind "field")', path: ['class'] }),
   z.object({
     kind: z.literal('notification'),
     to: z

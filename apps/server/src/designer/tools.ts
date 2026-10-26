@@ -1595,7 +1595,15 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           given !== undefined && typeof given === 'object' && typeof given['table'] === 'string' && typeof given['email'] === 'string'
             ? { table: given['table'], email: given['email'], ...(typeof given['name'] === 'string' ? { name: given['name'] } : {}) }
             : undefined;
-        const made = shapeParts({ appKey, addOn, document, shape, recipient, tables: tablesGiven, outboxTable: str(input, 'outbox_table') ?? undefined });
+        // The app's own floor: from the release that reads mail classes, the kinds written say theirs.
+        let floor: string | undefined;
+        try {
+          const app = JSON.parse(readFileSync(jail.resolve(`apps/${appKey}/manifest/app.json`, 'read'), 'utf8')) as { compatibility?: { minAdminiumVersion?: unknown } };
+          if (typeof app.compatibility?.minAdminiumVersion === 'string') floor = app.compatibility.minAdminiumVersion;
+        } catch {
+          floor = undefined;
+        }
+        const made = shapeParts({ appKey, addOn, document, shape, recipient, tables: tablesGiven, outboxTable: str(input, 'outbox_table') ?? undefined, floor });
         if (!made.ok) return refused(made.problem, `Could not build on ${shape}`);
         return jailed(`Could not build on ${shape}`, () => {
           const base = `apps/${appKey}/manifest`;

@@ -52,7 +52,8 @@ describe('the rule format the assistant is told', () => {
     const whole = automationContext.document!.formatSpec();
     // About four characters a token for this notation; the JSON Schema it replaced was 25,000 characters.
     expect(whole.length).toBeLessThan(2_500 * 4);
-    expect(whole.length).toBeLessThan(7_000);
+    // 7,100 since a rule's e-mail to a contact says marketing or service (`class`), which the assistant writes too.
+    expect(whole.length).toBeLessThan(7_100);
   });
 });
 
