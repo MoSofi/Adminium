@@ -82,6 +82,8 @@ const DESCRIPTIONS = {
   auth: 'Login, logout, session listing, 2FA enrolment, password change and reset',
   bootstrap: 'Everything the dashboard needs on first paint, in one call',
   branding: 'Instance name, colours and logo (read is public; writes are admin)',
+  consent:
+    'Consent and the do-not-email list — the list itself (search, add, remove), and a record\'s consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no"',
   connections: 'Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation',
   data: 'Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references',
   designer:

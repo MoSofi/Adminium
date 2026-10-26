@@ -57,5 +57,7 @@ export * from './payments.js';
 export * from './payment-setup.js';
 export * from './figma-tokens.js';
 export * from './removed-rows.js';
+export * from './consent.js';
+export * from './stop-list.js';
 export * from './email-notice-endpoints.js';
 export * from './email-dkim-keys.js';

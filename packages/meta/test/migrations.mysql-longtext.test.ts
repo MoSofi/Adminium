@@ -129,8 +129,9 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect === 'mysql') {
         const columns = await textColumns(m);
-        // The 34 0047 converted, and 0061's Figma token, 0064's three of a removed row and 0068's five secrets and keys, made `longtext` from the start.
-        expect(columns).toHaveLength(43);
+        // The 34 0047 converted, and 0061's Figma token, 0064's three of a removed row, the four of the consent
+        // log, its keys and the stop list (0065, 0066), and 0068's five secrets and keys, made `longtext` from the start.
+        expect(columns).toHaveLength(47);
         expect(columns.filter((c) => c.type !== 'longtext')).toEqual([]);
       }
     });
@@ -146,10 +147,10 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect !== 'mysql') {
         const before = await allColumnTypes(m);
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0068_mail_relay_secrets']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0065_consent_log', '0066_stop_list', '0068_mail_relay_secrets']);
         // Nothing of 0047's here; 0048 adds a key's peak, two columns of its own, and 0049 a table of its own.
         expect(
-          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:|^adminium_users\.figma_|^adminium_(payment_attempts|payment_events|payments|refunds|payment_links|payable_profiles|payment_methods|payment_settings|payment_counters)\.|^adminium_removed_rows\.|^adminium_email_(notice_endpoints|dkim_keys)\./.test(column)),
+          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:|^adminium_users\.figma_|^adminium_(payment_attempts|payment_events|payments|refunds|payment_links|payable_profiles|payment_methods|payment_settings|payment_counters)\.|^adminium_removed_rows\.|^adminium_(address_keys|consent_log|stop_list)\.|^adminium_email_(notice_endpoints|dkim_keys)\./.test(column)),
         ).toEqual(before);
       } else {
         const before = await textColumns(m);
@@ -168,10 +169,18 @@ for (const dialect of TEST_DIALECTS) {
           publicEndpointsRepo(m).create({ connectionId, ref: 'refused', origin: 'custom', definition: BIG }, T0),
         ).rejects.toThrow(/Data too long/);
 
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0068_mail_relay_secrets']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0065_consent_log', '0066_stop_list', '0068_mail_relay_secrets']);
         const after = await textColumns(m);
         // 0061's Figma token and 0064's removed rows are columns of their own, `longtext` from the start.
-        expect(after.filter((c) => !(c.table === 'adminium_users' && c.column === 'figma_token_encrypted') && c.table !== 'adminium_removed_rows' && c.table !== 'adminium_email_notice_endpoints' && c.table !== 'adminium_email_dkim_keys')).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
+        const consent = ['adminium_address_keys', 'adminium_consent_log', 'adminium_stop_list'];
+        const own = ['adminium_removed_rows', ...consent, 'adminium_email_notice_endpoints', 'adminium_email_dkim_keys'];
+        expect(after.filter((c) => !(c.table === 'adminium_users' && c.column === 'figma_token_encrypted') && !own.includes(c.table))).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
+        expect(after.filter((c) => consent.includes(c.table)).map((c) => `${c.table}.${c.column}:${c.type}`).sort()).toEqual([
+          'adminium_address_keys.key_encrypted:longtext',
+          'adminium_consent_log.note:longtext',
+          'adminium_consent_log.wording:longtext',
+          'adminium_stop_list.address_encrypted:longtext',
+        ]);
         expect(after.filter((c) => c.table === 'adminium_removed_rows').map((c) => `${c.column}:${c.type}`).sort()).toEqual(['image:longtext', 'pk:longtext', 'reason:longtext']);
         expect(after.find((c) => c.table === 'adminium_users' && c.column === 'figma_token_encrypted')?.type).toBe('longtext');
       }

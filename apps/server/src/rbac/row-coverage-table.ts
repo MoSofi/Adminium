@@ -172,6 +172,14 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PATCH /api/v1/connections/:id/tables/:table/postings/:posting/switch': rows('system', 'The schema and its rules are changed under the schema grant, as the system; a private table\'s mark and ways are not changed here.'),
   'POST /api/v1/connections/:id/test': noRows('A connection\'s address, its test, its schema diff and stored rules: no row of its tables.'),
   'POST /api/v1/connections/test': noRows('A connection\'s address, its test, its schema diff and stored rules: no row of its tables.'),
+  // --- /consent
+  'GET /api/v1/consent/stop-list': noRows('The do-not-email list: addresses kept hashed and encrypted in the meta store, no source row.'),
+  'POST /api/v1/consent/stop-list': noRows('The do-not-email list: addresses kept hashed and encrypted in the meta store, no source row.'),
+  'DELETE /api/v1/consent/stop-list/:id': noRows('The do-not-email list: addresses kept hashed and encrypted in the meta store, no source row.'),
+  'POST /api/v1/consent/panel': rows('visible', 'One record as its reader reaches it; a row their row limits hide answers as one that is not there.'),
+  'POST /api/v1/consent/record-consent': rows('visible', 'Recorded only on a record the person may change and reaches under their own row limits; the record itself is not written.'),
+  'POST /api/v1/consent/said-no': rows('visible', 'Only on a record the person may change and reaches under their own row limits; the address goes on the do-not-email list, the record itself is not written.'),
+  'POST /api/v1/consent/replied': rows('visible', 'Recorded only on a record the person may change and reaches under their own row limits; the record itself is not written.'),
   // --- /data
   'GET /api/v1/data/:connectionId/:table': rows(['list', 'sub'], 'The row test is in the page, its count and every keyset step; a lookup or a measure carries the test of the table it reads.'),
   'POST /api/v1/data/:connectionId/:table': rows('link', 'A new row names only rows its writer reaches, in its links, its add-on links and its children; staff columns follow their rule; a replayed answer is read as the caller.'),
