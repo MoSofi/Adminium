@@ -140,7 +140,7 @@ for (const [dialect, reachable] of LEGS) {
     /** A campaign of its own for each send (a campaign sends one run at a time). */
     const campaign = async (subject = 'Hello {{first_name}} from {{city}}') => {
       campaignNo += 1;
-      return (await emailTemplatesRepo(s.meta).create({ kind: 'campaign', key: `july-news-${String(campaignNo)}`, locale: 'en_US', name: 'July news', subject, blocks: [{ id: 'b1', block: 'email.text', data: { paras: ['Dear {{name}}'] } }] })).id;
+      return (await emailTemplatesRepo(s.meta).create({ kind: 'campaign', key: `july-news-${String(campaignNo)}`, locale: 'en_US', name: 'July news', subject, blocks: [{ id: 'b1', block: 'email.text', data: { paras: ['Dear {{name}}'] } }, { id: 'b2', block: 'email.button', data: { label: 'Read on', url: 'https://meridian.example/news' } }] })).id;
     };
     const preview = (who: string, templateId: string, body: Record<string, unknown>) => s.send(who, 'POST', `/api/v1/email-templates/${templateId}/audience/preview`, body);
     const breakdown = async (who: string, over: Record<string, unknown> = {}) => {
@@ -356,6 +356,8 @@ for (const [dialect, reachable] of LEGS) {
         ['cal@harbour.dev', 'Hello Cal from Leeds'],
       ]);
       expect(mails.every((mail) => mail.html.includes(POSTAL))).toBe(true);
+      // Clicks counted, as its sender asked: the link goes through a signed one of this server's.
+      expect(mails.every((mail) => mail.html.includes(`${ORIGIN}/m/l/`) && !mail.html.includes('href="https://meridian.example/news"'))).toBe(true);
       expect((await emailRunsRepo(s.meta).findById(run.id))?.status).toBe('sent');
     });
 
@@ -381,7 +383,10 @@ for (const [dialect, reachable] of LEGS) {
           'rio@crm.example skipped-consent reserved-domain',
         ].sort(),
       );
-      expect((await s.emails()).map((mail) => mail.to).sort()).toEqual(['ana@harbour.dev', 'cal@harbour.dev']);
+      const mails = await s.emails();
+      expect(mails.map((mail) => mail.to).sort()).toEqual(['ana@harbour.dev', 'cal@harbour.dev']);
+      // Not asked for, no click is counted: the link goes where it says.
+      expect(mails.every((mail) => mail.html.includes('href="https://meridian.example/news"') && !mail.html.includes('/m/l/'))).toBe(true);
     });
 
     it('the review: Confirm and Leave out each write one log row in the reviewer\'s name, the column follows, and it asks no more', async () => {
