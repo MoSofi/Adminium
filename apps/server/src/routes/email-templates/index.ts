@@ -58,6 +58,8 @@ import { allLocales, dirForLocale, isLocaleId, localeEntry } from '@adminium/i18
 
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { campaignUnfilled, listedPlaceholders, resolveCampaignAudience } from '../../email/audience.js';
+import { AudienceRefusedError, audienceVariableNames, openTableAudience, type AudienceAccess, type AudienceDeps, type TableAudience } from '../../email/audience-table.js';
+import { registerEmailAudienceRoutes, tableAudiencePreview, type EmailAudienceRoutesDeps } from './audience.js';
 import { EXPORT_BOM, serializeCsvRow } from '../../data-io/csv.js';
 import { EMAIL_CAMPAIGN_RUN_KIND, EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS, estimateMinutes } from '../../jobs/email-campaign-run.js';
 import { resetBuiltinEmailTemplate, translatorForLocale } from '../../email/builtins.js';
@@ -147,6 +149,12 @@ export interface EmailTemplatesRoutesDeps {
    * runs.
    */
   cancelRunningJob?: ((jobId: string) => boolean) | undefined;
+  /**
+   * What a campaign to a table's people reads and writes (`audience.ts`):
+   * the source tables and the consent log. Absent, a table audience is
+   * refused and its routes are not there.
+   */
+  audience?: EmailAudienceRoutesDeps | undefined;
 }
 
 /** A "go on" found the run's chain already moved on: the run goes on without a new head. */
@@ -186,6 +194,9 @@ function runView(run: EmailRun): EmailRunView {
     createdAt: run.createdAt,
     state: run.state,
     ratePerHour: run.ratePerHour,
+    mailClass: run.mailClass,
+    basis: run.basis,
+    trackClicks: run.trackClicks,
   };
 }
 
@@ -456,6 +467,25 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
 
   return async (app) => {
     const secret = deps.secret ?? app.authContext?.env.ADMINIUM_SECRET ?? null;
+
+    /** What a table audience reads; refused when this server was put together without it. */
+    function audienceDeps(): AudienceDeps {
+      if (deps.audience === undefined) throw new ConflictError('This server cannot send to the people of a table.', 'CONFLICT');
+      return { meta, manager: deps.audience.manager, consent: deps.audience.consent };
+    }
+
+    /** A table audience is sent by a signed-in person: their rights are what each batch asks again. */
+    function signedInUserId(request: FastifyRequest): string {
+      if (request.apiKeyPrincipal != null) throw new ForbiddenError('A campaign to the people of a table is sent by a signed-in person, never with an API key.', 'FORBIDDEN', { reason: 'api-key' });
+      return requireUserId(request);
+    }
+
+    /** The table audience as the sender reaches it now, or the refusal by name. */
+    async function openedTableAudience(request: FastifyRequest, audience: TableAudience): Promise<AudienceAccess> {
+      const opened = await openTableAudience(audienceDeps(), signedInUserId(request), audience);
+      if (!('ok' in opened)) throw new AudienceRefusedError(opened.refuse, opened.label);
+      return opened.ok;
+    }
 
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {
       if (await request.can(PERMISSIONS.settingsManage)) return;
@@ -1016,6 +1046,9 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         requireUserId(request);
         await requireSettingsManage(request, 'send campaigns');
         const row = await mustFind(request.params.id);
+        if (request.body.audience.kind === 'table') {
+          return await tableAudiencePreview(audienceDeps(), signedInUserId(request), request.body.audience, await sentVariants(row), request.body.ratePerHour ?? null);
+        }
         const audience = await resolveCampaignAudience(meta, request.body.audience);
         return {
           total: audience.total,
@@ -1051,8 +1084,10 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             setting: 'email.smtp',
           });
         }
+        // A table's people: the sender must reach them now, and the mail fills the table's own columns too.
+        const toTable = request.body.audience.kind === 'table' ? await openedTableAudience(request, request.body.audience) : null;
         // A person is here to put it right: a mail that would reach everyone with `{{…}}` in it does not go.
-        const unfilled = campaignUnfilled(await sentVariants(row));
+        const unfilled = campaignUnfilled(await sentVariants(row), toTable === null ? [] : audienceVariableNames(toTable));
         if (unfilled.length > 0) {
           throw new AppError(
             422,
@@ -1080,7 +1115,16 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const { withJob, job } = await meta.db.transaction().execute(async (trx) => {
           const tx = { ...meta, db: trx } as MetaDb;
           const run = await emailRunsRepo(tx).create(
-            { templateId: row.id, audience: request.body.audience, scheduledAt: runAt, createdBy: userId, ratePerHour: request.body.ratePerHour ?? null },
+            {
+              templateId: row.id,
+              audience: request.body.audience,
+              scheduledAt: runAt,
+              createdBy: userId,
+              ratePerHour: request.body.ratePerHour ?? null,
+              // Mail to a table's people is marketing, on consent or also on existing customers; the workspace's own people are never classed.
+              ...(toTable === null ? {} : { mailClass: 'marketing' as const, basis: toTable.existing ? ('existing-customers' as const) : ('consent' as const) }),
+              trackClicks: request.body.trackClicks === true,
+            },
             at,
           );
           const queued = await jobsRepo(tx).enqueue(
@@ -1496,5 +1540,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         return await reply.status(204).send(null);
       },
     );
+
+    // ── a campaign to the people of a table ───────────────────────────────
+    if (deps.audience !== undefined) await registerEmailAudienceRoutes(app, meta, deps.audience);
   };
 }

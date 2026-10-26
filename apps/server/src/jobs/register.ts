@@ -234,7 +234,8 @@ export async function registerJobsAndRealtime(
       meta,
       secret: opts.email.secret,
       hub,
-      seams: withMarketingChecks(campaignMarketingChecks({ meta, marketing: marketing!, secret: opts.email.secret }), opts.email.campaignSeams),
+      // A run counts clicks only when its sender switched it on (kept on the run).
+      seams: withMarketingChecks(campaignMarketingChecks({ meta, marketing: marketing!, secret: opts.email.secret, trackClicks: (run) => run.trackClicks }), opts.email.campaignSeams),
     });
   }
   if (opts.documents !== undefined && !registry.has(DOCUMENT_RENDER_KIND)) {
@@ -371,5 +372,7 @@ export function withMarketingChecks(marketing: MarketingCampaignSeams, more: Cam
       return first !== 'send' || more?.checkRow === undefined ? first : await more.checkRow(row, run);
     },
     carryFor: more?.carryFor ?? marketing.carryFor,
+    tableRecipients: more?.tableRecipients,
+    varsFor: more?.varsFor,
   };
 }

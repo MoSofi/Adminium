@@ -958,6 +958,32 @@ export async function sampleListsNaming(meta: MetaDb, db: Kysely<SourceDatabase>
 }
 
 /**
+ * Every sample row of one table, each key as one string ({@link sampleKeyOf}):
+ * what a read of a whole table (a campaign to its people, its breakdown, the
+ * first send's review) leaves out, read once rather than asked row by row.
+ */
+export async function sampleKeysOf(meta: MetaDb, db: Kysely<SourceDatabase>, connectionId: string, table: ResolvedTable): Promise<Set<string>> {
+  const out = new Set<string>();
+  const records = await appTablesRepo(meta).forConnection(connectionId);
+  const holders = records.filter((record) => record.role === 'app' && record.tableName === table.name && record.state !== 'dropped' && record.state !== 'pending');
+  if (holders.length === 0) return out;
+  for (const ledger of records.filter((record) => record.role === 'sample-ledger' && record.state === 'created')) {
+    const refs = [...new Set(holders.map((holder) => (holder.appKey === ledger.appKey ? holder.ref : `${holder.appKey}:${holder.ref}`)))];
+    const found = await sql<Pick<LedgerRow, 'pk'>>`SELECT pk FROM ${sql.table(ledger.tableName)} WHERE table_ref IN (${sql.join(refs)})`.execute(db).catch(() => ({ rows: [] as Pick<LedgerRow, 'pk'>[] }));
+    for (const row of found.rows) {
+      const key = keyIdOf(table, entryKey(row as LedgerRow));
+      if (key !== null) out.add(key);
+    }
+  }
+  return out;
+}
+
+/** A row's key as {@link sampleKeysOf} keeps it; null for a row with no whole key. */
+export function sampleKeyOf(table: ResolvedTable, row: Row): string | null {
+  return keyIdOf(table, row);
+}
+
+/**
  * A row a rule made from a sample row, entered in each list that names that
  * sample row, as a sample row of its own: "Remove sample data" then takes it
  * with the rest (the follow-up a sample job's sign-off booked), and the

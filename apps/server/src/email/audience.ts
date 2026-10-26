@@ -13,8 +13,9 @@
  * reason); invited-but-never-activated accounts are not either — they have no
  * relationship with the workspace yet, and a campaign is not an invitation.
  *
- * Customer-table audiences are the next wave (O1 →); this module is where
- * `{ kind: 'table' }` joins.
+ * The people of a table an app declares are the other audience
+ * (`audience-table.ts`): they fill that table's own columns as well, so the
+ * placeholder check below is told which names the audience gives.
  */
 import {
   notificationPrefsRepo,
@@ -67,7 +68,7 @@ async function allActiveUsers(meta: MetaDb, roleId?: string): Promise<User[]> {
 }
 
 /** Resolve an audience against the workspace right now. Unknown role ids contribute nobody. */
-export async function resolveCampaignAudience(meta: MetaDb, audience: EmailAudience): Promise<ResolvedAudience> {
+export async function resolveCampaignAudience(meta: MetaDb, audience: Extract<EmailAudience, { kind: 'users' }>): Promise<ResolvedAudience> {
   const byId = new Map<string, User>();
   const roleIds = audience.roleIds ?? [];
   if (roleIds.length === 0) {
@@ -116,14 +117,16 @@ const SOMEBODY = recipientVars({ name: 'x x', email: 'x' }, 'x');
 /**
  * The placeholders of a campaign that no recipient's send would fill: written
  * with no backup, in a block that is shown, and none of the four a campaign
- * gives (`recipientVars`). Read over every language the campaign is sent in.
- * Such a mail would reach every recipient with `{{…}}` in it, so the send is
- * refused while a person is there to put it right.
+ * gives (`recipientVars`) nor any the audience adds (`more`: a table's
+ * columns its sender reads). Read over every language the campaign is sent
+ * in. Such a mail would reach every recipient with `{{…}}` in it, so the send
+ * is refused while a person is there to put it right.
  */
-export function campaignUnfilled(variants: readonly Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>[]): string[] {
+export function campaignUnfilled(variants: readonly Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>[], more: readonly string[] = []): string[] {
+  const somebody: Record<string, string> = { ...Object.fromEntries(more.map((name) => [name, 'x'])), ...SOMEBODY };
   const out = new Set<string>();
   for (const variant of variants) {
-    for (const name of templateRequiredPlaceholders(variant, SOMEBODY)) if (!Object.hasOwn(SOMEBODY, name)) out.add(name);
+    for (const name of templateRequiredPlaceholders(variant, somebody)) if (!Object.hasOwn(somebody, name)) out.add(name);
   }
   return [...out];
 }

@@ -76,6 +76,7 @@ import {
   type EmailRunContent,
   type EmailRunContentVariant,
   type EmailSend,
+  type EmailSendInput,
   type MetaDb,
 } from '@adminium/meta';
 import { dirForLocale, isLocaleId } from '@adminium/i18n';
@@ -94,7 +95,7 @@ import type { MarketingCarry } from '../email/marketing.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
-import { campaignRecipients, writeRecipients } from './email-campaign-recipients.js';
+import { campaignRecipients, writeRecipients, type TableAudience } from './email-campaign-recipients.js';
 import { JobCancelledError, type JobHandlerContext, type JobRegistry } from './registry.js';
 
 export const EMAIL_CAMPAIGN_RUN_KIND = 'email.campaign-run';
@@ -142,6 +143,18 @@ export interface CampaignSeams {
    * language.
    */
   carryFor?: ((row: EmailSend, run: EmailRun, locale: string) => Promise<(MarketingCarry & { clicks?: ((html: string) => string) | undefined }) | null>) | undefined;
+  /**
+   * The recipients of an audience that reads a source table (a table's
+   * people): the first batch writes them down. Without it such a run
+   * writes nobody, and its batch check refuses it.
+   */
+  tableRecipients?: ((run: EmailRun, audience: TableAudience) => AsyncIterable<EmailSendInput>) | undefined;
+  /**
+   * What a row's message fills its placeholders with, when the audience
+   * gives more than a workspace user's four (a table's own columns); null
+   * keeps those four. Asked after `checkRow` passed the row.
+   */
+  varsFor?: ((row: EmailSend, run: EmailRun, appName: string) => Promise<Record<string, string> | null>) | undefined;
 }
 
 export interface EmailCampaignRunDeps {
@@ -283,7 +296,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
       attachments: row.attachments,
     }));
     const content = await runs.freeze(run.id, { name: campaign.name, templateKey: campaign.key, variants }, at);
-    const written = await writeRecipients(meta, run.id, campaignRecipients(meta, run.audience), at);
+    const written = await writeRecipients(meta, run.id, campaignRecipients(meta, run.audience, { run, table: deps.seams?.tableRecipients }), at);
     if (!(await runs.start(run.id, { contentId: content.id, total: written.total, skipped: written.skipped, jobId: ctx.jobId }, at))) {
       // Cancelled while the recipients were written: it never started, so it keeps no log.
       await sends.clearRun(run.id);
@@ -409,7 +422,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
       };
       const messageFor = async (row: EmailSend): Promise<Message> => {
         const { variant, prepared } = await packFor(row.language);
-        const vars = recipientVars({ name: row.name, email: row.address }, appName);
+        const vars = (await deps.seams?.varsFor?.(row, run, appName)) ?? recipientVars({ name: row.name, email: row.address }, appName);
         const generated = await resolveGeneratedAttachments(meta, variant.attachments, vars, {
           info: () => {},
           warn: (obj, msg) => ctx.log(msg ?? 'generated attachment skipped', obj),
