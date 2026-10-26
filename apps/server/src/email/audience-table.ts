@@ -412,7 +412,7 @@ function tickedWithoutRecord(declared: DeclaredPeopleTable, purpose: AudiencePur
 
 /**
  * Each row of a page judged for a send (see the header): one stop-list read
- * for the page, one consent read per row with an address.
+ * and one consent read for the whole page (`statesAmong`), not one per row.
  */
 export async function judge(
   deps: Pick<AudienceDeps, 'consent'>,
@@ -421,6 +421,17 @@ export async function judge(
   options: { purpose: AudiencePurpose; existing: boolean; samples: ReadonlySet<string> },
 ): Promise<Standing[]> {
   const stopped = await deps.consent.stop.stoppedAmong(rows.flatMap((row) => (row.address === null ? [] : [row.address])));
+  // The rows whose answer decides them: an address that is not a sample, reserved or stopped.
+  const asked = rows.filter((row) => {
+    if (row.address === null) return false;
+    const sample = sampleKeyOf(access.wholeTable, row.whole);
+    return !(sample !== null && options.samples.has(sample)) && !reservedAddress(row.address) && !stopped.has(row.address);
+  });
+  const standings = await deps.consent.statesAmong(
+    asked.map((row) => ({ person: { connectionId: access.declared.connectionId, table: access.wholeTable.id, key: row.key }, address: row.address })),
+    options.purpose,
+  );
+  const standingOf = new Map(asked.map((row, i) => [row, standings[i]!]));
   const out: Standing[] = [];
   for (const row of rows) {
     if (row.address === null) {
@@ -432,8 +443,7 @@ export async function judge(
     else if (reservedAddress(row.address)) out.push('reserved-domain');
     else if (stopped.has(row.address)) out.push('do-not-email');
     else {
-      const person = { connectionId: access.declared.connectionId, table: access.wholeTable.id, key: row.key };
-      const standing = await deps.consent.stateFor({ person, address: row.address }, options.purpose);
+      const standing = standingOf.get(row)!;
       if (standing.state === 'yes') out.push('consent');
       else if (standing.state === 'no') out.push('not-agreed');
       else if (options.existing && customerRow(access.declared, row.whole) && markedForOptOut(access.declared, row.whole)) out.push('existing-customer');

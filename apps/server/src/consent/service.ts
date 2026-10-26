@@ -137,6 +137,19 @@ export function createConsentService(deps: ConsentServiceDeps): ConsentService {
       return { purpose, state: event === null ? 'not-asked' : (event.state as 'yes' | 'no'), event };
     },
 
+    async statesAmong(who, purpose) {
+      const norms = who.map((one) => addressOf(one.address));
+      const hashed = await ring.hashesOfMany([...new Set(norms.filter((one): one is string => one !== null))]);
+      const events = await log.latestAmong(
+        who.map((one, i) => {
+          const norm = norms[i];
+          return { person: one.person ?? null, hashes: norm === null || norm === undefined ? [] : (hashed.get(norm) ?? []) };
+        }),
+        purpose,
+      );
+      return events.map((event) => ({ purpose, state: event === null ? 'not-asked' : (event.state as 'yes' | 'no'), event }));
+    },
+
     async history(who, opts = {}) {
       return log.history(await subjectOf(who), { limit: Math.min(Math.max(opts.limit ?? 100, 1), 500) });
     },

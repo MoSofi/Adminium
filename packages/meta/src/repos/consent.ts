@@ -212,6 +212,76 @@ export function consentLogRepo(meta: MetaDb) {
       return row === undefined ? null : decode(row as AdminiumConsentLogTable);
     },
 
+    /**
+     * `latest` for many subjects at once: each one's newest yes or no for a
+     * purpose, in the order given (null when never asked). A page of people
+     * costs a few queries instead of one per person: the rows found by key,
+     * then the rows found by address hash, each in chunks of 500, and the
+     * newest (by time, then by id) picked here exactly as `latest` picks it.
+     */
+    async latestAmong(subjects: readonly ConsentSubject[], purpose: ConsentPurpose): Promise<(ConsentEvent | null)[]> {
+      const found = new Map<string, AdminiumConsentLogTable>();
+      const byTable = new Map<string, { connectionId: string; table: string; keys: Set<string> }>();
+      const hashes = new Set<string>();
+      for (const subject of subjects) {
+        const person = subject.person;
+        if (person != null && person.key.length > 0 && person.key.length <= CONSENT_PERSON_KEY_MAX) {
+          const table = personPart(person.table, 'table');
+          const id = `${person.connectionId}\u0000${table}`;
+          const group = byTable.get(id) ?? { connectionId: person.connectionId, table, keys: new Set<string>() };
+          group.keys.add(person.key);
+          byTable.set(id, group);
+        }
+        for (const one of subject.hashes ?? []) hashes.add(one.hash);
+      }
+      const base = () =>
+        db
+          .selectFrom('adminium_consent_log')
+          .selectAll()
+          .where('purpose', '=', purpose)
+          .where('state', 'in', ['yes', 'no']);
+      for (const group of byTable.values()) {
+        const keys = [...group.keys];
+        for (let i = 0; i < keys.length; i += 500) {
+          const rows = await base()
+            .where('connectionId', '=', group.connectionId)
+            .where('personTable', '=', group.table)
+            .where('personKey', 'in', keys.slice(i, i + 500))
+            .execute();
+          for (const row of rows) found.set(String(row.id), row as AdminiumConsentLogTable);
+        }
+      }
+      const wanted = [...hashes];
+      for (let i = 0; i < wanted.length; i += 500) {
+        const rows = await base().where('addressHash', 'in', wanted.slice(i, i + 500)).execute();
+        for (const row of rows) found.set(String(row.id), row as AdminiumConsentLogTable);
+      }
+      const byPerson = new Map<string, AdminiumConsentLogTable[]>();
+      const byHash = new Map<string, AdminiumConsentLogTable[]>();
+      for (const row of found.values()) {
+        if (row.personKey !== null && row.connectionId !== null && row.personTable !== null) {
+          const id = `${row.connectionId}\u0000${row.personTable}\u0000${row.personKey}`;
+          byPerson.set(id, [...(byPerson.get(id) ?? []), row]);
+        }
+        if (row.addressHash !== null) {
+          const id = `${String(row.keyVersion)}\u0000${row.addressHash}`;
+          byHash.set(id, [...(byHash.get(id) ?? []), row]);
+        }
+      }
+      const newer = (a: AdminiumConsentLogTable, b: AdminiumConsentLogTable): boolean =>
+        Number(a.at) !== Number(b.at) ? Number(a.at) > Number(b.at) : String(a.id) > String(b.id);
+      return subjects.map((subject) => {
+        let best: AdminiumConsentLogTable | null = null;
+        const consider = (rows: readonly AdminiumConsentLogTable[] | undefined) => {
+          for (const row of rows ?? []) if (best === null || newer(row, best)) best = row;
+        };
+        const person = subject.person;
+        if (person != null) consider(byPerson.get(`${person.connectionId}\u0000${personPart(person.table, 'table')}\u0000${person.key}`));
+        for (const one of subject.hashes ?? []) consider(byHash.get(`${String(one.version)}\u0000${one.hash}`));
+        return best === null ? null : decode(best);
+      });
+    },
+
     /** A subject's events, newest first. `before` continues a page: the time and id of its last row. */
     async history(subject: ConsentSubject, opts: { limit: number; before?: { at: number; id: string } | undefined }): Promise<ConsentEvent[]> {
       if (!namesSomeone(subject)) return [];

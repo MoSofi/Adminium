@@ -135,6 +135,8 @@ export interface ConsentService {
   withdraw(input: ConsentRecordInput): Promise<ConsentEvent>;
   /** A person's standing for a purpose: by their row, their address, or both. */
   stateFor(who: ConsentWho, purpose: ConsentPurpose): Promise<ConsentStanding>;
+  /** `stateFor` for many people at once, in the order given: one key read and a few queries for a whole page. */
+  statesAmong(who: readonly ConsentWho[], purpose: ConsentPurpose): Promise<ConsentStanding[]>;
   /** Their events, newest first (at most `limit`, 100 by default). */
   history(who: ConsentWho, opts?: { limit?: number | undefined }): Promise<ConsentEvent[]>;
   /** Whether the log holds any yes or no for this row (for `purpose`, or any): the first-send review asks the others. */

@@ -84,7 +84,7 @@ for (const dialect of TEST_DIALECTS) {
 
     it('only grows: no method changes a row, and the one delete is a person\'s own rows', async () => {
       const log = consentLogRepo(meta());
-      expect(Object.keys(log).sort()).toEqual(['answeredAmong', 'append', 'deleteForPerson', 'history', 'lastReplied', 'latest']);
+      expect(Object.keys(log).sort()).toEqual(['answeredAmong', 'append', 'deleteForPerson', 'history', 'lastReplied', 'latest', 'latestAmong']);
       await log.append(event({}));
       await log.append(event({ person: null, at: 2_000, state: 'no', source: 'unsubscribe' }));
       await log.append(event({ person: ben, address: h('b1'), at: 3_000 }));
