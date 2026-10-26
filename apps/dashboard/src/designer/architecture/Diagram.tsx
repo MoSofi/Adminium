@@ -15,7 +15,7 @@ import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { Globe, IdCard, LayoutDashboard, Mail, Puzzle, UserCog, UserRound, type LucideIcon } from 'lucide-react';
 
-import { t } from '../../i18n/t.js';
+import { t, useWordsRevision } from '../../i18n/t.js';
 import type { ArchitectureDoc } from '../api.js';
 import { builtInIcon, builtInLabel, kindLabel, nodeLabel, useLabel } from './words.js';
 
@@ -70,6 +70,8 @@ export function Diagram({ doc, selected, onSelect }: { doc: ArchitectureDoc; sel
     return ids;
   }, [doc.edges, selected]);
 
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const { nodes, edges } = useMemo(() => {
     const out: Node<BoxData>[] = [];
     const box = (id: string, x: number, y: number, width: number, height: number, data: Omit<BoxFields, 'lit' | 'faded' | 'pending'>): void => {
@@ -180,7 +182,7 @@ export function Diagram({ doc, selected, onSelect }: { doc: ArchitectureDoc; sel
         };
       });
     return { nodes: out, edges: lines };
-  }, [doc, linked, pending, selected]);
+  }, [doc, linked, pending, selected, words]);
 
   return (
     <div className="h-[460px] w-full overflow-hidden rounded-xl border border-border bg-surface-2 max-md:h-[380px]" role="group" aria-label={t('designer:arch.diagramLabel', 'Diagram. Use Show as a list for a text version.')}>

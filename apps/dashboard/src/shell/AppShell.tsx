@@ -25,7 +25,7 @@ import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
 import { resyncOverrides } from '../i18n/setup.js';
-import { t } from '../i18n/t.js';
+import { t, useWordsRevision } from '../i18n/t.js';
 import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
@@ -86,6 +86,8 @@ export function AppShell() {
   // The rail beside a wide page, or a drawer over a narrow one: one switch for
   // both, behind the topbar's menu button and ⌘B.
   const sidebar = useSidebarToggle(pathname);
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const title = useMemo(() => {
     const slugMatch = /^\/p\/([^/]+)/.exec(pathname);
     if (slugMatch !== null) {
@@ -95,7 +97,7 @@ export function AppShell() {
     }
     if (pathname.startsWith('/account')) return t('nav.account', 'Account');
     return t('nav.home', 'Home');
-  }, [pathname, bootstrap]);
+  }, [pathname, bootstrap, words]);
 
   // --- ⌘K Recent tracking: every page navigation / record open ----
   // lands in localStorage['adminium-recent:<userId>'] (app/palette/recent.ts),

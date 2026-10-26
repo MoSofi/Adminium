@@ -65,6 +65,7 @@ import {
   type SystemAction,
 } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
+import { followLanguage } from './followLanguage.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
 /** The people who sign in here whose name holds what was typed: who a mention may name. */
@@ -179,7 +180,9 @@ function RootComponent() {
   // the ones the shell never wraps.
   useBrandedDocumentTitle();
 
-  // Re-render the route tree when runtime overrides change. This is a
+  // Re-render the root's own providers when the words change. It does not
+  // reach the routes below — TanStack memoises every `Outlet` — so each route
+  // subscribes for itself (`followLanguage`, below the route tree). This is a
   // RE-RENDER, never a keyed remount: keying this subtree would remount
   // ThemeProvider — the owner of the locale axis and of the optimistic
   // `setPref` layer — which silently reverts a locale the user just chose and
@@ -1126,6 +1129,9 @@ const routeTree = rootRoute.addChildren([
     ...reportsRoutes(appRoute),
   ]),
 ]);
+
+// Each route's screens re-render on a language switch or an override change: the root's re-render stops at the first `Outlet`.
+followLanguage(routeTree);
 
 export function createAppRouter(
   queryClient: QueryClient,

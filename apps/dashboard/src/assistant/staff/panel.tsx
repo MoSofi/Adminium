@@ -19,10 +19,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Outlet, RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter, useRouter } from '@tanstack/react-router';
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nProvider } from '@adminium/i18n/react';
 
 import { setCsrfToken } from '../../app/api.js';
+import { followLanguage } from '../../app/followLanguage.js';
 import { createQueryClient } from '../../app/query.js';
+import { LiveI18nProvider } from '../../i18n/LiveI18nProvider.js';
 import { initDashboardI18n } from '../../i18n/setup.js';
 import { PageActionsProvider } from '../../shell/PageActionsProvider.js';
 import { AssistantDock } from '../dock/AssistantDock.js';
@@ -100,14 +101,17 @@ async function start(): Promise<void> {
   initDock(userId);
   setDockOpen(true);
 
-  const i18n = await initDashboardI18n();
+  await initDashboardI18n();
   const queryClient = createQueryClient();
 
   const rootRoute = createRootRoute({ component: () => <Outlet />, notFoundComponent: Elsewhere });
   // The app's key rides in the route, where the dock reads which app a general question is asked over.
   const staff = createRoute({ getParentRoute: () => rootRoute, path: '/staff/$appKey', component: Panel });
+  const routeTree = rootRoute.addChildren([staff]);
+  // The panel follows a language that lands after its first paint, as the app's pages do.
+  followLanguage(routeTree);
   const router = createRouter({
-    routeTree: rootRoute.addChildren([staff]),
+    routeTree,
     history: createMemoryHistory({ initialEntries: [`/staff/${asked.app === '' ? 'app' : asked.app}`] }),
   });
 
@@ -115,11 +119,11 @@ async function start(): Promise<void> {
   if (container === null) throw new Error('missing #root container');
   createRoot(container).render(
     <StrictMode>
-      <I18nProvider i18n={i18n}>
+      <LiveI18nProvider>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
-      </I18nProvider>
+      </LiveI18nProvider>
     </StrictMode>,
   );
 }

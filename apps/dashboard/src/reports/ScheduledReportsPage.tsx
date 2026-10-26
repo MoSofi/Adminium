@@ -29,7 +29,7 @@ import { ScheduledJobsList, type ScheduledJob } from '@adminium/widgets';
 import { bootstrapQuery, flattenNav } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
-import { t } from '../i18n/t.js';
+import { t, useWordsRevision } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import {
   scheduledReportsApi,
@@ -175,6 +175,8 @@ export function ScheduledReportsPage() {
     },
   });
 
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const rows: ScheduledJob[] = useMemo(
     () =>
       (list.data ?? []).map((report) => ({
@@ -188,7 +190,7 @@ export function ScheduledReportsPage() {
         enabled: report.enabled,
         recipients: report.recipients,
       })),
-    [list.data],
+    [list.data, words],
   );
 
   const byId = useMemo(

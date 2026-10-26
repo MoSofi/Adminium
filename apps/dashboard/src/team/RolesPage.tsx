@@ -58,7 +58,7 @@ import {
 import { appSectionsOf, bootstrapQuery, hostedAppsOf } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
-import { t } from '../i18n/t.js';
+import { t, useWordsRevision } from '../i18n/t.js';
 import {
   DATA_ACCESS_GRANTS,
   ROLES_QUERY_KEY,
@@ -254,6 +254,8 @@ export function RolesPage(): ReactNode {
     for (const section of appSectionsOf(bootstrap)) byKey.set(section.appKey, section.label);
     return [...byKey].map(([key, label]) => ({ key, label }));
   }, [bootstrap]);
+  // Recomputed when the words change: what it bakes in is translated text.
+  const words = useWordsRevision();
   const permissions = useMemo(() => {
     const dataCategory = t('roles:category.records', 'Pages & records');
     const appCategory = t('roles:category.apps', 'Apps');
@@ -269,7 +271,7 @@ export function RolesPage(): ReactNode {
       })),
       ...matrixRows(catalogPermissions(catalog), permissionLabel, (entry) => categoryLabel(entry.category)),
     ];
-  }, [catalog, installedApps, baseline]);
+  }, [catalog, installedApps, baseline, words]);
   const narrowGrants = useMemo(() => narrowDataGrantCount(baseline), [baseline]);
   const changed = useMemo(() => changedRoleIds(grants, baseline), [grants, baseline]);
   const pending = useMemo(() => pendingChangeCount(grants, baseline), [grants, baseline]);
