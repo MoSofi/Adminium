@@ -93,6 +93,8 @@ import { createAppFiles, type AppFiles } from './app-files.js';
 import type { InstallActor, InstallCore, InstallHost } from '../add-ons/install-core.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { addedDerivedColumns, fillDerivedColumns, type DerivedFillResult } from './derived-fill.js';
+import { addedCarries, carryPeople } from './people-carry.js';
+import type { ConsentService } from '../consent/index.js';
 import { writeManifestSeeds } from './manifest-seeds.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { createRemovals } from './removal.js';
@@ -199,6 +201,12 @@ export interface AppRoutesDeps {
    * that does is refused with a reason rather than half-applied.
    */
   schemaTarget?: AppSchemaTarget | undefined;
+  /**
+   * The consent log and the do-not-email list, for what an update carries
+   * over once (`people-carry.ts`). Absent, an update with a carry says so in
+   * the log and carries nothing.
+   */
+  consent?: ConsentService | undefined;
   /**
    * An app's sample data. Absent in a composition with no connection layer or
    * no Files library; the routes then say the app offers none.
@@ -2203,7 +2211,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
     const from = installed.row.version;
 
-    let stage: 'check' | 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'derived-columns' | 'finish' | 'pages' = 'check';
+    let stage: 'check' | 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'derived-columns' | 'people-carry' | 'finish' | 'pages' = 'check';
     let derived: Awaited<ReturnType<typeof fillAddedDerived>> = undefined;
     const stopped = (error: unknown): AppError => {
       const message = error instanceof Error ? error.message : String(error);
@@ -2318,6 +2326,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       // What this manifest works out that the one before did not, filled for the rows already there.
       stage = 'derived-columns';
       if (connectionId !== null) derived = await fillAddedDerived(manifest, installed.document, connectionId, userId, names, host);
+      // What this version carries over once from what the app kept before the consent log: an old unsubscribe mark, an old tick.
+      stage = 'people-carry';
+      if (connectionId !== null) await carryAdded(manifest, installed.document, connectionId, names, host);
       stage = 'finish';
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
       // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
@@ -2991,7 +3002,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         attached: [...(addOnsDone?.attached ?? []), ...done.attached],
       };
     };
-    let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'derived-columns' | 'finish' = 'add-ons';
+    let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'derived-columns' | 'people-carry' | 'finish' = 'add-ons';
     let derived: Awaited<ReturnType<typeof fillAddedDerived>> = undefined;
     try {
       await runSteps(earlySteps);
@@ -3042,6 +3053,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       // What this version works out that the one before did not, filled for the rows already there.
       stage = 'derived-columns';
       if (connectionId !== null) derived = await fillAddedDerived(manifest, installed.document, connectionId, userId, names, host);
+      // What this version carries over once from what the app kept before the consent log: an old unsubscribe mark, an old tick.
+      stage = 'people-carry';
+      if (connectionId !== null) await carryAdded(manifest, installed.document, connectionId, names, host);
       stage = 'finish';
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
       // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
@@ -3248,6 +3262,27 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     );
     if (fill.skipped.length > 0) host.log.info({ app: manifest.key, skipped: fill.skipped }, 'columns this version works out, left as they were');
     return { rules, fill };
+  }
+
+  /**
+   * WHAT THIS VERSION CARRIES OVER ONCE that the one before did not
+   * (`people-carry.ts`): an old "unsubscribed" column onto the do-not-email
+   * list, an old tick into the consent column. A stage of an update or an
+   * apply, before the new version is recorded; finishing the update again
+   * carries nothing twice.
+   */
+  async function carryAdded(manifest: Manifest, previous: unknown, connectionId: string, names: Readonly<Record<string, string>> | undefined, host: InstallHost): Promise<void> {
+    const steps = addedCarries(previous, manifest);
+    if (steps.length === 0) return;
+    if (deps.schemaTarget?.data === undefined || deps.consent === undefined) {
+      host.log.warn({ app: manifest.key, carries: steps.length }, 'what this version carries over was not carried: no database handle or consent log is wired into the install here');
+      return;
+    }
+    const source = (await deps.schemaTarget.data(connectionId)) as { db: Parameters<typeof carryPeople>[0]['db']; dialect: Parameters<typeof carryPeople>[0]['dialect'] };
+    const view = await loadSnapshotView(deps.meta, connectionId, { lists: true });
+    const real = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+    const result = await carryPeople({ consent: deps.consent, manifest, steps, connectionId, view, db: source.db, dialect: source.dialect, names: real });
+    host.log.info({ app: manifest.key, ...result }, 'carried over once: the do-not-email list and the consent columns');
   }
 
   /** The rules an update wrote before its fill, and those its pages' write wrote after: one count for the reply. */
