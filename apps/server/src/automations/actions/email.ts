@@ -34,9 +34,26 @@
  * somebody who can open the record, and reads it as they do — a column their
  * role is not shown is empty, a personal column is there only when they are
  * shown that table's personal columns (`record-link.ts` `tokensAs`).
+ *
+ * --- Marketing or service --------------------------------------------------
+ *
+ * A mail to the record's own address says its class (`class`; none is
+ * service, as an app built for an older Adminium sends). A MARKETING step is
+ * judged again at its own send time, which for the second mail of a sequence
+ * is days after the first: the do-not-email list, a "Replied" since the run
+ * began (a reply stops the person's sequences), and their answer in the
+ * consent log for the newsletter. Any of them skips the mail, said in the
+ * step's log, and the run goes on. A sender that is not ready for marketing
+ * mail (`marketing.refusal`) fails the step by its reason. What goes carries
+ * the unsubscribe link, its two headers and the locked footer, signed with
+ * Adminium's key and with the relay's tracking off. A mail to staff (`staff`,
+ * `listed`) or to addresses the rule's maker typed (`fixed`) has no class
+ * and is never stopped. Mail of either class refused for good by a direct
+ * relay puts the address on the do-not-email list.
  */
 
 import {
+  automationRunsRepo,
   connectionTenantConfig,
   emailTemplatesRepo,
   settingsRepo,
@@ -44,11 +61,20 @@ import {
   type AutomationAction,
   type EmailTemplate,
   type MetaDb,
+  type ConsentPerson,
   type User,
 } from '@adminium/meta';
 
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../../email/config.js';
 import { deliverPrepared } from '../../email/deliver.js';
+import {
+  createMarketingMail,
+  DEFAULT_MARKETING_PURPOSE,
+  marketingRefusalSentence,
+  marketingSkipSentence,
+  type MarketingMail,
+} from '../../email/marketing.js';
+import { pkLabel } from '../../crud/records.js';
 import { renderEmail } from '../../email/render.js';
 import { inlineRefs, prepareEmail } from '../../email/send.js';
 import { formatTag } from '../../i18n/bcp47.js';
@@ -316,16 +342,56 @@ export async function runEmailAction(
   const transport = (ctx.createTransport ?? createSmtpTransport)(config);
   // A reply goes to the person on the row, by the address they sign in with now; nobody there, and the mail has no Reply-To.
   const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
+  // Marketing or service: said of a mail to the record's own address only (see the header).
+  const mailClass = action.to?.kind === 'field' ? (action.class ?? 'service') : null;
+  const kit: MarketingMail | null = mailClass === null ? null : (ctx.marketing ?? createMarketingMail({ meta: ctx.meta, secret: ctx.secret }));
+  const from = prepared.from ?? config.from;
 
   const replies: string[] = [];
+  let senderChecked = false;
   for (const to of recipients) {
+    let carry: Awaited<ReturnType<MarketingMail['carry']>> | null = null;
+    let signed: Awaited<ReturnType<MarketingMail['signing']>> | null = null;
+    if (mailClass === 'marketing' && kit !== null) {
+      // Judged at its own send time: the second mail of a sequence, days after the first, asks again.
+      const verdict = await kit.verdict({ address: to, person: personOf(action, ctx), purpose: DEFAULT_MARKETING_PURPOSE, repliedSince: await runStartedAt(ctx) });
+      if ('skip' in verdict) {
+        replies.push(ctx.text.emailSkipped(marketingSkipSentence(verdict.skip), to));
+        continue;
+      }
+      if (!senderChecked) {
+        const refused = await kit.refusal(from);
+        if (refused !== null) throw new ActionFailure(ctx.text.emailFail(marketingRefusalSentence(refused)));
+        senderChecked = true;
+      }
+      carry = await kit.carry({
+        to,
+        purpose: verdict.send === 'existing-customers' ? null : DEFAULT_MARKETING_PURPOSE,
+        locale: template.locale,
+        replyTo,
+      });
+      signed = await kit.signing(from, config.host);
+    }
     try {
-      const result = await deliverPrepared({ transport, prepared, locale: template.locale, to, vars, parts, ...(replyTo === null ? {} : { replyTo }) });
+      const headers = { ...(carry?.headers ?? {}), ...(signed?.headers ?? {}) };
+      const result = await deliverPrepared({
+        transport,
+        prepared,
+        locale: template.locale,
+        to,
+        vars,
+        parts,
+        ...(replyTo === null ? {} : { replyTo }),
+        ...(carry === null ? {} : { locked: carry.locked }),
+        ...(Object.keys(headers).length === 0 ? {} : { headers }),
+        ...(signed?.dkim == null ? {} : { dkim: signed.dkim }),
+      });
       replies.push(ctx.text.emailOk(result.response ?? '250 OK', to));
     } catch (error) {
-      throw new ActionFailure(
-        ctx.text.emailFail(error instanceof Error ? error.message : String(error)),
-      );
+      // Refused for good by a direct relay: the address goes on the do-not-email list (a contact's mail of either class).
+      const refused = kit === null ? null : await kit.bounced({ error, smtpHost: config.host, address: to, origin: ctx.rule.name }).catch(() => null);
+      const said = error instanceof Error ? error.message : String(error);
+      throw new ActionFailure(ctx.text.emailFail(refused === null ? said : `${said} · put on the do-not-email list`));
     }
   }
   // Sent, and said: a placeholder nothing fills goes out as written, so the
@@ -354,4 +420,24 @@ export async function dryRunEmailAction(
   const unfilled = unfilledIn(template, vars);
   if (unfilled.length > 0) throw new ActionFailure(ctx.text.emailUnfilledStop(listed(unfilled)));
   return { log: would };
+}
+
+/** The person a mail to the record's own address is about: the record, or the related row whose address it is. */
+function personOf(action: EmailAction, ctx: ActionContext): ConsentPerson | null {
+  const source = ctx.source;
+  if (source === null || action.to?.kind !== 'field') return null;
+  const related = parseRelated(action.to.column);
+  if (related === null) {
+    return { connectionId: source.connectionId, table: source.table.id, key: pkLabel(source.table, source.record.pk) };
+  }
+  const far = source.related?.get(related.link);
+  const key = far?.table.primaryKey[0];
+  if (far === undefined || far.row === null || key === undefined || far.row[key] === null || far.row[key] === undefined) return null;
+  return { connectionId: source.connectionId, table: far.table.id, key: pkLabel(far.table, { [key]: far.row[key] }) };
+}
+
+/** When this run began: a reply at or after it stops the run's marketing mails. */
+async function runStartedAt(ctx: ActionContext): Promise<number> {
+  const run = await automationRunsRepo(ctx.meta).findById(ctx.runId).catch(() => null);
+  return run?.startedAt ?? ctx.now;
 }

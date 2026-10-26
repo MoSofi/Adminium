@@ -25,7 +25,7 @@ import { createFirstSuperAdmin, createSqliteMetaDb, firstRun, rolesRepo, setting
 import { sha512Integrity } from '../src/add-ons/store.js';
 import type { AdminiumServer } from '../src/app.js';
 import { scanDueSchedules } from '../src/automations/schedule.js';
-import { composeServer } from '../src/compose.js';
+import { composeServer, type ComposeServerOptions } from '../src/compose.js';
 import { decryptSecret, encryptSecret } from '../src/config/secrets.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
@@ -158,6 +158,8 @@ export async function wholeServer(
     smtp?: boolean;
     /** More files of the app's package, by path: its sample data, say. */
     files?: Record<string, string>;
+    /** Test seams handed to the server as it is composed (marketing mail's DNS and postal address, say). */
+    compose?: Pick<ComposeServerOptions, 'marketingSeams'>;
   } = {},
 ): Promise<WholeServer> {
   const key = String(manifest['key']);
@@ -189,6 +191,7 @@ export async function wholeServer(
     allowed: null,
     logger: false,
     telemetry: false,
+    ...(opts.compose ?? {}),
   });
   const app = composed.app;
   await app.ready();

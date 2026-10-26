@@ -74,6 +74,8 @@ export interface TraceText {
   emailFail(reason: string): string;
   emailWould(subject: string, to: string): string;
   emailNoSmtp(): string;
+  /** A marketing step not sent to one person: why (the do-not-email list, no consent, they replied), and to whom. */
+  emailSkipped(reason: string, to: string): string;
   emailNoRecipient(column: string): string;
   /** `names` is the placeholders as written, already listed: `{{a}}, {{b}}`. */
   emailUnfilled(names: string): string;
@@ -113,6 +115,7 @@ export const TRACE_EN: TraceText = {
   emailFail: (reason) => `ERROR · ${reason}`,
   emailWould: (subject, to) => `Would send “${subject}” to ${to}`,
   emailNoSmtp: () => 'SMTP is not configured — Settings → Email',
+  emailSkipped: (reason, to) => `${reason} · ${to}`,
   emailNoRecipient: (column) => `No recipient: ${column} is empty`,
   emailUnfilled: (names) => `nothing filled ${names}`,
   emailUnfilledStop: (names) => `Nothing fills ${names}. Fill it in this step, or give it a backup in the template. A real run would send it as written.`,

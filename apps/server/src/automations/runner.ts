@@ -97,6 +97,7 @@ export interface RunnerDeps {
   storage?: ActionContext['storage'];
   hub?: ActionContext['hub'];
   createTransport?: ActionContext['createTransport'];
+  marketing?: ActionContext['marketing'];
   fetch?: ActionContext['fetch'];
   /**
    * The document pipeline, for a `document.render` step. Absent in a
@@ -234,6 +235,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     ...(deps.storage === undefined ? {} : { storage: deps.storage }),
     ...(deps.hub === undefined ? {} : { hub: deps.hub }),
     ...(deps.createTransport === undefined ? {} : { createTransport: deps.createTransport }),
+    ...(deps.marketing === undefined ? {} : { marketing: deps.marketing }),
     ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
   };
   // The add-ons as they are installed now: read once, and only for a rule that uses one of their steps.

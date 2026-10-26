@@ -23,6 +23,7 @@ import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
 import type { AutomationTraceStep } from '@adminium/meta';
+import type { MarketingMail } from '../../email/marketing.js';
 import type { EmailTransport, SmtpConfig } from '../../email/types.js';
 import type { RenderDeps } from '../../documents/render.js';
 import type { FileStore } from '../../files/store.js';
@@ -90,6 +91,12 @@ export interface ActionContext {
   hub?: NotificationPublisher | undefined;
   /** Transport factory; tests inject a recorder instead of a socket. */
   createTransport?: ((config: SmtpConfig) => EmailTransport) | undefined;
+  /**
+   * Marketing mail's checks, signature and carry (`email/marketing.ts`), for
+   * an e-mail step classed `marketing`; made from `meta` and `secret` when
+   * absent.
+   */
+  marketing?: MarketingMail | undefined;
   /** Outbound HTTP; tests inject a stub. */
   fetch?: typeof globalThis.fetch | undefined;
   /**
