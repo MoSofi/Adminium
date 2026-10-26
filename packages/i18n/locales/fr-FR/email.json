@@ -928,5 +928,21 @@
     "balance": "Il reste {amount} à payer sur {number}.",
     "notice": "Conservez cet e-mail pour vos dossiers.",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "Se désabonner de la newsletter de {business}",
+    "surveys": "Se désabonner des enquêtes de {business}",
+    "all": "Se désabonner des e-mails marketing de {business}"
+  },
+  "marketingRefused": {
+    "title": "Des e-mails marketing sont ignorés",
+    "body": {
+      "no-postal-address": "{source} : les e-mails marketing sont ignorés tant que vous n’avez pas ajouté votre adresse postale à l’expéditeur.",
+      "free-mail-from": "{source} : les e-mails marketing sont ignorés : ils partiraient d’une adresse de messagerie gratuite. Utilisez une adresse de votre propre domaine.",
+      "dns-unchecked": "{source} : les e-mails marketing sont ignorés : le DNS de l’expéditeur n’a pas pu être vérifié.",
+      "no-dmarc": "{source} : les e-mails marketing sont ignorés : le domaine de l’expéditeur n’a pas encore d’enregistrement DMARC.",
+      "not-aligned": "{source} : les e-mails marketing sont ignorés : le domaine de l’expéditeur n’a pas de clé de signature publiée (DKIM).",
+      "no-public-address": "{source} : les e-mails marketing sont ignorés : ce serveur n’a pas d’adresse publique, les liens de désabonnement ne fonctionneraient donc pas."
+    }
   }
 }

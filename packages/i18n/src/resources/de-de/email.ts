@@ -938,5 +938,21 @@ export default {
     "balance": "Für {number} sind noch {amount} offen.",
     "notice": "Bewahren Sie diese E-Mail für Ihre Unterlagen auf.",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "Newsletter von {business} abbestellen",
+    "surveys": "Umfragen von {business} abbestellen",
+    "all": "Werbe-E-Mails von {business} abbestellen"
+  },
+  "marketingRefused": {
+    "title": "Werbe-E-Mails werden übersprungen",
+    "body": {
+      "no-postal-address": "{source}: Werbe-E-Mails werden übersprungen, bis Sie beim Absender Ihre Postanschrift eintragen.",
+      "free-mail-from": "{source}: Werbe-E-Mails werden übersprungen: Sie würden von einer Freemail-Adresse gesendet. Verwenden Sie eine Adresse Ihrer eigenen Domain.",
+      "dns-unchecked": "{source}: Werbe-E-Mails werden übersprungen: Das DNS des Absenders konnte nicht geprüft werden.",
+      "no-dmarc": "{source}: Werbe-E-Mails werden übersprungen: Die Domain des Absenders hat noch keinen DMARC-Eintrag.",
+      "not-aligned": "{source}: Werbe-E-Mails werden übersprungen: Die Domain des Absenders hat keinen veröffentlichten Signaturschlüssel (DKIM).",
+      "no-public-address": "{source}: Werbe-E-Mails werden übersprungen: Dieser Server hat keine öffentliche Adresse, daher würden Abmeldelinks nicht funktionieren."
+    }
   }
 } as const;

@@ -288,13 +288,14 @@ export function emailSendsRepo(meta: MetaDb) {
 
     /**
      * A handed message the mail queue gave up on: the row turns `failed` with
-     * what the server said. Null when the row is not `sent` (already marked
+     * what the server said, or `bounced` when the server refused the address
+     * for good at send time. Null when the row is not `sent` (already marked
      * by a bounce notice, or not this ledger's).
      */
-    async markGivenUp(id: string, reason: string, at: number = Date.now()): Promise<EmailSend | null> {
+    async markGivenUp(id: string, reason: string, at: number = Date.now(), state: Extract<EmailSendState, 'failed' | 'bounced'> = 'failed'): Promise<EmailSend | null> {
       const res = await db
         .updateTable('adminium_email_sends')
-        .set({ state: 'failed', reason: cut(reason, EMAIL_SEND_REASON_MAX), updatedAt: at })
+        .set({ state, reason: cut(reason, EMAIL_SEND_REASON_MAX), updatedAt: at })
         .where('id', '=', id)
         .where('state', '=', 'sent')
         .executeTakeFirst();

@@ -71,6 +71,7 @@ import {
   type RenderEmailInput,
   type RenderedEmail,
 } from './render.js';
+import type { MarketingCarry } from './marketing.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
@@ -90,6 +91,18 @@ export const EMAIL_SEND_PAYLOAD_VERSION = 3;
 
 /** The version a message without a QR code is queued as ({@link EMAIL_SEND_PAYLOAD_VERSION}). */
 export const EMAIL_SEND_PAYLOAD_VERSION_PLAIN = 2;
+
+/**
+ * The version a MARKETING message is queued as: its sealed envelope carries
+ * the class and the one-click unsubscribe headers, and delivery signs it and
+ * switches the relay's tracking off. A server older than `4` refuses the row
+ * (and the queue tries it again, then gives up where an operator can see it)
+ * rather than send a marketing mail without its unsubscribe headers.
+ */
+export const EMAIL_SEND_PAYLOAD_VERSION_MARKETING = 4;
+
+/** The two classes of mail to a contact; mail to staff has none. */
+export type EmailMailClass = 'marketing' | 'service';
 
 /** One plain address, and nothing a header could be split on or a list made of. */
 export const REPLY_TO = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/;
@@ -265,6 +278,15 @@ export interface EnqueueEmailInput {
    * HTML block. Line breaks in the subject become spaces.
    */
   override?: { subject?: string | null | undefined; body?: string | null | undefined } | undefined;
+  /**
+   * Marketing or service mail to a contact (absent: mail to staff, or a
+   * server notice, which has no class). Carried in the sealed envelope: a
+   * permanent refusal at send time puts a contact's address on the
+   * do-not-email list, and a marketing mail is signed at delivery.
+   */
+  mailClass?: EmailMailClass | undefined;
+  /** What a marketing mail carries (`marketing.ts`): its list headers and its locked footer, drawn last. */
+  marketing?: MarketingCarry | undefined;
 }
 
 /** The template with a person's wording in place of its own; unchanged where they wrote nothing. */
@@ -332,6 +354,10 @@ interface EmailEnvelope {
   replyTo?: string | undefined;
   /** QR codes the HTML shows by `cid:`, each drawn from its text at delivery (`v: 3`). */
   qr?: { cid: string; text: string }[] | undefined;
+  /** Marketing or service mail to a contact (`v: 4` for marketing); absent for mail to staff. */
+  mailClass?: EmailMailClass | undefined;
+  /** Headers the message goes with: a marketing mail's `List-Unsubscribe` and `List-Unsubscribe-Post`. */
+  headers?: Record<string, string> | undefined;
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
@@ -513,6 +539,10 @@ export interface EnqueueRenderedEmailInput {
   /** Collapses duplicates while a job with the same key is pending/running. */
   dedupeKey?: string | null | undefined;
   report?: EmailSendReport | undefined;
+  /** Marketing or service mail to a contact; see {@link EnqueueEmailInput.mailClass}. */
+  mailClass?: EmailMailClass | undefined;
+  /** A marketing mail's list headers. */
+  headers?: Record<string, string> | undefined;
 }
 
 /**
@@ -549,11 +579,13 @@ export async function enqueueRenderedEmail(
     // A Reply-To that is one plain address: never a list, a name or anything a header could be split on.
     ...(replyToOf(input.replyTo) === null ? {} : { replyTo: replyToOf(input.replyTo)! }),
     ...(qr.length === 0 ? {} : { qr }),
+    ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
+    ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
   const attachments = [...(input.attachments ?? [])];
   const payload: EmailSendPayload = {
-    v: qr.length > 0 ? EMAIL_SEND_PAYLOAD_VERSION : EMAIL_SEND_PAYLOAD_VERSION_PLAIN,
+    v: input.mailClass === 'marketing' ? EMAIL_SEND_PAYLOAD_VERSION_MARKETING : qr.length > 0 ? EMAIL_SEND_PAYLOAD_VERSION : EMAIL_SEND_PAYLOAD_VERSION_PLAIN,
     templateKey: input.templateKey,
     locale: input.locale,
     envelope: encryptSecret(JSON.stringify(envelope), emailEnvelopeKey(secret)),
@@ -642,6 +674,7 @@ export async function enqueueEmail(
     vars,
     dir: isLocaleId(locale) ? dirForLocale(locale) : 'ltr',
     ...(input.rows === undefined ? {} : { rows: input.rows }),
+    ...(input.marketing === undefined ? {} : { locked: input.marketing.locked }),
   });
 
   return await enqueueRenderedEmail(
@@ -656,8 +689,22 @@ export async function enqueueEmail(
       attachments: [...prepared.attachments, ...generated, ...(input.attachments ?? [])],
       report: input.report,
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
+      ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
+      ...(input.marketing === undefined ? {} : { headers: input.marketing.headers }),
     },
   );
+}
+
+/**
+ * The From a document goes out with: its configured sender, else the
+ * transport's `email.smtp.from`; null with no mail set up. What a marketing
+ * send's sender checks are about.
+ */
+export async function fromOf(meta: MetaDb, brand: EmailBrand | null): Promise<string | null> {
+  const settings = settingsRepo(meta);
+  const [smtp, senders] = await Promise.all([settings.get('email.smtp'), settings.get('email.senders')]);
+  const configured = [...(smtp === null ? [] : [smtp.from]), ...senders.map((s) => (s.name.trim() === '' ? s.address : `${s.name} <${s.address}>`))];
+  return senderHeader(brand, configured) ?? smtp?.from ?? null;
 }
 
 /** True when this instance can actually deliver mail right now. */

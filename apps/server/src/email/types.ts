@@ -66,6 +66,22 @@ export interface OutboundEmail {
   /** Where a reply goes (`Reply-To`): one plain address, checked before it gets here. */
   replyTo?: string | undefined;
   attachments?: OutboundAttachment[] | undefined;
+  /**
+   * Adminium's own DKIM signature for this one message (a marketing mail
+   * from a domain that has a key): nodemailer's `dkim` options, the private
+   * key among them. Never logged, never stored: made at delivery from the
+   * key store and handed straight to the transport.
+   */
+  dkim?: OutboundDkim | undefined;
+}
+
+/** nodemailer's per-message `dkim` options, as `email/sender/dkim.ts` builds them. */
+export interface OutboundDkim {
+  domainName: string;
+  keySelector: string;
+  privateKey: string;
+  headerFieldNames: string;
+  skipFields: string;
 }
 
 /**

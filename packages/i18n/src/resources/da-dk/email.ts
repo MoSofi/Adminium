@@ -938,5 +938,21 @@ export default {
     "balance": "Der mangler stadig {amount} på {number}.",
     "notice": "Gem denne e-mail til dine papirer.",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "Afmeld nyhedsbrevet fra {business}",
+    "surveys": "Afmeld undersøgelser fra {business}",
+    "all": "Afmeld markedsføringsmails fra {business}"
+  },
+  "marketingRefused": {
+    "title": "Markedsføringsmails springes over",
+    "body": {
+      "no-postal-address": "{source}: markedsføringsmails springes over, indtil du tilføjer din postadresse til afsenderen.",
+      "free-mail-from": "{source}: markedsføringsmails springes over: de ville blive sendt fra en gratis mailadresse. Brug en adresse på dit eget domæne.",
+      "dns-unchecked": "{source}: markedsføringsmails springes over: afsenderens DNS kunne ikke kontrolleres.",
+      "no-dmarc": "{source}: markedsføringsmails springes over: afsenderens domæne har endnu ingen DMARC-post.",
+      "not-aligned": "{source}: markedsføringsmails springes over: afsenderens domæne har ingen offentliggjort signeringsnøgle (DKIM).",
+      "no-public-address": "{source}: markedsføringsmails springes over: denne server har ingen offentlig adresse, så afmeldingslinks ville ikke virke."
+    }
   }
 } as const;

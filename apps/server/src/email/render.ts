@@ -1071,6 +1071,35 @@ export interface RenderEmailInput {
    * send, a preview): every such block says its `empty`, or is left out.
    */
   rows?: Readonly<Record<string, readonly Readonly<Record<string, string>>[]>> | undefined;
+  /**
+   * The locked footer of a marketing mail: the sender's postal address and
+   * the unsubscribe line, under everything else, in the mail's language. Its
+   * words are the sender's and the server's, never a template's: no
+   * `{{…}}` in them is filled, and nothing of the document can remove them.
+   */
+  locked?: LockedFooter | undefined;
+}
+
+/** What a marketing mail ends with (see {@link RenderEmailInput.locked}). */
+export interface LockedFooter {
+  /** Lines of plain text above the link: the postal address. */
+  lines: readonly string[];
+  /** The unsubscribe line and where it goes (an `https:` address on this server). */
+  link: { text: string; href: string };
+}
+
+/** The locked footer as an HTML row and a text part; a link that is not `https:` is left out, never drawn dead. */
+function lockedFooterOf(locked: LockedFooter, ctx: Pick<RenderCtx, 'align'>): { html: string; text: string } {
+  const style = `margin:0;font-family:${FONT};font-size:11px;line-height:1.6;color:${PALETTE.muted};text-align:${ctx.align};word-break:break-word;`;
+  const lines = locked.lines.map((line) => line.replaceAll(/[\r\n]+/g, ' ').trim()).filter((line) => line !== '');
+  const href = /^https:\/\//i.test(locked.link.href) ? locked.link.href : null;
+  const html =
+    `<tr><td style="padding:0 ${String(CARD_X)}px 26px;"><div style="padding-top:12px;border-top:1px solid ${PALETTE.rule};">` +
+    lines.map((line) => `<p style="${style}">${escapeHtml(line)}</p>`).join('') +
+    (href === null ? '' : `<p style="${style}"><a href="${escapeHtml(href)}" style="color:${PALETTE.muted};text-decoration:underline;">${escapeHtml(locked.link.text)}</a></p>`) +
+    `</div></td></tr>`;
+  const text = [...lines, ...(href === null ? [] : [`${locked.link.text}: ${href}`])].join('\n');
+  return { html, text };
 }
 
 /** `brand` from a row + the workspace defaults → what {@link renderEmail} takes. */
@@ -1154,6 +1183,7 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
     footerText === ''
       ? `<tr><td style="padding:0 0 26px;font-size:0;line-height:0;">&nbsp;</td></tr>`
       : `<tr><td style="padding:24px ${String(CARD_X)}px 26px;"><div style="padding-top:18px;border-top:1px solid ${PALETTE.rule};">${footerHtml(document.footer ?? '', ctx)}</div></td></tr>`;
+  const locked = input.locked === undefined ? null : lockedFooterOf(input.locked, ctx);
 
   const preheaderHtml =
     preheader === ''
@@ -1180,6 +1210,7 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
     ...(header === '' ? [] : [header]),
     ...rows,
     footer,
+    ...(locked === null ? [] : [locked.html]),
     '      </table>',
     '    </td>',
     '  </tr>',
@@ -1189,7 +1220,7 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
     '',
   ].join('\n');
 
-  const text = [...texts, footerText === '' ? '' : `${TEXT_RULE}\n${footerText}\n`]
+  const text = [...texts, footerText === '' ? '' : `${TEXT_RULE}\n${footerText}\n`, locked === null ? '' : `\n${TEXT_RULE}\n${locked.text}\n`]
     .join('')
     .replaceAll(/[ \t]+\n/g, '\n')
     .replaceAll(/\n{3,}/g, '\n\n')

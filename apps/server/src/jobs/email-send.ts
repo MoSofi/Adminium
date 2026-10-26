@@ -34,7 +34,9 @@ import { filesRepo, type MetaDb } from '@adminium/meta';
 
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
+import { createMarketingMail, type MarketingMail } from '../email/marketing.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
+import type { PermanentRefusal } from '../email/refused.js';
 import { EMAIL_SEND_JOB_KIND, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
 import type {
   EmailSendAttachmentRef,
@@ -69,7 +71,7 @@ export type { EmailSendAttachmentRef, EmailSendInlineRef };
  * no attachment or inline references and still deliver.
  */
 export const emailSendPayloadSchema = z.object({
-  v: z.number().int().min(1).max(3),
+  v: z.number().int().min(1).max(4),
   templateKey: z.string().min(1).max(120),
   locale: z.string().min(2).max(35),
   envelope: z.string().min(1),
@@ -105,7 +107,26 @@ const envelopeSchema = z.object({
     .array(z.object({ cid: z.string().min(1).max(80), text: z.string().min(1).max(QR_MAX_BYTES).refine(qrCarries, `at most ${String(QR_MAX_BYTES)} bytes`) }))
     .max(60)
     .optional(),
+  /** Marketing or service mail to a contact (`v: 4` for marketing); absent for mail to staff and server notices. */
+  mailClass: z.enum(['marketing', 'service']).optional(),
+  /** A marketing mail's `List-Unsubscribe` and `List-Unsubscribe-Post`. */
+  headers: z
+    .record(z.string().regex(/^List-Unsubscribe(-Post)?$/), z.string().max(2000).regex(/^[^\r\n]*$/))
+    .optional(),
 });
+
+/**
+ * The mail server refused the address for good at send time (a 5xx to its
+ * recipient, from a direct relay): the address went on the do-not-email
+ * list, and the message is not tried again. The row it was sent for is told
+ * at once, as a bounce.
+ */
+export class PermanentlyRefusedError extends Error {
+  override readonly name = 'PermanentlyRefusedError';
+  constructor(readonly refusal: PermanentRefusal) {
+    super(`Refused for good: ${refusal.response === '' ? String(refusal.code) : refusal.response}`);
+  }
+}
 
 export interface EmailSendHandlerDeps {
   meta: MetaDb;
@@ -120,6 +141,12 @@ export interface EmailSendHandlerDeps {
    * its last try: tell the row. Never throws into the job.
    */
   onGiveUp?: ((report: EmailSendReport, error: unknown) => Promise<void>) | undefined;
+  /**
+   * What a marketing mail is signed and switched with at delivery, and what a
+   * permanent refusal does to a contact's address (`email/marketing.ts`).
+   * Made from `meta` and `secret` when absent.
+   */
+  marketing?: MarketingMail | undefined;
 }
 
 async function readAll(stream: AsyncIterable<Buffer | string>): Promise<Buffer> {
@@ -182,6 +209,7 @@ export async function resolveEmailParts(
 /** Registers the `email.send` handler on `registry` (internal kind). */
 export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendHandlerDeps): void {
   const makeTransport = deps.createTransport ?? createSmtpTransport;
+  const marketing = deps.marketing ?? createMarketingMail({ meta: deps.meta, secret: deps.secret });
 
   registry.registerJobHandler(
     EMAIL_SEND_JOB_KIND,
@@ -218,15 +246,30 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     ctx.progress(25, { step: 'attachments', message: 'reading attachments' });
     const attachments = await resolveEmailParts(deps, payload, envelope.qr ?? []);
     ctx.progress(50, { step: 'send', message: `sending ${payload.templateKey}` });
-    await makeTransport(config).send({
-      to: envelope.to,
-      subject: envelope.subject,
-      html: envelope.html,
-      text: envelope.text,
-      ...(envelope.from === undefined ? {} : { from: envelope.from }),
-      ...(envelope.replyTo === undefined ? {} : { replyTo: envelope.replyTo }),
-      ...(attachments.length === 0 ? {} : { attachments }),
-    });
+    // A marketing mail goes signed with Adminium's key for its From (when there is one), with the relay's tracking off.
+    const from = envelope.from ?? config.from;
+    const signed = envelope.mailClass === 'marketing' ? await marketing.signing(from, config.host) : null;
+    const headers = { ...(envelope.headers ?? {}), ...(signed?.headers ?? {}) };
+    try {
+      await makeTransport(config).send({
+        to: envelope.to,
+        subject: envelope.subject,
+        html: envelope.html,
+        text: envelope.text,
+        ...(envelope.from === undefined ? {} : { from: envelope.from }),
+        ...(envelope.replyTo === undefined ? {} : { replyTo: envelope.replyTo }),
+        ...(attachments.length === 0 ? {} : { attachments }),
+        ...(Object.keys(headers).length === 0 ? {} : { headers }),
+        ...(signed?.dkim == null ? {} : { dkim: signed.dkim }),
+      });
+    } catch (error) {
+      // A contact's address refused for good: on the do-not-email list, the row told now, and never tried again.
+      const refused = envelope.mailClass === undefined ? null : await marketing.bounced({ error, smtpHost: config.host, address: envelope.to, origin: payload.report?.app ?? null });
+      if (refused === null) throw error;
+      if (payload.report !== undefined && deps.onGiveUp !== undefined) await deps.onGiveUp(payload.report, new PermanentlyRefusedError(refused)).catch(() => undefined);
+      ctx.progress(100, { step: 'refused' });
+      return { templateKey: payload.templateKey, locale: payload.locale, refused: refused.code };
+    }
     ctx.progress(100, { step: 'sent' });
     // The recipient address is PII and the body is a secret — the result is
     // the only thing that survives into `adminium_jobs.result`, so it names

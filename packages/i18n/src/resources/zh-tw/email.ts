@@ -938,5 +938,21 @@ export default {
     "balance": "{number} 尚有 {amount} 待付。",
     "notice": "請保留此郵件作為紀錄。",
     "footer": "{shop}"
+  },
+  "marketingFooter": {
+    "newsletter": "取消訂閱{business}的電子報",
+    "surveys": "取消訂閱{business}的問卷",
+    "all": "取消訂閱{business}的行銷郵件"
+  },
+  "marketingRefused": {
+    "title": "行銷郵件正被略過",
+    "body": {
+      "no-postal-address": "{source}：在您為寄件者新增郵寄地址之前，行銷郵件將被略過。",
+      "free-mail-from": "{source}：行銷郵件被略過：它將從免費信箱地址寄出。請使用您自己網域的地址。",
+      "dns-unchecked": "{source}：行銷郵件被略過：無法檢查寄件者的 DNS。",
+      "no-dmarc": "{source}：行銷郵件被略過：寄件者的網域尚無 DMARC 記錄。",
+      "not-aligned": "{source}：行銷郵件被略過：寄件者的網域沒有已發布的簽署金鑰（DKIM）。",
+      "no-public-address": "{source}：行銷郵件被略過：此伺服器沒有公開位址，取消訂閱連結將無法運作。"
+    }
   }
 } as const;
