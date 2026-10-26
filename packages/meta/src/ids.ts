@@ -163,6 +163,8 @@ export const ID_PREFIXES = {
   // wave 0067 — the campaign send ledger: one recipient of one run, and the content a run froze.
   esnd: 'adminium_email_sends',
   ercn: 'adminium_email_run_contents',
+  // wave 0070 — a person's data, downloaded.
+  pex: 'adminium_privacy_exports',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
