@@ -220,6 +220,8 @@ test.describe('email send flows', () => {
       await page.request.delete(`${SINK_URL}/messages`);
       await page.getByTestId('email-send').click();
       await expect(page.getByTestId('email-campaign-count')).toHaveText(new RegExp(`^${String(users.length)} recipients`));
+      // Every send is paced (at most 100 an hour) unless told otherwise; this flow waits for the run to end.
+      await page.getByRole('radio', { name: 'As fast as your mail server allows' }).click();
       await page.getByTestId('email-campaign-send').click();
       await expect(page.getByText('Campaign sent!')).toBeVisible();
       await page.getByRole('button', { name: 'Done' }).click();
