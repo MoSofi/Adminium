@@ -79,10 +79,6 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
     'apps/dashboard/src/kit-host/parts/consent.tsx',
     'apps/dashboard/src/consent/ConsentPanel.tsx',
     'apps/dashboard/src/consent/consentWords.ts',
-    'packages/ui/src/components/button/Button.tsx',
-    'packages/ui/src/components/choice-chips/ChoiceChips.tsx',
-    'packages/ui/src/components/segmented-control/SegmentedControl.tsx',
-    'packages/ui/src/components/textarea/Textarea.tsx',
   ],
 };
 

@@ -6,11 +6,14 @@
  *
  * Drawn on the record page of a table an app declares as people, below the
  * tabs (`RecordConsentPanel.tsx`), and by an app's own screen through the
- * kit's `consent` part: so it imports nothing of the dashboard's. Its words
- * come from the provider around it (`useMaybeT`), its calls from the
- * {@link ConsentClient} it is handed, and what happened after a press is
- * told through `notify` (a toast) or, without one, in a polite line of its
- * own.
+ * kit's `consent` part: so it imports nothing of the dashboard's, nor of
+ * `@adminium/ui` or lucide-react (see `glyphs.tsx` for why). Its words come
+ * from the provider around it (`useMaybeT`), its calls from the
+ * {@link ConsentClient} it is handed, its controls and dialogs from its
+ * {@link ConsentFrames} (the dashboard's own, `consentDialogs.tsx`; left out,
+ * plain ones with the steps drawn inside the panel), and what happened after
+ * a press is told through `notify` (a toast) or, without one, in a polite
+ * line of its own.
  *
  * What it shows is the server's (`POST /consent/panel`), which reads the one
  * consent log every screen reads: a CRM's own "may be e-mailed" line reads
@@ -30,13 +33,12 @@
  * Phone: the header's buttons sit in a two-column grid, 44 px high, and a
  * history line's time goes under its text.
  */
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';
-import { Button, FormDialog, FormDialogBody, FormDialogFooter, FormDialogHeader, Modal, ModalFooter, ModalHeader, SegmentedControl, ChoiceChips, Textarea } from '@adminium/ui';
-import { Check, FileCheck2, FilePenLine, Info, MailCheck, MailX, Minus, Reply, Settings, SquareCheck, Stamp, Upload, User, UserX, type LucideIcon } from 'lucide-react';
 
 import { CONSENT_HOWS, CONSENT_PURPOSES, type ConsentClient, type ConsentHow, type ConsentPanelView, type ConsentPurpose, type ConsentRecordRef } from './consentTypes.js';
 import { day, dayTime, historyLines, howName, purposeBadge, purposeDetail, purposeName, stopWhy, type LineIcon, type LineTone } from './consentWords.js';
+import { Glyph, type GlyphName } from './glyphs.js';
 
 export interface ConsentPanelProps {
   record: ConsentRecordRef;
@@ -52,24 +54,91 @@ export interface ConsentPanelProps {
   onChanged: () => void | Promise<void>;
   /** Says what happened (a toast). Left out, the panel says it in a line of its own. */
   notify?: ((message: string, tone: 'success' | 'error') => void) | undefined;
-  /**
-   * The confirms and the Record consent form drawn inside the panel, under
-   * its header, instead of in a dialog over the page: an app's own screen
-   * (the kit), whose styles stop at the part's own element.
-   */
-  inline?: boolean | undefined;
+  /** The controls and dialogs it is drawn with. Left out, plain ones, the steps drawn inside the panel (an app's own screen). */
+  frames?: ConsentFrames | undefined;
 }
 
-const LINE_ICONS: Record<LineIcon, LucideIcon> = {
-  'mail-x': MailX,
-  'mail-check': MailCheck,
-  'file-check': FileCheck2,
-  'file-pen': FilePenLine,
-  'square-check': SquareCheck,
-  reply: Reply,
-  upload: Upload,
-  user: User,
-  settings: Settings,
+/** A button as the panel asks for one. */
+export interface PanelButtonProps {
+  tone: 'primary' | 'secondary' | 'ghost';
+  children: ReactNode;
+  className?: string | undefined;
+  type?: 'button' | 'submit' | undefined;
+  onClick?: (() => void) | undefined;
+  busy?: boolean | undefined;
+  disabled?: boolean | undefined;
+  autoFocus?: boolean | undefined;
+  describedBy?: string | undefined;
+  testId?: string | undefined;
+}
+
+/** One of a few answers: a segmented tray (`segments`) or chips (`chips`), a radio group either way. */
+export interface PanelChoiceProps {
+  kind: 'segments' | 'chips';
+  labelledBy: string;
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+}
+
+export interface PanelNoteProps {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  testId: string;
+}
+
+/** What a confirm's frame is given: the words, and its two buttons already drawn. */
+export interface ConfirmFrameProps {
+  glyph: GlyphName;
+  tone: 'accent' | 'warn';
+  title: string;
+  body: string;
+  buttons: ReactNode;
+  busy: boolean;
+  onCancel: () => void;
+  testId: string;
+}
+
+/** What the Record consent form's frame is given: the heading, its fields and its buttons already drawn. */
+export interface FormFrameProps {
+  title: string;
+  subtitle: ReactNode;
+  fields: ReactNode;
+  buttons: ReactNode;
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (event: FormEvent) => void;
+  testId: string;
+}
+
+/**
+ * What the panel is drawn with: its buttons, its choices, its note field, and
+ * where its confirms and its Record consent form open. The dashboard hands
+ * over its own (`consentDialogs.tsx`: the house's controls, the steps as
+ * dialogs over the page), kept out of this file so an app's screen never
+ * loads them; {@link INLINE_FRAMES} are plain ones, the steps inside the panel.
+ */
+export interface ConsentFrames {
+  Button: (props: PanelButtonProps) => ReactNode;
+  Choice: (props: PanelChoiceProps) => ReactNode;
+  Note: (props: PanelNoteProps) => ReactNode;
+  Confirm: (props: ConfirmFrameProps) => ReactNode;
+  Form: (props: FormFrameProps) => ReactNode;
+  /** Whether the steps open inside the panel (under its header) rather than over the page. */
+  inline: boolean;
+}
+
+const LINE_GLYPHS: Record<LineIcon, GlyphName> = {
+  'mail-x': 'mailX',
+  'mail-check': 'mailCheck',
+  'file-check': 'fileCheck',
+  'file-pen': 'filePen',
+  'square-check': 'squareCheck',
+  reply: 'reply',
+  upload: 'fileUp',
+  user: 'userCheck',
+  settings: 'cog',
 };
 
 const TILE_TONES: Record<LineTone, string> = {
@@ -80,14 +149,14 @@ const TILE_TONES: Record<LineTone, string> = {
 };
 
 const BADGE_TONES = { pos: 'bg-pos-soft text-pos', neutral: 'bg-surface-3 text-fg-muted', danger: 'bg-danger-soft text-danger' } as const;
-const BADGE_ICONS = { check: Check, minus: Minus, 'mail-x': MailX } as const;
+const BADGE_GLYPHS: Record<'check' | 'minus' | 'mail-x', GlyphName> = { check: 'check', minus: 'minus', 'mail-x': 'mailX' };
 
-/** The two header buttons' look: the comp's 12.5/700, and 44 px in a two-column grid on a phone. */
+/** The header buttons' look: the comp's 12.5/700, and 44 px in a two-column grid on a phone. */
 const HEADER_BUTTON = 'rounded-[10px] text-[12.5px] font-bold max-sm:h-11 max-sm:w-full max-sm:text-[13px]';
 
 type Confirming = 'replied' | 'said-no' | null;
 
-export function ConsentPanel({ record, view, client, name, address, locale, onChanged, notify, inline = false }: ConsentPanelProps): ReactNode {
+export function ConsentPanel({ record, view, client, name, address, locale, onChanged, notify, frames = INLINE_FRAMES }: ConsentPanelProps): ReactNode {
   const t = useMaybeT();
   const headingId = useId();
   const hintId = useId();
@@ -95,6 +164,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<{ text: string; tone: 'success' | 'error' } | null>(null);
+  const { Button } = frames;
 
   const tell = (text: string, tone: 'success' | 'error'): void => {
     if (notify !== undefined) notify(text, tone);
@@ -129,8 +199,8 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
     <>
       {confirming === null ? null : (
         <ConfirmStep
-          inline={inline}
-          icon={confirming === 'replied' ? Reply : MailX}
+          frames={frames}
+          glyph={confirming === 'replied' ? 'reply' : 'mailX'}
           tone={confirming === 'replied' ? 'accent' : 'warn'}
           title={confirming === 'replied' ? t('common:consent.confirm.repliedTitle', 'Mark as replied?') : t('common:consent.confirm.saidNoTitle', 'Put them on the do-not-email list?')}
           body={
@@ -146,8 +216,8 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
         />
       )}
       {recording ? (
-        <RecordConsentDialog
-          inline={inline}
+        <RecordConsentStep
+          frames={frames}
           name={name}
           address={address}
           onCancel={() => setRecording(false)}
@@ -181,17 +251,17 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
             <span id={hintId} className="sr-only">
               {t('common:consent.panel.repliedHint', 'They replied to a marketing e-mail. This stops their e-mail sequences.')}
             </span>
-            <Button variant="secondary" className={HEADER_BUTTON} aria-describedby={hintId} onClick={() => setConfirming('replied')} data-testid="consent-replied">
-              <Reply aria-hidden="true" />
+            <Button tone="secondary" className={HEADER_BUTTON} describedBy={hintId} onClick={() => setConfirming('replied')} testId="consent-replied">
+              <Glyph name="reply" />
               {t('common:consent.panel.replied', 'Replied')}
             </Button>
-            <Button className={HEADER_BUTTON} onClick={() => setRecording(true)} data-testid="consent-record">
-              <FilePenLine aria-hidden="true" />
+            <Button tone="primary" className={HEADER_BUTTON} onClick={() => setRecording(true)} testId="consent-record">
+              <Glyph name="filePen" />
               {t('common:consent.panel.record', 'Record consent…')}
             </Button>
             {view.addressKnown && view.stopped === null ? (
-              <Button variant="ghost" className={`${HEADER_BUTTON} max-sm:col-span-2`} onClick={() => setConfirming('said-no')} data-testid="consent-said-no">
-                <MailX aria-hidden="true" />
+              <Button tone="ghost" className={`${HEADER_BUTTON} max-sm:col-span-2`} onClick={() => setConfirming('said-no')} testId="consent-said-no">
+                <Glyph name="mailX" />
                 {t('common:consent.panel.saidNo', 'They said no')}
               </Button>
             ) : null}
@@ -199,15 +269,16 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
         ) : null}
       </div>
 
-      {inline ? steps : null}
+      {frames.inline ? steps : null}
+
       {view.erased ? (
-        <Note icon={UserX} tone="neutral" testId="consent-erased">
+        <Note glyph="userX" tone="neutral" testId="consent-erased">
           {t('common:consent.panel.erased', 'This person was erased. Their address stays on the do-not-email list, so they are never e-mailed again. Nothing else is kept about them.')}
         </Note>
       ) : (
         <>
           {view.stopped !== null ? (
-            <Note icon={MailX} tone="warn" testId="consent-banner">
+            <Note glyph="mailX" tone="warn" testId="consent-banner">
               {t('common:consent.panel.banner', 'On the do-not-email list since {date} ({why}). Marketing mail skips them; service mail like quotes and receipts still reaches them.', {
                 date: day(locale, view.stopped.since),
                 why: stopWhy(t, view.stopped.reason),
@@ -215,7 +286,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
             </Note>
           ) : null}
           {!view.addressKnown ? (
-            <Note icon={Info} tone="neutral" testId="consent-no-address">
+            <Note glyph="info" tone="neutral" testId="consent-no-address">
               {t('common:consent.panel.noAddress', 'This record has no e-mail address yet.')}
             </Note>
           ) : null}
@@ -223,13 +294,12 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
           <ul className="m-0 list-none border-t border-border p-0">
             {view.purposes.map((one) => {
               const badge = purposeBadge(t, one.state, one.event);
-              const BadgeIcon = BADGE_ICONS[badge.icon];
               const detail = purposeDetail(t, locale, one.event);
               return (
                 <li key={one.purpose} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-5 py-[13px] max-sm:px-4 max-sm:py-[11px]" data-testid={`consent-purpose-${one.purpose}`}>
                   <span className="min-w-[120px] text-[13px] font-bold max-sm:min-w-0 max-sm:flex-1">{purposeName(t, one.purpose)}</span>
                   <span className={`inline-flex items-center gap-[5px] whitespace-nowrap rounded-md px-2 py-0.5 text-[11.5px] font-bold ${BADGE_TONES[badge.tone]}`} data-testid={`consent-badge-${one.purpose}`}>
-                    <BadgeIcon aria-hidden="true" className="size-3" />
+                    <Glyph name={BADGE_GLYPHS[badge.icon]} className="size-3" />
                     {badge.text}
                   </span>
                   {detail === '' ? null : <span className="basis-full text-[12.5px] leading-normal text-fg-muted max-sm:text-[12px]">{detail}</span>}
@@ -249,26 +319,23 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
               </p>
             ) : (
               <ol className="m-0 flex list-none flex-col gap-3 p-0 max-sm:gap-2.5" data-testid="consent-history">
-                {lines.map((line) => {
-                  const Icon = LINE_ICONS[line.icon];
-                  return (
-                    <li key={line.key} className="flex items-start gap-[11px] max-sm:gap-2.5">
-                      <span className={`flex size-[22px] shrink-0 items-center justify-center rounded-md ${TILE_TONES[line.tone]}`}>
-                        <Icon aria-hidden="true" className="size-3" />
-                      </span>
-                      <div className="min-w-0 text-[13px] leading-normal max-sm:text-[12.5px]">
-                        {line.text}{' '}
-                        <span className="text-fg-muted max-sm:block">
-                          <span aria-hidden="true" className="max-sm:hidden">
-                            ·{' '}
-                          </span>
-                          <bdi className="font-mono text-[12px] max-sm:text-[11.5px]">{dayTime(locale, line.at)}</bdi>
-                          {line.extra === null ? null : <> {line.extra}</>}
+                {lines.map((line) => (
+                  <li key={line.key} className="flex items-start gap-[11px] max-sm:gap-2.5">
+                    <span className={`flex size-[22px] shrink-0 items-center justify-center rounded-md ${TILE_TONES[line.tone]}`}>
+                      <Glyph name={LINE_GLYPHS[line.icon]} className="size-3" />
+                    </span>
+                    <div className="min-w-0 text-[13px] leading-normal max-sm:text-[12.5px]">
+                      {line.text}{' '}
+                      <span className="text-fg-muted max-sm:block">
+                        <span aria-hidden="true" className="max-sm:hidden">
+                          ·{' '}
                         </span>
-                      </div>
-                    </li>
-                  );
-                })}
+                        <bdi className="font-mono text-[12px] max-sm:text-[11.5px]">{dayTime(locale, line.at)}</bdi>
+                        {line.extra === null ? null : <> {line.extra}</>}
+                      </span>
+                    </div>
+                  </li>
+                ))}
               </ol>
             )}
           </div>
@@ -281,34 +348,239 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
         </p>
       )}
 
-      {inline ? null : steps}
+      {frames.inline ? null : steps}
     </section>
   );
 }
 
-function Note({ icon: Icon, tone, testId, children }: { icon: LucideIcon; tone: 'warn' | 'neutral'; testId: string; children: ReactNode }): ReactNode {
+function Note({ glyph, tone, testId, children }: { glyph: GlyphName; tone: 'warn' | 'neutral'; testId: string; children: ReactNode }): ReactNode {
   return (
     <div
       role="note"
       className={`mx-5 mb-3.5 flex gap-2.5 rounded-[10px] border px-[13px] py-[11px] max-sm:mx-4 ${tone === 'warn' ? 'border-warn/25 bg-warn-soft' : 'border-border bg-surface-2'}`}
       data-testid={testId}
     >
-      <Icon aria-hidden="true" className={`mt-0.5 size-4 shrink-0 ${tone === 'warn' ? 'text-warn' : 'text-fg-muted'}`} />
+      <Glyph name={glyph} className={`mt-0.5 size-4 shrink-0 ${tone === 'warn' ? 'text-warn' : 'text-fg-muted'}`} />
       <span className="text-[12.5px] leading-normal">{children}</span>
     </div>
   );
 }
 
+/** A small confirm: what the press does, said in full, with Cancel first (focus starts there). */
+function ConfirmStep(props: Omit<ConfirmFrameProps, 'buttons'> & { frames: ConsentFrames; confirm: string; onConfirm: () => void }): ReactNode {
+  const t = useMaybeT();
+  const { frames, confirm, onConfirm, ...frame } = props;
+  const { Button, Confirm } = frames;
+  const buttons = (
+    <>
+      <Button tone="secondary" autoFocus onClick={props.onCancel} disabled={props.busy}>
+        {t('common:consent.confirm.cancel', 'Cancel')}
+      </Button>
+      <Button tone="primary" onClick={onConfirm} busy={props.busy} testId={`${props.testId}-yes`}>
+        {confirm}
+      </Button>
+    </>
+  );
+  return <Confirm {...frame} buttons={buttons} />;
+}
+
 /**
- * Where a confirm or the Record consent form is drawn on an app's own screen:
- * inside the panel, under its header, with no layer over the page (the kit
- * styles nothing outside its own element). Named by its heading, the focus
- * put on its first control, and Escape closes it.
+ * "Record consent": one person, one purpose, how they agreed and a note. The
+ * staff member and the date are the server's (from the session and the
+ * clock), never typed.
+ */
+function RecordConsentStep({
+  frames,
+  name,
+  address,
+  onCancel,
+  onSave,
+}: {
+  frames: ConsentFrames;
+  name: string | null;
+  address: string | null;
+  onCancel: () => void;
+  onSave: (input: { purpose: ConsentPurpose; how: ConsentHow; note: string | null }) => Promise<void>;
+}): ReactNode {
+  const t = useMaybeT();
+  const id = useId();
+  const [purpose, setPurpose] = useState<ConsentPurpose>('newsletter');
+  const [how, setHow] = useState<ConsentHow>('in-person');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { Button, Choice, Note: NoteField, Form } = frames;
+
+  const subtitle =
+    name === null && address === null ? null : (
+      <span data-testid="consent-dialog-who">
+        {name ?? ''}
+        {name !== null && address !== null ? ' · ' : ''}
+        {address === null ? null : (
+          <bdi dir="ltr" className="font-mono">
+            {address}
+          </bdi>
+        )}
+      </span>
+    );
+
+  const fields = (
+    <>
+      <div className="flex flex-col gap-[7px]">
+        <span className="text-[12.5px] font-bold" id={`${id}-purpose`}>
+          {t('common:consent.dialog.purpose', 'Purpose')}
+        </span>
+        <Choice kind="segments" labelledBy={`${id}-purpose`} value={purpose} onChange={(value) => setPurpose(value as ConsentPurpose)} options={CONSENT_PURPOSES.map((one) => ({ value: one, label: purposeName(t, one) }))} />
+      </div>
+      <div className="flex flex-col gap-[7px]">
+        <span className="text-[12.5px] font-bold" id={`${id}-how`}>
+          {t('common:consent.dialog.how', 'How did they agree?')}
+        </span>
+        <Choice kind="chips" labelledBy={`${id}-how`} value={how} onChange={(value) => setHow(value as ConsentHow)} options={CONSENT_HOWS.map((one) => ({ value: one, label: howName(t, one) }))} />
+      </div>
+      <label className="flex flex-col gap-1.5" htmlFor={`${id}-note`}>
+        <span className="text-[12.5px] font-bold">{t('common:consent.dialog.note', 'Note')}</span>
+        <NoteField id={`${id}-note`} value={note} onChange={setNote} testId="consent-dialog-note" />
+      </label>
+      <div className="flex gap-[9px] rounded-[10px] bg-surface-3 px-[13px] py-[11px]">
+        <Glyph name="stamp" className="mt-0.5 size-[15px] shrink-0 text-fg-muted" />
+        <span className="text-[12.5px] leading-normal">{t('common:consent.dialog.stamp', "Your name and today's date are saved with it.")}</span>
+      </div>
+    </>
+  );
+  const buttons = (
+    <>
+      <Button tone="secondary" onClick={onCancel} disabled={saving}>
+        {t('common:consent.dialog.cancel', 'Cancel')}
+      </Button>
+      <Button tone="primary" type="submit" busy={saving} testId="consent-dialog-save">
+        {t('common:consent.dialog.save', 'Record consent')}
+      </Button>
+    </>
+  );
+  return (
+    <Form
+      title={t('common:consent.dialog.title', 'Record consent')}
+      subtitle={subtitle}
+      fields={fields}
+      buttons={buttons}
+      busy={saving}
+      onCancel={onCancel}
+      onSubmit={(event) => {
+        event.preventDefault();
+        setSaving(true);
+        void onSave({ purpose, how, note: note.trim() === '' ? null : note.trim() }).finally(() => setSaving(false));
+      }}
+      testId="consent-dialog"
+    />
+  );
+}
+
+// ─── The plain frames: an app's own screen ──────────────────────────────────
+
+const PLAIN_BUTTON =
+  'inline-flex h-[34px] select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-semibold transition-colors [&_svg]:size-[15px] [&_svg]:shrink-0 ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40';
+const PLAIN_TONES = {
+  primary: 'bg-accent text-accent-fg hover:brightness-105',
+  secondary: 'border border-border-strong bg-surface text-fg hover:bg-surface-2',
+  ghost: 'text-fg-muted hover:bg-surface-3 hover:text-fg',
+} as const;
+
+function PlainButton(props: PanelButtonProps): ReactNode {
+  return (
+    <button
+      type={props.type ?? 'button'}
+      className={`${PLAIN_BUTTON} ${PLAIN_TONES[props.tone]} ${props.className ?? ''}`}
+      onClick={props.onClick}
+      disabled={props.disabled === true || props.busy === true}
+      aria-busy={props.busy === true ? true : undefined}
+      // A confirm's Cancel takes the focus as it opens, as the house's dialogs do.
+      autoFocus={props.autoFocus}
+      aria-describedby={props.describedBy}
+      data-testid={props.testId}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+/** A radio group of buttons: one tab stop, the arrows move and choose (turned in right to left), Home and End. */
+function PlainChoice({ kind, labelledBy, value, options, onChange }: PanelChoiceProps): ReactNode {
+  const box = useRef<HTMLDivElement | null>(null);
+  const move = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const rtl = box.current?.closest('[dir]')?.getAttribute('dir') === 'rtl';
+    const at = Math.max(
+      0,
+      options.findIndex((option) => option.value === value),
+    );
+    const forward = ['ArrowDown', rtl ? 'ArrowLeft' : 'ArrowRight'];
+    const backward = ['ArrowUp', rtl ? 'ArrowRight' : 'ArrowLeft'];
+    const to = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : forward.includes(event.key) ? (at + 1) % options.length : backward.includes(event.key) ? (at - 1 + options.length) % options.length : null;
+    if (to === null) return;
+    event.preventDefault();
+    const next = options[to]!;
+    onChange(next.value);
+    box.current?.querySelector<HTMLElement>(`[data-value="${next.value}"]`)?.focus();
+  };
+  const segments = kind === 'segments';
+  return (
+    <div
+      ref={box}
+      role="radiogroup"
+      aria-labelledby={labelledBy}
+      onKeyDown={move}
+      data-first
+      className={segments ? 'inline-flex gap-[3px] self-start rounded-[10px] border border-border bg-surface-2 p-[3px]' : 'flex flex-wrap gap-1.5'}
+    >
+      {options.map((option) => {
+        const on = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            tabIndex={on ? 0 : -1}
+            data-value={option.value}
+            onClick={() => onChange(option.value)}
+            className={
+              segments
+                ? `rounded-md px-3 py-1.5 text-[12.5px] font-bold ${on ? 'bg-surface text-fg shadow-card' : 'text-fg-muted hover:text-fg'}`
+                : `inline-flex h-7 items-center rounded-full border px-[11px] text-[12px] font-bold ${on ? 'border-accent bg-accent-soft text-accent' : 'border-border-strong bg-surface text-fg-muted hover:text-fg'}`
+            }
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PlainNote({ id, value, onChange, testId }: PanelNoteProps): ReactNode {
+  return (
+    <textarea
+      id={id}
+      rows={3}
+      maxLength={1000}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      data-testid={testId}
+      className="w-full resize-y rounded-[10px] border border-border-strong bg-surface px-3 py-2.5 text-[13px] leading-normal text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+    />
+  );
+}
+
+/**
+ * A step drawn inside the panel, under its header, with no layer over the
+ * page (the kit styles nothing outside its own element). Named by its
+ * heading, the focus put on its first control, and Escape closes it.
  */
 function InlineStep({ titleId, onCancel, busy, testId, children }: { titleId: string; onCancel: () => void; busy: boolean; testId: string; children: ReactNode }): ReactNode {
   const box = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    box.current?.querySelector<HTMLElement>('[data-first]')?.focus();
+    // The first control: a group's chosen answer; a confirm's Cancel takes the focus by itself.
+    box.current?.querySelector<HTMLElement>('[data-first] [role="radio"][tabindex="0"]')?.focus();
   }, []);
   return (
     <div
@@ -329,203 +601,48 @@ function InlineStep({ titleId, onCancel, busy, testId, children }: { titleId: st
   );
 }
 
-/** A small confirm: what the press does, said in full, with Cancel first (focus starts there). */
-function ConfirmStep(props: {
-  inline: boolean;
-  icon: LucideIcon;
-  tone: 'accent' | 'warn';
-  title: string;
-  body: string;
-  confirm: string;
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-  testId: string;
-}): ReactNode {
-  const t = useMaybeT();
-  const titleId = useId();
-  const Icon = props.icon;
-  const buttons = (
-    <>
-      <Button variant="secondary" autoFocus={!props.inline} data-first onClick={props.onCancel} disabled={props.busy}>
-        {t('common:consent.confirm.cancel', 'Cancel')}
-      </Button>
-      <Button onClick={props.onConfirm} loading={props.busy} data-testid={`${props.testId}-yes`}>
-        {props.confirm}
-      </Button>
-    </>
-  );
-  if (props.inline) {
-    return (
-      <InlineStep titleId={titleId} onCancel={props.onCancel} busy={props.busy} testId={props.testId}>
-        <div className="flex items-start gap-3">
-          <span className={`flex size-9 shrink-0 items-center justify-center rounded-[10px] ${props.tone === 'warn' ? 'bg-warn-soft text-warn' : 'bg-accent-soft text-accent'}`}>
-            <Icon aria-hidden="true" className="size-[18px]" />
-          </span>
-          <div className="min-w-0">
-            <h3 id={titleId} className="m-0 text-[14px] font-bold">
-              {props.title}
-            </h3>
-            <p className="m-0 mt-1 text-[12.5px] leading-normal text-fg-muted">{props.body}</p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2.5">{buttons}</div>
-      </InlineStep>
-    );
-  }
+function StepHeading({ id, glyph, tone, title, children }: { id: string; glyph: GlyphName; tone: 'accent' | 'warn'; title: string; children: ReactNode }): ReactNode {
   return (
-    <Modal
-      open
-      size="sm"
-      role="alertdialog"
-      className="max-w-[420px]"
-      onOpenChange={(open) => {
-        if (!open && !props.busy) props.onCancel();
-      }}
-    >
-      <div data-testid={props.testId}>
-        <ModalHeader
-          icon={<Icon />}
-          tone={props.tone}
-          hideClose
-          closeLabel={t('common:consent.dialog.close', 'Close')}
-          title={props.title}
-          subtitle={<span className="mx-auto mt-2 block max-w-[320px] text-body text-fg-muted">{props.body}</span>}
-          className="flex-col items-center px-6 pb-5 pt-6 text-center [&>*:first-child]:mb-1.5 [&>*:first-child]:size-[52px] [&>*:first-child]:rounded-lg [&>*:first-child_svg]:size-6"
-        />
-        <ModalFooter className="gap-2.5 [&>button]:flex-1">{buttons}</ModalFooter>
-      </div>
-    </Modal>
-  );
-}
-
-/**
- * "Record consent": one person, one purpose, how they agreed and a note. The
- * staff member and the date are the server's (from the session and the
- * clock), never typed.
- */
-function RecordConsentDialog({
-  inline,
-  name,
-  address,
-  onCancel,
-  onSave,
-}: {
-  inline: boolean;
-  name: string | null;
-  address: string | null;
-  onCancel: () => void;
-  onSave: (input: { purpose: ConsentPurpose; how: ConsentHow; note: string | null }) => Promise<void>;
-}): ReactNode {
-  const t = useMaybeT();
-  const id = useId();
-  const [purpose, setPurpose] = useState<ConsentPurpose>('newsletter');
-  const [how, setHow] = useState<ConsentHow>('in-person');
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const subtitle =
-    name === null && address === null ? undefined : (
-      <span data-testid="consent-dialog-who">
-        {name ?? ''}
-        {name !== null && address !== null ? ' · ' : ''}
-        {address === null ? null : (
-          <bdi dir="ltr" className="font-mono">
-            {address}
-          </bdi>
-        )}
+    <div className="flex items-start gap-3">
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-[10px] ${tone === 'warn' ? 'bg-warn-soft text-warn' : 'bg-accent-soft text-accent'}`}>
+        <Glyph name={glyph} className="size-[18px]" />
       </span>
-    );
-  const title = t('common:consent.dialog.title', 'Record consent');
-
-  const fields = (
-    <>
-      <div className="flex flex-col gap-[7px]">
-        <span className="text-[12.5px] font-bold" id={`${id}-purpose`}>
-          {t('common:consent.dialog.purpose', 'Purpose')}
-        </span>
-        <SegmentedControl
-          aria-labelledby={`${id}-purpose`}
-          className="self-start"
-          value={purpose}
-          onValueChange={(value) => setPurpose(value as ConsentPurpose)}
-          options={CONSENT_PURPOSES.map((one) => ({ value: one, label: purposeName(t, one) }))}
-          data-first
-        />
+      <div className="min-w-0">
+        <h3 id={id} className="m-0 text-[14px] font-bold">
+          {title}
+        </h3>
+        {children}
       </div>
-      <div className="flex flex-col gap-[7px]">
-        <span className="text-[12.5px] font-bold" id={`${id}-how`}>
-          {t('common:consent.dialog.how', 'How did they agree?')}
-        </span>
-        <ChoiceChips
-          aria-labelledby={`${id}-how`}
-          value={how}
-          onValueChange={(value) => {
-            if (value !== null) setHow(value as ConsentHow);
-          }}
-          options={CONSENT_HOWS.map((one) => ({ value: one, label: howName(t, one) }))}
-        />
-      </div>
-      <label className="flex flex-col gap-1.5" htmlFor={`${id}-note`}>
-        <span className="text-[12.5px] font-bold">{t('common:consent.dialog.note', 'Note')}</span>
-        <Textarea id={`${id}-note`} rows={3} maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} data-testid="consent-dialog-note" />
-      </label>
-      <div className="flex gap-[9px] rounded-[10px] bg-surface-3 px-[13px] py-[11px]">
-        <Stamp aria-hidden="true" className="mt-0.5 size-[15px] shrink-0 text-fg-muted" />
-        <span className="text-[12.5px] leading-normal">{t('common:consent.dialog.stamp', "Your name and today's date are saved with it.")}</span>
-      </div>
-    </>
-  );
-  const buttons = (
-    <>
-      <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>
-        {t('common:consent.dialog.cancel', 'Cancel')}
-      </Button>
-      <Button type="submit" loading={saving} data-testid="consent-dialog-save">
-        {t('common:consent.dialog.save', 'Record consent')}
-      </Button>
-    </>
-  );
-  const submit = (event: FormEvent): void => {
-    event.preventDefault();
-    setSaving(true);
-    void onSave({ purpose, how, note: note.trim() === '' ? null : note.trim() }).finally(() => setSaving(false));
-  };
-
-  if (inline) {
-    return (
-      <InlineStep titleId={`${id}-title`} onCancel={onCancel} busy={saving} testId="consent-dialog">
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <div className="flex items-start gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
-              <FilePenLine aria-hidden="true" className="size-[18px]" />
-            </span>
-            <div className="min-w-0">
-              <h3 id={`${id}-title`} className="m-0 text-[14px] font-bold">
-                {title}
-              </h3>
-              {subtitle === undefined ? null : <p className="m-0 mt-0.5 text-[11.5px] text-fg-subtle [overflow-wrap:anywhere]">{subtitle}</p>}
-            </div>
-          </div>
-          {fields}
-          <div className="flex justify-end gap-2.5">{buttons}</div>
-        </form>
-      </InlineStep>
-    );
-  }
-  return (
-    <FormDialog
-      open
-      width={560}
-      onOpenChange={(open) => {
-        if (!open && !saving) onCancel();
-      }}
-    >
-      <form onSubmit={submit} data-testid="consent-dialog">
-        <FormDialogHeader icon={<FilePenLine />} title={title} {...(subtitle === undefined ? {} : { subtitle })} closeLabel={t('common:consent.dialog.close', 'Close')} />
-        <FormDialogBody className="flex flex-col gap-4">{fields}</FormDialogBody>
-        <FormDialogFooter>{buttons}</FormDialogFooter>
-      </form>
-    </FormDialog>
+    </div>
   );
 }
+
+function InlineConfirm(props: ConfirmFrameProps): ReactNode {
+  const titleId = useId();
+  return (
+    <InlineStep titleId={titleId} onCancel={props.onCancel} busy={props.busy} testId={props.testId}>
+      <StepHeading id={titleId} glyph={props.glyph} tone={props.tone} title={props.title}>
+        <p className="m-0 mt-1 text-[12.5px] leading-normal text-fg-muted">{props.body}</p>
+      </StepHeading>
+      <div className="flex justify-end gap-2.5">{props.buttons}</div>
+    </InlineStep>
+  );
+}
+
+function InlineForm(props: FormFrameProps): ReactNode {
+  const titleId = useId();
+  return (
+    <InlineStep titleId={titleId} onCancel={props.onCancel} busy={props.busy} testId={props.testId}>
+      <form onSubmit={props.onSubmit} className="flex flex-col gap-4">
+        <StepHeading id={titleId} glyph="filePen" tone="accent" title={props.title}>
+          {props.subtitle === null ? null : <p className="m-0 mt-0.5 text-[11.5px] text-fg-subtle [overflow-wrap:anywhere]">{props.subtitle}</p>}
+        </StepHeading>
+        {props.fields}
+        <div className="flex justify-end gap-2.5">{props.buttons}</div>
+      </form>
+    </InlineStep>
+  );
+}
+
+/** The plain frames: plain controls, and the steps drawn inside the panel. */
+export const INLINE_FRAMES: ConsentFrames = { Button: PlainButton, Choice: PlainChoice, Note: PlainNote, Confirm: InlineConfirm, Form: InlineForm, inline: true };

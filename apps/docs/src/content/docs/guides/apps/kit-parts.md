@@ -794,7 +794,7 @@ board is mounted. The map brings the map library (about 290 kB compressed) and i
 150 kB), the dashboard's own files too, and only when a map is drawn: with maps switched off
 neither is fetched. The import wizard brings its own code and controls (about 25 kB compressed)
 and nothing of the dashboard's first load; the signature pad and the photo field a few kilobytes
-each. The files carry
+each; the consent panel about 9 kB, also with nothing of the dashboard's first load. The files carry
 a hash of their content in their names and are kept by the browser for good.
 
 All of it comes from the address the side is served from, so it fits

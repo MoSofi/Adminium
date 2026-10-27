@@ -212,7 +212,6 @@ const words: KitWords = {
     "common:consent.confirm.saidNoConfirm": "加入名单",
     "common:consent.confirm.saidNoTitle": "加入禁止发送邮件名单？",
     "common:consent.dialog.cancel": "取消",
-    "common:consent.dialog.close": "关闭",
     "common:consent.dialog.how": "对方如何同意？",
     "common:consent.dialog.note": "备注",
     "common:consent.dialog.purpose": "目的",

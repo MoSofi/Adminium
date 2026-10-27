@@ -5,21 +5,17 @@
  * held under the kit's wrapper, and no preflight.
  *
  * The `@source` lines name every file whose class names the panel can wear:
- * the part, the dashboard's own panel (src/consent/ConsentPanel.tsx), and the
- * controls it is drawn with. The panel's dialogs are the dashboard's alone:
- * on an app's screen they open inside the panel (`inline`). A component the
- * panel grows adds its file here; the browser test
+ * the part and the dashboard's own panel (src/consent/ConsentPanel.tsx),
+ * whose plain controls and steps are the ones drawn here; the house's
+ * controls and dialogs are the dashboard's alone (consentDialogs.tsx). A
+ * file the panel grows adds its line here; the browser test
  * (apps/e2e/tests/kit-parts.spec.ts) fails on a class with no rule.
  */
 @import '../kit-theme.css';
 
 @source './consent.tsx';
 @source '../../consent/ConsentPanel.tsx';
-@source '../../../node_modules/@adminium/ui/src/components/button/Button.tsx';
-@source '../../../node_modules/@adminium/ui/src/components/choice-chips/ChoiceChips.tsx';
-@source '../../../node_modules/@adminium/ui/src/components/segmented-control/SegmentedControl.tsx';
-@source '../../../node_modules/@adminium/ui/src/components/spinner/Spinner.tsx';
-@source '../../../node_modules/@adminium/ui/src/components/textarea/Textarea.tsx';
+@source '../../consent/glyphs.tsx';
 
 .adm-kit {
   @tailwind utilities source(none);

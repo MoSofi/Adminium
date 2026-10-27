@@ -212,7 +212,6 @@ const words: KitWords = {
     "common:consent.confirm.saidNoConfirm": "Mettre sur la liste",
     "common:consent.confirm.saidNoTitle": "Mettre sur la liste « Pas d’e-mail » ?",
     "common:consent.dialog.cancel": "Annuler",
-    "common:consent.dialog.close": "Fermer",
     "common:consent.dialog.how": "Comment a-t-elle donné son accord ?",
     "common:consent.dialog.note": "Note",
     "common:consent.dialog.purpose": "Objet",

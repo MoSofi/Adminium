@@ -16,10 +16,9 @@
  * again; a new token is used by the next call.
  */
 import { useMaybeT } from '@adminium/i18n/react';
-import { Button } from '@adminium/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { ConsentPanel } from '../../consent/ConsentPanel.js';
+import { ConsentPanel, INLINE_FRAMES } from '../../consent/ConsentPanel.js';
 import type { ConsentPanelView, ConsentRecordRef } from '../../consent/consentTypes.js';
 import { consentClient } from '../consent-client.js';
 import type { ConsentProps, KitMounted } from '../contract.js';
@@ -73,9 +72,9 @@ function KitConsent({ props }: { props: ConsentProps }): ReactNode {
     return (
       <div role="alert" className="flex flex-wrap items-center gap-2.5 text-[12.5px]" data-testid="kit-consent-failed">
         <span>{t('common:consent.panel.loadFailed', 'Their e-mail consent could not be loaded.')}</span>
-        <Button variant="secondary" size="sm" onClick={() => void load()}>
+        <INLINE_FRAMES.Button tone="secondary" onClick={() => void load()}>
           {t('common:consent.panel.retry', 'Try again')}
-        </Button>
+        </INLINE_FRAMES.Button>
       </div>
     );
   }
@@ -83,7 +82,6 @@ function KitConsent({ props }: { props: ConsentProps }): ReactNode {
   if (!read.view.declared) return null;
   return (
     <ConsentPanel
-      inline
       record={record}
       view={read.view}
       client={client}

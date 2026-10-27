@@ -16,6 +16,7 @@ import { getI18nInstance } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { consentQueryKey, dashboardConsentClient } from './consentApi.js';
 import { ConsentPanel } from './ConsentPanel.js';
+import { DIALOG_FRAMES } from './consentDialogs.js';
 import type { ConsentPanelView, ConsentRecordRef } from './consentTypes.js';
 
 export interface RecordConsentPanelProps {
@@ -39,6 +40,7 @@ export default function RecordConsentPanel({ record, view, name, address }: Reco
       locale={getI18nInstance()?.language ?? 'en-US'}
       onChanged={() => queryClient.invalidateQueries({ queryKey: consentQueryKey(record) })}
       notify={(message, tone) => toasts.push({ variant: tone, title: message })}
+      frames={DIALOG_FRAMES}
     />
   );
 }

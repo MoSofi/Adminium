@@ -212,7 +212,6 @@ const words: KitWords = {
     "common:consent.confirm.saidNoConfirm": "Dát na seznam",
     "common:consent.confirm.saidNoTitle": "Dát na seznam „Neposílat e-maily“?",
     "common:consent.dialog.cancel": "Zrušit",
-    "common:consent.dialog.close": "Zavřít",
     "common:consent.dialog.how": "Jak souhlas dal(a)?",
     "common:consent.dialog.note": "Poznámka",
     "common:consent.dialog.purpose": "Účel",

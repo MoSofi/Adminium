@@ -212,7 +212,6 @@ const words: KitWords = {
     "common:consent.confirm.saidNoConfirm": "إضافة إلى القائمة",
     "common:consent.confirm.saidNoTitle": "إضافة هذا الشخص إلى قائمة عدم المراسلة؟",
     "common:consent.dialog.cancel": "إلغاء",
-    "common:consent.dialog.close": "إغلاق",
     "common:consent.dialog.how": "كيف تمّت الموافقة؟",
     "common:consent.dialog.note": "ملاحظة",
     "common:consent.dialog.purpose": "الغرض",

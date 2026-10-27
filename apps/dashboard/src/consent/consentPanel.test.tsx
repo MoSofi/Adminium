@@ -26,7 +26,8 @@ import { I18nProvider } from '@adminium/i18n/react';
 import { EN_US_RESOURCES } from '@adminium/i18n/resources';
 import arCommon from '@adminium/i18n/resources/ar-eg/common';
 
-import { ConsentPanel } from './ConsentPanel.js';
+import { ConsentPanel, type ConsentFrames } from './ConsentPanel.js';
+import { DIALOG_FRAMES } from './consentDialogs.js';
 import type { ConsentClient, ConsentEventView, ConsentPanelView } from './consentTypes.js';
 
 const RECORD = { connectionId: 'conn_1', table: 'main.crm_contacts', recordId: '7' };
@@ -97,7 +98,7 @@ function fakeClient(start: ConsentPanelView) {
 }
 
 /** The panel as the record page holds it: read again after a change. */
-function Harness({ client, start, address, notify }: { client: ConsentClient; start: ConsentPanelView; address: string | null; notify?: (message: string) => void }): ReactNode {
+function Harness({ client, start, address, notify, frames }: { client: ConsentClient; start: ConsentPanelView; address: string | null; notify?: (message: string) => void; frames?: ConsentFrames }): ReactNode {
   const [view, setView] = useState(start);
   return (
     <ConsentPanel
@@ -109,6 +110,7 @@ function Harness({ client, start, address, notify }: { client: ConsentClient; st
       locale="en-GB"
       onChanged={async () => setView(await client.panel(RECORD))}
       {...(notify === undefined ? {} : { notify: (message: string) => notify(message) })}
+      {...(frames === undefined ? {} : { frames })}
     />
   );
 }
@@ -219,6 +221,23 @@ describe('the e-mail consent panel', () => {
     render(<Harness client={client} start={viewOf()} address={ADDRESS} />);
     await user.click(screen.getByTestId('consent-record'));
     expect((await screen.findByTestId('consent-dialog-who')).textContent).toBe(`Marta Kovac · ${ADDRESS}`);
+  });
+
+  it('on the record page, asks in the house\'s dialogs: a confirm over the page, and the Record consent dialog', async () => {
+    const user = userEvent.setup();
+    const { client, calls } = fakeClient(viewOf());
+    render(<Harness client={client} start={viewOf()} address={null} frames={DIALOG_FRAMES} />);
+    await user.click(screen.getByTestId('consent-replied'));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Mark as replied?' });
+    expect(screen.getByTestId('consent-panel').contains(confirm)).toBe(false);
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await user.click(screen.getByTestId('consent-record'));
+    const dialog = await screen.findByRole('dialog', { name: 'Record consent' });
+    expect(within(dialog).getByTestId('consent-dialog-who').textContent).toBe('Marta Kovac');
+    await user.click(within(dialog).getByTestId('consent-dialog-save'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(calls).toEqual([{ what: 'record', body: { purpose: 'newsletter', how: 'in-person', note: null } }]);
   });
 
   it('"They said no" asks first, writes once, and then shows the banner', async () => {
