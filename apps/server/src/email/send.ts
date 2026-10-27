@@ -47,6 +47,7 @@ import {
   jobsRepo,
   settingsRepo,
   type EmailAttachment,
+  type ConsentPurpose,
   type EmailBrand,
   type EnqueueJobInput,
   type Job,
@@ -104,6 +105,18 @@ export const EMAIL_SEND_PAYLOAD_VERSION_MARKETING = 4;
 
 /** The two classes of mail to a contact; mail to staff has none. */
 export type EmailMailClass = 'marketing' | 'service';
+
+/**
+ * What a marketing mail was judged on when it was queued: the purpose it
+ * writes for, the basis it went on, and the person it is about. Sealed with
+ * it, so the hand-over asks the same question again (`jobs/email-send.ts`):
+ * a "no" for that purpose given since it was queued stops it there.
+ */
+export interface MarketingStanding {
+  purpose: ConsentPurpose;
+  basis: 'consent' | 'existing-customers';
+  person: { connectionId: string; table: string; key: string } | null;
+}
 
 /** One plain address, and nothing a header could be split on or a list made of. */
 export const REPLY_TO = PLAIN_DOTTED;
@@ -297,6 +310,8 @@ export interface EnqueueEmailInput {
   mailClass?: EmailMailClass | undefined;
   /** What a marketing mail carries (`marketing.ts`): its list headers and its locked footer, drawn last. */
   marketing?: MarketingCarry | undefined;
+  /** What a marketing mail was judged on, asked again at the hand-over. */
+  standing?: MarketingStanding | undefined;
 }
 
 /** The template with a person's wording in place of its own; unchanged where they wrote nothing. */
@@ -368,6 +383,8 @@ interface EmailEnvelope {
   mailClass?: EmailMailClass | undefined;
   /** Headers the message goes with: a marketing mail's `List-Unsubscribe` and `List-Unsubscribe-Post`. */
   headers?: Record<string, string> | undefined;
+  /** A marketing mail's standing when queued, asked again at the hand-over. */
+  standing?: MarketingStanding | undefined;
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
@@ -553,6 +570,8 @@ export interface EnqueueRenderedEmailInput {
   mailClass?: EmailMailClass | undefined;
   /** A marketing mail's list headers. */
   headers?: Record<string, string> | undefined;
+  /** What a marketing mail was judged on, asked again at the hand-over (marketing mail only). */
+  standing?: MarketingStanding | undefined;
 }
 
 /**
@@ -595,6 +614,7 @@ export async function enqueueRenderedEmail(
     ...(qr.length === 0 ? {} : { qr }),
     ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
     ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
+    ...(input.mailClass !== 'marketing' || input.standing === undefined ? {} : { standing: input.standing }),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
   const attachments = [...(input.attachments ?? [])];
@@ -706,6 +726,7 @@ export async function enqueueEmail(
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
       ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
       ...(input.marketing === undefined ? {} : { headers: input.marketing.headers }),
+      ...(input.standing === undefined ? {} : { standing: input.standing }),
     },
   );
 }

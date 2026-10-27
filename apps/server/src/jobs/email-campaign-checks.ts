@@ -23,7 +23,9 @@
  *    its two headers, the locked footer), with the token naming the ledger
  *    row so the send log can say "Unsubscribed" on it. A row that went on
  *    the existing-customers basis gets the "all marketing mail" line: its
- *    page has the one button.
+ *    page has the one button. And what the row was judged on (its purpose,
+ *    its basis, its person), sealed with the message, so the hand-over asks
+ *    the same verdict again (`email-send.ts`).
  *
  * The purpose is the audience's when it names one, else the newsletter.
  */
@@ -32,7 +34,7 @@ import { emailRunsRepo, type ConsentPurpose, type EmailRun, type EmailSend, type
 import { withClickLinks } from '../email/click-link.js';
 import { mailLinkKeys } from '../email/link-keys.js';
 import { DEFAULT_MARKETING_PURPOSE, type MarketingCarry, type MarketingMail, type MarketingVerdict } from '../email/marketing.js';
-import { fromOf } from '../email/send.js';
+import { fromOf, type MarketingStanding } from '../email/send.js';
 import { UNSUBSCRIBE_PATH } from '../email/unsubscribe-token.js';
 import type { CampaignSeams } from './email-campaign-run.js';
 
@@ -65,13 +67,10 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
   /** The ground each row passed on, kept from its check to its message (the same batch, the same process). */
   const passed = new Map<string, MarketingVerdict>();
 
+  const personOf = (row: EmailSend) => (row.connectionId !== null && row.personTable !== null && row.personKey !== null ? { connectionId: row.connectionId, table: row.personTable, key: row.personKey } : null);
+
   async function verdictOf(row: EmailSend, run: EmailRun): Promise<MarketingVerdict> {
-    return marketing.verdict({
-      address: row.address,
-      person: row.connectionId !== null && row.personTable !== null && row.personKey !== null ? { connectionId: row.connectionId, table: row.personTable, key: row.personKey } : null,
-      purpose: runPurpose(run),
-      existingCustomer: run.basis === 'existing-customers',
-    });
+    return marketing.verdict({ address: row.address, person: personOf(row), purpose: runPurpose(run), existingCustomer: run.basis === 'existing-customers' });
   }
 
   return {
@@ -96,12 +95,13 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
       return 'send';
     },
 
-    async carryFor(row, run, locale): Promise<(MarketingCarry & { clicks?: (html: string) => string }) | null> {
+    async carryFor(row, run, locale): Promise<(MarketingCarry & { clicks?: (html: string) => string; standing?: MarketingStanding }) | null> {
       if (run.mailClass !== 'marketing') return null;
       const verdict = passed.get(row.id) ?? (await verdictOf(row, run));
       passed.delete(row.id);
       const purpose = 'send' in verdict && verdict.send === 'existing-customers' ? null : runPurpose(run);
-      const carry = await marketing.carry({ to: row.address, purpose, locale, send: row.id });
+      const standing: MarketingStanding = { purpose: runPurpose(run), basis: 'send' in verdict ? verdict.send : 'consent', person: personOf(row) };
+      const carry = { ...(await marketing.carry({ to: row.address, purpose, locale, send: row.id })), standing };
       if (options.trackClicks?.(run) !== true) return carry;
       const origin = new URL(carry.locked.link.href).origin;
       const key = await mailLinkKeys(options.meta, options.secret).click();

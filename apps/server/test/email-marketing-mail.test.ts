@@ -384,6 +384,35 @@ for (const engine of META_ENGINES) {
         expect(done.map((job) => job.status)).toEqual(['succeeded', 'succeeded']);
       });
 
+      it('asks the person’s answer for the mail’s purpose again at the hand-over: a "no" since it was queued stops it, another purpose’s does not', async () => {
+        const cy = { connectionId: 'conn_1', table: 'public.contacts', key: '9' };
+        const judged = async (to: string, basis: 'consent' | 'existing-customers', person: typeof cy | null = null) => {
+          const carry = await kit.carry({ to, purpose: basis === 'consent' ? 'newsletter' : null, locale: 'en_US' });
+          const job = await enqueueEmail(
+            { meta, secret: TEST_SECRET },
+            { to, templateKey: 'autumn-news', locale: 'en_US', vars: { name: 'Ana' }, template: message, report: { app: 'crm', connectionId: 'conn_1', table: 'public.messages', pk: { id: 3 } }, mailClass: 'marketing', marketing: carry, standing: { purpose: 'newsletter', basis, person } },
+          );
+          expect(job).not.toBeNull();
+        };
+        for (const address of ['ana@cobaltlegal.dev', 'fay@cobaltlegal.dev']) await kit.consent.record({ address, purpose: 'newsletter', source: 'import', state: 'yes' });
+        await kit.consent.record({ person: cy, purpose: 'newsletter', source: 'import', state: 'yes' });
+        await judged('ana@cobaltlegal.dev', 'consent');
+        await judged('cy@cobaltlegal.dev', 'consent', cy);
+        await judged('dee@cobaltlegal.dev', 'existing-customers');
+        await judged('eve@cobaltlegal.dev', 'existing-customers');
+        // One queued before the standing was sealed with it: the list alone is asked again.
+        await queue('fay@cobaltlegal.dev', 'marketing');
+        // Since then: Ana and Eve say no to the newsletter, Cy to surveys, Fay to the newsletter.
+        for (const address of ['ana@cobaltlegal.dev', 'eve@cobaltlegal.dev', 'fay@cobaltlegal.dev']) await kit.consent.withdraw({ address, purpose: 'newsletter', source: 'unsubscribe' });
+        await kit.consent.withdraw({ person: cy, purpose: 'surveys', source: 'unsubscribe' });
+        await drain(worker);
+        expect(sink.messages.map((one) => one.to[0]).sort()).toEqual(['cy@cobaltlegal.dev', 'dee@cobaltlegal.dev', 'fay@cobaltlegal.dev']);
+        // The rows they were for are told: not sent, and why (never the address).
+        expect(gaveUp.map((one) => String((one.error as Error).message))).toEqual(['Not sent: has not agreed to marketing mail', 'Not sent: has not agreed to marketing mail']);
+        const done = await meta.db.selectFrom('adminium_jobs').select(['status']).where('kind', '=', 'email.send').execute();
+        expect(done.map((job) => job.status)).toEqual(['succeeded', 'succeeded', 'succeeded', 'succeeded', 'succeeded']);
+      });
+
       it('fails closed at delivery: with the list’s keys unreadable, a marketing mail is not handed over', async () => {
         await kit.consent.stop.add({ address: 'ana@cobaltlegal.dev', reason: 'link' });
         const locked = createJobRegistry();
@@ -530,6 +559,17 @@ for (const engine of META_ENGINES) {
         await drain(worker);
         expect(sink.messages).toHaveLength(0);
         expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'skipped-stop', reason: 'do-not-email' });
+        expect(await emailRunsRepo(meta).findById(runId)).toMatchObject({ sent: 0, failed: 0, skipped: 4 });
+      });
+
+      it('a person who says no to the run’s purpose after their row was handed over is skipped at delivery: skipped-consent, the run counts it', async () => {
+        const runId = await marketingRun();
+        await worker.runOnce();
+        expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'sent' });
+        await kit.consent.withdraw({ address: 'agreed@cobaltlegal.dev', purpose: 'newsletter', source: 'unsubscribe' });
+        await drain(worker);
+        expect(sink.messages).toHaveLength(0);
+        expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'skipped-consent', reason: 'not-agreed' });
         expect(await emailRunsRepo(meta).findById(runId)).toMatchObject({ sent: 0, failed: 0, skipped: 4 });
       });
 

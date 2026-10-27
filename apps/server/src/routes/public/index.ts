@@ -1004,7 +1004,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     if (session === null || claimed === null || session.kind === 'token') return null;
     if (session.level !== 'verified' && session.kind !== 'link') return null;
     const claim = ok.key.scope.claim;
-    if (claim === null || claim.ref !== session.grant.ref || claim.email === undefined) return null;
+    if (claim === null || claim === undefined || claim.ref !== session.grant.ref || claim.email === undefined) return null;
     const value = claimed[claim.email];
     return plausibleAddress(value) ? normaliseAddress(value) : null;
   };

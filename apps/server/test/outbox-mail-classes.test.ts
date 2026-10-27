@@ -274,6 +274,9 @@ for (const [dialect, reachable] of LEGS) {
       expect(offer.html).toContain(`href="${ORIGIN}/m/u/`);
       expect(receipt.headers).toBeUndefined();
       expect(receipt.text).not.toContain(POSTAL);
+      // What the offer was judged on is sealed with it, for the hand-over to ask again; the receipt carries none.
+      expect((offer as { standing?: unknown }).standing).toEqual({ purpose: 'newsletter', basis: 'consent', person: { connectionId: s.connectionId, table: s.t('customers'), key: '2' } });
+      expect((receipt as { standing?: unknown }).standing).toBeUndefined();
       const queued = await s.meta.db.selectFrom('adminium_jobs').select(['payload']).where('kind', '=', 'email.send').execute();
       const versions = queued.map((row) => (typeof row.payload === 'string' ? (JSON.parse(row.payload) as { v: number }) : (row.payload as { v: number })).v);
       expect(versions).toContain(4);
