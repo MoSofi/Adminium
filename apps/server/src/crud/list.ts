@@ -23,7 +23,7 @@ import {
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
 import { applyDerivedFields } from './derive.js';
 import { applyMeasureMask, measureSelections, type ResolvedMeasure } from './measures.js';
-import { applyLookupMask, lookupSelections, type ResolvedLookup } from './lookups.js';
+import { applyLookupMask, lookupSelections, readWithLookups, type ResolvedLookup } from './lookups.js';
 import { maskRows, type Row } from './mask.js';
 import type { RowTest } from './row-limit.js';
 import { cursorText } from '../security/nul-bytes.js';
@@ -368,11 +368,16 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   let qb = applyFilters(
     db.selectFrom(table.id).select([...selectNames].map((name) => dynamic.ref(name))) as unknown as Qb,
   );
-  if (lookups.length > 0) {
-    // Refused lookups compile to nothing — applyLookupMask() nulls + marks
-    // them after the fetch, so refused data never leaves the database.
-    qb = qb.select((eb) => lookupSelections(eb as never, db, table, lookups)) as Qb;
-  }
+  // Refused lookups compile to nothing — applyLookupMask() nulls + marks
+  // them after the fetch, so refused data never leaves the database. Added at
+  // the fetch, so a lookup the database itself refuses can be dropped and the
+  // same query run again (`readWithLookups`).
+  const withLookups = (q: Qb, current: readonly ResolvedLookup[]): Qb =>
+    current.some((lookup) => !lookup.refused)
+      ? (q.select((eb) => lookupSelections(eb as never, db, table, current)) as Qb)
+      : q;
+  const fetchRows = (q: Qb) =>
+    readWithLookups(db, table, lookups, async (current) => (await withLookups(q, current).execute()) as Row[]);
   if (measures.length > 0) {
     // Same contract: refused measures never reach SQL.
     qb = qb.select((eb) => measureSelections(eb as never, db, table, measures)) as Qb;
@@ -472,7 +477,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   }
 
   if (cursorMode) {
-    const rows = (await qb.limit(limit + 1).execute()) as Row[];
+    const { result: rows, lookups: applied } = await fetchRows(qb.limit(limit + 1) as Qb);
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
     const last = pageRows.at(-1);
@@ -480,14 +485,14 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
       hasMore && last !== undefined ? encodeCursor(sortKeys.map((key) => last[key.column])) : null;
     return {
       data: applyDerivedFields(
-        applyMeasureMask(applyLookupMask(maskRows(pageRows, table, canReadPii), lookups), measures),
+        applyMeasureMask(applyLookupMask(maskRows(pageRows, table, canReadPii), applied), measures),
         derivedFields,
       ),
       cursor: { next },
     };
   }
 
-  const rows = (await qb.limit(limit).offset(offset).execute()) as Row[];
+  const { result: rows, lookups: applied } = await fetchRows(qb.limit(limit).offset(offset) as Qb);
   let total: number | null = null;
   if (params.count !== 'none') {
     // `estimated` consults catalog statistics only for unfiltered lists —
@@ -525,7 +530,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   }
   return {
     data: applyDerivedFields(
-      applyMeasureMask(applyLookupMask(maskRows(rows, table, canReadPii), lookups), measures),
+      applyMeasureMask(applyLookupMask(maskRows(rows, table, canReadPii), applied), measures),
       derivedFields,
     ),
     page: { limit, offset, total },

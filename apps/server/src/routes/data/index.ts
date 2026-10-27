@@ -3234,8 +3234,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         let data = staffRow(ctx.dialect, row, ctx.readTable, ctx.unmasked);
         const { lookups, measures, fields } = await projectionsFor(request, ctx, request.query);
         if (lookups.length > 0) {
-          const values = await fetchLookupValues(ctx.db, ctx.table, pk, lookups);
-          data = applyLookupMask([{ ...data, ...values }], lookups)[0] as Row;
+          const fetched = await fetchLookupValues(ctx.db, ctx.table, pk, lookups);
+          data = applyLookupMask([{ ...data, ...fetched.values }], fetched.lookups)[0] as Row;
         }
         if (measures.length > 0) {
           const values = await fetchMeasureValues(ctx.db, ctx.table, pk, measures);

@@ -27,7 +27,11 @@
  * column) is masked for a caller who may not see THAT table's personal
  * columns (crud/mask.ts), resolves to `null`
  * and is listed in the row's `_masked` marker — the page keeps rendering for
- * a low-privilege caller instead of 403ing wholesale. Malformed specs and
+ * a low-privilege caller instead of 403ing wholesale. The same holds for a
+ * table the connection's DATABASE role may not read (Supabase's `auth.users`,
+ * reached from every app table): the database refuses the whole statement, so
+ * {@link refuseUnreadableLookups} finds which lookups it refused and the read
+ * is run again without them. Malformed specs and
  * unknown/secret identifiers stay hard 422s: those are page-author mistakes
  * that must surface, not per-caller conditions.
  */
@@ -35,6 +39,7 @@
 import type { ExpressionBuilder, Kysely } from 'kysely';
 
 import { ValidationFailedError } from '../errors.js';
+import { isPrivilegeRefusal } from '../connections/privileges.js';
 import { assertNotReservedAlias } from './reserved-aliases.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
@@ -316,27 +321,92 @@ export function applyLookupMask(rows: Row[], lookups: readonly ResolvedLookup[])
 }
 
 /**
+ * The lookups again, with every one the DATABASE refuses to this connection's
+ * role marked `refused` — asked after a read failed for want of a right.
+ *
+ * Each granted lookup is tried alone against the table (`LIMIT 1`: the
+ * database checks every table a statement names before it reads a row, so an
+ * empty table answers too). Only called on that failure path, so a list that
+ * loads pays nothing for it. Inside a transaction a failed statement aborts the
+ * rest (PostgreSQL), so there is no asking: the lookups come back as they were
+ * and the caller's error stands.
+ */
+export async function refuseUnreadableLookups(
+  db: Kysely<SourceDatabase>,
+  table: ResolvedTable,
+  lookups: readonly ResolvedLookup[],
+): Promise<ResolvedLookup[]> {
+  if (db.isTransaction) return [...lookups];
+  const out: ResolvedLookup[] = [];
+  for (const lookup of lookups) {
+    if (lookup.refused) {
+      out.push(lookup);
+      continue;
+    }
+    try {
+      await db
+        .selectFrom(table.id)
+        .select((eb) => lookupSelections(eb as ExpressionBuilder<SourceDatabase, string>, db, table, [lookup]))
+        .limit(1)
+        .execute();
+      out.push(lookup);
+    } catch (error) {
+      if (!isPrivilegeRefusal(error)) throw error;
+      out.push({ ...lookup, refused: true });
+    }
+  }
+  return out;
+}
+
+/**
+ * Run a read that carries lookups; when the database refuses it for want of a
+ * right and one of the lookups is why, run it again without those. Returns
+ * the rows and the lookups as they were applied, for {@link applyLookupMask}.
+ * A refusal no lookup explains (the table itself) is rethrown as it came.
+ */
+export async function readWithLookups<T>(
+  db: Kysely<SourceDatabase>,
+  table: ResolvedTable,
+  lookups: readonly ResolvedLookup[],
+  read: (lookups: readonly ResolvedLookup[]) => Promise<T>,
+): Promise<{ result: T; lookups: readonly ResolvedLookup[] }> {
+  try {
+    return { result: await read(lookups), lookups };
+  } catch (error) {
+    if (!isPrivilegeRefusal(error) || !lookups.some((lookup) => !lookup.refused)) throw error;
+    const narrowed = await refuseUnreadableLookups(db, table, lookups);
+    const changed = narrowed.some((lookup, index) => lookup.refused !== lookups[index]?.refused);
+    if (!changed) throw error;
+    return { result: await read(narrowed), lookups: narrowed };
+  }
+}
+
+/**
  * Fetch the lookup values for ONE record (the single-record GET) — the same
  * expressions the list compiles, with the pk as the predicate. Returns the
- * alias → value map for grantable lookups; refused ones are handled by
- * {@link applyLookupMask} on the merged row.
+ * alias → value map for grantable lookups, and the lookups as applied: one the
+ * database refuses is marked refused there, and {@link applyLookupMask} on the
+ * merged row nulls and marks it.
  */
 export async function fetchLookupValues(
   db: Kysely<SourceDatabase>,
   table: ResolvedTable,
   pk: Row,
   lookups: readonly ResolvedLookup[],
-): Promise<Row> {
-  const granted = lookups.filter((lookup) => !lookup.refused);
-  if (granted.length === 0) return {};
-  let qb = db
-    .selectFrom(table.id)
-    .select((eb) => lookupSelections(eb as ExpressionBuilder<SourceDatabase, string>, db, table, granted));
-  for (const [column, value] of Object.entries(pk)) {
-    qb = qb.where((eb) => eb(db.dynamic.ref(column), '=', value));
-  }
-  const row = (await qb.executeTakeFirst()) as Row | undefined;
-  const out: Row = {};
-  for (const lookup of granted) out[lookup.alias] = row?.[lookup.alias] ?? null;
-  return out;
+): Promise<{ values: Row; lookups: readonly ResolvedLookup[] }> {
+  const { result, lookups: applied } = await readWithLookups(db, table, lookups, async (current) => {
+    const granted = current.filter((lookup) => !lookup.refused);
+    if (granted.length === 0) return {};
+    let qb = db
+      .selectFrom(table.id)
+      .select((eb) => lookupSelections(eb as ExpressionBuilder<SourceDatabase, string>, db, table, granted));
+    for (const [column, value] of Object.entries(pk)) {
+      qb = qb.where((eb) => eb(db.dynamic.ref(column), '=', value));
+    }
+    const row = (await qb.executeTakeFirst()) as Row | undefined;
+    const out: Row = {};
+    for (const lookup of granted) out[lookup.alias] = row?.[lookup.alias] ?? null;
+    return out;
+  });
+  return { values: result, lookups: applied };
 }
