@@ -290,7 +290,7 @@ for (const [dialect, reachable] of LEGS) {
         ]),
       );
       const keeping = await s.get('pia', '/api/v1/privacy/keeping');
-      expect(dataOf(keeping)).toEqual({ rows: [{ key: 'consent-history', fixed: true, keptFor: 'forever', options: [] }, { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] }] });
+      expect(dataOf(keeping)).toEqual({ rows: [{ key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] }, { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] }] });
     });
 
     it('keeps the privacy notice: https only, read without signing in by the pages strangers see', async () => {

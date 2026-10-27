@@ -199,7 +199,7 @@ export function exportDownloadHref(id: string): string {
 export interface KeepingRow {
   key: string;
   fixed: boolean;
-  keptFor: 'forever' | number;
+  keptFor: 'forever' | 'until-erased' | number;
   options: number[];
 }
 

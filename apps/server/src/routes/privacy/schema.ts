@@ -118,7 +118,7 @@ export const eraseReply = z.object({
 
 export const keepingReply = z.object({
   data: z.object({
-    rows: z.array(z.object({ key: z.string(), fixed: z.boolean(), keptFor: z.union([z.literal('forever'), z.number()]), options: z.array(z.number()) })),
+    rows: z.array(z.object({ key: z.string(), fixed: z.boolean(), keptFor: z.union([z.literal('forever'), z.literal('until-erased'), z.number()]), options: z.array(z.number()) })),
   }),
 });
 

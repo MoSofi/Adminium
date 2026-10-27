@@ -122305,6 +122305,12 @@
                                     ]
                                   },
                                   {
+                                    "type": "string",
+                                    "enum": [
+                                      "until-erased"
+                                    ]
+                                  },
+                                  {
                                     "type": "number"
                                   }
                                 ]
