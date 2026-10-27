@@ -17,4 +17,4 @@ and the erasure lists them under "What stays" with the reason, in the reader's l
 copies are still found and exported with the person.
 
 `keep` is not [`states.noDelete`](https://docs.adminium.dev/reference/manifest/#states): that refuses a delete of a row in some states (a sent
-invoice is voided, not deleted) and says nothing of the law. Needs Adminium 0.3.37.
+invoice is voided, not deleted) and says nothing of the law. Needs Adminium 0.3.38.

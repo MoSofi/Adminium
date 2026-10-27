@@ -5,8 +5,8 @@
  * and a rule's e-mail step as a kind of mail, as the owner.
  *
  *  1. The record page shows "E-mail consent" below the tabs. An app that
- *     declares a people table needs Adminium 0.3.37, which this server
- *     (0.3.36) refuses to install, so the panel's reply is the server's own
+ *     declares a people table needs Adminium 0.3.38, which this server
+ *     (0.3.37) refuses to install, so the panel's reply is the server's own
  *     with `declared` set (`page.route`); everything else in it, and every
  *     write, is the server's. "Replied" says what it does, asks, writes, and
  *     its line shows with a toast; "Record consent" writes the purpose, how
@@ -48,7 +48,7 @@ async function shot(page: Page, name: string): Promise<void> {
 async function asMarketer(browser: Browser, options: { viewport?: { width: number; height: number }; colorScheme?: 'light' | 'dark' } = {}): Promise<{ page: Page; close: () => Promise<void> }> {
   const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: marketer!.cookies, origins: [] }, viewport: options.viewport ?? { width: 1440, height: 900 }, colorScheme: options.colorScheme ?? 'light' });
   const page = await context.newPage();
-  // The server's own panel, with `declared` set (see the header): a CRM's Contacts on 0.3.37.
+  // The server's own panel, with `declared` set (see the header): a CRM's Contacts on 0.3.38.
   await page.route('**/api/v1/consent/panel', async (route) => {
     const answer = await route.fetch();
     const body = (await answer.json()) as { data?: Record<string, unknown> };

@@ -25,7 +25,7 @@ import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.37' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.38' }));
 
 const ORIGIN = 'https://crm.meridian.example';
 const POSTAL = 'Meridian Workplace Ltd, 4 Wharf Lane, Leeds LS1 4BR, United Kingdom';
@@ -42,7 +42,7 @@ function crm(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A small CRM.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: '0.3.37', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.38', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [

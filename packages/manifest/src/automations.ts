@@ -30,7 +30,7 @@ import { bcp47TagSchema, refSchema, type ReferenceIssue } from './refs.js';
 export const MANIFEST_AUTOMATIONS_MAX = 32;
 /** How many a manifest could ship before: one with more says so, so a server that reads only these refuses it by its version. */
 export const MANIFEST_AUTOMATIONS_FIRST_MAX = 12;
-/** How many it could ship until Adminium 0.3.37: one with more says so the same way. */
+/** How many it could ship until Adminium 0.3.38: one with more says so the same way. */
 export const MANIFEST_AUTOMATIONS_SECOND_MAX = 24;
 export const AUTOMATION_NODES_MAX = 40;
 
@@ -203,7 +203,7 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
       replyTo: z.object({ staff: staffPath }).strict().optional(),
       /**
        * A mail to the record's own address (`to.kind` `field`) is marketing
-       * or service mail; from Adminium 0.3.37 it says which (see
+       * or service mail; from Adminium 0.3.38 it says which (see
        * `mail-class.ts`). A mail to staff (`staff`, `listed`) says nothing:
        * it is never stopped.
        */

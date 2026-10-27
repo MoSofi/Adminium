@@ -30,7 +30,7 @@ import { packageTarball } from './app-bundle-helpers.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.37' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.38' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 type Version = '0.1.0' | '0.1.1' | '0.1.2';
@@ -47,7 +47,7 @@ function app(version: Version): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A box office.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: declared ? '0.3.37' : '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: declared ? '0.3.38' : '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [

@@ -2603,8 +2603,8 @@ test('at 390 wide and dark, no step of the wizard makes the page scroll sideways
 
 /**
  * The record's consent, as the server answers it, with `declared` set: an app
- * that declares a people table needs Adminium 0.3.37, which this server
- * (0.3.36) refuses to install. Every other word of the reply, and every
+ * that declares a people table needs Adminium 0.3.38, which this server
+ * (0.3.37) refuses to install. Every other word of the reply, and every
  * write, is the server's own.
  */
 async function declared(page: Page): Promise<void> {

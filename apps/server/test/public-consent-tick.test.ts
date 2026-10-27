@@ -34,7 +34,7 @@ import { guest, mailReady, shopManifest } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 // The people word and the public tick are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.37' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.38' }));
 
 type Doc = Record<string, unknown>;
 
@@ -79,7 +79,7 @@ function tickingShop(): Doc {
     { table: 'subscribers', kind: 'people', email: 'email', name: 'name', consent: { column: 'opt_in', purpose: 'newsletter' } },
   ];
   (manifest['outbox'] as Doc)['classes'] = { 'order-placed': 'service' };
-  manifest['compatibility'] = { minAdminiumVersion: '0.3.37' };
+  manifest['compatibility'] = { minAdminiumVersion: '0.3.38' };
   return manifest;
 }
 

@@ -335,16 +335,16 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'requiredWhen.stamp': '0.3.35',
   // Each outbox kind's class beside its template, and a rule's e-mail to the record's own address marked marketing or service:
   // from this release on every one says which (see `mail-class.ts`).
-  'outbox.classes': '0.3.37',
-  'automations.emailClass': '0.3.37',
+  'outbox.classes': '0.3.38',
+  'automations.emailClass': '0.3.38',
   // An app's people tables: their address, name, consent and copies, read by e-mail to contacts and a person's data.
-  'people': '0.3.37',
+  'people': '0.3.38',
   // A table whose rows the law keeps: an erasure leaves them and says why.
-  'table.keep': '0.3.37',
+  'table.keep': '0.3.38',
   // A stranger's consent tick on a public entry: the row's bool, its purpose, the sentence shown and its version.
-  'publicAccess.consent': '0.3.37',
+  'publicAccess.consent': '0.3.38',
   // More rules than a manifest could ship before (twenty-four, now thirty-two).
-  'automations.more': '0.3.37',
+  'automations.more': '0.3.38',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */

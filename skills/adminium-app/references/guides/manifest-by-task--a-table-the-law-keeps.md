@@ -9,6 +9,6 @@ Rows the law makes the business keep (invoices, a patient's records) say so in t
 ```
 
 `law` is `tax`, `health`, `contract` or `safety`. An erasure leaves these rows as they are and
-lists them, with the reason, under "What stays". Needs `0.3.37`.
+lists them, with the reason, under "What stays". Needs `0.3.38`.
 
 Reference: [Kept by law](https://docs.adminium.dev/reference/manifest/#kept-by-law).

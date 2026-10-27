@@ -2,7 +2,7 @@
 
 # Manifest spec: Automations
 
-`automations` lists up to 32 rules (more than 12 needs `minAdminiumVersion` `0.3.28`, more than 24 needs `0.3.37`) an app or an add-on brings with it: "when a stock point falls
+`automations` lists up to 32 rules (more than 12 needs `minAdminiumVersion` `0.3.28`, more than 24 needs `0.3.38`) an app or an add-on brings with it: "when a stock point falls
 to its reorder level, write a request and tell the managers". A rule is written the way the
 [rules page](https://docs.adminium.dev/guides/automations/) stores one, a trigger and then a flow of steps. A manifest
 that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
@@ -37,7 +37,7 @@ A step's action is one of six:
 | `kind` | Keys | What it does |
 |---|---|---|
 | `notification` | `to: { "roles" }`, `to: { "column", "lead"?, "else"? }` or `to: { "listed" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row), or [the lead of that person](https://docs.adminium.dev/reference/manifest/#the-lead-of-the-person-on-the-row), or [the people listed on the row](https://docs.adminium.dev/reference/manifest/#the-people-listed-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }`, `vars`?, `replyTo: { "staff": column }`?, `class`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row), or one to each of [the people listed on the row](https://docs.adminium.dev/reference/manifest/#the-people-listed-on-the-row). A mail to the record's address says `class`, [marketing or service](https://docs.adminium.dev/reference/manifest/#marketing-or-service) (from `0.3.37`, always). |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }`, `vars`?, `replyTo: { "staff": column }`?, `class`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row), or one to each of [the people listed on the row](https://docs.adminium.dev/reference/manifest/#the-people-listed-on-the-row). A mail to the record's address says `class`, [marketing or service](https://docs.adminium.dev/reference/manifest/#marketing-or-service) (from `0.3.38`, always). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](https://docs.adminium.dev/reference/manifest/#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](https://docs.adminium.dev/reference/manifest/#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |

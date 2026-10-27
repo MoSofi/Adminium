@@ -169,7 +169,7 @@ describe('marketing or service', () => {
     const gap = classed();
     gap.outbox.classes = { 'quote-sent': 'service' };
     const said = issuesOf(gap);
-    expect(said).toContain('outbox.classes: the outbox\'s kind "news" says no class, and compatibility.minAdminiumVersion is 0.3.37');
+    expect(said).toContain('outbox.classes: the outbox\'s kind "news" says no class, and compatibility.minAdminiumVersion is 0.3.38');
     expect(said).not.toContain('"quote-sent" says no class');
     // No classes at all: both kinds are named.
     const none = classed();
@@ -201,8 +201,8 @@ describe('marketing or service', () => {
     const doc = classed();
     doc.compatibility.minAdminiumVersion = '0.3.36';
     const said = issuesOf(doc);
-    expect(said).toContain('"outbox.classes" is read by Adminium 0.3.37 and later');
-    expect(said).toContain('"automations.emailClass" is read by Adminium 0.3.37 and later');
+    expect(said).toContain('"outbox.classes" is read by Adminium 0.3.38 and later');
+    expect(said).toContain('"automations.emailClass" is read by Adminium 0.3.38 and later');
   });
 
   it('a class is said of a kind the outbox sends, and is marketing or service', () => {
@@ -263,7 +263,7 @@ describe('the people an app keeps', () => {
     older.outbox.classes = undefined;
     delete step(older)['class'];
     older.compatibility.minAdminiumVersion = '0.3.36';
-    expect(issuesOf(older)).toContain('"people" is read by Adminium 0.3.37 and later');
+    expect(issuesOf(older)).toContain('"people" is read by Adminium 0.3.38 and later');
   });
 
   it('an address that is not the one the outbox writes to for the same table is refused', () => {
@@ -341,7 +341,7 @@ describe('a table the law keeps', () => {
     expect(issuesOf(odd)).not.toBe('');
     const older = crm('0.3.36');
     older.requiredSchema.tables.find((table) => table.ref === 'quotes')!.keep = { law: 'tax' };
-    expect(issuesOf(older)).toContain('"table.keep" is read by Adminium 0.3.37 and later');
+    expect(issuesOf(older)).toContain('"table.keep" is read by Adminium 0.3.38 and later');
   });
 });
 
@@ -357,7 +357,7 @@ describe('room for thirty-two rules', () => {
     expect(words(rules(classed(), 25))).toContain('automations.more');
     expect(words(rules(classed(), 24))).not.toContain('automations.more');
     expect(issuesOf(rules(crm('0.3.36'), 24))).toBe('');
-    expect(issuesOf(rules(crm('0.3.36'), 25))).toContain('automations: "automations.more" is read by Adminium 0.3.37 and later, and compatibility.minAdminiumVersion is 0.3.36: set it to 0.3.37 or later');
+    expect(issuesOf(rules(crm('0.3.36'), 25))).toContain('automations: "automations.more" is read by Adminium 0.3.38 and later, and compatibility.minAdminiumVersion is 0.3.36: set it to 0.3.38 or later');
     expect(issuesOf(rules(classed(), 33))).not.toBe('');
   });
 });
@@ -370,7 +370,7 @@ describe('the Sales CRM as released, and as K6 and K9 will declare it', () => {
   /** The CRM with its people declared and every mail classed, at the floor that reads them. */
   function declared(): Doc {
     const doc = released() as Doc & { compatibility: { minAdminiumVersion: string }; outbox: { kinds: Record<string, string>; classes?: Record<string, string> }; requiredSchema: { tables: { ref: string; columns: Doc[] }[] } };
-    doc.compatibility.minAdminiumVersion = '0.3.37';
+    doc.compatibility.minAdminiumVersion = '0.3.38';
     // K9: every kind service, the thank-you that gives a code marketing.
     doc.outbox.classes = Object.fromEntries(Object.keys(doc.outbox.kinds).map((kind) => [kind, kind === 'referral-thanks' ? 'marketing' : 'service']));
     // K6 and K10 add the "won deals" count and the opt-out mark to contacts. Not as a stored total over deals:

@@ -9,7 +9,7 @@
  *     customers' switch), 1b (the review, one person at a time, Undo), 1c
  *     (the sender's refusals with their fix links) and 1d (masked
  *     addresses). An app that declares a people table needs Adminium
- *     0.3.37, which this server (0.3.36) refuses to install, so these
+ *     0.3.38, which this server (0.3.37) refuses to install, so these
  *     answers of the audience routes come from the test (`page.route`); the
  *     server's own refusals, breakdown and 409 are proven by its tests.
  *  3. A real send to the workspace's people at one an hour: the run's

@@ -389,7 +389,7 @@ export const outboxSchema = z
      * Each kind's class, beside `kinds` so nothing that reads a kind's
      * template changes: `marketing` (stopped for an address on the
      * do-not-email list, sent with an unsubscribe link) or `service` (a
-     * receipt, a confirmation, a quote: never stopped). From Adminium 0.3.37
+     * receipt, a confirmation, a quote: never stopped). From Adminium 0.3.38
      * every kind says which (see `mail-class.ts`); a manifest for an older
      * Adminium has none, and its mail reads as service.
      */

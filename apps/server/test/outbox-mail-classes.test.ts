@@ -32,7 +32,7 @@ import { TEST_SECRET } from './helpers.js';
 import { LEGS, said, wholeServer, type QueuedEmail, type WholeServer } from './whole-server.helpers.js';
 
 // The engine that reads the classes; an app built for 0.3.28 is installed on it unchanged.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.37' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.38' }));
 
 const POSTAL = 'Meridian Workplace Ltd, 4 Wharf Lane, Leeds LS1 4BR, United Kingdom';
 const ORIGIN = 'https://crm.meridian.example';
@@ -60,7 +60,7 @@ function shop(opts: { classed: boolean }): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.shop.desc', fallback: 'A shop.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: classed ? '0.3.37' : '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: classed ? '0.3.38' : '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'sales', label: en('Sales'), order: 1 }],
     requiredSchema: {
       prefixed: true,

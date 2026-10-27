@@ -31,7 +31,7 @@ import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
 // The people word and its columns are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.37' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.38' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const strict = (set: string, on: unknown) => ({ stamp: { set, on, strict: true } });
@@ -47,7 +47,7 @@ function crm(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A small CRM.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: '0.3.37', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.38', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [

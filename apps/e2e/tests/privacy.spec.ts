@@ -14,7 +14,7 @@
  *  4. How long we keep things: the two fixed rows.
  *
  * No app on this server declares a people table (that needs Adminium
- * 0.3.37), so the person is found through what Adminium keeps itself.
+ * 0.3.38), so the person is found through what Adminium keeps itself.
  * Screenshots (desktop, 1024, 768, phone, dark, Arabic) go to `E2E_SHOTS`
  * when it is set.
  */

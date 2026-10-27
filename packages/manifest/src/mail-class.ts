@@ -41,7 +41,7 @@ export { MAIL_CLASSES, type MailClass } from './mail-classes.js';
 export type MailClassAnswer = MailClass | 'staff';
 
 /** The first Adminium that reads the classes, and from which a manifest must say every one. */
-export const MAIL_CLASS_FLOOR = '0.3.37';
+export const MAIL_CLASS_FLOOR = '0.3.38';
 
 /** What `mailClassOf` reads of a manifest. */
 export interface MailClassManifest {

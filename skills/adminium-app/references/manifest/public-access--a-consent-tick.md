@@ -18,7 +18,7 @@ several languages with `en-US` among them, and its `version` (raise it when the 
 consent log keeps the version and the language shown, never a text the request sends. The tick is
 kept for the person the entry finds by address (`identity`), whose rows it writes (`claimedBy`), or
 the row itself on a [people](https://docs.adminium.dev/reference/manifest/#people) table's own entry; that table is declared in `people`. A box
-left unticked writes nothing: it takes back no earlier yes. Needs Adminium 0.3.37.
+left unticked writes nothing: it takes back no earlier yes. Needs Adminium 0.3.38.
 
 A tick given (a create with it, or a change that turns it on) adds one row to the consent log from
 the form: the sentence in the person's language (their `people` `language` column, else the
