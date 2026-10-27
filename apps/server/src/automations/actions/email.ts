@@ -42,7 +42,8 @@
  * judged again at its own send time, which for the second mail of a sequence
  * is days after the first: the do-not-email list, a "Replied" since the run
  * began (a reply stops the person's sequences), and their answer in the
- * consent log for the newsletter. Any of them skips the mail, said in the
+ * consent log for the step's purpose ("Why you're writing"; the
+ * newsletter when it says none). Any of them skips the mail, said in the
  * step's log, and the run goes on. A sender that is not ready for marketing
  * mail (`marketing.refusal`) fails the step by its reason. What goes carries
  * the unsubscribe link, its two headers and the locked footer, signed with
@@ -344,6 +345,8 @@ export async function runEmailAction(
   const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
   // Marketing or service: said of a mail to the record's own address only (see the header).
   const mailClass = action.to?.kind === 'field' ? (action.class ?? 'service') : null;
+  // Why a marketing mail writes to them: the step's own purpose, else the newsletter (a step written before it could say).
+  const purpose = action.purpose ?? DEFAULT_MARKETING_PURPOSE;
   const kit: MarketingMail | null = mailClass === null ? null : (ctx.marketing ?? createMarketingMail({ meta: ctx.meta, secret: ctx.secret }));
   const from = prepared.from ?? config.from;
 
@@ -354,7 +357,7 @@ export async function runEmailAction(
     let signed: Awaited<ReturnType<MarketingMail['signing']>> | null = null;
     if (mailClass === 'marketing' && kit !== null) {
       // Judged at its own send time: the second mail of a sequence, days after the first, asks again.
-      const verdict = await kit.verdict({ address: to, person: personOf(action, ctx), purpose: DEFAULT_MARKETING_PURPOSE, repliedSince: await runStartedAt(ctx) });
+      const verdict = await kit.verdict({ address: to, person: personOf(action, ctx), purpose, repliedSince: await runStartedAt(ctx) });
       if ('skip' in verdict) {
         replies.push(ctx.text.emailSkipped(marketingSkipSentence(verdict.skip), to));
         continue;
@@ -366,7 +369,7 @@ export async function runEmailAction(
       }
       carry = await kit.carry({
         to,
-        purpose: verdict.send === 'existing-customers' ? null : DEFAULT_MARKETING_PURPOSE,
+        purpose: verdict.send === 'existing-customers' ? null : purpose,
         locale: template.locale,
         replyTo,
       });

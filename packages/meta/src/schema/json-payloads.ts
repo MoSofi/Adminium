@@ -2198,6 +2198,13 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
      */
     class: z.enum(['marketing', 'service']).optional(),
     /**
+     * Why a marketing mail writes to them ("Why you're writing"): the purpose
+     * whose answer in the consent log lets it go (`CONSENT_PURPOSES`, held
+     * equal by `automation-email-purpose.test.ts`). Said only of a marketing mail; one
+     * that says none writes about the newsletter, as before it could say.
+     */
+    purpose: z.enum(['newsletter', 'surveys']).optional(),
+    /**
      * What fills a placeholder of the template that the record does not:
      * the placeholder's name → a text, which may carry `{{record.x}}` tokens
      * like every other field of a rule. A name the record already fills is
@@ -2207,7 +2214,9 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
       .record(z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/), z.string().max(2000))
       .refine((value) => Object.keys(value).length <= 60, 'At most 60 placeholders')
       .default({}),
-  }).refine((action) => action.class === undefined || action.to?.kind === 'field', { message: 'a class is said of a mail to the record\'s own address (to.kind "field")', path: ['class'] }),
+  })
+    .refine((action) => action.class === undefined || action.to?.kind === 'field', { message: 'a class is said of a mail to the record\'s own address (to.kind "field")', path: ['class'] })
+    .refine((action) => action.purpose === undefined || action.class === 'marketing', { message: 'a purpose is said of a marketing mail only', path: ['purpose'] }),
   z.object({
     kind: z.literal('notification'),
     to: z

@@ -358,6 +358,24 @@ for (const [dialect, reachable] of LEGS) {
         }
       });
 
+      it('a step written about surveys asks their answer for surveys, not the newsletter\'s', async () => {
+        now = Date.now() + 25 * DAY;
+        sent = [];
+        const saved = (await automationsRepo(s.meta).listManagedBy('shop', s.connectionId)).find((one) => one.templateKey === 'welcome')!;
+        // As the step editor saves it: "Why you're writing" is Surveys.
+        const surveys = { ...saved, graph: { ...saved.graph, nodes: saved.graph.nodes.map((node) => (node.kind === 'action' && node.action.kind === 'email' ? { ...node, action: { ...node.action, purpose: 'surveys' as const } } : node)) } } as Automation;
+        const event: AutomationTriggerEvent = { event: 'record.created', origin: 'dashboard', ruleId: null, hops: 0, record: { connectionId: s.connectionId, table: s.t('customers'), pk: { id: 6 }, label: '6' }, snapshot: { id: 6 }, occurredAt: now };
+        const begin = async () => (await automationRunsRepo(s.meta).begin({ automationId: saved.id, dedupeKey: null, origin: 'dashboard', triggerEvent: event }, now))!;
+        // Oli agreed to the newsletter only.
+        const first = await walkRule(deps(), { rule: surveys, runId: (await begin()).id, event });
+        expect(sent).toEqual([]);
+        expect(first.trace.steps.find((step) => step.nodeId === 'first')?.log).toBe('Not sent: has not agreed to marketing mail · seq-ok@harbour.dev');
+        await consent().record({ person: { connectionId: s.connectionId, table: s.t('customers'), key: '6' }, purpose: 'surveys', source: 'import', state: 'yes' });
+        now += 60_000;
+        await walkRule(deps(), { rule: surveys, runId: (await begin()).id, event: { ...event, occurredAt: now } });
+        expect(sent.map((one) => one.subject)).toEqual(['Welcome to our news']);
+      });
+
       it('a sender that is not ready fails the step by its reason, and nothing goes', async () => {
         postal = null;
         now = Date.now() + 30 * DAY;
