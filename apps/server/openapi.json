@@ -123805,6 +123805,125 @@
         }
       }
     },
+    "/api/v1/email/notice-endpoints/{service}/address": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ses",
+                "postmark",
+                "mailgun",
+                "brevo",
+                "sendgrid",
+                "other"
+              ]
+            },
+            "in": "path",
+            "name": "service",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "endpoint": {
+                          "type": "object",
+                          "properties": {
+                            "service": {
+                              "type": "string",
+                              "enum": [
+                                "ses",
+                                "postmark",
+                                "mailgun",
+                                "brevo",
+                                "sendgrid",
+                                "other"
+                              ]
+                            },
+                            "opened": {
+                              "type": "boolean"
+                            },
+                            "secretRow": {
+                              "type": "string",
+                              "enum": [
+                                "signing-key",
+                                "verification-key",
+                                "topic-arn",
+                                "copy-credentials"
+                              ]
+                            },
+                            "ready": {
+                              "type": "boolean"
+                            },
+                            "secretSetAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "confirmedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "lastNoticeAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "noticeCount": {
+                              "type": "number"
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "service",
+                            "opened",
+                            "secretRow",
+                            "ready",
+                            "secretSetAt",
+                            "confirmedAt",
+                            "lastNoticeAt",
+                            "noticeCount",
+                            "address"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "endpoint"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/email/notice-endpoints/{service}/secret": {
       "put": {
         "requestBody": {
