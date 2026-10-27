@@ -4240,7 +4240,141 @@
     }
   },
   "privacy": {
-    "erasedPerson": "Slettet person"
+    "erasedPerson": "Slettet person",
+    "notice": {
+      "httpsOnly": "Brug en https://-adresse, f.eks. https://www.example.com/privacy.",
+      "loadFailed": "Privatlivsindstillingerne kunne ikke indlæses. Prøv igen.",
+      "saved": "Gemt",
+      "saveFailed": "Privatlivserklæringen blev ikke gemt. Prøv igen.",
+      "unset": "Udfyld begge: de vises på hver formular, i chatten og i cookiebanneret, når de kommer.",
+      "heading": "Privatlivserklæring",
+      "name": "Virksomhedens navn",
+      "namePlaceholder": "Din virksomheds juridiske navn",
+      "url": "Adresse på privatlivserklæringen",
+      "help": "Vises på hver formular, i chatten og i cookiebanneret.",
+      "save": "Gem"
+    },
+    "person": {
+      "locked": "Denne server kan ikke læse sine adressenøgler (dens hemmelighed er ændret), så ingen kan findes eller slettes. Spørg den, der driver serveren.",
+      "copyOf": "{label} (kopier af dem)",
+      "inApp": "{label} — {app}",
+      "kind": {
+        "consent": "Samtykkehistorik",
+        "stopList": "Listen „Ingen e-mails“",
+        "campaignMail": "Kampagne-e-mails",
+        "campaignFailures": "Kampagneudsendelser, der fejlede",
+        "documents": "Dokumenter",
+        "invoices": "Fakturaer",
+        "payments": "Betalinger",
+        "paymentEvents": "Beskeder fra betalingstjenesterne",
+        "automationRuns": "Regelkørsler",
+        "notifications": "Notifikationer til personalet",
+        "files": "Filer på deres rækker",
+        "appRows": "Rækker i en app"
+      },
+      "onList": "ja",
+      "rows": "{count, plural, one {# række} other {# rækker}}",
+      "entries": "{count, plural, one {# post} other {# poster}}",
+      "group": {
+        "gave": "Hvad de har givet dig",
+        "agreed": "Hvad de har sagt ja til eller bedt om",
+        "held": "Hvad virksomheden gemmer om dem"
+      },
+      "notAddress": "Det er ikke en e-mailadresse. Skriv en som navn@firma.dk.",
+      "findFailed": "Søgningen blev ikke færdig. Prøv igen.",
+      "downloadQueued": "Downloaden bliver lavet. Den vises under Downloads, når den er klar.",
+      "downloadFailed": "Downloaden kunne ikke bestilles. Prøv igen.",
+      "q": "E-mailadresse",
+      "find": "Find",
+      "done": "Slettet. Gemt i auditloggen.",
+      "filesFailed": "{count, plural, one {# fil kunne ikke slettes fra lageret. Slet igen for at prøve en gang til.} other {# filer kunne ikke slettes fra lageret. Slet igen for at prøve en gang til.}}",
+      "none": "Intet her for den adresse.",
+      "noneSub": "Tjek stavningen, eller prøv en anden adresse, personen har brugt.",
+      "audit": "Åbn auditloggen",
+      "nameAt": "{name} · {company}",
+      "openLabel": "Åbn {what}",
+      "open": "Åbn",
+      "download": "Download alt",
+      "downloadSub": "En .zip med JSON- og CSV-filer.",
+      "erase": "Slet…"
+    },
+    "erase": {
+      "goes": {
+        "people": "{count, plural, one {# række} other {# rækker}} i {label}",
+        "copy": "{count, plural, one {# kopi} other {# kopier}} i {label}",
+        "outbox": "{count, plural, one {# e-mail} other {# e-mails}} i {label}",
+        "consent": "{count, plural, one {# samtykkepost} other {# samtykkeposter}}",
+        "campaignMail": "{count, plural, one {# kampagne-e-mail} other {# kampagne-e-mails}}",
+        "files": "{count, plural, one {# fil} other {# filer}}"
+      },
+      "stays": {
+        "forGood": "Gemmes for altid.",
+        "days": "{count, plural, one {Gemmes i # dag.} other {Gemmes i # dage.}}",
+        "doNotEmail": "Deres adresse bliver på listen „Ingen e-mails“ som en kode, så de aldrig får e-mail igen.",
+        "lawHealth": "{count, plural, one {# række} other {# rækker}} i {label}, fordi sundhedslovgivningen kræver dem.",
+        "lawContract": "{count, plural, one {# række} other {# rækker}} i {label}, fordi en kontrakt kræver dem.",
+        "lawSafety": "{count, plural, one {# række} other {# rækker}} i {label}, fordi sikkerhedslovgivningen kræver dem.",
+        "lawTax": "{count, plural, one {# række} other {# rækker}} i {label}, fordi skattelovgivningen kræver dem.",
+        "documents": "{count, plural, one {# dokument, som det blev sendt.} other {# dokumenter, som de blev sendt.}}",
+        "invoices": "{count, plural, one {# faktura, fordi skattelovgivningen kræver den.} other {# fakturaer, fordi skattelovgivningen kræver dem.}}",
+        "payments": "{count, plural, one {# betalingspost.} other {# betalingsposter.}}",
+        "paymentEvents": "{count, plural, one {# besked fra en betalingstjeneste.} other {# beskeder fra betalingstjenesterne.}}",
+        "automationRuns": "{count, plural, one {# regelkørsel i reglernes historik.} other {# regelkørsler i reglernes historik.}}",
+        "notifications": "{count, plural, one {# notifikation til personalet.} other {# notifikationer til personalet.}}",
+        "campaignFailures": "{count, plural, one {# fejlet kampagneudsendelse, gemt med kampagnens udsendelseslog.} other {# fejlede kampagneudsendelser, gemt med kampagnens udsendelseslog.}}",
+        "exports": "Dataeksporter, som personalet har lavet af en tabel, kan indeholde dem, indtil hver af dem udløber."
+      },
+      "mismatch": "Det er ikke den samme adresse. Skriv den igen.",
+      "failed": "Sletningen blev ikke færdig. Slet igen for at gøre den færdig: det, der allerede er gjort, forbliver gjort.",
+      "title": "Slet alt om denne person?",
+      "cancel": "Annullér",
+      "previewFailed": "Det kunne ikke afgøres, hvad en sletning ville gøre. Luk dette og prøv igen.",
+      "loading": "Finder ud af, hvad der slettes…",
+      "goesLabel": "Hvad der slettes",
+      "nothingGoes": "Intet i apps’ tabeller eller i posten: kun det, der står under Hvad der bliver.",
+      "staysLabel": "Hvad der bliver",
+      "leftLabel": "Efterladt som det er",
+      "leftSub": "Disse kolonner kan ikke tømmes, så deres indhold bliver:",
+      "leftRows": "{count, plural, one {# række} other {# rækker}}",
+      "confirm": "Skriv adressen for at bekræfte",
+      "eraseForGood": "Slet for altid"
+    },
+    "title": "Privatliv & offentlige sider",
+    "tab": {
+      "notice": "Privatlivserklæring",
+      "person": "En persons data",
+      "keeping": "Hvor længe vi gemmer ting"
+    },
+    "keeping": {
+      "consentHistory": "Samtykkehistorik",
+      "untilErased": "Gemmes, indtil personen slettes",
+      "consentWhy": "Gemmes, fordi den beviser, hvad en person har sagt ja til eller bedt om",
+      "doNotEmail": "Listen „Ingen e-mails“",
+      "forGood": "Gemmes for altid",
+      "doNotEmailWhy": "Gemmes som en kode, når personen er slettet, så de aldrig får e-mail igen",
+      "loadFailed": "Hvor længe ting gemmes, kunne ikke indlæses. Prøv igen.",
+      "heading": "Hvor længe vi gemmer ting",
+      "sub": "Derefter slettes hver post.",
+      "what": "Hvad",
+      "keptFor": "Gemmes i"
+    },
+    "downloads": {
+      "processing": "Bliver lavet…",
+      "ready": "Klar",
+      "failed": "Fejlede",
+      "expired": "Udløbet",
+      "heading": "Downloads",
+      "sub": "Kun du kan downloade dem. Hver slettes, når den udløber.",
+      "asked": "Bestilt {when}",
+      "until": "Indtil {when}",
+      "getLabel": "Download filen bestilt {when}",
+      "get": "Download"
+    },
+    "hub": {
+      "heading": "Privatliv & offentlige sider",
+      "body": "Din privatlivserklæring, én persons data, og hvor længe ting gemmes.",
+      "cta": "Åbn privatliv"
+    }
   },
   "marketingMail": {
     "bounce": {

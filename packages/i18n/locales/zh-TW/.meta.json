@@ -33711,9 +33711,457 @@
     "status": "mt",
     "srcHash": "48142c2d47a3"
   },
+  "studio.privacy.downloads.asked": {
+    "status": "mt",
+    "srcHash": "c89c1463c9c0"
+  },
+  "studio.privacy.downloads.expired": {
+    "status": "mt",
+    "srcHash": "a689a999a5e6"
+  },
+  "studio.privacy.downloads.failed": {
+    "status": "mt",
+    "srcHash": "09fef5d8d9a3"
+  },
+  "studio.privacy.downloads.get": {
+    "status": "mt",
+    "srcHash": "a479c9c34e87"
+  },
+  "studio.privacy.downloads.getLabel": {
+    "status": "mt",
+    "srcHash": "2b2484259e71"
+  },
+  "studio.privacy.downloads.heading": {
+    "status": "mt",
+    "srcHash": "a862c2b21b5e"
+  },
+  "studio.privacy.downloads.processing": {
+    "status": "mt",
+    "srcHash": "43f16bb8e595"
+  },
+  "studio.privacy.downloads.ready": {
+    "status": "mt",
+    "srcHash": "20c7c5522fc2"
+  },
+  "studio.privacy.downloads.sub": {
+    "status": "mt",
+    "srcHash": "afa14bbc5eaf"
+  },
+  "studio.privacy.downloads.until": {
+    "status": "mt",
+    "srcHash": "38e41287ac0d"
+  },
+  "studio.privacy.erase.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.privacy.erase.confirm": {
+    "status": "mt",
+    "srcHash": "ef8073be8df3"
+  },
+  "studio.privacy.erase.eraseForGood": {
+    "status": "mt",
+    "srcHash": "78a21a4e7930"
+  },
+  "studio.privacy.erase.failed": {
+    "status": "mt",
+    "srcHash": "367bdcf462e3"
+  },
+  "studio.privacy.erase.goes.campaignMail": {
+    "status": "mt",
+    "srcHash": "958bcd5a9eca"
+  },
+  "studio.privacy.erase.goes.consent": {
+    "status": "mt",
+    "srcHash": "cab7d21542cb"
+  },
+  "studio.privacy.erase.goes.copy": {
+    "status": "mt",
+    "srcHash": "5b66206f09b8"
+  },
+  "studio.privacy.erase.goes.files": {
+    "status": "mt",
+    "srcHash": "8a657041aa6b"
+  },
+  "studio.privacy.erase.goes.outbox": {
+    "status": "mt",
+    "srcHash": "a2d855b6e9bb"
+  },
+  "studio.privacy.erase.goes.people": {
+    "status": "mt",
+    "srcHash": "08131ab98dff"
+  },
+  "studio.privacy.erase.goesLabel": {
+    "status": "mt",
+    "srcHash": "2082eb13ae8d"
+  },
+  "studio.privacy.erase.leftLabel": {
+    "status": "mt",
+    "srcHash": "e90368b33b0d"
+  },
+  "studio.privacy.erase.leftRows": {
+    "status": "mt",
+    "srcHash": "c1d7737f9e08"
+  },
+  "studio.privacy.erase.leftSub": {
+    "status": "mt",
+    "srcHash": "9baeb5280329"
+  },
+  "studio.privacy.erase.loading": {
+    "status": "mt",
+    "srcHash": "5113a1c3d825"
+  },
+  "studio.privacy.erase.mismatch": {
+    "status": "mt",
+    "srcHash": "3f0c1f6b3f02"
+  },
+  "studio.privacy.erase.nothingGoes": {
+    "status": "mt",
+    "srcHash": "e69e688d4018"
+  },
+  "studio.privacy.erase.previewFailed": {
+    "status": "mt",
+    "srcHash": "230aba2a132f"
+  },
+  "studio.privacy.erase.stays.automationRuns": {
+    "status": "mt",
+    "srcHash": "6668e6a5beeb"
+  },
+  "studio.privacy.erase.stays.campaignFailures": {
+    "status": "mt",
+    "srcHash": "e9942fe24791"
+  },
+  "studio.privacy.erase.stays.days": {
+    "status": "mt",
+    "srcHash": "0520db26e350"
+  },
+  "studio.privacy.erase.stays.doNotEmail": {
+    "status": "mt",
+    "srcHash": "fc55efc78ee2"
+  },
+  "studio.privacy.erase.stays.documents": {
+    "status": "mt",
+    "srcHash": "e7c59fef6bd2"
+  },
+  "studio.privacy.erase.stays.exports": {
+    "status": "mt",
+    "srcHash": "aacb29b750c8"
+  },
+  "studio.privacy.erase.stays.forGood": {
+    "status": "mt",
+    "srcHash": "c3c1736d44e8"
+  },
+  "studio.privacy.erase.stays.invoices": {
+    "status": "mt",
+    "srcHash": "cef8926f03fc"
+  },
+  "studio.privacy.erase.stays.lawContract": {
+    "status": "mt",
+    "srcHash": "95dca4885af2"
+  },
+  "studio.privacy.erase.stays.lawHealth": {
+    "status": "mt",
+    "srcHash": "77ebe0e220a4"
+  },
+  "studio.privacy.erase.stays.lawSafety": {
+    "status": "mt",
+    "srcHash": "18d6e82e5504"
+  },
+  "studio.privacy.erase.stays.lawTax": {
+    "status": "mt",
+    "srcHash": "e5da5ec5afb4"
+  },
+  "studio.privacy.erase.stays.notifications": {
+    "status": "mt",
+    "srcHash": "e3928b3d8bc2"
+  },
+  "studio.privacy.erase.stays.paymentEvents": {
+    "status": "mt",
+    "srcHash": "e6d54cb1855c"
+  },
+  "studio.privacy.erase.stays.payments": {
+    "status": "mt",
+    "srcHash": "7cfda7e2c44d"
+  },
+  "studio.privacy.erase.staysLabel": {
+    "status": "mt",
+    "srcHash": "1e802be733c0"
+  },
+  "studio.privacy.erase.title": {
+    "status": "mt",
+    "srcHash": "698e1a96809e"
+  },
   "studio.privacy.erasedPerson": {
     "status": "mt",
     "srcHash": "e80c3a859f66"
+  },
+  "studio.privacy.hub.body": {
+    "status": "mt",
+    "srcHash": "6932ea1b2743"
+  },
+  "studio.privacy.hub.cta": {
+    "status": "mt",
+    "srcHash": "b39e4c0160a2"
+  },
+  "studio.privacy.hub.heading": {
+    "status": "mt",
+    "srcHash": "aa1564673517"
+  },
+  "studio.privacy.keeping.consentHistory": {
+    "status": "mt",
+    "srcHash": "9f998ba2b5f8"
+  },
+  "studio.privacy.keeping.consentWhy": {
+    "status": "mt",
+    "srcHash": "6aa538efab6d"
+  },
+  "studio.privacy.keeping.doNotEmail": {
+    "status": "mt",
+    "srcHash": "3abaa313fc52"
+  },
+  "studio.privacy.keeping.doNotEmailWhy": {
+    "status": "mt",
+    "srcHash": "f9595535711d"
+  },
+  "studio.privacy.keeping.forGood": {
+    "status": "mt",
+    "srcHash": "1f6d72591f61"
+  },
+  "studio.privacy.keeping.heading": {
+    "status": "mt",
+    "srcHash": "aa413501810c"
+  },
+  "studio.privacy.keeping.keptFor": {
+    "status": "mt",
+    "srcHash": "49587da888d5"
+  },
+  "studio.privacy.keeping.loadFailed": {
+    "status": "mt",
+    "srcHash": "1db6b169b5b3"
+  },
+  "studio.privacy.keeping.sub": {
+    "status": "mt",
+    "srcHash": "94e2109b0a25"
+  },
+  "studio.privacy.keeping.untilErased": {
+    "status": "mt",
+    "srcHash": "598eca523f9c"
+  },
+  "studio.privacy.keeping.what": {
+    "status": "mt",
+    "srcHash": "97211a888812"
+  },
+  "studio.privacy.notice.heading": {
+    "status": "mt",
+    "srcHash": "ec7c829b3908"
+  },
+  "studio.privacy.notice.help": {
+    "status": "mt",
+    "srcHash": "9f19fa42fc20"
+  },
+  "studio.privacy.notice.httpsOnly": {
+    "status": "mt",
+    "srcHash": "74e9054ed88a"
+  },
+  "studio.privacy.notice.loadFailed": {
+    "status": "mt",
+    "srcHash": "d86347cdd945"
+  },
+  "studio.privacy.notice.name": {
+    "status": "mt",
+    "srcHash": "a8e3901b099e"
+  },
+  "studio.privacy.notice.namePlaceholder": {
+    "status": "mt",
+    "srcHash": "00c687083259"
+  },
+  "studio.privacy.notice.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.privacy.notice.saveFailed": {
+    "status": "mt",
+    "srcHash": "a452c9d74bed"
+  },
+  "studio.privacy.notice.saved": {
+    "status": "mt",
+    "srcHash": "c0ae8f6ea841"
+  },
+  "studio.privacy.notice.unset": {
+    "status": "mt",
+    "srcHash": "c936c7f953d1"
+  },
+  "studio.privacy.notice.url": {
+    "status": "mt",
+    "srcHash": "f5b371e12110"
+  },
+  "studio.privacy.person.audit": {
+    "status": "mt",
+    "srcHash": "a35e162cd1ac"
+  },
+  "studio.privacy.person.copyOf": {
+    "status": "mt",
+    "srcHash": "7d9891b0f687"
+  },
+  "studio.privacy.person.done": {
+    "status": "mt",
+    "srcHash": "fa4b72a2d40a"
+  },
+  "studio.privacy.person.download": {
+    "status": "mt",
+    "srcHash": "dae46f994a75"
+  },
+  "studio.privacy.person.downloadFailed": {
+    "status": "mt",
+    "srcHash": "8f2be1982eaf"
+  },
+  "studio.privacy.person.downloadQueued": {
+    "status": "mt",
+    "srcHash": "f271d04a676c"
+  },
+  "studio.privacy.person.downloadSub": {
+    "status": "mt",
+    "srcHash": "17202e6772ec"
+  },
+  "studio.privacy.person.entries": {
+    "status": "mt",
+    "srcHash": "213994eef1d3"
+  },
+  "studio.privacy.person.erase": {
+    "status": "mt",
+    "srcHash": "270548372c86"
+  },
+  "studio.privacy.person.filesFailed": {
+    "status": "mt",
+    "srcHash": "5ff8a35ba6c4"
+  },
+  "studio.privacy.person.find": {
+    "status": "mt",
+    "srcHash": "df251b06eefd"
+  },
+  "studio.privacy.person.findFailed": {
+    "status": "mt",
+    "srcHash": "05e67f9865cc"
+  },
+  "studio.privacy.person.group.agreed": {
+    "status": "mt",
+    "srcHash": "26ab3d5cc97b"
+  },
+  "studio.privacy.person.group.gave": {
+    "status": "mt",
+    "srcHash": "69a82dbfe5ab"
+  },
+  "studio.privacy.person.group.held": {
+    "status": "mt",
+    "srcHash": "b2eb14d67812"
+  },
+  "studio.privacy.person.inApp": {
+    "status": "src",
+    "srcHash": "d742aed12715"
+  },
+  "studio.privacy.person.kind.appRows": {
+    "status": "mt",
+    "srcHash": "bf3e96b904ec"
+  },
+  "studio.privacy.person.kind.automationRuns": {
+    "status": "mt",
+    "srcHash": "99333b5112fb"
+  },
+  "studio.privacy.person.kind.campaignFailures": {
+    "status": "mt",
+    "srcHash": "da6955c619f1"
+  },
+  "studio.privacy.person.kind.campaignMail": {
+    "status": "mt",
+    "srcHash": "d3ac9ed8d3de"
+  },
+  "studio.privacy.person.kind.consent": {
+    "status": "mt",
+    "srcHash": "9f998ba2b5f8"
+  },
+  "studio.privacy.person.kind.documents": {
+    "status": "mt",
+    "srcHash": "687c82861c95"
+  },
+  "studio.privacy.person.kind.files": {
+    "status": "mt",
+    "srcHash": "8381cf35cdbb"
+  },
+  "studio.privacy.person.kind.invoices": {
+    "status": "mt",
+    "srcHash": "35f8f37b92ae"
+  },
+  "studio.privacy.person.kind.notifications": {
+    "status": "mt",
+    "srcHash": "0f5a218f2a8a"
+  },
+  "studio.privacy.person.kind.paymentEvents": {
+    "status": "mt",
+    "srcHash": "b13143240c13"
+  },
+  "studio.privacy.person.kind.payments": {
+    "status": "mt",
+    "srcHash": "44357ae55a21"
+  },
+  "studio.privacy.person.kind.stopList": {
+    "status": "mt",
+    "srcHash": "3abaa313fc52"
+  },
+  "studio.privacy.person.locked": {
+    "status": "mt",
+    "srcHash": "93b7a4349d49"
+  },
+  "studio.privacy.person.nameAt": {
+    "status": "src",
+    "srcHash": "46e14ea175bd"
+  },
+  "studio.privacy.person.none": {
+    "status": "mt",
+    "srcHash": "99e5dcde3353"
+  },
+  "studio.privacy.person.noneSub": {
+    "status": "mt",
+    "srcHash": "d484b1cb3f88"
+  },
+  "studio.privacy.person.notAddress": {
+    "status": "mt",
+    "srcHash": "3797be0dd8e1"
+  },
+  "studio.privacy.person.onList": {
+    "status": "mt",
+    "srcHash": "fb360f9c09ac"
+  },
+  "studio.privacy.person.open": {
+    "status": "mt",
+    "srcHash": "cf9b77061f7b"
+  },
+  "studio.privacy.person.openLabel": {
+    "status": "mt",
+    "srcHash": "5ffa9785bc18"
+  },
+  "studio.privacy.person.q": {
+    "status": "mt",
+    "srcHash": "394c80265735"
+  },
+  "studio.privacy.person.rows": {
+    "status": "mt",
+    "srcHash": "c1d7737f9e08"
+  },
+  "studio.privacy.tab.keeping": {
+    "status": "mt",
+    "srcHash": "aa413501810c"
+  },
+  "studio.privacy.tab.notice": {
+    "status": "mt",
+    "srcHash": "ec7c829b3908"
+  },
+  "studio.privacy.tab.person": {
+    "status": "mt",
+    "srcHash": "da133919fb07"
+  },
+  "studio.privacy.title": {
+    "status": "mt",
+    "srcHash": "aa1564673517"
   },
   "studio.project.actions.bulk": {
     "status": "mt",

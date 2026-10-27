@@ -8,6 +8,7 @@
  * - `/studio/pages` → page manager (lifecycle surface)
  * - `/studio/lists` → option lists: the answers a column accepts, named once
  * - `/studio/settings` → workspace settings hub
+ * - `/studio/privacy` → privacy notice, a person's data, how long things are kept
  * - `/studio/settings/project`       → the project folder this server runs, its
  *   hooks and actions (super admins). LAZY like its siblings.
  * - `/studio/public-api` → API keys & tokens: endpoints, and the keys that may
@@ -320,6 +321,7 @@ function SettingsRouteComponent() {
           onOpenDocuments={() => void navigate({ to: '/studio/documents' })}
           onOpenPublicApi={() => void navigate({ to: '/studio/public-api' })}
           onOpenProject={() => void navigate({ to: '/studio/settings/project' })}
+          onOpenPrivacy={() => void navigate({ to: '/studio/privacy' })}
         />
       </StudioBody>
     </StudioGuard>
@@ -337,6 +339,17 @@ function DoNotEmailRouteComponent() {
     <StudioGuard requires="settings.manage">
       <StudioBody>
         <StudioSettingsPageLazy doNotEmail />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
+/** Privacy & public pages: `privacy.manage` alone (the Super Admin's); it rides the settings hub's chunk, as Maps does. */
+function PrivacyRouteComponent() {
+  return (
+    <StudioGuard requires="privacy.manage">
+      <StudioBody>
+        <StudioSettingsPageLazy privacy />
       </StudioBody>
     </StudioGuard>
   );
@@ -524,6 +537,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: DoNotEmailRouteComponent,
   });
 
+  const privacyRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/privacy',
+    component: PrivacyRouteComponent,
+  });
+
   const mapsSettingsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/settings/maps',
@@ -639,6 +658,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     projectSettingsRoute,
     mapsSettingsRoute,
     doNotEmailRoute,
+    privacyRoute,
     publicApiRoute,
     hostedAppsRoute,
     appSettingsRoute,

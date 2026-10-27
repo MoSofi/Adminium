@@ -4250,7 +4250,141 @@ export default {
     }
   },
   "privacy": {
-    "erasedPerson": "Vymazaná osoba"
+    "erasedPerson": "Vymazaná osoba",
+    "notice": {
+      "httpsOnly": "Použijte adresu https://, například https://www.example.com/privacy.",
+      "loadFailed": "Nastavení soukromí se nepodařilo načíst. Zkuste to znovu.",
+      "saved": "Uloženo",
+      "saveFailed": "Zásady ochrany osobních údajů se neuložily. Zkuste to znovu.",
+      "unset": "Vyplňte obojí: zobrazí se u každého formuláře, v chatu a v cookie liště, jakmile budou k dispozici.",
+      "heading": "Zásady ochrany osobních údajů",
+      "name": "Název firmy",
+      "namePlaceholder": "Oficiální název vaší firmy",
+      "url": "Adresa zásad ochrany osobních údajů",
+      "help": "Zobrazuje se u každého formuláře, v chatu a v cookie liště.",
+      "save": "Uložit"
+    },
+    "person": {
+      "locked": "Tento server nemůže přečíst své klíče adres (jeho tajný klíč byl změněn), takže nikoho nelze najít ani vymazat. Obraťte se na toho, kdo server spravuje.",
+      "copyOf": "{label} (jejich kopie)",
+      "inApp": "{label} — {app}",
+      "kind": {
+        "consent": "Historie souhlasu",
+        "stopList": "Seznam „Neposílat e-maily“",
+        "campaignMail": "E-maily kampaní",
+        "campaignFailures": "Neúspěšná odeslání kampaní",
+        "documents": "Dokumenty",
+        "invoices": "Faktury",
+        "payments": "Platby",
+        "paymentEvents": "Zprávy platebních služeb",
+        "automationRuns": "Běhy pravidel",
+        "notifications": "Oznámení pro tým",
+        "files": "Soubory u jejich řádků",
+        "appRows": "Řádky v aplikaci"
+      },
+      "onList": "ano",
+      "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
+      "entries": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
+      "group": {
+        "gave": "Co vám dali",
+        "agreed": "S čím souhlasili nebo o co požádali",
+        "held": "Co o nich firma uchovává"
+      },
+      "notAddress": "To není e-mailová adresa. Zadejte adresu jako jmeno@firma.cz.",
+      "findFailed": "Hledání se nedokončilo. Zkuste to znovu.",
+      "downloadQueued": "Stažení se připravuje. Až bude hotové, objeví se v části Stažení.",
+      "downloadFailed": "O stažení se nepodařilo požádat. Zkuste to znovu.",
+      "q": "E-mailová adresa",
+      "find": "Najít",
+      "done": "Vymazáno. Uloženo v auditním logu.",
+      "filesFailed": "{count, plural, one {# soubor se nepodařilo smazat z úložiště. Vymažte znovu a zkuste to ještě jednou.} few {# soubory se nepodařilo smazat z úložiště. Vymažte znovu a zkuste to ještě jednou.} many {# souboru se nepodařilo smazat z úložiště. Vymažte znovu a zkuste to ještě jednou.} other {# souborů se nepodařilo smazat z úložiště. Vymažte znovu a zkuste to ještě jednou.}}",
+      "none": "K této adrese tu nic není.",
+      "noneSub": "Zkontrolujte pravopis nebo zkuste jinou adresu, kterou tato osoba používala.",
+      "audit": "Otevřít auditní log",
+      "nameAt": "{name} · {company}",
+      "openLabel": "Otevřít {what}",
+      "open": "Otevřít",
+      "download": "Stáhnout vše",
+      "downloadSub": "Soubor .zip se soubory JSON a CSV.",
+      "erase": "Vymazat…"
+    },
+    "erase": {
+      "goes": {
+        "people": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}",
+        "copy": "{count, plural, one {# kopie} few {# kopie} many {# kopie} other {# kopií}} v {label}",
+        "outbox": "{count, plural, one {# e-mail} few {# e-maily} many {# e-mailu} other {# e-mailů}} v {label}",
+        "consent": "{count, plural, one {# záznam souhlasu} few {# záznamy souhlasu} many {# záznamu souhlasu} other {# záznamů souhlasu}}",
+        "campaignMail": "{count, plural, one {# e-mail kampaně} few {# e-maily kampaní} many {# e-mailu kampaní} other {# e-mailů kampaní}}",
+        "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}"
+      },
+      "stays": {
+        "forGood": "Uchováno natrvalo.",
+        "days": "{count, plural, one {Uchováno # den.} few {Uchováno # dny.} many {Uchováno # dne.} other {Uchováno # dní.}}",
+        "doNotEmail": "Jejich adresa zůstane na seznamu „Neposílat e-maily“ jako kód, aby jim už nikdy nepřišel e-mail.",
+        "lawHealth": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}, protože to vyžaduje zdravotnické právo.",
+        "lawContract": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}, protože to vyžaduje smlouva.",
+        "lawSafety": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}, protože to vyžadují bezpečnostní předpisy.",
+        "lawTax": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}, protože to vyžaduje daňové právo.",
+        "documents": "{count, plural, one {# dokument, jak byl odeslán.} few {# dokumenty, jak byly odeslány.} many {# dokumentu, jak byl odeslán.} other {# dokumentů, jak byly odeslány.}}",
+        "invoices": "{count, plural, one {# faktura, protože to vyžaduje daňové právo.} few {# faktury, protože to vyžaduje daňové právo.} many {# faktury, protože to vyžaduje daňové právo.} other {# faktur, protože to vyžaduje daňové právo.}}",
+        "payments": "{count, plural, one {# záznam o platbě.} few {# záznamy o platbách.} many {# záznamu o platbách.} other {# záznamů o platbách.}}",
+        "paymentEvents": "{count, plural, one {# zpráva od platební služby.} few {# zprávy od platebních služeb.} many {# zprávy od platebních služeb.} other {# zpráv od platebních služeb.}}",
+        "automationRuns": "{count, plural, one {# běh pravidla v historii pravidel.} few {# běhy pravidel v historii pravidel.} many {# běhu pravidel v historii pravidel.} other {# běhů pravidel v historii pravidel.}}",
+        "notifications": "{count, plural, one {# oznámení pro tým.} few {# oznámení pro tým.} many {# oznámení pro tým.} other {# oznámení pro tým.}}",
+        "campaignFailures": "{count, plural, one {# neúspěšné odeslání kampaně, uchované s protokolem odesílání kampaně.} few {# neúspěšná odeslání kampaní, uchovaná s protokolem odesílání kampaně.} many {# neúspěšného odeslání kampaní, uchovaného s protokolem odesílání kampaně.} other {# neúspěšných odeslání kampaní, uchovaných s protokolem odesílání kampaně.}}",
+        "exports": "Exporty dat, které tým udělal z tabulky, je mohou obsahovat, dokud každý nevyprší."
+      },
+      "mismatch": "To není stejná adresa. Zadejte ji znovu.",
+      "failed": "Vymazání se nedokončilo. Vymažte znovu a dokončete ho: co už je hotové, zůstane hotové.",
+      "title": "Vymazat vše o této osobě?",
+      "cancel": "Zrušit",
+      "previewFailed": "Nepodařilo se zjistit, co by vymazání udělalo. Zavřete to a zkuste znovu.",
+      "loading": "Zjišťuje se, co zmizí…",
+      "goesLabel": "Co zmizí",
+      "nothingGoes": "Nic v tabulkách aplikací ani v poště: jen to, co je uvedeno v části Co zůstane.",
+      "staysLabel": "Co zůstane",
+      "leftLabel": "Ponecháno beze změny",
+      "leftSub": "Tyto sloupce nelze vyprázdnit, jejich obsah zůstane:",
+      "leftRows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
+      "confirm": "Pro potvrzení zadejte adresu",
+      "eraseForGood": "Vymazat natrvalo"
+    },
+    "title": "Soukromí a veřejné stránky",
+    "tab": {
+      "notice": "Zásady ochrany osobních údajů",
+      "person": "Údaje osoby",
+      "keeping": "Jak dlouho co uchováváme"
+    },
+    "keeping": {
+      "consentHistory": "Historie souhlasu",
+      "untilErased": "Uchováno, dokud osoba není vymazána",
+      "consentWhy": "Uchováno, protože dokládá, s čím osoba souhlasila nebo o co požádala",
+      "doNotEmail": "Seznam „Neposílat e-maily“",
+      "forGood": "Uchováno natrvalo",
+      "doNotEmailWhy": "Po vymazání osoby uchováno jako kód, aby jí už nikdy nepřišel e-mail",
+      "loadFailed": "Nepodařilo se načíst, jak dlouho se co uchovává. Zkuste to znovu.",
+      "heading": "Jak dlouho co uchováváme",
+      "sub": "Potom se každá položka vymaže.",
+      "what": "Co",
+      "keptFor": "Uchováno"
+    },
+    "downloads": {
+      "processing": "Připravuje se…",
+      "ready": "Připraveno",
+      "failed": "Nezdařilo se",
+      "expired": "Vypršelo",
+      "heading": "Stažení",
+      "sub": "Stáhnout je můžete jen vy. Každé se smaže, když vyprší.",
+      "asked": "Vyžádáno {when}",
+      "until": "Do {when}",
+      "getLabel": "Stáhnout soubor vyžádaný {when}",
+      "get": "Stáhnout"
+    },
+    "hub": {
+      "heading": "Soukromí a veřejné stránky",
+      "body": "Vaše zásady ochrany osobních údajů, údaje jedné osoby a jak dlouho se co uchovává.",
+      "cta": "Otevřít soukromí"
+    }
   },
   "marketingMail": {
     "bounce": {
