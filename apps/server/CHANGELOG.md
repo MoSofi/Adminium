@@ -1,5 +1,26 @@
 # @adminium/server
 
+## 0.3.37
+
+### Patch Changes
+
+- A campaign run is never sent twice. When the server stopped in the middle of sending one, the restarted server picked the run up again and mailed everyone from the start. Now such a run is marked failed with the reason (some recipients may not have received it), and a run that had already finished is left as it was.
+- 07427b7: An app whose foreign key points at a table the database already has (a loyalty app on a shop's own `customers`) installs, with the foreign key to that table. Its install used to fail with an internal error, while `app check` passed it. `app check` now prints a `!` for such a link: the app installs only on a database with that table, and anywhere else the install refuses it by name (`UNRESOLVED_REFERENCE`). A link to one of Adminium's own `adminium_*` tables is refused on every database (`RESERVED_TABLE`), and `app check` says so. On Postgres and MySQL the link is a plain foreign key, so a row the app links to cannot be deleted while the app still points at it.
+- 9eb65ad: The first-run wizard knows when a database was connected before it opened (a project's `databases` in `adminium.config.ts`, or `ADMINIUM_SOURCE_URL`). `GET /setup/state` says so with `databaseConnected`, only while setup is open. The wizard then opens on "Create your account" as step 1 of 4, without asking what to build or for the database again, and its last screen says what is there: the database's tables and the pages generated from it, or that it could not be reached.
+- Updated dependencies [79bc56e]
+- Updated dependencies [07427b7]
+- Updated dependencies [9eb65ad]
+  - @adminium/engine@0.3.37
+  - @adminium/i18n@0.3.37
+  - @adminium/manifest@0.3.37
+  - @adminium/llm@0.3.37
+  - @adminium/adapter-mysql@0.3.37
+  - @adminium/adapter-postgres@0.3.37
+  - @adminium/adapter-sqlite@0.3.37
+  - @adminium/schema-import@0.3.37
+  - @adminium/add-on-contracts@0.3.37
+  - @adminium/meta@0.3.37
+
 ## 0.3.36
 
 ### Patch Changes

@@ -1,5 +1,23 @@
 # @adminium/dashboard
 
+## 0.3.37
+
+### Patch Changes
+
+- Every page follows the reader's language when it arrives after the first paint. On a new browser some screens kept the browser's English under an Arabic menu until a reload; they now switch with the rest of the dashboard, and keep their state (an unsaved form, an open dialog) while doing so.
+- 79bc56e: Generated boards, shift rotas, calendars, Gantt charts and roadmaps now look like their designs. A board card shows its link, owner, amount, date and priority, with summary figures above the columns and swimlanes when a table has a category or a team link. A rota shows each person's name, role and end time with an add-shift form. A calendar shows a colour legend and reads only the dates on screen. A Gantt chart has week and month views, grouped rows, progress bars and a today line. A roadmap groups its cards by quarter, with a year switcher. Columns named `start_on`, `due_on`, `starts_at` or `ends_at` now count as a start or end date. Generating the pages again changes some pages that were never edited (edited pages are left alone): a table with a start and end time and a percentage but no group link gets a calendar instead of a Gantt chart, under a new page id; a goals, features, epics, themes, objectives or bets table with a date column gets a roadmap in place of its status board, so dragging a card changes its date; and tables with columns such as `starts_at`/`ends_at` or `start_on`/`due_on` are now read as events.
+- 9eb65ad: The first-run wizard knows when a database was connected before it opened (a project's `databases` in `adminium.config.ts`, or `ADMINIUM_SOURCE_URL`). `GET /setup/state` says so with `databaseConnected`, only while setup is open. The wizard then opens on "Create your account" as step 1 of 4, without asking what to build or for the database again, and its last screen says what is there: the database's tables and the pages generated from it, or that it could not be reached.
+- Updated dependencies [79bc56e]
+- Updated dependencies [07427b7]
+- Updated dependencies [9eb65ad]
+  - @adminium/widgets@0.3.37
+  - @adminium/engine@0.3.37
+  - @adminium/i18n@0.3.37
+  - @adminium/charts@0.3.37
+  - @adminium/add-on-contracts@0.3.37
+  - @adminium/tokens@0.3.37
+  - @adminium/ui@0.3.37
+
 ## 0.3.36
 
 ### Patch Changes
