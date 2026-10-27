@@ -126,6 +126,8 @@ function renderAt(path: string, stub: Stub = {}) {
         },
       });
     }
+    // The hub's marketing mail settings: no senders yet.
+    if (url === '/api/v1/email/marketing') return jsonResponse(200, { data: { postalAddress: null, replyTo: null, publicOrigin: null, senders: [] } });
     return jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'req_t' } });
   });
   vi.stubGlobal('fetch', fetchMock);
