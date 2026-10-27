@@ -52,6 +52,8 @@ let systemActions: string[];
 let notice: PrivacyNotice;
 let exportsList: PrivacyExport[];
 let eraseReply: { status: number; body: unknown };
+/** The erase preview never answers (the dialog stays on its loading state). */
+let previewHangs = false;
 
 const FOUND: PersonFound = {
   address: MARTA,
@@ -112,7 +114,7 @@ function stub(): Call[] {
         exportsList = [made, ...exportsList];
         return ok({ data: { ...made, jobId: 'job_1' } }, 202);
       }
-      if (url === '/api/v1/privacy/erase/preview') return ok({ data: PREVIEW });
+      if (url === '/api/v1/privacy/erase/preview') return previewHangs ? new Promise(() => undefined) : ok({ data: PREVIEW });
       if (url === '/api/v1/privacy/erase') return ok(eraseReply.body, eraseReply.status);
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: `no route: ${method} ${url}` } }));
     }),
@@ -152,6 +154,7 @@ afterEach(() => {
   notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' };
   exportsList = [];
   eraseReply = { status: 200, body: { data: { counts: { 'people-crm-contacts': 1, consent: 4 }, left: [], filesFailed: 0 } } };
+  previewHangs = false;
 });
 notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' };
 exportsList = [];
@@ -305,6 +308,16 @@ describe('a person’s data', () => {
     const refusal = await within(dialog).findByText('That isn’t the same address. Type it again.');
     expect(refusal.textContent).not.toContain('marta');
     expect(screen.queryByText('Erased. Saved in the audit log.')).toBeNull();
+  });
+
+  it('keeps "Erase for good" off until the server has said what goes, even with the address typed', async () => {
+    previewHangs = true;
+    await findMarta();
+    await userEvent.click(screen.getByTestId('privacy-erase'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Type the address to confirm'), MARTA);
+    expect((within(dialog).getByTestId('erase-for-good') as HTMLButtonElement).disabled).toBe(true);
+    expect(within(dialog).queryByTestId('erase-goes')).toBeNull();
   });
 
   it('Cancel closes the dialog and erases nothing', async () => {

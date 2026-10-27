@@ -108,7 +108,8 @@ function sourceLabel(source: Pick<FoundSource, 'kind' | 'label' | 'app'>): strin
 
 /** The count as the comp writes it: rows for a table, entries for the consent history, "yes" on the list. */
 function countOf(source: FoundSource): { pre: string; n: string; post: string } {
-  if (source.kind === 'stop-list') return { pre: '', n: t('studio:privacy.person.onList', 'yes'), post: '' };
+  // A word, not a number: in the page's own face (mono would break Arabic's joined letters).
+  if (source.kind === 'stop-list') return { pre: t('studio:privacy.person.onList', 'yes'), n: '', post: '' };
   const words =
     source.kind === 'people' || source.kind === 'copy'
       ? t('studio:privacy.person.rows', '{count, plural, one {# row} other {# rows}}', { count: source.count })
@@ -299,7 +300,7 @@ function ResultCard({ found, asking, onDownload, onErase }: { found: PersonFound
           </div>
           <div className="min-w-0 flex-1">
             <h2 id="privacy-person-h" className="text-section text-fg [overflow-wrap:anywhere]">
-              {heading}
+              {name === null ? <bdi dir="ltr">{heading}</bdi> : heading}
             </h2>
             {name === null ? null : (
               <p className="mt-0.5">
@@ -327,7 +328,7 @@ function ResultCard({ found, asking, onDownload, onErase }: { found: PersonFound
                       <span className="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">{label}</span>
                       <span className="whitespace-nowrap text-fg" data-testid="privacy-source-count">
                         {count.pre}
-                        <span className="font-mono font-semibold">{count.n}</span>
+                        {count.n === '' ? null : <span className="font-mono font-semibold">{count.n}</span>}
                         {count.post}
                       </span>
                       {source.kind === 'stop-list' ? (
