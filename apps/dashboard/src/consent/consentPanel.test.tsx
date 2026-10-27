@@ -211,6 +211,8 @@ describe('the e-mail consent panel', () => {
     expect(calls).toEqual([{ what: 'record', body: { purpose: 'surveys', how: 'phone', note: 'Rang the office' } }]);
     expect(screen.getByTestId('consent-badge-surveys').textContent).toBe('May be e-mailed');
     expect(screen.getByTestId('consent-history').textContent).toContain('Agreed by phone, recorded by Mia Marketer');
+    // Which purpose it was for, and the note in quotation marks, follow the time.
+    expect(screen.getByTestId('consent-history').textContent).toContain('Surveys · “Rang the office”');
     // Without a toast to tell it to, the panel says it in a polite line of its own.
     expect(screen.getByRole('status').textContent).toBe('Consent recorded: Surveys.');
   });

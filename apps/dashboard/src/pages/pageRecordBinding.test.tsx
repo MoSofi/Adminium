@@ -1188,11 +1188,14 @@ describe('the e-mail consent panel on a people table\'s record', () => {
   });
 
   it('shows no panel for a table no app declares as people', async () => {
-    await renderAt('/p/customers/r/1', { consentReply: () => jsonResponse(200, { data: panel(false) }) });
-    await screen.findByRole('heading', { name: 'Northwind' }, { timeout: 5_000 });
+    const { fetchMock } = await renderAt('/p/customers/r/1', { consentReply: () => jsonResponse(200, { data: panel(false) }) });
+    // The panel was asked about, and its answer is in.
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url) === '/api/v1/consent/panel')).toBe(true), { timeout: 10_000 });
+    await screen.findByTestId('record-panel-consent').catch(() => null);
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
     expect(screen.queryByTestId('consent-panel')).toBeNull();
+    expect(screen.queryByTestId('record-panel-consent')).toBeNull();
   });
 });
