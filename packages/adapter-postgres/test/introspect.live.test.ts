@@ -299,6 +299,67 @@ describe.skipIf(!psqlAvailable)('read-only detection (capability probe SQL)', ()
   });
 });
 
+describe.skipIf(!psqlAvailable)('tables the role may not read (a Supabase-shaped database)', () => {
+  let db = '';
+  const role = `adminium_test_app_${Math.random().toString(36).slice(2, 8)}`;
+
+  beforeAll(async () => {
+    db = await createTestDatabase(false);
+    await psql(`CREATE ROLE ${role} LOGIN`);
+    // Supabase's shape: an `auth` schema the app's own role is never let into, app tables
+    // keyed to `auth.users`, and one table the role was simply never granted.
+    await psql(
+      `CREATE SCHEMA auth;
+       CREATE TABLE auth.users (id uuid PRIMARY KEY, email text NOT NULL);
+       CREATE TABLE public.orders (id serial PRIMARY KEY, user_id uuid NOT NULL REFERENCES auth.users(id), total numeric);
+       CREATE TABLE public.secrets (id serial PRIMARY KEY, value text);
+       CREATE TABLE public.people (id serial PRIMARY KEY, name text, phone text);
+       GRANT USAGE ON SCHEMA public TO ${role};
+       GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO ${role};
+       GRANT SELECT (id, name) ON public.people TO ${role};`,
+      { db },
+    );
+  }, 60_000);
+
+  afterAll(async () => {
+    if (db !== '') await dropTestDatabase(db);
+    await psql(`DROP ROLE IF EXISTS ${role}`);
+  });
+
+  const introspectAs = (opts: { schemas?: string[] } = {}) =>
+    introspectPostgres(psqlExecutor(db, role), { connectionId: db, databaseName: db }, opts);
+
+  it('leaves out tables it may not read and schemas it may not use, and says which', async () => {
+    const model = await introspectAs();
+    // A column grant is enough to read a table: `people` stays.
+    expect(model.tables.map((t) => t.id).sort()).toEqual(['public.orders', 'public.people']);
+    expect(model.schemas).not.toContain('auth');
+    expect(model.warnings.find((w) => w.code === 'schemas-unusable')?.message).toContain('auth');
+    const warning = model.warnings.find((w) => w.code === 'tables-unreadable');
+    expect(warning?.message).toContain('public.secrets');
+    expect(parseDatabaseModel(model)).toBeTruthy();
+  });
+
+  it('drops a key to a table left out, so no page looks a value up there', async () => {
+    const model = await introspectAs();
+    expect(model.relations.filter((r) => r.to.tableId === 'auth.users')).toEqual([]);
+    expect(model.warnings.some((w) => w.code === 'fk-target-excluded' && w.tableId === 'public.orders')).toBe(true);
+  });
+
+  it('asked for by name, a schema it may not use yields no table, with the warning', async () => {
+    const model = await introspectAs({ schemas: ['auth'] });
+    expect(model.tables).toEqual([]);
+    expect(model.warnings.find((w) => w.code === 'tables-unreadable')?.message).toContain('auth.users');
+  });
+
+  it('the owner still sees every table', async () => {
+    const model = await introspectPostgres(psqlExecutor(db), { connectionId: db, databaseName: db }, {});
+    expect(model.tables.map((t) => t.id).sort()).toEqual(['auth.users', 'public.orders', 'public.people', 'public.secrets']);
+    expect(model.warnings.some((w) => w.code === 'tables-unreadable')).toBe(false);
+    expect(model.warnings.some((w) => w.code === 'schemas-unusable')).toBe(false);
+  });
+});
+
 describe.skipIf(!psqlAvailable)('reserved schemas (adminium_demo)', () => {
   let db = '';
 

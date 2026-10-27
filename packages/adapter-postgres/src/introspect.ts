@@ -210,6 +210,9 @@ function quoteLiteral(value: string): string {
  */
 const RESERVED_SCHEMAS = ['adminium_demo'];
 
+/** How many left-out tables the `tables-unreadable` warning names before it counts the rest. */
+const UNREADABLE_NAMED_MAX = 10;
+
 /** Everything Postgres itself owns. */
 const SYSTEM_SCHEMA_PREDICATE =
   `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_(toast|temp)'`;
@@ -226,7 +229,8 @@ function schemaPredicate(schemas: readonly string[] | null): string {
 // Lists reserved schemas too: they are filtered out of the default selection in
 // TypeScript, so that naming one explicitly still reaches it.
 const SCHEMAS_SQL = `
-SELECT n.nspname AS name
+SELECT n.nspname AS name,
+       pg_catalog.has_schema_privilege(n.oid, 'USAGE') AS usable
 FROM pg_catalog.pg_namespace n
 WHERE ${SYSTEM_SCHEMA_PREDICATE}
 ORDER BY n.nspname`;
@@ -241,6 +245,8 @@ SELECT n.nspname AS schema_name,
        c.reltuples::float8 AS reltuples,
        c.relrowsecurity AS rls_enabled,
        c.relforcerowsecurity AS rls_forced,
+       (pg_catalog.has_schema_privilege(n.oid, 'USAGE')
+        AND pg_catalog.has_any_column_privilege(c.oid, 'SELECT')) AS readable,
        pg_catalog.obj_description(c.oid, 'pg_class') AS comment,
        (SELECT count(*) FROM pg_catalog.pg_policy p WHERE p.polrelid = c.oid)::int AS policy_count,
        s.n_tup_ins::int8 AS n_ins,
@@ -381,6 +387,11 @@ function str(value: unknown): string | null {
 
 function bool(value: unknown): boolean {
   return value === true || value === 't' || value === 'true';
+}
+
+/** Only an explicit no: a catalog row without the column (an older executor) reads as yes. */
+function isFalse(value: unknown): boolean {
+  return value === false || value === 'f' || value === 'false';
 }
 
 function strArray(value: unknown): string[] {
@@ -539,15 +550,27 @@ export async function introspectPostgres(
   };
 
   // 1. Schemas ---------------------------------------------------------------
-  const allSchemas = (await guarded(SCHEMAS_SQL))
+  const schemaRows = await guarded(SCHEMAS_SQL);
+  const allSchemas = schemaRows
     .map((row) => str(row['name']))
     .filter((name): name is string => name !== null);
+  // A schema the role may not even look into (Supabase's `auth` and `storage` to a role of the
+  // app's own) holds nothing it could show: left out of the default selection. Asked for by
+  // name it is still searched, and its tables fall to the readable check below.
+  const unusable = new Set(
+    schemaRows.filter((row) => isFalse(row['usable'])).map((row) => str(row['name']) ?? ''),
+  );
   const requested = opts.schemas ?? null;
   const schemas =
     requested === null
-      ? allSchemas.filter((name) => !RESERVED_SCHEMAS.includes(name))
+      ? allSchemas.filter((name) => !RESERVED_SCHEMAS.includes(name) && !unusable.has(name))
       : requested.filter((name) => allSchemas.includes(name));
-  const pred = schemaPredicate(requested === null ? null : schemas);
+  const pred =
+    requested === null && unusable.size === 0
+      ? schemaPredicate(null)
+      : schemas.length === 0
+        ? 'false'
+        : schemaPredicate(schemas);
 
   // 2. Classes ---------------------------------------------------------------
   const classRows = await guarded(classesSql(pred));
@@ -618,6 +641,7 @@ export async function introspectPostgres(
   // -- tables -----------------------------------------------------------------
   const tablesByOid = new Map<number, MutableTable>();
   let hiddenPartitions = 0;
+  const unreadable: string[] = [];
   for (const row of classRows) {
     const schema = str(row['schema_name']) ?? '';
     const name = str(row['table_name']) ?? '';
@@ -626,6 +650,14 @@ export async function introspectPostgres(
       continue;
     }
     if (opts.tableFilter !== undefined && !opts.tableFilter({ schema, name })) continue;
+    // The catalog lists every table to every role. One this role may not SELECT from (not a
+    // single column) would become a page whose every query fails, and a key pointing at it a
+    // list that cannot load: it is left out, and a key to it is dropped below like any key to
+    // a table outside the set.
+    if (isFalse(row['readable'])) {
+      unreadable.push(`${schema}.${name}`);
+      continue;
+    }
     const oid = num(row['rel_oid']) ?? -1;
     const relkind = str(row['relkind']) ?? 'r';
     const kind =
@@ -664,6 +696,23 @@ export async function introspectPostgres(
       },
       system: SYSTEM_TABLE_PATTERN.test(name),
       semantics: null,
+    });
+  }
+  const leftOutSchemas = requested === null ? allSchemas.filter((name) => unusable.has(name) && !RESERVED_SCHEMAS.includes(name)) : [];
+  if (leftOutSchemas.length > 0) {
+    warnings.push({
+      code: 'schemas-unusable',
+      message: `${String(leftOutSchemas.length)} schema(s) left out because this role may not use them: ${leftOutSchemas.join(', ')}`,
+      tableId: null,
+    });
+  }
+  if (unreadable.length > 0) {
+    const named = unreadable.slice(0, UNREADABLE_NAMED_MAX).join(', ');
+    const more = unreadable.length > UNREADABLE_NAMED_MAX ? ` and ${String(unreadable.length - UNREADABLE_NAMED_MAX)} more` : '';
+    warnings.push({
+      code: 'tables-unreadable',
+      message: `${String(unreadable.length)} table(s) left out because this role may not read them: ${named}${more}`,
+      tableId: null,
     });
   }
   if (hiddenPartitions > 0) {
