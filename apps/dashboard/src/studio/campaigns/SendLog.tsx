@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Send log" (comp `Email To Contacts.dc.html` 439-504, 1146-1179, 1326-1336;
- * map §7 "Send log"): who a campaign's send reached and who it did not, from
+ * "Send log" (comp `Email To Contacts.dc.html` 439-504, 1146-1179,
+ * 1326-1336): who a campaign's send reached and who it did not, from
  * the run's ledger.
  *
  *  - The summary: Sent, Skipped, Bounced, Marked as spam, Unsubscribed,
- *    Waiting, and Failed (the map asks for failures to be counted
- *    somewhere; the comp's summary has no cell for them).
+ *    Waiting, and Failed (failures are counted here; the comp's summary
+ *    has no cell for them).
  *  - Filter chips (All, Sent, Waiting, Skipped, Bounced, Marked as spam,
  *    Failed, Unsubscribed), a search over names and addresses, and
  *    "Download CSV" (the same filter and search, as a file).

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The locked footer of a marketing e-mail (comp `Email To Contacts.dc.html`
- * 9, 1110-1138; map §7 "Locked footer"): the two lines every marketing mail
+ * 9, 1110-1138): the two lines every marketing mail
  * carries whatever the footer text says (the sender's postal address and the
  * unsubscribe link), each with a lock, in the canvas's footer and in the
  * inspector's footer panel, with "Added to every marketing mail. You can't
@@ -11,7 +11,7 @@
  * into every copy, from the e-mail words' marketing footer): "Unsubscribe
  * from {business}'s newsletter". A mail on the existing-customers basis reads "… marketing
  * mail" instead; which basis a copy goes on is decided per person at the
- * send, so the editor shows the purpose's wording (CR4, P5a).
+ * send, so the editor shows the purpose's wording.
  *
  * The postal address and the business's name come from the marketing mail
  * settings; while the address is not set the row says so (a marketing send

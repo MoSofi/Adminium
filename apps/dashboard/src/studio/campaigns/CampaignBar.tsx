@@ -10,7 +10,7 @@
  *    checks, or the sender lost the right to the table), a danger strip that
  *    says why, with the sender refusal's fix link;
  *  - the two tabs: the editor ("Edit"; the comp's "Design" is already the
- *    inspector's tab name, so the map asks for today's view's name) and
+ *    inspector's tab name, so this one is named after today's view) and
  *    "Send log".
  */
 import { Link } from '@tanstack/react-router';

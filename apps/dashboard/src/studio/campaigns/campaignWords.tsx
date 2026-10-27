@@ -72,7 +72,7 @@ export function audienceRefusalText(reason: EmailAudienceRefusal, table: string)
   }
 }
 
-/** Where each sender refusal is put right (U2's settings, by anchor), and the words of the link. */
+/** Where each sender refusal is put right (the marketing mail settings, by anchor), and the words of the link. */
 export const DMARC_GUIDE_PATH = 'guides/email/campaigns/#dmarc';
 
 export interface RefusalFix {

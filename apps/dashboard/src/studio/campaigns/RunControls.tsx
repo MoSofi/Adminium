@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The run in the editor's header (comp `Email To Contacts.dc.html` 2a–2c,
- * 364-429; map §7 "The run"): what replaces today's chip and its "Cancel
- * sending" (`EditorHeader`), while the rest of today's header stays (map §6
- * departure 4).
+ * 364-429): what replaces today's chip and its "Cancel sending"
+ * (`EditorHeader`); the rest of today's header stays as it is, where the
+ * comp drops it.
  *
  *  - Sending: a pill "Sending · {done} of {total}" with a spinner, then
  *    "Pause sending" (secondary) and "Stop sending" (danger outline).

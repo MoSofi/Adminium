@@ -5,7 +5,7 @@
  * own icon, its sentence and the link that puts it right (the marketing mail
  * settings, by anchor, or the DMARC guide). The plan refuses a send without
  * DMARC alignment, so the DMARC row is a blocker like the rest and wears the
- * danger tone too (map §7).
+ * danger tone too.
  *
  * The address or domain a sentence names is drawn in mono, as the comp draws
  * it: the translated sentence is split around it.

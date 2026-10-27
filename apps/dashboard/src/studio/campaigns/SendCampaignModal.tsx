@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Send campaign (comp `Email To Contacts.dc.html` 1a–1e, 36-353; map §7
- * "Send dialog"). The editor loads it lazily (`lazy.ts`) and saves the draft
+ * Send campaign (comp `Email To Contacts.dc.html` 1a–1e, 36-353). The
+ * editor loads it lazily (`lazy.ts`) and saves the draft
  * before it POSTs `/send` (D1).
  *
  *  - "Send to": two radio cards, "Workspace users" (everyone, or the holders
