@@ -572,14 +572,14 @@ for (const engine of META_ENGINES) {
       const csv = await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log.csv?filter=all`, headers: as(manager) });
       expect(csv.statusCode, csv.body).toBe(200);
       expect(csv.headers['content-type']).toContain('text/csv');
-      const lines = csv.body.replace(/^﻿/, '').trimEnd().split('\r\n');
+      const lines = csv.body.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
       expect(lines[0]).toBe('name,address,state,time,detail');
       expect(lines).toHaveLength(7);
       expect(lines[3]).toMatch(/^Ruth Adeyemi,ruth@shop\.test,failed,\d{4}-\d\d-\d\dT[^,]+,451 try again later \(ruth@shop\.test\)$/);
       expect(lines[5]).toBe(`"'=HYPERLINK(""http://x"")",formula@shop.test,sent,${new Date(all.rows[4]!.time!).toISOString()},`);
       expect(lines[6]).toBe('Aisha Rahman,aisha@shop.test,skipped-consent,' + new Date(all.rows[5]!.time!).toISOString() + ',campaign-mail-off');
       const skippedCsv = await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log.csv?filter=skipped&q=callum`, headers: as(manager) });
-      expect(skippedCsv.body.replace(/^﻿/, '').trimEnd().split('\r\n')).toHaveLength(2);
+      expect(skippedCsv.body.replace(/^\uFEFF/, '').trimEnd().split('\r\n')).toHaveLength(2);
       const downloads = await meta.db.selectFrom('adminium_audit_log').select(['action']).where('action', '=', 'email-campaign.log-download').execute();
       expect(downloads).toHaveLength(2);
 
