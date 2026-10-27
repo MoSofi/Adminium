@@ -16,6 +16,8 @@
  *  - THE CAMPAIGN SEND LOG keeps each send to them (its state, its counts)
  *    with the address and the name emptied; a send still waiting is skipped
  *    as stopped, since the address is on the do-not-email list from now on.
+ *    A run's failure list loses its entries to them, and any send's reason
+ *    or job's last error that holds the address is emptied (`sweepMailAddress`).
  *  - FILES attached to their own rows are deleted past the bin: bytes first,
  *    then the row (as the bin's own sweep does).
  *
@@ -271,6 +273,69 @@ export async function blankCampaignSends(meta: MetaDb, ids: readonly string[], a
     await db.updateTable('adminium_email_sends').set({ address: '', name: '', updatedAt: at }).where('id', 'in', chunk).execute();
   }
   return ids.length;
+}
+
+/**
+ * What the mail side still holds of the address in its own words, emptied
+ * (as `sweepAddress` does for the audit log): every campaign run's failure
+ * list loses its entries to the address (their error repeats it, and they
+ * say nothing once it is gone), and an entry about somebody else whose error
+ * names it keeps its place with the error emptied; any send's reason that
+ * holds it (a relay's "550 … <address>: …") is emptied; and so is the last
+ * error of any job that holds it (the mail queue's `email.send` keeps the
+ * relay's answer there). Answers the runs, sends and jobs changed.
+ */
+export async function sweepMailAddress(meta: MetaDb, address: string, at: number): Promise<{ runs: number; sends: number; jobs: number }> {
+  const { db } = meta;
+  let runs = 0;
+  let after: string | null = null;
+  for (;;) {
+    let query = db.selectFrom('adminium_email_runs').select(['id', 'failures']).where(holdsAny(meta, 'failures', [address]));
+    if (after !== null) query = query.where('id', '>', after);
+    const rows = await query.orderBy('id', 'asc').limit(BATCH).execute();
+    for (const row of rows) {
+      const list = readJson<unknown>(row.failures);
+      if (!Array.isArray(list)) continue;
+      let changed = false;
+      const kept: unknown[] = [];
+      for (const item of list) {
+        const entry = (item ?? {}) as { to?: unknown; error?: unknown };
+        if (typeof entry.to === 'string' && holdsAddress(entry.to, address)) {
+          changed = true;
+          continue;
+        }
+        if (typeof entry.error === 'string' && holdsAddress(entry.error, address)) {
+          kept.push({ ...entry, error: '' });
+          changed = true;
+          continue;
+        }
+        kept.push(item);
+      }
+      if (!changed) continue;
+      await db.updateTable('adminium_email_runs').set({ failures: packJson(kept), updatedAt: at }).where('id', '=', row.id).execute();
+      runs += 1;
+    }
+    if (rows.length < BATCH) break;
+    after = rows.at(-1)!.id;
+  }
+  const textSweep = async (table: 'adminium_email_sends' | 'adminium_jobs', column: 'reason' | 'lastError'): Promise<number> => {
+    let changed = 0;
+    let from: string | null = null;
+    for (;;) {
+      let query = db.selectFrom(table).select(['id', `${column} as text`] as never).where(holdsAny(meta, column, [address]));
+      if (from !== null) query = query.where('id', '>', from);
+      const rows = (await query.orderBy('id', 'asc').limit(BATCH).execute()) as unknown as { id: string; text: string | null }[];
+      const hit = rows.filter((row) => typeof row.text === 'string' && holdsAddress(row.text, address)).map((row) => row.id);
+      for (const ids of chunks(hit)) {
+        await db.updateTable(table).set({ [column]: null } as never).where('id', 'in', ids).execute();
+        changed += ids.length;
+      }
+      if (rows.length < BATCH) break;
+      from = rows.at(-1)!.id;
+    }
+    return changed;
+  };
+  return { runs, sends: await textSweep('adminium_email_sends', 'reason'), jobs: await textSweep('adminium_jobs', 'lastError') };
 }
 
 /** The files attached to their own rows. */

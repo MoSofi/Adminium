@@ -22,6 +22,8 @@
  *  - No name or address of theirs is left in the audit log or the removed-row
  *    history; the entries stay. Their own public write loses where it came
  *    from. Another person's entries are untouched.
+ *  - A campaign run's failure list loses her entries, and a send's reason or
+ *    a mail job's last error that names her is emptied.
  *  - The address is still stopped, by a hash with no display address; the
  *    erasure's own audit entry holds counts and the keyed hash alone.
  *  - A link in mail sent before the erasure only ever says "you're
@@ -29,11 +31,13 @@
  */
 import { Writable } from 'node:stream';
 
-import { SYSTEM_ACTION_KEYS, apiKeysRepo, auditRepo, consentLogRepo, emailRunsRepo, emailSendsRepo, emailTemplatesRepo, filesRepo, permissionsRepo, privacyExportsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { SYSTEM_ACTION_KEYS, apiKeysRepo, auditRepo, consentLogRepo, emailRunsRepo, emailSendsRepo, emailTemplatesRepo, filesRepo, jobsRepo, permissionsRepo, privacyExportsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { encryptSecret } from '../src/config/secrets.js';
 import { createConsentService } from '../src/consent/index.js';
+import { emailEnvelopeKey } from '../src/email/send.js';
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
 import { mailLinkKeys } from '../src/email/link-keys.js';
 import { makeUnsubscribeToken } from '../src/email/unsubscribe-token.js';
@@ -298,6 +302,15 @@ for (const [dialect, reachable] of LEGS) {
         1,
       );
       await s.meta.db.updateTable('adminium_email_sends').set({ state: 'sent', sentAt: 5 }).where('runId', '=', run.id).where('seq', '=', 1).execute();
+      // The run's failure list, and the relay's words in a send's reason and a mail job's last error, name her.
+      await emailRunsRepo(s.meta).noteFailure(run.id, { to: MARTA, error: `550 5.1.1 <${MARTA}>: mailbox unavailable` });
+      await emailRunsRepo(s.meta).noteFailure(run.id, { to: 'ben@other.example', error: `452 4.2.2 mailbox full (forwarding to ${MARTA})` });
+      await emailRunsRepo(s.meta).noteFailure(run.id, { to: 'ben@other.example', error: '452 4.2.2 mailbox full' });
+      await emailRunsRepo(s.meta).noteFailure(run.id, { to: '', error: 'no-dmarc' });
+      await s.meta.db.updateTable('adminium_email_sends').set({ reason: `550 5.1.1 <${MARTA}>: mailbox unavailable` }).where('runId', '=', run.id).where('seq', '=', 1).execute();
+      const sealed = encryptSecret(JSON.stringify({ to: 'ben@other.example', subject: 'July', html: '<p>July</p>', text: 'July' }), emailEnvelopeKey(TEST_SECRET));
+      const mailJob = await jobsRepo(s.meta).enqueue({ kind: 'email.send', payload: { v: 1, templateKey: 'july', locale: 'en_US', envelope: sealed }, runAt: Number.MAX_SAFE_INTEGER });
+      await s.meta.db.updateTable('adminium_jobs').set({ status: 'failed', lastError: `550 5.1.1 <${MARTA}>: mailbox unavailable` }).where('id', '=', mailJob.id).execute();
 
       // A file on her contact row.
       await filesRepo(s.meta).create({ filename: 'passport.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload', uploadedBy: s.ids['owner']!, entity: { connectionId: s.connectionId, table: s.t('contacts'), pk: { id: 1 }, label: '1' } });
@@ -338,6 +351,8 @@ for (const [dialect, reachable] of LEGS) {
       // The invoice is the law's: it stays, and is never in "what goes".
       expect(goes[s.t('invoices')]).toBeUndefined();
       expect(view.stays).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'app-rows', reason: 'tax', table: s.t('invoices') }), expect.objectContaining({ kind: 'do-not-email', reason: 'objection' })]));
+      // A campaign's failure list loses her entries: it is not among what stays.
+      expect(view.stays.map((item) => item.kind)).not.toContain('campaign-failures');
       expect(view.left).toEqual([]);
 
       const wrong = await erase('pia', TYPED, 'marta.kovac@cobaltlegal.example.org');
@@ -352,7 +367,7 @@ for (const [dialect, reachable] of LEGS) {
       const res = await erase('pia', TYPED, MARTA.toUpperCase());
       expect(res.statusCode, res.body).toBe(200);
       const done = dataOf<{ counts: Record<string, number>; left: unknown[]; filesFailed: number }>(res);
-      expect(done.counts).toMatchObject({ 'people-crm-contacts': 1, 'people-crm-enquiries': 1, 'outbox-crm': 2, consent: 2, 'campaign-mail': 1, files: 1, downloads: 1, 'stop-list': 1 });
+      expect(done.counts).toMatchObject({ 'people-crm-contacts': 1, 'people-crm-enquiries': 1, 'outbox-crm': 2, consent: 2, 'campaign-mail': 1, 'campaign-failures': 1, 'mail-errors': 2, files: 1, downloads: 1, 'stop-list': 1 });
       expect(done.filesFailed).toBe(0);
 
       // Her contact: the row and its links kept, her fields emptied, strict stamps included; a NOT NULL name reads "Erased person".
@@ -431,8 +446,17 @@ for (const [dialect, reachable] of LEGS) {
       expect(await consent.history({ person: { connectionId: s.connectionId, table: s.t('contacts'), key: '1' } })).toEqual([]);
       expect(await consentLogRepo(s.meta).history({ person: { connectionId: s.connectionId, table: s.t('contacts'), key: '2' }, hashes: [] }, { limit: 10 })).toHaveLength(1);
 
-      const sends = await s.meta.db.selectFrom('adminium_email_sends').select(['address', 'name', 'state', 'personKey']).orderBy('seq').execute();
-      expect(sends[0]).toEqual({ address: '', name: '', state: 'sent', personKey: '1' });
+      const sends = await s.meta.db.selectFrom('adminium_email_sends').select(['address', 'name', 'state', 'personKey', 'reason']).orderBy('seq').execute();
+      expect(sends[0]).toEqual({ address: '', name: '', state: 'sent', personKey: '1', reason: null });
+      // The run's failure list: her entry gone, Ben's that named her emptied of it, the rest as they were.
+      const [run] = await s.meta.db.selectFrom('adminium_email_runs').select(['id']).execute();
+      expect((await emailRunsRepo(s.meta).findById(run!.id))?.failures).toEqual([
+        { to: 'ben@other.example', error: '' },
+        { to: 'ben@other.example', error: '452 4.2.2 mailbox full' },
+        { to: '', error: 'no-dmarc' },
+      ]);
+      const mailJobs = await s.meta.db.selectFrom('adminium_jobs').select(['lastError']).where('kind', '=', 'email.send').execute();
+      expect(mailJobs.map((job) => job.lastError ?? '').join('\n')).not.toContain('marta');
       expect(sends[1]).toMatchObject({ address: 'ben@other.example', name: 'Ben Other' });
       expect(await s.meta.db.selectFrom('adminium_files').select('id').where('filename', '=', 'passport.pdf').execute()).toEqual([]);
       // Her download went too, its file with it.
@@ -467,6 +491,16 @@ for (const [dialect, reachable] of LEGS) {
       expect(await createConsentService({ meta: s.meta, secret: TEST_SECRET }).history({ address: MARTA })).toEqual([]);
       expect(lines.length).toBeGreaterThan(0);
       expect(lines.join('\n').toLowerCase()).not.toContain('marta');
+    });
+
+    it('erases a real address that happens to start with "erased-": only the erasure\'s own value reads as done', async () => {
+      await s.rows(`INSERT INTO crm_enquiries (id, name, email, message) VALUES (4, 'Bob', 'erased-bob@example.com', 'Lamps')`);
+      const res = await erase('pia', 'erased-bob@example.com');
+      expect(res.statusCode, res.body).toBe(200);
+      expect(dataOf<{ counts: Record<string, number> }>(res).counts['people-crm-enquiries']).toBe(1);
+      const [row] = await s.rows(`SELECT name, email FROM crm_enquiries WHERE id = 4`);
+      expect(String(row!['email'])).toMatch(/^erased-[0-9a-f]{12}@erased\.invalid$/);
+      expect(String(row!['name'])).not.toBe('Bob');
     });
 
     it('erases a second person with her own unique value, and finds nothing more to do the second time', async () => {

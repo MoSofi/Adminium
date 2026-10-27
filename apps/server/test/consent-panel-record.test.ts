@@ -11,14 +11,20 @@
  *  - "Record consent", "Replied" and "They said no" each write one row (a
  *    log row, a log row, a do-not-email entry) and the panel, which the CRM's
  *    own line reads too, says so at once.
+ *  - As a rep who opens only the CRM's screens: the history is the row's own
+ *    events and the address's alone (the mail door's unsubscribes), never
+ *    an event of another row's or another table's person; the stop-list
+ *    banner stays.
  *  - A table no app declares answers `declared: false`: the page shows no
  *    panel for it.
  *  - An erased person's row: the panel says so calmly (nothing known, nothing
  *    to change) and refuses anything more about them, with no row written.
  */
-import { consentLogRepo } from '@adminium/meta';
+import { consentLogRepo, permissionsRepo, rolesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { createConsentService } from '../src/consent/index.js';
+import { TEST_SECRET } from './helpers.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
 // The people word is read from the release to come.
@@ -95,7 +101,7 @@ for (const [dialect, reachable] of LEGS) {
     const counts = async () => ({ log: Number(await logRows()), stop: await stopRows() });
 
     beforeAll(async () => {
-      s = await wholeServer(dialect, crm(), { people: { mia: ['marketer'], rex: ['reader'] } });
+      s = await wholeServer(dialect, crm(), { people: { mia: ['marketer'], rex: ['reader'], ria: [] } });
       await s.rows(`INSERT INTO crm_contacts (id, name, email) VALUES (1, 'Marta Kovac', 'marta.kovac@cobaltlegal.example'), (2, 'Ben Okafor', 'ben@okafor.example')`);
       await s.rows(`INSERT INTO crm_notes (id, email, body) VALUES (1, 'note@notes.example', 'A note')`);
     }, 180_000);
@@ -153,6 +159,40 @@ for (const [dialect, reachable] of LEGS) {
       // Said twice, still one entry.
       expect(said(await s.send('mia', 'POST', '/api/v1/consent/said-no', ref('contacts', 1)))).toBe('ok');
       expect((await counts()).stop).toBe(before.stop + 1);
+    });
+
+    it('shows a rep the row\'s own history and the address\'s alone, never another row\'s or another table\'s person', async () => {
+      // A rep who opens only the CRM's screens, and reads contacts.
+      const rep = await rolesRepo(s.meta).create({ slug: 'crm-rep', name: 'Rep', appKey: 'crm', screensOnly: true });
+      await permissionsRepo(s.meta).grant(rep.id, 'app', 'crm', { staff: true });
+      await permissionsRepo(s.meta).grant(rep.id, 'table', `${s.connectionId}/${s.t('contacts')}`, { read: true, read_pii: false, create: false, update: false, delete: false, export: false, import: false });
+      await rolesRepo(s.meta).assignToUser(s.ids['ria']!, rep.id);
+      await s.rows(`INSERT INTO crm_contacts (id, name, email) VALUES (7, 'Pia Shared', 'pia@shared.example')`);
+      const consent = createConsentService({ meta: s.meta, secret: TEST_SECRET });
+      const pia = { connectionId: s.connectionId, table: s.t('contacts'), key: '7' };
+      await consent.record({ person: pia, address: 'pia@shared.example', purpose: 'newsletter', state: 'yes', source: 'staff', staff: { id: s.ids['mia']!, label: 'Mia' }, how: 'phone' });
+      // The mail door's unsubscribe knew the address alone.
+      await consent.withdraw({ address: 'pia@shared.example', purpose: 'newsletter', source: 'unsubscribe', detail: 'one-click' });
+      // The same address on another row's person, and on another table's.
+      await consent.record({ person: { ...pia, key: '1' }, address: 'pia@shared.example', purpose: 'surveys', state: 'yes', source: 'form', detail: 'Marta form', ip: '81.2.69.160' });
+      await consent.record({ person: { connectionId: s.connectionId, table: s.t('notes'), key: '1' }, address: 'pia@shared.example', purpose: 'surveys', state: 'yes', source: 'form', detail: 'Notes form' });
+
+      const res = await s.send('ria', 'POST', '/api/v1/consent/panel', ref('contacts', 7));
+      expect(res.statusCode, res.body).toBe(200);
+      const data = (res.json() as { data: Panel & { purposes: { purpose: string; state: string; event: unknown }[] } }).data;
+      expect(data.history.map((one) => [one.state, one.source])).toEqual([
+        ['no', 'unsubscribe'],
+        ['yes', 'staff'],
+      ]);
+      expect(res.body).not.toContain('Marta form');
+      expect(res.body).not.toContain('Notes form');
+      expect(res.body).not.toContain('81.2.69.160');
+      // The address's standing for surveys is still said, without another person's event behind it.
+      expect(data.purposes.find((one) => one.purpose === 'surveys')).toMatchObject({ state: 'yes', event: null });
+      expect(data.purposes.find((one) => one.purpose === 'newsletter')).toMatchObject({ state: 'no', event: expect.objectContaining({ source: 'unsubscribe' }) });
+      // The stop-list banner stays: what stands for the address is said whatever row it came from.
+      await consent.stop.add({ address: 'pia@shared.example', reason: 'link' });
+      expect((await panel('ria', 'contacts', 7)).data.stopped).toMatchObject({ reason: 'link' });
     });
 
     it('shows an erased person calmly and records nothing more about them', async () => {

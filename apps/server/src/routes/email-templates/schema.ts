@@ -38,6 +38,11 @@ export const emailRunView = z.object({
   finishedAt: z.number().nullable(),
   jobId: z.string().nullable(),
   audience: emailAudienceSchema,
+  /**
+   * Why sends failed: `to` a recipient's address, or empty for the run's own
+   * reason to stop. A reader without `settings.manage` gets only the run's
+   * own entries (no address); the e-mail managers get them all.
+   */
   failures: z.array(z.object({ to: z.string(), error: z.string() })),
   createdAt: z.number(),
   /** What the run is told to do (running, paused, stopped, done); null on a run from before the ledger. */
