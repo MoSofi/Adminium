@@ -2224,7 +2224,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       // A person's data by address, the privacy notice and the sender's postal address: the privacy action's.
-      await api.register(privacyRoutes({ meta, manager, consent, storage, secret: env.ADMINIUM_SECRET, enqueue: (input) => jobs.enqueue(input) }));
+      await api.register(
+        privacyRoutes({
+          meta,
+          manager,
+          consent,
+          storage,
+          secret: env.ADMINIUM_SECRET,
+          enqueue: (input) => jobs.enqueue(input),
+          // An erased person's rows: the public door's address watch ends their sessions and takes their sign-in links back.
+          signIns: (event) => app.publicIdentities.onRecordEvent(event),
+        }),
+      );
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
       await api.register(
         paymentLinksRoutes({

@@ -59,7 +59,7 @@ function lowerText(meta: MetaDb, column: string): RawBuilder<string> {
 }
 
 /** `column` holds any of `needles` as plain text. */
-function holdsAny(meta: MetaDb, column: string, needles: readonly string[]): RawBuilder<boolean> {
+export function holdsAny(meta: MetaDb, column: string, needles: readonly string[]): RawBuilder<boolean> {
   return sql<boolean>`(${sql.join(
     needles.map((needle) => sql`${lowerText(meta, column)} like ${likeOf(needle.toLowerCase())} escape '!'`),
     sql` or `,

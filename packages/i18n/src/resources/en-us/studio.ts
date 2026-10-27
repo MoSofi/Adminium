@@ -4248,5 +4248,8 @@ export default {
       "title": "{count, plural, one {A document waits for an add-on update} other {# documents wait for an add-on update}}",
       "item": "{document}: {addOn} does not draw it yet. It is made when {addOn} is updated."
     }
+  },
+  "privacy": {
+    "erasedPerson": "Erased person"
   }
 } as const;

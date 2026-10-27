@@ -73,7 +73,8 @@ export interface PrivacyFindDeps {
   consent: ConsentService;
 }
 
-const NO_SECRETS = {
+/** A manifest reader that never touches a credential (finding and erasing read stored manifests only). */
+export const NO_SECRETS = {
   encrypt: (): string => {
     throw new Error('finding a person never stores a credential');
   },
@@ -83,9 +84,9 @@ const NO_SECRETS = {
 };
 
 /** The states in which an app still holds a table. */
-const HELD = new Set(['created', 'adopted', 'shared']);
+export const HELD = new Set(['created', 'adopted', 'shared']);
 /** Apps whose tables are still there. */
-const PRESENT = new Set(['installed', 'disabled']);
+export const PRESENT = new Set(['installed', 'disabled']);
 
 /** The address a search is for, as kept; refused when it is no address. */
 export function searchAddress(raw: string): string {
@@ -94,7 +95,7 @@ export function searchAddress(raw: string): string {
 }
 
 /** A table of the view, or null when it is gone (or private: the view has none). */
-function tableOf(view: SnapshotView, name: string): ResolvedTable | null {
+export function tableOf(view: SnapshotView, name: string): ResolvedTable | null {
   try {
     return view.table(name);
   } catch {
@@ -115,7 +116,7 @@ function exported(table: ResolvedTable, row: Row, only?: ReadonlySet<string>): R
 }
 
 /** `lower(trim(column)) = address`: the address as stored, in either case, spaces around it or not. */
-const addressIs = (column: string, address: string) => sql<boolean>`lower(trim(${sql.ref(column)})) = ${address}`;
+export const addressIs = (column: string, address: string) => sql<boolean>`lower(trim(${sql.ref(column)})) = ${address}`;
 
 async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, conditions: ReturnType<typeof sql<boolean>>[]): Promise<Row[]> {
   if (conditions.length === 0) return [];
@@ -128,13 +129,13 @@ async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, condi
 }
 
 /** Each installed app on a database: its key, the manifest it stored, and its records of its tables. */
-interface AppOnDatabase {
+export interface AppOnDatabase {
   appKey: string;
   document: { requiredSchema?: { tables?: unknown } } | null;
 }
 
 /** The kept-by-law reason of each table of the database (by snapshot id), from the apps' `keep` words. */
-async function keptTablesOf(meta: MetaDb, connectionId: string, apps: readonly AppOnDatabase[], view: SnapshotView): Promise<Map<string, { reason: KeptByLawReason; app: string }>> {
+export async function keptTablesOf(meta: MetaDb, connectionId: string, apps: readonly AppOnDatabase[], view: SnapshotView): Promise<Map<string, { reason: KeptByLawReason; app: string }>> {
   const out = new Map<string, { reason: KeptByLawReason; app: string }>();
   const records = await appTablesRepo(meta).forConnection(connectionId);
   for (const app of apps) {

@@ -4248,5 +4248,8 @@ export default {
       "title": "{count, plural, one {Ein Dokument wartet auf ein Add-on-Update} other {# Dokumente warten auf ein Add-on-Update}}",
       "item": "{document}: {addOn} erstellt es noch nicht. Es wird erstellt, sobald {addOn} aktualisiert ist."
     }
+  },
+  "privacy": {
+    "erasedPerson": "Gelöschte Person"
   }
 } as const;

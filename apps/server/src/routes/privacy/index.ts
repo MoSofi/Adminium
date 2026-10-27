@@ -15,6 +15,8 @@
  *   GET  /privacy/exports                the downloads this person asked for
  *   GET  /privacy/exports/:id            one of them
  *   GET  /privacy/exports/:id/download   its file, for the person who asked alone
+ *   POST /privacy/erase/preview          what an erasure would do: what goes and what stays, with counts
+ *   POST /privacy/erase                  erase the person in place, confirmed by the address typed again
  *
  * ─── Who may ───────────────────────────────────────────────────────────────
  * Everything about a person, and the notice, under the privacy action
@@ -29,7 +31,14 @@
  * counts found and the keyed hash of the address; it goes in a request body,
  * never a URL; the export's row and job keep it hashed and sealed. While the
  * address keys cannot be read (`ADMINIUM_SECRET` changed), a search answers
- * 503 rather than "nothing found".
+ * 503 rather than "nothing found", and an erasure touches nothing.
+ *
+ * ─── Erasing ────────────────────────────────────────────────────────────────
+ * Under the same action, by a signed-in person, and never through the staff
+ * write path: the erasure writes as the system (`privacy/erase.ts`), past
+ * any role's reach, and fires no rule. It is confirmed by the address typed
+ * a second time (the house's type-to-confirm), and its one audit entry keeps
+ * the counts and the keyed hash, never the address.
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -39,15 +48,21 @@ import { audited } from '../../audit/coverage.js';
 import { AddressKeysLockedError, type ConsentService } from '../../consent/index.js';
 import { sealAddress } from '../../consent/keys.js';
 import type { ConnectionManager } from '../../connections/manager.js';
+import type { RecordWriteEvent } from '../../crud/after-record-write.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
+import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
 import { keepingRows } from '../../privacy/keeping.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
+import { normaliseAddress } from '../../public-api/claim-code.js';
 import { whatStays } from '../../privacy/what-stays.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
+  eraseBody,
+  erasePreviewReply,
+  eraseReply,
   keepingReply,
   postalAddressBody,
   postalAddressReply,
@@ -70,6 +85,8 @@ export interface PrivacyRoutesDeps {
   storage: FileStore;
   secret: string;
   enqueue: (input: EnqueueJobInput) => Promise<{ id: string }>;
+  /** An erased person's rows told to the public door's address watch: their sessions end, their sign-in links are taken back. */
+  signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
 }
 
 /** The signed-in person asking: never an API key. */
@@ -93,15 +110,21 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns };
 
-  /** The search, with locked keys refused rather than read as "nothing found". */
-  async function find(address: string): Promise<PersonFound> {
+  /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
+  async function unlocked<T>(work: () => Promise<T>): Promise<T> {
     try {
-      return await findPerson(deps, address);
+      return await work();
     } catch (error) {
       if (error instanceof AddressKeysLockedError) throw new AppError(503, 'ADDRESS_KEYS_LOCKED', error.message);
       throw error;
     }
+  }
+
+  /** The search. */
+  async function find(address: string): Promise<PersonFound> {
+    return unlocked(() => findPerson(deps, address));
   }
 
   async function hashOf(address: string) {
@@ -248,6 +271,41 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
           .header('content-disposition', `attachment; filename="${file.filename.replaceAll(/["\\\r\n]/g, '_')}"`)
           .header('cache-control', 'no-store')
           .send(stream);
+      },
+    );
+
+    // ── erasing ─────────────────────────────────────────────────────────────
+    app.post(
+      '/privacy/erase/preview',
+      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: erasePreviewReply } } },
+      async (request) => {
+        personOf(request);
+        const address = searchAddress(request.body.address);
+        const preview = await unlocked(() => previewErasure(eraseDeps, address));
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'privacy.erase.preview',
+          changes: { after: { address: await hashOf(address), goes: Object.fromEntries(preview.goes.map((item) => [item.table ?? item.kind, item.count])) } },
+        });
+        return { data: preview };
+      },
+    );
+
+    app.post(
+      '/privacy/erase',
+      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-erase' }, schema: { body: eraseBody, response: { 200: eraseReply } } },
+      async (request) => {
+        personOf(request);
+        const address = searchAddress(request.body.address);
+        // Typed again, as the dialog asks: the same address, any case. The refusal never repeats it.
+        if (normaliseAddress(request.body.confirm) !== address) throw new ConflictError('Type the address again to confirm the erasure.', 'CONFLICT', { reason: 'confirm-mismatch' });
+        const result = await unlocked(() => erasePerson(eraseDeps, address));
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'privacy.erase',
+          changes: { after: { address: result.address, counts: result.counts, left: result.left.length, filesFailed: result.filesFailed } },
+        });
+        return { data: { counts: result.counts, left: result.left, filesFailed: result.filesFailed } };
       },
     );
   };

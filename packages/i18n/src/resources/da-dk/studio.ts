@@ -4248,5 +4248,8 @@ export default {
       "title": "{count, plural, one {Et dokument venter på en opdatering af en tilføjelse} other {# dokumenter venter på en opdatering af en tilføjelse}}",
       "item": "{document}: {addOn} laver det ikke endnu. Det oprettes, når {addOn} er opdateret."
     }
+  },
+  "privacy": {
+    "erasedPerson": "Slettet person"
   }
 } as const;

@@ -32155,6 +32155,10 @@
     "status": "mt",
     "srcHash": "48142c2d47a3"
   },
+  "studio.privacy.erasedPerson": {
+    "status": "mt",
+    "srcHash": "e80c3a859f66"
+  },
   "studio.project.actions.bulk": {
     "status": "mt",
     "srcHash": "7d629df7ade5"

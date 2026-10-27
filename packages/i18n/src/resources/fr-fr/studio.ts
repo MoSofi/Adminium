@@ -4248,5 +4248,8 @@ export default {
       "title": "{count, plural, one {Un document attend une mise à jour de module} other {# documents attendent une mise à jour de module}}",
       "item": "{document} : {addOn} ne le produit pas encore. Il sera créé dès que {addOn} sera mis à jour."
     }
+  },
+  "privacy": {
+    "erasedPerson": "Personne effacée"
   }
 } as const;
