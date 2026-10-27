@@ -95,7 +95,10 @@ export function secondsTime(value: unknown): number | null {
 }
 
 /** One event, or none when the address is not one. */
-export function eventOf(address: unknown, kind: NoticeEventKind, permanent: boolean, relayEventId: string | null, at: number | null): NoticeEvent[] {
+export function eventOf(address: unknown, kind: NoticeEventKind, permanent: boolean, relayEventId: string | null, at: number | null, messageId: string | null = null): NoticeEvent[] {
   const clean = addressOf(address);
-  return clean === null ? [] : [{ address: clean, kind, permanent, relayEventId, at }];
+  if (clean === null) return [];
+  // Only a value a Message-ID could be is kept: no line breaks, a sane length.
+  const named = messageId !== null && messageId.length <= 998 && !/[\r\n]/.test(messageId) ? messageId : null;
+  return [{ address: clean, kind, permanent, relayEventId, at, ...(named === null ? {} : { messageId: named }) }];
 }

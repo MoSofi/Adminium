@@ -42,7 +42,8 @@ function brevoEvent(event: unknown): NoticeEvent[] | null {
   const epoch = event['ts_epoch'];
   const at = typeof epoch === 'number' && Number.isFinite(epoch) ? epoch : secondsTime(event['ts_event'] ?? event['ts']);
   const id = messageId === null ? null : `${messageId}:${snake(event['event'])}`;
-  return eventOf(event['email'], found.kind, found.permanent, id, at);
+  // Brevo's `message-id` is the mail's Message-ID: ours when Brevo kept the one we sent, its own otherwise (which finds no row).
+  return eventOf(event['email'], found.kind, found.permanent, id, at, messageId);
 }
 
 export function brevoEvents(body: unknown): NoticeEvent[] | null {

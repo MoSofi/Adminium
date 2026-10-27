@@ -69,8 +69,9 @@ describe('Amazon SES notices through SNS', () => {
     expect(verdict).toEqual({
       genuine: true,
       events: [
-        { address: 'jane@example.com', kind: 'bounce', permanent: true, relayEventId: '000001378603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000', at: Date.parse('2016-01-27T14:59:38.237Z') },
-        { address: 'richard@example.com', kind: 'bounce', permanent: true, relayEventId: '000001378603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000', at: Date.parse('2016-01-27T14:59:38.237Z') },
+        // `commonHeaders.messageId` is the Message-ID the mail left with: a campaign mail's names its send-log row.
+        { address: 'jane@example.com', kind: 'bounce', permanent: true, relayEventId: '000001378603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000', at: Date.parse('2016-01-27T14:59:38.237Z'), messageId: 'custom-message-ID' },
+        { address: 'richard@example.com', kind: 'bounce', permanent: true, relayEventId: '000001378603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000', at: Date.parse('2016-01-27T14:59:38.237Z'), messageId: 'custom-message-ID' },
       ],
     });
     expect(noticeAnswer(verdict)).toBe(200);

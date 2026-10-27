@@ -38,6 +38,16 @@ export interface NoticeEvent {
   relayEventId: string | null;
   /** When the service says it happened (epoch ms), when it says. */
   at: number | null;
+  /**
+   * The `Message-ID` of the mail it is about, when the service hands it back
+   * (absent otherwise). A campaign mail's names its send-log row
+   * (`email/message-id.ts`), which the notice route then marks. Amazon SES
+   * (its `commonHeaders`), Mailgun and SendGrid (`smtp-id`) give it; Brevo
+   * gives a `message-id` that is ours only when it kept the one we sent;
+   * Postmark gives only its own id, so its notices mark no row; "another
+   * service" may send it as `messageId`.
+   */
+  messageId?: string;
 }
 
 /** Why a call was not taken as genuine. */

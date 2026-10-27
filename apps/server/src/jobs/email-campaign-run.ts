@@ -92,6 +92,7 @@ import {
   type PreparedEmail,
 } from '../email/send.js';
 import type { MarketingCarry } from '../email/marketing.js';
+import { CAMPAIGN_REPORT_APP, CAMPAIGN_REPORT_TABLE } from '../email/message-id.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
@@ -112,9 +113,8 @@ export const CAMPAIGN_BATCH_MAX = 50;
 /** After this long a batch takes no new row; what it claimed and did not reach goes back. */
 export const CAMPAIGN_BATCH_BUDGET_MS = 60_000;
 
-/** How a ledger row names itself to the mail queue, so a message that fails for good finds its row. */
-export const CAMPAIGN_REPORT_APP = 'adminium.campaign';
-export const CAMPAIGN_REPORT_TABLE = 'adminium_email_sends';
+// How a ledger row names itself to the mail queue, so a message that fails for good finds its row (`email/message-id.ts`).
+export { CAMPAIGN_REPORT_APP, CAMPAIGN_REPORT_TABLE } from '../email/message-id.js';
 
 export const emailCampaignRunPayloadSchema = z.object({
   runId: z.string().min(1).max(36),

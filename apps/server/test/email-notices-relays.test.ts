@@ -65,7 +65,8 @@ describe('Brevo', () => {
   it('takes the documented hard bounce', async () => {
     expect(await read(fixtureText('brevo-hard-bounce.json'))).toEqual({
       genuine: true,
-      events: [{ address: 'example@example.com', kind: 'bounce', permanent: true, relayEventId: '<201798300811.5787683@relay.domain.com>:hard_bounce', at: 1598634509223 }],
+      // Brevo's `message-id` is handed on as the mail's Message-ID: the send log's row, when it is a campaign mail's.
+      events: [{ address: 'example@example.com', kind: 'bounce', permanent: true, relayEventId: '<201798300811.5787683@relay.domain.com>:hard_bounce', at: 1598634509223, messageId: '<201798300811.5787683@relay.domain.com>' }],
     });
   });
 
@@ -112,7 +113,8 @@ describe('Mailgun', () => {
     const r = reader();
     expect(await r.read(requestOf(signedBody('mailgun-permanent-fail.json')), endpoint)).toEqual({
       genuine: true,
-      events: [{ address: 'alice@example.com', kind: 'bounce', permanent: true, relayEventId: 'G9Bn5sl1TC6nu79C8C0bwg', at: 1521233195376 }],
+      // The mail's own Message-ID, from the message's headers.
+      events: [{ address: 'alice@example.com', kind: 'bounce', permanent: true, relayEventId: 'G9Bn5sl1TC6nu79C8C0bwg', at: 1521233195376, messageId: '20130503192659.13651.20287@sandboxes.mailgun.org' }],
     });
     expect(await r.read(requestOf(signedBody('mailgun-temporary-fail.json')), endpoint)).toMatchObject({ events: [{ permanent: false }] });
     expect(await r.read(requestOf(signedBody('mailgun-complained.json')), endpoint)).toMatchObject({ events: [{ kind: 'complaint', permanent: true }] });
@@ -174,6 +176,16 @@ describe('SendGrid', () => {
       ['group@example.com', 'unsubscribe', true, 'ahSCB7xYcXFb-hEaawsPRw=='],
     ]);
     expect(verdict.genuine && verdict.events[0]?.at).toBe(1513299569000);
+    // `smtp-id` is the Message-ID the mail went with, handed on where the event carries it.
+    expect(verdict.genuine && verdict.events.map((e) => e.messageId ?? null)).toEqual([
+      '<14c5d75ce93.dfd.64b469@ismtpd-555>',
+      '<14c5d75ce93.dfd.64b469@ismtpd-555>',
+      '<14c5d75ce93.dfd.64b469@ismtpd-555>',
+      null,
+      '<14c5d75ce93.dfd.64b469@ismtpd-555>',
+      '<14c5d75ce93.dfd.64b469@ismtpd-555>',
+      '<14c5d75ce93.dfd.64b469@ismtpd-555>',
+    ]);
   });
 
   it('reads each dropped reason that is about the address', async () => {
@@ -231,6 +243,15 @@ describe('another service', () => {
         { address: 'bye@example.com', kind: 'unsubscribe', permanent: true, relayEventId: null, at: null },
       ],
     });
+  });
+
+  it('hands on the Message-ID an event names, and refuses one too long', async () => {
+    const body = (messageId: string) => JSON.stringify({ events: [{ address: 'gone@example.com', kind: 'bounce', messageId }] });
+    expect(await reader().read(requestOf(body('<esnd_01JB2Y7Z5Q3S8T9V0W1X2Y3Z4A@meridian.example>')), endpointFor('other'))).toMatchObject({
+      genuine: true,
+      events: [{ address: 'gone@example.com', messageId: '<esnd_01JB2Y7Z5Q3S8T9V0W1X2Y3Z4A@meridian.example>' }],
+    });
+    expect(await reader().read(requestOf(body('x'.repeat(256))), endpointFor('other'))).toEqual({ genuine: false, why: 'malformed' });
   });
 
   it('checks the credentials when it was given some, and refuses anything off its shape', async () => {

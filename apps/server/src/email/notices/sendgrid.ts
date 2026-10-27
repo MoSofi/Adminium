@@ -67,18 +67,20 @@ function sendgridEvent(event: unknown): NoticeEvent[] | null {
   if (!isRecord(event) || typeof event['event'] !== 'string') return null;
   const id = textOf(event['sg_event_id']);
   const at = secondsTime(event['timestamp']);
+  // `smtp-id` is the Message-ID the mail was sent with; some events (a spam report, an unsubscribe) may not carry it.
+  const message = textOf(event['smtp-id']);
   switch (event['event']) {
     case 'bounce':
-      return eventOf(event['email'], 'bounce', event['type'] !== 'blocked', id, at);
+      return eventOf(event['email'], 'bounce', event['type'] !== 'blocked', id, at, message);
     case 'dropped': {
       const kind = DROPPED.get((textOf(event['reason']) ?? '').trim().toLowerCase());
-      return kind === undefined ? eventOf(event['email'], 'bounce', false, id, at) : eventOf(event['email'], kind, true, id, at);
+      return kind === undefined ? eventOf(event['email'], 'bounce', false, id, at, message) : eventOf(event['email'], kind, true, id, at, message);
     }
     case 'spamreport':
-      return eventOf(event['email'], 'complaint', true, id, at);
+      return eventOf(event['email'], 'complaint', true, id, at, message);
     case 'unsubscribe':
     case 'group_unsubscribe':
-      return eventOf(event['email'], 'unsubscribe', true, id, at);
+      return eventOf(event['email'], 'unsubscribe', true, id, at, message);
     default:
       return [];
   }
