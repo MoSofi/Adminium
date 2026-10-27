@@ -29,13 +29,16 @@
  */
 import { Writable } from 'node:stream';
 
-import { SYSTEM_ACTION_KEYS, apiKeysRepo, auditRepo, consentLogRepo, emailRunsRepo, emailSendsRepo, emailTemplatesRepo, filesRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { SYSTEM_ACTION_KEYS, apiKeysRepo, auditRepo, consentLogRepo, emailRunsRepo, emailSendsRepo, emailTemplatesRepo, filesRepo, permissionsRepo, privacyExportsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createConsentService } from '../src/consent/index.js';
+import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
 import { mailLinkKeys } from '../src/email/link-keys.js';
 import { makeUnsubscribeToken } from '../src/email/unsubscribe-token.js';
+import type { FileStore } from '../src/files/store.js';
+import { erasePerson } from '../src/privacy/erase.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-server.helpers.js';
@@ -103,6 +106,7 @@ function crm(): Record<string, unknown> {
             fk('sent_to_contact_id', 'contacts'),
             text('to_email', 254, { rules: { personal: true } }),
             text('to_name'),
+            fk('accepted_by_id', 'contacts'),
             text('accepted_name'),
             // A copy that follows the contact, and is not declared: the erasure never moves it.
             text('to_phone', 40, { rules: { personal: true, copy: { via: 'sent_to_contact_id', from: 'phone', mode: 'always', follow: true } } }),
@@ -140,7 +144,7 @@ function crm(): Record<string, unknown> {
         copies: [
           { table: 'quotes', column: 'to_email', holds: 'email', via: 'sent_to_contact_id' },
           { table: 'quotes', column: 'to_name', holds: 'name', via: 'sent_to_contact_id' },
-          { table: 'quotes', column: 'accepted_name', holds: 'name', via: 'sent_to_contact_id' },
+          { table: 'quotes', column: 'accepted_name', holds: 'name', via: 'accepted_by_id' },
           { table: 'sign_offs', column: 'signer_name', holds: 'name', via: 'contact_id' },
           { table: 'visits', column: 'visitor_name', holds: 'name', via: 'contact_id' },
           { table: 'invoices', column: 'bill_to_name', holds: 'name', via: 'contact_id' },
@@ -249,9 +253,11 @@ for (const [dialect, reachable] of LEGS) {
       await s.rows(`INSERT INTO crm_enquiries (id, name, email, message) VALUES (1, 'Marta K', ' Marta.Kovac@CobaltLegal.example ', 'Showroom visit'), (2, 'Ben Other', 'ben@other.example', 'Desks'), (3, 'Nina', '${NINA}', 'Chairs')`);
       await s.rows(`INSERT INTO crm_deals (id, title, contact_id, amount) VALUES (1, 'Cobalt fit-out', 1, 5000), (2, 'Other desks', 2, 900)`);
       await s.rows(
-        `INSERT INTO crm_quotes (id, number, status, sent_to_contact_id, to_email, to_name, accepted_name, to_phone, total, sent_at) VALUES ` +
-          `(1, 'Q-1', 'draft', 1, '${MARTA.toUpperCase()}', 'Marta Kovac', 'Marta Kovac', '+44 20 7946 0001', 1100, NULL), ` +
-          `(2, 'Q-2', 'sent', 2, 'ben@other.example', 'Ben Other', NULL, '+44 20 7946 0002', 800, '2026-09-02 09:00:00')`,
+        `INSERT INTO crm_quotes (id, number, status, sent_to_contact_id, to_email, to_name, accepted_by_id, accepted_name, to_phone, total, sent_at) VALUES ` +
+          `(1, 'Q-1', 'draft', 1, '${MARTA.toUpperCase()}', 'Marta Kovac', 1, 'Marta Kovac', '+44 20 7946 0001', 1100, NULL), ` +
+          `(2, 'Q-2', 'sent', 2, 'ben@other.example', 'Ben Other', NULL, NULL, '+44 20 7946 0002', 800, '2026-09-02 09:00:00'), ` +
+          // Sent to Ben, accepted by her: only her copy on it is hers.
+          `(3, 'Q-3', 'sent', 2, 'ben@other.example', 'Ben Other', 1, 'Marta Kovac', '+44 20 7946 0002', 500, '2026-09-04 09:00:00')`,
       );
       await s.rows(`INSERT INTO crm_sign_offs (id, quote_id, contact_id, signer_name, signed_at) VALUES (1, 1, 1, 'Marta Kovac', '2026-09-05 12:00:00'), (2, 2, 2, 'Ben Other', '2026-09-05 12:00:00')`);
       await s.rows(`INSERT INTO crm_visits (id, contact_id, visitor_name, day) VALUES (1, 1, 'Marta Kovac', '2026-08-01'), (2, 1, 'Marta Kovac', '2026-08-15'), (3, 2, 'Ben Other', '2026-08-15')`);
@@ -296,6 +302,9 @@ for (const [dialect, reachable] of LEGS) {
       // A file on her contact row.
       await filesRepo(s.meta).create({ filename: 'passport.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload', uploadedBy: s.ids['owner']!, entity: { connectionId: s.connectionId, table: s.t('contacts'), pk: { id: 1 }, label: '1' } });
 
+      // Her data, downloaded before ("Download everything"): it goes with her.
+      expect(said(await s.send('pia', 'POST', '/api/v1/privacy/exports', { address: TYPED }))).toBe('ok');
+
       // The rule is live: a staff change of Ben tells the reps.
       const told = await notificationsFor('rita');
       expect(said(await s.change('owner', 'contacts', 2, { job_title: 'Head buyer' }))).toBe('ok');
@@ -303,7 +312,7 @@ for (const [dialect, reachable] of LEGS) {
       expect(await notificationsFor('rita')).toBeGreaterThan(told);
       await s.emails();
 
-      for (const [ref, key] of [['quotes', 1], ['quotes', 2], ['sign_offs', 1], ['invoices', 1], ['deals', 1], ['contacts', 2], ['enquiries', 2]] as const) before[`${ref}:${String(key)}`] = await one(ref, key);
+      for (const [ref, key] of [['quotes', 1], ['quotes', 2], ['quotes', 3], ['sign_offs', 1], ['invoices', 1], ['deals', 1], ['contacts', 2], ['enquiries', 2]] as const) before[`${ref}:${String(key)}`] = await one(ref, key);
     }, 240_000);
     afterAll(async () => {
       await s?.close();
@@ -325,7 +334,7 @@ for (const [dialect, reachable] of LEGS) {
       const view = dataOf<Preview>(res);
       expect(view.found).toBe(true);
       const goes = Object.fromEntries(view.goes.map((item) => [item.table ?? item.kind, item.count]));
-      expect(goes).toMatchObject({ [s.t('contacts')]: 1, [s.t('enquiries')]: 1, [s.t('quotes')]: 1, [s.t('sign_offs')]: 1, [s.t('visits')]: 1, [s.t('messages')]: 2, consent: 2, 'campaign-mail': 1, files: 1 });
+      expect(goes).toMatchObject({ [s.t('contacts')]: 1, [s.t('enquiries')]: 1, [s.t('quotes')]: 2, [s.t('sign_offs')]: 1, [s.t('visits')]: 1, [s.t('messages')]: 2, consent: 2, 'campaign-mail': 1, files: 1 });
       // The invoice is the law's: it stays, and is never in "what goes".
       expect(goes[s.t('invoices')]).toBeUndefined();
       expect(view.stays).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'app-rows', reason: 'tax', table: s.t('invoices') }), expect.objectContaining({ kind: 'do-not-email', reason: 'objection' })]));
@@ -343,7 +352,7 @@ for (const [dialect, reachable] of LEGS) {
       const res = await erase('pia', TYPED, MARTA.toUpperCase());
       expect(res.statusCode, res.body).toBe(200);
       const done = dataOf<{ counts: Record<string, number>; left: unknown[]; filesFailed: number }>(res);
-      expect(done.counts).toMatchObject({ 'people-crm-contacts': 1, 'people-crm-enquiries': 1, 'outbox-crm': 2, consent: 2, 'campaign-mail': 1, files: 1, 'stop-list': 1 });
+      expect(done.counts).toMatchObject({ 'people-crm-contacts': 1, 'people-crm-enquiries': 1, 'outbox-crm': 2, consent: 2, 'campaign-mail': 1, files: 1, downloads: 1, 'stop-list': 1 });
       expect(done.filesFailed).toBe(0);
 
       // Her contact: the row and its links kept, her fields emptied, strict stamps included; a NOT NULL name reads "Erased person".
@@ -367,6 +376,8 @@ for (const [dialect, reachable] of LEGS) {
       expect(quote['to_phone']).toBe('+44 20 7946 0001');
       expect(ms(quote['sent_at'])).toBe(ms(before['quotes:1']!['sent_at']));
       expect(await one('quotes', 2)).toEqual(before['quotes:2']);
+      // Ben's quote she accepted: her copy goes, his stay.
+      expect(await one('quotes', 3)).toEqual({ ...before['quotes:3'], accepted_name: null });
       // The signed sign-off keeps its signing; her name goes.
       expect(await one('sign_offs', 1)).toEqual({ ...before['sign_offs:1'], signer_name: null });
       // Her visit left; the removed one's row is kept below.
@@ -424,6 +435,9 @@ for (const [dialect, reachable] of LEGS) {
       expect(sends[0]).toEqual({ address: '', name: '', state: 'sent', personKey: '1' });
       expect(sends[1]).toMatchObject({ address: 'ben@other.example', name: 'Ben Other' });
       expect(await s.meta.db.selectFrom('adminium_files').select('id').where('filename', '=', 'passport.pdf').execute()).toEqual([]);
+      // Her download went too, its file with it.
+      expect(await privacyExportsRepo(s.meta).listFor(s.ids['pia']!)).toEqual([]);
+      expect(await s.meta.db.selectFrom('adminium_files').select('id').where('kind', '=', 'export').execute()).toEqual([]);
 
       const erased = (await s.meta.db.selectFrom('adminium_audit_log').select(['changes', 'actorId']).where('action', '=', 'privacy.erase').execute())[0]!;
       expect(erased.actorId).toBe(s.ids['pia']);
@@ -460,6 +474,8 @@ for (const [dialect, reachable] of LEGS) {
       expect(nina.statusCode, nina.body).toBe(200);
       const enquiries = await s.rows(`SELECT email FROM crm_enquiries WHERE id IN (1, 3) ORDER BY id`);
       expect(String(enquiries[1]!['email'])).toMatch(/@erased\.invalid$/);
+      // She was on the list already: her entry stays, by its hash alone.
+      expect(await createConsentService({ meta: s.meta, secret: TEST_SECRET }).stop.entryFor(NINA)).toMatchObject({ address: null, reason: 'link' });
       expect(enquiries[0]!['email']).not.toBe(enquiries[1]!['email']);
 
       const again = await erase('pia', TYPED);
@@ -468,6 +484,16 @@ for (const [dialect, reachable] of LEGS) {
       expect(counts['people-crm-contacts'] ?? 0).toBe(0);
       expect(counts['consent']).toBe(0);
       expect(dataOf<Preview>(await preview('pia')).goes).toEqual([]);
+    });
+
+    it('tells the public door each of their rows lost its address, so their sessions and sign-in links end', async () => {
+      const told: RecordWriteEvent[] = [];
+      const storage = { remove: async () => undefined, driverFor: async () => ({ remove: async () => undefined }) } as unknown as FileStore;
+      await erasePerson({ meta: s.meta, manager: s.manager, consent: createConsentService({ meta: s.meta, secret: TEST_SECRET }), storage, secret: TEST_SECRET, signIns: async (event) => void told.push(event) }, `x${MARTA}`);
+      expect(told).toHaveLength(1);
+      expect(told[0]).toMatchObject({ connectionId: s.connectionId, action: 'delete', after: null, entity: { table: s.t('contacts'), pk: { id: 3 } } });
+      expect(told[0]!.before!['email']).toBe(`x${MARTA}`);
+      expect((await one('contacts', 3))['email']).toBeNull();
     });
   });
 }
