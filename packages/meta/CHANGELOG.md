@@ -1,5 +1,7 @@
 # @adminium/meta
 
+## 0.3.37
+
 ## 0.3.36
 
 ### Patch Changes

@@ -234,6 +234,19 @@ export function planInstall(
     for (const column of table.columns) {
       if (column.type !== 'fk' || column.references === undefined) continue;
       const target = column.references;
+      // A foreign key into Adminium's own tables would stop their rows being deleted, and their migrations.
+      if (!declared.has(target) && target.startsWith(RESERVED_TABLE_PREFIX)) {
+        references.push({ fromTable: table.ref, fromColumn: column.ref, to: target, resolution: 'unresolved' });
+        problems.push({
+          code: 'RESERVED_TABLE',
+          table: table.ref,
+          column: column.ref,
+          message:
+            `"${table.ref}.${column.ref}" links to "${target}", one of Adminium's own tables. An ${noun} ` +
+            `cannot link to a table whose name begins with "${RESERVED_TABLE_PREFIX}".`,
+        });
+        continue;
+      }
       const resolution: PlannedReference['resolution'] = declared.has(target)
         ? 'internal'
         : existingByRef.has(target)

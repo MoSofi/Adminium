@@ -31,7 +31,8 @@ A link is an `fk` column whose `references` is the other table's `ref`.
 - A ref the manifest lacks links to a table the database already has under that name (a loyalty
   app on a shop's own `customers`). The check warns that the app then installs only on a database
   with that table, and the install refuses it anywhere else. When the warning names a table you
-  meant to be the app's own, fix the spelling.
+  meant to be the app's own, fix the spelling. Adminium's own `adminium_*` tables are never a
+  target: the install refuses a link to one on every database.
 - The target must have exactly one `pk` column; the link takes its type.
 - An `fk` takes no `default`. Make it `nullable` unless every row must have one.
 - Forms and lists show the linked row by its table's `keyField`, so give the target one.

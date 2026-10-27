@@ -801,13 +801,15 @@ test('a plain page mounts the board from real rows, and a card dragged with the 
   // corners and surface, and no class left without a rule.
   expect(await unstyledClasses(page)).toEqual([]);
   const boxes = await Promise.all(['new', 'talking', 'won'].map((id) => column(page, id).boundingBox()));
-  expect(boxes[0]!.width).toBe(288);
+  // The columns share the board's width, none narrower than 260 (the Project Board comp).
+  expect(boxes[0]!.width).toBeGreaterThanOrEqual(260);
+  expect(Math.round(boxes[1]!.width)).toBe(Math.round(boxes[0]!.width));
   expect(boxes[1]!.x).toBeGreaterThan(boxes[0]!.x + boxes[0]!.width);
   expect(Math.round(boxes[1]!.y)).toBe(Math.round(boxes[0]!.y));
   const face = card(page, 'Harbour Cafe').locator('> div');
   expect(await face.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
   expect(await face.evaluate((el) => getComputedStyle(el).borderTopWidth + ' ' + getComputedStyle(el).borderTopStyle)).toBe('1px solid');
-  expect(await face.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('14px');
+  expect(await face.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('12px');
   expect(await face.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Georgia');
   // The live region is there for a screen reader and takes no room.
   expect(await spoken(page).evaluate((el) => getComputedStyle(el).position + ' ' + getComputedStyle(el).width)).toBe('absolute 1px');
@@ -819,13 +821,13 @@ test('a plain page mounts the board from real rows, and a card dragged with the 
 
   // Dragged with the mouse from New to Talking.
   const from = (await card(page, 'Second Wind').boundingBox())!;
-  const to = (await column(page, 'talking').locator('[data-board-cell]').boundingBox())!;
+  const to = (await column(page, 'talking').boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2 + 6, { steps: 3 });
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
   // While it is held, the column under it shows where it will land.
-  await expect(column(page, 'talking').locator('[data-board-cell]')).toHaveAttribute('data-drop-target', '');
+  await expect(column(page, 'talking')).toHaveAttribute('data-drop-target', '');
   await page.mouse.up();
 
   await expect.poll(() => cardsIn(page, 'talking')).toEqual(['Second Wind', 'Fourth Wall']);
@@ -859,7 +861,7 @@ test('a card is moved with the keyboard, said aloud, saved, and the focus goes w
   await expect(spoken(page)).toHaveText(/Grabbed Fourth Wall\. Use the arrow keys to move, Enter to drop, Escape to cancel\./);
   await page.keyboard.press('ArrowRight');
   await expect(spoken(page)).toHaveText(/Fourth Wall is over Won\./);
-  await expect(column(page, 'won').locator('[data-board-cell]')).toHaveAttribute('data-drop-target', '');
+  await expect(column(page, 'won')).toHaveAttribute('data-drop-target', '');
   // Escape puts it back, and nothing is saved.
   await page.keyboard.press('Escape');
   await expect(spoken(page)).toHaveText(/Fourth Wall returned to its original position\./);
@@ -966,9 +968,9 @@ test('in Arabic the board runs right to left, the left arrow goes on, and it spe
   await expect(spoken(page)).toHaveText(/Harbour Cafe/);
   // The right arrow goes back, and there is nowhere before the first column.
   await page.keyboard.press('ArrowRight');
-  await expect(column(page, 'new').locator('[data-board-cell]')).toHaveAttribute('data-drop-target', '');
+  await expect(column(page, 'new')).toHaveAttribute('data-drop-target', '');
   await page.keyboard.press('ArrowLeft');
-  await expect(column(page, 'talking').locator('[data-board-cell]')).toHaveAttribute('data-drop-target', '');
+  await expect(column(page, 'talking')).toHaveAttribute('data-drop-target', '');
   await page.keyboard.press('Enter');
   await expect.poll(() => cardsIn(page, 'talking')).toEqual(['Harbour Cafe', 'Fourth Wall']);
   await expect.poll(() => saves(page)).toEqual([{ cardId: ids['Harbour Cafe'], to: 'talking', from: 'new', status: 200 }]);
@@ -1022,7 +1024,7 @@ test('the board is dark where the app says dark, and takes the app’s own colou
   await expect(page.locator('#board > .adm-kit')).toHaveAttribute('data-kit-theme', 'dark');
   const face = card(page, 'Harbour Cafe').locator('> div');
   expect(await face.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(20, 20, 25)');
-  expect(await face.locator('p').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(244, 244, 246)');
+  expect(await face.locator('p').first().evaluate((el) => getComputedStyle(el).color)).toBe('rgb(244, 244, 246)');
   // The app's own accent: the ring round a card that has the focus.
   await page.evaluate(() => document.body.setAttribute('data-tokens', ''));
   await card(page, 'Harbour Cafe').focus();
@@ -1070,7 +1072,7 @@ test('a card’s own actions open by the mouse from a button that is no part of 
   await expect(column(page, 'new').locator('[data-part="column-badge"]')).toHaveText('10%');
   await expect(column(page, 'talking').locator('[data-part="column-badge"]')).toHaveText('40%');
   await expect(column(page, 'won').locator('[data-part="column-badge"]')).toHaveCount(0);
-  const [label, badge] = await Promise.all([column(page, 'new').locator('header > span').nth(1).boundingBox(), column(page, 'new').locator('[data-part="column-badge"]').boundingBox()]);
+  const [label, badge] = await Promise.all([column(page, 'new').locator('header h3').boundingBox(), column(page, 'new').locator('[data-part="column-badge"]').boundingBox()]);
   expect(badge!.x).toBeGreaterThanOrEqual(label!.x + label!.width);
   expect(await column(page, 'new').locator('[data-part="column-badge"]').evaluate((el) => getComputedStyle(el).borderTopWidth + ' ' + getComputedStyle(el).borderTopLeftRadius)).not.toBe('0px 0px');
 
@@ -1122,12 +1124,12 @@ test('a card’s own actions open by the mouse from a button that is no part of 
 
   // The button does not start a drag: pressed and pulled across to the next column, the card stays.
   const grab = (await more.boundingBox())!;
-  const drop = (await column(page, 'talking').locator('[data-board-cell]').boundingBox())!;
+  const drop = (await column(page, 'talking').boundingBox())!;
   await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
   await page.mouse.down();
   await page.mouse.move(grab.x + 40, grab.y + 20, { steps: 4 });
   await page.mouse.move(drop.x + drop.width / 2, drop.y + drop.height / 2, { steps: 10 });
-  await expect(column(page, 'talking').locator('[data-board-cell]')).not.toHaveAttribute('data-drop-target', '');
+  await expect(column(page, 'talking')).not.toHaveAttribute('data-drop-target', '');
   await page.mouse.up();
   expect(await cardsIn(page, 'new')).toEqual(['Harbour Cafe', 'Second Wind', 'Third Coast']);
   expect(await saves(page)).toEqual([]);
@@ -1237,8 +1239,8 @@ test('the menu of the last card of a long column is whole: the column’s scroll
   const problems = watch(page);
   await open(page, `${ACTIONS_PAGE}&long=1`);
 
-  // Nine cards in a board 420 high: the column scrolls inside itself.
-  const cell = column(page, 'new').locator('[data-board-cell]');
+  // Nine cards in a board 420 high: the column's list of cards scrolls inside it.
+  const cell = column(page, 'new').locator('[data-part="column-cards"]');
   const sizes = await cell.evaluate((el) => ({ inner: el.scrollHeight, box: el.clientHeight }));
   expect(sizes.inner).toBeGreaterThan(sizes.box + 400);
   const more = moreOf(page, 'Extra 6');

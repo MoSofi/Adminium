@@ -1,5 +1,12 @@
 # @adminium/manifest
 
+## 0.3.37
+
+### Patch Changes
+
+- 07427b7: An app whose foreign key points at a table the database already has (a loyalty app on a shop's own `customers`) installs, with the foreign key to that table. Its install used to fail with an internal error, while `app check` passed it. `app check` now prints a `!` for such a link: the app installs only on a database with that table, and anywhere else the install refuses it by name (`UNRESOLVED_REFERENCE`). A link to one of Adminium's own `adminium_*` tables is refused on every database (`RESERVED_TABLE`), and `app check` says so. On Postgres and MySQL the link is a plain foreign key, so a row the app links to cannot be deleted while the app still points at it.
+- @adminium/add-on-contracts@0.3.37
+
 ## 0.3.36
 
 ### Patch Changes

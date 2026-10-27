@@ -73,11 +73,12 @@ export interface CalendarMonthProps {
 /** An event's pill: a tint of its colour, its words in it, a dot before them (both comps). */
 const PILL_TONE: Record<Tone, string> = {
   neutral: 'bg-surface-3 text-fg-muted',
-  accent: 'bg-accent-soft text-accent',
-  pos: 'bg-pos-soft text-pos',
-  warn: 'bg-warn-soft text-warn',
-  danger: 'bg-danger-soft text-danger',
-  info: 'bg-info-soft text-info',
+  // The opaque tints: a translucent one over a grey cell (out of the month, hovered) drops a pill's words under 4.5:1.
+  accent: 'bg-accent-soft-solid text-accent',
+  pos: 'bg-pos-soft-solid text-pos',
+  warn: 'bg-warn-soft-solid text-warn',
+  danger: 'bg-danger-soft-solid text-danger',
+  info: 'bg-info-soft-solid text-info',
 };
 const DOT_TONE: Record<Tone, string> = {
   neutral: 'bg-fg-subtle',

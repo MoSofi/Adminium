@@ -2,6 +2,19 @@
 
 # Manifest spec: requiredSchema — Columns
 
+`"now"` is filled by Adminium on every create, through every door, so what the create works out can
+read it (a visit's [hours](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments) are there from the start). On MySQL the
+database is given no default for it at all: an app's `timestamptz` is a `DATETIME` there, kept on
+the Adminium server's clock, and the database — whose sessions Adminium keeps in UTC — could only
+fill UTC's. A row written to that table outside Adminium, leaving the column out, gets nothing: it
+stays empty, or is refused when the column may not be empty. Adminium also fills a MySQL `DATETIME`
+whose database default is `CURRENT_TIMESTAMP` (a table made before, or one of your own) on its own
+creates, with the server's own time: before, the database filled it with UTC's time, so on a server
+not in UTC a row Adminium makes now differs from one another program stamps. On Postgres and SQLite
+the database's own default is kept as well.
+
+#### Decimal places
+
 `scale` says how many places a `decimal` or `money` column keeps after the point:
 
 | Value | Places |
