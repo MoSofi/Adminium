@@ -330,6 +330,11 @@ export const RATE_BUCKETS = {
   'mail-door-act': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A mail service's notices: a few addresses, bursts after a send. The service's own proof is the gate.
   'mail-notice': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A person's data, by address: each search reads every people table whole,
+  // and each download writes a file of it. A person answering access requests
+  // looks up a few addresses an hour; these stop a script walking a list.
+  'privacy-find': { max: 120, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  'privacy-export': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

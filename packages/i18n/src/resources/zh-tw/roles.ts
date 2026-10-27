@@ -90,7 +90,8 @@ export default {
     "designerUse": "使用 Adminium Designer 建立應用程式",
     "paymentsManage": "設定付款",
     "paymentsRefund": "辦理退款",
-    "paymentsView": "查看付款活動並匯出"
+    "paymentsView": "查看付款活動並匯出",
+    "privacyManage": "尋找、下載和管理某人的資料"
   },
   "rename": {
     "failed": "無法重新命名角色",

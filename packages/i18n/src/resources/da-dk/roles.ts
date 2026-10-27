@@ -90,7 +90,8 @@ export default {
     "designerUse": "Byg apps med Adminium Designer",
     "paymentsManage": "Opsæt betalinger",
     "paymentsRefund": "Give refusioner",
-    "paymentsView": "Se betalingsaktivitet og eksportere den"
+    "paymentsView": "Se betalingsaktivitet og eksportere den",
+    "privacyManage": "Finde, downloade og administrere en persons data"
   },
   "rename": {
     "failed": "Rollen kunne ikke omdøbes",

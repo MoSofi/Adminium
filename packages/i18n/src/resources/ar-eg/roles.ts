@@ -90,7 +90,8 @@ export default {
     "designerUse": "إنشاء تطبيقات باستخدام Adminium Designer",
     "paymentsManage": "إعداد المدفوعات",
     "paymentsRefund": "إصدار المبالغ المستردة",
-    "paymentsView": "رؤية نشاط المدفوعات وتصديره"
+    "paymentsView": "رؤية نشاط المدفوعات وتصديره",
+    "privacyManage": "العثور على بيانات شخص وتنزيلها وإدارتها"
   },
   "rename": {
     "failed": "تعذّرت إعادة تسمية الدور",

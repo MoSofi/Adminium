@@ -1886,6 +1886,23 @@ export interface AdminiumEmailSendCountersTable {
   hits: number;
 }
 
+/** Wave 0070 — a person's data downloaded: who asked, whose (a keyed hash), and the .zip. */
+export interface AdminiumPrivacyExportsTable {
+  id: Id;
+  requestedBy: Id;
+  addressHash: string;
+  keyVersion: number;
+  /** processing | ready | failed | expired */
+  status: string;
+  fileId: Id | null;
+  /** `{ <source>: <rows> }` */
+  counts: JsonColumn | null;
+  error: string | null;
+  createdAt: Ts;
+  completedAt: Ts | null;
+  expiresAt: Ts | null;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1972,6 +1989,7 @@ export interface MetaDB {
   adminium_email_run_contents: AdminiumEmailRunContentsTable;
   adminium_email_sends: AdminiumEmailSendsTable;
   adminium_email_send_counters: AdminiumEmailSendCountersTable;
+  adminium_privacy_exports: AdminiumPrivacyExportsTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -2060,4 +2078,5 @@ export const META_TABLE_NAMES = [
   'adminium_email_run_contents',
   'adminium_email_sends',
   'adminium_email_send_counters',
+  'adminium_privacy_exports',
 ] as const satisfies readonly (keyof MetaDB)[];

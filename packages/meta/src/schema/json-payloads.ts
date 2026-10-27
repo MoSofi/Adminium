@@ -309,6 +309,11 @@ export const SYSTEM_ACTION_KEYS = [
   'payments.manage',
   'payments.refund',
   'payments.view',
+  // A person's data: finding everything kept about one address, downloading
+  // it for them, and the privacy notice. It reads every people table whole,
+  // past any role's table and row limits, so it is a key of its own. Only the
+  // Super Admin holds it unless it is granted on purpose (as payments).
+  'privacy.manage',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);

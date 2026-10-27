@@ -108,6 +108,10 @@ export const PERMISSIONS = {
   paymentsManage: 'system:payments:manage',
   paymentsRefund: 'system:payments:refund',
   paymentsView: 'system:payments:view',
+  // A person's data, by address: find, download, the privacy notice. Read past
+  // every role's table and row limits, so only the Super Admin holds it unless
+  // granted on purpose.
+  privacyManage: 'system:privacy:manage',
 } as const;
 
 /**

@@ -78,6 +78,19 @@ export const surfaceInstanceSlug = z
     message: '`staff` and `customer` are reserved — they name a side, not an instance',
   });
 
+/**
+ * True when `value` is a web address a stranger's browser opens safely:
+ * `https://`, a host, no user name or password in it.
+ */
+export function isHttpsPageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname !== '' && url.username === '' && url.password === '';
+  } catch {
+    return false;
+  }
+}
+
 /** True when `value` is exactly the origin `URL` serializes for it. */
 function isHttpOrigin(value: string): boolean {
   try {
@@ -747,6 +760,23 @@ export const SETTINGS_REGISTRY = {
     {},
     'Add-on packages trusted to run deciding code: key@version → tarball hash',
   ),
+  // ── the privacy notice and the sender's postal address ─────────────────────
+  //
+  // Who the business is, as the people whose details it keeps read it: the
+  // controller's name, where its privacy notice is, and the postal address
+  // every marketing mail must carry. Portable: configuration the owner wrote,
+  // and the same business on any instance it moves to. Empty means not set:
+  // the business name then falls back (pay page, then the workspace's name),
+  // a marketing mail is refused without the postal address, and a public form
+  // or chat without the notice's address.
+  'privacy.businessName': def<string | null>(z.string().trim().min(1).max(120).nullable(), null, 'The business that keeps people\'s details (the controller), as strangers read it', P),
+  'privacy.noticeUrl': def<string | null>(
+    z.string().trim().max(500).refine(isHttpsPageUrl, 'must be an https:// address, such as https://www.example.com/privacy').nullable(),
+    null,
+    'Where the business\'s privacy notice is (https only)',
+    P,
+  ),
+  'email.postalAddress': def<string | null>(z.string().trim().min(1).max(300).nullable(), null, 'The sender\'s postal address, printed in every marketing mail', P),
 } as const;
 
 export type SettingsRegistry = typeof SETTINGS_REGISTRY;

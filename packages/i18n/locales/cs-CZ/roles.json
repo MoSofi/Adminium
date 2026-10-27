@@ -80,7 +80,8 @@
     "designerUse": "Vytvářet aplikace v Adminium Designer",
     "paymentsManage": "Nastavit platby",
     "paymentsRefund": "Vracet peníze",
-    "paymentsView": "Zobrazit aktivitu plateb a exportovat ji"
+    "paymentsView": "Zobrazit aktivitu plateb a exportovat ji",
+    "privacyManage": "Najít, stáhnout a spravovat údaje osoby"
   },
   "rename": {
     "failed": "Roli se nepodařilo přejmenovat",

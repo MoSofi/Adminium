@@ -13,7 +13,7 @@
 import { randomBytes } from 'node:crypto';
 
 import { PAYMENT_KEY_APP_EXPORT, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION } from '@adminium/add-on-contracts';
-import { paymentSettingsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { paymentSettingsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { zipSync, strToU8 } from 'fflate';
@@ -22,8 +22,8 @@ import { z } from 'zod';
 import { providerByKey, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from '../../errors.js';
+import { businessName } from '../../privacy/business.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { PAY_PAGE_DOC, payPageSchema } from './ways.js';
 
 export interface KeyAppDeps {
   meta: MetaDb;
@@ -70,9 +70,8 @@ export function keyAppRoutes(deps: KeyAppDeps): FastifyPluginAsyncZod {
         const entry = runtime === null ? null : providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, request.params.key);
         const stamp = (entry?.module as Record<string, unknown> | undefined)?.[PAYMENT_KEY_APP_EXPORT];
         if (typeof stamp !== 'function') throw new NotFoundError('This payment service makes its key without an app.');
-        const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
-        const brand = await settingsRepo(meta).get('branding.appName');
-        const shopName = page?.shopName?.trim() || (typeof brand === 'string' ? brand : '') || 'Shop';
+        // The one name every page a stranger sees uses; the app a provider shows its customers is named so too.
+        const shopName = (await businessName(meta)) || 'Shop';
         const template = templateSchema.parse(await (stamp as (input: { shopName: string; installId: string }) => unknown)({ shopName, installId: await installId(request.params.key) }));
         const zip = zipSync(Object.fromEntries(Object.entries(template.files).map(([file, text]) => [file, strToU8(text)])), { mtime: new Date('2026-01-01T00:00:00Z') });
         await app.rbac.audit(request, { category: 'payments', action: 'payments.key-app.downloaded', changes: { after: { service: request.params.key, appId: template.appId } } });

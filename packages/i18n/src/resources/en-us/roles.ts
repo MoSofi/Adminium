@@ -90,7 +90,8 @@ export default {
     "designerUse": "Build apps with Adminium Designer",
     "paymentsManage": "Set up payments",
     "paymentsRefund": "Give refunds",
-    "paymentsView": "See payment activity and export it"
+    "paymentsView": "See payment activity and export it",
+    "privacyManage": "Find, download and manage a person’s data"
   },
   "rename": {
     "failed": "Could not rename the role",

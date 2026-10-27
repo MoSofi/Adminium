@@ -164,6 +164,11 @@ const DESCRIPTIONS = {
     'Studio → Payments: connect a payment service with your own keys, choose the ways to pay and ' +
     'their rules, mark tables payable, set the pay page and make pay links. Setup changes need ' +
     'payments.manage and a signed-in person (never an API key); payments.view reads only.',
+  privacy:
+    'A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of ' +
+    'JSON and CSV, what an erasure would leave and why, and how long things are kept — plus the privacy notice ' +
+    '(business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin ' +
+    'holds it unless granted) and a signed-in person; the postal address needs settings.manage.',
   'widget-data': 'The queries widgets run, singly and in batches',
   words:
     'What staff are told of the rows a screen shows, in an add-on\'s stock words — in, low or out for ' +

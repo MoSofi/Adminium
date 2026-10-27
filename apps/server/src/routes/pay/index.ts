@@ -46,6 +46,7 @@ import { checkProof, issueChallenge, proofKey } from '../../public-api/proof.js'
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { loadOverrideMap } from '../../i18n/server-i18n.js';
+import { businessName } from '../../privacy/business.js';
 
 export interface PayRoutesDeps {
   meta: MetaDb;
@@ -167,9 +168,8 @@ export function createPayPageReader(deps: PayRoutesDeps) {
 
   async function shop() {
     const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
-    // The shop's name, never the software's: an unnamed shop goes by its pay address.
-    const named = page?.shopName?.trim() ?? '';
-    const name = named === '' || named === 'Adminium' ? ((await payAddress(meta)) ?? '').replace(/^https?:\/\//, '').replace(/[:/].*$/, '') : named;
+    // The shop's name, never the software's: the one name every page a stranger sees uses.
+    const name = await businessName(meta);
     return { name, email: page?.contactEmail ?? null, phone: page?.contactPhone ?? null, hasLogo: (page?.logoFileId ?? null) !== null, country: page?.shopCountry ?? null };
   }
 
