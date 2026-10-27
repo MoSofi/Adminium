@@ -74,6 +74,16 @@ describe('what an erased field becomes', () => {
     expect(alreadyBlank('Marta', facts(), 'name', NAME)).toBe(false);
     expect(alreadyBlank('erased-0a0b0c0d0e0f@erased.invalid', facts({ unique: true }), 'email', NAME)).toBe(true);
     expect(alreadyBlank(MARTA, facts({ unique: true }), 'email', NAME)).toBe(false);
+    // Only the erasure's own value: a real address that starts with "erased-" is somebody's.
+    expect(alreadyBlank('erased-bob@example.com', facts({ unique: true }), 'email', NAME)).toBe(false);
+    expect(alreadyBlank('erased-0a0b0c0d0e0f', facts({ unique: true }), 'other', NAME)).toBe(true);
+    expect(alreadyBlank('erased-0a0b0c0d0e0f@erased.invalid.example', facts({ unique: true }), 'email', NAME)).toBe(false);
+    expect(alreadyBlank('erased-0A0B0C0D0E0F', facts({ unique: true }), 'other', NAME)).toBe(false);
+    // In a column too short for all of it, the value the erasure cut to fit; and not a real one of that length.
+    const cut = (blankValue(facts({ unique: true, maxLength: 24 }), 'email', 'sqlite', NAME) as { value: string }).value;
+    expect(cut).toHaveLength(24);
+    expect(alreadyBlank(cut, facts({ unique: true, maxLength: 24 }), 'email', NAME)).toBe(true);
+    expect(alreadyBlank('erased-bobby@example.com', facts({ unique: true, maxLength: 24 }), 'email', NAME)).toBe(false);
     expect(alreadyBlank(0, facts({ logicalType: 'boolean' }), 'other', NAME)).toBe(true);
     expect(alreadyBlank(true, facts({ logicalType: 'boolean' }), 'other', NAME)).toBe(false);
   });

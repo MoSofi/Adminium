@@ -152,7 +152,7 @@ export function mailNoticeRoutes(deps: MailNoticeDeps): FastifyPluginAsyncZod {
       },
       async (request, reply) => {
         void reply.header('cache-control', 'no-store');
-        if (!(await door.reachable(request))) return reply.code(503).send({ received: false });
+        if (!(await door.reachable())) return reply.code(503).send({ received: false });
         const { service, token } = request.params;
         const endpoint = await endpoints.configFor(service, token);
         if (endpoint === null) return reply.code(401).send({ received: false });

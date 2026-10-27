@@ -10,6 +10,7 @@
  *   GET  /email/notice-endpoints                   the bounce card: each service's notice address and what is set
  *   POST /email/notice-endpoints/:service          make the service's notice address (and, for Postmark and Brevo, the credentials to copy into it)
  *   POST /email/notice-endpoints/:service/credentials   new credentials (the old ones stop working)
+ *   POST /email/notice-endpoints/:service/address  a new notice address (the old one stops working; credentials and keys stay)
  *   PUT  /email/notice-endpoints/:service/secret   save Mailgun's signing key, SendGrid's verification key, or the Amazon SNS topic
  *
  * The postal address has its own route (`PUT /privacy/postal-address`), which
@@ -39,6 +40,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { bareAddress } from '../../email/document.js';
+import { mailDoorReach, storedPublicOrigin } from '../../email/door-reach.js';
 import { domainsUp, signingKeyFor } from '../../email/marketing.js';
 import { NoticeEndpointError, createNoticeEndpoints, type NoticeEndpointStatus } from '../../email/notices/endpoints.js';
 import { NOTICE_SECRET_ROW, noticeAddress } from '../../email/notices/index.js';
@@ -59,9 +61,7 @@ import {
 import { businessNameOf, postalAddressOf } from '../../email/sender/marketing-settings.js';
 import { replyToOf } from '../../email/send.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
-import { reachability } from '../../payments/reachability.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { normalizePublicOrigin } from '../../security/public-origin.js';
 import {
   endpointMadeReply,
   endpointReply,
@@ -114,10 +114,7 @@ export function mailSettingsRoutes(deps: MailSettingsRoutesDeps): FastifyPluginA
   const keys: DkimKeys = createDkimKeys({ meta, secret, now });
   const endpoints = createNoticeEndpoints({ meta, secret, now });
 
-  async function publicOrigin(): Promise<string | null> {
-    const stored = await settings.get('system.publicOrigin');
-    return typeof stored === 'string' ? normalizePublicOrigin(stored) : null;
-  }
+  const publicOrigin = () => storedPublicOrigin(meta);
 
   /** The senders: the SMTP From address first, then the list, each once. */
   async function senders(): Promise<Sender[]> {
@@ -214,9 +211,8 @@ export function mailSettingsRoutes(deps: MailSettingsRoutesDeps): FastifyPluginA
         const key = domain === null ? null : await signingKeyFor(keys, domain);
         const lookup = deps.lookup ?? createTxtLookup({ cacheMs: 0 });
         const facts = await senderFacts(lookup, address, key === null ? null : { domain: key.domain, selector: key.selector, publicKey: key.publicKey });
-        const origin = await publicOrigin();
-        const reached = reachability({ ...deps.reach, publicOrigin: origin, forwarded: false });
-        const refusals = marketingRefusals(address, { postalAddress: await postalAddressOf(meta), publicOrigin: origin, reachable: reached.state === 'reachable' }, facts);
+        const { origin, open } = await mailDoorReach(meta, deps.reach);
+        const refusals = marketingRefusals(address, { postalAddress: await postalAddressOf(meta), publicOrigin: origin, reachable: open }, facts);
         const free = domain === null || isFreeMail(address);
         const dmarc = free ? null : facts.dmarc === 'unchecked' ? ('unchecked' as const) : { policy: facts.dmarc.policy, recordDomain: facts.dmarc.recordDomain };
         const dkim = facts.dkim === null ? null : facts.dkim === 'unchecked' ? ('unchecked' as const) : facts.dkim.state;
@@ -312,6 +308,29 @@ export function mailSettingsRoutes(deps: MailSettingsRoutesDeps): FastifyPluginA
         }
         await app.rbac.audit(request, { category: 'settings', action: 'email.notice-endpoint.credentials', changes: { after: { service } } });
         return { data: { endpoint: await oneEndpoint(service), credentials: made } };
+      },
+    );
+
+    // A new notice address, for any service: the old one stops working at once (one that leaked, or
+    // "another service" whose credentials cannot be changed). The service must be told the new one;
+    // Amazon SNS asks to confirm it again. The service's credentials and keys stay as they are.
+    app.post(
+      '/email/notice-endpoints/:service/address',
+      { preHandler: manage, config: { audit: audited('rbac'), rateLimitBucket: 'mail-settings' }, schema: { params: noticeServiceParams, response: { 200: endpointReply } } },
+      async (request) => {
+        personOf(request);
+        const { service } = request.params;
+        let token: string;
+        try {
+          token = await endpoints.replaceToken(service);
+        } catch (error) {
+          if (error instanceof NoticeEndpointError && error.code === 'no-endpoint') throw new NotFoundError(error.message);
+          throw error;
+        }
+        await app.rbac.audit(request, { category: 'settings', action: 'email.notice-endpoint.address', changes: { after: { service } } });
+        const origin = await publicOrigin();
+        const endpoint = await oneEndpoint(service);
+        return { data: { endpoint: { ...endpoint, address: origin === null ? null : noticeAddress(origin, service, token) } } };
       },
     );
 

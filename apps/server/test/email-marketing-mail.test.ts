@@ -28,10 +28,11 @@ import { encryptSecret } from '../src/config/secrets.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { createMarketingMail, type MarketingMail } from '../src/email/marketing.js';
-import { enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
+import { emailEnvelopeKey, enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
 import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import type { EmailTransport, OutboundEmail } from '../src/email/types.js';
 import { mailLinkKeys } from '../src/email/link-keys.js';
+import { permanentRefusal } from '../src/email/refused.js';
 import { readUnsubscribeTokenWith } from '../src/email/unsubscribe-token.js';
 import { campaignMarketingChecks } from '../src/jobs/email-campaign-checks.js';
 import { registerEmailCampaignRunHandler, withCampaignGiveUp } from '../src/jobs/email-campaign-run.js';
@@ -186,6 +187,48 @@ for (const engine of META_ENGINES) {
         expect(await at('h@cobaltlegal.dev')).toBe(true);
         expect(await kit.consent.stop.entryFor('g@cobaltlegal.dev')).toMatchObject({ reason: 'bounce', origin: 'crm' });
       });
+
+      it('a relay that refuses to relay, or a policy at RCPT TO, stops nobody; only the mailbox codes do', async () => {
+        const mx = 'mx.meridian.example';
+        // Not the address: relaying, SPF, DMARC, a blocked sender, a full mailbox, the system, the network, plain "mailbox unavailable".
+        const notTheAddress: [number, string, string][] = [
+          [554, 'RCPT TO', '554 5.7.1 <i@cobaltlegal.dev>: Relay access denied'],
+          [550, 'RCPT TO', '550 5.7.23 SPF validation failed for the sender'],
+          [550, 'RCPT TO', '550-5.7.26 Unauthenticated email is not accepted from this domain'],
+          [550, 'RCPT TO', '550 5.1.8 <news@meridian.example>: Sender address rejected: Domain not found'],
+          [550, 'RCPT TO', '550 5.1.7 Invalid sender mailbox syntax'],
+          [552, 'RCPT TO', '552 5.2.2 Mailbox full'],
+          [554, 'RCPT TO', '554 5.4.6 Routing loop detected'],
+          [550, 'RCPT TO', '550 Requested action not taken: mailbox unavailable'],
+          [553, 'RCPT TO', "553 sorry, that domain isn't in my list of allowed rcpthosts (#5.7.1)"],
+          [554, 'RCPT TO', '554 no such user'],
+          [550, 'DATA', '550 User unknown'],
+          [550, 'MAIL FROM', '550 5.1.1 sender unknown'],
+          // A dotted number later in the line is no enhanced code: only the one right after the reply code is.
+          [550, 'RCPT TO', '550 Mail from 5.1.2.3 refused by local policy'],
+        ];
+        for (const [code, step, line] of notTheAddress) {
+          expect(permanentRefusal(smtpError(code, step, line)), line).toBeNull();
+          expect(await kit.bounced({ error: smtpError(code, step, line), smtpHost: mx, address: 'i@cobaltlegal.dev' }), line).toBeNull();
+        }
+        expect(await kit.consent.stop.has('i@cobaltlegal.dev')).toBe(false);
+
+        // The mailbox: an address status (5.1.x), a disabled mailbox (5.2.1), or an old server's "user unknown" with no code.
+        const theAddress: [number, string, string][] = [
+          [550, 'RCPT TO', '550-5.1.1 The email account that you tried to reach does not exist.'],
+          [550, 'RCPT TO', '550 5.1.10 RESOLVER.ADR.RecipientNotFound; Recipient not found by SMTP address lookup'],
+          [550, 'RCPT TO', '550 5.1.2 Bad destination system address'],
+          [550, 'RCPT TO', '550 5.2.1 The email account that you tried to reach is disabled'],
+          [550, 'RCPT TO', '550 <j@cobaltlegal.dev>... User unknown'],
+          [550, 'RCPT TO', '550 No such user here'],
+          [553, 'RCPT TO', '553 sorry, no mailbox here by that name; user does not exist'],
+          [551, 'RCPT TO', '551 Recipient address unknown'],
+          [554, 'DATA', '554 5.1.1 Recipient address rejected at the end of data'],
+        ];
+        for (const [code, step, line] of theAddress) expect(permanentRefusal(smtpError(code, step, line)), line).toMatchObject({ code });
+        expect(await kit.bounced({ error: smtpError(550, 'RCPT TO', '550 <j@cobaltlegal.dev>... User unknown'), smtpHost: mx, address: 'j@cobaltlegal.dev' })).toMatchObject({ code: 550 });
+        expect(await kit.consent.stop.entryFor('j@cobaltlegal.dev')).toMatchObject({ reason: 'bounce' });
+      });
     });
 
     describe('what a marketing mail carries, as it leaves', () => {
@@ -308,6 +351,54 @@ for (const engine of META_ENGINES) {
         expect(gaveUp[0]!.error).toBeInstanceOf(PermanentlyRefusedError);
       });
 
+      it('asks the do-not-email list again right before it hands a marketing mail over: a stopped address gets nothing, a service mail still goes', async () => {
+        await queue('late@cobaltlegal.dev', 'marketing');
+        await queue('late@cobaltlegal.dev', 'service');
+        // Stopped after the mail was queued (an unsubscribe, a bounce notice, an erasure while a batch was out).
+        await kit.consent.stop.add({ address: 'late@cobaltlegal.dev', reason: 'link' });
+        await drain(worker);
+        expect(sink.messages).toHaveLength(1);
+        expect(headersOf(sink.messages[0]!.raw).has('list-unsubscribe')).toBe(false);
+        // The row it was for is told: not sent, and why (never the address).
+        expect(gaveUp).toHaveLength(1);
+        expect(String((gaveUp[0]!.error as Error).message)).toBe('Not sent: on the do-not-email list (marketing mail)');
+        const done = await meta.db.selectFrom('adminium_jobs').select(['status', 'lastError']).where('kind', '=', 'email.send').execute();
+        expect(done.map((job) => job.status)).toEqual(['succeeded', 'succeeded']);
+      });
+
+      it('fails closed at delivery: with the list’s keys unreadable, a marketing mail is not handed over', async () => {
+        await kit.consent.stop.add({ address: 'ana@cobaltlegal.dev', reason: 'link' });
+        const locked = createJobRegistry();
+        const other = createMarketingMail({ meta, secret: `${TEST_SECRET}-changed`, lookup: lookup(), postalAddress: async () => postal });
+        registerEmailSendHandler(locked, { meta, secret: TEST_SECRET, marketing: other });
+        const lockedWorker = new JobWorker({ meta, registry: locked, hub, workerId: 'locked-test', backoffBaseMs: 1, concurrency: 1 });
+        const job = await queue('bo@cobaltlegal.dev', 'marketing');
+        await lockedWorker.runOnce();
+        await lockedWorker.stop({ drainTimeoutMs: 50 });
+        expect(sink.messages).toHaveLength(0);
+        expect((await jobsRepo(meta).findById(job.id))?.status).not.toBe('succeeded');
+      });
+
+      it('never hands over a marketing mail to a value that is not one plain address', async () => {
+        // Queued by the mail layer: refused there.
+        const carry = await kit.carry({ to: 'ana@cobaltlegal.dev', purpose: 'newsletter', locale: 'en_US' });
+        const enqueue = (to: string) => enqueueEmail({ meta, secret: TEST_SECRET }, { to, templateKey: 'autumn-news', locale: 'en_US', vars: { name: 'Ana' }, template: message, mailClass: 'marketing', marketing: carry });
+        for (const to of ['<ana@cobaltlegal.dev>', 'Ana <ana@cobaltlegal.dev>', 'ana@cobaltlegal.dev, bo@cobaltlegal.dev']) expect(await enqueue(to), to).toBeNull();
+        // The plain address is queued (then taken back, so the queue holds only the hand-sealed one below).
+        const plain = await enqueue('ana@cobaltlegal.dev');
+        expect(plain).not.toBeNull();
+        await meta.db.deleteFrom('adminium_jobs').where('id', '=', plain!.id).execute();
+        // One sealed by hand (an older queue): refused at delivery, the row told.
+        const envelope = { to: '<ana@cobaltlegal.dev>', subject: 'x', html: '<p>x</p>', text: 'x', mailClass: 'marketing' };
+        await jobsRepo(meta).enqueue({
+          kind: 'email.send',
+          payload: { v: 4, templateKey: 'autumn-news', locale: 'en_US', envelope: encryptSecret(JSON.stringify(envelope), emailEnvelopeKey(TEST_SECRET)), report: { app: 'crm', connectionId: 'conn_1', table: 'public.messages', pk: { id: 2 } } },
+        });
+        await drain(worker);
+        expect(sink.messages).toHaveLength(0);
+        expect(String((gaveUp[0]!.error as Error).message)).toBe('Not sent: the recipient is not one plain e-mail address');
+      });
+
       it('mail to staff (no class) refused for good stop-lists nobody', async () => {
         sink.refuse.set('dana@meridian.example', '550 5.1.1 User unknown');
         await queue('dana@meridian.example', undefined);
@@ -410,6 +501,18 @@ for (const engine of META_ENGINES) {
         expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'bounced' });
         expect(await kit.consent.stop.has('agreed@cobaltlegal.dev')).toBe(true);
         expect(await emailRunsRepo(meta).findById(runId)).toMatchObject({ sent: 0, failed: 1 });
+      });
+
+      it('an address stopped after its row was handed over is skipped at delivery: the row reads skipped-stop, the run counts it', async () => {
+        const runId = await marketingRun();
+        // The run's batch hands the rows over (one job), then the address is stopped before the mail job runs.
+        await worker.runOnce();
+        expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'sent' });
+        await kit.consent.stop.add({ address: 'agreed@cobaltlegal.dev', reason: 'link' });
+        await drain(worker);
+        expect(sink.messages).toHaveLength(0);
+        expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'skipped-stop', reason: 'do-not-email' });
+        expect(await emailRunsRepo(meta).findById(runId)).toMatchObject({ sent: 0, failed: 0, skipped: 4 });
       });
 
       it('a run to the workspace’s own people (no class) is neither skipped nor carries an unsubscribe', async () => {

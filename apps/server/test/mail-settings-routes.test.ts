@@ -22,14 +22,16 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { auditRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type User } from '@adminium/meta';
+import { apiKeysRepo, auditRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type User } from '@adminium/meta';
 
 import { encryptSecret } from '../src/config/secrets.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { createMarketingMail } from '../src/email/marketing.js';
+import { createNoticeEndpoints } from '../src/email/notices/endpoints.js';
 import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import { errorEnvelope } from '../src/errors.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { generateApiKey } from '../src/rbac/api-keys.js';
 import { mailSettingsRoutes } from '../src/routes/mail-settings/index.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
@@ -269,6 +271,43 @@ for (const engine of META_ENGINES) {
       expect(audit).not.toContain(made.credentials.pass);
       expect(audit).not.toContain(fresh.data.credentials.pass);
       expect(audit).not.toMatch(/PRIVATE KEY/);
+    });
+
+    it('gives a service a new notice address: the old one stops working, its credentials stay; never to an API key or without the grant', async () => {
+      await settingsRepo(handle.meta).set('system.publicOrigin', ORIGIN, { updatedBy: null });
+      const opened = await call(marketer, 'POST', '/email/notice-endpoints/other');
+      expect(opened.statusCode, opened.body).toBe(200);
+      const tokenOf = (address: string) => /\/email\/notices\/other\/([^/?#]+)$/.exec(address)![1]!;
+      const before = tokenOf((await call(marketer, 'GET', '/email/notice-endpoints')).json().data.services.find((one: { service: string }) => one.service === 'other').address);
+      const endpoints = createNoticeEndpoints({ meta: handle.meta, secret: SECRET });
+      expect(await endpoints.configFor('other', before)).not.toBeNull();
+
+      // Without the grant, and through an API key even with it: refused, and the address stands.
+      expect((await call(clerk, 'POST', '/email/notice-endpoints/other/address')).statusCode).toBe(403);
+      const role = (await rolesRepo(handle.meta).findBySlug('marketing'))!;
+      const generated = generateApiKey();
+      await apiKeysRepo(handle.meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: role.id });
+      const keyed = await app.inject({ method: 'POST', url: '/api/v1/email/notice-endpoints/other/address', headers: { authorization: `Bearer ${generated.key}` } });
+      expect(keyed.statusCode, keyed.body).toBe(403);
+      expect(await endpoints.configFor('other', before)).not.toBeNull();
+
+      const made = await call(marketer, 'POST', '/email/notice-endpoints/other/address');
+      expect(made.statusCode, made.body).toBe(200);
+      const address = (made.json() as { data: { endpoint: { address: string; opened: boolean } } }).data.endpoint.address;
+      const after = tokenOf(address);
+      expect(after).not.toBe(before);
+      expect(address.startsWith(`${ORIGIN}/api/v1/email/notices/other/`)).toBe(true);
+      expect(await endpoints.configFor('other', before)).toBeNull();
+      expect(await endpoints.configFor('other', after)).not.toBeNull();
+      // The card reads the new one.
+      expect(JSON.stringify((await call(marketer, 'GET', '/email/notice-endpoints')).json())).toContain(after);
+      // Audited by service, never by address.
+      const audit = JSON.stringify(await auditRepo(handle.meta).list({ limit: 200 }));
+      expect(audit).toContain('email.notice-endpoint.address');
+      expect(audit).not.toContain(after);
+      expect(audit).not.toContain(before);
+      // A service with no address yet has nothing to replace.
+      expect((await call(marketer, 'POST', '/email/notice-endpoints/brevo/address')).statusCode).toBe(404);
     });
   });
 }

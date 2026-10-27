@@ -151,7 +151,8 @@ export function maskAddress(address: string): string {
 
 /** A plausible address to send a code to: one @, a dotted domain, no spaces, not too long. */
 export function plausibleAddress(value: unknown): value is string {
-  return typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  // No angle brackets: a bare `local@domain`, as the do-not-email list and the mail server read it alike.
+  return typeof value === 'string' && value.length <= 254 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim());
 }
 
 /** What typing a code came to. */

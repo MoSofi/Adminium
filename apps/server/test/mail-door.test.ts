@@ -385,6 +385,43 @@ for (const engine of META_ENGINES) {
         expect((await emailNoticeEndpointsRepo(meta, { encrypt: (x) => x, decrypt: (x) => x }).byService('other'))?.noticeCount).toBe(0);
       });
 
+      it('behind a reverse proxy with trust off, the page opens, the one-click and both buttons write, and a notice lands', async () => {
+        // What every request through a proxy carries; the app does not trust them (`trustProxy: false`).
+        const viaProxy = { 'x-forwarded-for': '203.0.113.9', 'x-forwarded-proto': 'https', forwarded: 'for=203.0.113.9;proto=https' };
+        const kit = createMarketingMail({ meta, secret: SECRET, reach: { networkFeatures: true, desktop: false, trustProxy: false }, postalAddress: async () => POSTAL, lookup: async () => [] });
+        // The send side lets the mail go...
+        expect(await kit.refusals('news@meridian.example')).not.toContain('no-public-address');
+        const path = await linkFor('ana@reader.example', 'newsletter');
+        // ...so its link must work.
+        const page = await app.inject({ method: 'GET', url: path, headers: viaProxy });
+        expect(page.statusCode).toBe(200);
+        expect(page.body).toContain('name="act" value="one"');
+        const oneClick = await app.inject({ method: 'POST', url: path, headers: { ...viaProxy, 'content-type': 'application/x-www-form-urlencoded' }, payload: 'List-Unsubscribe=One-Click' });
+        expect(oneClick.statusCode).toBe(200);
+        expect(await standing('ana@reader.example')).toBe('no');
+        const all = await app.inject({ method: 'POST', url: await linkFor('cy@cobaltlegal.example', null), headers: { ...viaProxy, 'content-type': 'application/x-www-form-urlencoded' }, payload: 'act=all' });
+        expect(all.body).toContain('You won’t get Meridian’s marketing mail again.');
+        expect(await consent.stop.has('cy@cobaltlegal.example')).toBe(true);
+        const other = (await createNoticeEndpoints({ meta, secret: SECRET }).open('other'))!;
+        const notice = await app.inject({ method: 'POST', url: `/api/v1/email/notices/other/${other.token}`, headers: { ...viaProxy, 'content-type': 'application/json' }, payload: fixtureText('other-events.json') });
+        expect(notice.statusCode).toBe(200);
+        expect((await consent.stop.entryFor('bye@example.com'))?.reason).toBe('relay-unsubscribe');
+      });
+
+      it('the door is open exactly when the send side lets marketing mail go, whatever the request carries', async () => {
+        const path = await linkFor('marta@cobaltlegal.example', 'newsletter');
+        const kit = createMarketingMail({ meta, secret: SECRET, reach: { networkFeatures: true, desktop: false, trustProxy: false }, postalAddress: async () => POSTAL, lookup: async () => [] });
+        for (const origin of [ORIGIN, 'http://news.meridian.example', 'https://192.168.1.20', 'https://localhost:4600', 'https://meridian.local', null]) {
+          if (origin === null) await settingsRepo(meta).unset('system.publicOrigin');
+          else await settingsRepo(meta).set('system.publicOrigin', origin, { updatedBy: null });
+          const sends = !(await kit.refusals('news@meridian.example')).includes('no-public-address');
+          for (const headers of [{}, { 'x-forwarded-for': '203.0.113.9' }, { 'x-forwarded-proto': 'https' }, { forwarded: 'for=203.0.113.9' }]) {
+            const res = await app.inject({ method: 'GET', url: path, headers });
+            expect(res.statusCode === 200, `${String(origin)} ${JSON.stringify(headers)}`).toBe(sends);
+          }
+        }
+      });
+
       it('a plain-http or private address is not reachable either', async () => {
         const path = await linkFor('marta@cobaltlegal.example', 'newsletter');
         for (const origin of ['http://news.meridian.example', 'https://192.168.1.20', 'https://localhost:4600']) {

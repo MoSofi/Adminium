@@ -14,6 +14,10 @@
  *  - A tick sent while signed in, with another customer's address typed,
  *    reaches only the one signed in: the order is theirs, and so is the
  *    tick. Nobody signed in, it is the typed address's.
+ *  - Anybody's tick (no mailbox proved) never overrules a "no" standing in
+ *    the log or on the do-not-email list: it writes nothing and leaves the
+ *    column at no. Signed in by the link mailed to them, the customer's own
+ *    tick counts.
  *  - "Delete my details" appends the customer's withdrawal before it empties
  *    the column: the log says yes, then no, from the person, and nothing else.
  */
@@ -22,6 +26,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseDatabaseModel } from '@adminium/engine';
 import { consentLogRepo, snapshotsRepo } from '@adminium/meta';
 
+import { createConsentService } from '../src/consent/index.js';
+import { TEST_SECRET } from './helpers.js';
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { guest, mailReady, shopManifest } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
@@ -57,11 +63,20 @@ function tickingShop(): Doc {
           return { ...entry, methods: ['GET', 'PATCH'], writable: ['opt_in'], consent: { column: 'opt_in', purpose: 'newsletter', wording: WORDING } };
         }
         return entry;
-      }),
+      })
+        // A newsletter sign-up straight into a people table: its consent column is written by the stranger's own create.
+        .concat([{ table: 'subscribers', methods: ['POST'], humanCheck: true, select: ['id'], writable: ['email', 'opt_in'], requires: ['email'] }]),
+  });
+  (manifest['requiredSchema'] as { tables: Doc[] }).tables.push({
+    ref: 'subscribers',
+    columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'email', type: 'text', maxLength: 254, rules: { normalize: 'email', validation: { format: 'email' } } }, { ref: 'name', type: 'text', maxLength: 60, nullable: true }, { ref: 'opt_in', type: 'bool', default: false }],
   });
   const customers = (manifest['requiredSchema'] as { tables: Doc[] }).tables.find((table) => table['ref'] === 'customers')!;
   (customers['columns'] as Doc[]).push({ ref: 'opt_in', type: 'bool', default: false }, { ref: 'language', type: 'text', maxLength: 8, nullable: true });
-  manifest['people'] = [{ table: 'customers', kind: 'people', email: 'email', name: 'name', language: 'language', consent: { column: 'opt_in', purpose: 'newsletter' } }];
+  manifest['people'] = [
+    { table: 'customers', kind: 'people', email: 'email', name: 'name', language: 'language', consent: { column: 'opt_in', purpose: 'newsletter' } },
+    { table: 'subscribers', kind: 'people', email: 'email', name: 'name', consent: { column: 'opt_in', purpose: 'newsletter' } },
+  ];
   (manifest['outbox'] as Doc)['classes'] = { 'order-placed': 'service' };
   manifest['compatibility'] = { minAdminiumVersion: '0.3.37' };
   return manifest;
@@ -147,6 +162,68 @@ describe.each(LEGS)('a stranger\'s consent tick — %s', (dialect, available) =>
     // Nobody signed in: the tick is the typed address's, as on any checkout.
     expect((await order({ email: 'otto@fieldmail.io', name: 'Otto', opt_in: true })).statusCode).toBe(201);
     expect((await logOf(otto['id'])).map((row) => [row.state, row.source])).toEqual([['yes', 'form']]);
+  });
+
+  it.skipIf(!available)('anybody\'s tick never overrules a "no", in the log or on the do-not-email list; the customer signed in still changes their mind', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const personOf = (row: Record<string, unknown>) => ({ connectionId: h.connectionId, table: customersId, key: String(row['id']) });
+    // Quinn said no (an unsubscribe that knew her row).
+    expect((await order({ email: 'quinn@fieldmail.io', name: 'Quinn' })).statusCode).toBe(201);
+    const quinn = await customerOf('quinn@fieldmail.io');
+    await consent.withdraw({ person: personOf(quinn), address: 'quinn@fieldmail.io', purpose: 'newsletter', source: 'unsubscribe', detail: 'link' });
+    // Somebody, signed in as nobody, types her address and ticks: the order is made, the tick writes nothing.
+    expect((await order({ email: 'quinn@fieldmail.io', name: 'Quinn', opt_in: true })).statusCode).toBe(201);
+    expect((await logOf(quinn['id'])).map((row) => [row.state, row.source])).toEqual([['no', 'unsubscribe']]);
+    expect(yes((await customerOf('quinn@fieldmail.io'))['opt_in'])).toBe(false);
+    // A "no" the mail door wrote by the address alone holds the same.
+    expect((await order({ email: 'sam@fieldmail.io', name: 'Sam' })).statusCode).toBe(201);
+    await consent.withdraw({ address: 'sam@fieldmail.io', purpose: 'newsletter', source: 'unsubscribe', detail: 'one-click' });
+    expect((await order({ email: 'sam@fieldmail.io', name: 'Sam', opt_in: true })).statusCode).toBe(201);
+    const sam = await customerOf('sam@fieldmail.io');
+    expect(await logOf(sam['id'])).toEqual([]);
+    expect((await consent.stateFor({ person: personOf(sam), address: 'sam@fieldmail.io' }, 'newsletter')).state).toBe('no');
+    expect(yes(sam['opt_in'])).toBe(false);
+    // So does the do-not-email list, with nothing in the log.
+    expect((await order({ email: 'rex@fieldmail.io', name: 'Rex' })).statusCode).toBe(201);
+    await consent.stop.add({ address: 'rex@fieldmail.io', reason: 'link' });
+    expect((await order({ email: 'rex@fieldmail.io', name: 'Rex', opt_in: true })).statusCode).toBe(201);
+    const rex = await customerOf('rex@fieldmail.io');
+    expect(await logOf(rex['id'])).toEqual([]);
+    expect(yes(rex['opt_in'])).toBe(false);
+    // With nothing standing, an anonymous tick still counts (as on any checkout): Tess.
+    expect((await order({ email: 'tess@fieldmail.io', name: 'Tess', opt_in: true })).statusCode).toBe(201);
+    expect((await logOf((await customerOf('tess@fieldmail.io'))['id'])).map((row) => row.state)).toEqual(['yes']);
+    // Quinn herself, signed in by the link mailed to her, ticks at confirm: her own tick counts.
+    const mine = await order({ email: 'quinn@fieldmail.io', name: 'Quinn' });
+    const session = await g.signIn('quinn@fieldmail.io');
+    const confirm = await g.request('PATCH', `/records/${h.real('orders')}_verified/${String((mine.json() as { data: { id: number } }).data.id)}`, { session, payload: { values: { opt_in: true } } });
+    expect(confirm.statusCode, confirm.body).toBe(200);
+    expect((await logOf(quinn['id'])).map((row) => [row.state, row.source])).toEqual([
+      ['no', 'unsubscribe'],
+      ['yes', 'form'],
+    ]);
+    expect(yes((await customerOf('quinn@fieldmail.io'))['opt_in'])).toBe(true);
+  });
+
+  it.skipIf(!available)('a stranger\'s sign-up that sets the consent column itself is held to the same rule', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const signUp = (email: string) => g.request('POST', `/records/${h.real('subscribers')}`, { payload: { values: { email, opt_in: true } }, proof: 'write' });
+    const subscriberOf = async (email: string) => (await h.rows(`select * from ${h.real('subscribers')} where email = '${email}'`))[0]!;
+    const subscribersId = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema).tables.find((table) => table.name === h.real('subscribers'))!.id;
+    const subscriberLog = async (key: unknown) => consentLogRepo(h.meta).history({ person: { connectionId: h.connectionId, table: subscribersId, key: String(key) }, hashes: [] }, { limit: 20 });
+    // Una unsubscribed by her address alone, before she had a row.
+    await consent.withdraw({ address: 'una@fieldmail.io', purpose: 'newsletter', source: 'unsubscribe', detail: 'one-click' });
+    const made = await signUp('una@fieldmail.io');
+    expect(made.statusCode, made.body).toBe(201);
+    const una = await subscriberOf('una@fieldmail.io');
+    // The log hears nothing, and the column is put back to what the log says.
+    expect(await subscriberLog(una['id'])).toEqual([]);
+    expect(yes(una['opt_in'])).toBe(false);
+    // With nothing standing, the sign-up's yes is the person's own, as before.
+    expect((await signUp('vic@fieldmail.io')).statusCode).toBe(201);
+    const vic = await subscriberOf('vic@fieldmail.io');
+    expect((await subscriberLog(vic['id'])).map((row) => [row.state, row.source])).toEqual([['yes', 'person']]);
+    expect(yes(vic['opt_in'])).toBe(true);
   });
 
   it.skipIf(!available)('"delete my details" appends the withdrawal first, from the person, and nothing more', async () => {

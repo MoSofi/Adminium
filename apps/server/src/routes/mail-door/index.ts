@@ -15,8 +15,11 @@
  *
  * ─── THE RULES IT KEEPS ────────────────────────────────────────────────────
  * - Every request asks first whether the outside can reach this server
- *   (`door.ts`). When it cannot, every page says "This page isn't
- *   available" and nothing is written.
+ *   (`door.ts`), the very check a marketing send makes before it goes
+ *   (`email/door-reach.ts`), so the door is open whenever mail linking to it
+ *   may leave, a request through an untrusted proxy included. When it
+ *   cannot, every page says "This page isn't available" and nothing is
+ *   written.
  * - A GET never changes anything: link scanners open every link in a mail.
  * - A link that is not this install's, or was changed by one byte, shows
  *   "This link doesn't work" with the business's address; never an error.
@@ -139,12 +142,12 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
     app.get(
       '/m/u/*',
       {
-        config: { rateLimitBucket: 'mail-door-page' },
+        config: { rateLimitBucket: 'mail-door-unsubscribe' },
         schema: { hide: true, params: tokenParams },
       },
       async (request, reply) =>
         guarded(request, reply, async () => {
-          if (!(await door.reachable(request))) return unavailable(request, reply);
+          if (!(await door.reachable())) return unavailable(request, reply);
           const claim = await door.readUnsubscribe(tokenOf(request.params));
           if (claim === null) return send(request, reply, { kind: 'dead' }, 404, null);
           if (await door.settled(claim)) return send(request, reply, { kind: 'already' }, 200, claim);
@@ -166,7 +169,7 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
       },
       async (request, reply) =>
         guarded(request, reply, async () => {
-          if (!(await door.reachable(request))) return unavailable(request, reply);
+          if (!(await door.reachable())) return unavailable(request, reply);
           const claim = await door.readUnsubscribe(tokenOf(request.params));
           if (claim === null) return send(request, reply, { kind: 'dead' }, 404, null);
           if (asksOneClick(request.body)) {
@@ -195,7 +198,7 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
       },
       async (request, reply) =>
         guarded(request, reply, async () => {
-          if (!(await door.reachable(request))) return unavailable(request, reply);
+          if (!(await door.reachable())) return unavailable(request, reply);
           const claim = await door.readClick(tokenOf(request.params));
           if (claim === null) return unavailable(request, reply);
           // A HEAD (a link scanner checking the address) is told where it goes, and counts nothing.

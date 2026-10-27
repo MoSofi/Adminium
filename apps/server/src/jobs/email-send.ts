@@ -30,15 +30,15 @@
  * Silently completing would lose the mail with no trace.
  */
 import { z } from 'zod';
-import { filesRepo, type MetaDb } from '@adminium/meta';
+import { emailRunsRepo, emailSendsRepo, filesRepo, type MetaDb } from '@adminium/meta';
 
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
-import { createMarketingMail, type MarketingMail } from '../email/marketing.js';
+import { createMarketingMail, marketingSkipSentence, type MarketingMail } from '../email/marketing.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
 import { campaignMessageId, campaignSendOfReport } from '../email/message-id.js';
 import type { PermanentRefusal } from '../email/refused.js';
-import { EMAIL_SEND_JOB_KIND, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
+import { EMAIL_SEND_JOB_KIND, PLAIN_RECIPIENT, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
 import type {
   EmailSendAttachmentRef,
   EmailSendInlineRef,
@@ -48,6 +48,7 @@ import type {
 } from '../email/types.js';
 import type { FileStore } from '../files/store.js';
 import { QR_MAX_BYTES, qrCarries, qrPng } from '../qr/index.js';
+import { CAMPAIGN_SKIP_DO_NOT_EMAIL } from './email-campaign-checks.js';
 import type { JobHandlerContext, JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
@@ -207,6 +208,10 @@ export async function resolveEmailParts(
   return parts;
 }
 
+/** A campaign row's reason, and an outbox row's sentence, when a marketing mail's recipient is not one plain address. */
+const NOT_AN_ADDRESS = 'not-an-address';
+const NOT_AN_ADDRESS_SENTENCE = 'Not sent: the recipient is not one plain e-mail address';
+
 /** Registers the `email.send` handler on `registry` (internal kind). */
 export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendHandlerDeps): void {
   const makeTransport = deps.createTransport ?? createSmtpTransport;
@@ -229,6 +234,39 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     { internal: true },
   );
 
+  /**
+   * THE LIST, ASKED AGAIN AT DELIVERY. A marketing mail was checked when it
+   * was queued, but an address may be stopped between then and now: an
+   * unsubscribe, a mail service's notice, an erasure while a batch was out.
+   * So the list is asked right before the hand-over, by the bare address:
+   *  - a recipient that is not one plain address is never handed over (a
+   *    mail server would deliver `<x@y>` to `x@y`, past the list);
+   *  - a stopped address is skipped: a campaign's send-log row reads
+   *    skipped-stop (the run counts one less sent, one more skipped), and an
+   *    app's outbox row is told it was not sent, and why.
+   * The list's keys unreadable (the server's secret changed without them):
+   * it throws, so the mail is not sent and the queue tries again later.
+   * Null when the mail may go.
+   */
+  async function stoppedAtDelivery(payload: EmailSendJobPayload, to: string): Promise<'do-not-email' | 'not-an-address' | null> {
+    const address = to.trim().toLowerCase();
+    const why = !PLAIN_RECIPIENT.test(address) ? 'not-an-address' : (await marketing.consent.stop.has(address)) ? 'do-not-email' : null;
+    if (why === null) return null;
+    const at = Date.now();
+    const sendId = campaignSendOfReport(payload.report);
+    if (sendId !== null) {
+      const row =
+        why === 'do-not-email'
+          ? await emailSendsRepo(deps.meta).markGivenUp(sendId, CAMPAIGN_SKIP_DO_NOT_EMAIL, at, 'skipped-stop')
+          : await emailSendsRepo(deps.meta).markGivenUp(sendId, NOT_AN_ADDRESS, at, 'failed');
+      if (row !== null) await (why === 'do-not-email' ? emailRunsRepo(deps.meta).countStoppedAtDelivery(row.runId) : emailRunsRepo(deps.meta).countGivenUp(row.runId));
+    } else if (payload.report !== undefined && deps.onGiveUp !== undefined) {
+      const sentence = why === 'do-not-email' ? marketingSkipSentence('do-not-email') : NOT_AN_ADDRESS_SENTENCE;
+      await deps.onGiveUp(payload.report, new Error(sentence)).catch(() => undefined);
+    }
+    return why;
+  }
+
   async function deliver(payload: EmailSendJobPayload, ctx: JobHandlerContext) {
     const config = await resolveSmtpConfig(deps.meta, emailSecretKey(deps.secret));
     if (config === null) {
@@ -241,6 +279,14 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     const envelope = envelopeSchema.parse(
       JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
     );
+    // A marketing mail asks the do-not-email list once more, right before it goes (see `stoppedAtDelivery`).
+    if (envelope.mailClass === 'marketing') {
+      const stopped = await stoppedAtDelivery(payload, envelope.to);
+      if (stopped !== null) {
+        ctx.progress(100, { step: 'skipped' });
+        return { templateKey: payload.templateKey, locale: payload.locale, skipped: stopped };
+      }
+    }
     // Bytes are read HERE, never at enqueue: the queue row carries
     // ids, the message carries content, and a file trashed in between fails
     // the send instead of sending a copy nobody can revoke.

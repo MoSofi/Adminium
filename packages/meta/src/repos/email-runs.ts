@@ -327,6 +327,15 @@ export function emailRunsRepo(meta: MetaDb) {
         .execute();
     },
 
+    /** A handed message found on the do-not-email list as it was to go: one less sent, one more skipped. */
+    async countStoppedAtDelivery(id: string): Promise<void> {
+      await db
+        .updateTable('adminium_email_runs')
+        .set((eb) => ({ sent: eb('sent', '-', 1), skipped: eb('skipped', '+', 1) }))
+        .where('id', '=', id)
+        .execute();
+    },
+
     /** A handed message the mail queue gave up on: one less sent, one more failed. */
     async countGivenUp(id: string): Promise<void> {
       await db

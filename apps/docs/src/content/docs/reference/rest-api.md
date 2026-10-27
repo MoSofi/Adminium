@@ -114,7 +114,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
 | `/api/v1/documents/*` | 14 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
-| `/api/v1/email/*` | 8 | The marketing mail settings — each sender’s DKIM key and DNS checks, where replies go, and the addresses a mail service calls to report bounces and spam (no reply ever carries a key or a secret) |
+| `/api/v1/email/*` | 9 | The marketing mail settings — each sender’s DKIM key and DNS checks, where replies go, and the addresses a mail service calls to report bounces and spam (no reply ever carries a key or a secret) |
 | `/api/v1/email-audience/*` | 8 | A campaign to the people of a table — the tables you may send to, their saved views, the first send’s review of people ticked before records were kept, the owner’s switch for existing customers, and a table’s e-mail settings (whether campaigns may mail it, its address and name columns) |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs/*` | 7 | Campaign sends — cancel a scheduled or running run |
@@ -465,6 +465,7 @@ PUT /api/v1/email/marketing/reply-to
 GET /api/v1/email/notice-endpoints
 POST /api/v1/email/notice-endpoints/{service}
 POST /api/v1/email/notice-endpoints/{service}/credentials
+POST /api/v1/email/notice-endpoints/{service}/address
 PUT /api/v1/email/notice-endpoints/{service}/secret
 ```
 

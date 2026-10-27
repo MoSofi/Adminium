@@ -130,6 +130,15 @@ export interface WriteContext {
   optOut?: { shown: boolean; carried: unknown } | undefined;
   /** A public entry's consent tick, on a write through that entry (`public-api/consent-tick.ts`). */
   consentTick?: PublicConsentTick | undefined;
+  /**
+   * A public write whose session proved the person's mailbox: one at the
+   * `verified` level, or opened by an emailed sign-in link. Set by the public
+   * routes from the session alone. Without it, a yes the write gives (a tick,
+   * or the consent column itself) never overrules a "no" already standing for
+   * that person or address (`people/consent-writes.ts`): a stranger can type
+   * anybody's address.
+   */
+  mailboxProved?: boolean | undefined;
 }
 
 /**

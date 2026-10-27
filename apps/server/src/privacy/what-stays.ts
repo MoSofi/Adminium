@@ -17,12 +17,15 @@
  *   - a payment service's message about one: for `retention.paymentEventsDays`;
  *   - the rules' run history: until its run is swept (`retention.automationRunsDays`);
  *   - staff notifications: until they are swept (`retention.notificationsDays`, once read);
- *   - a campaign's failure list: kept with the campaign's send log;
  *   - data exports staff made of a table may hold them: until each expires
  *     (`retention.exportsDays`); they are files, so they are not searched and
  *     carry no count;
  *   - the do-not-email list keeps their address as a code, so they are never
  *     mailed again: for good.
+ *
+ * A campaign's failure list is not here: the erasure takes their entries
+ * out of it (`erase-meta.ts`, `sweepMailAddress`). The kind stays in the
+ * vocabulary, which the screens share with the search's sources.
  *
  * Every reason is a code: the screens put it in the reader's language.
  */
@@ -100,8 +103,6 @@ export async function whatStays(meta: MetaDb, found: PersonFound): Promise<Stays
   if (runs > 0) items.push({ kind: 'automation-runs', reason: 'kept-a-while', count: runs, keptDays: automationRunsDays, forever: false });
   const notifications = count('notifications');
   if (notifications > 0) items.push({ kind: 'notifications', reason: 'kept-a-while', count: notifications, keptDays: notificationsDays, forever: false });
-  const failures = count('campaign-failures');
-  if (failures > 0) items.push({ kind: 'campaign-failures', reason: 'kept-a-while', count: failures, keptDays: null, forever: false });
   // Exports staff made of a table are files: not searched, so said of everyone, with no count.
   items.push({ kind: 'exports', reason: 'kept-a-while', count: null, keptDays: exportsDays, forever: false });
   // Their objection outlives them: the address stays on the list as a code (never the address).

@@ -25,6 +25,9 @@
  *    in the consent log in the reviewer's name, the column follows, and the
  *    next review no longer asks; a reviewer who may not change the table may
  *    not answer.
+ *  - The send log shows each person as its reader sees the table: in clear,
+ *    masked, or (no read of the table, or of the address) by state and
+ *    reason alone; its search and its file match only what is shown.
  *  - A sender who loses the right to see the addresses mid-run is refused at
  *    the next batch, and one who loses it before the run starts is refused
  *    at its first.
@@ -454,6 +457,49 @@ for (const [dialect, reachable] of LEGS) {
       expect(said(await answer('mia', '4', 'leave-out'))).toBe('409 NOT_IN_REVIEW');
       expect(await logOf(4)).toHaveLength(1);
       expect(await breakdown('mia')).toMatchObject({ consent: 2, awaitingReview: 0, notAgreed: 5 });
+    });
+
+    it('the send log shows each person as the reader sees the table: in clear, masked, or not at all; its search and file never give more', async () => {
+      await s.meta.db.deleteFrom('adminium_email_send_counters').execute();
+      const res = await sendRun('mia', { audience: audience() });
+      expect(res.statusCode, res.body).toBe(202);
+      const runId = (res.json() as { run: { id: string } }).run.id;
+      await s.jobs();
+      await s.emails();
+      type LogRow = { address: string; name: string; state: string; reason: string | null };
+      const log = async (who: string, query = '') => {
+        const got = await s.get(who, `/api/v1/email-runs/${runId}/log${query}`);
+        expect(got.statusCode, got.body).toBe(200);
+        return { body: got.body, rows: (got.json() as { rows: LogRow[] }).rows };
+      };
+      const csv = async (who: string) => (await s.get(who, `/api/v1/email-runs/${runId}/log.csv`)).body;
+
+      // Mia reads the contacts' addresses in clear: the log, its search and its file show them.
+      const clear = await log('mia');
+      expect(clear.rows.find((row) => row.address === 'ana@harbour.dev')).toMatchObject({ name: 'Ana Agreed', state: 'sent' });
+      expect((await log('mia', '?q=ana@harbour')).rows.map((row) => row.address)).toEqual(['ana@harbour.dev']);
+      expect(await csv('mia')).toContain('ana@harbour.dev');
+
+      // Max sees the address column masked: no address, a name only where the record page shows it; search finds no address.
+      const masked = await log('max');
+      expect(masked.body).not.toContain('harbour.dev');
+      expect(masked.rows.map((row) => row.state)).toEqual(clear.rows.map((row) => row.state));
+      const nameShown = (await s.get('max', `/api/v1/data/${s.connectionId}/${contacts}/1`)).body.includes('Ana Agreed');
+      expect(masked.rows.some((row) => row.name === 'Ana Agreed')).toBe(nameShown);
+      expect((await log('max', '?q=ana@harbour')).rows).toEqual([]);
+      expect((await log('max', '?q=harbour')).rows).toEqual([]);
+      expect((await log('max', '?q=Agreed')).rows).toHaveLength(nameShown ? 1 : 0);
+      expect(await csv('max')).not.toContain('harbour.dev');
+
+      // Ida's role does not show the address column; Nora may not read the table: each row's state and reason, nothing of the person.
+      for (const who of ['ida', 'nora']) {
+        const blind = await log(who);
+        expect(blind.body, who).not.toContain('harbour.dev');
+        expect(blind.rows.map((row) => [row.address, row.name]), who).toEqual(clear.rows.map(() => ['', '']));
+        expect(blind.rows.map((row) => [row.state, row.reason]), who).toEqual(clear.rows.map((row) => [row.state, row.reason]));
+        expect((await log(who, '?q=Agreed')).rows, who).toEqual([]);
+        expect(await csv(who), who).not.toMatch(/harbour\.dev|Ana Agreed/);
+      }
     });
 
     it('a sender who loses the right to see the addresses mid-run is refused at the next batch', async () => {

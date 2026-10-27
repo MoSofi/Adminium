@@ -588,6 +588,34 @@ for (const engine of META_ENGINES) {
       expect((await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log.csv`, headers: as(viewer) })).statusCode).toBe(403);
     });
 
+    it('a run\'s failure list names contacts to the e-mail managers only; anyone else gets the run\'s own reason', async () => {
+      const doc = await campaign();
+      const runs = emailRunsRepo(meta);
+      const run = await runs.create({ templateId: doc.id, audience: { kind: 'users' }, scheduledAt: 1 });
+      await runs.noteFailure(run.id, { to: 'marta@cobaltlegal.example', error: '550 5.1.1 <marta@cobaltlegal.example>: mailbox unavailable' });
+      await runs.noteFailure(run.id, { to: '', error: 'no-dmarc' });
+      const everything = [
+        { to: 'marta@cobaltlegal.example', error: '550 5.1.1 <marta@cobaltlegal.example>: mailbox unavailable' },
+        { to: '', error: 'no-dmarc' },
+      ];
+      for (const [user, expected] of [
+        [viewer, [{ to: '', error: 'no-dmarc' }]],
+        [manager, everything],
+      ] as const) {
+        const listed = await app.inject({ method: 'GET', url: `/email-templates/${doc.id}/runs`, headers: as(user) });
+        expect(listed.statusCode, listed.body).toBe(200);
+        expect((listed.json() as { runs: EmailRunView[] }).runs.find((one) => one.id === run.id)?.failures).toEqual(expected);
+        const one = await app.inject({ method: 'GET', url: `/email-runs/${run.id}`, headers: as(user) });
+        expect(one.statusCode, one.body).toBe(200);
+        expect((one.json() as { run: EmailRunView }).run.failures).toEqual(expected);
+        const detail = await app.inject({ method: 'GET', url: `/email-templates/${doc.id}`, headers: as(user) });
+        expect((detail.json() as EmailDocumentDetailView).run?.failures).toEqual(expected);
+        const list = await app.inject({ method: 'GET', url: '/email-templates?kind=campaign', headers: as(user) });
+        expect(list.body.includes('marta@cobaltlegal.example'), user.name).toBe(user === manager);
+        for (const res of [listed, one, detail]) expect(res.body.includes('marta@cobaltlegal.example'), user.name).toBe(user === manager);
+      }
+    });
+
     it('every campaign mail leaves with a Message-ID naming its row (the same on a retry); a notice naming it marks that row, and the summary counts it', async () => {
       const users = usersRepo(meta);
       const ruth = await users.create({ email: 'ruth@shop.test', name: 'Ruth Adeyemi', status: 'active' });

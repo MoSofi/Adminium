@@ -458,6 +458,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/email/notice-endpoints': noRows('Where the mail services report bounces: the meta store, no source row.'),
   'POST /api/v1/email/notice-endpoints/:service': noRows('A mail service\'s notice address, kept in the meta store: no source row.'),
   'POST /api/v1/email/notice-endpoints/:service/credentials': noRows('A mail service\'s notice credentials, kept encrypted in the meta store: no source row.'),
+  'POST /api/v1/email/notice-endpoints/:service/address': noRows('A mail service\'s notice address, kept in the meta store: no source row.'),
   'PUT /api/v1/email/notice-endpoints/:service/secret': noRows('A mail service\'s signing key or topic, kept in the meta store: no source row.'),
   'POST /api/v1/privacy/find': rows('system', 'A person\'s rows by their address, read whole under the privacy action (only the Super Admin holds it unless granted), past every role\'s table and row limits; a private table is not read; counts and keys only.'),
   'POST /api/v1/privacy/what-stays': rows('system', 'The same search as a person\'s data, under the privacy action; answers kinds and counts only.'),

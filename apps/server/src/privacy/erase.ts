@@ -15,7 +15,9 @@
  *  3. their consent rows are deleted, by their rows and by the address under
  *     every key version (no log row is written for the consent column the
  *     erasure empties: it is the log that goes);
- *  4. their campaign sends lose the address and the name; their downloads
+ *  4. their campaign sends lose the address and the name, campaign runs'
+ *     failure lists their entries, and a send's reason or a job's last error
+ *     that holds the address is emptied; their downloads
  *     ("Download everything") and the files on their own rows are deleted;
  *  5. the audit log's and the removed-row history's images of their rows
  *     lose the fields the erasure empties, and any text that still holds the
@@ -42,7 +44,7 @@ import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { pkLabel } from '../crud/records.js';
 import type { FileStore } from '../files/store.js';
 import { translatorFor } from '../i18n/server-i18n.js';
-import { blankCampaignSends, campaignSendIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, type CopyLink, type ImageTarget, type PersonRowRef } from './erase-meta.js';
+import { blankCampaignSends, campaignSendIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { personHash, personHashes } from './export.js';
 import { findPerson, searchAddress } from './sources.js';
@@ -86,7 +88,7 @@ export interface ErasePreview {
 }
 
 export interface EraseResult {
-  /** Rows (or entries) changed, by source: `people-crm-contacts`, `copy-…`, `outbox-crm`, `consent`, `campaign-mail`, `files`, `downloads`, `audit`, `removed-rows`. */
+  /** Rows (or entries) changed, by source: `people-crm-contacts`, `copy-…`, `outbox-crm`, `consent`, `campaign-mail`, `campaign-failures`, `mail-errors`, `files`, `downloads`, `audit`, `removed-rows`. */
   counts: Record<string, number>;
   left: LeftColumn[];
   /** Files that could not be deleted (their bytes are still stored). */
@@ -213,6 +215,9 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<
 
   // 4. Campaign sends, downloads, files on their rows.
   counts['campaign-mail'] = await blankCampaignSends(meta, await campaignSendIds(meta, address, people), now());
+  const mail = await sweepMailAddress(meta, address, now());
+  counts['campaign-failures'] = mail.runs;
+  counts['mail-errors'] = mail.sends + mail.jobs;
   const downloads = await privacyExportsRepo(meta).deleteAboutPerson(hashes);
   let filesFailed = 0;
   for (const fileId of downloads.fileIds) {

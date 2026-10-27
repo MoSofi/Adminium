@@ -35,8 +35,12 @@
  * no longer leads to) and nothing more can be recorded about them.
  *
  * ─── What is never sent back ───────────────────────────────────────────────
- * A record's address (the page has it, masked or not, from the row), any
- * hash, and a sign-up's browser. A sign-up's network address only to a reader
+ * An event of another row's or another table's person that shares the
+ * address: the panel's history is the row's own events and those the
+ * address alone is keyed by (the mail door's unsubscribes, a relay's
+ * notices); the standing per purpose and the do-not-email banner still count
+ * everything the address holds. A record's address (the page has it, masked
+ * or not, from the row), any hash, and a sign-up's browser. A sign-up's network address only to a reader
  * who sees the table's personal columns. The audit entries carry no address:
  * counts, ids and reasons.
  */
@@ -257,10 +261,19 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
           };
         }
         const who = { person, address };
+        /**
+         * An event this row may show: its own, or one the address alone is
+         * keyed by (the mail door's unsubscribes, a relay's notices). One
+         * tied to another row's or another table's person holds that
+         * person's words, browser and network address, which this reader
+         * was never given; the standing it makes is still said, without it.
+         */
+        const ownEvent = (event: ConsentEvent): boolean =>
+          event.person === null || (event.person.connectionId === person.connectionId && event.person.table === person.table && event.person.key === person.key);
         const purposes = [];
         for (const purpose of CONSENT_PURPOSES) {
           const standing = await service.stateFor(who, purpose);
-          purposes.push({ purpose, state: standing.state, event: standing.event === null ? null : eventView(standing.event, seesPersonal) });
+          purposes.push({ purpose, state: standing.state, event: standing.event === null || !ownEvent(standing.event) ? null : eventView(standing.event, seesPersonal) });
         }
         const entry = address === null ? null : await service.stop.entryFor(address);
         return {
@@ -272,7 +285,7 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
             purposes,
             stopped: entry === null ? null : { since: entry.addedAt, reason: entry.reason, origin: entry.origin },
             lastReplied: await service.lastReplied(who),
-            history: (await service.history(who, { limit: 100 })).map((event) => eventView(event, seesPersonal)),
+            history: (await service.history(who, { limit: 100 })).filter(ownEvent).map((event) => eventView(event, seesPersonal)),
             // As a change of this row is judged: the table's update grant, and the row inside the update reach.
             mayChange: (await grant('update')) && (await reach(request, request.body, 'update').then(() => true, () => false)),
           },

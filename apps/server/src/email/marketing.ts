@@ -63,10 +63,9 @@ import {
 import { createConsentService, type ConsentService } from '../consent/index.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
-import { reachability } from '../payments/reachability.js';
-import { normalizePublicOrigin } from '../security/public-origin.js';
 import { translatorForLocale } from './builtins.js';
 import { bareAddress } from './document.js';
+import { mailDoorReach, storedPublicOrigin, type MailDoorReachFacts } from './door-reach.js';
 import { replyToOf } from './send.js';
 import { isDirectRelay, permanentRefusal, type PermanentRefusal } from './refused.js';
 import {
@@ -130,12 +129,8 @@ export interface MarketingCarryInput {
   send?: string | null | undefined;
 }
 
-/** Facts of this server the public-address check reads (`payments/reachability.ts`). */
-export interface MarketingReach {
-  networkFeatures: boolean;
-  desktop: boolean;
-  trustProxy: boolean;
-}
+/** Facts of this server the public-address check reads (`door-reach.ts`, the same check the mail door makes). */
+export type MarketingReach = MailDoorReachFacts;
 
 /** For tests: DNS, the postal address and the existing-customers switch, answered in place of the real ones. */
 export interface MarketingSeams {
@@ -241,10 +236,7 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
   /** What was told already in this process: not asked of the notifications again. */
   const told = new Set<string>();
 
-  async function publicOrigin(): Promise<string | null> {
-    const stored = await settings.get('system.publicOrigin');
-    return typeof stored === 'string' ? normalizePublicOrigin(stored) : null;
-  }
+  const publicOrigin = () => storedPublicOrigin(meta);
 
   /** Adminium's key for mail from `domain`: the domain's own, else the nearest parent's. */
   const keyFor = (domain: string) => signingKeyFor(keys, domain);
@@ -252,13 +244,12 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
   /** Every refusal a marketing send from `from` meets now: the postal address, the From's DNS, the public address. */
   async function refusalsOf(from: string): Promise<MarketingRefusal[]> {
     const address = bareAddress(from);
-    const origin = await publicOrigin();
+    const { origin, open } = await mailDoorReach(meta, reach);
     const postal = await (deps.postalAddress ?? postalAddressOf)(meta);
-    const reached = reachability({ ...reach, publicOrigin: origin, forwarded: false });
     const domain = domainOfAddress(address);
     const key = domain === null ? null : await keyFor(domain);
     const facts = await senderFacts(lookup, address, key === null ? null : { domain: key.domain, selector: key.selector, publicKey: key.publicKey });
-    return marketingRefusals(address, { postalAddress: postal, publicOrigin: origin, reachable: reached.state === 'reachable' }, facts);
+    return marketingRefusals(address, { postalAddress: postal, publicOrigin: origin, reachable: open }, facts);
   }
 
   async function managers(): Promise<string[]> {

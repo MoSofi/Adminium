@@ -39,10 +39,15 @@ const STAFF_SOURCES: ReadonlySet<string> = new Set(['staff', 'review']);
 /** The longest address kept (RFC 5321's path limit). */
 export const ADDRESS_MAX = 254;
 
-/** Whether a text is an address worth keeping: one `@`, something either side, no spaces, not too long. */
+/**
+ * Whether a text is an address worth keeping: one `@`, something either
+ * side, no spaces, no angle brackets, not too long. A bracketed `<x@y>` is
+ * refused: the do-not-email list is keyed by the bare address, so a stored
+ * `<x@y>` would pass the list while the mail server delivers to `x@y`.
+ */
 export function looksLikeAddress(address: string): boolean {
   const norm = normaliseAddress(address);
-  return norm.length <= ADDRESS_MAX && /^[^\s@]+@[^\s@]+$/.test(norm);
+  return norm.length <= ADDRESS_MAX && /^[^\s@<>]+@[^\s@<>]+$/.test(norm);
 }
 
 /** A page cursor: the time and id of the last entry given. */
