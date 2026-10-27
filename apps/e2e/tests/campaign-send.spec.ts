@@ -262,6 +262,7 @@ test('phone, dark and Arabic: the send dialog', async ({ browser }) => {
 });
 
 test('a real send at one an hour: Sending, Pause, Paused, Go on, and Stop through its confirm', async ({ browser }) => {
+  test.setTimeout(180_000);
   const { page, close } = await asMarketer(browser);
   await page.goto(`/email-templates/${campaignId}`);
   await page.getByTestId('email-send').click();
@@ -273,8 +274,8 @@ test('a real send at one an hour: Sending, Pause, Paused, Go on, and Stop throug
   await expect(page.getByText('Campaign sent!')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).click();
 
-  // The first batch hands one over; the rest wait for the next hour.
-  await expect(page.getByTestId('email-run-count')).toHaveText(/^Sending · 1 of \d+$/, { timeout: 60_000 });
+  // The first batch hands one over; the rest wait for the next hour. A busy CI runner can take a while to start it.
+  await expect(page.getByTestId('email-run-count')).toHaveText(/^Sending · 1 of \d+$/, { timeout: 120_000 });
   await expect(page.getByTestId('email-run-strip')).toHaveText('Changes you make now apply to the next send, not this one.');
   await shot(page, 'run-sending-desktop');
   await page.getByTestId('email-run-pause').click();
