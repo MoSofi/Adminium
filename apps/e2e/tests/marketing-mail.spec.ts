@@ -152,10 +152,10 @@ test('the marketer makes a key, sets the postal and reply addresses, and saves M
   const card = page.locator('[data-part="bounce-card"]');
   await card.getByRole('radio', { name: 'Mailgun' }).click();
   await expect(card.getByTestId('notice-address')).toContainText(`${ORIGIN}/api/v1/email/notices/mailgun/`);
-  await card.getByLabel('Signing key').fill('key-0123456789abcdef0123456789abcdef');
+  await card.getByLabel('Signing key').fill('made-up-mailgun-signing-secret-for-tests');
   await card.getByRole('button', { name: 'Save' }).click();
   await expect(card.getByRole('button', { name: 'Replace' })).toBeVisible();
-  await expect(card).not.toContainText('key-0123456789abcdef0123456789abcdef');
+  await expect(card).not.toContainText('made-up-mailgun-signing-secret-for-tests');
   await card.getByRole('radio', { name: 'Postmark' }).click();
   await expect(card.locator('[data-part="made-credentials"]')).toBeVisible();
   await card.scrollIntoViewIfNeeded();

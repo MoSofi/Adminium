@@ -37,7 +37,7 @@ import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const SECRET = 'a-mail-settings-test-secret-of-length';
 const ORIGIN = 'https://crm.meridian.example';
-const MAILGUN_KEY = 'key-0123456789abcdef0123456789abcdef';
+const MAILGUN_KEY = 'made-up-mailgun-signing-secret-for-tests';
 
 for (const engine of META_ENGINES) {
   describe.skipIf(!engine.available)(`marketing mail settings routes [${engine.name}]`, () => {
