@@ -107,7 +107,7 @@ function ColumnPicker({ label, icon, value, options, onChange, testId }: { label
     <label className="flex min-w-0 flex-col gap-1.5">
       <span className="text-body-sm font-bold text-fg">{label}</span>
       <span className="relative flex items-center">
-        <span aria-hidden className="pointer-events-none absolute start-[11px] text-fg-muted [&_svg]:size-[15px]">
+        <span aria-hidden className="pointer-events-none absolute start-[11px] z-10 flex text-fg-muted [&_svg]:size-[15px]">
           {icon}
         </span>
         <Select value={value} onChange={(event) => onChange(event.target.value)} className="ps-8" wrapperClassName="w-full" data-testid={testId}>

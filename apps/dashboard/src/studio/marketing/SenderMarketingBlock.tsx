@@ -48,7 +48,7 @@ function Row({ label, sub, center, children }: { label: ReactNode; sub?: ReactNo
 /** The comp's status badge: radius 6, 11.5 / 700. */
 function State({ tone, icon, children }: { tone: 'pos' | 'warn' | 'neutral'; icon: ReactNode; children: ReactNode }): ReactNode {
   return (
-    <Badge tone={tone} className="rounded-sm px-2 text-[11.5px] leading-[normal] [&_svg]:size-3">
+    <Badge tone={tone} className="whitespace-normal rounded-sm px-2 text-start text-[11.5px] leading-[normal] [&_svg]:size-3 [&_svg]:shrink-0">
       {icon}
       {children}
     </Badge>

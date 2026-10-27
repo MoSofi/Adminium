@@ -104,8 +104,9 @@ export function DoNotEmailPage(): ReactNode {
   }
 
   const addButton = (
-    <Button size="topbar" iconLeft={<Plus />} onClick={() => setAdding(true)} data-testid="dne-add">
-      {t('studio:marketingMail.dne.add', 'Add addresses')}
+    <Button size="topbar" iconLeft={<Plus />} onClick={() => setAdding(true)} data-testid="dne-add" aria-label={t('studio:marketingMail.dne.add', 'Add addresses')}>
+      {/* At phone width the plus alone, so the page's name keeps the topbar. */}
+      <span className="max-sm:sr-only">{t('studio:marketingMail.dne.add', 'Add addresses')}</span>
     </Button>
   );
 
