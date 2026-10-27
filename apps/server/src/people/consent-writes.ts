@@ -181,19 +181,51 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
   }
 
   /**
-   * The "no" a public yes from a request that proved no mailbox may not
-   * overrule: the person's (or the address's) newest event for the purpose
-   * when it is a withdrawal, or the address on the do-not-email list. Such a
-   * request is anybody who typed an address, so their yes writes nothing and
-   * the person's column keeps saying no; a customer signed in with their
-   * mailbox proved still changes their mind. Null when nothing stands.
+   * The "no" a public yes may not overrule unless the request proved the
+   * very mailbox it writes for: the person's (or the address's) newest event
+   * for the purpose when it is a withdrawal, or the address on the
+   * do-not-email list. A request that proved no mailbox is anybody who typed
+   * an address, and one that proved another mailbox (a customer signed in as
+   * themselves, signing a stranger up) has proved nothing about this one: so
+   * their yes writes nothing and the person's column keeps saying no. A
+   * customer signed in with this address proved still changes their mind.
+   * Null when nothing stands.
    */
   async function standingNo(context: WriteContext, person: ConsentPerson, address: string | null, purpose: 'newsletter' | 'surveys'): Promise<{ event: ConsentEvent | null } | null> {
-    if (context.origin !== 'public' || context.mailboxProved === true) return null;
+    if (context.origin !== 'public') return null;
+    const proved = context.provedAddress;
+    if (address !== null && proved !== null && proved !== undefined && normaliseAddress(proved) === address) return null;
     const standing = await consent.stateFor({ person, address }, purpose);
     if (standing.state === 'no') return { event: standing.event };
     if (address !== null && (await consent.stop.has(address))) return { event: null };
     return null;
+  }
+
+  /**
+   * The "no" a column is put back to when only the do-not-email list stands
+   * against a stranger's yes: never written to the log (nobody said it here;
+   * the list is the record), only handed to the column door, as the system.
+   */
+  function stopListNo(person: ConsentPerson, purpose: 'newsletter' | 'surveys'): ConsentEvent {
+    return {
+      id: '',
+      person,
+      address: null,
+      purpose,
+      state: 'no',
+      source: 'system',
+      detail: 'do-not-email',
+      how: null,
+      note: null,
+      staffId: null,
+      staffLabel: null,
+      wording: null,
+      wordingVersion: null,
+      ip: null,
+      userAgent: null,
+      at: Date.now(),
+      confirmedAt: null,
+    };
   }
 
   /** A public tick on the row written: one log row from the form, then the person's column. */
@@ -212,7 +244,7 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     const language = wordingLanguage(given.wording.text, declared?.language == null ? null : row[declared.language], given.acceptLanguage);
     const person: ConsentPerson = { connectionId: target.connectionId, table: held.table.id, key };
     const address = declared?.email == null ? null : addressIn(row[declared.email]);
-    // Anybody's tick (no mailbox proved) never overrules a "no": nothing is written, no column changes.
+    // A tick from anybody but this address's proved owner never overrules a "no": nothing is written, no column changes.
     if ((await standingNo(write.context, person, address, given.purpose)) !== null) return;
     const event = await consent.record({
       person,
@@ -244,11 +276,13 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     // Already so in the log (an unsubscribe, a forget, a tick wrote it first): nothing more.
     if ((await consent.stateFor({ person, address }, declared.consent.purpose)).state === state) return;
     if (state === 'yes') {
-      // A stranger's public write setting the column (no mailbox proved) over a standing "no": the log
-      // hears nothing, and the column is put back to the log's withdrawal (the log is the record).
+      // A stranger's public write setting the column (this mailbox not proved) over a standing "no": the log
+      // hears nothing, and the column is put back to no: to the log's withdrawal when there is one (the log is
+      // the record), else, the address being on the do-not-email list alone, to a plain no, so that taking it
+      // off the list later never turns the stranger's yes into one.
       const no = await standingNo(context, person, address, declared.consent.purpose);
       if (no !== null) {
-        if (no.event !== null) await applyTo(declared, person.key, no.event);
+        await applyTo(declared, person.key, no.event ?? stopListNo(person, declared.consent.purpose));
         return;
       }
     }

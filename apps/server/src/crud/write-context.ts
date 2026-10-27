@@ -131,14 +131,17 @@ export interface WriteContext {
   /** A public entry's consent tick, on a write through that entry (`public-api/consent-tick.ts`). */
   consentTick?: PublicConsentTick | undefined;
   /**
-   * A public write whose session proved the person's mailbox: one at the
-   * `verified` level, or opened by an emailed sign-in link. Set by the public
-   * routes from the session alone. Without it, a yes the write gives (a tick,
-   * or the consent column itself) never overrules a "no" already standing for
-   * that person or address (`people/consent-writes.ts`): a stranger can type
-   * anybody's address.
+   * The address a public write's session proved it reads mail at (trimmed,
+   * lower case): the signed-in person's own address, for a session at the
+   * `verified` level or opened by an emailed sign-in link. Set by the public
+   * routes from the session alone; null or absent when nothing was proved. A
+   * yes the write gives (a tick, or the consent column itself) overrules a
+   * "no" already standing for that person or address only when the address
+   * written is this one (`people/consent-writes.ts`): a stranger can type
+   * anybody's address, and a customer who proved their own mailbox has
+   * proved nothing about anybody else's.
    */
-  mailboxProved?: boolean | undefined;
+  provedAddress?: string | null | undefined;
 }
 
 /**

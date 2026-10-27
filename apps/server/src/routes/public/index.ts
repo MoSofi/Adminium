@@ -154,6 +154,7 @@ import {
   hashCode,
   maskAddress,
   newCode,
+  normaliseAddress,
   plausibleAddress,
   subjectOf,
   tryCode,
@@ -977,7 +978,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
-    mailboxProved: ok.session !== null && (ok.session.level === 'verified' || ok.session.kind === 'link'),
+    provedAddress: provedAddressOf(ok, claimed),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
       ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
@@ -987,6 +988,26 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     };
   };
   const consentTicks = createConsentTicks(meta);
+
+  /**
+   * The one address a session proved it reads mail at: the signed-in
+   * person's own row's address column (the scope's `claim.email`, where the
+   * code or the sign-in link was mailed), for a session at `verified` or
+   * opened by an e-mailed link. A row's own link (`token`) proves no mailbox:
+   * it may have been handed over. Null when nothing was proved. A desk change
+   * of that address ends the person's sessions (`identity-email-watch.ts`),
+   * and the person may not write it themselves, so the row read now still
+   * holds the address the mail went to.
+   */
+  const provedAddressOf = (ok: { key: ResolvedKey; session: PublicSessionContext | null }, claimed: Row | null): string | null => {
+    const session = ok.session;
+    if (session === null || claimed === null || session.kind === 'token') return null;
+    if (session.level !== 'verified' && session.kind !== 'link') return null;
+    const claim = ok.key.scope.claim;
+    if (claim === null || claim.ref !== session.grant.ref || claim.email === undefined) return null;
+    const value = claimed[claim.email];
+    return plausibleAddress(value) ? normaliseAddress(value) : null;
+  };
 
   /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
   /**
