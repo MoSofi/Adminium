@@ -1,0 +1,35 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The e-mail consent panel's styles on an app's own screen, in the board's
+ * pattern (board.css): exactly the utilities the panel's files wear, each
+ * held under the kit's wrapper, and no preflight.
+ *
+ * The `@source` lines name every file whose class names the panel can wear:
+ * the part, the dashboard's own panel (src/consent/ConsentPanel.tsx), and the
+ * controls it is drawn with. The panel's dialogs are the dashboard's alone:
+ * on an app's screen they open inside the panel (`inline`). A component the
+ * panel grows adds its file here; the browser test
+ * (apps/e2e/tests/kit-parts.spec.ts) fails on a class with no rule.
+ */
+@import '../kit-theme.css';
+
+@source './consent.tsx';
+@source '../../consent/ConsentPanel.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/button/Button.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/choice-chips/ChoiceChips.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/segmented-control/SegmentedControl.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/spinner/Spinner.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/textarea/Textarea.tsx';
+
+.adm-kit {
+  @tailwind utilities source(none);
+}
+
+/* The panel's own box: as wide as the element it is mounted in, at most the comp's 820. */
+.adm-kit[data-kit-part='consent'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 13px;
+}

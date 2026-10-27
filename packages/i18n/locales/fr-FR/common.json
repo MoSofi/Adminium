@@ -1946,7 +1946,12 @@
       "formVersion": "Accord donné via le formulaire « {form} » (texte {version})",
       "confirmed": "Confirmé par e-mail",
       "confirmedOn": "confirmé par e-mail le {date}",
-      "recorded": "Accord donné {how, select, inPerson {en personne} phone {par téléphone} email {par e-mail} paper {sur papier} other {}}, enregistré par {name}",
+      "recorded": {
+        "inPerson": "Accord donné en personne, enregistré par {name}",
+        "phone": "Accord donné par téléphone, enregistré par {name}",
+        "email": "Accord donné par e-mail, enregistré par {name}",
+        "paper": "Accord donné sur papier, enregistré par {name}"
+      },
       "ticked": "Coché par {name}",
       "unticked": "Décoché par {name}",
       "reviewYes": "Confirmé par {name}",

@@ -50,7 +50,7 @@ async function box(props: Partial<MentionsProps> = {}): Promise<{ onChange: Retu
 describe('the door', () => {
   it('says its contract and the parts it has', () => {
     expect(contract).toBe(KIT_CONTRACT);
-    expect(parts).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos']);
+    expect(parts).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos', 'consent']);
   });
 
   it('refuses a part it never heard of, by name; one that is named and not built yet has an error of its own', async () => {

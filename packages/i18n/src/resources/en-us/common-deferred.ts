@@ -1134,7 +1134,12 @@ export default {
       "formVersion": "Agreed on the form ‘{form}’ (wording {version})",
       "confirmed": "Confirmed by e-mail",
       "confirmedOn": "confirmed by e-mail {date}",
-      "recorded": "Agreed {how, select, inPerson {in person} phone {by phone} email {by e-mail} paper {on paper} other {}}, recorded by {name}",
+      "recorded": {
+        "inPerson": "Agreed in person, recorded by {name}",
+        "phone": "Agreed by phone, recorded by {name}",
+        "email": "Agreed by e-mail, recorded by {name}",
+        "paper": "Agreed on paper, recorded by {name}"
+      },
       "ticked": "Ticked by {name}",
       "unticked": "Unticked by {name}",
       "reviewYes": "Confirmed by {name}",

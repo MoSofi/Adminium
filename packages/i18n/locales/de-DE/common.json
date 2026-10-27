@@ -1946,7 +1946,12 @@
       "formVersion": "Im Formular „{form}“ zugestimmt (Wortlaut {version})",
       "confirmed": "Per E-Mail bestätigt",
       "confirmedOn": "per E-Mail bestätigt {date}",
-      "recorded": "{how, select, inPerson {Persönlich} phone {Telefonisch} email {Per E-Mail} paper {Auf Papier} other {}} zugestimmt, erfasst von {name}",
+      "recorded": {
+        "inPerson": "Persönlich zugestimmt, erfasst von {name}",
+        "phone": "Telefonisch zugestimmt, erfasst von {name}",
+        "email": "Per E-Mail zugestimmt, erfasst von {name}",
+        "paper": "Auf Papier zugestimmt, erfasst von {name}"
+      },
       "ticked": "Angehakt von {name}",
       "unticked": "Haken entfernt von {name}",
       "reviewYes": "Bestätigt von {name}",

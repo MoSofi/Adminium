@@ -1946,7 +1946,12 @@
       "formVersion": "在表单“{form}”中同意（措辞 {version}）",
       "confirmed": "已通过电子邮件确认",
       "confirmedOn": "已于 {date} 通过电子邮件确认",
-      "recorded": "{how, select, inPerson {当面} phone {通过电话} email {通过电子邮件} paper {在纸上} other {}}同意，由 {name} 记录",
+      "recorded": {
+        "inPerson": "当面同意，由 {name} 记录",
+        "phone": "通过电话同意，由 {name} 记录",
+        "email": "通过电子邮件同意，由 {name} 记录",
+        "paper": "在纸上同意，由 {name} 记录"
+      },
       "ticked": "由 {name} 勾选",
       "unticked": "由 {name} 取消勾选",
       "reviewYes": "由 {name} 确认",

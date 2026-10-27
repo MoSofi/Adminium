@@ -1956,7 +1956,12 @@ export default {
       "formVersion": "Souhlas ve formuláři „{form}“ (znění {version})",
       "confirmed": "Potvrzeno e-mailem",
       "confirmedOn": "potvrzeno e-mailem {date}",
-      "recorded": "Souhlas {how, select, inPerson {osobně} phone {telefonicky} email {e-mailem} paper {na papíře} other {}}, zaznamenal(a) {name}",
+      "recorded": {
+        "inPerson": "Souhlas osobně, zaznamenal(a) {name}",
+        "phone": "Souhlas telefonicky, zaznamenal(a) {name}",
+        "email": "Souhlas e-mailem, zaznamenal(a) {name}",
+        "paper": "Souhlas na papíře, zaznamenal(a) {name}"
+      },
       "ticked": "Zaškrtl(a) {name}",
       "unticked": "Zrušil(a) zaškrtnutí {name}",
       "reviewYes": "Potvrdil(a) {name}",

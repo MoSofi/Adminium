@@ -80,6 +80,20 @@ function versionOf(stored: string | null): string | null {
   return first === '' ? null : first;
 }
 
+/** A yes a staff member recorded, by how the person gave it: one sentence each, so every language words it whole. */
+function recordedLine(t: Translate, how: ConsentHow, name: string): string {
+  switch (how) {
+    case 'in-person':
+      return t('common:consent.line.recorded.inPerson', 'Agreed in person, recorded by {name}', { name });
+    case 'phone':
+      return t('common:consent.line.recorded.phone', 'Agreed by phone, recorded by {name}', { name });
+    case 'email':
+      return t('common:consent.line.recorded.email', 'Agreed by e-mail, recorded by {name}', { name });
+    case 'paper':
+      return t('common:consent.line.recorded.paper', 'Agreed on paper, recorded by {name}', { name });
+  }
+}
+
 /** What a yes or a no says, by where it came from. */
 function sentence(t: Translate, event: ConsentEventView): { text: string; icon: LineIcon; tone: LineTone; extra: string | null } {
   const yes = event.state === 'yes';
@@ -96,15 +110,7 @@ function sentence(t: Translate, event: ConsentEventView): { text: string; icon: 
       return { text, icon: 'file-check', tone: 'pos', extra: event.ip === null ? null : t('common:consent.line.from', 'from {ip}', { ip: event.ip }) };
     }
     case 'staff':
-      if (yes && event.how !== null) {
-        return {
-          // ICU's select takes no hyphen in a key: `in-person` is said `inPerson`.
-          text: t('common:consent.line.recorded', 'Agreed {how, select, inPerson {in person} phone {by phone} email {by e-mail} paper {on paper} other {}}, recorded by {name}', { how: event.how === 'in-person' ? 'inPerson' : event.how, name }),
-          icon: 'file-pen',
-          tone: 'pos',
-          extra: event.note,
-        };
-      }
+      if (yes && event.how !== null) return { text: recordedLine(t, event.how, name), icon: 'file-pen', tone: 'pos', extra: event.note };
       return yes
         ? { text: t('common:consent.line.ticked', 'Ticked by {name}', { name }), icon: 'square-check', tone: 'neutral', extra: event.note }
         : { text: t('common:consent.line.unticked', 'Unticked by {name}', { name }), icon: 'mail-x', tone: 'neutral', extra: event.note };

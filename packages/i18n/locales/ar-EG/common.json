@@ -1946,7 +1946,12 @@
       "formVersion": "موافقة عبر النموذج «{form}» (الصياغة {version})",
       "confirmed": "تأكيد عبر البريد الإلكتروني",
       "confirmedOn": "تأكيد عبر البريد الإلكتروني {date}",
-      "recorded": "موافقة {how, select, inPerson {حضوريًا} phone {عبر الهاتف} email {عبر البريد الإلكتروني} paper {على الورق} other {}}، سجّلها {name}",
+      "recorded": {
+        "inPerson": "موافقة حضوريًا، سجّلها {name}",
+        "phone": "موافقة عبر الهاتف، سجّلها {name}",
+        "email": "موافقة عبر البريد الإلكتروني، سجّلها {name}",
+        "paper": "موافقة على الورق، سجّلها {name}"
+      },
       "ticked": "وضع العلامة {name}",
       "unticked": "أزال العلامة {name}",
       "reviewYes": "أكّدها {name}",

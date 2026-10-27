@@ -525,7 +525,7 @@ test('a plain page mounts the mention box, and a person picked from the real lis
 
   // The door's own answers.
   expect(await page.evaluate(() => (window as unknown as { kitScreen: { contract: number; parts: string[] } }).kitScreen.contract)).toBe(1);
-  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos']);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos', 'consent']);
   // The page has no React of its own, and the kit put none on the window.
   expect(await page.evaluate(() => 'React' in window || 'ReactDOM' in window)).toBe(false);
   // Only the mention box's files came: the door, the part, the words of one language, what they share with the dashboard, one sheet.

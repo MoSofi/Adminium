@@ -268,6 +268,18 @@ describe('someone who opens only an app’s own screens', () => {
     }
   });
 
+  it('may read and record a record\'s e-mail consent from a screen of their app, and not the do-not-email list', () => {
+    const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, { id: 'dne_1' }, new Set(['conn_1']), ['clients']);
+    for (const route of ['/api/v1/consent/panel', '/api/v1/consent/record-consent', '/api/v1/consent/replied', '/api/v1/consent/said-no']) {
+      expect(allowed('POST', route), route).toBe(true);
+      expect(allowed('GET', route), `GET ${route}`).toBe(false);
+    }
+    // The install-wide list, adding to it by hand and taking an address off it stay the dashboard's.
+    expect(allowed('GET', '/api/v1/consent/stop-list')).toBe(false);
+    expect(allowed('POST', '/api/v1/consent/stop-list')).toBe(false);
+    expect(allowed('DELETE', '/api/v1/consent/stop-list/:id')).toBe(false);
+  });
+
   it('finds who they are, and their token, in the staff config', async () => {
     const cookie = await person('dan@example.com', [{ screensOnly: true }]);
     const config = await get('/apps/clients/staff/surface-config.json', cookie);

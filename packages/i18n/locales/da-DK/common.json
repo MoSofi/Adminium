@@ -1946,7 +1946,12 @@
       "formVersion": "Sagde ja i formularen ‘{form}’ (ordlyd {version})",
       "confirmed": "Bekræftet pr. e-mail",
       "confirmedOn": "bekræftet pr. e-mail {date}",
-      "recorded": "Sagde ja {how, select, inPerson {personligt} phone {pr. telefon} email {pr. e-mail} paper {på papir} other {}}, registreret af {name}",
+      "recorded": {
+        "inPerson": "Sagde ja personligt, registreret af {name}",
+        "phone": "Sagde ja pr. telefon, registreret af {name}",
+        "email": "Sagde ja pr. e-mail, registreret af {name}",
+        "paper": "Sagde ja på papir, registreret af {name}"
+      },
       "ticked": "Afkrydset af {name}",
       "unticked": "Afkrydsning fjernet af {name}",
       "reviewYes": "Bekræftet af {name}",

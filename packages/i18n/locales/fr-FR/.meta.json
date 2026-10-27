@@ -5435,9 +5435,21 @@
     "status": "mt",
     "srcHash": "ee0e7f5feda6"
   },
-  "common.consent.line.recorded": {
+  "common.consent.line.recorded.email": {
     "status": "mt",
-    "srcHash": "b8efccc20016"
+    "srcHash": "d7b58918b78c"
+  },
+  "common.consent.line.recorded.inPerson": {
+    "status": "mt",
+    "srcHash": "74b51044cf7f"
+  },
+  "common.consent.line.recorded.paper": {
+    "status": "mt",
+    "srcHash": "872709d33fca"
+  },
+  "common.consent.line.recorded.phone": {
+    "status": "mt",
+    "srcHash": "723d6c6a863f"
   },
   "common.consent.line.replied": {
     "status": "mt",

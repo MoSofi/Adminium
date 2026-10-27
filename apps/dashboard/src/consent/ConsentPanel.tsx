@@ -30,7 +30,7 @@
  * Phone: the header's buttons sit in a two-column grid, 44 px high, and a
  * history line's time goes under its text.
  */
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Button, FormDialog, FormDialogBody, FormDialogFooter, FormDialogHeader, Modal, ModalFooter, ModalHeader, SegmentedControl, ChoiceChips, Textarea } from '@adminium/ui';
 import { Check, FileCheck2, FilePenLine, Info, MailCheck, MailX, Minus, Reply, Settings, SquareCheck, Stamp, Upload, User, UserX, type LucideIcon } from 'lucide-react';
@@ -52,6 +52,12 @@ export interface ConsentPanelProps {
   onChanged: () => void | Promise<void>;
   /** Says what happened (a toast). Left out, the panel says it in a line of its own. */
   notify?: ((message: string, tone: 'success' | 'error') => void) | undefined;
+  /**
+   * The confirms and the Record consent form drawn inside the panel, under
+   * its header, instead of in a dialog over the page: an app's own screen
+   * (the kit), whose styles stop at the part's own element.
+   */
+  inline?: boolean | undefined;
 }
 
 const LINE_ICONS: Record<LineIcon, LucideIcon> = {
@@ -81,7 +87,7 @@ const HEADER_BUTTON = 'rounded-[10px] text-[12.5px] font-bold max-sm:h-11 max-sm
 
 type Confirming = 'replied' | 'said-no' | null;
 
-export function ConsentPanel({ record, view, client, name, address, locale, onChanged, notify }: ConsentPanelProps): ReactNode {
+export function ConsentPanel({ record, view, client, name, address, locale, onChanged, notify, inline = false }: ConsentPanelProps): ReactNode {
   const t = useMaybeT();
   const headingId = useId();
   const hintId = useId();
@@ -99,7 +105,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
     tell(reason === 'ERASED' ? t('common:consent.toast.erased', 'This person was erased: nothing more is recorded about them.') : t('common:consent.toast.failed', 'That was not saved. Try again.'), 'error');
   };
 
-  async function press(what: 'replied' | 'said-no'): Promise<void> {
+  async function press(what: Exclude<Confirming, null>): Promise<void> {
     setBusy(true);
     try {
       if (what === 'replied') {
@@ -119,6 +125,46 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
     }
   }
 
+  const steps = (
+    <>
+      {confirming === null ? null : (
+        <ConfirmStep
+          inline={inline}
+          icon={confirming === 'replied' ? Reply : MailX}
+          tone={confirming === 'replied' ? 'accent' : 'warn'}
+          title={confirming === 'replied' ? t('common:consent.confirm.repliedTitle', 'Mark as replied?') : t('common:consent.confirm.saidNoTitle', 'Put them on the do-not-email list?')}
+          body={
+            confirming === 'replied'
+              ? t('common:consent.panel.repliedHint', 'They replied to a marketing e-mail. This stops their e-mail sequences.')
+              : t('common:consent.confirm.saidNoBody', 'Marketing mail skips them from now on; service mail like quotes and receipts still reaches them. Only a Super Admin can take them off the list.')
+          }
+          confirm={confirming === 'replied' ? t('common:consent.confirm.repliedConfirm', 'Mark as replied') : t('common:consent.confirm.saidNoConfirm', 'Put on the list')}
+          busy={busy}
+          onConfirm={() => void press(confirming)}
+          onCancel={() => setConfirming(null)}
+          testId={confirming === 'replied' ? 'consent-replied-confirm' : 'consent-said-no-confirm'}
+        />
+      )}
+      {recording ? (
+        <RecordConsentDialog
+          inline={inline}
+          name={name}
+          address={address}
+          onCancel={() => setRecording(false)}
+          onSave={async (input) => {
+            try {
+              await client.recordConsent(record, input);
+              setRecording(false);
+              tell(t('common:consent.toast.recorded', 'Consent recorded for the {purpose}.', { purpose: purposeName(t, input.purpose) }), 'success');
+              await onChanged();
+            } catch (error) {
+              failed(error);
+            }
+          }}
+        />
+      ) : null}
+    </>
+  );
   const canAct = view.mayChange && !view.erased;
   const lines = historyLines(t, view.history);
 
@@ -153,6 +199,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
         ) : null}
       </div>
 
+      {inline ? steps : null}
       {view.erased ? (
         <Note icon={UserX} tone="neutral" testId="consent-erased">
           {t('common:consent.panel.erased', 'This person was erased. Their address stays on the do-not-email list, so they are never e-mailed again. Nothing else is kept about them.')}
@@ -234,49 +281,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
         </p>
       )}
 
-      {confirming === 'replied' ? (
-        <ConfirmStep
-          icon={Reply}
-          tone="accent"
-          title={t('common:consent.confirm.repliedTitle', 'Mark as replied?')}
-          body={t('common:consent.panel.repliedHint', 'They replied to a marketing e-mail. This stops their e-mail sequences.')}
-          confirm={t('common:consent.confirm.repliedConfirm', 'Mark as replied')}
-          busy={busy}
-          onConfirm={() => void press('replied')}
-          onCancel={() => setConfirming(null)}
-          testId="consent-replied-confirm"
-        />
-      ) : null}
-      {confirming === 'said-no' ? (
-        <ConfirmStep
-          icon={MailX}
-          tone="warn"
-          title={t('common:consent.confirm.saidNoTitle', 'Put them on the do-not-email list?')}
-          body={t('common:consent.confirm.saidNoBody', 'Marketing mail skips them from now on; service mail like quotes and receipts still reaches them. Only a Super Admin can take them off the list.')}
-          confirm={t('common:consent.confirm.saidNoConfirm', 'Put on the list')}
-          busy={busy}
-          onConfirm={() => void press('said-no')}
-          onCancel={() => setConfirming(null)}
-          testId="consent-said-no-confirm"
-        />
-      ) : null}
-      {recording ? (
-        <RecordConsentDialog
-          name={name}
-          address={address}
-          onCancel={() => setRecording(false)}
-          onSave={async (input) => {
-            try {
-              await client.recordConsent(record, input);
-              setRecording(false);
-              tell(t('common:consent.toast.recorded', 'Consent recorded for the {purpose}.', { purpose: purposeName(t, input.purpose) }), 'success');
-              await onChanged();
-            } catch (error) {
-              failed(error);
-            }
-          }}
-        />
-      ) : null}
+      {inline ? null : steps}
     </section>
   );
 }
@@ -294,8 +299,39 @@ function Note({ icon: Icon, tone, testId, children }: { icon: LucideIcon; tone: 
   );
 }
 
+/**
+ * Where a confirm or the Record consent form is drawn on an app's own screen:
+ * inside the panel, under its header, with no layer over the page (the kit
+ * styles nothing outside its own element). Named by its heading, the focus
+ * put on its first control, and Escape closes it.
+ */
+function InlineStep({ titleId, onCancel, busy, testId, children }: { titleId: string; onCancel: () => void; busy: boolean; testId: string; children: ReactNode }): ReactNode {
+  const box = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>('[data-first]')?.focus();
+  }, []);
+  return (
+    <div
+      ref={box}
+      role="group"
+      aria-labelledby={titleId}
+      className="mx-5 mb-4 flex flex-col gap-4 rounded-[12px] border border-border-strong bg-surface-2 p-4 max-sm:mx-4"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !busy) {
+          event.stopPropagation();
+          onCancel();
+        }
+      }}
+      data-testid={testId}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** A small confirm: what the press does, said in full, with Cancel first (focus starts there). */
 function ConfirmStep(props: {
+  inline: boolean;
   icon: LucideIcon;
   tone: 'accent' | 'warn';
   title: string;
@@ -307,7 +343,36 @@ function ConfirmStep(props: {
   testId: string;
 }): ReactNode {
   const t = useMaybeT();
+  const titleId = useId();
   const Icon = props.icon;
+  const buttons = (
+    <>
+      <Button variant="secondary" autoFocus={!props.inline} data-first onClick={props.onCancel} disabled={props.busy}>
+        {t('common:consent.confirm.cancel', 'Cancel')}
+      </Button>
+      <Button onClick={props.onConfirm} loading={props.busy} data-testid={`${props.testId}-yes`}>
+        {props.confirm}
+      </Button>
+    </>
+  );
+  if (props.inline) {
+    return (
+      <InlineStep titleId={titleId} onCancel={props.onCancel} busy={props.busy} testId={props.testId}>
+        <div className="flex items-start gap-3">
+          <span className={`flex size-9 shrink-0 items-center justify-center rounded-[10px] ${props.tone === 'warn' ? 'bg-warn-soft text-warn' : 'bg-accent-soft text-accent'}`}>
+            <Icon aria-hidden="true" className="size-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <h3 id={titleId} className="m-0 text-[14px] font-bold">
+              {props.title}
+            </h3>
+            <p className="m-0 mt-1 text-[12.5px] leading-normal text-fg-muted">{props.body}</p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2.5">{buttons}</div>
+      </InlineStep>
+    );
+  }
   return (
     <Modal
       open
@@ -328,14 +393,7 @@ function ConfirmStep(props: {
           subtitle={<span className="mx-auto mt-2 block max-w-[320px] text-body text-fg-muted">{props.body}</span>}
           className="flex-col items-center px-6 pb-5 pt-6 text-center [&>*:first-child]:mb-1.5 [&>*:first-child]:size-[52px] [&>*:first-child]:rounded-lg [&>*:first-child_svg]:size-6"
         />
-        <ModalFooter className="gap-2.5 [&>button]:flex-1">
-          <Button variant="secondary" autoFocus onClick={props.onCancel} disabled={props.busy}>
-            {t('common:consent.confirm.cancel', 'Cancel')}
-          </Button>
-          <Button onClick={props.onConfirm} loading={props.busy} data-testid={`${props.testId}-yes`}>
-            {props.confirm}
-          </Button>
-        </ModalFooter>
+        <ModalFooter className="gap-2.5 [&>button]:flex-1">{buttons}</ModalFooter>
       </div>
     </Modal>
   );
@@ -346,9 +404,21 @@ function ConfirmStep(props: {
  * staff member and the date are the server's (from the session and the
  * clock), never typed.
  */
-function RecordConsentDialog({ name, address, onCancel, onSave }: { name: string | null; address: string | null; onCancel: () => void; onSave: (input: { purpose: ConsentPurpose; how: ConsentHow; note: string | null }) => Promise<void> }): ReactNode {
+function RecordConsentDialog({
+  inline,
+  name,
+  address,
+  onCancel,
+  onSave,
+}: {
+  inline: boolean;
+  name: string | null;
+  address: string | null;
+  onCancel: () => void;
+  onSave: (input: { purpose: ConsentPurpose; how: ConsentHow; note: string | null }) => Promise<void>;
+}): ReactNode {
   const t = useMaybeT();
-  const noteId = useId();
+  const id = useId();
   const [purpose, setPurpose] = useState<ConsentPurpose>('newsletter');
   const [how, setHow] = useState<ConsentHow>('in-person');
   const [note, setNote] = useState('');
@@ -366,7 +436,83 @@ function RecordConsentDialog({ name, address, onCancel, onSave }: { name: string
         )}
       </span>
     );
+  const title = t('common:consent.dialog.title', 'Record consent');
 
+  const fields = (
+    <>
+      <div className="flex flex-col gap-[7px]">
+        <span className="text-[12.5px] font-bold" id={`${id}-purpose`}>
+          {t('common:consent.dialog.purpose', 'Purpose')}
+        </span>
+        <SegmentedControl
+          aria-labelledby={`${id}-purpose`}
+          className="self-start"
+          value={purpose}
+          onValueChange={(value) => setPurpose(value as ConsentPurpose)}
+          options={CONSENT_PURPOSES.map((one) => ({ value: one, label: purposeName(t, one) }))}
+          data-first
+        />
+      </div>
+      <div className="flex flex-col gap-[7px]">
+        <span className="text-[12.5px] font-bold" id={`${id}-how`}>
+          {t('common:consent.dialog.how', 'How did they agree?')}
+        </span>
+        <ChoiceChips
+          aria-labelledby={`${id}-how`}
+          value={how}
+          onValueChange={(value) => {
+            if (value !== null) setHow(value as ConsentHow);
+          }}
+          options={CONSENT_HOWS.map((one) => ({ value: one, label: howName(t, one) }))}
+        />
+      </div>
+      <label className="flex flex-col gap-1.5" htmlFor={`${id}-note`}>
+        <span className="text-[12.5px] font-bold">{t('common:consent.dialog.note', 'Note')}</span>
+        <Textarea id={`${id}-note`} rows={3} maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} data-testid="consent-dialog-note" />
+      </label>
+      <div className="flex gap-[9px] rounded-[10px] bg-surface-3 px-[13px] py-[11px]">
+        <Stamp aria-hidden="true" className="mt-0.5 size-[15px] shrink-0 text-fg-muted" />
+        <span className="text-[12.5px] leading-normal">{t('common:consent.dialog.stamp', "Your name and today's date are saved with it.")}</span>
+      </div>
+    </>
+  );
+  const buttons = (
+    <>
+      <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>
+        {t('common:consent.dialog.cancel', 'Cancel')}
+      </Button>
+      <Button type="submit" loading={saving} data-testid="consent-dialog-save">
+        {t('common:consent.dialog.save', 'Record consent')}
+      </Button>
+    </>
+  );
+  const submit = (event: FormEvent): void => {
+    event.preventDefault();
+    setSaving(true);
+    void onSave({ purpose, how, note: note.trim() === '' ? null : note.trim() }).finally(() => setSaving(false));
+  };
+
+  if (inline) {
+    return (
+      <InlineStep titleId={`${id}-title`} onCancel={onCancel} busy={saving} testId="consent-dialog">
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent">
+              <FilePenLine aria-hidden="true" className="size-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <h3 id={`${id}-title`} className="m-0 text-[14px] font-bold">
+                {title}
+              </h3>
+              {subtitle === undefined ? null : <p className="m-0 mt-0.5 text-[11.5px] text-fg-subtle [overflow-wrap:anywhere]">{subtitle}</p>}
+            </div>
+          </div>
+          {fields}
+          <div className="flex justify-end gap-2.5">{buttons}</div>
+        </form>
+      </InlineStep>
+    );
+  }
   return (
     <FormDialog
       open
@@ -375,58 +521,10 @@ function RecordConsentDialog({ name, address, onCancel, onSave }: { name: string
         if (!open && !saving) onCancel();
       }}
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSaving(true);
-          void onSave({ purpose, how, note: note.trim() === '' ? null : note.trim() }).finally(() => setSaving(false));
-        }}
-        data-testid="consent-dialog"
-      >
-        <FormDialogHeader icon={<FilePenLine />} title={t('common:consent.dialog.title', 'Record consent')} {...(subtitle === undefined ? {} : { subtitle })} closeLabel={t('common:consent.dialog.close', 'Close')} />
-        <FormDialogBody className="flex flex-col gap-4">
-          <div className="flex flex-col gap-[7px]">
-            <span className="text-[12.5px] font-bold" id={`${noteId}-purpose`}>
-              {t('common:consent.dialog.purpose', 'Purpose')}
-            </span>
-            <SegmentedControl
-              aria-labelledby={`${noteId}-purpose`}
-              className="self-start"
-              value={purpose}
-              onValueChange={(value) => setPurpose(value as ConsentPurpose)}
-              options={CONSENT_PURPOSES.map((one) => ({ value: one, label: purposeName(t, one) }))}
-            />
-          </div>
-          <div className="flex flex-col gap-[7px]">
-            <span className="text-[12.5px] font-bold" id={`${noteId}-how`}>
-              {t('common:consent.dialog.how', 'How did they agree?')}
-            </span>
-            <ChoiceChips
-              aria-labelledby={`${noteId}-how`}
-              value={how}
-              onValueChange={(value) => {
-                if (value !== null) setHow(value as ConsentHow);
-              }}
-              options={CONSENT_HOWS.map((one) => ({ value: one, label: howName(t, one) }))}
-            />
-          </div>
-          <label className="flex flex-col gap-1.5" htmlFor={noteId}>
-            <span className="text-[12.5px] font-bold">{t('common:consent.dialog.note', 'Note')}</span>
-            <Textarea id={noteId} rows={3} maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} data-testid="consent-dialog-note" />
-          </label>
-          <div className="flex gap-[9px] rounded-[10px] bg-surface-3 px-[13px] py-[11px]">
-            <Stamp aria-hidden="true" className="mt-0.5 size-[15px] shrink-0 text-fg-muted" />
-            <span className="text-[12.5px] leading-normal">{t('common:consent.dialog.stamp', "Your name and today's date are saved with it.")}</span>
-          </div>
-        </FormDialogBody>
-        <FormDialogFooter>
-          <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>
-            {t('common:consent.dialog.cancel', 'Cancel')}
-          </Button>
-          <Button type="submit" loading={saving} data-testid="consent-dialog-save">
-            {t('common:consent.dialog.save', 'Record consent')}
-          </Button>
-        </FormDialogFooter>
+      <form onSubmit={submit} data-testid="consent-dialog">
+        <FormDialogHeader icon={<FilePenLine />} title={title} {...(subtitle === undefined ? {} : { subtitle })} closeLabel={t('common:consent.dialog.close', 'Close')} />
+        <FormDialogBody className="flex flex-col gap-4">{fields}</FormDialogBody>
+        <FormDialogFooter>{buttons}</FormDialogFooter>
       </form>
     </FormDialog>
   );
