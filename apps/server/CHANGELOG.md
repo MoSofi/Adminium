@@ -1,5 +1,24 @@
 # @adminium/server
 
+## 0.3.38
+
+### Patch Changes
+
+- 9a4c3ab: E-mail to contacts. An app can now declare which of its tables hold people (`people`: the address, the name, a consent column, an opt-out mark, the copies other tables keep), and a campaign can be sent to such a table, narrowed by a saved view, for a stated purpose (newsletter or surveys). Every marketing mail is checked when it is sent: it goes only to someone who agreed for that purpose, or, where the owner switched it on and the app offers a way to say no, to an existing customer; never to an address on the new do-not-email list. A consent log records every yes and no with who, when and how, and only grows; a first send asks staff to confirm, one person at a time, the people marked yes with no record of when they agreed. Marketing mail carries a locked footer with the postal address and a one-click unsubscribe; the public unsubscribe pages, and the bounce and spam notices from Amazon SES, Mailgun, SendGrid, Postmark and Brevo, put the address on the do-not-email list and mark the campaign's send log. A marketing send is refused before it starts, with the reason and a link to fix it, when the sender has no postal address, sends from a free-mail address, or its domain has no aligned DMARC; Studio's sender settings check DMARC, make a DKIM key, and set up the bounce notices. Campaigns pace themselves (at most 100 an hour by default), can be paused, resumed and stopped, and keep a send log with failures, a search and a CSV. A record of a declared people table shows its consent panel (Replied, Record consent, They said no), also as a kit part for an app's own page; an automation's e-mail step says whether it is marketing or service mail. A new Privacy page (Super Admin) sets the privacy notice address, finds everything kept about one person, downloads it as a .zip, and erases the person in place: their fields and declared copies are blanked, links stay whole, no rule fires, their name and address leave the audit log and the removed-row history, and their address stays stopped as a code only.
+- 564cb03: A PostgreSQL role that may not read a table no longer breaks the admin over it. Introspection leaves out every table the role may not read and every schema it may not use (Supabase's `auth` and `storage`, to a role of the app's own), names them in `schemas-unusable` and `tables-unreadable` warnings, and drops the keys that point at them, so no page is generated over a table whose every query would fail. A list or record whose looked-up column the database refuses now loads, with that column empty and marked, instead of failing whole. A read the database refuses answers `403 SOURCE_READ_REFUSED`, naming the schema or table, instead of saying the role may not change the table. The PostgreSQL guide has a new section on Row Level Security: why a Supabase or Lovable app's tables look empty to the recipes' roles, and how to give Adminium's role `BYPASSRLS` or a policy.
+- Updated dependencies [9a4c3ab]
+- Updated dependencies [564cb03]
+  - @adminium/meta@0.3.38
+  - @adminium/manifest@0.3.38
+  - @adminium/i18n@0.3.38
+  - @adminium/adapter-postgres@0.3.38
+  - @adminium/engine@0.3.38
+  - @adminium/llm@0.3.38
+  - @adminium/adapter-mysql@0.3.38
+  - @adminium/adapter-sqlite@0.3.38
+  - @adminium/schema-import@0.3.38
+  - @adminium/add-on-contracts@0.3.38
+
 ## 0.3.37
 
 ### Patch Changes
