@@ -99,6 +99,17 @@ describe('calendar-month', () => {
     expect(screen.getByText(/\+.*more/)).toBeTruthy();
   });
 
+  it('draws a pill on the selected day as the plain surface, so it stands off the day’s tint', () => {
+    const events = [
+      { id: 1, date: '2026-07-15', title: 'On the day', category: 'release', tone: 'danger' as const },
+      { id: 2, date: '2026-07-16', title: 'The day after', category: 'release', tone: 'danger' as const },
+    ];
+    render(<CalendarMonth events={events} year={2026} month={6} selectedDate="2026-07-15" locale="en-US" />);
+    const pill = (title: string) => screen.getByText(title).closest('[data-part="calendar-event"]')!.className;
+    expect(pill('On the day')).toContain('bg-surface text-danger');
+    expect(pill('The day after')).toContain('bg-danger-soft-solid text-danger');
+  });
+
   it('mirrors under dir="rtl" while keeping the 7-column grid (real column mirroring)', () => {
     const { events } = calendarMonthDemoData(3);
     const { container } = render(

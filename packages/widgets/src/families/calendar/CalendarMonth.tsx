@@ -80,6 +80,18 @@ const PILL_TONE: Record<Tone, string> = {
   danger: 'bg-danger-soft-solid text-danger',
   info: 'bg-info-soft-solid text-info',
 };
+/**
+ * On the selected day the cell is itself tinted, and a tinted pill all but vanishes into it: there
+ * a pill is the plain surface with its colour's words, which stays above 4.5:1 for every accent.
+ */
+const SELECTED_PILL_TONE: Record<Tone, string> = {
+  neutral: 'bg-surface text-fg-muted',
+  accent: 'bg-surface text-accent',
+  pos: 'bg-surface text-pos',
+  warn: 'bg-surface text-warn',
+  danger: 'bg-surface text-danger',
+  info: 'bg-surface text-info',
+};
 const DOT_TONE: Record<Tone, string> = {
   neutral: 'bg-fg-subtle',
   accent: 'bg-accent',
@@ -309,7 +321,7 @@ export function CalendarMonth({
                           key={`${cell.key}-${i}`}
                           title={time === '' ? event.title : `${time} · ${event.title}`}
                           data-part="calendar-event"
-                          className={`flex min-w-0 items-center gap-[5px] rounded-[6px] px-2 py-[3px] text-[11px] font-bold ${PILL_TONE[tone]}`}
+                          className={`flex min-w-0 items-center gap-[5px] rounded-[6px] px-2 py-[3px] text-[11px] font-bold ${(isSelected ? SELECTED_PILL_TONE : PILL_TONE)[tone]}`}
                         >
                           <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${DOT_TONE[tone]}`} />
                           <span className="truncate">{event.title}</span>
