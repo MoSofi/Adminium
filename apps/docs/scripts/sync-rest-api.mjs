@@ -166,7 +166,7 @@ const DESCRIPTIONS = {
     'payments.manage and a signed-in person (never an API key); payments.view reads only.',
   privacy:
     'A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of ' +
-    'JSON and CSV, what an erasure would leave and why, and how long things are kept — plus the privacy notice ' +
+    'JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice ' +
     '(business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin ' +
     'holds it unless granted) and a signed-in person; the postal address needs settings.manage.',
   'widget-data': 'The queries widgets run, singly and in batches',

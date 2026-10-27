@@ -1,6 +1,6 @@
 ---
 title: A person's data
-description: Find everything kept about one e-mail address, download it for an access request, see what an erasure would leave and why, and set the privacy notice and the sender's postal address.
+description: Find everything kept about one e-mail address, download it for an access request, erase it in place, and set the privacy notice and the sender's postal address.
 ---
 
 When somebody asks what you keep about them, Adminium finds it by their
@@ -59,6 +59,51 @@ reason the screen words in your language:
 | Rule runs, staff notifications | kept a while | their own retention settings |
 | Data exports of a table | kept a while | until each expires |
 | The do-not-email list | so they are never e-mailed again | for good, as a code, never the address |
+
+## Erasing a person
+
+`POST /api/v1/privacy/erase/preview` with `{ "address": "…" }` counts what
+an erasure would take (their rows, copies of them, their mail, consent
+entries, campaign sends, files on their rows) and lists what stays (above).
+`POST /api/v1/privacy/erase` with `{ "address": "…", "confirm": "…" }` does
+it; `confirm` is the address typed again (any case), or the answer is 409.
+
+The person is erased **in place**: their rows are kept and emptied, so every
+link to them stays whole (a deal still opens, a sent quote still reads as
+sent). It writes as Adminium itself, not as you: no role's table or row
+limits stop it half-way, no rule fires, nothing is mailed, and a copy that
+follows another row is never moved.
+
+- **Their rows** on each people table: the address, the name, the first
+  name, the language, the consent column and the stamps it sets (who ticked
+  it, and when), the opt-out mark, every column marked personal, and what the
+  app's own "delete my details" empties. Never a key or a link. A field that
+  may be empty becomes empty; a yes/no that may not reads "no"; a name that
+  may not be empty reads "Erased person" in the install's language; a unique
+  column that may not be empty gets a value of its own
+  (`erased-…@erased.invalid` for an address, a domain no mail goes to). A
+  column that can be none of these (a date that may not be empty) is left,
+  and the answer lists it under `left`.
+- **Copies of them** the app declares on other tables, where the copy links
+  to one of their rows or holds their address. Nothing else on that row
+  changes. A table the app marks `keep: { law }` is left whole.
+- **Their mail** in each app's outbox loses its address; a message still
+  waiting is skipped.
+- **Their consent history** is deleted. **The do-not-email list** keeps their
+  address as a code alone (added if they were not on it), so they are never
+  e-mailed again; a link in mail sent before only ever says they are
+  unsubscribed.
+- **Campaign sends** keep their state with the address and name emptied.
+  Their downloads and the files on their rows are deleted.
+- **The audit log and removed rows** keep every entry (who changed what, and
+  when), but the images of their rows lose the fields above, their own
+  writes through a public page lose where they came from, and any text that
+  still holds the address is emptied.
+- Their customer sessions end and open sign-in links are taken back.
+
+The erasure's own audit entry keeps the counts and a keyed code of the
+address, never the address. An erasure cut short can be run again: it finds
+what is left and finishes.
 
 ## How long we keep things
 

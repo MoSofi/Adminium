@@ -121967,6 +121967,302 @@
         }
       }
     },
+    "/api/v1/privacy/erase/preview": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  }
+                },
+                "required": [
+                  "address"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "found": {
+                          "type": "boolean"
+                        },
+                        "goes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "people",
+                                  "copy",
+                                  "outbox",
+                                  "consent",
+                                  "campaign-mail",
+                                  "files"
+                                ]
+                              },
+                              "count": {
+                                "type": "number"
+                              },
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "app": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "stays": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "app-rows",
+                                  "documents",
+                                  "invoices",
+                                  "payments",
+                                  "payment-events",
+                                  "automation-runs",
+                                  "notifications",
+                                  "campaign-failures",
+                                  "exports",
+                                  "do-not-email"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "tax",
+                                  "health",
+                                  "contract",
+                                  "safety",
+                                  "issued-document",
+                                  "payment-records",
+                                  "kept-a-while",
+                                  "objection"
+                                ]
+                              },
+                              "count": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "keptDays": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "forever": {
+                                "type": "boolean"
+                              },
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "app": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "reason",
+                              "count",
+                              "keptDays",
+                              "forever"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "left": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "connectionId",
+                              "table",
+                              "column",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "found",
+                        "goes",
+                        "stays",
+                        "left"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/erase": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  }
+                },
+                "required": [
+                  "address",
+                  "confirm"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "counts": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "left": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "connectionId",
+                              "table",
+                              "column",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "filesFailed": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "counts",
+                        "left",
+                        "filesFailed"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/ways": {
       "get": {
         "responses": {
