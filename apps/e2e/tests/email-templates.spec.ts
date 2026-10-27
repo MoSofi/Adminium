@@ -81,10 +81,10 @@ test.describe('email templates manager', () => {
     await page.getByRole('radio', { name: 'None' }).click();
   });
 
-  test('the actions menu has the five items in order; New opens the starters', async ({ page }, testInfo) => {
+  test('the actions menu has the six items in order; New opens the starters', async ({ page }, testInfo) => {
     await page.getByRole('button', { name: 'More actions' }).click();
     const menu = page.getByRole('menu');
-    await expect(menu.getByRole('menuitem')).toHaveText(['Import template', 'Manage senders', 'Export all', 'Email settings', 'Archived']);
+    await expect(menu.getByRole('menuitem')).toHaveText(['Import template', 'Manage senders', 'Do-not-email list', 'Export all', 'Email settings', 'Archived']);
     await testInfo.attach('actions-menu', { body: await page.screenshot(), contentType: 'image/png' });
     await page.keyboard.press('Escape');
 

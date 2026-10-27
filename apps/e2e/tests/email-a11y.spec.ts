@@ -219,7 +219,7 @@ test.describe('email surfaces under axe', () => {
       await expect(page.getByRole('dialog')).toBeHidden();
 
       await page.getByTestId('email-actions-menu').click();
-      await page.getByRole('menuitem').nth(4).click(); // Archived
+      await page.getByRole('menuitem').last().click(); // Archived, always the last item
       await expect(page.getByTestId('email-archived-chip')).toBeVisible();
       await sweep(page, 'manager · archived mode', tally, testInfo);
 
