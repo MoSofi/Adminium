@@ -159,7 +159,7 @@ function Controls({ run: given, localeTag }: RunControlsProps): ReactNode {
         {t('studio:email.send.run.stop', 'Stop sending')}
       </Button>
       {paused ? (
-        <Button iconLeft={<Play className="rtl:-scale-x-100" />} loading={resume.isPending} onClick={() => resume.mutate()} data-testid="email-run-resume">
+        <Button iconLeft={<Play />} loading={resume.isPending} onClick={() => resume.mutate()} data-testid="email-run-resume">
           {t('studio:email.send.run.resume', 'Go on sending')}
         </Button>
       ) : null}
