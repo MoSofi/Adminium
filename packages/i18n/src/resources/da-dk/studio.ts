@@ -4484,7 +4484,8 @@ export default {
       "footer": {
         "business": "din virksomhed",
         "locked": "Føjes til hver marketingmail. Du kan ikke fjerne dem.",
-        "noPostal": "Din postadresse (ikke angivet endnu: marketingmails venter på den)"
+        "noPostal": "Din postadresse (ikke angivet endnu: marketingmails venter på den)",
+        "newsletter": "Afmeld nyhedsbrevet fra {business}"
       },
       "marketingLine": "Dette er en marketingmail. Hver kopi har et afmeldingslink, og listen „Ingen e-mails“ springes altid over.",
       "only": "Kun disse",
@@ -4563,7 +4564,36 @@ export default {
       "tableName": "{table} — {app}",
       "tablePeople": "Personer i en tabel",
       "why": "Hvorfor du skriver",
-      "withRecord": "Send til de {count} med en optegnelse"
+      "withRecord": "Send til de {count} med en optegnelse",
+      "dialog": {
+        "cancelFailed": "Kunne ikke annulleres",
+        "cancelSchedule": "Annullér tidsindstilling",
+        "cancelled": "Tidsindstilling annulleret",
+        "chipScheduled": "Tidsindstillet · {when}",
+        "count": "{total, plural, one {# modtager} other {# modtagere}}",
+        "countFailed": "Modtagerne kunne ikke tælles",
+        "counting": "Tæller modtagere…",
+        "done": "Færdig",
+        "failed": "Kampagnen kunne ikke sendes.",
+        "note": "Variabler udfyldes pr. modtager — {token} bliver til hver persons navn.",
+        "now": "Nu",
+        "pastTime": "Vælg et tidspunkt i fremtiden.",
+        "rolesHint": "Alle, eller kun dem med de roller, du vælger.",
+        "schedule": "Tidsindstil",
+        "scheduleAction": "Tidsindstil kampagne",
+        "scheduleAt": "Send kl.",
+        "scheduledBody": "{name} sendes {when}.",
+        "scheduledTitle": "Kampagne tidsindstillet!",
+        "send": "Send kampagne",
+        "sendTo": "Send til",
+        "sending": "Sender…",
+        "sentBody": "{name} er på vej til {count, plural, one {# modtager} other {# modtagere}}.",
+        "sentTitle": "Kampagne sendt!",
+        "title": "Send kampagne",
+        "unfilled": "Intet udfylder {names}: alle modtagere ville få det, som det står. Giv det en reservetekst i editoren, eller fjern det.",
+        "when": "Hvornår",
+        "workspaceUsers": "Brugere i arbejdsområdet"
+      }
     }
   }
 } as const;

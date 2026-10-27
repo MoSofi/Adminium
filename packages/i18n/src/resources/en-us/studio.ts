@@ -4484,7 +4484,8 @@ export default {
       "footer": {
         "business": "your business",
         "locked": "Added to every marketing mail. You can’t remove them.",
-        "noPostal": "Your postal address (not set yet: marketing mail waits for it)"
+        "noPostal": "Your postal address (not set yet: marketing mail waits for it)",
+        "newsletter": "Unsubscribe from {business}’s newsletter"
       },
       "marketingLine": "This is marketing mail. Every copy carries an unsubscribe link, and the do-not-email list is always skipped.",
       "only": "Only these",
@@ -4563,7 +4564,36 @@ export default {
       "tableName": "{table} — {app}",
       "tablePeople": "People in a table",
       "why": "Why you’re writing",
-      "withRecord": "Send to the {count} with a record"
+      "withRecord": "Send to the {count} with a record",
+      "dialog": {
+        "cancelFailed": "Could not cancel",
+        "cancelSchedule": "Cancel schedule",
+        "cancelled": "Schedule cancelled",
+        "chipScheduled": "Scheduled · {when}",
+        "count": "{total, plural, one {# recipient} other {# recipients}}",
+        "countFailed": "Couldn’t count recipients",
+        "counting": "Counting recipients…",
+        "done": "Done",
+        "failed": "The campaign could not be sent.",
+        "note": "Variables are filled per recipient — {token} becomes each person’s name.",
+        "now": "Now",
+        "pastTime": "Pick a time in the future.",
+        "rolesHint": "Everyone, or only the holders of the roles you pick.",
+        "schedule": "Schedule",
+        "scheduleAction": "Schedule campaign",
+        "scheduleAt": "Send at",
+        "scheduledBody": "{name} goes out {when}.",
+        "scheduledTitle": "Campaign scheduled!",
+        "send": "Send campaign",
+        "sendTo": "Send to",
+        "sending": "Sending…",
+        "sentBody": "{name} is on its way to {count, plural, one {# recipient} other {# recipients}}.",
+        "sentTitle": "Campaign sent!",
+        "title": "Send campaign",
+        "unfilled": "Nothing fills {names}: every recipient would get it as written. Give it a backup in the editor, or take it out.",
+        "when": "When",
+        "workspaceUsers": "Workspace users"
+      }
     }
   }
 } as const;

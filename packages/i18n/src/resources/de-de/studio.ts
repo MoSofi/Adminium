@@ -4484,7 +4484,8 @@ export default {
       "footer": {
         "business": "Ihr Unternehmen",
         "locked": "Wird jeder Marketing-E-Mail hinzugefügt. Sie können sie nicht entfernen.",
-        "noPostal": "Ihre Postanschrift (noch nicht festgelegt: Marketing-E-Mails warten darauf)"
+        "noPostal": "Ihre Postanschrift (noch nicht festgelegt: Marketing-E-Mails warten darauf)",
+        "newsletter": "Newsletter von {business} abbestellen"
       },
       "marketingLine": "Dies ist eine Marketing-E-Mail. Jede Kopie enthält einen Abmeldelink, und die Liste „Keine E-Mails“ wird immer übersprungen.",
       "only": "Nur diese",
@@ -4563,7 +4564,36 @@ export default {
       "tableName": "{table} — {app}",
       "tablePeople": "Personen in einer Tabelle",
       "why": "Warum Sie schreiben",
-      "withRecord": "An die {count} mit Nachweis senden"
+      "withRecord": "An die {count} mit Nachweis senden",
+      "dialog": {
+        "cancelFailed": "Konnte nicht abgebrochen werden",
+        "cancelSchedule": "Termin aufheben",
+        "cancelled": "Termin aufgehoben",
+        "chipScheduled": "Terminiert · {when}",
+        "count": "{total, plural, one {# Empfänger} other {# Empfänger}}",
+        "countFailed": "Empfänger konnten nicht gezählt werden",
+        "counting": "Empfänger werden gezählt…",
+        "done": "Fertig",
+        "failed": "Die Kampagne konnte nicht gesendet werden.",
+        "note": "Variablen werden je Empfänger gefüllt — aus {token} wird der Name der jeweiligen Person.",
+        "now": "Jetzt",
+        "pastTime": "Wählen Sie einen Zeitpunkt in der Zukunft.",
+        "rolesHint": "Alle, oder nur die Inhaber der gewählten Rollen.",
+        "schedule": "Terminieren",
+        "scheduleAction": "Kampagne terminieren",
+        "scheduleAt": "Senden am",
+        "scheduledBody": "{name} geht am {when} raus.",
+        "scheduledTitle": "Kampagne terminiert!",
+        "send": "Kampagne senden",
+        "sendTo": "Senden an",
+        "sending": "Wird gesendet…",
+        "sentBody": "{name} ist unterwegs an {count, plural, one {# Empfänger} other {# Empfänger}}.",
+        "sentTitle": "Kampagne gesendet!",
+        "title": "Kampagne senden",
+        "unfilled": "Nichts füllt {names}: Alle Empfänger würden es so erhalten, wie es dasteht. Geben Sie ihm im Editor einen Ersatztext oder entfernen Sie es.",
+        "when": "Wann",
+        "workspaceUsers": "Benutzer des Arbeitsbereichs"
+      }
     }
   }
 } as const;

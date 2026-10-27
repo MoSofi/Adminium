@@ -4484,7 +4484,8 @@ export default {
       "footer": {
         "business": "vaše firma",
         "locked": "Přidává se do každého marketingového e-mailu. Nelze je odebrat.",
-        "noPostal": "Vaše poštovní adresa (zatím nenastavena: marketingové e-maily na ni čekají)"
+        "noPostal": "Vaše poštovní adresa (zatím nenastavena: marketingové e-maily na ni čekají)",
+        "newsletter": "Odhlásit odběr newsletteru {business}"
       },
       "marketingLine": "Toto je marketingový e-mail. Každá kopie nese odkaz na odhlášení a seznam „Neposílat e-maily“ se vždy přeskočí.",
       "only": "Jen tyto",
@@ -4563,7 +4564,36 @@ export default {
       "tableName": "{table} — {app}",
       "tablePeople": "Lidé v tabulce",
       "why": "Proč píšete",
-      "withRecord": "Odeslat {count} se záznamem"
+      "withRecord": "Odeslat {count} se záznamem",
+      "dialog": {
+        "cancelFailed": "Nepodařilo se zrušit",
+        "cancelSchedule": "Zrušit načasování",
+        "cancelled": "Načasování zrušeno",
+        "chipScheduled": "Načasováno · {when}",
+        "count": "{total, plural, one {# příjemce} few {# příjemci} many {# příjemce} other {# příjemců}}",
+        "countFailed": "Příjemce se nepodařilo spočítat",
+        "counting": "Počítají se příjemci…",
+        "done": "Hotovo",
+        "failed": "Kampaň se nepodařilo odeslat.",
+        "note": "Proměnné se vyplní u každého příjemce — z {token} se stane jméno dané osoby.",
+        "now": "Teď",
+        "pastTime": "Zvolte čas v budoucnosti.",
+        "rolesHint": "Všichni, nebo jen držitelé vybraných rolí.",
+        "schedule": "Načasovat",
+        "scheduleAction": "Načasovat kampaň",
+        "scheduleAt": "Odeslat v",
+        "scheduledBody": "{name} odejde {when}.",
+        "scheduledTitle": "Kampaň načasována!",
+        "send": "Odeslat kampaň",
+        "sendTo": "Odeslat na",
+        "sending": "Odesílá se…",
+        "sentBody": "{name} je na cestě k {count, plural, one {# příjemci} few {# příjemcům} many {# příjemce} other {# příjemcům}}.",
+        "sentTitle": "Kampaň odeslána!",
+        "title": "Odeslat kampaň",
+        "unfilled": "Nic nevyplní {names}: každý příjemce by to dostal tak, jak je to napsáno. Dejte tomu v editoru náhradní text, nebo to odstraňte.",
+        "when": "Kdy",
+        "workspaceUsers": "Uživatelé pracovního prostoru"
+      }
     }
   }
 } as const;

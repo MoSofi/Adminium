@@ -96,10 +96,10 @@ function Controls({ run, localeTag }: RunControlsProps): ReactNode {
   const cancel = useMutation({
     mutationFn: () => emailApi.cancelRun(run.id),
     onSuccess: async () => {
-      toasts.push({ variant: 'info', title: t('email:campaign.cancelled', 'Schedule cancelled') });
+      toasts.push({ variant: 'info', title: t('studio:email.send.dialog.cancelled', 'Schedule cancelled') });
       await refresh();
     },
-    onError: () => failed(t('email:campaign.cancelFailed', 'Could not cancel')),
+    onError: () => failed(t('studio:email.send.dialog.cancelFailed', 'Could not cancel')),
   });
 
   // A scheduled run that has not started: today's chip and "Cancel schedule".
@@ -108,10 +108,10 @@ function Controls({ run, localeTag }: RunControlsProps): ReactNode {
       <div className="flex items-center gap-1.5" data-testid="email-run-chip" data-status={run.status}>
         <Tag tone="warn" className="gap-1 rounded-[20px] px-[9px] py-[3px] text-[10.5px]">
           <CalendarClock className="size-3" aria-hidden="true" />
-          {t('email:campaign.chipScheduled', 'Scheduled · {when}', { when: formatStamp(run.scheduledAt, localeTag) ?? '' })}
+          {t('studio:email.send.dialog.chipScheduled', 'Scheduled · {when}', { when: formatStamp(run.scheduledAt, localeTag) ?? '' })}
         </Tag>
         <Button variant="outline" size="sm" onClick={() => cancel.mutate()} loading={cancel.isPending} data-testid="email-cancel-run">
-          {t('email:campaign.cancelSchedule', 'Cancel schedule')}
+          {t('studio:email.send.dialog.cancelSchedule', 'Cancel schedule')}
         </Button>
       </div>
     );

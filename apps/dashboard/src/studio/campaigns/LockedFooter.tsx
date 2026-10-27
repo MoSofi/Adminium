@@ -7,9 +7,9 @@
  * inspector's footer panel, with "Added to every marketing mail. You can't
  * remove them." Service mail shows none.
  *
- * The link's words are the mail's own (`email:marketingFooter.*`, what the
- * server writes into every copy): "Unsubscribe from {business}'s
- * newsletter". A mail on the existing-customers basis reads "… marketing
+ * The link's words are the mail's own (the server writes the same sentence
+ * into every copy, from the e-mail words' marketing footer): "Unsubscribe
+ * from {business}'s newsletter". A mail on the existing-customers basis reads "… marketing
  * mail" instead; which basis a copy goes on is decided per person at the
  * send, so the editor shows the purpose's wording (CR4, P5a).
  *
@@ -30,7 +30,7 @@ function useLockedLines(): { postal: string; link: string } {
   const business = settings?.businessName?.trim() || t('studio:email.send.footer.business', 'your business');
   return {
     postal: settings?.postalAddress ?? t('studio:email.send.footer.noPostal', 'Your postal address (not set yet: marketing mail waits for it)'),
-    link: t('email:marketingFooter.newsletter', 'Unsubscribe from {business}’s newsletter', { business }),
+    link: t('studio:email.send.footer.newsletter', 'Unsubscribe from {business}’s newsletter', { business }),
   };
 }
 

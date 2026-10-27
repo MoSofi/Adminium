@@ -4474,7 +4474,8 @@
       "footer": {
         "business": "votre entreprise",
         "locked": "Ajoutées à chaque e-mail marketing. Vous ne pouvez pas les retirer.",
-        "noPostal": "Votre adresse postale (pas encore définie : les e-mails marketing l’attendent)"
+        "noPostal": "Votre adresse postale (pas encore définie : les e-mails marketing l’attendent)",
+        "newsletter": "Se désabonner de la newsletter de {business}"
       },
       "marketingLine": "Ceci est un e-mail marketing. Chaque exemplaire contient un lien de désabonnement, et la liste « Pas d’e-mail » est toujours ignorée.",
       "only": "Seulement ceux-ci",
@@ -4553,7 +4554,36 @@
       "tableName": "{table} — {app}",
       "tablePeople": "Personnes d’une table",
       "why": "Pourquoi vous écrivez",
-      "withRecord": "Envoyer aux {count} avec une preuve"
+      "withRecord": "Envoyer aux {count} avec une preuve",
+      "dialog": {
+        "cancelFailed": "Annulation impossible",
+        "cancelSchedule": "Annuler la programmation",
+        "cancelled": "Programmation annulée",
+        "chipScheduled": "Programmé · {when}",
+        "count": "{total, plural, one {# destinataire} other {# destinataires}}",
+        "countFailed": "Impossible de compter les destinataires",
+        "counting": "Comptage des destinataires…",
+        "done": "Terminé",
+        "failed": "La campagne n’a pas pu être envoyée.",
+        "note": "Les variables sont remplies par destinataire — {token} devient le nom de chaque personne.",
+        "now": "Maintenant",
+        "pastTime": "Choisissez un moment dans le futur.",
+        "rolesHint": "Tout le monde, ou seulement les titulaires des rôles choisis.",
+        "schedule": "Programmer",
+        "scheduleAction": "Programmer la campagne",
+        "scheduleAt": "Envoyer le",
+        "scheduledBody": "{name} partira le {when}.",
+        "scheduledTitle": "Campagne programmée !",
+        "send": "Envoyer la campagne",
+        "sendTo": "Envoyer à",
+        "sending": "Envoi…",
+        "sentBody": "{name} est en route vers {count, plural, one {# destinataire} other {# destinataires}}.",
+        "sentTitle": "Campagne envoyée !",
+        "title": "Envoyer la campagne",
+        "unfilled": "Rien ne remplit {names} : chaque destinataire le recevrait tel quel. Donnez-lui un texte de secours dans l’éditeur, ou retirez-le.",
+        "when": "Quand",
+        "workspaceUsers": "Utilisateurs de l’espace de travail"
+      }
     }
   }
 }

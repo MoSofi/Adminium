@@ -25743,6 +25743,114 @@
     "status": "mt",
     "srcHash": "1bfe6418b5ed"
   },
+  "studio.email.send.dialog.cancelFailed": {
+    "status": "mt",
+    "srcHash": "962c8acd73cf"
+  },
+  "studio.email.send.dialog.cancelSchedule": {
+    "status": "mt",
+    "srcHash": "e09680b93158"
+  },
+  "studio.email.send.dialog.cancelled": {
+    "status": "mt",
+    "srcHash": "b8d5196b70ce"
+  },
+  "studio.email.send.dialog.chipScheduled": {
+    "status": "mt",
+    "srcHash": "83ca55a06b59"
+  },
+  "studio.email.send.dialog.count": {
+    "status": "mt",
+    "srcHash": "96d9fede7322"
+  },
+  "studio.email.send.dialog.countFailed": {
+    "status": "mt",
+    "srcHash": "c759c1a7eade"
+  },
+  "studio.email.send.dialog.counting": {
+    "status": "mt",
+    "srcHash": "b0f8acf500b0"
+  },
+  "studio.email.send.dialog.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "studio.email.send.dialog.failed": {
+    "status": "mt",
+    "srcHash": "9cb7390dd3f8"
+  },
+  "studio.email.send.dialog.note": {
+    "status": "mt",
+    "srcHash": "6322d112406e"
+  },
+  "studio.email.send.dialog.now": {
+    "status": "mt",
+    "srcHash": "e3b82040565b"
+  },
+  "studio.email.send.dialog.pastTime": {
+    "status": "mt",
+    "srcHash": "c3bd15e78f43"
+  },
+  "studio.email.send.dialog.rolesHint": {
+    "status": "mt",
+    "srcHash": "b60e19ffe9be"
+  },
+  "studio.email.send.dialog.schedule": {
+    "status": "mt",
+    "srcHash": "0a8adac9d6d5"
+  },
+  "studio.email.send.dialog.scheduleAction": {
+    "status": "mt",
+    "srcHash": "dd4f08f4ae7f"
+  },
+  "studio.email.send.dialog.scheduleAt": {
+    "status": "mt",
+    "srcHash": "7c77b4bfebb1"
+  },
+  "studio.email.send.dialog.scheduledBody": {
+    "status": "mt",
+    "srcHash": "42f718527168"
+  },
+  "studio.email.send.dialog.scheduledTitle": {
+    "status": "mt",
+    "srcHash": "e9b251215e70"
+  },
+  "studio.email.send.dialog.send": {
+    "status": "mt",
+    "srcHash": "f15219f73e07"
+  },
+  "studio.email.send.dialog.sendTo": {
+    "status": "mt",
+    "srcHash": "b98cc23a0165"
+  },
+  "studio.email.send.dialog.sending": {
+    "status": "mt",
+    "srcHash": "cf765512cc6d"
+  },
+  "studio.email.send.dialog.sentBody": {
+    "status": "mt",
+    "srcHash": "1a87b85b36eb"
+  },
+  "studio.email.send.dialog.sentTitle": {
+    "status": "mt",
+    "srcHash": "98fe62838126"
+  },
+  "studio.email.send.dialog.title": {
+    "status": "mt",
+    "srcHash": "f15219f73e07"
+  },
+  "studio.email.send.dialog.unfilled": {
+    "status": "mt",
+    "srcHash": "03dc5b5b0dcb"
+  },
+  "studio.email.send.dialog.when": {
+    "status": "mt",
+    "srcHash": "769bb19e615b"
+  },
+  "studio.email.send.dialog.workspaceUsers": {
+    "status": "mt",
+    "srcHash": "cbe627b0e44f"
+  },
   "studio.email.send.estimate": {
     "status": "mt",
     "srcHash": "63ee57672d8b"
@@ -25798,6 +25906,10 @@
   "studio.email.send.footer.locked": {
     "status": "mt",
     "srcHash": "80e71f7a6c56"
+  },
+  "studio.email.send.footer.newsletter": {
+    "status": "mt",
+    "srcHash": "77d58815e966"
   },
   "studio.email.send.footer.noPostal": {
     "status": "mt",

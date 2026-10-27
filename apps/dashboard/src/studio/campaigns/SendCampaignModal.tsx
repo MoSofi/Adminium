@@ -161,6 +161,8 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
   const [sentRefusals, setSentRefusals] = useState<EmailSenderRefusal[] | null>(null);
 
   // A table is the default once the server lists one this person may pick; "Workspace users" otherwise.
+  // Until the list is in, nothing is counted: the dialog would count one audience and then another.
+  const decided = chosenTo !== null || !tablesQuery.isPending;
   const to: To = chosenTo ?? (tables.length > 0 ? 'table' : 'users');
   const table: EmailAudienceTable | null =
     (picked === null ? null : (tables.find((one) => one.connectionId === picked.connectionId && one.table === picked.table) ?? null)) ??
@@ -192,7 +194,7 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
   const preview = useQuery({
     queryKey: previewKey,
     queryFn: () => emailApi.previewAudience(documentId, audience!, rate),
-    enabled: audience !== null && blockedBy === null,
+    enabled: decided && audience !== null && blockedBy === null,
     retry: false,
   });
   // A table the server now refuses by name (lost the right to read it, a view gone…): the dialog's 1d.
@@ -234,7 +236,7 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
       if (failure instanceof ApiError && failure.code === 'SENDER_REFUSED') {
         setSentRefusals(((failure.details as { refusals?: EmailSenderRefusal[] } | undefined)?.refusals ?? []).slice());
       } else {
-        setError(failure instanceof Error ? failure.message : t('email:campaign.failed', 'The campaign could not be sent.'));
+        setError(failure instanceof Error ? failure.message : t('studio:email.send.dialog.failed', 'The campaign could not be sent.'));
       }
     } finally {
       setBusy(false);
@@ -266,10 +268,10 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
       onOpenChange={(open) => {
         if (!open && !busy) onClose();
       }}
-      successTitle={(payload) => (payload.when === 'schedule' ? t('email:campaign.scheduledTitle', 'Campaign scheduled!') : t('email:campaign.sentTitle', 'Campaign sent!'))}
+      successTitle={(payload) => (payload.when === 'schedule' ? t('studio:email.send.dialog.scheduledTitle', 'Campaign scheduled!') : t('studio:email.send.dialog.sentTitle', 'Campaign sent!'))}
       successBody={(payload) => successBody(payload, documentName, localeTag)}
       successProps={flow.payload?.when === 'schedule' ? { icon: <CalendarCheck /> } : undefined}
-      doneLabel={t('email:campaign.done', 'Done')}
+      doneLabel={t('studio:email.send.dialog.done', 'Done')}
     >
       {view === 'review' && table !== null ? (
         <ReviewView
@@ -289,14 +291,14 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
           <ModalHeader
             className="border-b border-border pb-[18px] pt-[18px]"
             icon={<Send />}
-            title={t('email:campaign.title', 'Send campaign')}
+            title={t('studio:email.send.dialog.title', 'Send campaign')}
             subtitle={<span className="block truncate text-caption text-fg-subtle">{`${documentName} · ${subject}`}</span>}
             closeLabel={t('common.close', 'Close')}
           />
           <ModalBody className="flex flex-col gap-4 pt-[18px]">
             <div className="flex flex-col gap-[7px]">
               <span id="email-campaign-to-label" className={sectionLabel}>
-                {t('email:campaign.sendTo', 'Send to')}
+                {t('studio:email.send.dialog.sendTo', 'Send to')}
               </span>
               <RadioGroup
                 aria-labelledby="email-campaign-to-label"
@@ -310,8 +312,8 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
                   hideIndicator
                   className="rounded-[10px] p-3 data-[state=checked]:border-[1.5px]"
                   icon={<RadioDot />}
-                  title={<span className="font-bold">{t('email:campaign.workspaceUsers', 'Workspace users')}</span>}
-                  description={t('email:campaign.rolesHint', 'Everyone, or only the holders of the roles you pick.')}
+                  title={<span className="font-bold">{t('studio:email.send.dialog.workspaceUsers', 'Workspace users')}</span>}
+                  description={t('studio:email.send.dialog.rolesHint', 'Everyone, or only the holders of the roles you pick.')}
                 />
                 <RadioCard
                   value="table"
@@ -505,15 +507,15 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
             <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
               <div className="flex flex-col gap-2">
                 <span id="email-campaign-when-label" className={sectionLabel}>
-                  {t('email:campaign.when', 'When')}
+                  {t('studio:email.send.dialog.when', 'When')}
                 </span>
                 <SegmentedControl
                   aria-labelledby="email-campaign-when-label"
                   data-testid="email-campaign-when"
                   className="self-start"
                   options={[
-                    { value: 'now', label: t('email:campaign.now', 'Now') },
-                    { value: 'schedule', label: t('email:campaign.schedule', 'Schedule') },
+                    { value: 'now', label: t('studio:email.send.dialog.now', 'Now') },
+                    { value: 'schedule', label: t('studio:email.send.dialog.schedule', 'Schedule') },
                   ]}
                   value={when}
                   onValueChange={(value) => setWhen(value === 'schedule' ? 'schedule' : 'now')}
@@ -522,14 +524,14 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
                   <div className="flex flex-col gap-1">
                     <DateInput
                       type="datetime-local"
-                      aria-label={t('email:campaign.scheduleAt', 'Send at')}
+                      aria-label={t('studio:email.send.dialog.scheduleAt', 'Send at')}
                       data-testid="email-campaign-at"
                       min={localMinute(Date.now())}
                       value={at}
                       error={at !== '' && !scheduleValid}
                       onChange={(event) => setAt(event.target.value)}
                     />
-                    {at !== '' && !scheduleValid ? <span className="text-[11px] text-danger">{t('email:campaign.pastTime', 'Pick a time in the future.')}</span> : null}
+                    {at !== '' && !scheduleValid ? <span className="text-[11px] text-danger">{t('studio:email.send.dialog.pastTime', 'Pick a time in the future.')}</span> : null}
                   </div>
                 ) : null}
               </div>
@@ -580,14 +582,14 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
 
             {unfilled.length === 0 ? null : (
               <p role="alert" data-testid="email-campaign-unfilled" className="rounded-[11px] bg-danger-soft px-[13px] py-[11px] text-[11.5px] font-semibold leading-[1.5] text-danger">
-                {t('email:campaign.unfilled', 'Nothing fills {names}: every recipient would get it as written. Give it a backup in the editor, or take it out.', {
+                {t('studio:email.send.dialog.unfilled', 'Nothing fills {names}: every recipient would get it as written. Give it a backup in the editor, or take it out.', {
                   names: unfilled.map((name) => `{{${name}}}`).join(', '),
                 })}
               </p>
             )}
             <div className="flex items-start gap-[9px] rounded-[10px] bg-info-soft px-[13px] py-[11px]">
               <Info className="mt-0.5 size-[15px] shrink-0 text-info" aria-hidden="true" />
-              <span className="text-body-sm text-fg">{t('email:campaign.note', 'Variables are filled per recipient — {token} becomes each person’s name.', { token: '{{name}}' })}</span>
+              <span className="text-body-sm text-fg">{t('studio:email.send.dialog.note', 'Variables are filled per recipient — {token} becomes each person’s name.', { token: '{{name}}' })}</span>
             </div>
             {error === null ? null : (
               <p role="alert" className="text-body-sm text-danger">
@@ -600,12 +602,12 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
               {to === 'table' && tableRefused
                 ? ''
                 : preview.isPending
-                  ? t('email:campaign.counting', 'Counting recipients…')
+                  ? t('studio:email.send.dialog.counting', 'Counting recipients…')
                   : preview.isError
-                    ? t('email:campaign.countFailed', 'Couldn’t count recipients')
+                    ? t('studio:email.send.dialog.countFailed', 'Couldn’t count recipients')
                     : skipped > 0
                       ? t('studio:email.send.count', '{count, plural, one {# recipient} other {# recipients}} · {skipped} skipped', { count: recipients, skipped })
-                      : t('email:campaign.count', '{total, plural, one {# recipient} other {# recipients}}', { total: recipients })}
+                      : t('studio:email.send.dialog.count', '{total, plural, one {# recipient} other {# recipients}}', { total: recipients })}
             </span>
             <Button variant="secondary" onClick={onClose} disabled={busy}>
               {t('common.cancel', 'Cancel')}
@@ -619,7 +621,7 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
               }}
               data-testid="email-campaign-send"
             >
-              {busy ? t('email:campaign.sending', 'Sending…') : when === 'schedule' ? t('email:campaign.scheduleAction', 'Schedule campaign') : t('email:campaign.send', 'Send campaign')}
+              {busy ? t('studio:email.send.dialog.sending', 'Sending…') : when === 'schedule' ? t('studio:email.send.dialog.scheduleAction', 'Schedule campaign') : t('studio:email.send.dialog.send', 'Send campaign')}
             </Button>
           </ModalFooter>
         </>
@@ -666,7 +668,7 @@ function existingLine(table: EmailAudienceTable, me: string | null, localeTag: s
 
 function successBody(payload: Success, name: string, localeTag: string): string {
   if (payload.when !== 'schedule') {
-    return t('email:campaign.sentBody', '{name} is on its way to {count, plural, one {# recipient} other {# recipients}}.', { name, count: payload.total });
+    return t('studio:email.send.dialog.sentBody', '{name} is on its way to {count, plural, one {# recipient} other {# recipients}}.', { name, count: payload.total });
   }
   const at = payload.run.scheduledAt;
   const day = new Intl.DateTimeFormat(localeTag, { weekday: 'short', day: 'numeric', month: 'short' }).format(at);
@@ -674,7 +676,7 @@ function successBody(payload: Success, name: string, localeTag: string): string 
   if (payload.rate !== null) {
     return t('studio:email.send.scheduledCapped', '{name} goes out {day} at {time}, at most {rate} an hour.', { name, day, time, rate: payload.rate });
   }
-  return t('email:campaign.scheduledBody', '{name} goes out {when}.', { name, when: formatStamp(at, localeTag) ?? '' });
+  return t('studio:email.send.dialog.scheduledBody', '{name} goes out {when}.', { name, when: formatStamp(at, localeTag) ?? '' });
 }
 
 /** The dialog with the Studio's words waited for: what the editor renders under its `<Suspense>`. */

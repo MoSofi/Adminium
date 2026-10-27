@@ -4474,7 +4474,8 @@
       "footer": {
         "business": "您的企業",
         "locked": "會加入每封行銷郵件。您無法移除它們。",
-        "noPostal": "您的通訊地址（尚未設定：行銷郵件需要它才能寄出）"
+        "noPostal": "您的通訊地址（尚未設定：行銷郵件需要它才能寄出）",
+        "newsletter": "取消訂閱{business}的電子報"
       },
       "marketingLine": "這是行銷郵件。每一份都附有取消訂閱連結，並且一律略過禁止寄送郵件名單。",
       "only": "僅限這些",
@@ -4553,7 +4554,36 @@
       "tableName": "{table} — {app}",
       "tablePeople": "表格中的人",
       "why": "您寫信的原因",
-      "withRecord": "寄送給有紀錄的 {count} 人"
+      "withRecord": "寄送給有紀錄的 {count} 人",
+      "dialog": {
+        "cancelFailed": "無法取消",
+        "cancelSchedule": "取消排程",
+        "cancelled": "已取消排程",
+        "chipScheduled": "已排程 · {when}",
+        "count": "{total, plural, other {# 位收件者}}",
+        "countFailed": "無法計算收件者",
+        "counting": "正在計算收件者…",
+        "done": "完成",
+        "failed": "無法寄送活動。",
+        "note": "變數會依收件者填入 — {token} 會變成每個人的名字。",
+        "now": "立即",
+        "pastTime": "請選擇未來的時間。",
+        "rolesHint": "所有人，或僅限所選角色的成員。",
+        "schedule": "排程",
+        "scheduleAction": "排程寄送活動",
+        "scheduleAt": "寄送時間",
+        "scheduledBody": "{name} 將於 {when} 寄出。",
+        "scheduledTitle": "活動已排程！",
+        "send": "寄送活動",
+        "sendTo": "寄送至",
+        "sending": "寄送中…",
+        "sentBody": "{name} 正寄往{count, plural, other {# 位收件者}}。",
+        "sentTitle": "活動已寄出！",
+        "title": "寄送活動",
+        "unfilled": "沒有內容可填入 {names}：每位收件人都會收到原樣的文字。請在編輯器中為它設定備用文字，或將其移除。",
+        "when": "時間",
+        "workspaceUsers": "工作區使用者"
+      }
     }
   }
 }

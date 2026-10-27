@@ -4484,7 +4484,8 @@ export default {
       "footer": {
         "business": "您的企业",
         "locked": "添加到每封营销邮件中。您无法移除它们。",
-        "noPostal": "您的通信地址（尚未设置：营销邮件需要它才能发出）"
+        "noPostal": "您的通信地址（尚未设置：营销邮件需要它才能发出）",
+        "newsletter": "退订{business}的新闻通讯"
       },
       "marketingLine": "这是营销邮件。每一份都带有退订链接，并且总会跳过禁止发送邮件名单。",
       "only": "仅限这些",
@@ -4563,7 +4564,36 @@ export default {
       "tableName": "{table} — {app}",
       "tablePeople": "表中的人",
       "why": "您写信的原因",
-      "withRecord": "发送给有记录的 {count} 人"
+      "withRecord": "发送给有记录的 {count} 人",
+      "dialog": {
+        "cancelFailed": "无法取消",
+        "cancelSchedule": "取消定时",
+        "cancelled": "已取消定时",
+        "chipScheduled": "已定时 · {when}",
+        "count": "{total, plural, other {# 位收件人}}",
+        "countFailed": "无法统计收件人",
+        "counting": "正在统计收件人…",
+        "done": "完成",
+        "failed": "活动发送失败。",
+        "note": "变量会按收件人填充 — {token} 会变成每个人的名字。",
+        "now": "立即",
+        "pastTime": "请选择一个未来的时间。",
+        "rolesHint": "所有人，或仅限所选角色的成员。",
+        "schedule": "定时",
+        "scheduleAction": "定时发送活动",
+        "scheduleAt": "发送时间",
+        "scheduledBody": "{name} 将于 {when} 发出。",
+        "scheduledTitle": "活动已定时！",
+        "send": "发送活动",
+        "sendTo": "发送至",
+        "sending": "发送中…",
+        "sentBody": "{name} 正在发往{count, plural, other {# 位收件人}}。",
+        "sentTitle": "活动已发送！",
+        "title": "发送活动",
+        "unfilled": "没有内容可填充 {names}：每位收件人都会收到原样的文字。请在编辑器中为它设置备用文字，或将其删除。",
+        "when": "时间",
+        "workspaceUsers": "工作区用户"
+      }
     }
   }
 } as const;
