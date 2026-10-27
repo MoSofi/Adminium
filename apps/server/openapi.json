@@ -24845,6 +24845,13 @@
                                                         "service"
                                                       ]
                                                     },
+                                                    "purpose": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "newsletter",
+                                                        "surveys"
+                                                      ]
+                                                    },
                                                     "vars": {
                                                       "default": {},
                                                       "type": "object",
@@ -26653,6 +26660,13 @@
                                                                               "service"
                                                                             ]
                                                                           },
+                                                                          "purpose": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "newsletter",
+                                                                              "surveys"
+                                                                            ]
+                                                                          },
                                                                           "vars": {
                                                                             "default": {},
                                                                             "type": "object",
@@ -28292,6 +28306,13 @@
                                                                             "enum": [
                                                                               "marketing",
                                                                               "service"
+                                                                            ]
+                                                                          },
+                                                                          "purpose": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "newsletter",
+                                                                              "surveys"
                                                                             ]
                                                                           },
                                                                           "vars": {
@@ -30807,6 +30828,13 @@
                                                 "service"
                                               ]
                                             },
+                                            "purpose": {
+                                              "type": "string",
+                                              "enum": [
+                                                "newsletter",
+                                                "surveys"
+                                              ]
+                                            },
                                             "vars": {
                                               "default": {},
                                               "type": "object",
@@ -32530,6 +32558,13 @@
                                                                       "service"
                                                                     ]
                                                                   },
+                                                                  "purpose": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "newsletter",
+                                                                      "surveys"
+                                                                    ]
+                                                                  },
                                                                   "vars": {
                                                                     "default": {},
                                                                     "type": "object",
@@ -34091,6 +34126,13 @@
                                                                     "enum": [
                                                                       "marketing",
                                                                       "service"
+                                                                    ]
+                                                                  },
+                                                                  "purpose": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "newsletter",
+                                                                      "surveys"
                                                                     ]
                                                                   },
                                                                   "vars": {
@@ -36431,6 +36473,13 @@
                                                   "service"
                                                 ]
                                               },
+                                              "purpose": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "newsletter",
+                                                  "surveys"
+                                                ]
+                                              },
                                               "vars": {
                                                 "default": {},
                                                 "type": "object",
@@ -38239,6 +38288,13 @@
                                                                         "service"
                                                                       ]
                                                                     },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
+                                                                      ]
+                                                                    },
                                                                     "vars": {
                                                                       "default": {},
                                                                       "type": "object",
@@ -39878,6 +39934,13 @@
                                                                       "enum": [
                                                                         "marketing",
                                                                         "service"
+                                                                      ]
+                                                                    },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
                                                                       ]
                                                                     },
                                                                     "vars": {
@@ -42983,6 +43046,13 @@
                                                   "service"
                                                 ]
                                               },
+                                              "purpose": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "newsletter",
+                                                  "surveys"
+                                                ]
+                                              },
                                               "vars": {
                                                 "default": {},
                                                 "type": "object",
@@ -44791,6 +44861,13 @@
                                                                         "service"
                                                                       ]
                                                                     },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
+                                                                      ]
+                                                                    },
                                                                     "vars": {
                                                                       "default": {},
                                                                       "type": "object",
@@ -46430,6 +46507,13 @@
                                                                       "enum": [
                                                                         "marketing",
                                                                         "service"
+                                                                      ]
+                                                                    },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
                                                                       ]
                                                                     },
                                                                     "vars": {
@@ -48932,6 +49016,13 @@
                                                 "service"
                                               ]
                                             },
+                                            "purpose": {
+                                              "type": "string",
+                                              "enum": [
+                                                "newsletter",
+                                                "surveys"
+                                              ]
+                                            },
                                             "vars": {
                                               "default": {},
                                               "type": "object",
@@ -50655,6 +50746,13 @@
                                                                       "service"
                                                                     ]
                                                                   },
+                                                                  "purpose": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "newsletter",
+                                                                      "surveys"
+                                                                    ]
+                                                                  },
                                                                   "vars": {
                                                                     "default": {},
                                                                     "type": "object",
@@ -52216,6 +52314,13 @@
                                                                     "enum": [
                                                                       "marketing",
                                                                       "service"
+                                                                    ]
+                                                                  },
+                                                                  "purpose": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "newsletter",
+                                                                      "surveys"
                                                                     ]
                                                                   },
                                                                   "vars": {
@@ -54561,6 +54666,13 @@
                                                   "service"
                                                 ]
                                               },
+                                              "purpose": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "newsletter",
+                                                  "surveys"
+                                                ]
+                                              },
                                               "vars": {
                                                 "default": {},
                                                 "type": "object",
@@ -56369,6 +56481,13 @@
                                                                         "service"
                                                                       ]
                                                                     },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
+                                                                      ]
+                                                                    },
                                                                     "vars": {
                                                                       "default": {},
                                                                       "type": "object",
@@ -58008,6 +58127,13 @@
                                                                       "enum": [
                                                                         "marketing",
                                                                         "service"
+                                                                      ]
+                                                                    },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
                                                                       ]
                                                                     },
                                                                     "vars": {
@@ -60608,6 +60734,13 @@
                                                   "service"
                                                 ]
                                               },
+                                              "purpose": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "newsletter",
+                                                  "surveys"
+                                                ]
+                                              },
                                               "vars": {
                                                 "default": {},
                                                 "type": "object",
@@ -62416,6 +62549,13 @@
                                                                         "service"
                                                                       ]
                                                                     },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
+                                                                      ]
+                                                                    },
                                                                     "vars": {
                                                                       "default": {},
                                                                       "type": "object",
@@ -64055,6 +64195,13 @@
                                                                       "enum": [
                                                                         "marketing",
                                                                         "service"
+                                                                      ]
+                                                                    },
+                                                                    "purpose": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "newsletter",
+                                                                        "surveys"
                                                                       ]
                                                                     },
                                                                     "vars": {
@@ -66554,6 +66701,13 @@
                                                 "service"
                                               ]
                                             },
+                                            "purpose": {
+                                              "type": "string",
+                                              "enum": [
+                                                "newsletter",
+                                                "surveys"
+                                              ]
+                                            },
                                             "vars": {
                                               "default": {},
                                               "type": "object",
@@ -68277,6 +68431,13 @@
                                                                       "service"
                                                                     ]
                                                                   },
+                                                                  "purpose": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "newsletter",
+                                                                      "surveys"
+                                                                    ]
+                                                                  },
                                                                   "vars": {
                                                                     "default": {},
                                                                     "type": "object",
@@ -69838,6 +69999,13 @@
                                                                     "enum": [
                                                                       "marketing",
                                                                       "service"
+                                                                    ]
+                                                                  },
+                                                                  "purpose": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "newsletter",
+                                                                      "surveys"
                                                                     ]
                                                                   },
                                                                   "vars": {
@@ -120582,6 +120750,34 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "declared": {
+                          "type": "boolean"
+                        },
+                        "erased": {
+                          "type": "boolean"
+                        },
+                        "columns": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "address",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
                         "addressKnown": {
                           "type": "boolean"
                         },
@@ -120937,6 +121133,9 @@
                         }
                       },
                       "required": [
+                        "declared",
+                        "erased",
+                        "columns",
                         "addressKnown",
                         "purposes",
                         "stopped",
