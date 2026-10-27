@@ -628,6 +628,27 @@ describe('StudioSettingsPage', () => {
     expect(screen.queryByRole('button', { name: 'Open payments' })).toBeNull();
   });
 
+  it('offers "Privacy & public pages" to privacy.manage alone, after Payments and before API keys', async () => {
+    systemActions = ['settings.manage', 'payments.manage', 'api-keys.manage', 'privacy.manage'];
+    await renderPage(['super-admin']);
+    const privacy = await screen.findByRole('button', { name: 'Open privacy' });
+    const order = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(order.indexOf('Open payments')).toBeLessThan(order.indexOf('Open privacy'));
+    expect(order.indexOf('Open privacy')).toBeLessThan(order.indexOf('Open API keys'));
+    expect(screen.getByRole('heading', { name: 'Privacy & public pages' })).toBeDefined();
+    expect(privacy).toBeDefined();
+  });
+
+  it.each([
+    ['the built-in Admin', ['admin'], ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run', 'project.read']],
+    ['a marketer with settings.manage', ['marketing'], ['settings.manage']],
+  ])('hides "Privacy & public pages" from %s', async (_who, roles, actions) => {
+    systemActions = actions;
+    await renderPage(roles);
+    expect(await screen.findByRole('button', { name: 'Open lists' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Open privacy' })).toBeNull();
+  });
+
   it('opens /studio/payments for payments.view alone, and refuses it without either key', async () => {
     systemActions = ['payments.view'];
     await renderPage(['viewer'], undefined, undefined, undefined, undefined, '/studio/payments');

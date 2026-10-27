@@ -29,7 +29,7 @@
  */
 import { BUILTIN_LOCALE_IDS, localeFromTag, type LocaleId } from '@adminium/i18n';
 import { createServerI18n } from '@adminium/i18n/server';
-import { emailRunsRepo, emailSendsRepo, paymentSettingsRepo, settingsRepo, type ConsentEvent, type ConsentPerson, type MetaDb } from '@adminium/meta';
+import { emailRunsRepo, emailSendsRepo, isHttpsPageUrl, paymentSettingsRepo, settingsRepo, type ConsentEvent, type ConsentPerson, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 
 import type { ConsentService } from '../../consent/index.js';
@@ -40,7 +40,7 @@ import { loadOverrideMap, recipientLocale } from '../../i18n/server-i18n.js';
 import { bcp47 } from '../../i18n/bcp47.js';
 import { reachability } from '../../payments/reachability.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
-import { businessName } from '../../privacy/business.js';
+import { businessName, privacyNoticeOf } from '../../privacy/business.js';
 import { normalizePublicOrigin } from '../../security/public-origin.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { MAIL_DOOR_LANGUAGES, type MailDoorBusiness, type Translate, type UnsubscribeReason } from './page.js';
@@ -117,12 +117,15 @@ export function createMailDoor(deps: MailDoorDeps) {
    * The business the page speaks for: the one name every page a stranger
    * sees uses (`privacy/business.ts`: the pay page's, the privacy settings'
    * "Business name", the workspace's, then the public address's host). Never
-   * the software's own name. The contact address is the pay page's.
+   * the software's own name. The contact address is the pay page's. The
+   * privacy notice's address is the privacy settings' (https only: one set
+   * some other way that is not https is left off the page).
    */
   async function business(): Promise<MailDoorBusiness> {
     const name = (await businessName(meta, { origin: await publicOrigin() })) || 'localhost';
     const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
-    return { name, email: page?.contactEmail ?? null };
+    const { noticeUrl } = await privacyNoticeOf(meta);
+    return { name, email: page?.contactEmail ?? null, privacyNotice: noticeUrl !== null && isHttpsPageUrl(noticeUrl) ? noticeUrl : null };
   }
 
   /**

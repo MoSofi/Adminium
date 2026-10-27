@@ -22,7 +22,7 @@
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useActivityCount } from '../payments/activityApi.js';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Banknote,
   Blocks,
@@ -1659,20 +1659,42 @@ export interface StudioSettingsPageProps {
   onOpenPublicApi: () => void;
   /** `/studio/settings/project`: the project folder this server runs (super admins). */
   onOpenProject?: (() => void) | undefined;
+  /** `/studio/privacy`: the privacy notice, a person's data, how long things are kept (`privacy.manage`). */
+  onOpenPrivacy?: (() => void) | undefined;
   /** Never set on the hub: see {@link StudioSettingsOrMapsProps}. */
   maps?: undefined;
   doNotEmail?: undefined;
+  privacy?: undefined;
 }
+
+/** The privacy page: a chunk of its own, loaded from this one's only when it is opened. */
+const PrivacyPageLazy = lazy(async () => {
+  const mod = await import('../privacy/PrivacyPage.js');
+  return { default: mod.PrivacyPage };
+});
 
 /**
  * What the router mounts from this chunk: the hub, or — for `/settings/maps`,
  * with `maps` — the Maps page, or — for `/email-templates/do-not-email`, with
- * `doNotEmail` — the do-not-email list, which ride in the hub's chunk so that
- * they add no lazy ref of their own to everybody's first load.
+ * `doNotEmail` — the do-not-email list, or — for `/studio/privacy`, with
+ * `privacy` — the privacy page (its own chunk, fetched from here), which
+ * ride in the hub's chunk so that they add no lazy ref of their own to
+ * everybody's first load.
  */
-export type StudioSettingsOrMapsProps = StudioSettingsPageProps | { maps: true; doNotEmail?: undefined } | { doNotEmail: true; maps?: undefined };
+export type StudioSettingsOrMapsProps =
+  | StudioSettingsPageProps
+  | { maps: true; doNotEmail?: undefined; privacy?: undefined }
+  | { doNotEmail: true; maps?: undefined; privacy?: undefined }
+  | { privacy: true; maps?: undefined; doNotEmail?: undefined };
 
 export function StudioSettingsPage(props: StudioSettingsOrMapsProps): ReactNode {
+  if (props.privacy === true) {
+    return (
+      <Suspense fallback={null}>
+        <PrivacyPageLazy />
+      </Suspense>
+    );
+  }
   if (props.doNotEmail === true) return <DoNotEmailPage />;
   return props.maps === true ? <MapsSettingsPage /> : <StudioSettingsHub {...props} />;
 }
@@ -1689,6 +1711,7 @@ function StudioSettingsHub({
   onOpenPayments,
   onOpenPublicApi,
   onOpenProject,
+  onOpenPrivacy,
 }: StudioSettingsPageProps): ReactNode {
   const navigate = useNavigate();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
@@ -1877,6 +1900,20 @@ function StudioSettingsHub({
                 </button>
               ) : null
             }
+          />
+        ) : null}
+
+        {/* Privacy & public pages (/studio/privacy): its routes check
+            `privacy.manage`, which reads a person's data past every table and
+            row limit. Only the Super Admin holds it unless it is granted on
+            purpose; a marketer with `settings.manage` does not see the row. */}
+        {holds('privacy.manage') && onOpenPrivacy !== undefined ? (
+          <LinkRow
+            icon={<ShieldCheck />}
+            heading={t('studio:privacy.hub.heading', 'Privacy & public pages')}
+            body={t('studio:privacy.hub.body', 'Your privacy notice, one person’s data, and how long things are kept.')}
+            cta={t('studio:privacy.hub.cta', 'Open privacy')}
+            onOpen={onOpenPrivacy}
           />
         ) : null}
 

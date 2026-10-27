@@ -13,6 +13,12 @@ the **Super Admin** holds it. Give it to another role on purpose (Team →
 Roles) — for example to the person who answers access requests. The built-in
 Admin role does not get it, on a new install or an old one.
 
+On screen it is **Workspace settings → Privacy & public pages**, shown only to
+whoever holds the permission. Its three tabs are the privacy notice, **A
+person's data** (find, download, erase) and **How long we keep things**. The
+address you search for stays on the page: it is sent to the server in the
+request, never put in the page's address.
+
 ## Finding a person
 
 `POST /api/v1/privacy/find` with `{ "address": "…" }`. The address is compared
@@ -108,8 +114,9 @@ what is left and finishes.
 ## How long we keep things
 
 `GET /api/v1/privacy/keeping` lists the keeping table. This release has two
-fixed rows, both **kept for good**: the consent history (it proves what a
-person agreed to or asked) and the do-not-email list.
+fixed rows, neither of which can be shortened: the **consent history** is kept
+until the person is erased (it proves what they agreed to or asked), and the
+**do-not-email list** is kept for good (once the person is erased, as a code).
 
 ## The privacy notice and the postal address
 
@@ -122,7 +129,9 @@ person agreed to or asked) and the do-not-email list.
   refused until it is set.
 
 Pages a stranger sees read the name and the notice address without signing in
-at `GET /api/v1/privacy/notice/public`.
+at `GET /api/v1/privacy/notice/public`. The unsubscribe pages link the notice
+in their footer ("Privacy notice", in the page's language) once its address is
+set, and show no link before.
 
 One name is used everywhere a stranger looks — the pay page and its mails,
 the marketing mail's footer, the unsubscribe pages: the pay page's own shop

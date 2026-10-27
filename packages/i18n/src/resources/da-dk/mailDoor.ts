@@ -11,6 +11,7 @@
 export default {
   "language": "Sprog",
   "questions": "Spørgsmål? Skriv til",
+  "privacyNotice": "Privatlivserklæring",
   "optional": "Valgfrit",
   "why": "Hvorfor?",
   "reason": {

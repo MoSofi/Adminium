@@ -11,6 +11,7 @@
 export default {
   "language": "Language",
   "questions": "Questions? Write to",
+  "privacyNotice": "Privacy notice",
   "optional": "Optional",
   "why": "Why?",
   "reason": {

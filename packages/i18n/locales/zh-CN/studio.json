@@ -4240,7 +4240,141 @@
     }
   },
   "privacy": {
-    "erasedPerson": "已删除的人员"
+    "erasedPerson": "已删除的人员",
+    "notice": {
+      "httpsOnly": "请使用 https:// 地址，例如 https://www.example.com/privacy。",
+      "loadFailed": "无法加载隐私设置。请重试。",
+      "saved": "已保存",
+      "saveFailed": "隐私声明未保存。请重试。",
+      "unset": "请填写这两项：表单、聊天和 Cookie 横幅上线后，它们会显示在其中。",
+      "heading": "隐私声明",
+      "name": "企业名称",
+      "namePlaceholder": "你公司的法定名称",
+      "url": "隐私声明地址",
+      "help": "显示在每个表单、聊天和 Cookie 横幅中。",
+      "save": "保存"
+    },
+    "person": {
+      "locked": "此服务器无法读取其地址密钥（其密钥已更改），因此无法查找或删除任何人。请联系运行此服务器的人。",
+      "copyOf": "{label}（其副本）",
+      "inApp": "{label} — {app}",
+      "kind": {
+        "consent": "同意记录",
+        "stopList": "禁止发送邮件名单",
+        "campaignMail": "活动邮件",
+        "campaignFailures": "发送失败的活动邮件",
+        "documents": "文档",
+        "invoices": "发票",
+        "payments": "付款",
+        "paymentEvents": "支付服务的消息",
+        "automationRuns": "规则运行",
+        "notifications": "发给员工的通知",
+        "files": "其行上的文件",
+        "appRows": "应用中的行"
+      },
+      "onList": "是",
+      "rows": "{count, plural, other {# 行}}",
+      "entries": "{count, plural, other {# 条}}",
+      "group": {
+        "gave": "他们提供给你的",
+        "agreed": "他们同意或要求的",
+        "held": "企业保留的有关他们的内容"
+      },
+      "notAddress": "这不是电子邮件地址。请输入类似 name@company.com 的地址。",
+      "findFailed": "搜索未完成。请重试。",
+      "downloadQueued": "正在生成下载。准备好后会显示在“下载”下。",
+      "downloadFailed": "无法请求下载。请重试。",
+      "q": "电子邮件地址",
+      "find": "查找",
+      "done": "已删除。已记入审计日志。",
+      "filesFailed": "{count, plural, other {有 # 个文件无法从存储中删除。再次删除即可重试。}}",
+      "none": "此地址没有任何内容。",
+      "noneSub": "请检查拼写，或尝试此人使用过的其他地址。",
+      "audit": "打开审计日志",
+      "nameAt": "{name} · {company}",
+      "openLabel": "打开{what}",
+      "open": "打开",
+      "download": "全部下载",
+      "downloadSub": "包含 JSON 和 CSV 文件的 .zip。",
+      "erase": "删除…"
+    },
+    "erase": {
+      "goes": {
+        "people": "{label} 中的 {count, plural, other {# 行}}",
+        "copy": "{label} 中的 {count, plural, other {# 份副本}}",
+        "outbox": "{label} 中的 {count, plural, other {# 封邮件}}",
+        "consent": "{count, plural, other {# 条同意记录}}",
+        "campaignMail": "{count, plural, other {# 封活动邮件}}",
+        "files": "{count, plural, other {# 个文件}}"
+      },
+      "stays": {
+        "forGood": "永久保留。",
+        "days": "{count, plural, other {保留 # 天。}}",
+        "doNotEmail": "其地址会以代码形式保留在禁止发送邮件名单中，确保永不再向其发送邮件。",
+        "lawHealth": "{label} 中的 {count, plural, other {# 行}}，因为卫生法规要求保留。",
+        "lawContract": "{label} 中的 {count, plural, other {# 行}}，因为合同要求保留。",
+        "lawSafety": "{label} 中的 {count, plural, other {# 行}}，因为安全法规要求保留。",
+        "lawTax": "{label} 中的 {count, plural, other {# 行}}，因为税法要求保留。",
+        "documents": "{count, plural, other {# 份文档，保持发送时的样子。}}",
+        "invoices": "{count, plural, other {# 张发票，因为税法要求保留。}}",
+        "payments": "{count, plural, other {# 条付款记录。}}",
+        "paymentEvents": "{count, plural, other {# 条来自支付服务的消息。}}",
+        "automationRuns": "{count, plural, other {规则历史中的 # 次规则运行。}}",
+        "notifications": "{count, plural, other {# 条发给员工的通知。}}",
+        "campaignFailures": "{count, plural, other {# 次失败的活动发送，与活动的发送日志一起保留。}}",
+        "exports": "员工从表格导出的数据可能包含其内容，直到每个导出到期。"
+      },
+      "mismatch": "地址不一致。请重新输入。",
+      "failed": "删除未完成。再次删除即可完成：已完成的部分保持完成。",
+      "title": "删除有关此人的所有内容？",
+      "cancel": "取消",
+      "previewFailed": "无法确定删除会产生什么结果。请关闭后重试。",
+      "loading": "正在确定将删除的内容…",
+      "goesLabel": "将删除",
+      "nothingGoes": "应用的表格和邮件中没有任何内容：只有“将保留”下列出的内容。",
+      "staysLabel": "将保留",
+      "leftLabel": "保持原样",
+      "leftSub": "这些列无法清空，因此其中的内容会保留：",
+      "leftRows": "{count, plural, other {# 行}}",
+      "confirm": "输入地址以确认",
+      "eraseForGood": "永久删除"
+    },
+    "title": "隐私与公开页面",
+    "tab": {
+      "notice": "隐私声明",
+      "person": "某个人的数据",
+      "keeping": "保留期限"
+    },
+    "keeping": {
+      "consentHistory": "同意记录",
+      "untilErased": "保留至此人被删除",
+      "consentWhy": "保留，因为它证明了此人同意或要求过什么",
+      "doNotEmail": "禁止发送邮件名单",
+      "forGood": "永久保留",
+      "doNotEmailWhy": "此人被删除后以代码形式保留，确保永不再向其发送邮件",
+      "loadFailed": "无法加载保留期限。请重试。",
+      "heading": "保留期限",
+      "sub": "到期后，每一项都会被删除。",
+      "what": "内容",
+      "keptFor": "保留时长"
+    },
+    "downloads": {
+      "processing": "正在生成…",
+      "ready": "就绪",
+      "failed": "失败",
+      "expired": "已过期",
+      "heading": "下载",
+      "sub": "只有你能下载这些文件。每个文件到期后都会被删除。",
+      "asked": "请求于 {when}",
+      "until": "有效至 {when}",
+      "getLabel": "下载 {when} 请求的文件",
+      "get": "下载"
+    },
+    "hub": {
+      "heading": "隐私与公开页面",
+      "body": "你的隐私声明、某个人的数据，以及各类内容保留多久。",
+      "cta": "打开隐私"
+    }
   },
   "marketingMail": {
     "bounce": {

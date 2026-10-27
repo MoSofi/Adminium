@@ -55,7 +55,7 @@ const LOCALES = ['en-US', 'de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'zh-CN', 'zh-TW', 
 const LOCALE_DIR = fileURLToPath(new URL('../../../packages/i18n/locales/', import.meta.url));
 
 /** A locale's own words for the door, from its bundle. */
-function wordsOf(tag: string): { unsubscribe: Record<string, string>; unavailable: Record<string, string>; why: string } {
+function wordsOf(tag: string): { unsubscribe: Record<string, string>; unavailable: Record<string, string>; why: string; privacyNotice: string } {
   return JSON.parse(readFileSync(`${LOCALE_DIR}${tag}/mailDoor.json`, 'utf8')) as never;
 }
 
@@ -433,6 +433,30 @@ for (const engine of META_ENGINES) {
         expect(res.body).not.toMatch(/adminium/i);
         const dead = await app.inject({ method: 'GET', url: '/m/u/forged' });
         expect(dead.body).toContain('Write to <a href="mailto:hello@meridian.example"><bdi dir="ltr">hello@meridian.example</bdi></a> and we’ll take you off the list.');
+      });
+
+      it('links the privacy notice in the footer once its address is set, and not before', async () => {
+        const link = '<a href="https://www.meridian.example/privacy?from=mail&amp;x=1" rel="noopener noreferrer">Privacy notice</a>';
+        const url = await linkFor('marta.kovac@cobaltlegal.example', 'newsletter');
+        const footer = (body: string) => /<footer class="foot">([\s\S]*?)<\/footer>/.exec(body)?.[1] ?? '';
+        const unset = await app.inject({ method: 'GET', url });
+        expect(unset.statusCode).toBe(200);
+        expect(footer(unset.body)).not.toContain('Privacy notice');
+        expect(footer(unset.body)).not.toContain('<a href="https://');
+
+        await settingsRepo(meta).set('privacy.noticeUrl', 'https://www.meridian.example/privacy?from=mail&x=1', { updatedBy: null });
+        for (const path of [url, '/m/c/abc', '/m/u/forged']) {
+          const res = await app.inject({ method: 'GET', url: path });
+          expect(footer(res.body), path).toContain(link);
+        }
+        // In the page's own language, and the policy still allows no script.
+        const german = await app.inject({ method: 'GET', url: `${url}?lang=de-DE` });
+        expect(footer(german.body)).toContain(`rel="noopener noreferrer">${wordsOf('de-DE').privacyNotice}</a>`);
+        expect(String(german.headers['content-security-policy'])).toContain("default-src 'none'");
+
+        await settingsRepo(meta).set('privacy.noticeUrl', null, { updatedBy: null });
+        const cleared = await app.inject({ method: 'GET', url });
+        expect(footer(cleared.body)).not.toContain('Privacy notice');
       });
     });
 

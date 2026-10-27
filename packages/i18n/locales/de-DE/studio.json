@@ -4240,7 +4240,141 @@
     }
   },
   "privacy": {
-    "erasedPerson": "Gelöschte Person"
+    "erasedPerson": "Gelöschte Person",
+    "notice": {
+      "httpsOnly": "Verwenden Sie eine https://-Adresse, zum Beispiel https://www.example.com/privacy.",
+      "loadFailed": "Die Datenschutzeinstellungen konnten nicht geladen werden. Versuchen Sie es erneut.",
+      "saved": "Gespeichert",
+      "saveFailed": "Der Datenschutzhinweis wurde nicht gespeichert. Versuchen Sie es erneut.",
+      "unset": "Legen Sie beides fest: Es wird auf jedem Formular, im Chat und im Cookie-Banner angezeigt, sobald es diese gibt.",
+      "heading": "Datenschutzhinweis",
+      "name": "Name des Unternehmens",
+      "namePlaceholder": "Der rechtliche Name Ihres Unternehmens",
+      "url": "Adresse des Datenschutzhinweises",
+      "help": "Wird auf jedem Formular, im Chat und im Cookie-Banner angezeigt.",
+      "save": "Speichern"
+    },
+    "person": {
+      "locked": "Dieser Server kann seine Adressschlüssel nicht lesen (sein Geheimnis wurde geändert), daher kann niemand gefunden oder gelöscht werden. Fragen Sie die Person, die diesen Server betreibt.",
+      "copyOf": "{label} (Kopien davon)",
+      "inApp": "{label} — {app}",
+      "kind": {
+        "consent": "Verlauf der Einwilligung",
+        "stopList": "Liste „Keine E-Mails“",
+        "campaignMail": "Kampagnen-E-Mails",
+        "campaignFailures": "Fehlgeschlagene Kampagnen-Sendungen",
+        "documents": "Dokumente",
+        "invoices": "Rechnungen",
+        "payments": "Zahlungen",
+        "paymentEvents": "Nachrichten der Zahlungsdienste",
+        "automationRuns": "Regelläufe",
+        "notifications": "Benachrichtigungen an Mitarbeitende",
+        "files": "Dateien an ihren Zeilen",
+        "appRows": "Zeilen in einer App"
+      },
+      "onList": "ja",
+      "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
+      "entries": "{count, plural, one {# Eintrag} other {# Einträge}}",
+      "group": {
+        "gave": "Was sie Ihnen gegeben haben",
+        "agreed": "Wozu sie zugestimmt oder worum sie gebeten haben",
+        "held": "Was das Unternehmen über sie aufbewahrt"
+      },
+      "notAddress": "Das ist keine E-Mail-Adresse. Geben Sie eine wie name@firma.com ein.",
+      "findFailed": "Die Suche wurde nicht beendet. Versuchen Sie es erneut.",
+      "downloadQueued": "Der Download wird erstellt. Er erscheint unter „Downloads“, sobald er bereit ist.",
+      "downloadFailed": "Der Download konnte nicht angefordert werden. Versuchen Sie es erneut.",
+      "q": "E-Mail-Adresse",
+      "find": "Suchen",
+      "done": "Gelöscht. Im Audit-Log gespeichert.",
+      "filesFailed": "{count, plural, one {# Datei konnte nicht aus dem Speicher gelöscht werden. Löschen Sie erneut, um es noch einmal zu versuchen.} other {# Dateien konnten nicht aus dem Speicher gelöscht werden. Löschen Sie erneut, um es noch einmal zu versuchen.}}",
+      "none": "Zu dieser Adresse gibt es hier nichts.",
+      "noneSub": "Prüfen Sie die Schreibweise oder versuchen Sie eine andere Adresse, die diese Person verwendet hat.",
+      "audit": "Audit-Log öffnen",
+      "nameAt": "{name} · {company}",
+      "openLabel": "{what} öffnen",
+      "open": "Öffnen",
+      "download": "Alles herunterladen",
+      "downloadSub": "Eine .zip-Datei mit JSON- und CSV-Dateien.",
+      "erase": "Löschen…"
+    },
+    "erase": {
+      "goes": {
+        "people": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}",
+        "copy": "{count, plural, one {# Kopie} other {# Kopien}} in {label}",
+        "outbox": "{count, plural, one {# E-Mail} other {# E-Mails}} in {label}",
+        "consent": "{count, plural, one {# Einwilligungseintrag} other {# Einwilligungseinträge}}",
+        "campaignMail": "{count, plural, one {# Kampagnen-E-Mail} other {# Kampagnen-E-Mails}}",
+        "files": "{count, plural, one {# Datei} other {# Dateien}}"
+      },
+      "stays": {
+        "forGood": "Dauerhaft aufbewahrt.",
+        "days": "{count, plural, one {# Tag aufbewahrt.} other {# Tage aufbewahrt.}}",
+        "doNotEmail": "Ihre Adresse bleibt als Code auf der Liste „Keine E-Mails“, damit sie nie wieder angeschrieben werden.",
+        "lawHealth": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil das Gesundheitsrecht sie verlangt.",
+        "lawContract": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil ein Vertrag sie verlangt.",
+        "lawSafety": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil das Sicherheitsrecht sie verlangt.",
+        "lawTax": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil das Steuerrecht sie verlangt.",
+        "documents": "{count, plural, one {# Dokument, so wie es versandt wurde.} other {# Dokumente, so wie sie versandt wurden.}}",
+        "invoices": "{count, plural, one {# Rechnung, weil das Steuerrecht sie verlangt.} other {# Rechnungen, weil das Steuerrecht sie verlangt.}}",
+        "payments": "{count, plural, one {# Zahlungsdatensatz.} other {# Zahlungsdatensätze.}}",
+        "paymentEvents": "{count, plural, one {# Nachricht eines Zahlungsdienstes.} other {# Nachrichten der Zahlungsdienste.}}",
+        "automationRuns": "{count, plural, one {# Regellauf im Verlauf der Regeln.} other {# Regelläufe im Verlauf der Regeln.}}",
+        "notifications": "{count, plural, one {# Benachrichtigung an Mitarbeitende.} other {# Benachrichtigungen an Mitarbeitende.}}",
+        "campaignFailures": "{count, plural, one {# fehlgeschlagene Kampagnen-Sendung, aufbewahrt mit dem Sendeprotokoll der Kampagne.} other {# fehlgeschlagene Kampagnen-Sendungen, aufbewahrt mit dem Sendeprotokoll der Kampagne.}}",
+        "exports": "Datenexporte, die Mitarbeitende aus einer Tabelle erstellt haben, können sie enthalten, bis jeder abläuft."
+      },
+      "mismatch": "Das ist nicht dieselbe Adresse. Geben Sie sie erneut ein.",
+      "failed": "Die Löschung wurde nicht beendet. Löschen Sie erneut, um sie abzuschließen: Was schon erledigt ist, bleibt erledigt.",
+      "title": "Alles über diese Person löschen?",
+      "cancel": "Abbrechen",
+      "previewFailed": "Was eine Löschung bewirken würde, konnte nicht ermittelt werden. Schließen Sie dies und versuchen Sie es erneut.",
+      "loading": "Es wird ermittelt, was gelöscht wird…",
+      "goesLabel": "Was gelöscht wird",
+      "nothingGoes": "Nichts in den Tabellen der Apps oder in der Post: nur, was unter „Was bleibt“ steht.",
+      "staysLabel": "Was bleibt",
+      "leftLabel": "Bleibt, wie es ist",
+      "leftSub": "Diese Spalten können nicht geleert werden, ihr Inhalt bleibt:",
+      "leftRows": "{count, plural, one {# Zeile} other {# Zeilen}}",
+      "confirm": "Geben Sie zur Bestätigung die Adresse ein",
+      "eraseForGood": "Endgültig löschen"
+    },
+    "title": "Datenschutz & öffentliche Seiten",
+    "tab": {
+      "notice": "Datenschutzhinweis",
+      "person": "Daten einer Person",
+      "keeping": "Wie lange wir etwas aufbewahren"
+    },
+    "keeping": {
+      "consentHistory": "Verlauf der Einwilligung",
+      "untilErased": "Aufbewahrt, bis die Person gelöscht wird",
+      "consentWhy": "Aufbewahrt, weil er belegt, wozu eine Person zugestimmt oder worum sie gebeten hat",
+      "doNotEmail": "Liste „Keine E-Mails“",
+      "forGood": "Dauerhaft aufbewahrt",
+      "doNotEmailWhy": "Nach der Löschung als Code aufbewahrt, damit die Person nie wieder angeschrieben wird",
+      "loadFailed": "Wie lange etwas aufbewahrt wird, konnte nicht geladen werden. Versuchen Sie es erneut.",
+      "heading": "Wie lange wir etwas aufbewahren",
+      "sub": "Danach wird jeder Eintrag gelöscht.",
+      "what": "Was",
+      "keptFor": "Aufbewahrt für"
+    },
+    "downloads": {
+      "processing": "Wird erstellt…",
+      "ready": "Bereit",
+      "failed": "Fehlgeschlagen",
+      "expired": "Abgelaufen",
+      "heading": "Downloads",
+      "sub": "Nur Sie können diese herunterladen. Jeder wird gelöscht, wenn er abläuft.",
+      "asked": "Angefordert {when}",
+      "until": "Bis {when}",
+      "getLabel": "Die am {when} angeforderte Datei herunterladen",
+      "get": "Herunterladen"
+    },
+    "hub": {
+      "heading": "Datenschutz & öffentliche Seiten",
+      "body": "Ihr Datenschutzhinweis, die Daten einer Person und wie lange etwas aufbewahrt wird.",
+      "cta": "Datenschutz öffnen"
+    }
   },
   "marketingMail": {
     "bounce": {

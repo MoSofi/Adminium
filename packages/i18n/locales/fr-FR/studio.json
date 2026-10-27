@@ -4240,7 +4240,141 @@
     }
   },
   "privacy": {
-    "erasedPerson": "Personne effacée"
+    "erasedPerson": "Personne effacée",
+    "notice": {
+      "httpsOnly": "Utilisez une adresse https://, par exemple https://www.example.com/privacy.",
+      "loadFailed": "Les paramètres de confidentialité n’ont pas pu être chargés. Réessayez.",
+      "saved": "Enregistré",
+      "saveFailed": "L’avis de confidentialité n’a pas été enregistré. Réessayez.",
+      "unset": "Renseignez les deux : ils seront affichés sur chaque formulaire, dans le chat et dans la bannière de cookies quand ceux-ci arriveront.",
+      "heading": "Avis de confidentialité",
+      "name": "Nom de l’entreprise",
+      "namePlaceholder": "La raison sociale de votre entreprise",
+      "url": "Adresse de l’avis de confidentialité",
+      "help": "Affiché sur chaque formulaire, dans le chat et dans la bannière de cookies.",
+      "save": "Enregistrer"
+    },
+    "person": {
+      "locked": "Ce serveur ne peut pas lire ses clés d’adresse (son secret a été changé) : personne ne peut être trouvé ni effacé. Demandez à la personne qui gère ce serveur.",
+      "copyOf": "{label} (copies)",
+      "inApp": "{label} — {app}",
+      "kind": {
+        "consent": "Historique du consentement",
+        "stopList": "Liste « Pas d’e-mail »",
+        "campaignMail": "E-mails de campagne",
+        "campaignFailures": "Envois de campagne échoués",
+        "documents": "Documents",
+        "invoices": "Factures",
+        "payments": "Paiements",
+        "paymentEvents": "Messages des services de paiement",
+        "automationRuns": "Exécutions de règles",
+        "notifications": "Notifications à l’équipe",
+        "files": "Fichiers sur ses lignes",
+        "appRows": "Lignes dans une app"
+      },
+      "onList": "oui",
+      "rows": "{count, plural, one {# ligne} other {# lignes}}",
+      "entries": "{count, plural, one {# entrée} other {# entrées}}",
+      "group": {
+        "gave": "Ce qu’elle vous a donné",
+        "agreed": "Ce qu’elle a accepté ou demandé",
+        "held": "Ce que l’entreprise conserve à son sujet"
+      },
+      "notAddress": "Ce n’est pas une adresse e-mail. Saisissez-en une comme nom@entreprise.com.",
+      "findFailed": "La recherche n’a pas abouti. Réessayez.",
+      "downloadQueued": "Le téléchargement est en préparation. Il apparaîtra sous Téléchargements quand il sera prêt.",
+      "downloadFailed": "Le téléchargement n’a pas pu être demandé. Réessayez.",
+      "q": "Adresse e-mail",
+      "find": "Rechercher",
+      "done": "Effacé. Enregistré dans le journal d’audit.",
+      "filesFailed": "{count, plural, one {# fichier n’a pas pu être supprimé du stockage. Effacez à nouveau pour réessayer.} other {# fichiers n’ont pas pu être supprimés du stockage. Effacez à nouveau pour réessayer.}}",
+      "none": "Rien ici pour cette adresse.",
+      "noneSub": "Vérifiez l’orthographe, ou essayez une autre adresse utilisée par cette personne.",
+      "audit": "Ouvrir le journal d’audit",
+      "nameAt": "{name} · {company}",
+      "openLabel": "Ouvrir {what}",
+      "open": "Ouvrir",
+      "download": "Tout télécharger",
+      "downloadSub": "Un .zip de fichiers JSON et CSV.",
+      "erase": "Effacer…"
+    },
+    "erase": {
+      "goes": {
+        "people": "{count, plural, one {# ligne} other {# lignes}} dans {label}",
+        "copy": "{count, plural, one {# copie} other {# copies}} dans {label}",
+        "outbox": "{count, plural, one {# e-mail} other {# e-mails}} dans {label}",
+        "consent": "{count, plural, one {# entrée de consentement} other {# entrées de consentement}}",
+        "campaignMail": "{count, plural, one {# e-mail de campagne} other {# e-mails de campagne}}",
+        "files": "{count, plural, one {# fichier} other {# fichiers}}"
+      },
+      "stays": {
+        "forGood": "Conservé pour toujours.",
+        "days": "{count, plural, one {Conservé # jour.} other {Conservé # jours.}}",
+        "doNotEmail": "Son adresse reste sur la liste « Pas d’e-mail » sous forme de code, pour qu’elle ne reçoive plus jamais d’e-mail.",
+        "lawHealth": "{count, plural, one {# ligne} other {# lignes}} dans {label}, car le droit de la santé l’exige.",
+        "lawContract": "{count, plural, one {# ligne} other {# lignes}} dans {label}, car un contrat l’exige.",
+        "lawSafety": "{count, plural, one {# ligne} other {# lignes}} dans {label}, car le droit de la sécurité l’exige.",
+        "lawTax": "{count, plural, one {# ligne} other {# lignes}} dans {label}, car le droit fiscal l’exige.",
+        "documents": "{count, plural, one {# document, tel qu’il a été envoyé.} other {# documents, tels qu’ils ont été envoyés.}}",
+        "invoices": "{count, plural, one {# facture, car le droit fiscal l’exige.} other {# factures, car le droit fiscal l’exige.}}",
+        "payments": "{count, plural, one {# enregistrement de paiement.} other {# enregistrements de paiement.}}",
+        "paymentEvents": "{count, plural, one {# message d’un service de paiement.} other {# messages des services de paiement.}}",
+        "automationRuns": "{count, plural, one {# exécution de règle dans l’historique des règles.} other {# exécutions de règles dans l’historique des règles.}}",
+        "notifications": "{count, plural, one {# notification à l’équipe.} other {# notifications à l’équipe.}}",
+        "campaignFailures": "{count, plural, one {# envoi de campagne échoué, conservé avec le journal d’envoi de la campagne.} other {# envois de campagne échoués, conservés avec le journal d’envoi de la campagne.}}",
+        "exports": "Les exports de données que l’équipe a faits d’une table peuvent la contenir, jusqu’à l’expiration de chacun."
+      },
+      "mismatch": "Ce n’est pas la même adresse. Saisissez-la à nouveau.",
+      "failed": "L’effacement n’est pas allé au bout. Effacez à nouveau pour le terminer : ce qui est fait reste fait.",
+      "title": "Effacer tout ce qui concerne cette personne ?",
+      "cancel": "Annuler",
+      "previewFailed": "Ce qu’un effacement ferait n’a pas pu être déterminé. Fermez et réessayez.",
+      "loading": "Calcul de ce qui part…",
+      "goesLabel": "Ce qui part",
+      "nothingGoes": "Rien dans les tables des apps ni dans les e-mails : seulement ce qui figure sous Ce qui reste.",
+      "staysLabel": "Ce qui reste",
+      "leftLabel": "Laissé tel quel",
+      "leftSub": "Ces colonnes ne peuvent pas être vidées, leur contenu reste :",
+      "leftRows": "{count, plural, one {# ligne} other {# lignes}}",
+      "confirm": "Saisissez l’adresse pour confirmer",
+      "eraseForGood": "Effacer définitivement"
+    },
+    "title": "Confidentialité et pages publiques",
+    "tab": {
+      "notice": "Avis de confidentialité",
+      "person": "Les données d’une personne",
+      "keeping": "Durée de conservation"
+    },
+    "keeping": {
+      "consentHistory": "Historique du consentement",
+      "untilErased": "Conservé jusqu’à l’effacement de la personne",
+      "consentWhy": "Conservé, car il prouve ce qu’une personne a accepté ou demandé",
+      "doNotEmail": "Liste « Pas d’e-mail »",
+      "forGood": "Conservé pour toujours",
+      "doNotEmailWhy": "Conservé sous forme de code une fois la personne effacée, pour qu’elle ne reçoive plus jamais d’e-mail",
+      "loadFailed": "La durée de conservation n’a pas pu être chargée. Réessayez.",
+      "heading": "Durée de conservation",
+      "sub": "Ensuite, chaque élément est effacé.",
+      "what": "Quoi",
+      "keptFor": "Conservé"
+    },
+    "downloads": {
+      "processing": "En préparation…",
+      "ready": "Prêt",
+      "failed": "Échec",
+      "expired": "Expiré",
+      "heading": "Téléchargements",
+      "sub": "Vous seul pouvez les télécharger. Chacun est supprimé à son expiration.",
+      "asked": "Demandé le {when}",
+      "until": "Jusqu’au {when}",
+      "getLabel": "Télécharger le fichier demandé le {when}",
+      "get": "Télécharger"
+    },
+    "hub": {
+      "heading": "Confidentialité et pages publiques",
+      "body": "Votre avis de confidentialité, les données d’une personne et la durée de conservation.",
+      "cta": "Ouvrir la confidentialité"
+    }
   },
   "marketingMail": {
     "bounce": {

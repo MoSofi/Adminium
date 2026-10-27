@@ -11,6 +11,7 @@
 export default {
   "language": "語言",
   "questions": "有疑問？請寫信至",
+  "privacyNotice": "隱私聲明",
   "optional": "選填",
   "why": "原因？",
   "reason": {

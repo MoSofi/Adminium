@@ -4240,7 +4240,141 @@
     }
   },
   "privacy": {
-    "erasedPerson": "Erased person"
+    "erasedPerson": "Erased person",
+    "notice": {
+      "httpsOnly": "Use an https:// address, such as https://www.example.com/privacy.",
+      "loadFailed": "The privacy settings could not be loaded. Try again.",
+      "saved": "Saved",
+      "saveFailed": "The privacy notice was not saved. Try again.",
+      "unset": "Set both: they’re shown on every form, the chat and the cookie banner once they arrive.",
+      "heading": "Privacy notice",
+      "name": "Business name",
+      "namePlaceholder": "Your company’s legal name",
+      "url": "Privacy notice address",
+      "help": "Shown on every form, the chat and the cookie banner.",
+      "save": "Save"
+    },
+    "person": {
+      "locked": "This server can’t read its address keys (its secret was changed), so nobody can be found or erased. Ask whoever runs this server.",
+      "copyOf": "{label} (copies of them)",
+      "inApp": "{label} — {app}",
+      "kind": {
+        "consent": "Consent history",
+        "stopList": "Do-not-email list",
+        "campaignMail": "Campaign e-mails",
+        "campaignFailures": "Campaign sends that failed",
+        "documents": "Documents",
+        "invoices": "Invoices",
+        "payments": "Payments",
+        "paymentEvents": "Messages from the payment services",
+        "automationRuns": "Rule runs",
+        "notifications": "Notifications to staff",
+        "files": "Files on their rows",
+        "appRows": "Rows in an app"
+      },
+      "onList": "yes",
+      "rows": "{count, plural, one {# row} other {# rows}}",
+      "entries": "{count, plural, one {# entry} other {# entries}}",
+      "group": {
+        "gave": "What they gave you",
+        "agreed": "What they agreed to or asked",
+        "held": "What the business keeps about them"
+      },
+      "notAddress": "That isn’t an e-mail address. Enter one like name@company.com.",
+      "findFailed": "The search did not finish. Try again.",
+      "downloadQueued": "The download is being made. It shows under Downloads when it’s ready.",
+      "downloadFailed": "The download could not be asked for. Try again.",
+      "q": "E-mail address",
+      "find": "Find",
+      "done": "Erased. Saved in the audit log.",
+      "filesFailed": "{count, plural, one {# file could not be deleted from storage. Erase again to try it once more.} other {# files could not be deleted from storage. Erase again to try them once more.}}",
+      "none": "Nothing here for that address.",
+      "noneSub": "Check the spelling, or try another address this person used.",
+      "audit": "Open the audit log",
+      "nameAt": "{name} · {company}",
+      "openLabel": "Open {what}",
+      "open": "Open",
+      "download": "Download everything",
+      "downloadSub": "A .zip of JSON and CSV files.",
+      "erase": "Erase…"
+    },
+    "erase": {
+      "goes": {
+        "people": "{count, plural, one {# row} other {# rows}} in {label}",
+        "copy": "{count, plural, one {# copy} other {# copies}} in {label}",
+        "outbox": "{count, plural, one {# e-mail} other {# e-mails}} in {label}",
+        "consent": "{count, plural, one {# consent entry} other {# consent entries}}",
+        "campaignMail": "{count, plural, one {# campaign e-mail} other {# campaign e-mails}}",
+        "files": "{count, plural, one {# file} other {# files}}"
+      },
+      "stays": {
+        "forGood": "Kept for good.",
+        "days": "{count, plural, one {Kept for # day.} other {Kept for # days.}}",
+        "doNotEmail": "Their address stays on the do-not-email list as a code, so they’re never e-mailed again.",
+        "lawHealth": "{count, plural, one {# row} other {# rows}} in {label}, because health law needs them.",
+        "lawContract": "{count, plural, one {# row} other {# rows}} in {label}, because a contract needs them.",
+        "lawSafety": "{count, plural, one {# row} other {# rows}} in {label}, because safety law needs them.",
+        "lawTax": "{count, plural, one {# row} other {# rows}} in {label}, because tax law needs them.",
+        "documents": "{count, plural, one {# document, as it was sent.} other {# documents, as they were sent.}}",
+        "invoices": "{count, plural, one {# invoice, because tax law needs it.} other {# invoices, because tax law needs them.}}",
+        "payments": "{count, plural, one {# payment record.} other {# payment records.}}",
+        "paymentEvents": "{count, plural, one {# message from a payment service.} other {# messages from the payment services.}}",
+        "automationRuns": "{count, plural, one {# rule run in the rules’ history.} other {# rule runs in the rules’ history.}}",
+        "notifications": "{count, plural, one {# notification to staff.} other {# notifications to staff.}}",
+        "campaignFailures": "{count, plural, one {# failed campaign send, kept with the campaign’s send log.} other {# failed campaign sends, kept with the campaign’s send log.}}",
+        "exports": "Data exports staff made of a table may hold them, until each one expires."
+      },
+      "mismatch": "That isn’t the same address. Type it again.",
+      "failed": "The erasure did not finish. Erase again to finish it: what was already done stays done.",
+      "title": "Erase everything about this person?",
+      "cancel": "Cancel",
+      "previewFailed": "What an erasure would do could not be worked out. Close this and try again.",
+      "loading": "Working out what goes…",
+      "goesLabel": "What goes",
+      "nothingGoes": "Nothing in the apps’ tables or the mail: only what is listed under What stays.",
+      "staysLabel": "What stays",
+      "leftLabel": "Left as it is",
+      "leftSub": "These columns can’t be emptied, so what they hold stays:",
+      "leftRows": "{count, plural, one {# row} other {# rows}}",
+      "confirm": "Type the address to confirm",
+      "eraseForGood": "Erase for good"
+    },
+    "title": "Privacy & public pages",
+    "tab": {
+      "notice": "Privacy notice",
+      "person": "A person’s data",
+      "keeping": "How long we keep things"
+    },
+    "keeping": {
+      "consentHistory": "Consent history",
+      "untilErased": "Kept until the person is erased",
+      "consentWhy": "Kept, because it proves what a person agreed to or asked",
+      "doNotEmail": "Do-not-email list",
+      "forGood": "Kept for good",
+      "doNotEmailWhy": "Kept as a code once the person is erased, so they’re never e-mailed again",
+      "loadFailed": "How long things are kept could not be loaded. Try again.",
+      "heading": "How long we keep things",
+      "sub": "After this, each item is erased.",
+      "what": "What",
+      "keptFor": "Kept for"
+    },
+    "downloads": {
+      "processing": "Being made…",
+      "ready": "Ready",
+      "failed": "Failed",
+      "expired": "Expired",
+      "heading": "Downloads",
+      "sub": "Only you can download these. Each is deleted when it expires.",
+      "asked": "Asked {when}",
+      "until": "Until {when}",
+      "getLabel": "Download the file asked {when}",
+      "get": "Download"
+    },
+    "hub": {
+      "heading": "Privacy & public pages",
+      "body": "Your privacy notice, one person’s data, and how long things are kept.",
+      "cta": "Open privacy"
+    }
   },
   "marketingMail": {
     "bounce": {
