@@ -2050,6 +2050,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId),
           // A campaign to a table's people: its tables, the consent log, and the declared column following the log.
           audience: { manager, consent, mirror: (event) => consentMirror.mirrorEvent(event) },
+          // Its sender checks, before a send is made: the same ones the run asks at its first batch.
+          marketing: marketingMail,
         }),
       );
       // The authored `/invoices` surface — the same deps shape as the

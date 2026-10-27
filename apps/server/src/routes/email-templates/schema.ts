@@ -23,6 +23,7 @@ import {
 } from '@adminium/meta';
 
 import { emailDocumentInputSchema, emailDocumentSchema } from '../../email/document.js';
+import { MARKETING_REFUSALS } from '../../email/sender/refusals.js';
 
 /** A campaign's latest run, as the manager shows it. */
 export const emailRunView = z.object({
@@ -301,6 +302,12 @@ export const emailAudiencePreviewReply = z.object({
     .optional(),
   /** A table audience: the placeholders it fills besides the four every campaign gives (its columns the sender reads). */
   variables: z.array(z.string()).optional(),
+  /**
+   * A table audience (marketing mail): what would refuse the send now, in the
+   * dialog's order (`email/sender/refusals.ts`); empty when it may go. While
+   * there is one, the send answers 409 `SENDER_REFUSED` with the same codes.
+   */
+  refusals: z.array(z.enum(MARKETING_REFUSALS)).optional(),
 });
 
 export const emailSendBody = z.object({

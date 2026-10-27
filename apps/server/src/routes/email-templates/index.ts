@@ -73,9 +73,12 @@ import {
   validateDocument,
   type EmailDocument,
 } from '../../email/document.js';
+import { createMarketingMail, marketingRefusalSentence, type MarketingMail } from '../../email/marketing.js';
+import type { MarketingRefusal } from '../../email/sender/index.js';
 import { renderEmail } from '../../email/render.js';
 import {
   enqueueRenderedEmail,
+  fromOf,
   isEmailConfigured,
   prepareEmail,
   resolveGeneratedAttachments,
@@ -155,6 +158,13 @@ export interface EmailTemplatesRoutesDeps {
    * refused and its routes are not there.
    */
   audience?: EmailAudienceRoutesDeps | undefined;
+  /**
+   * Marketing mail's sender checks (`email/marketing.ts`): a send to a
+   * table's people is marketing mail, so the preview lists what would refuse
+   * it and the send refuses before a run is made. Absent, one is made from
+   * the meta store and the secret (DNS asked for real).
+   */
+  marketing?: Pick<MarketingMail, 'refusals'> | undefined;
 }
 
 /** A "go on" found the run's chain already moved on: the run goes on without a new head. */
@@ -485,6 +495,21 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       const opened = await openTableAudience(audienceDeps(), signedInUserId(request), audience);
       if (!('ok' in opened)) throw new AudienceRefusedError(opened.refuse, opened.label);
       return opened.ok;
+    }
+
+    let marketingKit: Pick<MarketingMail, 'refusals'> | null = deps.marketing ?? null;
+    /**
+     * What would refuse a marketing send of this campaign now: the sender's
+     * checks, for the From the campaign goes from (its brand's sender, else
+     * the mail server's). The same function the run asks at its first batch,
+     * so the dialog, the send and the run never disagree.
+     */
+    async function senderRefusals(row: EmailTemplate): Promise<MarketingRefusal[]> {
+      if (marketingKit === null) {
+        if (secret === null) return [];
+        marketingKit = createMarketingMail({ meta, secret });
+      }
+      return await marketingKit.refusals((await fromOf(meta, row.brand)) ?? '');
     }
 
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {
@@ -1047,7 +1072,9 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'send campaigns');
         const row = await mustFind(request.params.id);
         if (request.body.audience.kind === 'table') {
-          return await tableAudiencePreview(audienceDeps(), signedInUserId(request), request.body.audience, await sentVariants(row), request.body.ratePerHour ?? null);
+          const preview = await tableAudiencePreview(audienceDeps(), signedInUserId(request), request.body.audience, await sentVariants(row), request.body.ratePerHour ?? null);
+          // Mail to a table's people is marketing: what would refuse it, so the dialog shows it before the send.
+          return { ...preview, refusals: await senderRefusals(row) };
         }
         const audience = await resolveCampaignAudience(meta, request.body.audience);
         return {
@@ -1086,6 +1113,13 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         }
         // A table's people: the sender must reach them now, and the mail fills the table's own columns too.
         const toTable = request.body.audience.kind === 'table' ? await openedTableAudience(request, request.body.audience) : null;
+        // Marketing mail the sender's checks refuse is refused here, before a run is made (the run would stop at its first batch).
+        if (toTable !== null) {
+          const refusals = await senderRefusals(row);
+          if (refusals.length > 0) {
+            throw new AppError(409, 'SENDER_REFUSED', `This campaign can't go out yet. ${refusals.map(marketingRefusalSentence).join('. ')}.`, { refusals });
+          }
+        }
         // A person is here to put it right: a mail that would reach everyone with `{{…}}` in it does not go.
         const unfilled = campaignUnfilled(await sentVariants(row), toTable === null ? [] : audienceVariableNames(toTable));
         if (unfilled.length > 0) {
