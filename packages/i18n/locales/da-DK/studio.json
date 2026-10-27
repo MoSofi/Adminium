@@ -4373,5 +4373,187 @@
       "tick": "Jeg tilbød en måde at sige nej på, da vi fik deres adresse",
       "save": "Gem"
     }
+  },
+  "email": {
+    "log": {
+      "col": {
+        "address": "Adresse",
+        "detail": "Detaljer",
+        "person": "Person",
+        "state": "Status",
+        "time": "Tidspunkt"
+      },
+      "csv": "Download CSV",
+      "detail": {
+        "afterSending": "Efter afsendelse",
+        "otherService": "din mailtjeneste",
+        "reportedBy": "Meldt af {service}",
+        "willRetry": "{reason} — prøver igen"
+      },
+      "empty": "Ingen med denne status.",
+      "filter": {
+        "all": "Alle",
+        "bounced": "Afvist",
+        "failed": "Mislykket",
+        "sent": "Sendt",
+        "skipped": "Sprunget over",
+        "spam": "Markeret som spam",
+        "unsubscribed": "Afmeldt",
+        "waiting": "Venter"
+      },
+      "filterLabel": "Filtrer efter status",
+      "loadFailed": "Udsendelsesloggen kunne ikke indlæses. Prøv igen.",
+      "more": "Vis flere",
+      "runOf": "Sendt {when}",
+      "search": "Søg efter personer eller adresser",
+      "state": {
+        "bounced": "Afvist",
+        "failed": "Mislykket",
+        "sent": "Sendt",
+        "skippedAddressChanged": "Sprunget over — adressen er ændret",
+        "skippedErased": "Sprunget over — slettet efter anmodning",
+        "skippedList": "Sprunget over — listen „Ingen e-mails“",
+        "skippedMailOff": "Sprunget over — har slået kampagnemails fra",
+        "skippedNotAgreed": "Sprunget over — har ikke givet samtykke",
+        "skippedNotMarked": "Sprunget over — fik ikke mulighed for at sige nej",
+        "skippedOutOfReach": "Sprunget over — ikke længere inden for rækkevidde",
+        "skippedReserved": "Sprunget over — testadresse",
+        "skippedReview": "Sprunget over — venter på gennemgang",
+        "skippedSample": "Sprunget over — eksempelrække",
+        "spam": "Markeret som spam",
+        "unsubscribed": "Afmeldt",
+        "waiting": "Venter"
+      },
+      "summary": {
+        "bounced": "Afvist",
+        "failed": "Mislykket",
+        "sent": "Sendt",
+        "skipped": "Sprunget over",
+        "spam": "Markeret som spam",
+        "unsubscribed": "Afmeldt",
+        "waiting": "Venter"
+      },
+      "tab": "Udsendelseslog",
+      "tabEdit": "Rediger",
+      "tabs": "Kampagne",
+      "whichSend": "Hvilken udsendelse"
+    },
+    "send": {
+      "allRows": "Hele {table}",
+      "anHour": "i timen",
+      "atMost": "Højst",
+      "breakdown": {
+        "awaitingReview": "afkrydset, før der blev ført optegnelser — venter på gennemgang",
+        "consent": "må modtage e-mails til {purpose}",
+        "doNotEmail": "på listen „Ingen e-mails“ — sprunget over",
+        "existing": "eksisterende kunder",
+        "noAddress": "uden adresse — sprunget over",
+        "notAgreed": "har ikke givet samtykke — sprunget over",
+        "notMarked": "kunder, der aldrig fik mulighed for at sige nej — sprunget over",
+        "reserved": "testadresser — sprunget over",
+        "sample": "eksempelrækker — sprunget over",
+        "title": "Fordeling"
+      },
+      "clicks": "Tæl klik på links",
+      "clicksHint": "Hvert link går først gennem denne server, så udsendelsesloggen kan vise, hvem der klikkede. Slået fra, indtil du slår det til.",
+      "count": "{count, plural, one {# modtager} other {# modtagere}} · {skipped} sprunget over",
+      "estimate": "Cirka {hours, plural, one {# time} other {# timer}} for {count, plural, one {# person} other {# personer}}.",
+      "existing": "Også eksisterende kunder, der ikke satte kryds",
+      "existingByOther": "Hvor loven tillader det. {name} slog dette til for {table} den {date}.",
+      "existingByYou": "Hvor loven tillader det. Du slog dette til for {table} den {date}.",
+      "existingSub": "Hvor loven tillader det.",
+      "fast": "Så hurtigt som din mailserver tillader",
+      "fix": {
+        "addAddress": "Tilføj adresse",
+        "changeSender": "Skift afsender",
+        "checkAgain": "Tjek igen",
+        "howToAdd": "Sådan tilføjer du en",
+        "makeKey": "Opret en nøgle",
+        "setAddress": "Angiv adressen"
+      },
+      "footer": {
+        "business": "din virksomhed",
+        "locked": "Føjes til hver marketingmail. Du kan ikke fjerne dem.",
+        "noPostal": "Din postadresse (ikke angivet endnu: marketingmails venter på den)"
+      },
+      "marketingLine": "Dette er en marketingmail. Hver kopi har et afmeldingslink, og listen „Ingen e-mails“ springes altid over.",
+      "only": "Kun disse",
+      "perHour": "Mails i timen",
+      "purpose": {
+        "newsletter": "Nyhedsbrev",
+        "surveys": "Undersøgelser"
+      },
+      "refusal": {
+        "dnsUnchecked": "DNS for {domain} kunne ikke spørges, så dets DMARC-post kunne ikke tjekkes. Prøv igen om lidt.",
+        "freeMail": "{address} kan ikke sende marketingmails. Brug en adresse på dit eget domæne.",
+        "noDmarc": "{domain} har ingen DMARC-post endnu, så marketingmails kan ikke sendes endnu.",
+        "noPostalAddress": "Tilføj først din postadresse til afsenderen. Loven i mange lande kræver den i hver marketingmail.",
+        "noPublicAddress": "Denne server har ingen offentlig adresse, så afmeldingslinks ville ikke virke.",
+        "notAligned": "{domain} har endnu ingen af dine signeringsnøgler (DKIM) i DNS, så marketingmails kan ikke sendes endnu.",
+        "yourDomain": "Dit domæne",
+        "yourSender": "Din afsender"
+      },
+      "refused": {
+        "cannotRead": "Du kan ikke længere læse {table}, så du kan ikke sende til den.",
+        "cannotSend": "Du må ikke længere sende kampagner.",
+        "existingOff": "Eksisterende kunder er ikke slået til for {table}.",
+        "hidden": "Din rolle viser ikke adresserne i {table}, så du kan ikke sende til den.",
+        "masked": "Du ser adresserne i {table} maskeret, så du kan ikke sende til den.",
+        "notPeople": "{table} kan ikke modtage e-mails fra kampagner.",
+        "viewGone": "Den visning findes ikke længere. Vælg en anden.",
+        "viewHiddenColumn": "Den visning filtrerer efter en kolonne, din rolle ikke kan se. Vælg en anden.",
+        "viewSearch": "Den visning indeholder en søgning, så den ville skrive til flere, end den viser. Vælg en anden."
+      },
+      "review": {
+        "back": "Tilbage til „Send kampagne“",
+        "card": "{count, plural, one {# person siger} other {# personer siger}} ja, men blev afkrydset, før der blev ført optegnelser. Bekræft dem før afsendelse?",
+        "confirm": "Bekræft",
+        "confirmed": "Bekræftet",
+        "count": "{confirmed} bekræftet · {left} udeladt · {open} mangler",
+        "done": "Færdig",
+        "failed": "Ikke alle svar blev gemt. Prøv igen.",
+        "forbidden": "Du kan ikke ændre {table}, så du kan ikke svare for personerne i den.",
+        "leaveOut": "Udelad",
+        "leftOut": "Udeladt",
+        "listLabel": "Personer til gennemgang",
+        "loadFailed": "Listen kunne ikke indlæses. Prøv igen.",
+        "more": "De første {shown} af {total}: svar for dem, så kommer resten bagefter.",
+        "open": "Gennemgå de {count}",
+        "ticked": "Afkrydset, før der blev ført optegnelser",
+        "tickedBy": "Afkrydset af {name}",
+        "tickedByOn": "Afkrydset af {name} · {date}",
+        "tickedOn": "Afkrydset {date}",
+        "title": "Gennemgå de {count}",
+        "undo": "Fortryd"
+      },
+      "run": {
+        "frozen": "Ændringer, du laver nu, gælder for næste udsendelse, ikke denne.",
+        "keep": "Bliv ved med at sende",
+        "of": "{done} af {total}",
+        "pause": "Sæt udsendelsen på pause",
+        "pauseFailed": "Udsendelsen kunne ikke sættes på pause. Prøv igen.",
+        "paused": "På pause",
+        "resume": "Fortsæt udsendelsen",
+        "resumeFailed": "Udsendelsen kunne ikke fortsætte. Prøv igen.",
+        "sending": "Sender",
+        "stop": "Stop udsendelsen",
+        "stopBody": "{count, plural, one {# person får den ikke} other {# personer får den ikke}}. En stoppet udsendelse kan ikke startes igen.",
+        "stopFailed": "Udsendelsen kunne ikke stoppes. Prøv igen.",
+        "stopTitle": "Stop for altid?",
+        "stopped": "Stoppet. {count, plural, one {# person får den ikke} other {# personer får den ikke}}.",
+        "stoppedOther": "Den seneste udsendelse stoppede, før den var færdig: Personen, der sendte den, må måske ikke længere sende til denne tabel.",
+        "stoppedRefused": "Den seneste udsendelse stoppede: {reason}"
+      },
+      "scheduledCapped": "{name} sendes {day} kl. {time}, højst {rate} i timen.",
+      "settingsFor": "E-mailindstillinger for {table}",
+      "speed": "Afsendelseshastighed",
+      "switchedOff": "Slået fra",
+      "switchedOffItem": "{table}: åbn dens e-mailindstillinger",
+      "table": "Tabel",
+      "tableName": "{table} — {app}",
+      "tablePeople": "Personer i en tabel",
+      "why": "Hvorfor du skriver",
+      "withRecord": "Send til de {count} med en optegnelse"
+    }
   }
 }

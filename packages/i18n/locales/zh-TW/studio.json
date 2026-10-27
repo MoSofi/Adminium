@@ -4373,5 +4373,187 @@
       "tick": "我們取得地址時我已提供了拒絕的方式",
       "save": "儲存"
     }
+  },
+  "email": {
+    "log": {
+      "col": {
+        "address": "地址",
+        "detail": "詳細資料",
+        "person": "人員",
+        "state": "狀態",
+        "time": "時間"
+      },
+      "csv": "下載 CSV",
+      "detail": {
+        "afterSending": "寄送之後",
+        "otherService": "您的郵件服務",
+        "reportedBy": "由 {service} 回報",
+        "willRetry": "{reason} — 將再次嘗試"
+      },
+      "empty": "沒有處於此狀態的人。",
+      "filter": {
+        "all": "全部",
+        "bounced": "退信",
+        "failed": "失敗",
+        "sent": "已寄送",
+        "skipped": "已略過",
+        "spam": "被標記為垃圾郵件",
+        "unsubscribed": "已取消訂閱",
+        "waiting": "等待中"
+      },
+      "filterLabel": "依狀態篩選",
+      "loadFailed": "無法載入寄送紀錄。請再試一次。",
+      "more": "顯示更多",
+      "runOf": "寄送於 {when}",
+      "search": "搜尋人員或地址",
+      "state": {
+        "bounced": "退信",
+        "failed": "失敗",
+        "sent": "已寄送",
+        "skippedAddressChanged": "已略過 — 地址已變更",
+        "skippedErased": "已略過 — 依要求清除",
+        "skippedList": "已略過 — 禁止寄送郵件名單",
+        "skippedMailOff": "已略過 — 已關閉活動郵件",
+        "skippedNotAgreed": "已略過 — 未同意",
+        "skippedNotMarked": "已略過 — 未提供拒絕方式",
+        "skippedOutOfReach": "已略過 — 已不在可及範圍內",
+        "skippedReserved": "已略過 — 測試地址",
+        "skippedReview": "已略過 — 等待審核",
+        "skippedSample": "已略過 — 範例列",
+        "spam": "被標記為垃圾郵件",
+        "unsubscribed": "已取消訂閱",
+        "waiting": "等待中"
+      },
+      "summary": {
+        "bounced": "退信",
+        "failed": "失敗",
+        "sent": "已寄送",
+        "skipped": "已略過",
+        "spam": "被標記為垃圾郵件",
+        "unsubscribed": "已取消訂閱",
+        "waiting": "等待中"
+      },
+      "tab": "寄送紀錄",
+      "tabEdit": "編輯",
+      "tabs": "活動",
+      "whichSend": "哪一次寄送"
+    },
+    "send": {
+      "allRows": "{table} 全部",
+      "anHour": "每小時",
+      "atMost": "最多",
+      "breakdown": {
+        "awaitingReview": "在開始保存紀錄之前被勾選 — 等待審核",
+        "consent": "可以收到{purpose}郵件",
+        "doNotEmail": "在禁止寄送郵件名單上 — 已略過",
+        "existing": "現有客戶",
+        "noAddress": "沒有地址 — 已略過",
+        "notAgreed": "未同意 — 已略過",
+        "notMarked": "從未獲得拒絕方式的客戶 — 已略過",
+        "reserved": "測試地址 — 已略過",
+        "sample": "範例列 — 已略過",
+        "title": "明細"
+      },
+      "clicks": "統計連結點擊",
+      "clicksHint": "每個連結都會先經過此伺服器，讓寄送紀錄顯示誰點擊了。除非您開啟，否則保持關閉。",
+      "count": "{count, plural, other {# 位收件人}} · 已略過 {skipped} 位",
+      "estimate": "約 {hours, plural, other {# 小時}}，共 {count, plural, other {# 人}}。",
+      "existing": "也包括未勾選的現有客戶",
+      "existingByOther": "在法律允許的情況下。{name} 於 {date} 為 {table} 開啟了此項。",
+      "existingByYou": "在法律允許的情況下。您於 {date} 為 {table} 開啟了此項。",
+      "existingSub": "在法律允許的情況下。",
+      "fast": "以您的郵件伺服器允許的最快速度",
+      "fix": {
+        "addAddress": "新增地址",
+        "changeSender": "更換寄件者",
+        "checkAgain": "再次檢查",
+        "howToAdd": "如何新增",
+        "makeKey": "產生金鑰",
+        "setAddress": "設定位址"
+      },
+      "footer": {
+        "business": "您的企業",
+        "locked": "會加入每封行銷郵件。您無法移除它們。",
+        "noPostal": "您的通訊地址（尚未設定：行銷郵件需要它才能寄出）"
+      },
+      "marketingLine": "這是行銷郵件。每一份都附有取消訂閱連結，並且一律略過禁止寄送郵件名單。",
+      "only": "僅限這些",
+      "perHour": "每小時郵件數",
+      "purpose": {
+        "newsletter": "電子報",
+        "surveys": "問卷"
+      },
+      "refusal": {
+        "dnsUnchecked": "無法查詢 {domain} 的 DNS，因此無法檢查其 DMARC 紀錄。請稍後再試。",
+        "freeMail": "{address} 無法寄送行銷郵件。請使用您自己網域下的地址。",
+        "noDmarc": "{domain} 還沒有 DMARC 紀錄，因此行銷郵件暫時無法寄出。",
+        "noPostalAddress": "請先為寄件者新增您的通訊地址。許多國家的法律要求每封行銷郵件都包含它。",
+        "noPublicAddress": "此伺服器沒有公開位址，因此取消訂閱連結將無法使用。",
+        "notAligned": "{domain} 的 DNS 中還沒有您的簽章金鑰（DKIM），因此行銷郵件暫時無法寄出。",
+        "yourDomain": "您的網域",
+        "yourSender": "您的寄件者"
+      },
+      "refused": {
+        "cannotRead": "您已無法讀取 {table}，因此無法寄送給它。",
+        "cannotSend": "您已不能再寄送活動。",
+        "existingOff": "{table} 未開啟現有客戶。",
+        "hidden": "您的角色看不到 {table} 中的地址，因此無法寄送給它。",
+        "masked": "您看到的 {table} 中的地址是遮蔽的，因此無法寄送給它。",
+        "notPeople": "無法透過活動寄送郵件給 {table}。",
+        "viewGone": "該檢視已不存在。請選擇其他檢視。",
+        "viewHiddenColumn": "該檢視依您的角色看不到的欄位篩選。請選擇其他檢視。",
+        "viewSearch": "該檢視包含搜尋，因此會寄給比它顯示的更多的人。請選擇其他檢視。"
+      },
+      "review": {
+        "back": "返回寄送活動",
+        "card": "有 {count, plural, other {# 人}}表示同意，但他們是在開始保存紀錄之前被勾選的。寄送前要確認他們嗎？",
+        "confirm": "確認",
+        "confirmed": "已確認",
+        "count": "已確認 {confirmed} · 已排除 {left} · 待決定 {open}",
+        "done": "完成",
+        "failed": "並非所有回答都已儲存。請再試一次。",
+        "forbidden": "您無法變更 {table}，因此無法替其中的人作答。",
+        "leaveOut": "排除",
+        "leftOut": "已排除",
+        "listLabel": "待審核的人",
+        "loadFailed": "無法載入清單。請再試一次。",
+        "more": "共 {total} 人中的前 {shown} 人：回答完這些後，其餘的人會接著出現。",
+        "open": "審核這 {count} 人",
+        "ticked": "在開始保存紀錄之前被勾選",
+        "tickedBy": "由 {name} 勾選",
+        "tickedByOn": "由 {name} 勾選 · {date}",
+        "tickedOn": "勾選於 {date}",
+        "title": "審核這 {count} 人",
+        "undo": "復原"
+      },
+      "run": {
+        "frozen": "您現在所做的變更將套用於下一次寄送，而不是這一次。",
+        "keep": "繼續寄送",
+        "of": "{done} / {total}",
+        "pause": "暫停寄送",
+        "pauseFailed": "無法暫停寄送。請再試一次。",
+        "paused": "已暫停",
+        "resume": "繼續寄送",
+        "resumeFailed": "無法繼續寄送。請再試一次。",
+        "sending": "寄送中",
+        "stop": "停止寄送",
+        "stopBody": "{count, plural, other {# 人將收不到}}。已停止的寄送無法重新開始。",
+        "stopFailed": "無法停止寄送。請再試一次。",
+        "stopTitle": "永久停止？",
+        "stopped": "已停止。{count, plural, other {# 人將收不到}}。",
+        "stoppedOther": "上一次寄送在完成前停止了：寄送它的人可能已不能再寄送給此表格。",
+        "stoppedRefused": "上一次寄送已停止：{reason}"
+      },
+      "scheduledCapped": "{name} 將於 {day} {time} 寄出，每小時最多 {rate} 封。",
+      "settingsFor": "{table} 的電子郵件設定",
+      "speed": "寄送速度",
+      "switchedOff": "已關閉",
+      "switchedOffItem": "{table}：開啟其電子郵件設定",
+      "table": "表格",
+      "tableName": "{table} — {app}",
+      "tablePeople": "表格中的人",
+      "why": "您寫信的原因",
+      "withRecord": "寄送給有紀錄的 {count} 人"
+    }
   }
 }

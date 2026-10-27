@@ -4,6 +4,7 @@
  * line, preheader and the variable chips; the footer textarea with the
  * comp's hint.
  */
+import type { ReactNode } from 'react';
 import { FormField, Input, Textarea } from '@adminium/ui';
 
 import { t } from '../../../../i18n/t.js';
@@ -38,14 +39,17 @@ export interface FooterPanelProps {
   footer: string;
   onFocus: () => void;
   onChange: (value: string) => void;
+  /** A marketing e-mail's locked rows (the postal address, the unsubscribe link) under the text. */
+  locked?: ReactNode;
 }
 
-export function FooterPanel({ footer, onFocus, onChange }: FooterPanelProps) {
+export function FooterPanel({ footer, onFocus, onChange, locked }: FooterPanelProps) {
   return (
     <div data-testid="email-footer-panel" className="flex flex-col gap-[9px]">
       <FormField label={t('email:inspector.footerText', 'Footer text')} helper={t('email:inspector.footerHint', 'Legal text, address & unsubscribe. Shown at the bottom of every send.')}>
         <Textarea rows={6} data-testid="email-panel-footer" value={footer} onFocus={onFocus} onChange={(event) => onChange(event.target.value)} className="text-[12px] leading-[1.6]" />
       </FormField>
+      {locked ?? null}
     </div>
   );
 }

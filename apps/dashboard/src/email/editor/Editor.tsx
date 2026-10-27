@@ -24,7 +24,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBlocker, useNavigate } from '@tanstack/react-router';
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { dirForLocale, isLocaleId, tagForLocale, type LocaleId } from '@adminium/i18n';
 import { Alert, Button } from '@adminium/ui';
 
@@ -38,7 +38,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useShortcut } from '../../shell/ShortcutsProvider.js';
 import { emailSettingsQuery } from '../../studio/settings/workspaceApi.js';
-import { emailApi, type EmailBlockRecord, type EmailDocument, type EmailDocumentDetail, type EmailMirrorOp, type EmailRunView, type EmailSavedBlock } from '../api.js';
+import { emailApi, type EmailBlockRecord, type EmailDocument, type EmailDocumentDetail, type EmailMirrorOp, type EmailRunView, type EmailSavedBlock, type EmailSendBody } from '../api.js';
 import { api } from '../../app/api.js';
 import type { UsersListReply } from '../../team/teamApi.js';
 import { AskAssistant } from '../../assistant/AskAssistant.js';
@@ -66,10 +66,10 @@ import { BlockPicker } from './overlays/BlockPicker.js';
 import { DiscardChangesModal } from './overlays/DiscardChangesModal.js';
 import { ImagePicker } from './overlays/ImagePicker.js';
 import { MirrorModal } from './overlays/MirrorModal.js';
-import { SendCampaignModal, type SendCampaignBody } from './overlays/SendCampaignModal.js';
 import { TestSendModal, type Teammate } from './overlays/TestSendModal.js';
 import { useDocumentEdits, type ActiveField } from './useDocumentEdits.js';
 import { useEditorDraft } from './useEditorDraft.js';
+import { CampaignBarLazy, LockedFooterCanvasLazy, LockedFooterRowsLazy, RunControlsLazy, SendCampaignModalLazy, SendLogLazy } from '../../studio/campaigns/lazy.js';
 
 export interface EditorProps {
   detail: EmailDocumentDetail;
@@ -123,6 +123,8 @@ export function Editor({ detail }: EditorProps) {
   const [testOpen, setTestOpen] = useState(false);
   const [imagePickFor, setImagePickFor] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
+  // A campaign that has been sent: the editor, or its send log.
+  const [view, setView] = useState<'edit' | 'log'>('edit');
   const edits = useDocumentEdits(actions, activeField);
   const headerRef = useRef<HTMLElement | null>(null);
   const stickyOffsets = useStickyOffsets(headerRef);
@@ -319,23 +321,18 @@ export function Editor({ detail }: EditorProps) {
   };
 
   // --- the header's actions ------------------------------------------------------
-  // --- campaign runs (D11, D12): save first, then POST /send; the chip follows the latest run ---
+  // --- campaign runs (D11, D12): save first, then POST /send; the run's controls follow the latest run ---
   const activeRun = detail.run !== undefined && (detail.run.status === 'scheduled' || detail.run.status === 'running') ? detail.run : null;
-  const progress = useRunProgress(detail.run);
-  const sendCampaign = async (body: SendCampaignBody): Promise<EmailRunView> => {
+  // The job channel's events refresh the document (the run's own counts are read by its controls).
+  useRunProgress(detail.run);
+  const sendCampaign = async (body: EmailSendBody): Promise<EmailRunView> => {
     if (dirtyRef.current) await actions.save();
     const { run } = await emailApi.send(detail.id, body);
     await invalidateEmailDocuments(queryClient);
     return run;
   };
-  const cancelRun = useMutation({
-    mutationFn: (run: EmailRunView) => emailApi.cancelRun(run.id).then(() => run.status),
-    onSuccess: (was) => {
-      void invalidateEmailDocuments(queryClient);
-      toasts.push({ variant: 'info', title: was === 'running' ? t('email:campaign.sendingCancelled', 'Sending cancelled') : t('email:campaign.cancelled', 'Schedule cancelled') });
-    },
-    onError: (error) => failToast(t('email:campaign.cancelFailed', 'Could not cancel'), error),
-  });
+  // A marketing e-mail carries the locked footer: shown in the canvas and in the footer's panel.
+  const marketing = draft.category === 'marketing';
 
   const kindNoun = detail.kind;
   const duplicate = useMutation({
@@ -481,7 +478,18 @@ export function Editor({ detail }: EditorProps) {
         onInsertVar={edits.insertVar}
       />
     ) : selection.kind === 'footer' ? (
-      <FooterPanel footer={draft.document.footer} onFocus={() => actions.beginEdit()} onChange={edits.setFooter} />
+      <FooterPanel
+        footer={draft.document.footer}
+        onFocus={() => actions.beginEdit()}
+        onChange={edits.setFooter}
+        locked={
+          marketing ? (
+            <Suspense fallback={null}>
+              <LockedFooterRowsLazy />
+            </Suspense>
+          ) : undefined
+        }
+      />
     ) : selection.kind === 'attach' ? (
       <AttachmentsPanel
         attachments={draft.document.attachments}
@@ -564,13 +572,13 @@ export function Editor({ detail }: EditorProps) {
           onSend={() => setSendOpen(true)}
           testAvailable
           sendAvailable={detail.kind === 'campaign' && detail.archivedAt === null && activeRun === null}
-          run={detail.run}
-          progress={progress}
-          localeTag={localeTag}
-          onCancelRun={() => {
-            if (activeRun !== null) cancelRun.mutate(activeRun);
-          }}
-          cancelling={cancelRun.isPending}
+          runControls={
+            activeRun === null ? undefined : (
+              <Suspense fallback={null}>
+                <RunControlsLazy run={activeRun} localeTag={localeTag} />
+              </Suspense>
+            )
+          }
           askAssistant={<AskAssistant host={assistantHost} slot="editor" />}
         />
         {detail.assistantWrote === true ? (
@@ -591,6 +599,16 @@ export function Editor({ detail }: EditorProps) {
             }
           />
         ) : null}
+        {detail.kind === 'campaign' ? (
+          <Suspense fallback={null}>
+            <CampaignBarLazy run={detail.run} view={view} onViewChange={setView} />
+          </Suspense>
+        ) : null}
+        {view === 'log' && detail.run !== undefined ? (
+          <Suspense fallback={null}>
+            <SendLogLazy documentId={detail.id} run={detail.run} localeTag={localeTag} />
+          </Suspense>
+        ) : (
         <div className="flex min-h-0 flex-1 items-start">
           <main data-testid="email-canvas" className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[22px]">
             <EmailCanvas
@@ -629,6 +647,13 @@ export function Editor({ detail }: EditorProps) {
               }}
               onHeadingChange={(id, text) => edits.setBlockField(id, 'text', text)}
               onInsertAt={(index) => setPicker({ index })}
+              lockedFooter={
+                marketing ? (
+                  <Suspense fallback={null}>
+                    <LockedFooterCanvasLazy />
+                  </Suspense>
+                ) : undefined
+              }
             />
           </main>
           <Inspector
@@ -650,6 +675,7 @@ export function Editor({ detail }: EditorProps) {
             panel={panel}
           />
         </div>
+        )}
         </div>
       </PageSurface>
 
@@ -692,7 +718,9 @@ export function Editor({ detail }: EditorProps) {
         />
       ) : null}
       {sendOpen ? (
-        <SendCampaignModal documentId={detail.id} documentName={shownName} subject={draft.document.subject} onSend={sendCampaign} onClose={() => setSendOpen(false)} />
+        <Suspense fallback={null}>
+          <SendCampaignModalLazy documentId={detail.id} documentName={shownName} subject={draft.document.subject} onSend={sendCampaign} onClose={() => setSendOpen(false)} />
+        </Suspense>
       ) : null}
       {imagePickFor === null ? null : (
         <ImagePicker

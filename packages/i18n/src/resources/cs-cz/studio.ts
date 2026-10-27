@@ -4383,5 +4383,187 @@ export default {
       "tick": "Při získání adresy jsem nabídl(a) možnost odmítnout",
       "save": "Uložit"
     }
+  },
+  "email": {
+    "log": {
+      "col": {
+        "address": "Adresa",
+        "detail": "Podrobnosti",
+        "person": "Osoba",
+        "state": "Stav",
+        "time": "Čas"
+      },
+      "csv": "Stáhnout CSV",
+      "detail": {
+        "afterSending": "Po odeslání",
+        "otherService": "vaše e-mailová služba",
+        "reportedBy": "Nahlásila služba {service}",
+        "willRetry": "{reason} — zkusí se znovu"
+      },
+      "empty": "V tomto stavu nikdo není.",
+      "filter": {
+        "all": "Vše",
+        "bounced": "Nedoručitelné",
+        "failed": "Selhalo",
+        "sent": "Odesláno",
+        "skipped": "Přeskočeno",
+        "spam": "Označeno jako spam",
+        "unsubscribed": "Odhlášeno",
+        "waiting": "Čeká"
+      },
+      "filterLabel": "Filtrovat podle stavu",
+      "loadFailed": "Protokol odesílání se nepodařilo načíst. Zkuste to znovu.",
+      "more": "Zobrazit další",
+      "runOf": "Odesláno {when}",
+      "search": "Hledat osoby nebo adresy",
+      "state": {
+        "bounced": "Nedoručitelné",
+        "failed": "Selhalo",
+        "sent": "Odesláno",
+        "skippedAddressChanged": "Přeskočeno — adresa se změnila",
+        "skippedErased": "Přeskočeno — vymazáno na žádost",
+        "skippedList": "Přeskočeno — seznam „Neposílat e-maily“",
+        "skippedMailOff": "Přeskočeno — vypnuté e-maily z kampaní",
+        "skippedNotAgreed": "Přeskočeno — nesouhlasil(a)",
+        "skippedNotMarked": "Přeskočeno — nebyla nabídnuta možnost odmítnout",
+        "skippedOutOfReach": "Přeskočeno — už není v dosahu",
+        "skippedReserved": "Přeskočeno — testovací adresa",
+        "skippedReview": "Přeskočeno — čeká na kontrolu",
+        "skippedSample": "Přeskočeno — ukázkový řádek",
+        "spam": "Označeno jako spam",
+        "unsubscribed": "Odhlášeno",
+        "waiting": "Čeká"
+      },
+      "summary": {
+        "bounced": "Nedoručitelné",
+        "failed": "Selhalo",
+        "sent": "Odesláno",
+        "skipped": "Přeskočeno",
+        "spam": "Označeno jako spam",
+        "unsubscribed": "Odhlášeno",
+        "waiting": "Čeká"
+      },
+      "tab": "Protokol odesílání",
+      "tabEdit": "Upravit",
+      "tabs": "Kampaň",
+      "whichSend": "Které odeslání"
+    },
+    "send": {
+      "allRows": "Celá tabulka {table}",
+      "anHour": "za hodinu",
+      "atMost": "Nejvýše",
+      "breakdown": {
+        "awaitingReview": "zaškrtnuto před vedením záznamů — čeká na kontrolu",
+        "consent": "smí dostat e-mail pro účel {purpose}",
+        "doNotEmail": "na seznamu „Neposílat e-maily“ — přeskočeno",
+        "existing": "stávající zákazníci",
+        "noAddress": "bez adresy — přeskočeno",
+        "notAgreed": "nesouhlasili — přeskočeno",
+        "notMarked": "zákazníci, kterým nebyla nabídnuta možnost odmítnout — přeskočeno",
+        "reserved": "testovací adresy — přeskočeno",
+        "sample": "ukázkové řádky — přeskočeno",
+        "title": "Rozpis"
+      },
+      "clicks": "Počítat kliknutí na odkazy",
+      "clicksHint": "Každý odkaz vede nejprve přes tento server, aby protokol odesílání ukázal, kdo klikl. Vypnuto, dokud to nezapnete.",
+      "count": "{count, plural, one {# příjemce} few {# příjemci} many {# příjemce} other {# příjemců}} · {skipped} přeskočeno",
+      "estimate": "Asi {hours, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodin}} pro {count, plural, one {# osobu} few {# osoby} many {# osoby} other {# osob}}.",
+      "existing": "I stávající zákazníci, kteří nezaškrtli",
+      "existingByOther": "Tam, kde to zákon dovoluje. {name} to pro {table} zapnul(a) {date}.",
+      "existingByYou": "Tam, kde to zákon dovoluje. Zapnuli jste to pro {table} {date}.",
+      "existingSub": "Tam, kde to zákon dovoluje.",
+      "fast": "Tak rychle, jak to váš poštovní server dovolí",
+      "fix": {
+        "addAddress": "Přidat adresu",
+        "changeSender": "Změnit odesílatele",
+        "checkAgain": "Zkontrolovat znovu",
+        "howToAdd": "Jak ho přidat",
+        "makeKey": "Vytvořit klíč",
+        "setAddress": "Nastavit adresu"
+      },
+      "footer": {
+        "business": "vaše firma",
+        "locked": "Přidává se do každého marketingového e-mailu. Nelze je odebrat.",
+        "noPostal": "Vaše poštovní adresa (zatím nenastavena: marketingové e-maily na ni čekají)"
+      },
+      "marketingLine": "Toto je marketingový e-mail. Každá kopie nese odkaz na odhlášení a seznam „Neposílat e-maily“ se vždy přeskočí.",
+      "only": "Jen tyto",
+      "perHour": "E-mailů za hodinu",
+      "purpose": {
+        "newsletter": "Newsletter",
+        "surveys": "Průzkumy"
+      },
+      "refusal": {
+        "dnsUnchecked": "DNS domény {domain} se nepodařilo dotázat, takže její záznam DMARC nešlo ověřit. Zkuste to za chvíli znovu.",
+        "freeMail": "{address} nemůže posílat marketingové e-maily. Použijte adresu na vlastní doméně.",
+        "noDmarc": "{domain} zatím nemá záznam DMARC, takže marketingové e-maily zatím nemohou odejít.",
+        "noPostalAddress": "Nejprve přidejte k odesílateli svou poštovní adresu. Zákon v mnoha zemích ji vyžaduje v každém marketingovém e-mailu.",
+        "noPublicAddress": "Tento server nemá veřejnou adresu, takže odkazy na odhlášení by nefungovaly.",
+        "notAligned": "{domain} zatím nemá v DNS žádný váš podpisový klíč (DKIM), takže marketingové e-maily zatím nemohou odejít.",
+        "yourDomain": "Vaše doména",
+        "yourSender": "Váš odesílatel"
+      },
+      "refused": {
+        "cannotRead": "Tabulku {table} už nemůžete číst, takže do ní nemůžete posílat.",
+        "cannotSend": "Už nesmíte posílat kampaně.",
+        "existingOff": "Stávající zákazníci nejsou pro {table} zapnutí.",
+        "hidden": "Vaše role nezobrazuje adresy v tabulce {table}, takže do ní nemůžete posílat.",
+        "masked": "Adresy v tabulce {table} vidíte maskované, takže do ní nemůžete posílat.",
+        "notPeople": "Tabulku {table} nelze oslovit e-mailem z kampaní.",
+        "viewGone": "Toto zobrazení už neexistuje. Vyberte jiné.",
+        "viewHiddenColumn": "Toto zobrazení filtruje podle sloupce, který vaše role nevidí. Vyberte jiné.",
+        "viewSearch": "Toto zobrazení obsahuje hledání, takže by oslovilo více lidí, než ukazuje. Vyberte jiné."
+      },
+      "review": {
+        "back": "Zpět na „Odeslat kampaň“",
+        "card": "{count, plural, one {# osoba říká} few {# osoby říkají} many {# osoby říká} other {# osob říká}} ano, ale zaškrtnutí proběhlo před vedením záznamů. Potvrdit je před odesláním?",
+        "confirm": "Potvrdit",
+        "confirmed": "Potvrzeno",
+        "count": "{confirmed} potvrzeno · {left} vynecháno · {open} k rozhodnutí",
+        "done": "Hotovo",
+        "failed": "Ne všechny odpovědi se uložily. Zkuste to znovu.",
+        "forbidden": "Tabulku {table} nemůžete měnit, takže za její lidi nemůžete odpovídat.",
+        "leaveOut": "Vynechat",
+        "leftOut": "Vynecháno",
+        "listLabel": "Lidé ke kontrole",
+        "loadFailed": "Seznam se nepodařilo načíst. Zkuste to znovu.",
+        "more": "Prvních {shown} z {total}: odpovězte za ně a pak přijdou další.",
+        "open": "Zkontrolovat {count}",
+        "ticked": "Zaškrtnuto před vedením záznamů",
+        "tickedBy": "Zaškrtl(a) {name}",
+        "tickedByOn": "Zaškrtl(a) {name} · {date}",
+        "tickedOn": "Zaškrtnuto {date}",
+        "title": "Zkontrolovat {count}",
+        "undo": "Zpět"
+      },
+      "run": {
+        "frozen": "Změny, které teď uděláte, platí pro příští odeslání, ne pro toto.",
+        "keep": "Pokračovat v odesílání",
+        "of": "{done} z {total}",
+        "pause": "Pozastavit odesílání",
+        "pauseFailed": "Odesílání se nepodařilo pozastavit. Zkuste to znovu.",
+        "paused": "Pozastaveno",
+        "resume": "Pokračovat v odesílání",
+        "resumeFailed": "V odesílání se nepodařilo pokračovat. Zkuste to znovu.",
+        "sending": "Odesílá se",
+        "stop": "Zastavit odesílání",
+        "stopBody": "{count, plural, one {# osoba ho nedostane} few {# osoby ho nedostanou} many {# osoby ho nedostane} other {# osob ho nedostane}}. Zastavené odesílání nelze znovu spustit.",
+        "stopFailed": "Odesílání se nepodařilo zastavit. Zkuste to znovu.",
+        "stopTitle": "Zastavit nadobro?",
+        "stopped": "Zastaveno. {count, plural, one {# osoba ho nedostane} few {# osoby ho nedostanou} many {# osoby ho nedostane} other {# osob ho nedostane}}.",
+        "stoppedOther": "Poslední odeslání skončilo předčasně: osoba, která ho odeslala, už možná nesmí do této tabulky posílat.",
+        "stoppedRefused": "Poslední odeslání se zastavilo: {reason}"
+      },
+      "scheduledCapped": "{name} odejde {day} v {time}, nejvýše {rate} za hodinu.",
+      "settingsFor": "Nastavení e-mailu pro {table}",
+      "speed": "Rychlost odesílání",
+      "switchedOff": "Vypnuto",
+      "switchedOffItem": "{table}: otevřít nastavení e-mailu",
+      "table": "Tabulka",
+      "tableName": "{table} — {app}",
+      "tablePeople": "Lidé v tabulce",
+      "why": "Proč píšete",
+      "withRecord": "Odeslat {count} se záznamem"
+    }
   }
 } as const;

@@ -20,12 +20,31 @@ export type EmailDocumentKind = 'template' | 'campaign';
 export type EmailCategory = 'transactional' | 'lifecycle' | 'marketing';
 export type EmailRunStatus = 'scheduled' | 'running' | 'sent' | 'failed' | 'cancelled';
 
-/** Who a campaign goes to. `users` is phase 1; a table audience joins in the
- * next wave. */
-export interface EmailAudience {
+/** Why a marketing mail is sent: the consent log's purposes. */
+export type EmailPurpose = 'newsletter' | 'surveys';
+
+/** The workspace's own people (everyone, or the holders of some roles). */
+export interface EmailUsersAudience {
   kind: 'users';
   roleIds?: string[] | undefined;
 }
+
+/** The people of a table an app declares (marketing mail), optionally narrowed by a saved view. */
+export interface EmailTableAudience {
+  kind: 'table';
+  connectionId: string;
+  table: string;
+  viewId?: string | null | undefined;
+  purpose: EmailPurpose;
+  /** Also the table's existing customers, where its owner switched the basis on. */
+  existingCustomers?: boolean | undefined;
+}
+
+/** Who a campaign goes to. */
+export type EmailAudience = EmailUsersAudience | EmailTableAudience;
+
+/** What a run is told to do; null on a run from before the send ledger. */
+export type EmailRunState = 'running' | 'paused' | 'stopped' | 'done';
 
 /** A campaign's latest run, as the manager shows it. */
 export interface EmailRunView {
@@ -42,6 +61,155 @@ export interface EmailRunView {
   audience: EmailAudience;
   failures: { to: string; error: string }[];
   createdAt: number;
+  /** Absent from a server before the send ledger. */
+  state?: EmailRunState | null | undefined;
+  /** At most this many an hour; null = as fast as the mail server allows. */
+  ratePerHour?: number | null | undefined;
+  /** `marketing` for a table's people; null for the workspace's own. */
+  mailClass?: 'marketing' | 'service' | null | undefined;
+  basis?: 'consent' | 'existing-customers' | null | undefined;
+  trackClicks?: boolean | undefined;
+}
+
+/** The refusal codes a marketing send meets (`email/sender/refusals.ts`). */
+export type EmailSenderRefusal = 'no-postal-address' | 'free-mail-from' | 'dns-unchecked' | 'no-dmarc' | 'not-aligned' | 'no-public-address';
+
+/** A table audience's breakdown: who gets it, and who is left out, each way. */
+export interface EmailAudienceBreakdown {
+  rows: number;
+  recipients: number;
+  consent: number;
+  existingCustomers: number;
+  doNotEmail: number;
+  notAgreed: number;
+  awaitingReview: number;
+  notMarked: number;
+  sample: number;
+  reservedDomain: number;
+  noAddress: number;
+}
+
+/** `POST /:id/audience/preview`. */
+export interface EmailAudiencePreview {
+  total: number;
+  skipped: number;
+  /** Placeholders no recipient's send would fill: while there is one, the send is refused. */
+  unfilled?: string[] | undefined;
+  /** Minutes the recipients take at the cap; null without one. */
+  estimateMinutes?: number | null | undefined;
+  breakdown?: EmailAudienceBreakdown | undefined;
+  variables?: string[] | undefined;
+  /** A table audience: what refuses the send now (empty when it may go). */
+  refusals?: EmailSenderRefusal[] | undefined;
+  /** The address those refusals are about. */
+  sender?: string | null | undefined;
+}
+
+/** Why a table audience is refused (the preview and the send answer `AUDIENCE_REFUSED` with one). */
+export type EmailAudienceRefusal =
+  | 'not-people'
+  | 'cannot-send'
+  | 'cannot-read'
+  | 'addresses-hidden'
+  | 'addresses-masked'
+  | 'view-gone'
+  | 'view-search'
+  | 'view-hidden-column'
+  | 'existing-customers-off';
+
+/** The owner's "existing customers" switch on a table. */
+export interface EmailExistingCustomers {
+  offered: boolean;
+  on: boolean;
+  at: number | null;
+  by: { id: string; name: string } | null;
+}
+
+/** One table the send dialog's picker lists. */
+export interface EmailAudienceTable {
+  connectionId: string;
+  table: string;
+  label: string;
+  appKey: string;
+  appName: string;
+  kind: 'people' | 'companies';
+  consentPurpose: EmailPurpose | null;
+  /** How the sender sees the table's addresses: only `readable` may be sent to. */
+  addresses: 'readable' | 'masked' | 'hidden';
+  existingCustomers: EmailExistingCustomers;
+}
+
+/** A people table whose e-mail sheet the person may open, switched off or not. */
+export interface EmailPeopleTable {
+  connectionId: string;
+  table: string;
+  label: string;
+  appName: string;
+  canEmail: boolean;
+}
+
+/** "Only these": a saved view of the table, and why it may not be used when it may not. */
+export interface EmailAudienceView {
+  id: string;
+  name: string;
+  shared: boolean;
+  refused: 'view-search' | 'view-hidden-column' | null;
+}
+
+/** The first send's review: people who say yes but were ticked before records were kept. */
+export interface EmailReviewList {
+  purpose: EmailPurpose | null;
+  total: number;
+  people: { key: string; name: string; address: string; tickedBy: string | null; tickedAt: number | null }[];
+}
+
+/** `GET /email-runs/:id`: the sending bar's "120 of 470". */
+export interface EmailRunProgress {
+  run: EmailRunView;
+  name: string | null;
+  done: number;
+  total: number;
+  left: number;
+  estimateMinutes: number | null;
+}
+
+/** The send log's state of one recipient. */
+export type EmailSendState = 'queued' | 'sending' | 'sent' | 'skipped-stop' | 'skipped-consent' | 'bounced' | 'spam' | 'failed' | 'unsubscribed';
+
+export type EmailSendLogFilter = 'all' | 'sent' | 'waiting' | 'skipped' | 'bounced' | 'spam' | 'failed' | 'unsubscribed';
+
+export interface EmailSendLogSummary {
+  total: number;
+  sent: number;
+  waiting: number;
+  skipped: number;
+  bounced: number;
+  spam: number;
+  failed: number;
+  unsubscribed: number;
+}
+
+export interface EmailSendLogRow {
+  id: string;
+  seq: number;
+  name: string;
+  address: string;
+  language: string | null;
+  state: EmailSendState;
+  /** A code the screen words (`not-agreed`, `notice:postmark`), or what the mail server said. */
+  reason: string | null;
+  /** When it was handed over or settled; null while it waits. */
+  time: number | null;
+  /** Handed over, and the mail queue still tries after a refusal: `reason` is the last one. */
+  retrying: boolean;
+  attempts: number;
+  clicks: number;
+}
+
+export interface EmailSendLogPage {
+  summary: EmailSendLogSummary;
+  rows: EmailSendLogRow[];
+  next: number | null;
 }
 
 export interface EmailBrand {
@@ -236,6 +404,34 @@ export interface EmailImportReply {
   errors: { key: string; locale: string; reason: string }[];
 }
 
+/** What `POST /:id/send` takes. */
+export interface EmailSendBody {
+  audience: EmailAudience;
+  scheduleAt?: number | undefined;
+  /** At most this many an hour; absent = as fast as the mail server allows. */
+  ratePerHour?: number | undefined;
+  /** Count clicks on a marketing send (off unless asked for). */
+  trackClicks?: boolean | undefined;
+}
+
+const RUNS = '/api/v1/email-runs';
+const AUDIENCE = '/api/v1/email-audience';
+
+function logQuery(params: { filter?: EmailSendLogFilter | undefined; q?: string | undefined; after?: number | undefined; limit?: number | undefined }): string {
+  const query = new URLSearchParams();
+  if (params.filter !== undefined && params.filter !== 'all') query.set('filter', params.filter);
+  if (params.q !== undefined && params.q.trim() !== '') query.set('q', params.q.trim());
+  if (params.after !== undefined) query.set('after', String(params.after));
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return qs === '' ? '' : `?${qs}`;
+}
+
+/** The send log as a spreadsheet: a plain navigation, the session cookie rides along. */
+export function sendLogCsvUrl(runId: string, params: { filter?: EmailSendLogFilter | undefined; q?: string | undefined } = {}): string {
+  return `${RUNS}/${encodeURIComponent(runId)}/log.csv${logQuery(params)}`;
+}
+
 function listPath(params: EmailListParams): string {
   const query = new URLSearchParams();
   if (params.kind !== undefined) query.set('kind', params.kind);
@@ -266,12 +462,25 @@ export const emailApi = {
     api.post<EmailDocumentDetail>(`${BASE}/${encodeURIComponent(id)}/from-template`, name === undefined ? {} : { name }),
   testSend: (id: string, body: { to: string[]; document: EmailDocumentInput }) =>
     api.post<EmailTestSendReply>(`${BASE}/${encodeURIComponent(id)}/test-send`, body),
-  previewAudience: (id: string, audience: EmailAudience) =>
-    api.post<{ total: number; skipped: number; unfilled?: string[] }>(`${BASE}/${encodeURIComponent(id)}/audience/preview`, { audience }),
-  send: (id: string, body: { audience: EmailAudience; scheduleAt?: number | undefined }) =>
-    api.post<{ run: EmailRunView }>(`${BASE}/${encodeURIComponent(id)}/send`, body),
+  previewAudience: (id: string, audience: EmailAudience, ratePerHour?: number | null) =>
+    api.post<EmailAudiencePreview>(`${BASE}/${encodeURIComponent(id)}/audience/preview`, ratePerHour == null ? { audience } : { audience, ratePerHour }),
+  send: (id: string, body: EmailSendBody) => api.post<{ run: EmailRunView }>(`${BASE}/${encodeURIComponent(id)}/send`, body),
   runs: (id: string) => api.get<{ runs: EmailRunView[] }>(`${BASE}/${encodeURIComponent(id)}/runs`),
-  cancelRun: (runId: string) => api.post<{ run: EmailRunView }>(`/api/v1/email-runs/${encodeURIComponent(runId)}/cancel`),
+  cancelRun: (runId: string) => api.post<{ run: EmailRunView }>(`${RUNS}/${encodeURIComponent(runId)}/cancel`),
+  run: (runId: string) => api.get<EmailRunProgress>(`${RUNS}/${encodeURIComponent(runId)}`),
+  pauseRun: (runId: string) => api.post<{ run: EmailRunView }>(`${RUNS}/${encodeURIComponent(runId)}/pause`),
+  resumeRun: (runId: string) => api.post<{ run: EmailRunView }>(`${RUNS}/${encodeURIComponent(runId)}/resume`),
+  stopRun: (runId: string) => api.post<{ run: EmailRunView; left: number }>(`${RUNS}/${encodeURIComponent(runId)}/stop`),
+  sendLog: (runId: string, params: { filter?: EmailSendLogFilter | undefined; q?: string | undefined; after?: number | undefined; limit?: number | undefined } = {}) =>
+    api.get<EmailSendLogPage>(`${RUNS}/${encodeURIComponent(runId)}/log${logQuery(params)}`),
+  audienceTables: () => api.get<{ tables: EmailAudienceTable[] }>(`${AUDIENCE}/tables`),
+  peopleTables: () => api.get<{ tables: EmailPeopleTable[] }>(`${AUDIENCE}/people-tables`),
+  audienceViews: (connectionId: string, table: string) =>
+    api.get<{ views: EmailAudienceView[] }>(`${AUDIENCE}/views?${new URLSearchParams({ connectionId, table }).toString()}`),
+  reviewList: (connectionId: string, table: string) =>
+    api.get<EmailReviewList>(`${AUDIENCE}/review?${new URLSearchParams({ connectionId, table }).toString()}`),
+  answerReview: (body: { connectionId: string; table: string; key: string; answer: 'confirm' | 'leave-out' }) =>
+    api.post<{ event: { id: string; state: 'yes' | 'no'; at: number } }>(`${AUDIENCE}/review/answer`, body),
   importBundle: (bundle: unknown, mode: 'skip' | 'replace') =>
     api.post<EmailImportReply>(`${BASE}/import`, { bundle, mode }),
   savedBlocks: () => api.get<{ blocks: EmailSavedBlock[] }>('/api/v1/email-blocks'),
