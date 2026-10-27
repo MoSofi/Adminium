@@ -4409,7 +4409,8 @@ export default {
         "skipped": "Přeskočeno",
         "spam": "Označeno jako spam",
         "unsubscribed": "Odhlášeno",
-        "waiting": "Čeká"
+        "waiting": "Čeká",
+        "notSent": "Neodesláno"
       },
       "filterLabel": "Filtrovat podle stavu",
       "loadFailed": "Protokol odesílání se nepodařilo načíst. Zkuste to znovu.",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "Přeskočeno — ukázkový řádek",
         "spam": "Označeno jako spam",
         "unsubscribed": "Odhlášeno",
-        "waiting": "Čeká"
+        "waiting": "Čeká",
+        "notSent": "Neodesláno — odesílání bylo zastaveno"
       },
       "summary": {
         "bounced": "Nedoručitelné",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "Přeskočeno",
         "spam": "Označeno jako spam",
         "unsubscribed": "Odhlášeno",
-        "waiting": "Čeká"
+        "waiting": "Čeká",
+        "notSent": "Neodesláno"
       },
       "tab": "Protokol odesílání",
       "tabEdit": "Upravit",

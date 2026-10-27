@@ -4409,7 +4409,8 @@ export default {
         "skipped": "Ignorés",
         "spam": "Signalés comme spam",
         "unsubscribed": "Désabonnés",
-        "waiting": "En attente"
+        "waiting": "En attente",
+        "notSent": "Non envoyés"
       },
       "filterLabel": "Filtrer par état",
       "loadFailed": "Le journal d’envoi n’a pas pu être chargé. Réessayez.",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "Ignoré — ligne d’exemple",
         "spam": "Signalé comme spam",
         "unsubscribed": "Désabonné",
-        "waiting": "En attente"
+        "waiting": "En attente",
+        "notSent": "Non envoyé — l’envoi a été arrêté"
       },
       "summary": {
         "bounced": "Rebonds",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "Ignorés",
         "spam": "Signalés comme spam",
         "unsubscribed": "Désabonnés",
-        "waiting": "En attente"
+        "waiting": "En attente",
+        "notSent": "Non envoyés"
       },
       "tab": "Journal d’envoi",
       "tabEdit": "Modifier",

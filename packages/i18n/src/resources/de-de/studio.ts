@@ -4409,7 +4409,8 @@ export default {
         "skipped": "Übersprungen",
         "spam": "Als Spam markiert",
         "unsubscribed": "Abgemeldet",
-        "waiting": "Wartend"
+        "waiting": "Wartend",
+        "notSent": "Nicht gesendet"
       },
       "filterLabel": "Nach Status filtern",
       "loadFailed": "Das Versandprotokoll konnte nicht geladen werden. Versuchen Sie es erneut.",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "Übersprungen — Beispielzeile",
         "spam": "Als Spam markiert",
         "unsubscribed": "Abgemeldet",
-        "waiting": "Wartend"
+        "waiting": "Wartend",
+        "notSent": "Nicht gesendet — der Versand wurde gestoppt"
       },
       "summary": {
         "bounced": "Unzustellbar",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "Übersprungen",
         "spam": "Als Spam markiert",
         "unsubscribed": "Abgemeldet",
-        "waiting": "Wartend"
+        "waiting": "Wartend",
+        "notSent": "Nicht gesendet"
       },
       "tab": "Versandprotokoll",
       "tabEdit": "Bearbeiten",

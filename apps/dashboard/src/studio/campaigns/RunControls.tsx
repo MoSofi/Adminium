@@ -21,7 +21,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, Loader2, OctagonX, Pause, Play, Square } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Modal, ModalFooter, ModalHeader, Tag, cn } from '@adminium/ui';
 
 import { emailApi, type EmailRunView } from '../../email/api.js';
@@ -59,13 +59,19 @@ export function RunControls(props: RunControlsProps): ReactNode {
   );
 }
 
-function Controls({ run, localeTag }: RunControlsProps): ReactNode {
+function Controls({ run: given, localeTag }: RunControlsProps): ReactNode {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
   const [confirm, setConfirm] = useState(false);
+  const progress = useQuery(runProgressQuery(given.id, runIsActive(given)));
+  // The run as last read: it starts, pauses and ends between the document's own reads.
+  const run = progress.data?.run ?? given;
   const paused = run.state === 'paused';
   const started = run.status === 'running';
-  const progress = useQuery(runProgressQuery(run.id, runIsActive(run)));
+  // Over (sent, stopped, failed): the document is read again, and these controls give way.
+  useEffect(() => {
+    if (progress.data !== undefined && !runIsActive(progress.data.run)) void invalidateEmailDocuments(queryClient);
+  }, [progress.data, queryClient]);
   const done = progress.data?.done ?? run.sent + run.failed + run.skipped;
   const total = progress.data?.total ?? run.total;
   const left = progress.data?.left ?? Math.max(0, total - done);

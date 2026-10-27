@@ -130,14 +130,15 @@ export function senderRefusalText(code: EmailSenderRefusal, sender: string | nul
 }
 
 /** The words of a send-log row's state: its badge and its tone. */
-export function sendStateBadge(row: Pick<EmailSendLogRow, 'state' | 'reason' | 'retrying'>): { label: string; tone: 'pos' | 'neutral' | 'warn' | 'danger' | 'info' } {
+export function sendStateBadge(row: Pick<EmailSendLogRow, 'state' | 'reason' | 'retrying'>, stopped = false): { label: string; tone: 'pos' | 'neutral' | 'warn' | 'danger' | 'info' } {
   switch (row.state) {
     case 'sent':
       // Still being tried after a refusal: the comp's "Failed … will try again".
       return row.retrying ? { label: t('studio:email.log.state.failed', 'Failed'), tone: 'danger' } : { label: t('studio:email.log.state.sent', 'Sent'), tone: 'pos' };
     case 'queued':
     case 'sending':
-      return { label: t('studio:email.log.state.waiting', 'Waiting'), tone: 'neutral' };
+      // The send was stopped for good: what had not gone never will.
+      return stopped ? { label: t('studio:email.log.state.notSent', 'Not sent — the send was stopped'), tone: 'neutral' } : { label: t('studio:email.log.state.waiting', 'Waiting'), tone: 'neutral' };
     case 'skipped-stop':
       return row.reason === 'erased'
         ? { label: t('studio:email.log.state.skippedErased', 'Skipped — erased on request'), tone: 'neutral' }

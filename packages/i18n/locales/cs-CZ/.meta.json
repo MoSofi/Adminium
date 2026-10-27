@@ -25531,6 +25531,10 @@
     "status": "mt",
     "srcHash": "09fef5d8d9a3"
   },
+  "studio.email.log.filter.notSent": {
+    "status": "mt",
+    "srcHash": "587c501eb406"
+  },
   "studio.email.log.filter.sent": {
     "status": "mt",
     "srcHash": "35f49dcfbfb2"
@@ -25578,6 +25582,10 @@
   "studio.email.log.state.failed": {
     "status": "mt",
     "srcHash": "09fef5d8d9a3"
+  },
+  "studio.email.log.state.notSent": {
+    "status": "mt",
+    "srcHash": "92589dda7529"
   },
   "studio.email.log.state.sent": {
     "status": "mt",
@@ -25642,6 +25650,10 @@
   "studio.email.log.summary.failed": {
     "status": "mt",
     "srcHash": "09fef5d8d9a3"
+  },
+  "studio.email.log.summary.notSent": {
+    "status": "mt",
+    "srcHash": "587c501eb406"
   },
   "studio.email.log.summary.sent": {
     "status": "mt",

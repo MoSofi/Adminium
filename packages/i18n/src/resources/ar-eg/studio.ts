@@ -4409,7 +4409,8 @@ export default {
         "skipped": "تم تخطيه",
         "spam": "بُلِّغ عنه كبريد عشوائي",
         "unsubscribed": "ألغى الاشتراك",
-        "waiting": "في الانتظار"
+        "waiting": "في الانتظار",
+        "notSent": "لم يُرسل"
       },
       "filterLabel": "التصفية حسب الحالة",
       "loadFailed": "تعذّر تحميل سجل الإرسال. حاول مرة أخرى.",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "تم تخطيه — صف تجريبي",
         "spam": "بُلِّغ عنه كبريد عشوائي",
         "unsubscribed": "ألغى الاشتراك",
-        "waiting": "في الانتظار"
+        "waiting": "في الانتظار",
+        "notSent": "لم يُرسل — أُوقف الإرسال"
       },
       "summary": {
         "bounced": "مرتد",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "تم تخطيه",
         "spam": "بُلِّغ عنه كبريد عشوائي",
         "unsubscribed": "ألغى الاشتراك",
-        "waiting": "في الانتظار"
+        "waiting": "في الانتظار",
+        "notSent": "لم يُرسل"
       },
       "tab": "سجل الإرسال",
       "tabEdit": "تحرير",

@@ -4409,7 +4409,8 @@ export default {
         "skipped": "已跳过",
         "spam": "被标记为垃圾邮件",
         "unsubscribed": "已退订",
-        "waiting": "等待中"
+        "waiting": "等待中",
+        "notSent": "未发送"
       },
       "filterLabel": "按状态筛选",
       "loadFailed": "无法加载发送记录。请重试。",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "已跳过 — 示例行",
         "spam": "被标记为垃圾邮件",
         "unsubscribed": "已退订",
-        "waiting": "等待中"
+        "waiting": "等待中",
+        "notSent": "未发送 — 发送已停止"
       },
       "summary": {
         "bounced": "退信",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "已跳过",
         "spam": "被标记为垃圾邮件",
         "unsubscribed": "已退订",
-        "waiting": "等待中"
+        "waiting": "等待中",
+        "notSent": "未发送"
       },
       "tab": "发送记录",
       "tabEdit": "编辑",

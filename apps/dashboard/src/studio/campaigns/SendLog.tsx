@@ -47,11 +47,12 @@ export function SendLog(props: SendLogProps): ReactNode {
   );
 }
 
-function filters(): { value: EmailSendLogFilter; label: string }[] {
+function filters(stopped: boolean): { value: EmailSendLogFilter; label: string }[] {
   return [
     { value: 'all', label: t('studio:email.log.filter.all', 'All') },
     { value: 'sent', label: t('studio:email.log.filter.sent', 'Sent') },
-    { value: 'waiting', label: t('studio:email.log.filter.waiting', 'Waiting') },
+    // A send stopped for good leaves the rest unsent, not waiting.
+    { value: 'waiting', label: stopped ? t('studio:email.log.filter.notSent', 'Not sent') : t('studio:email.log.filter.waiting', 'Waiting') },
     { value: 'skipped', label: t('studio:email.log.filter.skipped', 'Skipped') },
     { value: 'bounced', label: t('studio:email.log.filter.bounced', 'Bounced') },
     { value: 'spam', label: t('studio:email.log.filter.spam', 'Marked as spam') },
@@ -85,6 +86,7 @@ function Log({ documentId, run: latest, localeTag }: SendLogProps): ReactNode {
     retry: false,
   });
   const summary = log.data?.pages[0]?.summary;
+  const stopped = run.state === 'stopped';
   const rows = log.data?.pages.flatMap((page) => page.rows) ?? [];
   const time = (at: number | null) => (at === null ? '—' : new Intl.DateTimeFormat(localeTag, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(at));
   const runLabel = (one: EmailRunView) =>
@@ -101,13 +103,13 @@ function Log({ documentId, run: latest, localeTag }: SendLogProps): ReactNode {
           ))}
         </Select>
       ) : null}
-      <Summary summary={summary} />
+      <Summary summary={summary} stopped={stopped} />
       <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center">
         <ChoiceChips
           aria-label={t('studio:email.log.filterLabel', 'Filter by state')}
           data-testid="email-log-filters"
           className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&>button]:h-11 md:[&>button]:h-7 [&>button]:font-bold"
-          options={filters()}
+          options={filters(stopped)}
           value={filter}
           onValueChange={(value) => setFilter((value ?? 'all') as EmailSendLogFilter)}
         />
@@ -143,8 +145,8 @@ function Log({ documentId, run: latest, localeTag }: SendLogProps): ReactNode {
         </p>
       ) : (
         <>
-          <LogTable rows={rows} time={time} />
-          <LogList rows={rows} time={time} />
+          <LogTable rows={rows} time={time} stopped={stopped} />
+          <LogList rows={rows} time={time} stopped={stopped} />
           {log.hasNextPage ? (
             <Button variant="secondary" className="self-center" loading={log.isFetchingNextPage} onClick={() => void log.fetchNextPage()} data-testid="email-log-more">
               {t('studio:email.log.more', 'Show more')}
@@ -156,14 +158,14 @@ function Log({ documentId, run: latest, localeTag }: SendLogProps): ReactNode {
   );
 }
 
-function Summary({ summary }: { summary: EmailSendLogSummary | undefined }): ReactNode {
+function Summary({ summary, stopped }: { summary: EmailSendLogSummary | undefined; stopped: boolean }): ReactNode {
   const cells: [keyof EmailSendLogSummary, string, string][] = [
     ['sent', t('studio:email.log.summary.sent', 'Sent'), 'text-pos'],
     ['skipped', t('studio:email.log.summary.skipped', 'Skipped'), 'text-fg'],
     ['bounced', t('studio:email.log.summary.bounced', 'Bounced'), 'text-warn'],
     ['spam', t('studio:email.log.summary.spam', 'Marked as spam'), 'text-danger'],
     ['unsubscribed', t('studio:email.log.summary.unsubscribed', 'Unsubscribed'), 'text-info'],
-    ['waiting', t('studio:email.log.summary.waiting', 'Waiting'), 'text-fg'],
+    ['waiting', stopped ? t('studio:email.log.summary.notSent', 'Not sent') : t('studio:email.log.summary.waiting', 'Waiting'), 'text-fg'],
     ['failed', t('studio:email.log.summary.failed', 'Failed'), 'text-danger'],
   ];
   return (
@@ -182,8 +184,8 @@ function Summary({ summary }: { summary: EmailSendLogSummary | undefined }): Rea
 
 const COLUMNS = 'grid grid-cols-[minmax(130px,1fr)_minmax(220px,1.5fr)_210px_120px_minmax(180px,1.4fr)] gap-3';
 
-function StateBadge({ row }: { row: EmailSendLogRow }): ReactNode {
-  const badge = sendStateBadge(row);
+function StateBadge({ row, stopped }: { row: EmailSendLogRow; stopped: boolean }): ReactNode {
+  const badge = sendStateBadge(row, stopped);
   return (
     <Badge tone={badge.tone} data-testid="email-log-state" data-state={row.state}>
       {badge.label}
@@ -191,7 +193,7 @@ function StateBadge({ row }: { row: EmailSendLogRow }): ReactNode {
   );
 }
 
-function LogTable({ rows, time }: { rows: readonly EmailSendLogRow[]; time: (at: number | null) => string }): ReactNode {
+function LogTable({ rows, time, stopped }: { rows: readonly EmailSendLogRow[]; time: (at: number | null) => string; stopped: boolean }): ReactNode {
   return (
     <div role="table" aria-label={t('studio:email.log.tab', 'Send log')} className="hidden overflow-x-auto rounded-xl border border-border bg-surface shadow-card md:block">
       <div role="row" className={cn(COLUMNS, 'border-b border-border bg-surface-2 px-[18px] py-[11px] text-micro uppercase text-fg-subtle')}>
@@ -213,7 +215,7 @@ function LogTable({ rows, time }: { rows: readonly EmailSendLogRow[]; time: (at:
               {row.address}
             </span>
             <span role="cell">
-              <StateBadge row={row} />
+              <StateBadge row={row} stopped={stopped} />
             </span>
             <span role="cell" className="font-mono text-[12px] text-fg-muted">
               {time(row.time)}
@@ -228,7 +230,7 @@ function LogTable({ rows, time }: { rows: readonly EmailSendLogRow[]; time: (at:
   );
 }
 
-function LogList({ rows, time }: { rows: readonly EmailSendLogRow[]; time: (at: number | null) => string }): ReactNode {
+function LogList({ rows, time, stopped }: { rows: readonly EmailSendLogRow[]; time: (at: number | null) => string; stopped: boolean }): ReactNode {
   return (
     <ul aria-label={t('studio:email.log.tab', 'Send log')} className="overflow-hidden rounded-xl border border-border bg-surface md:hidden">
       {rows.length === 0 ? (
@@ -246,7 +248,7 @@ function LogList({ rows, time }: { rows: readonly EmailSendLogRow[]; time: (at: 
                 {row.address}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <StateBadge row={row} />
+                <StateBadge row={row} stopped={stopped} />
                 {detail === '' ? null : <span className="text-[12px] text-fg-muted">{detail}</span>}
               </div>
             </li>

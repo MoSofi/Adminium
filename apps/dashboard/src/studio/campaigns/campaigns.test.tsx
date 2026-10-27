@@ -453,6 +453,17 @@ describe('the send log (as a marketer)', () => {
     expect(await screen.findByTestId('email-canvas')).toBeDefined();
   });
 
+  it('a send stopped for good says the rest were not sent, not that they wait', async () => {
+    const stoppedLog = () => ({ summary: { total: 3, sent: 1, waiting: 2, skipped: 0, bounced: 0, spam: 0, failed: 0, unsubscribed: 0 }, rows: [row({ id: 'a' }), row({ id: 'b', name: 'Nadia Brooks', state: 'queued', time: null })], next: null });
+    const { user } = await openEditor({ tables: [], preview: ready(), log: stoppedLog, detail: detail({ run: run({ status: 'cancelled', state: 'stopped' }) }) });
+    await user.click(await screen.findByTestId('email-view-log'));
+    const page = await screen.findByTestId('email-send-log');
+    await waitFor(() => expect(within(page).getByTestId('email-log-summary-waiting').textContent).toBe('Not sent2'));
+    expect(within(page).getByRole('radio', { name: 'Not sent' })).toBeDefined();
+    const badges = within(within(page).getByRole('table', { name: 'Send log' })).getAllByTestId('email-log-state').map((el) => el.textContent);
+    expect(badges).toEqual(['Sent', 'Not sent — the send was stopped']);
+  });
+
   it('a campaign never sent has no tabs', async () => {
     await openEditor({ tables: [], preview: ready(), detail: detail() });
     expect(screen.queryByTestId('email-view-log')).toBeNull();

@@ -4409,7 +4409,8 @@ export default {
         "skipped": "Skipped",
         "spam": "Marked as spam",
         "unsubscribed": "Unsubscribed",
-        "waiting": "Waiting"
+        "waiting": "Waiting",
+        "notSent": "Not sent"
       },
       "filterLabel": "Filter by state",
       "loadFailed": "The send log could not be loaded. Try again.",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "Skipped — sample row",
         "spam": "Marked as spam",
         "unsubscribed": "Unsubscribed",
-        "waiting": "Waiting"
+        "waiting": "Waiting",
+        "notSent": "Not sent — the send was stopped"
       },
       "summary": {
         "bounced": "Bounced",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "Skipped",
         "spam": "Marked as spam",
         "unsubscribed": "Unsubscribed",
-        "waiting": "Waiting"
+        "waiting": "Waiting",
+        "notSent": "Not sent"
       },
       "tab": "Send log",
       "tabEdit": "Edit",

@@ -4399,7 +4399,8 @@
         "skipped": "已略過",
         "spam": "被標記為垃圾郵件",
         "unsubscribed": "已取消訂閱",
-        "waiting": "等待中"
+        "waiting": "等待中",
+        "notSent": "未寄送"
       },
       "filterLabel": "依狀態篩選",
       "loadFailed": "無法載入寄送紀錄。請再試一次。",
@@ -4422,7 +4423,8 @@
         "skippedSample": "已略過 — 範例列",
         "spam": "被標記為垃圾郵件",
         "unsubscribed": "已取消訂閱",
-        "waiting": "等待中"
+        "waiting": "等待中",
+        "notSent": "未寄送 — 寄送已停止"
       },
       "summary": {
         "bounced": "退信",
@@ -4431,7 +4433,8 @@
         "skipped": "已略過",
         "spam": "被標記為垃圾郵件",
         "unsubscribed": "已取消訂閱",
-        "waiting": "等待中"
+        "waiting": "等待中",
+        "notSent": "未寄送"
       },
       "tab": "寄送紀錄",
       "tabEdit": "編輯",

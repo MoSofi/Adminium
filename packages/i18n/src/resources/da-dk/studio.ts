@@ -4409,7 +4409,8 @@ export default {
         "skipped": "Sprunget over",
         "spam": "Markeret som spam",
         "unsubscribed": "Afmeldt",
-        "waiting": "Venter"
+        "waiting": "Venter",
+        "notSent": "Ikke sendt"
       },
       "filterLabel": "Filtrer efter status",
       "loadFailed": "Udsendelsesloggen kunne ikke indlæses. Prøv igen.",
@@ -4432,7 +4433,8 @@ export default {
         "skippedSample": "Sprunget over — eksempelrække",
         "spam": "Markeret som spam",
         "unsubscribed": "Afmeldt",
-        "waiting": "Venter"
+        "waiting": "Venter",
+        "notSent": "Ikke sendt — udsendelsen blev stoppet"
       },
       "summary": {
         "bounced": "Afvist",
@@ -4441,7 +4443,8 @@ export default {
         "skipped": "Sprunget over",
         "spam": "Markeret som spam",
         "unsubscribed": "Afmeldt",
-        "waiting": "Venter"
+        "waiting": "Venter",
+        "notSent": "Ikke sendt"
       },
       "tab": "Udsendelseslog",
       "tabEdit": "Rediger",
