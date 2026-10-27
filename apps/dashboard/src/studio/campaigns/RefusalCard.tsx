@@ -46,7 +46,7 @@ export function withMono(sentence: string, value: string): ReactNode {
 
 export function RefusalCard({ refusals, sender }: { refusals: readonly EmailSenderRefusal[]; sender: string | null | undefined }): ReactNode {
   return (
-    <div role="alert" data-testid="email-send-refusals" className="overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] bg-danger-soft">
+    <div role="alert" data-testid="email-send-refusals" className="shrink-0 overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] bg-surface">
       {refusals.map((code, index) => {
         const fix = refusalFix(code);
         const named = code === 'free-mail-from' ? (sender ?? '') : code === 'dns-unchecked' || code === 'no-dmarc' || code === 'not-aligned' ? domainOf(sender) : '';
@@ -56,7 +56,7 @@ export function RefusalCard({ refusals, sender }: { refusals: readonly EmailSend
             key={code}
             data-testid="email-send-refusal"
             data-code={code}
-            className={`flex items-start gap-2.5 px-3.5 py-3 ${index === 0 ? '' : 'border-t border-border'} [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-danger`}
+            className={`flex items-start gap-2.5 px-3.5 py-3 ${index === 0 ? 'bg-danger-soft' : 'border-t border-border'} [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-danger`}
           >
             {ICONS[code]}
             <div className="min-w-0 flex-1 text-body-sm text-fg">{withMono(senderRefusalText(code, sender), named)}</div>

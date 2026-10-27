@@ -120,7 +120,7 @@ export function EditorHeader({
       <LanguageMenu currentLocale={locale} languages={languages} adding={addingLocale} onOpen={onOpenLanguage} onAdd={onAddLanguage} />
       <SaveChip status={status} error={error} />
       {runControls ?? null}
-      <div className="ms-auto flex items-center gap-2">
+      <div className="ms-auto flex flex-wrap items-center gap-2">
         <div className="flex gap-0.5 rounded-[9px] border border-border bg-surface-2 p-[3px]">
           <IconButton variant="ghost" size="sm" label={t('email:editor.undo', 'Undo')} onClick={onUndo} disabled={!canUndo} data-testid="email-undo">
             <Undo2 className="size-[15px]" />
