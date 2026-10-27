@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The consent panel's sentences: one per kind of log line, its icon and its
+ * The consent panel's sentences: one per kind of log line, its glyph and its
  * tone, and the dates in the reader's language.
  *
  * Takes the translator as an argument rather than importing the dashboard's:
@@ -8,17 +8,18 @@
  * (the kit), each with its own words. Every key is under `common:consent.*`.
  */
 import type { ConsentEventView, ConsentHow, ConsentPurpose, StopReason } from './consentTypes.js';
+import type { GlyphName } from './glyphs.js';
 
 export type Translate = (key: string, fallback: string, args?: Record<string, unknown>) => string;
 
 export type LineTone = 'pos' | 'neutral' | 'danger' | 'accent';
-export type LineIcon = 'mail-x' | 'mail-check' | 'file-check' | 'file-pen' | 'square-check' | 'reply' | 'upload' | 'user' | 'settings';
+
 
 /** One line of the history: what happened, its tile, and what follows the time in quiet type. */
 export interface ConsentLine {
   key: string;
   text: string;
-  icon: LineIcon;
+  glyph: GlyphName;
   tone: LineTone;
   at: number;
   extra: string | null;
@@ -100,10 +101,9 @@ function recordedLine(t: Translate, how: ConsentHow, name: string): string {
 }
 
 /** What a yes or a no says, by where it came from. */
-function sentence(t: Translate, event: ConsentEventView): { text: string; icon: LineIcon; tone: LineTone; extra: string | null } {
+function sentence(t: Translate, event: ConsentEventView): { text: string; glyph: GlyphName; tone: LineTone; extra: string | null } {
   const yes = event.state === 'yes';
   const name = event.staff?.label ?? '';
-  const purpose = event.purpose === null ? '' : purposeName(t, event.purpose);
   const detail = event.detail ?? '';
   switch (event.source) {
     case 'form': {
@@ -112,26 +112,26 @@ function sentence(t: Translate, event: ConsentEventView): { text: string; icon: 
         version === null
           ? t('common:consent.line.form', 'Agreed on the form ‘{form}’', { form: detail })
           : t('common:consent.line.formVersion', 'Agreed on the form ‘{form}’ (wording {version})', { form: detail, version });
-      return { text, icon: 'file-check', tone: 'pos', extra: event.ip === null ? null : t('common:consent.line.from', 'from {ip}', { ip: event.ip }) };
+      return { text, glyph: 'fileCheck', tone: 'pos', extra: event.ip === null ? null : t('common:consent.line.from', 'from {ip}', { ip: event.ip }) };
     }
     case 'staff':
-      if (yes && event.how !== null) return { text: recordedLine(t, event.how, name), icon: 'file-pen', tone: 'pos', extra: quoted(t, event.note) };
+      if (yes && event.how !== null) return { text: recordedLine(t, event.how, name), glyph: 'filePen', tone: 'pos', extra: quoted(t, event.note) };
       return yes
-        ? { text: t('common:consent.line.ticked', 'Ticked by {name}', { name }), icon: 'square-check', tone: 'neutral', extra: quoted(t, event.note) }
-        : { text: t('common:consent.line.unticked', 'Unticked by {name}', { name }), icon: 'mail-x', tone: 'neutral', extra: quoted(t, event.note) };
+        ? { text: t('common:consent.line.ticked', 'Ticked by {name}', { name }), glyph: 'squareCheck', tone: 'neutral', extra: quoted(t, event.note) }
+        : { text: t('common:consent.line.unticked', 'Unticked by {name}', { name }), glyph: 'mailX', tone: 'neutral', extra: quoted(t, event.note) };
     case 'review':
       return yes
-        ? { text: t('common:consent.line.reviewYes', 'Confirmed by {name}', { name }), icon: 'square-check', tone: 'neutral', extra: t('common:consent.line.reviewYesExtra', '(ticked before records were kept)') }
-        : { text: t('common:consent.line.reviewNo', 'Left out by {name} at the send review', { name }), icon: 'mail-x', tone: 'neutral', extra: null };
+        ? { text: t('common:consent.line.reviewYes', 'Confirmed by {name}', { name }), glyph: 'squareCheck', tone: 'neutral', extra: t('common:consent.line.reviewYesExtra', '(ticked before records were kept)') }
+        : { text: t('common:consent.line.reviewNo', 'Left out by {name} at the send review', { name }), glyph: 'mailX', tone: 'neutral', extra: null };
     case 'import':
       return yes
-        ? { text: t('common:consent.line.import', 'Brought in from a file'), icon: 'upload', tone: 'neutral', extra: null }
-        : { text: t('common:consent.line.importNo', 'Brought in from a file as a no'), icon: 'upload', tone: 'neutral', extra: null };
+        ? { text: t('common:consent.line.import', 'Brought in from a file'), glyph: 'fileUp', tone: 'neutral', extra: null }
+        : { text: t('common:consent.line.importNo', 'Brought in from a file as a no'), glyph: 'fileUp', tone: 'neutral', extra: null };
     case 'person':
-      if (detail === 'forget') return { text: t('common:consent.line.forget', 'Asked for their details to be forgotten'), icon: 'user', tone: 'danger', extra: null };
+      if (detail === 'forget') return { text: t('common:consent.line.forget', 'Asked for their details to be forgotten'), glyph: 'userCheck', tone: 'danger', extra: null };
       return yes
-        ? { text: t('common:consent.line.ownPageYes', 'Said yes on their own page'), icon: 'user', tone: 'pos', extra: null }
-        : { text: t('common:consent.line.ownPageNo', 'Said no on their own page'), icon: 'user', tone: 'danger', extra: null };
+        ? { text: t('common:consent.line.ownPageYes', 'Said yes on their own page'), glyph: 'userCheck', tone: 'pos', extra: null }
+        : { text: t('common:consent.line.ownPageNo', 'Said no on their own page'), glyph: 'userCheck', tone: 'danger', extra: null };
     case 'unsubscribe': {
       // `link`, `link-all`, `one-click`, `one-click-all`, each perhaps followed by `:<why>` (the mail door's codes).
       const via = detail.split(':')[0] ?? '';
@@ -142,25 +142,25 @@ function sentence(t: Translate, event: ConsentEventView): { text: string; icon: 
           : event.purpose === 'surveys'
             ? t('common:consent.line.unsubscribed.surveys', 'Unsubscribed from Surveys by the e-mail link')
             : t('common:consent.line.unsubscribed.newsletter', 'Unsubscribed from the Newsletter by the e-mail link');
-      return { text, icon: 'mail-x', tone: 'danger', extra: null };
+      return { text, glyph: 'mailX', tone: 'danger', extra: null };
     }
     case 'relay':
     case 'bounce':
-      return { text: t('common:consent.line.mailService', 'Stopped by the mail service'), icon: 'mail-x', tone: 'danger', extra: null };
+      return { text: t('common:consent.line.mailService', 'Stopped by the mail service'), glyph: 'mailX', tone: 'danger', extra: null };
     case 'system':
       if (detail === 'rule') {
         return yes
-          ? { text: t('common:consent.line.ruleYes', 'Set to yes by an automation'), icon: 'settings', tone: 'neutral', extra: null }
-          : { text: t('common:consent.line.ruleNo', 'Set to no by an automation'), icon: 'settings', tone: 'neutral', extra: null };
+          ? { text: t('common:consent.line.ruleYes', 'Set to yes by an automation'), glyph: 'cog', tone: 'neutral', extra: null }
+          : { text: t('common:consent.line.ruleNo', 'Set to no by an automation'), glyph: 'cog', tone: 'neutral', extra: null };
       }
       if (detail === 'api-key') {
         return yes
-          ? { text: t('common:consent.line.apiYes', 'Set to yes through the API'), icon: 'settings', tone: 'neutral', extra: null }
-          : { text: t('common:consent.line.apiNo', 'Set to no through the API'), icon: 'settings', tone: 'neutral', extra: null };
+          ? { text: t('common:consent.line.apiYes', 'Set to yes through the API'), glyph: 'cog', tone: 'neutral', extra: null }
+          : { text: t('common:consent.line.apiNo', 'Set to no through the API'), glyph: 'cog', tone: 'neutral', extra: null };
       }
       return yes
-        ? { text: t('common:consent.line.systemYes', 'Set to yes'), icon: 'settings', tone: 'neutral', extra: null }
-        : { text: t('common:consent.line.systemNo', 'Set to no'), icon: 'settings', tone: 'neutral', extra: null };
+        ? { text: t('common:consent.line.systemYes', 'Set to yes'), glyph: 'cog', tone: 'neutral', extra: null }
+        : { text: t('common:consent.line.systemNo', 'Set to no'), glyph: 'cog', tone: 'neutral', extra: null };
   }
 }
 
@@ -176,7 +176,7 @@ export function historyLines(t: Translate, history: readonly ConsentEventView[])
       lines.push({
         key: event.id,
         text: t('common:consent.line.replied', 'Replied — e-mail sequences stopped'),
-        icon: 'reply',
+        glyph: 'reply',
         tone: 'accent',
         at: event.at,
         extra: event.staff === null ? null : t('common:consent.line.by', 'by {name}', { name: event.staff.label }),
@@ -184,9 +184,12 @@ export function historyLines(t: Translate, history: readonly ConsentEventView[])
       continue;
     }
     if (event.confirmedAt !== null) {
-      lines.push({ key: `${event.id}-confirmed`, text: t('common:consent.line.confirmed', 'Confirmed by e-mail'), icon: 'mail-check', tone: 'pos', at: event.confirmedAt, extra: null });
+      lines.push({ key: `${event.id}-confirmed`, text: t('common:consent.line.confirmed', 'Confirmed by e-mail'), glyph: 'mailCheck', tone: 'pos', at: event.confirmedAt, extra: null });
     }
-    lines.push({ key: event.id, at: event.at, ...sentence(t, event) });
+    const said = sentence(t, event);
+    // Which purpose it was about, before anything else said after the time (an unsubscribe's own words name it).
+    const about = event.purpose === null || event.source === 'unsubscribe' ? null : purposeName(t, event.purpose);
+    lines.push({ key: event.id, at: event.at, ...said, extra: about === null ? said.extra : said.extra === null ? about : `${about} · ${said.extra}` });
   }
   return lines.sort((a, b) => b.at - a.at);
 }
@@ -201,9 +204,9 @@ export function purposeDetail(t: Translate, locale: string, event: ConsentEventV
 }
 
 /** The badge of a purpose: its words and tone. */
-export function purposeBadge(t: Translate, state: 'yes' | 'no' | 'not-asked', event: ConsentEventView | null): { text: string; tone: 'pos' | 'neutral' | 'danger'; icon: 'check' | 'minus' | 'mail-x' } {
-  if (state === 'yes') return { text: t('common:consent.state.yes', 'May be e-mailed'), tone: 'pos', icon: 'check' };
-  if (state === 'not-asked') return { text: t('common:consent.state.notAsked', 'Not asked'), tone: 'neutral', icon: 'minus' };
+export function purposeBadge(t: Translate, state: 'yes' | 'no' | 'not-asked', event: ConsentEventView | null): { text: string; tone: 'pos' | 'neutral' | 'danger'; glyph: GlyphName } {
+  if (state === 'yes') return { text: t('common:consent.state.yes', 'May be e-mailed'), tone: 'pos', glyph: 'check' };
+  if (state === 'not-asked') return { text: t('common:consent.state.notAsked', 'Not asked'), tone: 'neutral', glyph: 'minus' };
   const unsubscribed = event !== null && (event.source === 'unsubscribe' || event.source === 'relay' || event.source === 'bounce');
-  return unsubscribed ? { text: t('common:consent.state.unsubscribed', 'Unsubscribed'), tone: 'danger', icon: 'mail-x' } : { text: t('common:consent.state.no', 'Said no'), tone: 'danger', icon: 'mail-x' };
+  return unsubscribed ? { text: t('common:consent.state.unsubscribed', 'Unsubscribed'), tone: 'danger', glyph: 'mailX' } : { text: t('common:consent.state.no', 'Said no'), tone: 'danger', glyph: 'mailX' };
 }

@@ -37,7 +37,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent,
 import { useMaybeT } from '@adminium/i18n/react';
 
 import { CONSENT_HOWS, CONSENT_PURPOSES, type ConsentClient, type ConsentHow, type ConsentPanelView, type ConsentPurpose, type ConsentRecordRef } from './consentTypes.js';
-import { day, dayTime, historyLines, howName, purposeBadge, purposeDetail, purposeName, stopWhy, type LineIcon, type LineTone } from './consentWords.js';
+import { day, dayTime, historyLines, howName, purposeBadge, purposeDetail, purposeName, stopWhy, type LineTone } from './consentWords.js';
 import { Glyph, type GlyphName } from './glyphs.js';
 
 export interface ConsentPanelProps {
@@ -129,17 +129,6 @@ export interface ConsentFrames {
   inline: boolean;
 }
 
-const LINE_GLYPHS: Record<LineIcon, GlyphName> = {
-  'mail-x': 'mailX',
-  'mail-check': 'mailCheck',
-  'file-check': 'fileCheck',
-  'file-pen': 'filePen',
-  'square-check': 'squareCheck',
-  reply: 'reply',
-  upload: 'fileUp',
-  user: 'userCheck',
-  settings: 'cog',
-};
 
 const TILE_TONES: Record<LineTone, string> = {
   pos: 'bg-pos-soft text-pos',
@@ -149,7 +138,6 @@ const TILE_TONES: Record<LineTone, string> = {
 };
 
 const BADGE_TONES = { pos: 'bg-pos-soft text-pos', neutral: 'bg-surface-3 text-fg-muted', danger: 'bg-danger-soft text-danger' } as const;
-const BADGE_GLYPHS: Record<'check' | 'minus' | 'mail-x', GlyphName> = { check: 'check', minus: 'minus', 'mail-x': 'mailX' };
 
 /** The header buttons' look: the comp's 12.5/700, and 44 px in a two-column grid on a phone. */
 const HEADER_BUTTON = 'rounded-[10px] text-[12.5px] font-bold max-sm:h-11 max-sm:w-full max-sm:text-[13px]';
@@ -299,7 +287,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
                 <li key={one.purpose} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-5 py-[13px] max-sm:px-4 max-sm:py-[11px]" data-testid={`consent-purpose-${one.purpose}`}>
                   <span className="min-w-[120px] text-[13px] font-bold max-sm:min-w-0 max-sm:flex-1">{purposeName(t, one.purpose)}</span>
                   <span className={`inline-flex items-center gap-[5px] whitespace-nowrap rounded-md px-2 py-0.5 text-[11.5px] font-bold ${BADGE_TONES[badge.tone]}`} data-testid={`consent-badge-${one.purpose}`}>
-                    <Glyph name={BADGE_GLYPHS[badge.icon]} className="size-3" />
+                    <Glyph name={badge.glyph} className="size-3" />
                     {badge.text}
                   </span>
                   {detail === '' ? null : <span className="basis-full text-[12.5px] leading-normal text-fg-muted max-sm:text-[12px]">{detail}</span>}
@@ -322,7 +310,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
                 {lines.map((line) => (
                   <li key={line.key} className="flex items-start gap-[11px] max-sm:gap-2.5">
                     <span className={`flex size-[22px] shrink-0 items-center justify-center rounded-md ${TILE_TONES[line.tone]}`}>
-                      <Glyph name={LINE_GLYPHS[line.icon]} className="size-3" />
+                      <Glyph name={line.glyph} className="size-3" />
                     </span>
                     <div className="min-w-0 text-[13px] leading-normal max-sm:text-[12.5px]">
                       {line.text}{' '}
