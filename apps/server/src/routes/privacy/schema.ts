@@ -65,21 +65,54 @@ export const privacyFindReply = z.object({
   }),
 });
 
-export const whatStaysReply = z.object({
+/** One thing an erasure leaves, and why (`privacy/what-stays.ts`). */
+const staysItem = z.object({
+  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email']),
+  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'kept-a-while', 'objection']),
+  count: z.number().nullable(),
+  keptDays: z.number().nullable(),
+  forever: z.boolean(),
+  connectionId: z.string().optional(),
+  table: z.string().optional(),
+  app: z.string().optional(),
+  label: z.string().optional(),
+});
+
+export const whatStaysReply = z.object({ data: z.object({ items: z.array(staysItem) }) });
+
+/** The erasure, confirmed by the address typed again (any case, spaces around it or not). */
+export const eraseBody = z.object({ address: addressField, confirm: addressField });
+
+/** A column of theirs that cannot be emptied (not null, and neither text nor yes/no): left as it is. */
+const leftColumn = z.object({ connectionId: z.string(), table: z.string(), column: z.string(), rows: z.number() });
+
+export const erasePreviewReply = z.object({
   data: z.object({
-    items: z.array(
+    address: z.string(),
+    found: z.boolean(),
+    /** What goes: their rows, copies of them, their mail, consent entries, campaign sends, files on their rows. */
+    goes: z.array(
       z.object({
-        kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email']),
-        reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'kept-a-while', 'objection']),
-        count: z.number().nullable(),
-        keptDays: z.number().nullable(),
-        forever: z.boolean(),
+        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files']),
+        count: z.number(),
         connectionId: z.string().optional(),
         table: z.string().optional(),
         app: z.string().optional(),
         label: z.string().optional(),
       }),
     ),
+    stays: z.array(staysItem),
+    left: z.array(leftColumn),
+  }),
+});
+
+export const eraseReply = z.object({
+  data: z.object({
+    /** Rows or entries changed, by source (`people-crm-contacts`, `consent`, `audit`, …). */
+    counts: z.record(z.string(), z.number()),
+    left: z.array(leftColumn),
+    /** Files whose bytes could not be deleted. */
+    filesFailed: z.number(),
   }),
 });
 

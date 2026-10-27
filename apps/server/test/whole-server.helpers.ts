@@ -158,8 +158,8 @@ export async function wholeServer(
     smtp?: boolean;
     /** More files of the app's package, by path: its sample data, say. */
     files?: Record<string, string>;
-    /** Test seams handed to the server as it is composed (marketing mail's DNS and postal address, say). */
-    compose?: Pick<ComposeServerOptions, 'marketingSeams'>;
+    /** Test seams handed to the server as it is composed (marketing mail's DNS and postal address, say; a logger whose lines a test reads). */
+    compose?: Pick<ComposeServerOptions, 'marketingSeams' | 'logger'>;
   } = {},
 ): Promise<WholeServer> {
   const key = String(manifest['key']);

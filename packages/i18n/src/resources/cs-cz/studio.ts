@@ -4248,5 +4248,8 @@ export default {
       "title": "{count, plural, one {Jeden dokument čeká na aktualizaci doplňku} few {# dokumenty čekají na aktualizaci doplňku} many {# dokumentu čeká na aktualizaci doplňku} other {# dokumentů čeká na aktualizaci doplňku}}",
       "item": "{document}: {addOn} ho zatím nevytváří. Vytvoří se, jakmile bude {addOn} aktualizován."
     }
+  },
+  "privacy": {
+    "erasedPerson": "Vymazaná osoba"
   }
 } as const;

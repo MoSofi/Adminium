@@ -335,6 +335,8 @@ export const RATE_BUCKETS = {
   // looks up a few addresses an hour; these stop a script walking a list.
   'privacy-find': { max: 120, timeWindowMs: 3_600_000, keyBy: 'principal' },
   'privacy-export': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  // Erasing a person: rare, deliberate, and it walks every people table and the audit log.
+  'privacy-erase': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

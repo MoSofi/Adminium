@@ -454,6 +454,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/privacy/exports': noRows('The downloads the person asked for: meta rows of their own.'),
   'GET /api/v1/privacy/exports/:id': noRows('One of the person\'s own downloads: a meta row.'),
   'GET /api/v1/privacy/exports/:id/download': rows('own', 'The file is its requester\'s alone, and only while they hold the privacy action.'),
+  'POST /api/v1/privacy/erase/preview': rows('system', 'A person\'s rows by their address, read whole under the privacy action, past every role\'s table and row limits, to count what an erasure takes; answers counts only.'),
+  'POST /api/v1/privacy/erase': rows('system', 'A person erased in place under the privacy action, as the system: every row of theirs on every people table, their declared copies and their outbox mail, past every role\'s table and row limits (a role\'s reach would stop it half-way).'),
   // --- /project
   'GET /api/v1/project/actions': noRows('A project folder\'s files, its apps and what it would remove: no source row is read.'),
   'POST /api/v1/project/actions/:id': rows(['visible', 'system'], 'The rows chosen are read as the caller; what the owner\'s code then reads is the system\'s, and a private table is not handed to it.'),

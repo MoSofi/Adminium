@@ -4248,5 +4248,8 @@ export default {
       "title": "{count, plural, other {# 个文档正在等待附加组件更新}}",
       "item": "{document}：{addOn} 目前还不能生成它。{addOn} 更新后即会生成。"
     }
+  },
+  "privacy": {
+    "erasedPerson": "已删除的人员"
   }
 } as const;
