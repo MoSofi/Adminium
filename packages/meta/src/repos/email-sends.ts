@@ -88,6 +88,8 @@ export interface ListEmailSendsInput {
   filter?: EmailSendFilter | undefined;
   /** Part of a name or an address, any case. */
   q?: string | undefined;
+  /** What `q` is matched on: both (the default), the name alone, or nothing (no row matches a search). */
+  searchIn?: 'name-and-address' | 'name' | 'nothing' | undefined;
   /** The last `seq` of the page before. */
   after?: number | undefined;
   limit: number;
@@ -291,10 +293,11 @@ export function emailSendsRepo(meta: MetaDb) {
     /**
      * A handed message the mail queue gave up on: the row turns `failed` with
      * what the server said, or `bounced` when the server refused the address
-     * for good at send time. Null when the row is not `sent` (already marked
-     * by a bounce notice, or not this ledger's).
+     * for good at send time, or `skipped-stop` when the address was on the
+     * do-not-email list by the moment it was to go. Null when the row is not
+     * `sent` (already marked by a bounce notice, or not this ledger's).
      */
-    async markGivenUp(id: string, reason: string, at: number = Date.now(), state: Extract<EmailSendState, 'failed' | 'bounced'> = 'failed'): Promise<EmailSend | null> {
+    async markGivenUp(id: string, reason: string, at: number = Date.now(), state: Extract<EmailSendState, 'failed' | 'bounced' | 'skipped-stop'> = 'failed'): Promise<EmailSend | null> {
       const res = await db
         .updateTable('adminium_email_sends')
         .set({ state, reason: cut(reason, EMAIL_SEND_REASON_MAX), updatedAt: at })
@@ -396,6 +399,11 @@ export function emailSendsRepo(meta: MetaDb) {
       return out;
     },
 
+    /** The people tables a run's rows were mailed from (null: the workspace's own people), each once. */
+    async tablesOf(runId: string): Promise<{ connectionId: string | null; personTable: string | null }[]> {
+      return await db.selectFrom('adminium_email_sends').select(['connectionId', 'personTable']).distinct().where('runId', '=', runId).execute();
+    },
+
     /** One page of a run's log, in the order the recipients were written. */
     async list(runId: string, input: ListEmailSendsInput): Promise<EmailSend[]> {
       let query = db.selectFrom('adminium_email_sends').selectAll().where('runId', '=', runId);
@@ -403,7 +411,11 @@ export function emailSendsRepo(meta: MetaDb) {
       const term = input.q?.trim().toLowerCase() ?? '';
       if (term.length > 0) {
         const like = `%${escapeLike(term)}%`;
-        query = query.where(sql<boolean>`(lower(name) like ${like} escape '!' or lower(address) like ${like} escape '!')`);
+        const searchIn = input.searchIn ?? 'name-and-address';
+        if (searchIn === 'nothing') return [];
+        query = query.where(
+          searchIn === 'name' ? sql<boolean>`lower(name) like ${like} escape '!'` : sql<boolean>`(lower(name) like ${like} escape '!' or lower(address) like ${like} escape '!')`,
+        );
       }
       if (input.after !== undefined) query = query.where('seq', '>', input.after);
       const rows = await query.orderBy('seq', 'asc').limit(input.limit).execute();

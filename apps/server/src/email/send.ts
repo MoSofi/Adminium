@@ -108,6 +108,14 @@ export type EmailMailClass = 'marketing' | 'service';
 export const REPLY_TO = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/;
 
 /**
+ * One plain address and nothing else (no name, no angle brackets, no list):
+ * what a marketing mail's recipient must be. The do-not-email list is asked
+ * by the bare address, and a mail server delivers `<x@y>` or `Name <x@y>` to
+ * `x@y`, so anything else could pass the list and still arrive.
+ */
+export const PLAIN_RECIPIENT = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+$/;
+
+/**
  * A Reply-To as a message carries it: the value trimmed when it is one plain
  * address of at most 254 characters, else null (no header). It rides the
  * sealed envelope, which an older server reads without it: that server sends
@@ -562,6 +570,10 @@ export async function enqueueRenderedEmail(
   }
   const to = input.to.trim();
   if (to.length === 0) return null;
+  if (input.mailClass === 'marketing' && !PLAIN_RECIPIENT.test(to)) {
+    deps.logger?.warn({ templateKey: input.templateKey }, 'a marketing mail was not queued: its recipient is not one plain e-mail address');
+    return null;
+  }
 
   const qr = qrRefs(input.rendered);
   // A QR code draws at most so many bytes of text: one longer is never queued, to be refused by the worker after it was told sent.
@@ -623,6 +635,10 @@ export async function enqueueEmail(
   }
   const to = input.to.trim();
   if (to.length === 0) return null;
+  if (input.mailClass === 'marketing' && !PLAIN_RECIPIENT.test(to)) {
+    deps.logger?.warn({ templateKey: input.templateKey }, 'a marketing mail was not queued: its recipient is not one plain e-mail address');
+    return null;
+  }
 
   // Cheap short-circuit: an instance with no SMTP must not accumulate a queue
   // of mail it can never deliver, so the check is here and not in the handler.

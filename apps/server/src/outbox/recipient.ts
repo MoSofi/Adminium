@@ -34,7 +34,8 @@ export interface Addressed {
   byColumn?: ColumnAddressed | undefined;
 }
 
-export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+// No angle brackets: a bare `local@domain`, as the do-not-email list and the mail server read it alike.
+export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim());
 
 
 /** The table a column's foreign key points at. */
