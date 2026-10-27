@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1084,6 +1084,106 @@ export default {
       "selectPrompt": "Select a request",
       "daysUnit": "{count} days",
       "description": "A work queue with approve and reject."
+    }
+  },
+  "consent": {
+    "panel": {
+      "title": "E-mail consent",
+      "replied": "Replied",
+      "repliedHint": "They replied to a marketing e-mail. This stops their e-mail sequences.",
+      "record": "Record consent…",
+      "saidNo": "They said no",
+      "loadFailed": "Their e-mail consent could not be loaded.",
+      "retry": "Try again",
+      "loading": "Loading their e-mail consent…",
+      "banner": "On the do-not-email list since {date} ({why}). Marketing mail skips them; service mail like quotes and receipts still reaches them.",
+      "erased": "This person was erased. Their address stays on the do-not-email list, so they are never e-mailed again. Nothing else is kept about them.",
+      "noAddress": "This record has no e-mail address yet.",
+      "history": "Consent history",
+      "historyNote": "Newest first. Kept as it happened; entries can't be edited.",
+      "historyEmpty": "Nothing recorded yet."
+    },
+    "purpose": {
+      "newsletter": "Newsletter",
+      "surveys": "Surveys"
+    },
+    "state": {
+      "yes": "May be e-mailed",
+      "notAsked": "Not asked",
+      "unsubscribed": "Unsubscribed",
+      "no": "Said no"
+    },
+    "why": {
+      "link": "unsubscribed",
+      "spam": "marked as spam",
+      "bounce": "their mail bounced",
+      "hand": "added by hand",
+      "relayUnsubscribe": "unsubscribed through the mail service",
+      "oldMark": "unsubscribed before records were kept",
+      "leadFinder": "objected through Lead finder",
+      "erased": "erased on request"
+    },
+    "how": {
+      "inPerson": "In person",
+      "phone": "By phone",
+      "email": "By e-mail",
+      "paper": "On paper"
+    },
+    "line": {
+      "form": "Agreed on the form ‘{form}’",
+      "formVersion": "Agreed on the form ‘{form}’ (wording {version})",
+      "confirmed": "Confirmed by e-mail",
+      "confirmedOn": "confirmed by e-mail {date}",
+      "recorded": "Agreed {how, select, inPerson {in person} phone {by phone} email {by e-mail} paper {on paper} other {}}, recorded by {name}",
+      "ticked": "Ticked by {name}",
+      "unticked": "Unticked by {name}",
+      "reviewYes": "Confirmed by {name}",
+      "reviewYesExtra": "(ticked before records were kept)",
+      "reviewNo": "Left out by {name} at the send review",
+      "import": "Brought in from a file",
+      "importNo": "Brought in from a file as a no",
+      "ownPageYes": "Said yes on their own page",
+      "ownPageNo": "Said no on their own page",
+      "forget": "Asked for their details to be forgotten",
+      "ruleYes": "Set to yes by an automation",
+      "ruleNo": "Set to no by an automation",
+      "apiYes": "Set to yes through the API",
+      "apiNo": "Set to no through the API",
+      "systemYes": "Set to yes",
+      "systemNo": "Set to no",
+      "unsubscribed": "Unsubscribed from the {purpose} by the e-mail link",
+      "unsubscribedAll": "Unsubscribed from all marketing mail by the e-mail link",
+      "oneClick": "Unsubscribed with their mail app's unsubscribe button",
+      "mailService": "Stopped by the mail service",
+      "replied": "Replied — e-mail sequences stopped",
+      "by": "by {name}",
+      "from": "from {ip}"
+    },
+    "toast": {
+      "recorded": "Consent recorded for the {purpose}.",
+      "replied": "Marked as replied. Their e-mail sequences stop.",
+      "saidNo": "They are on the do-not-email list now.",
+      "already": "They were on the do-not-email list already.",
+      "failed": "That was not saved. Try again.",
+      "erased": "This person was erased: nothing more is recorded about them."
+    },
+    "confirm": {
+      "repliedTitle": "Mark as replied?",
+      "repliedConfirm": "Mark as replied",
+      "saidNoTitle": "Put them on the do-not-email list?",
+      "saidNoBody": "Marketing mail skips them from now on; service mail like quotes and receipts still reaches them. Only a Super Admin can take them off the list.",
+      "saidNoConfirm": "Put on the list",
+      "cancel": "Cancel"
+    },
+    "dialog": {
+      "title": "Record consent",
+      "purpose": "Purpose",
+      "how": "How did they agree?",
+      "note": "Note",
+      "stamp": "Your name and today's date are saved with it.",
+      "cancel": "Cancel",
+      "save": "Record consent",
+      "close": "Close"
     }
   }
 } as const;

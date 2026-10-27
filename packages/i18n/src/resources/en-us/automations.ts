@@ -515,5 +515,18 @@ export default {
     "pick": "Listed in",
     "choose": "Choose a table…",
     "help": "Of the people listed, only those who can sign in and open this record are told. A record that lists nobody tells nobody, and the run says so."
+  },
+  "mailClass": {
+    "label": "Kind of mail",
+    "marketing": "Marketing mail",
+    "service": "Service mail",
+    "help": "Service mail (a quote, a receipt, a booking) still reaches people on the do-not-email list. Marketing mail never does.",
+    "why": "Why you're writing",
+    "newsletter": "Newsletter",
+    "surveys": "Surveys",
+    "subMarketing": "Marketing mail · {purpose}",
+    "subService": "Service mail",
+    "recheck": "Checks consent and the do-not-email list again when it sends.",
+    "older": "Saved before mail had kinds: it goes as service mail until you choose."
   }
 } as const;

@@ -73,6 +73,7 @@ import {
 } from '../documents/DocumentsPanel.js';
 import { entityKey } from '../documents/documentsApi.js';
 import { fetchPaymentPanel, panelQueryKey, type PanelRecord } from '../payments-panel/paymentPanelApi.js';
+import { consentQueryKey, dashboardConsentClient } from '../consent/consentApi.js';
 import { StatePage } from '../states/StatePage.js';
 import { appStreamTransport } from './lmc/stream.js';
 import { ProjectActionButtons, useProjectActions } from './projectActions.js';
@@ -93,6 +94,8 @@ import type { PageTemplateProps } from './template-types.js';
 const LinkedRowsTab = lazy(() => import('../add-ons/LinkedRowsTab.js'));
 // The Payment panel and its words load only on a record that takes payments.
 const PaymentPanel = lazy(() => import('../payments-panel/PaymentPanel.js'));
+// The e-mail consent panel and its words load only on a record of a table an app declares as people.
+const RecordConsentPanel = lazy(() => import('../consent/RecordConsentPanel.js'));
 
 export function PageRecordBinding({
   page,
@@ -724,6 +727,44 @@ export function PageRecordBinding({
     }));
   }, [recordTabs, recordId, connectionId]);
 
+  /*
+   * E-mail consent. ABSENT on a table no app declares as people: the server
+   * says so (`declared`), and the panel (with its words) is then never
+   * loaded. A reader the server refuses gets no panel, not a retried error.
+   */
+  const consentPanel = useQuery({
+    queryKey: panelRecord === null ? ['consent-panel', 'none'] : consentQueryKey(panelRecord),
+    queryFn: () => dashboardConsentClient.panel(panelRecord!),
+    enabled: panelRecord !== null,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const consentView = consentPanel.data?.declared === true ? consentPanel.data : null;
+  // The person as this page holds them for the reader: a masked address is null here, and stays out of the panel.
+  const textOf = (column: string | null): string | null => {
+    if (column === null || row === null) return null;
+    const value = row[column];
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+  };
+  const consentName = consentView === null ? null : (textOf(consentView.columns.name) ?? hero);
+  const consentAddress = consentView === null ? null : textOf(consentView.columns.address);
+  const consentPanels = useMemo(() => {
+    if (panelRecord === null || consentView === null) return [];
+    return [
+      {
+        id: 'consent',
+        title: t('common:consent.panel.title', 'E-mail consent'),
+        ownHeading: true,
+        content: (
+          <Suspense fallback={null}>
+            <RecordConsentPanel record={panelRecord} view={consentView} name={consentName} address={consentAddress} />
+          </Suspense>
+        ),
+      },
+    ];
+    // The record is named by its three parts; the object itself is new on every render.
+  }, [consentView, consentName, consentAddress, panelRecord?.connectionId, panelRecord?.table, panelRecord?.recordId, words]);
+
   const recordActions = useMemo(() => {
     if (recordId === undefined || projectActions.record.length === 0) return [...stateButtons, ...documentActions];
     return [
@@ -814,7 +855,7 @@ export function PageRecordBinding({
          * table — an affordance that cannot do anything is worse than no
          * affordance, because it invites a click and then explains itself.
          */
-        {...(lockedState === null && selfMovePanels.length === 0 && paymentPanels.length === 0 && documentPanels.length === 0
+        {...(lockedState === null && selfMovePanels.length === 0 && paymentPanels.length === 0 && consentPanels.length === 0 && documentPanels.length === 0
           ? {}
           : {
               panels: [
@@ -823,6 +864,7 @@ export function PageRecordBinding({
                   : [{ id: 'record-locked', title: t('ui:record.lockedHint', 'Locked once {state}', { state: lockedState }), content: null }]),
                 ...selfMovePanels,
                 ...paymentPanels,
+                ...consentPanels,
                 ...documentPanels,
               ],
             })}

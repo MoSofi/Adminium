@@ -505,5 +505,18 @@
     "pick": "Inscrites dans",
     "choose": "Choisir une table…",
     "help": "Parmi les personnes inscrites, seules celles qui peuvent se connecter et ouvrir cet enregistrement sont prévenues. Un enregistrement où personne n’est inscrit ne prévient personne, et l’exécution le dit."
+  },
+  "mailClass": {
+    "label": "Type d’e-mail",
+    "marketing": "E-mail marketing",
+    "service": "E-mail de service",
+    "help": "Les e-mails de service (un devis, un reçu, une réservation) parviennent même aux personnes de la liste « Pas d’e-mail ». Les e-mails marketing, jamais.",
+    "why": "Pourquoi vous écrivez",
+    "newsletter": "Newsletter",
+    "surveys": "Enquêtes",
+    "subMarketing": "E-mail marketing · {purpose}",
+    "subService": "E-mail de service",
+    "recheck": "Revérifie le consentement et la liste « Pas d’e-mail » à l’envoi.",
+    "older": "Enregistré avant les types d’e-mail : il part comme e-mail de service tant que vous ne choisissez pas."
   }
 }

@@ -515,5 +515,18 @@ export default {
     "pick": "Står i",
     "choose": "Vælg en tabel…",
     "help": "Af de personer, der står på listen, får kun dem besked, som kan logge ind og åbne denne post. En post uden nogen på listen giver ingen besked, og kørslen siger det."
+  },
+  "mailClass": {
+    "label": "Type mail",
+    "marketing": "Marketingmail",
+    "service": "Servicemail",
+    "help": "Servicemail (et tilbud, en kvittering, en booking) når også frem til folk på listen „Ingen e-mails“. Marketingmail gør aldrig.",
+    "why": "Hvorfor du skriver",
+    "newsletter": "Nyhedsbrev",
+    "surveys": "Undersøgelser",
+    "subMarketing": "Marketingmail · {purpose}",
+    "subService": "Servicemail",
+    "recheck": "Tjekker samtykke og listen „Ingen e-mails“, igen ved afsendelse.",
+    "older": "Gemt, før mails havde en type: den sendes som servicemail, indtil du vælger."
   }
 } as const;

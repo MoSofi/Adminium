@@ -1897,5 +1897,105 @@
     "digestDay": "日期",
     "digestWhenRun": "各摘要產生的當天",
     "digestTime": "時間"
+  },
+  "consent": {
+    "panel": {
+      "title": "電子郵件同意",
+      "replied": "已回覆",
+      "repliedHint": "對方回覆了一封行銷郵件。這會停止寄給對方的郵件序列。",
+      "record": "記錄同意…",
+      "saidNo": "已拒絕",
+      "loadFailed": "無法載入電子郵件同意。",
+      "retry": "重試",
+      "loading": "正在載入電子郵件同意…",
+      "banner": "自 {date} 起在禁止寄送郵件名單上（{why}）。行銷郵件會略過對方；報價單、收據等服務郵件仍會送達。",
+      "erased": "此人已被刪除。其地址保留在禁止寄送郵件名單上，因此不會再收到任何郵件。不保留關於此人的其他任何資訊。",
+      "noAddress": "此記錄還沒有電子郵件地址。",
+      "history": "同意記錄",
+      "historyNote": "最新的在前。依發生時保存；項目無法編輯。",
+      "historyEmpty": "尚無記錄。"
+    },
+    "purpose": {
+      "newsletter": "電子報",
+      "surveys": "問卷"
+    },
+    "state": {
+      "yes": "可寄送郵件",
+      "notAsked": "未詢問",
+      "unsubscribed": "已取消訂閱",
+      "no": "已拒絕"
+    },
+    "why": {
+      "link": "已取消訂閱",
+      "spam": "被標記為垃圾郵件",
+      "bounce": "郵件被退回",
+      "hand": "手動新增",
+      "relayUnsubscribe": "透過郵件服務取消訂閱",
+      "oldMark": "在開始記錄之前取消訂閱",
+      "leadFinder": "透過 Lead finder 提出異議",
+      "erased": "應要求刪除"
+    },
+    "how": {
+      "inPerson": "當面",
+      "phone": "電話",
+      "email": "電子郵件",
+      "paper": "紙本"
+    },
+    "line": {
+      "form": "在表單「{form}」中同意",
+      "formVersion": "在表單「{form}」中同意（措辭 {version}）",
+      "confirmed": "已透過電子郵件確認",
+      "confirmedOn": "已於 {date} 透過電子郵件確認",
+      "recorded": "{how, select, inPerson {當面} phone {透過電話} email {透過電子郵件} paper {在紙本上} other {}}同意，由 {name} 記錄",
+      "ticked": "由 {name} 勾選",
+      "unticked": "由 {name} 取消勾選",
+      "reviewYes": "由 {name} 確認",
+      "reviewYesExtra": "（在開始記錄之前勾選）",
+      "reviewNo": "{name} 在寄送審核時排除",
+      "import": "從檔案匯入",
+      "importNo": "從檔案匯入為拒絕",
+      "ownPageYes": "在自己的頁面上同意",
+      "ownPageNo": "在自己的頁面上拒絕",
+      "forget": "要求刪除其資料",
+      "ruleYes": "由自動化設為是",
+      "ruleNo": "由自動化設為否",
+      "apiYes": "透過 API 設為是",
+      "apiNo": "透過 API 設為否",
+      "systemYes": "設為是",
+      "systemNo": "設為否",
+      "unsubscribed": "透過郵件連結取消訂閱了{purpose}",
+      "unsubscribedAll": "透過郵件連結取消訂閱了所有行銷郵件",
+      "oneClick": "透過郵件應用程式的取消訂閱按鈕取消訂閱",
+      "mailService": "被郵件服務停止",
+      "replied": "已回覆 — 郵件序列已停止",
+      "by": "由 {name}",
+      "from": "來自 {ip}"
+    },
+    "toast": {
+      "recorded": "已記錄對{purpose}的同意。",
+      "replied": "已標記為回覆。寄給對方的郵件序列會停止。",
+      "saidNo": "對方現已在禁止寄送郵件名單上。",
+      "already": "對方已在禁止寄送郵件名單上。",
+      "failed": "未儲存。請重試。",
+      "erased": "此人已被刪除：不再記錄關於此人的任何資訊。"
+    },
+    "confirm": {
+      "repliedTitle": "標記為已回覆？",
+      "repliedConfirm": "標記為已回覆",
+      "saidNoTitle": "加入禁止寄送郵件名單？",
+      "saidNoBody": "從現在起行銷郵件會略過對方；報價單、收據等服務郵件仍會送達。只有 Super Admin 能將其移出名單。",
+      "saidNoConfirm": "加入名單",
+      "cancel": "取消"
+    },
+    "dialog": {
+      "title": "記錄同意",
+      "purpose": "目的",
+      "how": "對方如何同意？",
+      "note": "備註",
+      "stamp": "您的姓名和今天的日期會一併儲存。",
+      "cancel": "取消",
+      "save": "記錄同意",
+      "close": "關閉"
+    }
   }
 }

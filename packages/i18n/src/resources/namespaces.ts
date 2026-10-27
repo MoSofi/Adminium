@@ -256,8 +256,11 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * to make room for the People and Teams entries of the rail (plan 67, T30). Then
  * `templates`, the words of three page templates (a directory, a queue inbox,
  * a master and detail list), each drawn by a binding fetched with its page.
+ * And `consent`: the e-mail consent panel of a people table's record (and
+ * its Record consent dialog), a part the record page fetches only for a
+ * table an app declares as people.
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

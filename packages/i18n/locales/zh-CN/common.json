@@ -1897,5 +1897,105 @@
     "digestDay": "日期",
     "digestWhenRun": "各摘要生成的当天",
     "digestTime": "时间"
+  },
+  "consent": {
+    "panel": {
+      "title": "电子邮件同意",
+      "replied": "已回复",
+      "repliedHint": "对方回复了一封营销邮件。这会停止发给对方的邮件序列。",
+      "record": "记录同意…",
+      "saidNo": "已拒绝",
+      "loadFailed": "无法加载电子邮件同意。",
+      "retry": "重试",
+      "loading": "正在加载电子邮件同意…",
+      "banner": "自 {date} 起在禁止发送邮件名单上（{why}）。营销邮件会跳过对方；报价单、收据等服务邮件仍会送达。",
+      "erased": "此人已被删除。其地址保留在禁止发送邮件名单上，因此不会再收到任何邮件。不保留关于此人的其他任何信息。",
+      "noAddress": "此记录还没有电子邮件地址。",
+      "history": "同意记录",
+      "historyNote": "最新的在前。按发生时保存；条目无法编辑。",
+      "historyEmpty": "尚无记录。"
+    },
+    "purpose": {
+      "newsletter": "新闻通讯",
+      "surveys": "调查"
+    },
+    "state": {
+      "yes": "可发送邮件",
+      "notAsked": "未询问",
+      "unsubscribed": "已退订",
+      "no": "已拒绝"
+    },
+    "why": {
+      "link": "已退订",
+      "spam": "被标记为垃圾邮件",
+      "bounce": "邮件被退回",
+      "hand": "手动添加",
+      "relayUnsubscribe": "通过邮件服务退订",
+      "oldMark": "在开始记录之前退订",
+      "leadFinder": "通过 Lead finder 提出异议",
+      "erased": "应要求删除"
+    },
+    "how": {
+      "inPerson": "当面",
+      "phone": "电话",
+      "email": "电子邮件",
+      "paper": "纸质"
+    },
+    "line": {
+      "form": "在表单“{form}”中同意",
+      "formVersion": "在表单“{form}”中同意（措辞 {version}）",
+      "confirmed": "已通过电子邮件确认",
+      "confirmedOn": "已于 {date} 通过电子邮件确认",
+      "recorded": "{how, select, inPerson {当面} phone {通过电话} email {通过电子邮件} paper {在纸上} other {}}同意，由 {name} 记录",
+      "ticked": "由 {name} 勾选",
+      "unticked": "由 {name} 取消勾选",
+      "reviewYes": "由 {name} 确认",
+      "reviewYesExtra": "（在开始记录之前勾选）",
+      "reviewNo": "{name} 在发送审核时排除",
+      "import": "从文件导入",
+      "importNo": "从文件导入为拒绝",
+      "ownPageYes": "在自己的页面上同意",
+      "ownPageNo": "在自己的页面上拒绝",
+      "forget": "要求删除其资料",
+      "ruleYes": "由自动化设为是",
+      "ruleNo": "由自动化设为否",
+      "apiYes": "通过 API 设为是",
+      "apiNo": "通过 API 设为否",
+      "systemYes": "设为是",
+      "systemNo": "设为否",
+      "unsubscribed": "通过邮件链接退订了{purpose}",
+      "unsubscribedAll": "通过邮件链接退订了所有营销邮件",
+      "oneClick": "通过邮件应用的退订按钮退订",
+      "mailService": "被邮件服务停止",
+      "replied": "已回复 — 邮件序列已停止",
+      "by": "由 {name}",
+      "from": "来自 {ip}"
+    },
+    "toast": {
+      "recorded": "已记录对{purpose}的同意。",
+      "replied": "已标记为回复。发给对方的邮件序列会停止。",
+      "saidNo": "对方现已在禁止发送邮件名单上。",
+      "already": "对方已在禁止发送邮件名单上。",
+      "failed": "未保存。请重试。",
+      "erased": "此人已被删除：不再记录关于此人的任何信息。"
+    },
+    "confirm": {
+      "repliedTitle": "标记为已回复？",
+      "repliedConfirm": "标记为已回复",
+      "saidNoTitle": "加入禁止发送邮件名单？",
+      "saidNoBody": "从现在起营销邮件会跳过对方；报价单、收据等服务邮件仍会送达。只有 Super Admin 能将其移出名单。",
+      "saidNoConfirm": "加入名单",
+      "cancel": "取消"
+    },
+    "dialog": {
+      "title": "记录同意",
+      "purpose": "目的",
+      "how": "对方如何同意？",
+      "note": "备注",
+      "stamp": "您的姓名和今天的日期会一并保存。",
+      "cancel": "取消",
+      "save": "记录同意",
+      "close": "关闭"
+    }
   }
 }
