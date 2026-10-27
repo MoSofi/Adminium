@@ -170,13 +170,13 @@ for (const [dialect, reachable] of LEGS) {
       const dns = new Map<string, string[]>();
       const lookup = createTxtLookup({ cacheMs: 0, resolve: async (name) => (dns.get(name) ?? []).map((record) => [record]) });
       s = await wholeServer(dialect, crm(), {
-        people: { mia: ['marketer'], max: ['masked'], nora: [], rita: ['reader'], hal: ['filterless'], ida: ['blindmail'], lou: ['masked'] },
+        people: { mia: ['marketer'], max: ['masked'], nora: [], rita: ['reader'], hal: ['filterless'], ida: ['blindmail'], lou: ['masked'], pia: ['reader'] },
         smtp: true,
         files: { 'seeds/crm.sample.json': JSON.stringify(SAMPLE) },
         compose: { marketingSeams: { lookup, postalAddress: async () => POSTAL } },
       });
       contacts = s.t('contacts');
-      // Everyone here may send campaigns (the e-mail screens' grant); lou also sees the contacts' addresses, by a role of their own.
+      // Everyone here but Pia may send campaigns (the e-mail screens' grant); lou also sees the contacts' addresses, by a role of their own.
       const roles = rolesRepo(s.meta);
       const campaigns = await roles.create({ slug: 'campaigns', name: 'Campaigns' });
       await permissionsRepo(s.meta).grant(campaigns.id, 'system', 'settings.manage', { allowed: true });
@@ -525,13 +525,19 @@ for (const [dialect, reachable] of LEGS) {
         expect(reply.body).toContain('ana@harbour.dev');
       }
       // Max (masked), Ida (the address column not shown) and Nora (no read of the table) manage e-mail too: the run's own entry only.
-      for (const who of ['max', 'ida', 'nora']) {
+      // Pia reads the contacts in clear but does not manage e-mail: the same.
+      for (const who of ['max', 'ida', 'nora', 'pia']) {
         for (const reply of await replies(who)) {
           expect(reply.statusCode, `${who} ${reply.body}`).toBe(200);
           expect(reply.body, who).not.toContain('harbour.dev');
           expect(reply.body, who).toContain('relay-down');
         }
       }
+      // A run refused before it wrote anybody down still names its table: a failure naming a person there is hidden the same.
+      const early = await emailRunsRepo(s.meta).create({ templateId, audience: { kind: 'table', connectionId: s.connectionId, table: contacts, purpose: 'newsletter' }, scheduledAt: 1 }, 1);
+      await emailRunsRepo(s.meta).noteFailure(early.id, { to: 'rex@harbour.dev', error: 'no-such-user' });
+      expect((await s.get('mia', `/api/v1/email-runs/${early.id}`)).body).toContain('rex@harbour.dev');
+      expect((await s.get('max', `/api/v1/email-runs/${early.id}`)).body).not.toContain('rex@harbour.dev');
     });
 
     it('a sender who loses the right to see the addresses mid-run is refused at the next batch', async () => {

@@ -154,7 +154,6 @@ import {
   hashCode,
   maskAddress,
   newCode,
-  normaliseAddress,
   plausibleAddress,
   subjectOf,
   tryCode,
@@ -162,6 +161,7 @@ import {
 import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED, plainColumn, plainRule } from '../../public-api/anonymous-caps.js';
 import { notPlainOn, recentPlainTextOn } from '../../public-api/plain-text-on.js';
 import { appContact } from '../../outbox/sender.js';
+import { provedAddressOf } from '../../public-api/proved-address.js';
 import { createSwitches, type Switches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
@@ -978,7 +978,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
-    provedAddress: provedAddressOf(ok, claimed),
+    provedAddress: provedAddressOf(ok.key.scope, ok.session, claimed),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
       ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
@@ -989,25 +989,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   };
   const consentTicks = createConsentTicks(meta);
 
-  /**
-   * The one address a session proved it reads mail at: the signed-in
-   * person's own row's address column (the scope's `claim.email`, where the
-   * code or the sign-in link was mailed), for a session at `verified` or
-   * opened by an e-mailed link. A row's own link (`token`) proves no mailbox:
-   * it may have been handed over. Null when nothing was proved. A desk change
-   * of that address ends the person's sessions (`identity-email-watch.ts`),
-   * and the person may not write it themselves, so the row read now still
-   * holds the address the mail went to.
-   */
-  const provedAddressOf = (ok: { key: ResolvedKey; session: PublicSessionContext | null }, claimed: Row | null): string | null => {
-    const session = ok.session;
-    if (session === null || claimed === null || session.kind === 'token') return null;
-    if (session.level !== 'verified' && session.kind !== 'link') return null;
-    const claim = ok.key.scope.claim;
-    if (claim === null || claim === undefined || claim.ref !== session.grant.ref || claim.email === undefined) return null;
-    const value = claimed[claim.email];
-    return plausibleAddress(value) ? normaliseAddress(value) : null;
-  };
 
   /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
   /**
