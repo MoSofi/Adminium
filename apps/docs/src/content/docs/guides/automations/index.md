@@ -143,6 +143,22 @@ branch.
 | **Call webhook** | POST or PUT to a URL, with the default JSON payload or your own text. |
 | **Slack message** | The same thing, with a `{ text }` body and a `hooks.slack.com` URL. |
 
+### Marketing or service mail
+
+A **Send email** step to the record's own address says what kind of mail it is, under **Kind of
+mail**:
+
+- **Marketing mail**, which a new step starts as, goes only to people who agreed, for the reason
+  you pick under **Why you're writing** (the newsletter or surveys), never to an address on the
+  do-not-email list, and carries an unsubscribe link. Each one is checked again when it goes: the
+  second mail of a sequence skips a person who unsubscribed, or whose reply was marked, after the
+  first. The canvas says so under it.
+- **Service mail** (a quote, a receipt, a booking) still reaches people on the do-not-email list.
+
+A mail to the person on the record, to the people listed on it, or to addresses you typed has no
+kind and is never stopped. A step saved before steps could say goes as service mail, and its
+settings say so until you choose.
+
 ### Steps from add-ons
 
 An add-on may give steps of its own. They are listed in **Add a step** under **From add-ons**,
