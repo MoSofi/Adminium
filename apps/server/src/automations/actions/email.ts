@@ -381,7 +381,8 @@ export async function runEmailAction(
         to,
         vars,
         parts,
-        ...(replyTo === null ? {} : { replyTo }),
+        // A marketing mail with no reply address of its own takes the marketing mail settings' one (the carry's).
+        ...((carry?.replyTo ?? replyTo) === null ? {} : { replyTo: (carry?.replyTo ?? replyTo)! }),
         ...(carry === null ? {} : { locked: carry.locked }),
         ...(Object.keys(headers).length === 0 ? {} : { headers }),
         ...(signed?.dkim == null ? {} : { dkim: signed.dkim }),

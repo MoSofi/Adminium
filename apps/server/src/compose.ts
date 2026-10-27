@@ -307,6 +307,7 @@ import { consentRoutes, emailColumnOf } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { mailDoorRoutes } from './routes/mail-door/index.js';
 import { privacyRoutes } from './routes/privacy/index.js';
+import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
@@ -2234,6 +2235,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           enqueue: (input) => jobs.enqueue(input),
           // An erased person's rows: the public door's address watch ends their sessions and takes their sign-in links back.
           signIns: (event) => app.publicIdentities.onRecordEvent(event),
+        }),
+      );
+      // The marketing mail settings: each sender's DKIM key and DNS checks, the reply address, the bounce card's notice addresses.
+      await api.register(
+        mailSettingsRoutes({
+          meta,
+          secret: env.ADMINIUM_SECRET,
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+          lookup: opts.marketingSeams?.lookup,
         }),
       );
       await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));

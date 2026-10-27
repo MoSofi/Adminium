@@ -245,6 +245,8 @@ interface Message {
   attachments: EmailSendAttachmentRef[];
   /** A marketing run's list headers. */
   headers?: Record<string, string> | undefined;
+  /** A marketing run's Reply-To: the marketing mail settings' "Replies to marketing mail go to". */
+  replyTo?: string | null | undefined;
 }
 
 /** Registers the `email.campaign-run` handler on `registry` (internal kind). */
@@ -436,7 +438,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
           ...(carry === null ? {} : { locked: carry.locked }),
         });
         const rendered = carry?.clicks === undefined ? drawn : { ...drawn, html: carry.clicks(drawn.html) };
-        return { to: row.address, locale: variant.locale, rendered, from: prepared.from, attachments: [...prepared.attachments, ...generated], ...(carry === null ? {} : { headers: carry.headers }) };
+        return { to: row.address, locale: variant.locale, rendered, from: prepared.from, attachments: [...prepared.attachments, ...generated], ...(carry === null ? {} : { headers: carry.headers, replyTo: carry.replyTo }) };
       };
       /** The one transaction that makes a row handed: counted, queued, marked (see the header). */
       const handOver = async (row: EmailSend, message: Message): Promise<'handed' | 'run' | 'row'> => {
@@ -458,6 +460,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
                 // A run to contacts is marketing or service mail; one to the workspace's own people has no class.
                 ...(run.mailClass === null ? {} : { mailClass: run.mailClass }),
                 ...(message.headers === undefined ? {} : { headers: message.headers }),
+                ...(message.replyTo == null ? {} : { replyTo: message.replyTo }),
               },
             );
             if (job === null) throw new NotQueued('the message could not be queued');

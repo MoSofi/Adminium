@@ -1577,7 +1577,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         template: shown,
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
         ...(override.subject === undefined && override.body === undefined ? {} : { override }),
-        ...(replyTo === null ? {} : { replyTo }),
+        // A marketing mail with no reply address of its own takes the marketing mail settings' one (the carry's).
+        ...((carry?.replyTo ?? replyTo) === null ? {} : { replyTo: (carry?.replyTo ?? replyTo)! }),
         // Mail to a contact says its class (a refusal for good at send time then stop-lists the address); mail to the house has none.
         ...(mailClass === 'staff' ? {} : { mailClass }),
         ...(carry === undefined ? {} : { marketing: carry }),
