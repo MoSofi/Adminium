@@ -124,7 +124,7 @@ function NoticeForm({ name: savedName, url: savedUrl }: { name: string; url: str
       queryClient.setQueryData(PRIVACY_NOTICE_QUERY_KEY, next);
       toasts.push({ variant: 'success', title: t('studio:privacy.notice.saved', 'Saved') });
     } catch (error) {
-      if (error instanceof ApiError && error.status === 422) setServerError(t('studio:privacy.notice.httpsOnly', 'Use an https:// address, such as https://www.example.com/privacy.'));
+      if (error instanceof ApiError && error.status === 422) setServerError(t('studio:privacy.notice.httpsOnly', 'Use an address that starts with https, such as https://www.example.com/privacy.'));
       else toasts.push({ variant: 'error', title: t('studio:privacy.notice.saveFailed', 'The privacy notice was not saved. Try again.') });
     } finally {
       setBusy(false);

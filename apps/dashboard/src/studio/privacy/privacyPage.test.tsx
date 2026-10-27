@@ -102,7 +102,7 @@ function stub(): Call[] {
         return ok({ data: notice });
       }
       if (url === '/api/v1/privacy/keeping') {
-        return ok({ data: { rows: [{ key: 'consent-history', fixed: true, keptFor: 'forever', options: [] }, { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] }] } });
+        return ok({ data: { rows: [{ key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] }, { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] }] } });
       }
       if (url === '/api/v1/privacy/find') {
         const address = (body as { address: string }).address.toLowerCase();
@@ -221,12 +221,12 @@ describe('the privacy notice', () => {
     const { calls } = await renderAt('/studio/privacy?tab=notice');
     const field = await screen.findByLabelText('Privacy notice address');
     await userEvent.type(field, 'http://www.meridian.example/privacy');
-    expect(await screen.findByText('Use an https:// address, such as https://www.example.com/privacy.')).toBeDefined();
+    expect(await screen.findByText('Use an address that starts with https, such as https://www.example.com/privacy.')).toBeDefined();
     expect(field.getAttribute('aria-invalid')).toBe('true');
     expect((screen.getByTestId('privacy-notice-save') as HTMLButtonElement).disabled).toBe(true);
     await userEvent.clear(field);
     await userEvent.type(field, 'https://www.meridian.example/privacy');
-    expect(screen.queryByText('Use an https:// address, such as https://www.example.com/privacy.')).toBeNull();
+    expect(screen.queryByText('Use an address that starts with https, such as https://www.example.com/privacy.')).toBeNull();
     await userEvent.click(screen.getByTestId('privacy-notice-save'));
     await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
     expect(calls.find((call) => call.method === 'PUT')!.body).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy' });
@@ -241,7 +241,7 @@ describe('the privacy notice', () => {
     // `https:` with no host passes no check here; the stub refuses what does not start with https://.
     await userEvent.type(field, 'HTTPS://www.meridian.example/privacy');
     await userEvent.click(screen.getByTestId('privacy-notice-save'));
-    expect(await screen.findByText('Use an https:// address, such as https://www.example.com/privacy.')).toBeDefined();
+    expect(await screen.findByText('Use an address that starts with https, such as https://www.example.com/privacy.')).toBeDefined();
   });
 });
 

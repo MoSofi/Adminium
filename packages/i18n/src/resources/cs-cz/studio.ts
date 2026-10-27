@@ -4252,7 +4252,7 @@ export default {
   "privacy": {
     "erasedPerson": "Vymazaná osoba",
     "notice": {
-      "httpsOnly": "Použijte adresu https://, například https://www.example.com/privacy.",
+      "httpsOnly": "Použijte adresu začínající na https, například https://www.example.com/privacy.",
       "loadFailed": "Nastavení soukromí se nepodařilo načíst. Zkuste to znovu.",
       "saved": "Uloženo",
       "saveFailed": "Zásady ochrany osobních údajů se neuložily. Zkuste to znovu.",

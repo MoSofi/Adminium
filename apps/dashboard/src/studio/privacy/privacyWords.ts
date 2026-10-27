@@ -10,7 +10,7 @@ import { isHttpsAddress, type GoesItem, type StaysItem } from './privacyApi.js';
 /** The https check the notice's address field shows as it is typed: blank is not refused here (Save stays off instead). */
 export function noticeUrlError(value: string): string | null {
   if (value.trim() === '' || isHttpsAddress(value)) return null;
-  return t('studio:privacy.notice.httpsOnly', 'Use an https:// address, such as https://www.example.com/privacy.');
+  return t('studio:privacy.notice.httpsOnly', 'Use an address that starts with https, such as https://www.example.com/privacy.');
 }
 
 /** 503 `ADDRESS_KEYS_LOCKED`: the server cannot read its address keys, so it neither searches nor erases. */

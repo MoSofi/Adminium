@@ -4252,7 +4252,7 @@ export default {
   "privacy": {
     "erasedPerson": "Slettet person",
     "notice": {
-      "httpsOnly": "Brug en https://-adresse, f.eks. https://www.example.com/privacy.",
+      "httpsOnly": "Brug en adresse, der starter med https, f.eks. https://www.example.com/privacy.",
       "loadFailed": "Privatlivsindstillingerne kunne ikke indlæses. Prøv igen.",
       "saved": "Gemt",
       "saveFailed": "Privatlivserklæringen blev ikke gemt. Prøv igen.",

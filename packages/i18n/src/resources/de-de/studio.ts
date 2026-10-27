@@ -4252,7 +4252,7 @@ export default {
   "privacy": {
     "erasedPerson": "Gelöschte Person",
     "notice": {
-      "httpsOnly": "Verwenden Sie eine https://-Adresse, zum Beispiel https://www.example.com/privacy.",
+      "httpsOnly": "Verwenden Sie eine Adresse, die mit https beginnt, zum Beispiel https://www.example.com/privacy.",
       "loadFailed": "Die Datenschutzeinstellungen konnten nicht geladen werden. Versuchen Sie es erneut.",
       "saved": "Gespeichert",
       "saveFailed": "Der Datenschutzhinweis wurde nicht gespeichert. Versuchen Sie es erneut.",

@@ -4242,7 +4242,7 @@
   "privacy": {
     "erasedPerson": "Personne effacée",
     "notice": {
-      "httpsOnly": "Utilisez une adresse https://, par exemple https://www.example.com/privacy.",
+      "httpsOnly": "Utilisez une adresse qui commence par https, par exemple https://www.example.com/privacy.",
       "loadFailed": "Les paramètres de confidentialité n’ont pas pu être chargés. Réessayez.",
       "saved": "Enregistré",
       "saveFailed": "L’avis de confidentialité n’a pas été enregistré. Réessayez.",

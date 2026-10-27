@@ -4242,7 +4242,7 @@
   "privacy": {
     "erasedPerson": "已刪除的人員",
     "notice": {
-      "httpsOnly": "請使用 https:// 網址，例如 https://www.example.com/privacy。",
+      "httpsOnly": "請使用以 https 開頭的網址，例如 https://www.example.com/privacy。",
       "loadFailed": "無法載入隱私設定。請重試。",
       "saved": "已儲存",
       "saveFailed": "隱私聲明未儲存。請重試。",

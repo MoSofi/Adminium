@@ -103,7 +103,7 @@ test('the notice: http:// is refused as typed, an https address is saved', async
   await page.getByLabel('Business name').fill('Meridian Workplace Ltd');
   const address = page.getByLabel('Privacy notice address');
   await address.fill('http://www.meridian.example/privacy');
-  await expect(page.getByText('Use an https:// address, such as https://www.example.com/privacy.')).toBeVisible();
+  await expect(page.getByText('Use an address that starts with https, such as https://www.example.com/privacy.')).toBeVisible();
   await expect(page.getByTestId('privacy-notice-save')).toBeDisabled();
   // The server refuses it too, whatever the page says.
   const refused = await page.request.put('/api/v1/privacy/notice', { data: { businessName: 'Meridian Workplace Ltd', noticeUrl: 'http://www.meridian.example/privacy' } });

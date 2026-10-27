@@ -4252,7 +4252,7 @@ export default {
   "privacy": {
     "erasedPerson": "شخص محذوف",
     "notice": {
-      "httpsOnly": "استخدم عنوانًا يبدأ بـ https://، مثل https://www.example.com/privacy.",
+      "httpsOnly": "استخدم عنوانًا يبدأ بـ https، مثل https://www.example.com/privacy.",
       "loadFailed": "تعذّر تحميل إعدادات الخصوصية. حاول مرة أخرى.",
       "saved": "تم الحفظ",
       "saveFailed": "لم يُحفظ إشعار الخصوصية. حاول مرة أخرى.",
