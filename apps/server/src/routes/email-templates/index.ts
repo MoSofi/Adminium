@@ -64,6 +64,7 @@ import { EXPORT_BOM, serializeCsvRow } from '../../data-io/csv.js';
 import { EMAIL_CAMPAIGN_RUN_KIND, EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS, estimateMinutes } from '../../jobs/email-campaign-run.js';
 import { resetBuiltinEmailTemplate, translatorForLocale } from '../../email/builtins.js';
 import {
+  bareAddress,
   documentColumns,
   documentVars,
   isBuiltinEmailKey,
@@ -504,12 +505,14 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
      * the mail server's). The same function the run asks at its first batch,
      * so the dialog, the send and the run never disagree.
      */
-    async function senderRefusals(row: EmailTemplate): Promise<MarketingRefusal[]> {
+    async function senderRefusals(row: EmailTemplate): Promise<{ sender: string | null; refusals: MarketingRefusal[] }> {
+      const from = (await fromOf(meta, row.brand)) ?? '';
+      const sender = bareAddress(from) === '' ? null : bareAddress(from);
       if (marketingKit === null) {
-        if (secret === null) return [];
+        if (secret === null) return { sender, refusals: [] };
         marketingKit = createMarketingMail({ meta, secret });
       }
-      return await marketingKit.refusals((await fromOf(meta, row.brand)) ?? '');
+      return { sender, refusals: await marketingKit.refusals(from) };
     }
 
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {
@@ -1074,7 +1077,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         if (request.body.audience.kind === 'table') {
           const preview = await tableAudiencePreview(audienceDeps(), signedInUserId(request), request.body.audience, await sentVariants(row), request.body.ratePerHour ?? null);
           // Mail to a table's people is marketing: what would refuse it, so the dialog shows it before the send.
-          return { ...preview, refusals: await senderRefusals(row) };
+          return { ...preview, ...(await senderRefusals(row)) };
         }
         const audience = await resolveCampaignAudience(meta, request.body.audience);
         return {
@@ -1115,7 +1118,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const toTable = request.body.audience.kind === 'table' ? await openedTableAudience(request, request.body.audience) : null;
         // Marketing mail the sender's checks refuse is refused here, before a run is made (the run would stop at its first batch).
         if (toTable !== null) {
-          const refusals = await senderRefusals(row);
+          const { refusals } = await senderRefusals(row);
           if (refusals.length > 0) {
             throw new AppError(409, 'SENDER_REFUSED', `This campaign can't go out yet. ${refusals.map(marketingRefusalSentence).join('. ')}.`, { refusals });
           }

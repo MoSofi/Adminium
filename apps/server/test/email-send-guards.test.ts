@@ -62,6 +62,7 @@ function crm(): Record<string, unknown> {
 interface Preview {
   total: number;
   refusals?: string[];
+  sender?: string | null;
   breakdown?: { recipients: number };
 }
 
@@ -121,6 +122,8 @@ for (const [dialect, reachable] of LEGS) {
       const templateId = await campaign();
       const shown = await preview(templateId, { audience: audience() });
       expect(shown.refusals).toEqual(['no-postal-address', 'free-mail-from', 'no-public-address']);
+      // The address they are about, which the dialog names.
+      expect(shown.sender).toBe('meridian.news@gmail.com');
       // The breakdown is still there: the dialog shows who would get it beside what stops it.
       expect(shown.breakdown?.recipients).toBe(2);
       const refused = await s.send('mia', 'POST', `/api/v1/email-templates/${templateId}/send`, { audience: audience() });

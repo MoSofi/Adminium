@@ -308,6 +308,8 @@ export const emailAudiencePreviewReply = z.object({
    * there is one, the send answers 409 `SENDER_REFUSED` with the same codes.
    */
   refusals: z.array(z.enum(MARKETING_REFUSALS)).optional(),
+  /** A table audience: the address it goes from (the brand's sender, else the mail server's), which the refusals are about. */
+  sender: z.string().nullable().optional(),
 });
 
 export const emailSendBody = z.object({
