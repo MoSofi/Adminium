@@ -17,7 +17,7 @@
 | `role` | no | `pk` (primary key), `created_at` or `updated_at`. |
 | `semantic` | no | A hint for widgets: `name`, `money`, `image`, `email`, `avatar`, `geo-lat`, `geo-lng`. `money` (like a `money` column, or `"scale": "currency"`) makes the column money wherever Adminium draws it, whatever it is called: a board's totals and card, a chart's **Show data** table, a list. Read by Adminium 0.3.28 and later; an older release takes it as a hint only. |
 | `enum` | for `enum` | The allowed values, at least one. |
-| `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. |
+| `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. A name the manifest does not declare is a table the database already has (a shop's own `customers`, with a one-column primary key): the app then installs only on a database with that table, the check warns about it, and anywhere else the install is refused (`UNRESOLVED_REFERENCE`). |
 | `maxLength` | no | `text` only: creates `varchar(n)` instead of unbounded text. 1–1000. Leave it out for long text (notes, a description): text with no `maxLength` has no limit. |
 | `scale` | no | `decimal` and `money` only: the places kept after the point. See [Decimal places](https://docs.adminium.dev/reference/manifest/#decimal-places). |
 | `default` | no | The value the database fills when an insert leaves the column out. See [Defaults](https://docs.adminium.dev/reference/manifest/#defaults). |
@@ -108,5 +108,3 @@ not in UTC a row Adminium makes now differs from one another program stamps. On 
 the database's own default is kept as well.
 
 #### Decimal places
-
-`scale` says how many places a `decimal` or `money` column keeps after the point:

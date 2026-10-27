@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "Karten erscheinen in ihren Statusspalten, sobald Datensätze angelegt werden.",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "Noch keine Karten",
     "ui:widgets.boards.notAdded": "{title} wurde nicht hinzugefügt.",
-    "ui:widgets.boards.notMoved": "{title} wurde nicht verschoben."
+    "ui:widgets.boards.notMoved": "{title} wurde nicht verschoben.",
+    "ui:widgets.boards.pct": "{pct} %",
+    "ui:widgets.boards.pctComplete": "{pct} % erledigt"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "Schließen",

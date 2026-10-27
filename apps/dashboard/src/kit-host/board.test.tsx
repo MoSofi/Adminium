@@ -111,7 +111,8 @@ describe('the board, mounted', () => {
     expect(el.getAttribute('aria-grabbed')).toBe('true');
     fireEvent.keyDown(el, { key: 'ArrowRight' });
     expect(said()).toBe('Second Wind is over Won.');
-    expect(column('won').querySelector('[data-drop-target]')).not.toBeNull();
+    // The whole column is the drop target (the comp's dashed column), and it shows it.
+    expect(column('won').hasAttribute('data-drop-target')).toBe(true);
     await act(async () => {
       fireEvent.keyDown(el, { key: 'Enter' });
     });

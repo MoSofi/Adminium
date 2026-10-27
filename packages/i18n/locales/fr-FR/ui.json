@@ -476,7 +476,9 @@
         "emptyBody": "Les événements planifiés apparaîtront dans ce calendrier.",
         "previousLabel": "Mois précédent",
         "nextLabel": "Mois suivant",
-        "overflowLabel": "+{count} de plus"
+        "overflowLabel": "+{count} de plus",
+        "today": "Aujourd’hui",
+        "newEvent": "Nouvel événement"
       },
       "dayAgenda": {
         "description": "Les événements du jour sélectionné sous forme d'agenda chronologique.",
@@ -721,7 +723,11 @@
         "addLabel": "Ajouter",
         "cancelLabel": "Annuler",
         "openLabel": "Ajouter une carte"
-      }
+      },
+      "pctComplete": "{pct} % terminé",
+      "noLane": "Aucune",
+      "laneCount": "{count, plural, one {# carte} other {# cartes}}",
+      "pct": "{pct} %"
     },
     "communication": {
       "conversationInbox": {
@@ -890,7 +896,19 @@
         "description": "Barres de tâches sur un axe temporel, groupées par phase, avec avancement, jalons et repère du jour.",
         "emptyTitle": "Rien de planifié",
         "emptyBody": "Les tâches apparaissent ici dès qu'elles ont une date de début et de fin.",
-        "ungroupedLabel": "Tâches"
+        "ungroupedLabel": "Tâches",
+        "stats": {
+          "tasks": "Tâches au total",
+          "onTrack": "Dans les temps",
+          "atRisk": "À risque",
+          "milestones": "Jalons"
+        },
+        "zoom": "Échelle du planning",
+        "weeks": "Semaines",
+        "months": "Mois",
+        "taskColumn": "Tâche",
+        "taskCount": "{count, plural, one {# tâche} other {# tâches}}",
+        "today": "Aujourd’hui"
       },
       "documentCanvas": {
         "description": "Un canevas de document au style papier — facture, rapport ou e-mail — dont les blocs peuvent être sélectionnés, réordonnés et supprimés.",
@@ -2040,19 +2058,26 @@
       "toolbarCount": "{count, plural, one {# carte} other {# cartes}}",
       "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
       "daysLabelled": "{days} {label}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "Nouveau : {item}",
+      "addItem": "Ajouter : {item}",
+      "itemName": "Nom ({item})…",
+      "newCard": "Nouvelle carte",
+      "roadmapYear": "Année de la feuille de route",
+      "previousYear": "Année précédente",
+      "nextYear": "Année suivante",
+      "thisYear": "Cette année"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} événement} other {{n} événements}}",
       "composePlaceholder": "Titre de l’événement…",
       "addEvent": "Ajouter un événement",
       "dateRange": "Période",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Catégories",
       "upcomingTitle": "À venir",
       "invalidLayout": "La disposition enregistrée de ce calendrier est invalide. Régénérez la page ou réinitialisez sa disposition.",
       "composeChoose": "Objet de cet événement",
-      "composeChoosePlaceholder": "Choisir…"
+      "composeChoosePlaceholder": "Choisir…",
+      "calendarsTitle": "Calendriers"
     },
     "scheduler": {
       "previousWeek": "Semaine précédente",
@@ -2061,7 +2086,24 @@
       "month": "Mois",
       "invalidLayout": "La disposition enregistrée de ce planning est invalide. Régénérez la page ou réinitialisez sa disposition.",
       "shiftCount": "{count, plural, one {{n} créneau} other {{n} créneaux}}",
-      "addShift": "Ajouter un créneau"
+      "addShift": "Ajouter un créneau",
+      "teamMember": "Membre de l’équipe",
+      "hoursUnit": "h",
+      "thisWeek": "Cette semaine",
+      "weekOf": "Semaine du {start} au {end}",
+      "cellHint": "Choisissez une case vide pour ajouter un créneau",
+      "addShiftSubtitle": "Planifier un créneau pour un membre de l’équipe.",
+      "day": "Date",
+      "start": "Début",
+      "end": "Fin",
+      "type": "Type",
+      "addRefused": "Le créneau n’a pas été ajouté.",
+      "stats": {
+        "staff": "Personnes planifiées",
+        "shifts": "Total des créneaux",
+        "hours": "Heures planifiées",
+        "uncovered": "Jours non couverts"
+      }
     },
     "settings": {
       "title": "Paramètres de notification",

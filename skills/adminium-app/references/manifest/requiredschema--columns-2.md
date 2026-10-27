@@ -2,6 +2,8 @@
 
 # Manifest spec: requiredSchema — Columns
 
+`scale` says how many places a `decimal` or `money` column keeps after the point:
+
 | Value | Places |
 |---|---|
 | `0`–`4` | That many. |

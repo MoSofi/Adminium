@@ -34,6 +34,23 @@ export const ONBOARDING_STEP_IDS = [
 export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
 
 /**
+ * The wizard on an instance whose database is already connected (walkthrough
+ * finding V7): `adminium new shop --database …` writes `databases.main` into
+ * `adminium.config.ts`, and the server connects it and generates its pages on
+ * boot, before anyone has signed in (`server/src/project/databases.ts`). Asking
+ * "What will you build first?" and "Connect your database" after that would
+ * either do nothing or make a second connection to the same database, so both
+ * steps are left out and the first screen is the account, as the docs
+ * quickstart says.
+ */
+export const CONNECTED_STEP_IDS: readonly OnboardingStepId[] = ['account', 'meta', 'team', 'done'];
+
+/** The steps this instance walks through. */
+export function onboardingStepIds(databaseConnected: boolean): readonly OnboardingStepId[] {
+  return databaseConnected ? CONNECTED_STEP_IDS : ONBOARDING_STEP_IDS;
+}
+
+/**
  * Steps a person may pass without answering.
  *
  * `account` is never skippable — it is the hinge the three steps after it need
@@ -66,18 +83,25 @@ export interface OnboardingStepDef {
  * Built per call, never hoisted to a module constant: every string here comes
  * from `t()`, and a constant would freeze the locale that happened to be active
  * when this module was first imported.
+ *
+ * `ids` picks the steps and numbers them: on a connected instance the account
+ * is "Step 1 of 4", not "Step 3 of 6".
  */
-export function onboardingStepDefs(): readonly OnboardingStepDef[] {
-  const total = ONBOARDING_STEP_IDS.length;
-  const kicker = (n: number): string =>
-    t('onboarding:kicker', 'Step {n} of {total}', { n, total });
+export function onboardingStepDefs(
+  ids: readonly OnboardingStepId[] = ONBOARDING_STEP_IDS,
+): readonly OnboardingStepDef[] {
+  const total = ids.length;
+  const kicker = (id: OnboardingStepId): string =>
+    t('onboarding:kicker', 'Step {n} of {total}', { n: ids.indexOf(id) + 1, total });
+  // No connect step means the database was there before the wizard was.
+  const connected = !ids.includes('connect');
 
-  return [
+  const all: OnboardingStepDef[] = [
     {
       id: 'start',
       label: t('onboarding:start.label', 'Starting point'),
       description: t('onboarding:start.sub', 'Pick a shape'),
-      kicker: kicker(1),
+      kicker: kicker('start'),
       title: t('onboarding:start.title', 'What will you build first?'),
       body: t(
         'onboarding:start.body',
@@ -89,7 +113,7 @@ export function onboardingStepDefs(): readonly OnboardingStepDef[] {
       id: 'connect',
       label: t('onboarding:connect.label', 'Connect data'),
       description: t('onboarding:connect.sub', 'Link a database'),
-      kicker: kicker(2),
+      kicker: kicker('connect'),
       title: t('onboarding:connect.title', 'Connect your database'),
       body: t(
         'onboarding:connect.body',
@@ -101,7 +125,7 @@ export function onboardingStepDefs(): readonly OnboardingStepDef[] {
       id: 'account',
       label: t('onboarding:account.label', 'Your account'),
       description: t('onboarding:account.sub', 'Sign in details'),
-      kicker: kicker(3),
+      kicker: kicker('account'),
       title: t('onboarding:account.title', 'Create your account'),
       body: t(
         'onboarding:account.body',
@@ -113,19 +137,24 @@ export function onboardingStepDefs(): readonly OnboardingStepDef[] {
       id: 'meta',
       label: t('onboarding:meta.label', 'Adminium’s data'),
       description: t('onboarding:meta.sub', 'Where it lives'),
-      kicker: kicker(4),
+      kicker: kicker('meta'),
       title: t('onboarding:meta.title', 'Where Adminium keeps its own data'),
-      body: t(
-        'onboarding:meta.body',
-        'Your login, the pages you generate and your saved settings. That is separate from the database you just connected, which Adminium only reads.',
-      ),
+      body: connected
+        ? t(
+            'onboarding:meta.bodyConnected',
+            'Your login, the pages you generate and your saved settings. That is separate from the database already connected, which Adminium only reads.',
+          )
+        : t(
+            'onboarding:meta.body',
+            'Your login, the pages you generate and your saved settings. That is separate from the database you just connected, which Adminium only reads.',
+          ),
       skippable: SKIPPABLE.has('meta'),
     },
     {
       id: 'team',
       label: t('onboarding:team.label', 'Your team'),
       description: t('onboarding:team.sub', 'Add people'),
-      kicker: kicker(5),
+      kicker: kicker('team'),
       title: t('onboarding:team.title', 'Bring your team'),
       body: t(
         'onboarding:team.body',
@@ -137,27 +166,30 @@ export function onboardingStepDefs(): readonly OnboardingStepDef[] {
       id: 'done',
       label: t('onboarding:done.label', 'All set'),
       description: t('onboarding:done.sub', 'Start building'),
-      kicker: kicker(6),
+      kicker: kicker('done'),
       title: t('onboarding:done.title', 'You’re all set! 🎉'),
       body: '',
       skippable: SKIPPABLE.has('done'),
     },
   ];
+  return all.filter((def) => ids.includes(def.id));
 }
 
-export function stepIndexOf(step: OnboardingStepId): number {
-  return ONBOARDING_STEP_IDS.indexOf(step);
+type StepIds = readonly OnboardingStepId[];
+
+export function stepIndexOf(step: OnboardingStepId, ids: StepIds = ONBOARDING_STEP_IDS): number {
+  return ids.indexOf(step);
 }
 
 /** The next step, or `null` on the last one — the caller leaves the wizard there. */
-export function stepAfter(step: OnboardingStepId): OnboardingStepId | null {
-  return ONBOARDING_STEP_IDS[stepIndexOf(step) + 1] ?? null;
+export function stepAfter(step: OnboardingStepId, ids: StepIds = ONBOARDING_STEP_IDS): OnboardingStepId | null {
+  return ids[stepIndexOf(step, ids) + 1] ?? null;
 }
 
 /** The previous step, or `null` on the first one. */
-export function stepBefore(step: OnboardingStepId): OnboardingStepId | null {
-  const index = stepIndexOf(step);
-  return index <= 0 ? null : (ONBOARDING_STEP_IDS[index - 1] ?? null);
+export function stepBefore(step: OnboardingStepId, ids: StepIds = ONBOARDING_STEP_IDS): OnboardingStepId | null {
+  const index = stepIndexOf(step, ids);
+  return index <= 0 ? null : (ids[index - 1] ?? null);
 }
 
 export function isSkippable(step: OnboardingStepId): boolean {
@@ -172,6 +204,6 @@ export function isSkippable(step: OnboardingStepId): boolean {
  * the wizard is progress, and a bar pinned at zero while a person answers the
  * first question reads as broken.
  */
-export function progressPercent(step: OnboardingStepId): number {
-  return Math.round(((stepIndexOf(step) + 1) / ONBOARDING_STEP_IDS.length) * 100);
+export function progressPercent(step: OnboardingStepId, ids: StepIds = ONBOARDING_STEP_IDS): number {
+  return Math.round(((stepIndexOf(step, ids) + 1) / ids.length) * 100);
 }

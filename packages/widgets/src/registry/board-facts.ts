@@ -32,6 +32,43 @@ export interface BoardCardFacts {
     | undefined;
   /** A date or time column, shown as a day. */
   date?: string | undefined;
+  /**
+   * The card's person read through a link, not a staff column: one or two
+   * `<link column>.<column>` paths whose values make the name (a first and a
+   * last name). Drawn as the avatar at the card's foot.
+   */
+  owner?: readonly string[] | undefined;
+  /** A choice column of the card's own, drawn as its priority pill in the column's words and tones. */
+  priority?: string | undefined;
+  /** A choice column of the card's own, drawn as its tag (a roadmap's theme) in the column's words and tones; its tone colours the card's bar. */
+  tag?: string | undefined;
+  /**
+   * What a lane is called when the lanes are a link (`<link column>.<column>`
+   * paths, one or two), so a lane of people reads "Ana Ferreira", not "5".
+   * `owner`: the lane's link is the owner's, and its name is the owner's.
+   */
+  laneName?: readonly string[] | 'owner' | undefined;
+}
+
+/**
+ * A figure above a board (the comp's summary cards): the cards there are,
+ * those in one column, a money column's sum, or the people on them. Each is
+ * asked as its own query (`statBindings`); `figure` and `delta` are indexes
+ * into that list.
+ */
+export interface BoardStat {
+  kind: 'total' | 'column' | 'amount' | 'people';
+  /** The stored words under the figure ("Total projects"); a `column` stat is called by the column's own label. */
+  label?: string | undefined;
+  /** `column`: the status value counted. */
+  value?: string | undefined;
+  /** `amount`: the money column summed, written as the cards write it. */
+  column?: string | undefined;
+  figure: number;
+  /** The figure's share of the total, as a pill ("38%"). */
+  share?: true | undefined;
+  /** A second figure drawn as "+N" in the pill: the cards added lately. */
+  delta?: number | undefined;
 }
 
 /**
@@ -54,3 +91,6 @@ export interface BoardNote {
 /** The names a board's cards are answered their facts under: a looked-up name, and the days counted. */
 export const BOARD_CARD_LINK_ALIAS = 'adm_card_link';
 export const BOARD_CARD_DAYS_ALIAS = 'adm_card_days';
+/** The aliases a card's owner and its lane's name are read under: `adm_card_owner_0`, `adm_card_owner_1`, … */
+export const BOARD_CARD_OWNER_ALIAS = 'adm_card_owner';
+export const BOARD_CARD_LANE_ALIAS = 'adm_card_lane';

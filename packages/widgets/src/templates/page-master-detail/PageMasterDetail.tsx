@@ -316,6 +316,29 @@ export function PageMasterDetail({
     );
   }
 
+  /*
+   * A plan over time is the whole page (the Gantt Chart comp): the chart
+   * reads its own stored binding — every task, not the selected record's — so
+   * a rail beside it would choose nothing. The chart draws its own cards and
+   * its figures, so it mounts without the frame and without a second title.
+   */
+  if (detailItem?.widget === 'gantt-chart') {
+    const { title: _title, subtitle: _subtitle, ...plan } = bridgeFieldConfig(detailItem.config);
+    return (
+      <div data-part="page-master-detail" data-layout="timeline" data-testid={testId} className="flex h-full min-h-0 flex-col">
+        <WidgetHost
+          widgetId={detailItem.widget}
+          instanceId={detailItem.i}
+          config={{ showStats: true, ...plan }}
+          data={stateFor(detailItem)}
+          frameless
+          info={null}
+          onEvent={onEvent === undefined ? undefined : (event) => void onEvent(detailItem.i, event)}
+        />
+      </div>
+    );
+  }
+
   const domainDetail = detailItem !== undefined && detailItem.widget !== 'detail-key-value';
   const masterTitle =
     configString(masterItem?.config ?? {}, 'title') ?? t('ui:templates.masterDetail.railTitle', 'Records');

@@ -348,7 +348,9 @@ export default {
         "emptyBody": "Scheduled events will appear on this calendar.",
         "previousLabel": "Previous month",
         "nextLabel": "Next month",
-        "overflowLabel": "+{count} more"
+        "overflowLabel": "+{count} more",
+        "today": "Today",
+        "newEvent": "New event"
       },
       "dayAgenda": {
         "description": "The selected day's events as a time-ordered agenda.",
@@ -593,7 +595,11 @@ export default {
         "addLabel": "Add",
         "cancelLabel": "Cancel",
         "openLabel": "Add card"
-      }
+      },
+      "pctComplete": "{pct}% Complete",
+      "noLane": "None",
+      "laneCount": "{count, plural, one {# card} other {# cards}}",
+      "pct": "{pct}%"
     },
     "communication": {
       "conversationInbox": {
@@ -762,7 +768,19 @@ export default {
         "description": "Task bars over a time axis, grouped by phase, with progress, milestones, and a today marker.",
         "emptyTitle": "Nothing scheduled",
         "emptyBody": "Tasks appear here once they have start and end dates.",
-        "ungroupedLabel": "Tasks"
+        "ungroupedLabel": "Tasks",
+        "stats": {
+          "tasks": "Total tasks",
+          "onTrack": "On track",
+          "atRisk": "At risk",
+          "milestones": "Milestones"
+        },
+        "zoom": "Timeline scale",
+        "weeks": "Weeks",
+        "months": "Months",
+        "taskColumn": "Task",
+        "taskCount": "{count, plural, one {# task} other {# tasks}}",
+        "today": "Today"
       },
       "documentCanvas": {
         "description": "A paper-styled document canvas — invoice, report or email — whose blocks can be selected, reordered and removed.",
@@ -1900,19 +1918,26 @@ export default {
       "toolbarCount": "{count, plural, one {# card} other {# cards}}",
       "toolbarCountNamed": "{count, plural, one {# {one}} other {# {other}}}",
       "daysLabelled": "{days} {label}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "New {item}",
+      "addItem": "Add {item}",
+      "itemName": "{item} name…",
+      "newCard": "New card",
+      "roadmapYear": "Roadmap year",
+      "previousYear": "Previous year",
+      "nextYear": "Next year",
+      "thisYear": "This year"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
       "composePlaceholder": "Event title…",
       "addEvent": "Add event",
       "dateRange": "Date range",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Categories",
       "upcomingTitle": "Upcoming",
       "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout.",
       "composeChoose": "What this event is for",
-      "composeChoosePlaceholder": "Choose…"
+      "composeChoosePlaceholder": "Choose…",
+      "calendarsTitle": "Calendars"
     },
     "scheduler": {
       "previousWeek": "Previous week",
@@ -1921,7 +1946,24 @@ export default {
       "month": "Month",
       "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
       "shiftCount": "{count, plural, one {{n} shift} other {{n} shifts}}",
-      "addShift": "Add shift"
+      "addShift": "Add shift",
+      "teamMember": "Team member",
+      "hoursUnit": "hrs",
+      "thisWeek": "This week",
+      "weekOf": "Week of {start} – {end}",
+      "cellHint": "Choose an empty cell to add a shift",
+      "addShiftSubtitle": "Schedule a shift for a team member.",
+      "day": "Date",
+      "start": "Start",
+      "end": "End",
+      "type": "Type",
+      "addRefused": "The shift was not added.",
+      "stats": {
+        "staff": "Scheduled staff",
+        "shifts": "Total shifts",
+        "hours": "Scheduled hours",
+        "uncovered": "Uncovered days"
+      }
     },
     "settings": {
       "title": "Notification settings",

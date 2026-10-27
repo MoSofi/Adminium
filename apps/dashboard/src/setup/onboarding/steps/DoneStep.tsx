@@ -9,6 +9,12 @@
  * about to — anything else would be a wizard congratulating itself for work it
  * has not done (DEP-22).
  *
+ * ON AN INSTANCE THAT WAS ALREADY CONNECTED it is the other way round: the
+ * server connected the project's database and generated its pages on boot,
+ * before the wizard opened (walkthrough finding V7). The summary then reads
+ * what is there, from the connections list, rather than saying nothing was
+ * generated.
+ *
  * The consent answers live here (DEP-5). The comp leaves this screen nearly
  * empty and today's `FirstRunWizard` asks for them on a screen of their own;
  * dropping them because a mock has no box for them would quietly remove a
@@ -25,8 +31,22 @@ import type { LandedConnection } from '../submitHeldAnswers.js';
 import type { StorageChoice } from './StorageStep.js';
 import type { OnboardingStart } from '../heldAnswers.js';
 
+/** A database that was connected before the wizard opened, as the hub lists it. */
+export interface ConnectedDatabase {
+  name: string;
+  status: string;
+  /** `null` before its schema was read. */
+  tableCount: number | null;
+  pageCount: number;
+}
+
 export interface DoneStepProps {
   connection: LandedConnection | null;
+  /**
+   * Set only when the wizard opened on an instance that already had a database
+   * (empty while the list loads); absent on every other path.
+   */
+  connectedDatabases?: readonly ConnectedDatabase[] | undefined;
   storage: StorageChoice;
   start: OnboardingStart;
   invitedCount: number;
@@ -54,8 +74,41 @@ function storageLine(storage: StorageChoice): string {
   }
 }
 
+function databaseLines(database: ConnectedDatabase): string[] {
+  const name = database.name;
+  if (database.status !== 'connected') {
+    return [
+      t(
+        'onboarding:done.database.failed',
+        '“{name}” could not be reached. Fix its address and restart Adminium.',
+        { name },
+      ),
+    ];
+  }
+  const lines = [
+    database.tableCount === null
+      ? t('onboarding:done.database.connected', '“{name}” connected.', { name })
+      : t(
+          'onboarding:done.database.tables',
+          '“{name}” connected · {count, plural, one {# table} other {# tables}}.',
+          { name, count: database.tableCount },
+        ),
+  ];
+  if (database.pageCount > 0) {
+    lines.push(
+      t(
+        'onboarding:done.database.pages',
+        '{count, plural, one {# page} other {# pages}} generated from “{name}”.',
+        { name, count: database.pageCount },
+      ),
+    );
+  }
+  return lines;
+}
+
 export function DoneStep({
   connection,
+  connectedDatabases,
   storage,
   start,
   invitedCount,
@@ -79,6 +132,8 @@ export function DoneStep({
     );
   }
 
+  for (const database of connectedDatabases ?? []) lines.push(...databaseLines(database));
+
   lines.push(storageLine(storage));
 
   if (invitedCount > 0) {
@@ -92,6 +147,33 @@ export function DoneStep({
   }
 
   const generating = connection !== null && start !== 'blank';
+  const generated = (connectedDatabases ?? []).some((database) => database.pageCount > 0);
+
+  let next: string;
+  if (connectedDatabases !== undefined && connectedDatabases.length === 0) {
+    // The list is still loading (or could not be read): claim nothing either way.
+    next = t('onboarding:done.next.ready', 'Your workspace is ready.');
+  } else if (connectedDatabases !== undefined) {
+    next = generated
+      ? t(
+          'onboarding:done.next.connected',
+          'Your workspace is ready. The pages made from your database are on the dashboard.',
+        )
+      : t(
+          'onboarding:done.next.connectedNoPages',
+          'Your workspace is ready. Your database is connected; add pages from Studio whenever you are.',
+        );
+  } else if (generating) {
+    next = t(
+      'onboarding:done.next.generate',
+      'Your workspace is ready. Next we will pick the tables to include and generate your pages.',
+    );
+  } else {
+    next = t(
+      'onboarding:done.next.blank',
+      'Your workspace is ready. Add a page whenever you are — nothing was generated, exactly as you asked.',
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,17 +182,7 @@ export function DoneStep({
         <span className="mb-[18px] flex size-16 items-center justify-center rounded-[18px] bg-pos-soft text-pos">
           <PartyPopper className="size-8" />
         </span>
-        <p className="max-w-[40ch] text-[15px] leading-[1.6] text-fg-muted">
-          {generating
-            ? t(
-                'onboarding:done.next.generate',
-                'Your workspace is ready. Next we will pick the tables to include and generate your pages.',
-              )
-            : t(
-                'onboarding:done.next.blank',
-                'Your workspace is ready. Add a page whenever you are — nothing was generated, exactly as you asked.',
-              )}
-        </p>
+        <p className="max-w-[40ch] text-[15px] leading-[1.6] text-fg-muted">{next}</p>
       </div>
 
       <ul className="flex flex-col gap-2">

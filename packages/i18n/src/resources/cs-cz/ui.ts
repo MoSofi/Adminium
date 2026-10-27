@@ -486,7 +486,9 @@ export default {
         "emptyBody": "Naplánované události se zobrazí v tomto kalendáři.",
         "previousLabel": "Předchozí měsíc",
         "nextLabel": "Další měsíc",
-        "overflowLabel": "+{count} dalších"
+        "overflowLabel": "+{count} dalších",
+        "today": "Dnes",
+        "newEvent": "Nová událost"
       },
       "dayAgenda": {
         "description": "Události vybraného dne jako časově seřazená agenda.",
@@ -731,7 +733,11 @@ export default {
         "addLabel": "Přidat",
         "cancelLabel": "Zrušit",
         "openLabel": "Přidat kartu"
-      }
+      },
+      "pctComplete": "Hotovo {pct} %",
+      "noLane": "Žádná",
+      "laneCount": "{count, plural, one {# karta} few {# karty} many {# karty} other {# karet}}",
+      "pct": "{pct} %"
     },
     "communication": {
       "conversationInbox": {
@@ -900,7 +906,19 @@ export default {
         "description": "Pruhy úkolů na časové ose seskupené podle fáze, s průběhem, milníky a značkou dneška.",
         "emptyTitle": "Nic není naplánováno",
         "emptyBody": "Úkoly se zde zobrazí, jakmile budou mít datum zahájení a ukončení.",
-        "ungroupedLabel": "Úkoly"
+        "ungroupedLabel": "Úkoly",
+        "stats": {
+          "tasks": "Úkolů celkem",
+          "onTrack": "Podle plánu",
+          "atRisk": "Ohrožené",
+          "milestones": "Milníky"
+        },
+        "zoom": "Měřítko časové osy",
+        "weeks": "Týdny",
+        "months": "Měsíce",
+        "taskColumn": "Úkol",
+        "taskCount": "{count, plural, one {# úkol} few {# úkoly} many {# úkolu} other {# úkolů}}",
+        "today": "Dnes"
       },
       "documentCanvas": {
         "description": "Plátno dokumentu ve stylu papíru — faktura, zpráva nebo e-mail — jehož bloky lze vybírat, přeskupovat a odebírat.",
@@ -2050,19 +2068,26 @@ export default {
       "toolbarCount": "{count, plural, one {# karta} few {# karty} many {# karty} other {# karet}}",
       "toolbarCountNamed": "{count, plural, one {{one}: #} few {{other}: #} many {{other}: #} other {{other}: #}}",
       "daysLabelled": "{days} {label}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "Vytvořit: {item}",
+      "addItem": "Přidat: {item}",
+      "itemName": "Název ({item})…",
+      "newCard": "Nová karta",
+      "roadmapYear": "Rok plánu",
+      "previousYear": "Předchozí rok",
+      "nextYear": "Další rok",
+      "thisYear": "Tento rok"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} událost} few {{n} události} many {{n} události} other {{n} událostí}}",
       "composePlaceholder": "Název události…",
       "addEvent": "Přidat událost",
       "dateRange": "Rozsah dat",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Kategorie",
       "upcomingTitle": "Nadcházející",
       "invalidLayout": "Uložené rozvržení tohoto kalendáře je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
       "composeChoose": "Čeho se tato událost týká",
-      "composeChoosePlaceholder": "Vyberte…"
+      "composeChoosePlaceholder": "Vyberte…",
+      "calendarsTitle": "Kalendáře"
     },
     "scheduler": {
       "previousWeek": "Předchozí týden",
@@ -2071,7 +2096,24 @@ export default {
       "month": "Měsíc",
       "invalidLayout": "Uložené rozvržení tohoto rozvrhu je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
       "shiftCount": "{count, plural, one {{n} směna} few {{n} směny} many {{n} směny} other {{n} směn}}",
-      "addShift": "Přidat směnu"
+      "addShift": "Přidat směnu",
+      "teamMember": "Člen týmu",
+      "hoursUnit": "h",
+      "thisWeek": "Tento týden",
+      "weekOf": "Týden {start} – {end}",
+      "cellHint": "Směnu přidáte výběrem prázdné buňky",
+      "addShiftSubtitle": "Naplánujte směnu členovi týmu.",
+      "day": "Datum",
+      "start": "Začátek",
+      "end": "Konec",
+      "type": "Typ",
+      "addRefused": "Směna nebyla přidána.",
+      "stats": {
+        "staff": "Naplánovaní lidé",
+        "shifts": "Směn celkem",
+        "hours": "Naplánované hodiny",
+        "uncovered": "Neobsazené dny"
+      }
     },
     "settings": {
       "title": "Nastavení oznámení",

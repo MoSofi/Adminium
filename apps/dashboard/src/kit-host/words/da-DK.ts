@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "Kort vises i deres statuskolonner, efterhånden som poster oprettes.",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "Ingen kort endnu",
     "ui:widgets.boards.notAdded": "{title} blev ikke tilføjet.",
-    "ui:widgets.boards.notMoved": "{title} blev ikke flyttet."
+    "ui:widgets.boards.notMoved": "{title} blev ikke flyttet.",
+    "ui:widgets.boards.pct": "{pct} %",
+    "ui:widgets.boards.pctComplete": "{pct} % færdig"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "Luk",

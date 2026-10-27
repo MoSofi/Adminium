@@ -356,10 +356,30 @@ export function buildArchetypeEnvelope(
         // Why this table earned this template — the Studio "why this page?"
         // panel and the H3 LLM prompt read it back off the stored document.
         archetype: { score: selection.score, reasons: selection.reasons },
-        layout: composed.page.layout,
+        layout: withoutRedundantKpis(selection.template, composed.page.layout),
       },
     },
   };
+}
+
+/**
+ * A shift rota draws its own figures above the grid (the Shift Scheduler
+ * comp: staff, shifts, hours, uncovered days — all of the week shown), so the
+ * table's generic count card would only repeat one of them for all time; a
+ * calendar has none at all (the Calendar Scheduler comp), and the generic
+ * cards read wrong over events ("Total Ticket Price" of every event ever).
+ * They are left out of a generated rota or calendar, and the rest moves up.
+ */
+function withoutRedundantKpis<T extends { items: readonly { i?: string; widget: string; y: number; h: number }[] }>(template: string, layout: T): T {
+  const ownFigures =
+    (template === 'page-scheduler' && layout.items.some((item) => item.widget === 'schedule-matrix')) ||
+    (template === 'page-calendar' && layout.items.some((item) => item.widget === 'calendar-month'));
+  if (!ownFigures) return layout;
+  // Whatever filled the template's KPI row (a count card, a gauge): `kpi-row`, `kpi-row-1`, …
+  const kept = layout.items.filter((item) => !(item as { i?: string }).i?.match(/^kpi-row(-\d+)?$/));
+  if (kept.length === layout.items.length) return layout;
+  const top = Math.min(...kept.map((item) => item.y));
+  return { ...layout, items: kept.map((item) => ({ ...item, y: item.y - top })) };
 }
 
 /**

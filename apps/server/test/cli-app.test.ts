@@ -109,6 +109,18 @@ describe('adminium app check', () => {
     expect(out).toContain('the customer side reaches nothing');
   });
 
+  it('passes a link to a table the app does not create, and warns that the database must have it', async () => {
+    // Walkthrough V10: a loyalty app linked to the shop's own `customers`; the check said nothing of it.
+    parts({
+      'apps/repairs/manifest/tables/jobs.json': { ...JOBS, columns: [...JOBS.columns, { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true }] },
+    });
+    const { code, out, err } = await run('check');
+    expect(code, err).toBe(0);
+    expect(out).toContain('✓ Repairs 0.1.0 (repairs)');
+    expect(err).toContain('! apps/repairs/manifest/tables/jobs.json');
+    expect(err).toContain('"jobs.customer_id" links to "customers", which this app does not create, so it installs only on a database that already has a table called "customers"');
+  });
+
   it('says in words what the customer side may reach', async () => {
     parts({
       'apps/repairs/manifest/access.json': {

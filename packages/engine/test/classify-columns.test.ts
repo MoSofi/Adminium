@@ -336,6 +336,31 @@ describe('r09–r12 timestamp roles', () => {
     expect(end.semantics.pair).toEqual({ role: 'end', partner: 'start_date' });
   });
 
+  it('pairs a plan written in days (start_on/due_on) and in plurals (starts_at/ends_at)', () => {
+    const model = parseDatabaseModel({
+      irVersion: 1,
+      dialect: 'postgres',
+      name: 'pairs',
+      tables: [
+        {
+          schema: 'public',
+          name: 'plans',
+          columns: [
+            { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+            { name: 'start_on', logicalType: 'date' },
+            { name: 'due_on', logicalType: 'date' },
+            { name: 'starts_at', logicalType: 'timestamptz' },
+            { name: 'ends_at', logicalType: 'timestamptz' },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    const plan = new Map(classifyTableColumns(model, model.tables[0]!).map((c) => [c.column, c]));
+    expect(plan.get('start_on')!.semantics.pair).toEqual({ role: 'start', partner: 'due_on' });
+    expect(plan.get('starts_at')!.semantics.pair).toEqual({ role: 'start', partner: 'ends_at' });
+  });
+
   it('unpaired due_date and paid_at fall to event-timestamp', () => {
     expect(tasks.get('due_date')!.semantics.primary).toBe('event-timestamp');
     expect(payments.get('paid_at')!.semantics.primary).toBe('event-timestamp');

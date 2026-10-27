@@ -314,6 +314,23 @@ export function fmtEventTime(tag: string, event: { date: string; time?: string |
 }
 
 /** Short month name for the `upcoming-events-list` date block ("Jul", "يوليو"). */
+const monthDayFmts = new Map<string, Intl.DateTimeFormat>();
+const monthDayYearFmts = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * A day as the comps write it on a chip or a column head: "Sep 3", and
+ * "Sep 3, 2027" when it is not in `thisYear`. `day` is `YYYY-MM-DD`; the
+ * app's own `en_US` spelling of a locale is taken as `en-US`.
+ */
+export function fmtMonthDay(tag: string, day: string, thisYear?: number | undefined): string {
+  const date = parseIsoDay(day);
+  const locale = tag.replace(/_/g, '-');
+  const withYear = thisYear !== undefined && date.getUTCFullYear() !== thisYear;
+  return withYear
+    ? memoFmt(monthDayYearFmts, locale, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date)
+    : memoFmt(monthDayFmts, locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(date);
+}
+
 export function fmtMonthShort(tag: string, date: Date): string {
   return memoFmt(monthShortFmts, tag, { month: 'short' }).format(date);
 }

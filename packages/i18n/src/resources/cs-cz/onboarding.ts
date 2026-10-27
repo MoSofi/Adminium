@@ -75,11 +75,20 @@ export default {
       "reading": "Připojeno — Adminium právě čte vaše schéma.",
       "tables": "Připojeno · nalezeno {count, plural, one {# tabulka} few {# tabulky} other {# tabulek}}."
     },
+    "database": {
+      "connected": "„{name}“ připojena.",
+      "failed": "„{name}“ se nepodařilo zastihnout. Opravte její adresu a restartujte Adminium.",
+      "pages": "Z „{name}“ {count, plural, one {vygenerována # stránka} few {vygenerovány # stránky} other {vygenerováno # stránek}}.",
+      "tables": "„{name}“ připojena · {count, plural, one {# tabulka} few {# tabulky} other {# tabulek}}."
+    },
     "invited": "Vytvořeno {count, plural, one {# pozvání} few {# pozvání} other {# pozvání}}.",
     "label": "Hotovo",
     "next": {
       "blank": "Váš pracovní prostor je připraven. Přidejte stránku, až budete chtít — nic jsme nevygenerovali, přesně jak jste si přáli.",
-      "generate": "Váš pracovní prostor je připraven. Teď vybereme tabulky a vygenerujeme vaše stránky."
+      "connected": "Váš pracovní prostor je připraven. Stránky vytvořené z vaší databáze najdete na nástěnce.",
+      "connectedNoPages": "Váš pracovní prostor je připraven. Databáze je připojena; stránky přidáte ve Studiu, až budete chtít.",
+      "generate": "Váš pracovní prostor je připraven. Teď vybereme tabulky a vygenerujeme vaše stránky.",
+      "ready": "Váš pracovní prostor je připraven."
     },
     "storage": {
       "local": "Adminium ukládá svá vlastní data do souboru na tomto počítači.",
@@ -100,6 +109,7 @@ export default {
   "kicker": "Krok {n} z {total}",
   "meta": {
     "body": "Vaše přihlášení, vygenerované stránky a uložená nastavení. To je odděleno od databáze, kterou jste právě připojili a kterou Adminium pouze čte.",
+    "bodyConnected": "Vaše přihlášení, vygenerované stránky a uložená nastavení. To je odděleno od již připojené databáze, kterou Adminium pouze čte.",
     "label": "Data Adminia",
     "local": {
       "body": "Není co nastavovat. Vhodné pro vyzkoušení Adminia nebo pro jedinou instanci.",
@@ -117,6 +127,7 @@ export default {
     },
     "sameDb": {
       "alreadyAdminium": "Tato databáze už obsahuje instanci Adminia. Vraťte se o krok zpět, ponechte její tabulky a začněte vedle nich — nebo se do ní místo toho přihlaste.",
+      "alreadyConnected": "Tato databáze byla připojena dřív, než se tento průvodce otevřel, takže tento krok do ní data Adminia přesunout nemůže. Ponechte je v souboru, nebo dejte Adminiu vlastní databázi.",
       "body": "Adminium přidá vedle vašich tabulek své vlastní s prefixem `adminium_`. Jedna databáze k zálohování.",
       "disabledFile": "Soubor SQLite není server, do kterého by Adminium mohlo přidat vlastní tabulky.",
       "disabledNoDdl": "Tato role nemůže spustit CREATE TABLE, který vlastní migrace Adminia potřebují.",

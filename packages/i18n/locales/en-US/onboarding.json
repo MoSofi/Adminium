@@ -65,11 +65,20 @@
       "reading": "Connected — Adminium is reading your schema now.",
       "tables": "Connected · {count, plural, one {# table} other {# tables}} found."
     },
+    "database": {
+      "connected": "“{name}” connected.",
+      "failed": "“{name}” could not be reached. Fix its address and restart Adminium.",
+      "pages": "{count, plural, one {# page} other {# pages}} generated from “{name}”.",
+      "tables": "“{name}” connected · {count, plural, one {# table} other {# tables}}."
+    },
     "invited": "{count, plural, one {# invitation} other {# invitations}} created.",
     "label": "All set",
     "next": {
       "blank": "Your workspace is ready. Add a page whenever you are — nothing was generated, exactly as you asked.",
-      "generate": "Your workspace is ready. Next we will pick the tables to include and generate your pages."
+      "connected": "Your workspace is ready. The pages made from your database are on the dashboard.",
+      "connectedNoPages": "Your workspace is ready. Your database is connected; add pages from Studio whenever you are.",
+      "generate": "Your workspace is ready. Next we will pick the tables to include and generate your pages.",
+      "ready": "Your workspace is ready."
     },
     "storage": {
       "local": "Adminium keeps its own data in a file on this machine.",
@@ -90,6 +99,7 @@
   "kicker": "Step {n} of {total}",
   "meta": {
     "body": "Your login, the pages you generate and your saved settings. That is separate from the database you just connected, which Adminium only reads.",
+    "bodyConnected": "Your login, the pages you generate and your saved settings. That is separate from the database already connected, which Adminium only reads.",
     "label": "Adminium’s data",
     "local": {
       "body": "Nothing to set up. Right for trying Adminium out, or for a single instance.",
@@ -107,6 +117,7 @@
     },
     "sameDb": {
       "alreadyAdminium": "That database already holds an Adminium instance. Go back a step to keep its tables and start beside them, or sign in to it instead.",
+      "alreadyConnected": "That database was connected before this wizard opened, so this step cannot move Adminium’s data into it. Keep it in a file, or give Adminium a database of its own.",
       "body": "Adminium adds its own `adminium_` tables beside yours. One database to back up.",
       "disabledFile": "A SQLite file is not a server Adminium can add its own tables to.",
       "disabledNoDdl": "That role cannot run CREATE TABLE, which Adminium’s own migrations need.",

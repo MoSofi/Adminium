@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "Karty se zobrazí ve svých stavových sloupcích, jakmile vzniknou záznamy.",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "Zatím žádné karty",
     "ui:widgets.boards.notAdded": "Kartu {title} se nepodařilo přidat.",
-    "ui:widgets.boards.notMoved": "Kartu {title} se nepodařilo přesunout."
+    "ui:widgets.boards.notMoved": "Kartu {title} se nepodařilo přesunout.",
+    "ui:widgets.boards.pct": "{pct} %",
+    "ui:widgets.boards.pctComplete": "Hotovo {pct} %"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "Zavřít",

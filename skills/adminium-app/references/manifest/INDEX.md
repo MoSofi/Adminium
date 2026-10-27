@@ -14,8 +14,8 @@
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 3104 |
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 3445 |
-| `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7610 |
-| `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 1125 |
+| `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7810 |
+| `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 1208 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 6981 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7581 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6333 |

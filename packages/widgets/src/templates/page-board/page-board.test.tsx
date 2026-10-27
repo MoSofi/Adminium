@@ -8,6 +8,7 @@
  * compose inserts, card click → record-open, and the never-crash
  * invalid-layout branch.
  */
+import { inSentence } from './PageBoard.js';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -67,6 +68,14 @@ function keyboardMove(cardTitle: string, steps: number) {
   fireEvent.keyDown(card, { key: 'Enter' });
   for (let i = 0; i < steps; i += 1) fireEvent.keyDown(card, { key: 'ArrowRight' });
   fireEvent.keyDown(card, { key: 'Enter' });
+}
+
+/** Open a column's composer with its "+", type a name and press Enter. */
+function composeInColumn(column: string, title: string): void {
+  fireEvent.click(document.querySelector<HTMLButtonElement>(`[data-board-column="${column}"] [data-part="column-add"]`)!);
+  const input = document.querySelector<HTMLInputElement>(`[data-board-column="${column}"] [data-part="column-composer"] input`)!;
+  fireEvent.change(input, { target: { value: title } });
+  fireEvent.keyDown(input, { key: 'Enter' });
 }
 
 describe('PageBoard — kanban', () => {
@@ -288,18 +297,58 @@ describe('PageBoard — roadmap variant', () => {
   ];
 
   it('buckets cards into chronological quarter columns', () => {
-    render(<PageBoard config={roadmapConfig} states={{ 'board-1': recordList(rows) }} />);
+    render(<PageBoard config={roadmapConfig} today="2026-10-26" states={{ 'board-1': recordList(rows) }} />);
     const columns = [...document.querySelectorAll('[data-board-column]')].map((el) =>
       el.getAttribute('data-board-column'),
     );
-    expect(columns).toEqual(['2026-Q3', '2026-Q4']);
-    expect(screen.getByText('Q3 2026')).toBeDefined();
+    // The comp's year of four quarters, empty ones too.
+    expect(columns).toEqual(['2026-Q1', '2026-Q2', '2026-Q3', '2026-Q4']);
+    // The year is in the switcher; the column is its quarter (the comp's "Q3").
+    expect(within(screen.getByTestId('roadmap-year')).getByText('2026')).toBeDefined();
+    expect(screen.getByText('Q3')).toBeDefined();
     expect(within(screen.getByTestId('column-drop-2026-Q4')).getByText('Ship exports')).toBeDefined();
+  });
+
+  it('shows a year at a time and steps to the next and back', () => {
+    const more = [...rows, { id: 'T-3', title: 'Next year', status: 'todo', due_date: '2027-02-01' }];
+    render(<PageBoard config={roadmapConfig} today="2026-10-26" states={{ 'board-1': recordList(more) }} />);
+    const columns = () => [...document.querySelectorAll('[data-board-column]')].map((el) => el.getAttribute('data-board-column'));
+    expect(screen.queryByText('Next year')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Next year' }));
+    expect(columns()).toEqual(['2027-Q1', '2027-Q2', '2027-Q3', '2027-Q4']);
+    expect(within(screen.getByTestId('column-drop-2027-Q1')).getByText('Next year')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'This year' }));
+    expect(columns()[0]).toBe('2026-Q1');
+  });
+
+  it('draws the Kanban Roadmap comp card: the theme in its tone, progress beside the owner, the bar in the theme colour', () => {
+    const config = boardConfig({
+      title: 'Roadmap',
+      statusColumn: 'target_on',
+      titleColumn: 'name',
+      bucketBy: 'quarter',
+      dateColumn: 'target_on',
+      progressColumn: 'progress_pct',
+      card: { tag: 'theme', owner: ['owner_id.first_name', 'owner_id.last_name'] },
+      binding: binding('initiatives'),
+    });
+    const initiative = { id: 7, name: 'Subscriptions v2', target_on: '2026-08-14', theme: 'growth', progress_pct: 40, adm_card_owner_0: 'Ana', adm_card_owner_1: 'Ferreira' };
+    const data = { rows: [initiative], total: 1, columns: [{ name: 'theme', enumLabels: { growth: 'Growth' }, enumTones: { growth: 'pos' } }] };
+    render(<PageBoard config={config} today="2026-10-26" states={{ 'board-1': { status: 'success', data } }} />);
+    const cell = screen.getByTestId('column-drop-2026-Q3');
+    const tag = within(cell).getByText('Growth');
+    expect(tag.closest('[data-part="board-card-tag"]')).not.toBeNull();
+    expect(within(cell).getByRole('progressbar').firstElementChild?.className).toContain('bg-pos');
+    expect(within(cell).getByTitle('Ana Ferreira')).toBeDefined();
+  });
+
+  it('heads the quarters in the comp colours: Q1 green, Q2 accent, Q3 amber, Q4 grey', () => {
+    expect(quarterColumnsOf([], 2026).map((c) => c.tone)).toEqual(['pos', 'accent', 'warn', 'neutral']);
   });
 
   it('a cross-quarter drop reschedules the date column to the target quarter start', () => {
     const onEvent = vi.fn(() => Promise.resolve({}));
-    render(<PageBoard config={roadmapConfig} states={{ 'board-1': recordList(rows) }} onEvent={onEvent} />);
+    render(<PageBoard config={roadmapConfig} today="2026-10-26" states={{ 'board-1': recordList(rows) }} onEvent={onEvent} />);
     keyboardMove('Fix login', 1); // Q3 → Q4
     const event = (onEvent.mock.calls[0] as unknown[])[1] as WidgetEvent & { values: Record<string, unknown> };
     expect(event.values).toEqual({ due_date: '2026-10-01' });
@@ -569,8 +618,9 @@ describe('PageBoard — a board over a table: adding a card, and cards on no col
     addCard('New deal');
     // `kind` lists two values: which one is the column's own default to say, not the board's.
     expect(onEvent).toHaveBeenLastCalledWith('compose-1', expect.objectContaining({ values: { owner_id: 7, state: 'open', stage_id: 2, name: 'New deal' } }));
-    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-board-column="1"] [data-part="column-add"]')!);
-    expect(onEvent).toHaveBeenLastCalledWith('board-1', expect.objectContaining({ intent: 'insert', values: { state: 'open', stage_id: 1 } }));
+    // A column's own "+" opens its composer (the comp), and the card is saved with the name typed there.
+    composeInColumn('1', 'Another deal');
+    expect(onEvent).toHaveBeenLastCalledWith('board-1', expect.objectContaining({ intent: 'insert', values: { state: 'open', stage_id: 1, name: 'Another deal' } }));
   });
 
   it('a default left in the composer’s stored config cannot take a card off the board: the column and the board’s test win', () => {
@@ -603,12 +653,13 @@ describe('PageBoard — a board over a table: adding a card, and cards on no col
     expect(container.querySelector('[data-part="board-add-refused"]')!.textContent).toContain('New deal was not added. State must start as Open.');
     expect(container.querySelector('[data-board-liveregion]')!.textContent).toContain('New deal was not added. State must start as Open.');
     expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('New deal');
-    // A column's own "add" is refused the same way, and says so in the same place.
+    // A column's own composer is refused the same way, says so in the same place, and keeps what was typed.
+    composeInColumn('1', 'Second deal');
     await act(async () => {
-      fireEvent.click(document.querySelector<HTMLButtonElement>('[data-board-column="1"] [data-part="column-add"]')!);
       await Promise.resolve();
     });
-    await waitFor(() => expect(container.querySelector('[data-part="board-add-refused"]')!.textContent).toContain('The card was not added. State must start as Open.'));
+    await waitFor(() => expect(container.querySelector('[data-part="board-add-refused"]')!.textContent).toContain('Second deal was not added. State must start as Open.'));
+    expect(document.querySelector<HTMLInputElement>('[data-board-column="1"] [data-part="column-composer"] input')!.value).toBe('Second deal');
   });
 
   it('an add that holds clears the title, and the line of an earlier refusal with it', async () => {
@@ -712,7 +763,8 @@ describe('PageBoard — what a named board’s headings, cards and note show', (
     expect(within(card).getByText('Cobalt Legal')).toBeDefined();
     expect(within(card).getByText('£52800.00')).toBeDefined();
     expect(within(card).getByText('3 days')).toBeDefined();
-    expect(within(card).getByText('Sep 30, 2026')).toBeDefined();
+    // The comp's due chip: the day, with its year only when it is not this one.
+    expect(within(card).getByText(/^Sep 30(, 2026)?$/)).toBeDefined();
     // The owner is drawn as a person, by the name the server gave.
     expect(card.innerHTML).toContain('Dana Whitlock');
   });
@@ -737,7 +789,7 @@ describe('PageBoard — what a named board’s headings, cards and note show', (
     const bare = cardOf('No date at all');
     expect(within(bare).queryByText(/days?$/)).toBeNull();
     expect(within(cardOf('Depot stations')).queryByText(/£/)).toBeNull();
-    expect(within(cardOf('Depot stations')).getByText('Aug 4, 2026')).toBeDefined();
+    expect(within(cardOf('Depot stations')).getByText(/^Aug 4(, 2026)?$/)).toBeDefined();
   });
 
   it('a board that declares no card draws its title alone, as before', () => {
@@ -890,3 +942,18 @@ describe('PageBoard — a toolbar, a second money line and what the days are', (
     expect(screen.getByTestId('board-note').textContent).toBe('Columns come from Stages');
   });
 });
+
+describe('inSentence — a table’s name inside "New …"', () => {
+  it('lowers the first letter where the language writes nouns so, keeps acronyms and German capitals', () => {
+    expect(inSentence('Project', 'en-US')).toBe('project');
+    expect(inSentence('API key', 'en-US')).toBe('API key');
+    expect(inSentence('Projekt', 'de-DE')).toBe('Projekt');
+    expect(inSentence('项目', 'zh-CN')).toBe('项目');
+  });
+
+  it('takes the app’s own `en_US` spelling of a locale without failing', () => {
+    expect(inSentence('Project', 'en_US')).toBe('project');
+    expect(inSentence('Projet', 'fr_FR')).toBe('projet');
+  });
+});
+

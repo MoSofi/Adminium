@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ShiftMatrix — the INTERACTIVE resource × day scheduling grid the
- * `page-scheduler` template mounts for `schedule-matrix` items.
+ * `page-scheduler` template mounts for `schedule-matrix` items, drawn as the
+ * Shift Scheduler comp: the week's four figures, then one card — day headers
+ * with their coverage, a row a person (name, role, hours), a cell a day with
+ * its shift chips (type and times), and the legend at its foot.
  *
  * The family's `ScheduleMatrix` is display-only; the comp's defect the note
  * calls out ("the add-shift modal must write into the grid") is exactly the
@@ -25,16 +28,26 @@ import { getFormatters } from '@adminium/i18n';
 import { useMaybeT } from '../../lib/i18n.js';
 import { Avatar, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
-import { Plus } from 'lucide-react';
+import { CalendarCheck, CircleAlert, Clock, Plus, Users, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-  TONE_SOFT_BORDER,
-  TONE_SOLID_BG,
-  fmtColumnDay,
-  parseIsoDay,
-  resolveLocale,
-} from '../../families/calendar/calendar-lib.js';
+import { TONE_SOLID_BG, fmtColumnDay, fmtMonthDay, parseIsoDay, resolveLocale } from '../../families/calendar/calendar-lib.js';
+
+/** A chip's tint and its edge, by its type's tone (the comp: 12% of the colour, a 3px edge of it). */
+const CHIP_TONE: Record<Tone, string> = {
+  neutral: 'border-fg-subtle bg-surface-2',
+  accent: 'border-accent bg-accent-soft',
+  pos: 'border-pos bg-pos-soft',
+  warn: 'border-warn bg-warn-soft',
+  danger: 'border-danger bg-danger-soft',
+  info: 'border-info bg-info-soft',
+};
+const STAT_TONE: Record<'accent' | 'pos' | 'warn' | 'danger', string> = {
+  accent: 'bg-accent-soft text-accent',
+  pos: 'bg-pos-soft text-pos',
+  warn: 'bg-warn-soft text-warn',
+  danger: 'bg-danger-soft text-danger',
+};
 
 export interface ShiftTypeDef {
   id: string;
@@ -55,6 +68,11 @@ export interface ShiftCell {
   /** `YYYY-MM-DD`. */
   date: string;
   typeId: string;
+  /** `HH:MM` the shift starts and ends, where the table keeps times. */
+  start?: string | undefined;
+  end?: string | undefined;
+  /** How long it runs, where both ends are known. */
+  minutes?: number | undefined;
 }
 
 export interface ShiftMatrixLabels {
@@ -75,6 +93,8 @@ export interface ShiftMatrixProps {
   targetCoverage?: number | undefined;
   showCoverage?: boolean | undefined;
   showLegend?: boolean | undefined;
+  /** The week's four figures above the grid (the comp's summary cards). */
+  showStats?: boolean | undefined;
   /** False renders the read-only grid (demo mode / no binding). */
   canEdit?: boolean | undefined;
   locale?: string | undefined;
@@ -84,6 +104,12 @@ export interface ShiftMatrixProps {
   onCycle?: ((shift: ShiftCell, nextTypeId: string | null) => void | Promise<unknown>) | undefined;
   /** Insert a new first-type shift into an open slot. */
   onAdd?: ((resourceId: string, date: string, typeId: string) => void | Promise<unknown>) | undefined;
+  /**
+   * An open slot was chosen: the host asks for the shift's times and type
+   * (the comp's "Add shift" form) instead of adding one at once. Given, it
+   * wins over `onAdd`.
+   */
+  onAddAt?: ((resourceId: string, date: string) => void) | undefined;
   testId?: string | undefined;
 }
 
@@ -99,11 +125,13 @@ export function ShiftMatrix({
   targetCoverage,
   showCoverage = true,
   showLegend = true,
+  showStats = false,
   canEdit = true,
   locale,
   labels,
   onCycle,
   onAdd,
+  onAddAt,
   testId,
 }: ShiftMatrixProps) {
   const t = useMaybeT();
@@ -160,22 +188,26 @@ export function ShiftMatrix({
     return map;
   }, [settledShifts]);
 
+  // The week's own shifts: what the figures, the hours and the coverage count.
+  const weekShifts = useMemo(() => settledShifts.filter((shift) => days.includes(shift.date)), [settledShifts, days]);
   const countByResource = useMemo(() => {
     const map = new Map<string, number>();
-    for (const shift of settledShifts) {
-      if (days.includes(shift.date)) map.set(shift.resourceId, (map.get(shift.resourceId) ?? 0) + 1);
-    }
+    for (const shift of weekShifts) map.set(shift.resourceId, (map.get(shift.resourceId) ?? 0) + 1);
     return map;
-  }, [settledShifts, days]);
+  }, [weekShifts]);
+  const minutesByResource = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const shift of weekShifts) if (shift.minutes !== undefined) map.set(shift.resourceId, (map.get(shift.resourceId) ?? 0) + shift.minutes);
+    return map;
+  }, [weekShifts]);
+  const timed = weekShifts.some((shift) => shift.minutes !== undefined);
 
   const coverageByDay = useMemo(() => {
     const map = new Map<string, number>();
     for (const day of days) map.set(day, 0);
-    for (const shift of settledShifts) {
-      if (map.has(shift.date)) map.set(shift.date, (map.get(shift.date) ?? 0) + 1);
-    }
+    for (const shift of weekShifts) map.set(shift.date, (map.get(shift.date) ?? 0) + 1);
     return map;
-  }, [settledShifts, days]);
+  }, [weekShifts, days]);
 
   const cycle = (shift: ShiftCell) => {
     if (onCycle === undefined) return;
@@ -198,166 +230,167 @@ export function ShiftMatrix({
   };
 
   const target = targetCoverage ?? Math.max(1, Math.ceil(resources.length / 2));
-  const gridCols = `minmax(9rem,1.4fr) repeat(${days.length}, minmax(4.5rem,1fr))`;
   const firstType = types[0];
+  const hoursOf = (minutes: number): string => fmt.number(minutes / 60, { maximumFractionDigits: 1 });
+  const addLabel = labels?.addShift ?? t('ui:templates.scheduler.addShift', 'Add shift');
+
+  const stats: { key: string; icon: LucideIcon; tone: keyof typeof STAT_TONE; value: string; label: string }[] = [
+    { key: 'staff', icon: Users, tone: 'accent', value: fmt.number(countByResource.size), label: t('ui:templates.scheduler.stats.staff', 'Scheduled staff') },
+    { key: 'shifts', icon: CalendarCheck, tone: 'pos', value: fmt.number(weekShifts.length), label: t('ui:templates.scheduler.stats.shifts', 'Total shifts') },
+    ...(timed
+      ? [{ key: 'hours', icon: Clock, tone: 'warn' as const, value: hoursOf(weekShifts.reduce((sum, shift) => sum + (shift.minutes ?? 0), 0)), label: t('ui:templates.scheduler.stats.hours', 'Scheduled hours') }]
+      : []),
+    { key: 'uncovered', icon: CircleAlert, tone: 'danger', value: fmt.number([...coverageByDay.values()].filter((count) => count === 0).length), label: t('ui:templates.scheduler.stats.uncovered', 'Uncovered days') },
+  ];
 
   return (
-    <div data-part="shift-matrix" data-testid={testId} className="flex h-full flex-col overflow-auto">
-      <div role="table" className="min-w-full">
-        <div
-          role="row"
-          className="sticky top-0 z-[1] grid items-end gap-1 border-b border-border bg-surface-2 px-2 py-2 grid-cols-[var(--adm-cols)]"
-          style={{ '--adm-cols': gridCols }}
-        >
-          {/* columnheader: a role="table" row must contain header/cell roles, and
-              column 1 was a bare span — same gap its twin ScheduleMatrix had. */}
-          <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {labels?.resource ?? t('ui:widgets.calendar.scheduleMatrix.resourceLabel', 'Resource')}
-          </span>
-          {days.map((day) => {
-            const label = fmtColumnDay(tag, parseIsoDay(day));
+    <div data-part="shift-matrix" data-testid={testId} className="flex h-full flex-col gap-[18px] overflow-auto leading-[normal]">
+      {showStats && (
+        <div data-part="shift-stats" className={`grid shrink-0 grid-cols-2 gap-4 ${stats.length === 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+          {stats.map((stat) => (
+            <div key={stat.key} className="flex items-center gap-[13px] rounded-[14px] border border-border bg-surface px-[18px] py-4 shadow-card">
+              <span aria-hidden="true" className={`flex size-9 shrink-0 items-center justify-center rounded-[10px] ${STAT_TONE[stat.tone]}`}>
+                <stat.icon className="size-[18px]" />
+              </span>
+              <div>
+                <div className="font-mono text-[22px] font-semibold leading-none tracking-[-0.02em] text-fg tabular-nums">{stat.value}</div>
+                <div className="mt-[3px] text-[12px] text-fg-muted">{stat.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="shrink-0 overflow-hidden rounded-[16px] border border-border bg-surface shadow-card">
+        <div role="table" className="min-w-[760px]">
+          <div role="row" className="flex border-b border-border bg-surface-2">
+            <span role="columnheader" className="w-[200px] shrink-0 border-e border-border px-[18px] py-[13px] text-[11px] font-bold uppercase tracking-[.05em] text-fg-subtle">
+              {labels?.resource ?? t('ui:templates.scheduler.teamMember', 'Team member')}
+            </span>
+            {days.map((day) => {
+              const label = fmtColumnDay(tag, parseIsoDay(day));
+              const count = coverageByDay.get(day) ?? 0;
+              const pct = Math.min(100, Math.round((count / Math.max(1, resources.length)) * 100));
+              return (
+                <div key={day} role="columnheader" className="min-w-0 flex-1 border-s border-border px-3 py-2.5 text-center">
+                  <div className="text-[12px] font-bold text-fg">{label.weekday}</div>
+                  <MonoText className="text-[10.5px] text-fg-subtle">{fmtMonthDay(tag, day)}</MonoText>
+                  {showCoverage && (
+                    <div
+                      data-part="coverage-day"
+                      data-tone={count === 0 ? 'danger' : count >= target ? 'pos' : 'warn'}
+                      title={labels?.coverage ?? t('ui:widgets.calendar.scheduleMatrix.coverageLabel', 'Coverage')}
+                      className="mt-1.5 flex items-center justify-center gap-[5px]"
+                    >
+                      <div className="h-1 max-w-[60px] flex-1 overflow-hidden rounded-[3px] bg-surface-3">
+                        <div className={`h-full w-[var(--cov)] rounded-[3px] ${count === 0 ? 'bg-danger' : 'bg-accent'}`} style={{ '--cov': `${pct}%` }} />
+                      </div>
+                      <span className="text-[9.5px] font-bold tabular-nums text-fg-subtle">{fmt.number(count)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {resources.map((resource) => {
+            const minutes = minutesByResource.get(resource.id);
+            const count = countByResource.get(resource.id) ?? 0;
             return (
-              <div key={day} role="columnheader" className="text-center">
-                <div className="text-caption font-bold uppercase tracking-wide text-fg-subtle">{label.weekday}</div>
-                <MonoText className="text-caption tabular-nums text-fg-muted">{label.day}</MonoText>
+              <div key={resource.id} role="row" className="flex border-b border-border">
+                <div role="rowheader" className="flex w-[200px] shrink-0 items-center gap-[11px] border-e border-border px-[18px] py-3">
+                  {/* aria-hidden: the avatar's aria-label otherwise repeats the name beside it. */}
+                  <Avatar name={resource.label} size="md" locale={tag} aria-hidden="true" className="size-[30px] text-[12px]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-bold text-fg">{resource.label}</p>
+                    <p className="truncate text-[11px] text-fg-subtle">
+                      {resource.role ??
+                        (labels?.shiftCount !== undefined
+                          ? labels.shiftCount.replace('{n}', fmt.number(count))
+                          : t('ui:templates.scheduler.shiftCount', '{count, plural, one {{n} shift} other {{n} shifts}}', { count, n: fmt.number(count) }))}
+                    </p>
+                  </div>
+                  {timed && (
+                    <div className="text-end">
+                      <MonoText className="block text-[12.5px] font-semibold tabular-nums text-fg">{hoursOf(minutes ?? 0)}</MonoText>
+                      <span className="text-[9.5px] text-fg-subtle">{t('ui:templates.scheduler.hoursUnit', 'hrs')}</span>
+                    </div>
+                  )}
+                </div>
+                {days.map((day) => {
+                  const cell = cellIndex.get(`${resource.id}|${day}`) ?? [];
+                  const shown = cell.slice(0, maxPerCell);
+                  const canAdd = canEdit && firstType !== undefined && cell.length < maxPerCell && (onAddAt !== undefined || onAdd !== undefined);
+                  const add = () => {
+                    if (onAddAt !== undefined) onAddAt(resource.id, day);
+                    else void onAdd?.(resource.id, day, (firstType as ShiftTypeDef).id);
+                  };
+                  return (
+                    <div key={day} role="cell" data-part="shift-cell" className="group flex min-h-[74px] min-w-0 flex-1 flex-col gap-[5px] border-s border-border p-[7px] transition-colors hover:bg-surface-2">
+                      {shown.map((shift) => {
+                        const type = typeById.get(shift.typeId);
+                        const tone = type?.tone ?? 'accent';
+                        const label = type?.label ?? shift.typeId;
+                        const time = shift.start === undefined ? undefined : shift.end === undefined ? shift.start : `${shift.start}–${shift.end}`;
+                        const inner = (
+                          <>
+                            <span className="flex min-w-0 items-center gap-[5px]">
+                              <span aria-hidden="true" className={`size-2 shrink-0 rounded-[3px] ${TONE_SOLID_BG[tone]}`} />
+                              <span className="truncate text-[11px] font-bold text-fg">{label}</span>
+                            </span>
+                            {time === undefined ? null : <MonoText className="mt-0.5 block truncate text-[10px] text-fg-muted">{time}</MonoText>}
+                          </>
+                        );
+                        const chip = `block w-full animate-[nb-pop_.16s_ease] rounded-[7px] border-s-[3px] px-2 py-1.5 text-start hover:brightness-[1.04] ${CHIP_TONE[tone]}`;
+                        return canEdit && onCycle !== undefined ? (
+                          <button
+                            key={shift.recordId}
+                            type="button"
+                            data-part="shift-chip"
+                            data-shift={shift.recordId}
+                            title={time === undefined ? label : `${label} · ${time}`}
+                            onClick={() => cycle(shift)}
+                            className={`${chip} focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent`}
+                          >
+                            {inner}
+                          </button>
+                        ) : (
+                          <span key={shift.recordId} data-part="shift-chip" title={time === undefined ? label : `${label} · ${time}`} className={chip}>
+                            {inner}
+                          </span>
+                        );
+                      })}
+                      {cell.length > maxPerCell && <span className="text-[10px] font-semibold text-fg-subtle">+{fmt.number(cell.length - maxPerCell)}</span>}
+                      {canAdd && (
+                        <button
+                          type="button"
+                          data-part="shift-add"
+                          aria-label={`${addLabel}: ${resource.label}, ${day}`}
+                          onClick={add}
+                          className={`${cell.length === 0 ? 'flex-1' : 'min-h-5'} flex items-center justify-center rounded-[6px] text-fg-subtle opacity-0 transition-opacity hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent group-hover:opacity-100`}
+                        >
+                          <Plus className="size-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
         </div>
 
-        {resources.map((resource) => (
-          <div
-            key={resource.id}
-            role="row"
-            className="grid items-stretch gap-1 border-b border-border/50 px-2 py-1.5 grid-cols-[var(--adm-cols)] hover:bg-surface-2/50"
-            style={{ '--adm-cols': gridCols }}
-          >
-            {/* `role="rowheader"`. A `role="row"` may only contain cells,
-                gridcells, columnheaders and rowheaders — this div had no role,
-                so its Avatar's `role="img"` became a direct child of the row and
-                the whole table was invalid to assistive tech (axe
-                `aria-required-children`). Rowheader is what this column is: the
-                resource the row is about. */}
-            <div role="rowheader" className="flex min-w-0 items-center gap-2">
-              {/* aria-hidden: the avatar's aria-label otherwise repeats the name
-                  beside it, doubling the rowheader's accessible name. */}
-              <Avatar name={resource.label} size="sm" locale={tag} aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="truncate text-caption font-semibold text-fg">{resource.label}</p>
-                <p className="truncate text-[10px] text-fg-subtle">
-                  {resource.role !== undefined ? `${resource.role} · ` : ''}
-                  {/* An explicit label keeps the documented `{n}`-replace contract; the
-                      default is an ICU plural (`count` selects, `n` is pre-formatted). */}
-                  {labels?.shiftCount !== undefined
-                    ? labels.shiftCount.replace('{n}', fmt.number(countByResource.get(resource.id) ?? 0))
-                    : t('ui:templates.scheduler.shiftCount', '{count, plural, one {{n} shift} other {{n} shifts}}', {
-                        count: countByResource.get(resource.id) ?? 0,
-                        n: fmt.number(countByResource.get(resource.id) ?? 0),
-                      })}
-                </p>
-              </div>
-            </div>
-            {days.map((day) => {
-              const cell = cellIndex.get(`${resource.id}|${day}`) ?? [];
-              const shown = cell.slice(0, maxPerCell);
-              const canAdd = canEdit && onAdd !== undefined && firstType !== undefined && cell.length < maxPerCell;
-              return (
-                <div key={day} role="cell" data-part="shift-cell" className="flex flex-col gap-0.5">
-                  {shown.map((shift) => {
-                    const type = typeById.get(shift.typeId);
-                    const tone = type?.tone ?? 'accent';
-                    const label = type?.label ?? shift.typeId;
-                    return canEdit && onCycle !== undefined ? (
-                      <button
-                        key={shift.recordId}
-                        type="button"
-                        data-part="shift-chip"
-                        data-shift={shift.recordId}
-                        title={label}
-                        onClick={() => cycle(shift)}
-                        className={`truncate rounded-e-sm border-s-2 px-1 py-px text-start text-[10px] font-semibold leading-tight hover:brightness-110 focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent ${TONE_SOFT_BORDER[tone]}`}
-                      >
-                        {label}
-                      </button>
-                    ) : (
-                      <span
-                        key={shift.recordId}
-                        data-part="shift-chip"
-                        title={label}
-                        className={`truncate rounded-e-sm border-s-2 px-1 py-px text-[10px] font-semibold leading-tight ${TONE_SOFT_BORDER[tone]}`}
-                      >
-                        {label}
-                      </span>
-                    );
-                  })}
-                  {cell.length > maxPerCell && (
-                    <span className="text-[10px] font-semibold text-fg-subtle">
-                      +{fmt.number(cell.length - maxPerCell)}
-                    </span>
-                  )}
-                  {canAdd && (
-                    <button
-                      type="button"
-                      data-part="shift-add"
-                      aria-label={`${labels?.addShift ?? t('ui:templates.scheduler.addShift', 'Add shift')}: ${resource.label}, ${day}`}
-                      onClick={() => void onAdd(resource.id, day, (firstType as ShiftTypeDef).id)}
-                      className="flex min-h-4 items-center justify-center rounded-sm text-fg-subtle opacity-0 transition-opacity hover:bg-surface-2 hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent group-hover:opacity-100 [&:hover]:opacity-100 [[role=row]:hover_&]:opacity-100"
-                    >
-                      <Plus className="size-3" aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-
-        {showCoverage && (
-          <div
-            role="row"
-            className="grid items-center gap-1 border-t border-border bg-surface-2/40 px-2 py-2 grid-cols-[var(--adm-cols)]"
-            style={{ '--adm-cols': gridCols }}
-          >
-            {/* `rowheader`/`cell` for the same reason as the resource rows
-                above: a `role="row"` may only contain cells and headers, and
-                these carried no role at all. */}
-            <span role="rowheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-              {labels?.coverage ?? t('ui:widgets.calendar.scheduleMatrix.coverageLabel', 'Coverage')}
-            </span>
-            {days.map((day) => {
-              const count = coverageByDay.get(day) ?? 0;
-              const pct = Math.min(100, Math.round((count / target) * 100));
-              const tone: Tone = count === 0 ? 'danger' : count >= target ? 'pos' : 'warn';
-              return (
-                <div
-                  key={day}
-                  role="cell"
-                  data-part="coverage-day"
-                  data-tone={tone}
-                  className="flex flex-col items-center gap-1"
-                  title={`${count}/${target}`}
-                >
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
-                    <div className={`h-full w-[var(--cov)] rounded-full ${TONE_SOLID_BG[tone]}`} style={{ '--cov': `${pct}%` }} />
-                  </div>
-                  <MonoText className="text-[10px] tabular-nums text-fg-subtle">{fmt.number(count)}</MonoText>
-                </div>
-              );
-            })}
+        {showLegend && types.length > 0 && (
+          <div data-part="shift-legend" className="flex flex-wrap gap-x-[18px] gap-y-2.5 bg-surface-2 px-[18px] py-3.5">
+            {types.map((type) => (
+              <span key={type.id} className="flex items-center gap-[7px] text-[11.5px] font-semibold text-fg-muted">
+                <span className={`size-[11px] shrink-0 rounded-[4px] ${TONE_SOLID_BG[type.tone]}`} aria-hidden="true" />
+                {type.label}
+              </span>
+            ))}
           </div>
         )}
       </div>
-
-      {showLegend && types.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-3 py-2">
-          {types.map((type) => (
-            <span key={type.id} className="flex items-center gap-1.5 text-caption text-fg-muted">
-              <span className={`size-2 shrink-0 rounded-full ${TONE_SOLID_BG[type.tone]}`} aria-hidden="true" />
-              {type.label}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

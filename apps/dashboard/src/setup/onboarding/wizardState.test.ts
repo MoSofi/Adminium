@@ -12,8 +12,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { installTestI18n } from '../../i18n/testing.js';
 import {
+  CONNECTED_STEP_IDS,
   ONBOARDING_STEP_IDS,
   isSkippable,
+  onboardingStepIds,
   onboardingStepDefs,
   progressPercent,
   stepAfter,
@@ -102,5 +104,23 @@ describe('the progress bar', () => {
     expect(progressPercent('start')).toBe(17);
     expect(progressPercent('account')).toBe(50);
     expect(progressPercent('done')).toBe(100);
+  });
+});
+
+/** V7: the database was connected before the wizard opened. */
+describe('an instance that is already connected', () => {
+  it('leaves out the starting point and the connect step, and opens on the account', () => {
+    expect(onboardingStepIds(false)).toBe(ONBOARDING_STEP_IDS);
+    expect([...onboardingStepIds(true)]).toEqual(['account', 'meta', 'team', 'done']);
+    expect(stepBefore('account', CONNECTED_STEP_IDS)).toBeNull();
+    expect(stepAfter('account', CONNECTED_STEP_IDS)).toBe('meta');
+  });
+
+  it('numbers what is left', () => {
+    const defs = onboardingStepDefs(CONNECTED_STEP_IDS);
+    expect(defs.map((def) => def.id)).toEqual([...CONNECTED_STEP_IDS]);
+    expect(defs[0]?.kicker).toBe('Step 1 of 4');
+    expect(defs.find((def) => def.id === 'meta')?.body).toContain('already connected');
+    expect(progressPercent('account', CONNECTED_STEP_IDS)).toBe(25);
   });
 });

@@ -486,7 +486,9 @@ export default {
         "emptyBody": "已排程的事件將顯示在此行事曆中。",
         "previousLabel": "上個月",
         "nextLabel": "下個月",
-        "overflowLabel": "另有 {count} 項"
+        "overflowLabel": "另有 {count} 項",
+        "today": "今天",
+        "newEvent": "新增活動"
       },
       "dayAgenda": {
         "description": "所選日期的事件依時間排序的議程。",
@@ -731,7 +733,11 @@ export default {
         "addLabel": "新增",
         "cancelLabel": "取消",
         "openLabel": "新增卡片"
-      }
+      },
+      "pctComplete": "已完成 {pct}%",
+      "noLane": "無",
+      "laneCount": "{count, plural, other {# 張卡片}}",
+      "pct": "{pct}%"
     },
     "communication": {
       "conversationInbox": {
@@ -900,7 +906,19 @@ export default {
         "description": "時間軸上的任務長條，依階段分組，含進度、里程碑與今日標記。",
         "emptyTitle": "尚無排程",
         "emptyBody": "任務設定開始與結束日期後便會顯示於此。",
-        "ungroupedLabel": "任務"
+        "ungroupedLabel": "任務",
+        "stats": {
+          "tasks": "任務總數",
+          "onTrack": "進度正常",
+          "atRisk": "有風險",
+          "milestones": "里程碑"
+        },
+        "zoom": "時間軸刻度",
+        "weeks": "週",
+        "months": "月",
+        "taskColumn": "任務",
+        "taskCount": "{count, plural, other {# 個任務}}",
+        "today": "今天"
       },
       "documentCanvas": {
         "description": "紙張風格的文件畫布（發票、報表或郵件），其中的區塊可選取、重新排序與移除。",
@@ -2050,19 +2068,26 @@ export default {
       "toolbarCount": "{count, plural, other {# 張卡片}}",
       "toolbarCountNamed": "{count, plural, =1 {{one}：#} other {{other}：#}}",
       "daysLabelled": "{label} {days}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "建立{item}",
+      "addItem": "新增{item}",
+      "itemName": "{item}名稱…",
+      "newCard": "建立卡片",
+      "roadmapYear": "路線圖年份",
+      "previousYear": "上一年",
+      "nextYear": "下一年",
+      "thisYear": "今年"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",
       "composePlaceholder": "事件標題…",
       "addEvent": "新增事件",
       "dateRange": "日期範圍",
-      "agendaTitle": "議程",
-      "categoriesTitle": "類別",
       "upcomingTitle": "即將到來",
       "invalidLayout": "此行事曆儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
       "composeChoose": "此事件的對象",
-      "composeChoosePlaceholder": "請選擇…"
+      "composeChoosePlaceholder": "請選擇…",
+      "calendarsTitle": "行事曆"
     },
     "scheduler": {
       "previousWeek": "上一週",
@@ -2071,7 +2096,24 @@ export default {
       "month": "月",
       "invalidLayout": "此排班表儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
       "shiftCount": "{count, plural, other {{n} shifts}}",
-      "addShift": "新增班次"
+      "addShift": "新增班次",
+      "teamMember": "團隊成員",
+      "hoursUnit": "小時",
+      "thisWeek": "本週",
+      "weekOf": "{start} – {end} 這一週",
+      "cellHint": "選擇空白儲存格以新增班次",
+      "addShiftSubtitle": "為團隊成員安排一個班次。",
+      "day": "日期",
+      "start": "開始",
+      "end": "結束",
+      "type": "類型",
+      "addRefused": "未能新增班次。",
+      "stats": {
+        "staff": "已排班人員",
+        "shifts": "班次總數",
+        "hours": "已排班時數",
+        "uncovered": "無人值班天數"
+      }
     },
     "settings": {
       "title": "通知設定",

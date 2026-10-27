@@ -75,11 +75,20 @@ export default {
       "reading": "Verbunden — Adminium liest gerade Ihr Schema.",
       "tables": "Verbunden · {count, plural, one {# Tabelle} other {# Tabellen}} gefunden."
     },
+    "database": {
+      "connected": "„{name}“ verbunden.",
+      "failed": "„{name}“ war nicht erreichbar. Korrigieren Sie die Adresse und starten Sie Adminium neu.",
+      "pages": "{count, plural, one {# Seite} other {# Seiten}} aus „{name}“ generiert.",
+      "tables": "„{name}“ verbunden · {count, plural, one {# Tabelle} other {# Tabellen}}."
+    },
     "invited": "{count, plural, one {# Einladung} other {# Einladungen}} erstellt.",
     "label": "Fertig",
     "next": {
       "blank": "Ihr Arbeitsbereich ist bereit. Legen Sie eine Seite an, wann immer Sie möchten — es wurde nichts generiert, genau wie gewünscht.",
-      "generate": "Ihr Arbeitsbereich ist bereit. Als Nächstes wählen wir die Tabellen aus und generieren Ihre Seiten."
+      "connected": "Ihr Arbeitsbereich ist bereit. Die aus Ihrer Datenbank erstellten Seiten finden Sie im Dashboard.",
+      "connectedNoPages": "Ihr Arbeitsbereich ist bereit. Ihre Datenbank ist verbunden; legen Sie Seiten im Studio an, wann immer Sie möchten.",
+      "generate": "Ihr Arbeitsbereich ist bereit. Als Nächstes wählen wir die Tabellen aus und generieren Ihre Seiten.",
+      "ready": "Ihr Arbeitsbereich ist bereit."
     },
     "storage": {
       "local": "Adminium bewahrt seine eigenen Daten in einer Datei auf diesem Rechner auf.",
@@ -100,6 +109,7 @@ export default {
   "kicker": "Schritt {n} von {total}",
   "meta": {
     "body": "Ihre Anmeldung, die generierten Seiten und Ihre gespeicherten Einstellungen. Das ist getrennt von der Datenbank, die Sie gerade verbunden haben und die Adminium nur liest.",
+    "bodyConnected": "Ihre Anmeldung, die generierten Seiten und Ihre gespeicherten Einstellungen. Das ist getrennt von der bereits verbundenen Datenbank, die Adminium nur liest.",
     "label": "Adminiums Daten",
     "local": {
       "body": "Nichts einzurichten. Richtig zum Ausprobieren von Adminium oder für eine einzelne Instanz.",
@@ -117,6 +127,7 @@ export default {
     },
     "sameDb": {
       "alreadyAdminium": "Diese Datenbank enthält bereits eine Adminium-Instanz. Gehen Sie einen Schritt zurück, um deren Tabellen zu behalten und daneben neu anzufangen — oder melden Sie sich stattdessen dort an.",
+      "alreadyConnected": "Diese Datenbank wurde verbunden, bevor dieser Assistent geöffnet wurde, daher kann dieser Schritt Adminiums Daten nicht dorthin verschieben. Behalten Sie sie in einer Datei, oder geben Sie Adminium eine eigene Datenbank.",
       "body": "Adminium legt seine eigenen `adminium_`-Tabellen neben Ihren an. Eine Datenbank zum Sichern.",
       "disabledFile": "Eine SQLite-Datei ist kein Server, dem Adminium eigene Tabellen hinzufügen kann.",
       "disabledNoDdl": "Diese Rolle darf kein CREATE TABLE ausführen, was Adminiums eigene Migrationen benötigen.",

@@ -77,6 +77,8 @@ export function hashIndex(value: string, modulo: number): number {
 }
 
 const TONE_CYCLE: readonly Tone[] = ['accent', 'info', 'pos', 'warn', 'danger', 'neutral'];
+/** A plan's phases in order: neighbours far apart (accent and info are both blue). */
+const GANTT_TONES: readonly Tone[] = ['accent', 'pos', 'warn', 'info', 'danger', 'neutral'];
 
 /**
  * Tone for a category (department / phase), honoring an explicit map, else a
@@ -484,6 +486,10 @@ export interface GanttFieldMap {
   progressField?: string | undefined;
   phaseField?: string | undefined;
   ownerField?: string | undefined;
+  /** A person's name in parts (a first and a last name read through a link), joined with a space; wins over `ownerField`. */
+  ownerFields?: readonly string[] | undefined;
+  /** What a group is called, where `phaseField` holds a key (a link's id): the name read through the link. */
+  phaseLabelField?: string | undefined;
   milestoneField?: string | undefined;
 }
 
@@ -520,8 +526,8 @@ export interface GanttModelOptions {
 
 /**
  * Project a task `record-list` onto the gantt model: parse start/end, derive the
- * axis origin + span, bucket rows under their phase FK (input order preserved
- * within a group, groups in first-seen order — deterministic), and locate the
+ * axis origin + span, bucket rows under their phase FK (tasks by start within
+ * a group, groups by their first task — deterministic), and locate the
  * today marker.
  *
  * Rows with an unparseable/absent start are DROPPED (a bar with no position is
@@ -546,6 +552,7 @@ export function toGanttModel(
     owner?: string | undefined;
     milestone: boolean;
     phase: string;
+    phaseLabel?: string | undefined;
   }
 
   // Progress columns come in two conventions: 0–1 fractions and 0–100 whole
@@ -577,9 +584,11 @@ export function toGanttModel(
       startMs,
       endMs,
       pct,
-      owner: fields.ownerField === undefined ? undefined : stringField(row, fields.ownerField),
+      owner: ownerOf(row, fields),
       milestone: milestoneFlag,
-      phase: (fields.phaseField === undefined ? undefined : stringField(row, fields.phaseField)) ?? '',
+      // A phase is a word or a link's key (a number as often as not): both are the group's key.
+      phase: (fields.phaseField === undefined ? undefined : (stringField(row, fields.phaseField) ?? numberKey(row[fields.phaseField]))) ?? '',
+      phaseLabel: fields.phaseLabelField === undefined ? undefined : stringField(row, fields.phaseLabelField),
     });
   });
 
@@ -594,7 +603,12 @@ export function toGanttModel(
 
   const groupOrder: string[] = [];
   const grouped = new Map<string, GanttTask[]>();
+  const groupLabels = new Map<string, string>();
+  // A plan reads in date order whatever order its rows came in (a page loads
+  // the newest first); ties keep the rows' order.
+  parsed.sort((a, b) => a.startMs - b.startMs);
   for (const task of parsed) {
+    if (task.phaseLabel !== undefined && !groupLabels.has(task.phase)) groupLabels.set(task.phase, task.phaseLabel);
     const startDay = dayOffset(task.startMs, originMs);
     const rawDur = Math.round((task.endMs - task.startMs) / DAY_MS);
     const isMilestone = task.milestone || rawDur <= 0;
@@ -616,10 +630,15 @@ export function toGanttModel(
     }
   }
 
-  const groups: GanttGroup[] = groupOrder.map((phase) => ({
+  // Each phase its own colour in plan order (a hash can give two phases the
+  // same one); an explicit `phaseColors` entry still wins.
+  const groups: GanttGroup[] = groupOrder.map((phase, index) => ({
     key: phase === '' ? '__ungrouped__' : phase,
-    name: phase === '' ? (options.ungroupedLabel ?? 'Tasks') : phase,
-    tone: categoryTone(phase === '' ? undefined : phase, options.phaseColors),
+    name: phase === '' ? (options.ungroupedLabel ?? 'Tasks') : (groupLabels.get(phase) ?? phase),
+    tone:
+      phase !== '' && options.phaseColors?.[phase] !== undefined
+        ? toneOf(options.phaseColors[phase])
+        : (GANTT_TONES[index % GANTT_TONES.length] as Tone),
     tasks: grouped.get(phase) as GanttTask[],
   }));
 
@@ -627,6 +646,19 @@ export function toGanttModel(
     options.todayMs === undefined ? null : withinAxis(dayOffset(options.todayMs, originMs), totalDays);
 
   return { groups, totalDays, originMs, todayDay };
+}
+
+/** A person's name from the row: its parts joined, else the one owner field. */
+function ownerOf(row: Rec, fields: GanttFieldMap): string | undefined {
+  if (fields.ownerFields !== undefined && fields.ownerFields.length > 0) {
+    const parts = fields.ownerFields.map((field) => stringField(row, field)).filter((part): part is string => part !== undefined && part.trim() !== '');
+    if (parts.length > 0) return parts.join(' ');
+  }
+  return fields.ownerField === undefined ? undefined : stringField(row, fields.ownerField);
+}
+
+function numberKey(value: unknown): string | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined;
 }
 
 /** Day offset if it lands inside the axis window, else null (marker hidden). */

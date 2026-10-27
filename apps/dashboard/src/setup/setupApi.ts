@@ -13,6 +13,12 @@ export interface SetupState {
   /** True only on a never-bootstrapped instance (zero users AND no claim). */
   required: boolean;
   passwordMinLength: number;
+  /**
+   * A database was connected before anyone signed in (a project's
+   * `databases`, or the first-boot source seed). Optional so a fixture, or a
+   * server one release behind, that leaves it out reads as "not connected".
+   */
+  databaseConnected?: boolean;
 }
 
 /** The two outbound-call consents. Both default OFF (v0.5 exit criterion). */

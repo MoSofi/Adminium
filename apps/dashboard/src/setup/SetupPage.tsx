@@ -21,5 +21,10 @@ export function SetupPage(): ReactNode {
   // the contract every deferred namespace owes its surface.
   use(onboardingMessagesReady());
   const { data } = useSuspenseQuery(setupStateQuery());
-  return <OnboardingPage passwordMinLength={data.passwordMinLength} />;
+  return (
+    <OnboardingPage
+      passwordMinLength={data.passwordMinLength}
+      databaseConnected={data.databaseConnected === true}
+    />
+  );
 }

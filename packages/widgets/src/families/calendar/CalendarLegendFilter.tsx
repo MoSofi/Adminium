@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeT } from '../../lib/i18n.js';
-import { Checkbox, EmptyState, MonoText } from '@adminium/ui';
+import { EmptyState, MonoText } from '@adminium/ui';
+import { Check } from 'lucide-react';
 import { useState } from 'react';
 
 import { eventsOf } from './CalendarMonth.js';
@@ -134,23 +135,35 @@ export function CalendarLegendFilter({
         return (
           <li key={category.name} data-part="legend-row" data-on={on ? '' : undefined}>
             <label
-              className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 ${
+              className={`flex items-center gap-2.5 rounded-[8px] px-2 py-1.5 leading-[normal] ${
                 toggleable ? 'cursor-pointer hover:bg-surface-2' : ''
               }`}
             >
-              {toggleable && (
-                <Checkbox
-                  checked={on}
-                  onCheckedChange={() => toggle(category.name)}
-                  aria-label={category.label ?? category.name}
-                  className="shrink-0"
-                />
+              {toggleable ? (
+                // The Calendar Scheduler comp: a checkbox in the calendar's own colour. A real checkbox under it keeps
+                // the keyboard and the screen reader's "checked"; the coloured box is what is seen.
+                <span className="relative grid size-4 shrink-0 place-items-center">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggle(category.name)}
+                    aria-label={category.label ?? category.name}
+                    className="peer absolute inset-0 m-0 cursor-pointer opacity-0"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={`grid size-4 place-items-center rounded-[4px] border peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${on ? `border-transparent ${TONE_SOLID_BG[category.tone]} text-surface` : 'border-border-strong bg-surface'}`}
+                  >
+                    {on ? <Check className="size-3" strokeWidth={3} /> : null}
+                  </span>
+                </span>
+              ) : (
+                swatch
               )}
-              {swatch}
-              <span className={`min-w-0 flex-1 truncate text-body-sm ${on ? 'text-fg' : 'text-fg-subtle'}`}>
+              <span className={`min-w-0 flex-1 truncate text-[13px] font-semibold ${on ? 'text-fg' : 'text-fg-subtle'}`}>
                 {category.label ?? category.name}
               </span>
-              <MonoText className="shrink-0 text-caption text-fg-subtle">{count}</MonoText>
+              <MonoText className="shrink-0 text-[11px] text-fg-subtle">{count}</MonoText>
             </label>
           </li>
         );

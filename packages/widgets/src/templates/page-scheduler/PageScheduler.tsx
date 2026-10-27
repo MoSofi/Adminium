@@ -17,20 +17,21 @@
  * used as-is. KPI-row items and everything else render through WidgetHost.
  */
 import { useMaybeT } from '../../lib/i18n.js';
-import { Button, SegmentedControl } from '@adminium/ui';
+import { Button, FormDialog, FormDialogBody, FormDialogFooter, FormDialogHeader, FormField, Input, SegmentedControl, Select } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { CapacityBoard, capacityDataOf } from '../../families/calendar/CapacityBoard.js';
 import {
   addDays,
   firstJsWeekday,
-  fmtMonthShort,
-  parseIsoDay,
+  fmtMonthDay,
   resolveLocale,
   weekDays,
 } from '../../families/calendar/calendar-lib.js';
+import { servedChoicesOf } from '../../families/tables/choices.js';
+import { SCHEDULE_PERSON_ALIAS, SCHEDULE_ROLE_ALIAS } from '../../registry/candidates.js';
 import type { CapacityBoardData, CapacityMember } from '../../families/calendar/calendar-types.js';
 import { boardRowsOf, humanizeEnum } from '../../families/boards/board-lib.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
@@ -105,18 +106,34 @@ interface MatrixItemConfig {
   personColumn: string;
   dateColumn: string;
   typeColumn: string;
+  /** Where a shift ends: with it, each chip says its times and each person their hours. */
+  endColumn: string | undefined;
+  /** How many `adm_person_N` lookups name a person (a first and a last name). */
+  personNameParts: number;
   maxPerCell: number;
   targetCoverage: number | undefined;
 }
 
 export function matrixItemConfigOf(config: Record<string, unknown>): MatrixItemConfig {
+  const names = config['personName'];
   return {
     personColumn: configString(config, 'personColumn') ?? 'person',
     dateColumn: configString(config, 'dateColumn', 'startColumn') ?? 'date',
     typeColumn: configString(config, 'typeColumn') ?? 'type',
+    endColumn: configString(config, 'endColumn'),
+    personNameParts: Array.isArray(names) ? Math.min(2, names.length) : 0,
     maxPerCell: configNumber(config, 'maxPerCell') ?? 2,
     targetCoverage: configNumber(config, 'targetCoverage'),
   };
+}
+
+const KNOWN_TONES: readonly string[] = ['neutral', 'accent', 'pos', 'warn', 'danger', 'info'];
+
+/** Minutes past midnight of an `HH:MM`. */
+function minutesOf(time: string | undefined): number | undefined {
+  if (time === undefined) return undefined;
+  const [h, m] = time.split(':').map(Number);
+  return h === undefined || m === undefined || !Number.isFinite(h) || !Number.isFinite(m) ? undefined : h * 60 + m;
 }
 
 export interface MatrixModel {
@@ -132,7 +149,10 @@ export interface MatrixModel {
 }
 
 /** A person-name-ish sibling column for the resource label (best effort). */
-function resourceLabelOf(row: Record<string, unknown>, personColumn: string, personId: string): string {
+function resourceLabelOf(row: Record<string, unknown>, personColumn: string, personId: string, nameParts = 0): string {
+  // The name read through the person's link (the generator asks for it): first and last joined.
+  const parts = Array.from({ length: nameParts }, (_, index) => row[`${SCHEDULE_PERSON_ALIAS}_${String(index)}`]).filter((part): part is string => typeof part === 'string' && part.trim() !== '');
+  if (parts.length > 0) return parts.join(' ');
   for (const key of [`${personColumn}_name`, 'person_name', 'employee_name', 'name', 'full_name', 'email']) {
     const value = row[key];
     if (typeof value === 'string' && value !== '') return value;
@@ -185,6 +205,9 @@ export function matrixModelOf(
 
   const rows = boardRowsOf(data);
   const dateKind = planningDateKindOf(data, cfg.dateColumn);
+  const endKind = planningDateKindOf(data, cfg.endColumn);
+  // The type column's own words and tones, as the answer gave them.
+  const typeWords = servedChoicesOf(data).get(cfg.typeColumn);
   const resources: ShiftResource[] = [];
   const seenResources = new Set<string>();
   const typeIds: string[] = [];
@@ -199,25 +222,37 @@ export function matrixModelOf(
     if (person === '' || day === null || typeId === '') continue;
     if (!seenResources.has(person)) {
       seenResources.add(person);
-      resources.push({ id: person, label: resourceLabelOf(row, cfg.personColumn, person) });
+      const role = row[SCHEDULE_ROLE_ALIAS];
+      resources.push({ id: person, label: resourceLabelOf(row, cfg.personColumn, person, cfg.personNameParts), ...(typeof role === 'string' && role !== '' ? { role } : {}) });
     }
     if (!typeIds.includes(typeId)) typeIds.push(typeId);
     const id = row['id'] ?? row['_id'];
     if (id === undefined || id === null) writable = false;
+    // Its times, where the table keeps them: a shift past midnight runs into the next day.
+    const end = cfg.endColumn === undefined ? null : splitInstant(row[cfg.endColumn], { timeZone, kind: endKind });
+    const from = minutesOf(day.time);
+    const to = minutesOf(end?.time);
+    const minutes = from === undefined || to === undefined ? undefined : (to - from + (end !== null && end.day !== day.day ? 24 * 60 : 0) + 24 * 60) % (24 * 60) || undefined;
     shifts.push({
       recordId: String(id ?? `row-${index}`),
       resourceId: person,
       date: day.day,
       typeId,
+      ...(day.time === undefined ? {} : { start: day.time }),
+      ...(end?.time === undefined ? {} : { end: end.time }),
+      ...(minutes === undefined ? {} : { minutes }),
     });
   }
   return {
     resources,
-    types: typeIds.map((id, index) => ({
-      id,
-      label: humanizeEnum(id),
-      tone: TYPE_TONES[index % TYPE_TONES.length] as Tone,
-    })),
+    types: typeIds.map((id, index) => {
+      const tone = typeWords?.enumTones?.[id];
+      return {
+        id,
+        label: typeWords?.enumLabels?.[id] ?? humanizeEnum(id),
+        tone: (tone !== undefined && KNOWN_TONES.includes(tone) ? tone : TYPE_TONES[index % TYPE_TONES.length]) as Tone,
+      };
+    }),
     shifts,
     providedDays: null,
     writable,
@@ -339,14 +374,23 @@ function MatrixSlot({
   }, [days[0], days[days.length - 1]]);
 
   const canEdit = source !== null && model.writable && onEvent !== undefined;
+  // The comp's "Add shift" form: open with its person and day, or with none from the header button.
+  const [adding, setAdding] = useState<{ resourceId: string | undefined; day: string | undefined } | null>(null);
+  const endKind = planningDateKindOf(state.data, cfg.endColumn);
 
   const frameState = state.status === 'loading' ? 'skeleton' : state.status === 'error' ? 'error' : 'loaded';
-  const monthLabel = days[0] === undefined ? '' : fmtMonthShort(tag, parseIsoDay(days[0]));
+  const thisYear = new Date().getUTCFullYear();
+  const weekLabel =
+    days[0] === undefined
+      ? ''
+      : t('ui:templates.scheduler.weekOf', 'Week of {start} – {end}', { start: fmtMonthDay(tag, days[0], thisYear), end: fmtMonthDay(tag, days[days.length - 1] ?? days[0], thisYear) });
+  const navButton =
+    'flex size-8 items-center justify-center rounded-[8px] border border-border bg-surface text-fg-muted transition-colors hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
   return (
     <WidgetFrame
       state={frameState}
-      title={configString(raw, 'title')}
+      frameless
       skeleton="table"
       errorMessage={state.status === 'error' ? frameMessageOf(state.error) : undefined}
       onRetry={state.refetch}
@@ -354,29 +398,53 @@ function MatrixSlot({
       menu={undefined}
       testId={`schedule-slot-${item.i}`}
     >
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center justify-end gap-1 px-2 pb-1">
-          <span className="me-auto ps-1 text-caption font-semibold text-fg-subtle" data-part="week-label">
-            {monthLabel}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={labels?.previousWeek ?? t('ui:templates.scheduler.previousWeek', 'Previous week')}
-            data-part="week-prev"
-            onClick={() => setWeekOffset((offset) => offset - 1)}
-          >
-            <ChevronLeft className="size-4 rtl:-scale-x-100" aria-hidden="true" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={labels?.nextWeek ?? t('ui:templates.scheduler.nextWeek', 'Next week')}
-            data-part="week-next"
-            onClick={() => setWeekOffset((offset) => offset + 1)}
-          >
-            <ChevronRight className="size-4 rtl:-scale-x-100" aria-hidden="true" />
-          </Button>
+      <div className="flex h-full min-h-0 flex-col gap-[18px] leading-[normal]">
+        {/* The comp's header: the week, then its navigation and "Add shift". */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="me-auto min-w-0">
+            <p data-part="week-label" className="text-[13px] font-bold text-fg">{weekLabel}</p>
+            {canEdit ? <p className="mt-0.5 text-[12.5px] text-fg-muted">{t('ui:templates.scheduler.cellHint', 'Choose an empty cell to add a shift')}</p> : null}
+          </div>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              aria-label={labels?.previousWeek ?? t('ui:templates.scheduler.previousWeek', 'Previous week')}
+              data-part="week-prev"
+              onClick={() => setWeekOffset((offset) => offset - 1)}
+              className={navButton}
+            >
+              <ChevronLeft className="size-4 rtl:-scale-x-100" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              data-part="week-this"
+              aria-pressed={weekOffset === 0}
+              onClick={() => setWeekOffset(0)}
+              className="rounded-[8px] bg-accent-soft px-3 py-[7px] text-[12px] font-bold text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {t('ui:templates.scheduler.thisWeek', 'This week')}
+            </button>
+            <button
+              type="button"
+              aria-label={labels?.nextWeek ?? t('ui:templates.scheduler.nextWeek', 'Next week')}
+              data-part="week-next"
+              onClick={() => setWeekOffset((offset) => offset + 1)}
+              className={navButton}
+            >
+              <ChevronRight className="size-4 rtl:-scale-x-100" aria-hidden="true" />
+            </button>
+          </div>
+          {canEdit && model.types.length > 0 ? (
+            <button
+              type="button"
+              data-part="shift-new"
+              onClick={() => setAdding({ resourceId: undefined, day: undefined })}
+              className="flex items-center gap-[7px] rounded-[10px] bg-accent py-2 pe-[13px] ps-2.5 text-[13px] font-bold text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_35%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              {labels?.addShift ?? t('ui:templates.scheduler.addShift', 'Add shift')}
+            </button>
+          ) : null}
         </div>
         {state.status === 'success' && nothingPlaced(model.received, model.shifts.length) ? (
           <UnplacedRowsNotice
@@ -396,6 +464,7 @@ function MatrixSlot({
             maxPerCell={cfg.maxPerCell}
             {...(cfg.targetCoverage === undefined ? {} : { targetCoverage: cfg.targetCoverage })}
             canEdit={canEdit}
+            showStats
             {...(locale === undefined ? {} : { locale })}
             labels={{
               ...(labels?.resource === undefined ? {} : { resource: labels.resource }),
@@ -423,25 +492,174 @@ function MatrixSlot({
                 values: { [cfg.typeColumn]: nextTypeId },
               });
             }}
-            onAdd={(resourceId, date, typeId) => {
-              if (!canEdit || source === null || onEvent === undefined) return undefined;
-              return onEvent(item.i, {
-                type: 'mutate',
-                intent: 'insert',
-                connectionId: source.connectionId,
-                table: source.table,
-                values: {
-                  [cfg.personColumn]: resourceId,
-                  [cfg.dateColumn]: dayStartValue(date, { timeZone, kind: dateKind }),
-                  [cfg.typeColumn]: typeId,
-                },
-              });
-            }}
+            onAddAt={(resourceId, day) => setAdding({ resourceId, day })}
             testId={`shift-matrix-${item.i}`}
           />
         </div>
       </div>
+      {adding === null || source === null || onEvent === undefined ? null : (
+        <AddShiftDialog
+          resources={model.resources}
+          days={days}
+          types={model.types}
+          initial={adding}
+          timed={cfg.endColumn !== undefined}
+          locale={tag}
+          onClose={() => setAdding(null)}
+          onSave={(shift) => {
+            const startMinutes = minutesOf(shift.start) ?? 0;
+            const endMinutes = minutesOf(shift.end);
+            const at = (day: string, minutes: number, kind: typeof dateKind): string => {
+              const midnight = dayStartValue(day, { timeZone, kind });
+              if (kind !== 'instant') return midnight;
+              const parsed = Date.parse(midnight);
+              return Number.isFinite(parsed) ? new Date(parsed + minutes * 60_000).toISOString() : midnight;
+            };
+            // A shift that ends before it starts runs past midnight, into the next day.
+            const endDay = endMinutes !== undefined && endMinutes <= startMinutes ? addDays(shift.day, 1) : shift.day;
+            return onEvent(item.i, {
+              type: 'mutate',
+              intent: 'insert',
+              connectionId: source.connectionId,
+              table: source.table,
+              values: {
+                [cfg.personColumn]: shift.resourceId,
+                [cfg.dateColumn]: at(shift.day, startMinutes, dateKind),
+                [cfg.typeColumn]: shift.typeId,
+                ...(cfg.endColumn === undefined || endMinutes === undefined ? {} : { [cfg.endColumn]: at(endDay, endMinutes, endKind) }),
+              },
+            });
+          }}
+        />
+      )}
     </WidgetFrame>
+  );
+}
+
+/**
+ * The comp's "Add shift" form: who, which day, from and until when, and the
+ * shift's type. A cell opens it with its person and day already chosen. The
+ * save is the host's insert; a refused one keeps the form open and says why.
+ */
+function AddShiftDialog({
+  resources,
+  days,
+  types,
+  initial,
+  timed,
+  locale,
+  onClose,
+  onSave,
+}: {
+  resources: readonly ShiftResource[];
+  days: readonly string[];
+  types: readonly ShiftTypeDef[];
+  initial: { resourceId: string | undefined; day: string | undefined };
+  timed: boolean;
+  locale: string;
+  onClose: () => void;
+  onSave: (shift: { resourceId: string; day: string; typeId: string; start: string; end: string }) => void | Promise<unknown>;
+}) {
+  const t = useMaybeT();
+  const [resourceId, setResourceId] = useState(initial.resourceId ?? resources[0]?.id ?? '');
+  const [day, setDay] = useState(initial.day ?? days[0] ?? '');
+  const [typeId, setTypeId] = useState(types[0]?.id ?? '');
+  const [start, setStart] = useState('09:00');
+  const [end, setEnd] = useState('17:00');
+  const [saving, setSaving] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const formId = 'add-shift-form';
+  const submit = (): void => {
+    if (resourceId === '' || day === '' || typeId === '' || saving) return;
+    setRefused(null);
+    const result = onSave({ resourceId, day, typeId, start, end });
+    if (result === undefined || typeof (result as Promise<unknown>).then !== 'function') {
+      onClose();
+      return;
+    }
+    setSaving(true);
+    (result as Promise<unknown>).then(
+      () => {
+        setSaving(false);
+        onClose();
+      },
+      (error: unknown) => {
+        setSaving(false);
+        setRefused(error instanceof Error && error.message !== '' ? error.message : t('ui:templates.scheduler.addRefused', 'The shift was not added.'));
+      },
+    );
+  };
+  return (
+    <FormDialog open onOpenChange={(open) => (open ? undefined : onClose())} width={480}>
+      <FormDialogHeader
+        icon={<Plus />}
+        title={t('ui:templates.scheduler.addShift', 'Add shift')}
+        subtitle={t('ui:templates.scheduler.addShiftSubtitle', 'Schedule a shift for a team member.')}
+        closeLabel={t('ui:action.close', 'Close')}
+      />
+      <FormDialogBody>
+        <form
+          id={formId}
+          className="flex flex-col gap-[15px]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          {refused === null ? null : (
+            <p role="alert" data-part="add-shift-refused" className="rounded-md bg-danger-soft px-3 py-2.5 text-body-sm font-bold text-danger">
+              {refused}
+            </p>
+          )}
+          <FormField label={t('ui:templates.scheduler.teamMember', 'Team member')}>
+            <Select value={resourceId} onChange={(event) => setResourceId(event.target.value)}>
+              {resources.map((resource) => (
+                <option key={resource.id} value={resource.id}>
+                  {resource.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label={t('ui:templates.scheduler.day', 'Date')}>
+            <Select value={day} onChange={(event) => setDay(event.target.value)}>
+              {days.map((option) => (
+                <option key={option} value={option}>
+                  {fmtMonthDay(locale, option)}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          {timed ? (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label={t('ui:templates.scheduler.start', 'Start')}>
+                <Input type="time" value={start} onChange={(event) => setStart(event.target.value)} />
+              </FormField>
+              <FormField label={t('ui:templates.scheduler.end', 'End')}>
+                <Input type="time" value={end} onChange={(event) => setEnd(event.target.value)} />
+              </FormField>
+            </div>
+          ) : null}
+          <FormField label={t('ui:templates.scheduler.type', 'Type')}>
+            <Select value={typeId} onChange={(event) => setTypeId(event.target.value)}>
+              {types.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </form>
+      </FormDialogBody>
+      <FormDialogFooter>
+        <Button type="button" variant="secondary" onClick={onClose}>
+          {t('ui:action.cancel', 'Cancel')}
+        </Button>
+        <Button type="submit" form={formId} variant="primary" disabled={saving || resourceId === '' || typeId === ''}>
+          <Plus aria-hidden="true" />
+          {t('ui:templates.scheduler.addShift', 'Add shift')}
+        </Button>
+      </FormDialogFooter>
+    </FormDialog>
   );
 }
 

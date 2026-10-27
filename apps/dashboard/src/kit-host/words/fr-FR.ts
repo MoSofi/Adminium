@@ -28,7 +28,9 @@ const words: KitWords = {
     "ui:widgets.boards.kanbanBoard.emptyBody": "Les cartes apparaîtront dans leurs colonnes de statut à mesure que des enregistrements sont créés.",
     "ui:widgets.boards.kanbanBoard.emptyTitle": "Aucune carte pour l'instant",
     "ui:widgets.boards.notAdded": "La carte {title} n’a pas été ajoutée.",
-    "ui:widgets.boards.notMoved": "La carte {title} n’a pas été déplacée."
+    "ui:widgets.boards.notMoved": "La carte {title} n’a pas été déplacée.",
+    "ui:widgets.boards.pct": "{pct} %",
+    "ui:widgets.boards.pctComplete": "{pct} % terminé"
   },
   "map": {
     "ui:widgets.boards.dismissNotice": "Fermer",

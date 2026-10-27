@@ -24,6 +24,7 @@ import { BrandMark } from '../../shell/BrandMark.js';
 import { ThemeToggleButton } from '../../auth/AuthScreenLayout.js';
 import { useDocumentPageTitle } from '../../shell/documentTitle.js';
 import {
+  ONBOARDING_STEP_IDS,
   onboardingStepDefs,
   progressPercent,
   stepBefore,
@@ -33,6 +34,8 @@ import {
 
 export interface OnboardingWizardProps {
   step: OnboardingStepId;
+  /** The steps on the rail, in order. Defaults to all six. */
+  steps?: readonly OnboardingStepId[] | undefined;
   /**
    * Rail navigation. The kit's `Stepper` only makes done and active rows
    * clickable, so this can never jump FORWARD past an unanswered step.
@@ -54,6 +57,7 @@ export interface OnboardingWizardProps {
 
 export function OnboardingWizard({
   step,
+  steps = ONBOARDING_STEP_IDS,
   onStepSelect,
   onBack,
   onSkip,
@@ -67,13 +71,13 @@ export function OnboardingWizard({
   // The product name alone — see the module note.
   useDocumentPageTitle(null);
 
-  const defs = onboardingStepDefs();
-  const index = stepIndexOf(step);
+  const defs = onboardingStepDefs(steps);
+  const index = stepIndexOf(step, steps);
   const def = defs[index];
   if (def === undefined) throw new Error(`unknown onboarding step: ${step}`);
 
   const last = index === defs.length - 1;
-  const percent = progressPercent(step);
+  const percent = progressPercent(step, steps);
 
   return (
     <div className="flex min-h-screen w-full bg-bg text-fg">
@@ -186,7 +190,7 @@ export function OnboardingWizard({
             <div className="mt-[26px]">{children}</div>
 
             <div className="mt-8 flex items-center gap-3">
-              {stepBefore(step) === null ? null : (
+              {stepBefore(step, steps) === null ? null : (
                 <Button
                   variant="outline"
                   className="h-auto rounded-[11px] px-5 py-3 text-[13.5px] font-bold"

@@ -23,6 +23,14 @@ export const setupStateReply = z.object({
     /** True only when zero users exist AND bootstrap has never been claimed. */
     required: z.boolean(),
     passwordMinLength: z.number().int().positive(),
+    /**
+     * A database was connected before anyone signed in (a project's
+     * `databases`, or the first-boot source seed), so the wizard skips its own
+     * connect step. One yes/no, no name, engine or count, and only ever `true`
+     * while `required` is: whoever can read it here can also create the first
+     * account, which shows them everything this would.
+     */
+    databaseConnected: z.boolean(),
   }),
 });
 export type SetupStateReply = z.infer<typeof setupStateReply>;

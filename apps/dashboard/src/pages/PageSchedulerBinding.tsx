@@ -61,7 +61,6 @@ export function PageSchedulerBinding({ page, adapters, recordId, columnFacts, cu
           nextWeek: t('scheduler.nextWeek', 'Next week'),
           week: t('scheduler.week', 'Week'),
           month: t('scheduler.month', 'Month'),
-          resource: t('scheduler.resource', 'Resource'),
           coverage: t('scheduler.coverage', 'Coverage'),
           addShift: t('scheduler.addShift', 'Add shift'),
           // `{n}` is substituted by the template, not by ICU interpolation.

@@ -24,7 +24,9 @@
     "ui:widgets.boards.kanbanBoard.emptyBody",
     "ui:widgets.boards.kanbanBoard.emptyTitle",
     "ui:widgets.boards.notAdded",
-    "ui:widgets.boards.notMoved"
+    "ui:widgets.boards.notMoved",
+    "ui:widgets.boards.pct",
+    "ui:widgets.boards.pctComplete"
   ],
   "map": [
     "ui:widgets.boards.dismissNotice",

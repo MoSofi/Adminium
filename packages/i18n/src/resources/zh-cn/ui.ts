@@ -486,7 +486,9 @@ export default {
         "emptyBody": "已排期的事件将显示在此日历中。",
         "previousLabel": "上个月",
         "nextLabel": "下个月",
-        "overflowLabel": "+{count} 项"
+        "overflowLabel": "+{count} 项",
+        "today": "今天",
+        "newEvent": "新建活动"
       },
       "dayAgenda": {
         "description": "所选日期的事件按时间排序的日程。",
@@ -731,7 +733,11 @@ export default {
         "addLabel": "添加",
         "cancelLabel": "取消",
         "openLabel": "添加卡片"
-      }
+      },
+      "pctComplete": "已完成 {pct}%",
+      "noLane": "无",
+      "laneCount": "{count, plural, other {# 张卡片}}",
+      "pct": "{pct}%"
     },
     "communication": {
       "conversationInbox": {
@@ -900,7 +906,19 @@ export default {
         "description": "时间轴上的任务条，按阶段分组，包含进度、里程碑和今日标记。",
         "emptyTitle": "暂无排期",
         "emptyBody": "任务设置开始和结束日期后将显示在此处。",
-        "ungroupedLabel": "任务"
+        "ungroupedLabel": "任务",
+        "stats": {
+          "tasks": "任务总数",
+          "onTrack": "进度正常",
+          "atRisk": "有风险",
+          "milestones": "里程碑"
+        },
+        "zoom": "时间轴刻度",
+        "weeks": "周",
+        "months": "月",
+        "taskColumn": "任务",
+        "taskCount": "{count, plural, other {# 个任务}}",
+        "today": "今天"
       },
       "documentCanvas": {
         "description": "纸张风格的文档画布（发票、报告或邮件），其中的区块可选中、重新排序和删除。",
@@ -2050,19 +2068,26 @@ export default {
       "toolbarCount": "{count, plural, other {# 张卡片}}",
       "toolbarCountNamed": "{count, plural, =1 {{one}：#} other {{other}：#}}",
       "daysLabelled": "{label} {days}",
-      "secondAmount": "{label} {amount}"
+      "secondAmount": "{label} {amount}",
+      "newItem": "新建{item}",
+      "addItem": "添加{item}",
+      "itemName": "{item}名称…",
+      "newCard": "新建卡片",
+      "roadmapYear": "路线图年份",
+      "previousYear": "上一年",
+      "nextYear": "下一年",
+      "thisYear": "今年"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",
       "composePlaceholder": "事件标题…",
       "addEvent": "添加事件",
       "dateRange": "日期范围",
-      "agendaTitle": "日程",
-      "categoriesTitle": "类别",
       "upcomingTitle": "即将到来",
       "invalidLayout": "此日历保存的布局无效。请重新生成页面或重置其布局。",
       "composeChoose": "此事件的对象",
-      "composeChoosePlaceholder": "请选择…"
+      "composeChoosePlaceholder": "请选择…",
+      "calendarsTitle": "日历"
     },
     "scheduler": {
       "previousWeek": "上一周",
@@ -2071,7 +2096,24 @@ export default {
       "month": "月",
       "invalidLayout": "此排班表保存的布局无效。请重新生成页面或重置其布局。",
       "shiftCount": "{count, plural, other {{n} shifts}}",
-      "addShift": "添加班次"
+      "addShift": "添加班次",
+      "teamMember": "团队成员",
+      "hoursUnit": "小时",
+      "thisWeek": "本周",
+      "weekOf": "{start} – {end} 这一周",
+      "cellHint": "选择空白单元格以添加班次",
+      "addShiftSubtitle": "为团队成员安排一个班次。",
+      "day": "日期",
+      "start": "开始",
+      "end": "结束",
+      "type": "类型",
+      "addRefused": "未能添加班次。",
+      "stats": {
+        "staff": "已排班人员",
+        "shifts": "班次总数",
+        "hours": "已排班小时",
+        "uncovered": "无人值班天数"
+      }
     },
     "settings": {
       "title": "通知设置",
