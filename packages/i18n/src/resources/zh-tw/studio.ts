@@ -4251,5 +4251,137 @@ export default {
   },
   "privacy": {
     "erasedPerson": "已刪除的人員"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "其他服務",
+      "signingKey": "簽署金鑰",
+      "signingKeyPaste": "貼上來自 {service} 的簽署金鑰",
+      "signingKeySaved": "簽署金鑰已儲存。",
+      "verificationKey": "驗證金鑰",
+      "verificationKeyPaste": "貼上來自 {service} 的驗證金鑰",
+      "verificationKeySaved": "驗證金鑰已儲存。",
+      "topicArn": "主題 ARN",
+      "topicArnPaste": "貼上來自 {service} 的主題 ARN",
+      "topicArnSaved": "主題 ARN 已儲存。",
+      "setOn": "設定於 {date}",
+      "failed": "未儲存，請再試一次。",
+      "invalid": "未儲存。請檢查貼上的內容後再試一次。",
+      "replace": "取代",
+      "copyThese": "將這些複製到 {service}",
+      "user": "使用者名稱",
+      "copyUser": "複製使用者名稱",
+      "password": "密碼",
+      "copyPassword": "複製密碼",
+      "shownOnce": "僅此次顯示。「取代」會產生新的並使這些失效。",
+      "save": "儲存",
+      "title": "退信與垃圾郵件檢舉",
+      "body": "當郵件被退回或被標記為垃圾郵件時，您的郵件服務會通知 Adminium，該地址會被加入「禁止寄送郵件」名單。",
+      "service": "您的郵件服務",
+      "otherNote": "寄送時被拒收的郵件仍會被記錄。其他退信請手動加入「禁止寄送郵件」名單。",
+      "paste": "將此網址貼到 {service}",
+      "noOrigin": "請先設定電子郵件連結中的位址：您的郵件服務需要它來連到本伺服器。",
+      "setOrigin": "設定位址",
+      "copyAddress": "複製網址",
+      "nothingYet": "尚未收到任何通知",
+      "lastNotice": "最近一次通知：{ago}"
+    },
+    "copied": "已複製到剪貼簿。",
+    "dne": {
+      "why": {
+        "link": "透過連結取消訂閱",
+        "spam": "被標記為垃圾郵件",
+        "bounce": "退信",
+        "hand": "手動新增",
+        "relayUnsubscribe": "透過郵件服務取消訂閱",
+        "oldMark": "在開始記錄之前取消訂閱",
+        "leadFinder": "透過 Lead finder 提出異議",
+        "erased": "應要求刪除"
+      },
+      "addedBy": "由 {name} 新增",
+      "leadFinder": "Lead finder",
+      "add": "新增地址",
+      "title": "禁止寄送郵件名單",
+      "loadFailed": "無法載入名單，請再試一次。",
+      "empty": "名單中還沒有任何人。",
+      "search": "搜尋地址",
+      "whyLabel": "原因",
+      "whyAny": "原因：全部",
+      "count": "{count, plural, other {# 筆}}",
+      "col": {
+        "address": "地址",
+        "why": "原因",
+        "when": "時間",
+        "from": "來源",
+        "actions": "操作"
+      },
+      "noMatch": "沒有符合的項目。",
+      "erased": "已刪除的人——保留以確保永不再寄信給對方",
+      "remove": "移除",
+      "more": "顯示更多",
+      "added": "{added, plural, other {已新增 # 個地址}}",
+      "notAddresses": "不是地址，已略過：{list}",
+      "already": "{count, plural, other {# 個已在名單中}}",
+      "removed": "{address} 已從名單中移除。",
+      "addFailed": "地址未新增，請再試一次。",
+      "addresses": "地址",
+      "onePerLine": "每行一個地址",
+      "removeFailed": "地址未移除，請再試一次。",
+      "removeTitle": "從名單中移除？",
+      "removeBody": "只有對方再次同意後，才會重新收到行銷郵件。"
+    },
+    "close": "關閉",
+    "cancel": "取消",
+    "dkim": {
+      "makeFailed": "無法產生金鑰，請再試一次。",
+      "checking": "正在 DNS 中檢查 {domain}…",
+      "checkAgain": "再次檢查",
+      "label": "簽署行銷郵件（DKIM）",
+      "unusable": "此金鑰在本伺服器上已失效。請產生新金鑰並發布其紀錄。",
+      "make": "產生金鑰",
+      "copy": "複製 DNS 紀錄",
+      "found": "已在 DNS 中找到",
+      "notFound": "尚未找到——DNS 可能需要一小時"
+    },
+    "postal": {
+      "label": "郵寄地址",
+      "sub": "行銷郵件必填。",
+      "error": "最多 300 個字元。"
+    },
+    "replyTo": {
+      "label": "行銷郵件的回覆寄至",
+      "error": "請輸入一個電子郵件地址，例如 hello@example.com。"
+    },
+    "dns": {
+      "unchecked": "無法查詢 DNS",
+      "asking": "正在查詢 DNS…"
+    },
+    "heading": "行銷郵件",
+    "freeMail": "無法寄送行銷郵件：請使用您自己的網域。",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "已找到：",
+      "notFound": "未找到",
+      "howTo": "如何新增 DMARC 紀錄"
+    },
+    "sheet": {
+      "titlePlain": "電子郵件設定",
+      "refused": "您無法變更此資料表的電子郵件設定。",
+      "loadFailed": "無法載入這些設定，請再試一次。",
+      "saved": "電子郵件設定已儲存。",
+      "saveFailed": "設定未儲存，請再試一次。",
+      "title": "{table} 的電子郵件設定",
+      "subtitle": "{table} — {app}",
+      "canEmail": "可透過行銷活動寄送郵件",
+      "emailColumn": "電子郵件欄",
+      "nameColumn": "姓名欄",
+      "existingHeading": "現有客戶",
+      "existing": "現有客戶無需勾選即可收到行銷郵件",
+      "existingBody": "在英國、歐盟和加拿大（購買後兩年內），如果您在取得地址時以及在每封郵件中都提供了拒絕的方式，就可以就類似內容寄信給自己的客戶。並非所有地方都適用：",
+      "guide": "查看指南",
+      "customer": "誰算作客戶",
+      "tick": "我們取得地址時我已提供了拒絕的方式",
+      "save": "儲存"
+    }
   }
 } as const;

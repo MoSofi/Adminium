@@ -20,7 +20,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Archive, AtSign, Download, Ellipsis, LayoutTemplate, Plus, Send, Settings, Upload } from 'lucide-react';
+import { Archive, AtSign, Download, Ellipsis, LayoutTemplate, MailX, Plus, Send, Settings, Upload } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 import {
@@ -347,6 +347,9 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
             </DropdownMenuItem>
             <DropdownMenuItem icon={<AtSign />} onSelect={goToEmailSettings}>
               {t('email:actions.senders', 'Manage senders')}
+            </DropdownMenuItem>
+            <DropdownMenuItem icon={<MailX />} onSelect={() => void navigate({ to: '/email-templates/do-not-email' })}>
+              {t('email:actions.doNotEmail', 'Do-not-email list')}
             </DropdownMenuItem>
             <DropdownMenuItem icon={<Download />} onSelect={() => startDownload(emailExportUrl({ kind: tab }))}>
               {t('email:actions.exportAll', 'Export all')}

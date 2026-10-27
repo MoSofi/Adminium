@@ -16,7 +16,8 @@ export default {
     "senders": "Administrér afsendere",
     "exportAll": "Eksportér alle",
     "settings": "E-mailindstillinger",
-    "archived": "Arkiverede"
+    "archived": "Arkiverede",
+    "doNotEmail": "Listen „Ingen e-mails“"
   },
   "archivedChip": {
     "field": "Viser",

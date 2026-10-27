@@ -4251,5 +4251,137 @@ export default {
   },
   "privacy": {
     "erasedPerson": "已删除的人员"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "其他服务",
+      "signingKey": "签名密钥",
+      "signingKeyPaste": "粘贴来自 {service} 的签名密钥",
+      "signingKeySaved": "签名密钥已保存。",
+      "verificationKey": "验证密钥",
+      "verificationKeyPaste": "粘贴来自 {service} 的验证密钥",
+      "verificationKeySaved": "验证密钥已保存。",
+      "topicArn": "主题 ARN",
+      "topicArnPaste": "粘贴来自 {service} 的主题 ARN",
+      "topicArnSaved": "主题 ARN 已保存。",
+      "setOn": "设置于 {date}",
+      "failed": "未保存，请重试。",
+      "invalid": "未保存。请检查粘贴的内容后重试。",
+      "replace": "替换",
+      "copyThese": "将这些复制到 {service}",
+      "user": "用户名",
+      "copyUser": "复制用户名",
+      "password": "密码",
+      "copyPassword": "复制密码",
+      "shownOnce": "仅此次显示。“替换”会生成新的并使这些失效。",
+      "save": "保存",
+      "title": "退信与垃圾邮件举报",
+      "body": "当邮件被退回或被标记为垃圾邮件时，您的邮件服务会通知 Adminium，该地址会被加入“禁止发送邮件”名单。",
+      "service": "您的邮件服务",
+      "otherNote": "发送时被拒收的邮件仍会被记录。其他退信请手动加入“禁止发送邮件”名单。",
+      "paste": "将此地址粘贴到 {service}",
+      "noOrigin": "请先设置邮件链接中的地址：您的邮件服务需要它来访问本服务器。",
+      "setOrigin": "设置地址",
+      "copyAddress": "复制地址",
+      "nothingYet": "尚未收到任何通知",
+      "lastNotice": "最近一次通知：{ago}"
+    },
+    "copied": "已复制到剪贴板。",
+    "dne": {
+      "why": {
+        "link": "通过链接退订",
+        "spam": "被标记为垃圾邮件",
+        "bounce": "退信",
+        "hand": "手动添加",
+        "relayUnsubscribe": "通过邮件服务退订",
+        "oldMark": "在开始记录之前退订",
+        "leadFinder": "通过 Lead finder 提出异议",
+        "erased": "应要求删除"
+      },
+      "addedBy": "由 {name} 添加",
+      "leadFinder": "Lead finder",
+      "add": "添加地址",
+      "title": "禁止发送邮件名单",
+      "loadFailed": "无法加载名单，请重试。",
+      "empty": "名单中还没有任何人。",
+      "search": "搜索地址",
+      "whyLabel": "原因",
+      "whyAny": "原因：全部",
+      "count": "{count, plural, other {# 条}}",
+      "col": {
+        "address": "地址",
+        "why": "原因",
+        "when": "时间",
+        "from": "来源",
+        "actions": "操作"
+      },
+      "noMatch": "没有匹配的条目。",
+      "erased": "已删除的人——保留以确保永不再向其发送邮件",
+      "remove": "移除",
+      "more": "显示更多",
+      "added": "{added, plural, other {已添加 # 个地址}}",
+      "notAddresses": "不是地址，已忽略：{list}",
+      "already": "{count, plural, other {# 个已在名单中}}",
+      "removed": "{address} 已从名单中移除。",
+      "addFailed": "地址未添加，请重试。",
+      "addresses": "地址",
+      "onePerLine": "每行一个地址",
+      "removeFailed": "地址未移除，请重试。",
+      "removeTitle": "从名单中移除？",
+      "removeBody": "只有对方再次同意后，才会重新收到营销邮件。"
+    },
+    "close": "关闭",
+    "cancel": "取消",
+    "dkim": {
+      "makeFailed": "无法生成密钥，请重试。",
+      "checking": "正在 DNS 中检查 {domain}…",
+      "checkAgain": "再次检查",
+      "label": "签名营销邮件（DKIM）",
+      "unusable": "此密钥在本服务器上已失效。请生成新密钥并发布其记录。",
+      "make": "生成密钥",
+      "copy": "复制 DNS 记录",
+      "found": "已在 DNS 中找到",
+      "notFound": "尚未找到——DNS 可能需要一小时"
+    },
+    "postal": {
+      "label": "邮寄地址",
+      "sub": "营销邮件必填。",
+      "error": "最多 300 个字符。"
+    },
+    "replyTo": {
+      "label": "营销邮件的回复发送至",
+      "error": "请输入一个邮箱地址，例如 hello@example.com。"
+    },
+    "dns": {
+      "unchecked": "无法查询 DNS",
+      "asking": "正在查询 DNS…"
+    },
+    "heading": "营销邮件",
+    "freeMail": "无法发送营销邮件：请使用您自己的域名。",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "已找到：",
+      "notFound": "未找到",
+      "howTo": "如何添加 DMARC 记录"
+    },
+    "sheet": {
+      "titlePlain": "邮件设置",
+      "refused": "您无法更改此表的邮件设置。",
+      "loadFailed": "无法加载这些设置，请重试。",
+      "saved": "邮件设置已保存。",
+      "saveFailed": "设置未保存，请重试。",
+      "title": "{table} 的邮件设置",
+      "subtitle": "{table} — {app}",
+      "canEmail": "可通过营销活动发送邮件",
+      "emailColumn": "邮箱列",
+      "nameColumn": "姓名列",
+      "existingHeading": "现有客户",
+      "existing": "现有客户无需勾选即可收到营销邮件",
+      "existingBody": "在英国、欧盟和加拿大（购买后两年内），如果您在获取地址时以及在每封邮件中都提供了拒绝的方式，就可以就类似内容给自己的客户发邮件。并非所有地方都适用：",
+      "guide": "查看指南",
+      "customer": "谁算作客户",
+      "tick": "我们获取地址时我已提供了拒绝的方式",
+      "save": "保存"
+    }
   }
 } as const;

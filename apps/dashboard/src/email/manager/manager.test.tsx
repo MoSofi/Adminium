@@ -187,11 +187,11 @@ afterEach(() => {
 });
 
 describe('EmailManager — shell', () => {
-  it('publishes the actions menu with the five items in the comp order and a divider before Email settings', async () => {
+  it('publishes the actions menu with the six items in the comp order and a divider before Email settings', async () => {
     const { user } = await renderPage({ templates: [doc()] });
     await user.click(screen.getByRole('button', { name: 'More actions' }));
     const menu = await screen.findByRole('menu');
-    expect(menuRows(menu)).toEqual(['Import template', 'Manage senders', 'Export all', '—', 'Email settings', 'Archived']);
+    expect(menuRows(menu)).toEqual(['Import template', 'Manage senders', 'Do-not-email list', 'Export all', '—', 'Email settings', 'Archived']);
     expect(within(menu).getByText('Actions')).toBeDefined();
   });
 
@@ -298,6 +298,13 @@ describe('EmailManager — shell', () => {
       expect(router.state.location.pathname).toBe('/studio/settings');
       expect(router.state.location.hash).toBe('email');
     });
+  });
+
+  it('Do-not-email list opens its page', async () => {
+    const { user, router } = await renderPage({ templates: [doc()] });
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Do-not-email list' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/email-templates/do-not-email'));
   });
 });
 

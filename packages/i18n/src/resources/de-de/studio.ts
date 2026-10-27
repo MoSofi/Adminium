@@ -4251,5 +4251,137 @@ export default {
   },
   "privacy": {
     "erasedPerson": "Gelöschte Person"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "Anderer Dienst",
+      "signingKey": "Signaturschlüssel",
+      "signingKeyPaste": "Signaturschlüssel aus {service} einfügen",
+      "signingKeySaved": "Signaturschlüssel gespeichert.",
+      "verificationKey": "Prüfschlüssel",
+      "verificationKeyPaste": "Prüfschlüssel aus {service} einfügen",
+      "verificationKeySaved": "Prüfschlüssel gespeichert.",
+      "topicArn": "Topic-ARN",
+      "topicArnPaste": "Topic-ARN aus {service} einfügen",
+      "topicArnSaved": "Topic-ARN gespeichert.",
+      "setOn": "Festgelegt am {date}",
+      "failed": "Das wurde nicht gespeichert. Versuchen Sie es erneut.",
+      "invalid": "Das wurde nicht gespeichert. Prüfen Sie, was Sie eingefügt haben, und versuchen Sie es erneut.",
+      "replace": "Ersetzen",
+      "copyThese": "Diese in {service} übernehmen",
+      "user": "Benutzername",
+      "copyUser": "Benutzernamen kopieren",
+      "password": "Passwort",
+      "copyPassword": "Passwort kopieren",
+      "shownOnce": "Nur jetzt sichtbar. „Ersetzen“ erstellt neue und macht diese ungültig.",
+      "save": "Speichern",
+      "title": "Unzustellbare Mails und Spam-Meldungen",
+      "body": "Ihr Mail-Dienst teilt Adminium mit, wenn eine Mail nicht zugestellt oder als Spam markiert wird, und diese Adresse kommt auf die Liste „Keine E-Mails“.",
+      "service": "Ihr Mail-Dienst",
+      "otherNote": "Mails, die beim Senden abgelehnt werden, werden trotzdem erfasst. Tragen Sie andere unzustellbare Adressen von Hand in die Liste „Keine E-Mails“ ein.",
+      "paste": "Diese Adresse in {service} einfügen",
+      "noOrigin": "Legen Sie zuerst die Adresse in E-Mail-Links fest: Ihr Mail-Dienst braucht sie, um diesen Server zu erreichen.",
+      "setOrigin": "Adresse festlegen",
+      "copyAddress": "Adresse kopieren",
+      "nothingYet": "Bisher ist nichts angekommen",
+      "lastNotice": "Letzte Meldung {ago}"
+    },
+    "copied": "In die Zwischenablage kopiert.",
+    "dne": {
+      "why": {
+        "link": "Per Link abgemeldet",
+        "spam": "Als Spam markiert",
+        "bounce": "Unzustellbar",
+        "hand": "Von Hand hinzugefügt",
+        "relayUnsubscribe": "Über den Mail-Dienst abgemeldet",
+        "oldMark": "Abgemeldet, bevor Aufzeichnungen geführt wurden",
+        "leadFinder": "Widerspruch über Lead finder",
+        "erased": "Auf Wunsch gelöscht"
+      },
+      "addedBy": "Hinzugefügt von {name}",
+      "leadFinder": "Lead finder",
+      "add": "Adressen hinzufügen",
+      "title": "Liste „Keine E-Mails“",
+      "loadFailed": "Die Liste konnte nicht geladen werden. Versuchen Sie es erneut.",
+      "empty": "Noch niemand steht auf der Liste.",
+      "search": "Adressen suchen",
+      "whyLabel": "Grund",
+      "whyAny": "Grund: alle",
+      "count": "{count, plural, one {# Eintrag} other {# Einträge}}",
+      "col": {
+        "address": "Adresse",
+        "why": "Grund",
+        "when": "Wann",
+        "from": "Herkunft",
+        "actions": "Aktionen"
+      },
+      "noMatch": "Kein Eintrag passt.",
+      "erased": "Gelöschte Person – aufbewahrt, damit sie nie wieder angeschrieben wird",
+      "remove": "Entfernen",
+      "more": "Mehr anzeigen",
+      "added": "{added, plural, one {# Adresse hinzugefügt} other {# Adressen hinzugefügt}}",
+      "notAddresses": "Keine Adressen, weggelassen: {list}",
+      "already": "{count, plural, one {# stand bereits auf der Liste} other {# standen bereits auf der Liste}}",
+      "removed": "{address} steht nicht mehr auf der Liste.",
+      "addFailed": "Die Adressen wurden nicht hinzugefügt. Versuchen Sie es erneut.",
+      "addresses": "Adressen",
+      "onePerLine": "Eine Adresse pro Zeile",
+      "removeFailed": "Die Adresse wurde nicht entfernt. Versuchen Sie es erneut.",
+      "removeTitle": "Von der Liste entfernen?",
+      "removeBody": "Diese Person erhält erst dann wieder Marketing-E-Mails, wenn sie erneut zustimmt."
+    },
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "dkim": {
+      "makeFailed": "Der Schlüssel konnte nicht erstellt werden. Versuchen Sie es erneut.",
+      "checking": "{domain} wird im DNS geprüft …",
+      "checkAgain": "Erneut prüfen",
+      "label": "Marketing-E-Mails signieren (DKIM)",
+      "unusable": "Dieser Schlüssel funktioniert auf diesem Server nicht mehr. Erstellen Sie einen neuen und veröffentlichen Sie seinen Eintrag.",
+      "make": "Schlüssel erstellen",
+      "copy": "DNS-Eintrag kopieren",
+      "found": "Im DNS gefunden",
+      "notFound": "Noch nicht gefunden – DNS kann eine Stunde brauchen"
+    },
+    "postal": {
+      "label": "Postanschrift",
+      "sub": "Für Marketing-E-Mails erforderlich.",
+      "error": "Höchstens 300 Zeichen."
+    },
+    "replyTo": {
+      "label": "Antworten auf Marketing-E-Mails gehen an",
+      "error": "Geben Sie eine E-Mail-Adresse ein, z. B. hello@example.com."
+    },
+    "dns": {
+      "unchecked": "DNS konnte nicht abgefragt werden",
+      "asking": "DNS wird abgefragt …"
+    },
+    "heading": "Marketing-E-Mails",
+    "freeMail": "Keine Marketing-E-Mails möglich: Verwenden Sie Ihre eigene Domain.",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "Gefunden:",
+      "notFound": "Nicht gefunden",
+      "howTo": "So fügen Sie einen DMARC-Eintrag hinzu"
+    },
+    "sheet": {
+      "titlePlain": "E-Mail-Einstellungen",
+      "refused": "Sie können die E-Mail-Einstellungen dieser Tabelle nicht ändern.",
+      "loadFailed": "Diese Einstellungen konnten nicht geladen werden. Versuchen Sie es erneut.",
+      "saved": "E-Mail-Einstellungen gespeichert.",
+      "saveFailed": "Die Einstellungen wurden nicht gespeichert. Versuchen Sie es erneut.",
+      "title": "E-Mail-Einstellungen für {table}",
+      "subtitle": "{table} – {app}",
+      "canEmail": "Kann über Kampagnen angeschrieben werden",
+      "emailColumn": "E-Mail-Spalte",
+      "nameColumn": "Namensspalte",
+      "existingHeading": "Bestandskunden",
+      "existing": "Bestandskunden dürfen Marketing-E-Mails erhalten, ohne ein Kästchen anzukreuzen",
+      "existingBody": "Im Vereinigten Königreich, in der EU und in Kanada (zwei Jahre nach einem Kauf) dürfen Sie Ihren eigenen Kunden zu ähnlichen Dingen schreiben, wenn Sie beim Erfassen der Adresse und in jeder Mail eine Möglichkeit zum Widerspruch angeboten haben. Das gilt nicht überall:",
+      "guide": "siehe Leitfaden",
+      "customer": "Wer als Kunde gilt",
+      "tick": "Ich habe beim Erfassen der Adresse eine Möglichkeit zum Widerspruch angeboten",
+      "save": "Speichern"
+    }
   }
 } as const;

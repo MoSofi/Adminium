@@ -16,7 +16,8 @@ export default {
     "senders": "管理寄件者",
     "exportAll": "全部匯出",
     "settings": "電子郵件設定",
-    "archived": "已封存"
+    "archived": "已封存",
+    "doNotEmail": "禁止寄送郵件名單"
   },
   "archivedChip": {
     "field": "顯示中",

@@ -4241,5 +4241,137 @@
   },
   "privacy": {
     "erasedPerson": "Personne effacée"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "Autre service",
+      "signingKey": "Clé de signature",
+      "signingKeyPaste": "Collez la clé de signature de {service}",
+      "signingKeySaved": "Clé de signature enregistrée.",
+      "verificationKey": "Clé de vérification",
+      "verificationKeyPaste": "Collez la clé de vérification de {service}",
+      "verificationKeySaved": "Clé de vérification enregistrée.",
+      "topicArn": "ARN de la rubrique",
+      "topicArnPaste": "Collez l’ARN de la rubrique de {service}",
+      "topicArnSaved": "ARN de la rubrique enregistré.",
+      "setOn": "Défini le {date}",
+      "failed": "Ce n’a pas été enregistré. Réessayez.",
+      "invalid": "Ce n’a pas été enregistré. Vérifiez ce que vous avez collé et réessayez.",
+      "replace": "Remplacer",
+      "copyThese": "Copiez-les dans {service}",
+      "user": "Nom d’utilisateur",
+      "copyUser": "Copier le nom d’utilisateur",
+      "password": "Mot de passe",
+      "copyPassword": "Copier le mot de passe",
+      "shownOnce": "Affichés une seule fois. « Remplacer » en crée de nouveaux et désactive ceux-ci.",
+      "save": "Enregistrer",
+      "title": "Rebonds et signalements de spam",
+      "body": "Votre service d’e-mail indique à Adminium quand un e-mail rebondit ou est signalé comme spam, et cette adresse est ajoutée à la liste « Pas d’e-mail ».",
+      "service": "Votre service d’e-mail",
+      "otherNote": "Les e-mails refusés à l’envoi sont tout de même détectés. Ajoutez les autres rebonds à la main à la liste « Pas d’e-mail ».",
+      "paste": "Collez cette adresse dans {service}",
+      "noOrigin": "Définissez d’abord l’adresse des liens dans les e-mails : votre service d’e-mail en a besoin pour joindre ce serveur.",
+      "setOrigin": "Définir l’adresse",
+      "copyAddress": "Copier l’adresse",
+      "nothingYet": "Rien n’est encore arrivé",
+      "lastNotice": "Dernier avis {ago}"
+    },
+    "copied": "Copié dans le presse-papiers.",
+    "dne": {
+      "why": {
+        "link": "Désabonné par le lien",
+        "spam": "Signalé comme spam",
+        "bounce": "Rebond",
+        "hand": "Ajouté à la main",
+        "relayUnsubscribe": "Désabonné via le service d’e-mail",
+        "oldMark": "Désabonné avant la tenue des registres",
+        "leadFinder": "Opposition via Lead finder",
+        "erased": "Effacé sur demande"
+      },
+      "addedBy": "Ajoutée par {name}",
+      "leadFinder": "Lead finder",
+      "add": "Ajouter des adresses",
+      "title": "Liste « Pas d’e-mail »",
+      "loadFailed": "La liste n’a pas pu être chargée. Réessayez.",
+      "empty": "Personne n’est encore sur la liste.",
+      "search": "Rechercher des adresses",
+      "whyLabel": "Motif",
+      "whyAny": "Motif : tous",
+      "count": "{count, plural, one {# entrée} other {# entrées}}",
+      "col": {
+        "address": "Adresse",
+        "why": "Motif",
+        "when": "Quand",
+        "from": "Provenance",
+        "actions": "Actions"
+      },
+      "noMatch": "Aucune entrée ne correspond.",
+      "erased": "Personne effacée — conservée pour ne plus jamais lui écrire",
+      "remove": "Retirer",
+      "more": "Afficher plus",
+      "added": "{added, plural, one {# adresse ajoutée} other {# adresses ajoutées}}",
+      "notAddresses": "Pas des adresses, ignorées : {list}",
+      "already": "{count, plural, one {# était déjà sur la liste} other {# étaient déjà sur la liste}}",
+      "removed": "{address} ne figure plus sur la liste.",
+      "addFailed": "Les adresses n’ont pas été ajoutées. Réessayez.",
+      "addresses": "Adresses",
+      "onePerLine": "Une adresse par ligne",
+      "removeFailed": "L’adresse n’a pas été retirée. Réessayez.",
+      "removeTitle": "Retirer de la liste ?",
+      "removeBody": "Cette personne ne recevra à nouveau des e-mails marketing que si elle donne de nouveau son accord."
+    },
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "dkim": {
+      "makeFailed": "La clé n’a pas pu être créée. Réessayez.",
+      "checking": "Vérification de {domain} dans le DNS…",
+      "checkAgain": "Vérifier à nouveau",
+      "label": "Signer les e-mails marketing (DKIM)",
+      "unusable": "Cette clé ne fonctionne plus sur ce serveur. Créez-en une nouvelle et publiez son enregistrement.",
+      "make": "Créer une clé",
+      "copy": "Copier l’enregistrement DNS",
+      "found": "Trouvé dans le DNS",
+      "notFound": "Pas encore trouvé — le DNS peut prendre une heure"
+    },
+    "postal": {
+      "label": "Adresse postale",
+      "sub": "Obligatoire pour les e-mails marketing.",
+      "error": "300 caractères au maximum."
+    },
+    "replyTo": {
+      "label": "Les réponses aux e-mails marketing vont à",
+      "error": "Saisissez une adresse e-mail, par exemple hello@example.com."
+    },
+    "dns": {
+      "unchecked": "Le DNS n’a pas pu être interrogé",
+      "asking": "Interrogation du DNS…"
+    },
+    "heading": "E-mails marketing",
+    "freeMail": "Impossible d’envoyer des e-mails marketing : utilisez votre propre domaine.",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "Trouvé :",
+      "notFound": "Introuvable",
+      "howTo": "Comment ajouter un enregistrement DMARC"
+    },
+    "sheet": {
+      "titlePlain": "Paramètres e-mail",
+      "refused": "Vous ne pouvez pas modifier les paramètres e-mail de cette table.",
+      "loadFailed": "Ces paramètres n’ont pas pu être chargés. Réessayez.",
+      "saved": "Paramètres e-mail enregistrés.",
+      "saveFailed": "Les paramètres n’ont pas été enregistrés. Réessayez.",
+      "title": "Paramètres e-mail de {table}",
+      "subtitle": "{table} — {app}",
+      "canEmail": "Peut recevoir des e-mails des campagnes",
+      "emailColumn": "Colonne e-mail",
+      "nameColumn": "Colonne du nom",
+      "existingHeading": "Clients existants",
+      "existing": "Les clients existants peuvent recevoir des e-mails marketing sans cocher de case",
+      "existingBody": "Au Royaume-Uni, dans l’UE et au Canada (pendant deux ans après un achat), vous pouvez écrire à vos propres clients au sujet de choses similaires si vous leur avez proposé de refuser lorsque vous avez pris leur adresse, et dans chaque e-mail. Cela ne s’applique pas partout :",
+      "guide": "consultez le guide",
+      "customer": "Qui compte comme client",
+      "tick": "J’ai proposé un moyen de refuser lorsque nous avons pris leur adresse",
+      "save": "Enregistrer"
+    }
   }
 }
