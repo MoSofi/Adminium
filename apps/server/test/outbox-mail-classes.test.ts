@@ -343,14 +343,18 @@ for (const [dialect, reachable] of LEGS) {
       it('with neither, the second goes, signed and carrying its unsubscribe', async () => {
         now = Date.now() + 20 * DAY;
         sent = [];
+        // The step names no reply address: replies go where the marketing mail settings say.
+        await settingsRepo(s.meta).set('email.marketingReplyTo', 'hello@meridian.example', { updatedBy: null });
         const begun = await start(6);
         await second(begun);
+        await settingsRepo(s.meta).set('email.marketingReplyTo', null, { updatedBy: null });
         expect(sent.map((one) => one.subject)).toEqual(['Welcome to our news', 'More of our news']);
         for (const one of sent) {
           expect(one.headers?.['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
           expect(one.headers?.['List-Unsubscribe']).toMatch(/^<https:\/\/crm\.meridian\.example\/m\/u\//);
           expect(one.dkim?.domainName).toBe('meridian.example');
           expect(one.text).toContain(POSTAL);
+          expect(one.replyTo).toBe('hello@meridian.example');
         }
       });
 
