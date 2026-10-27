@@ -74,12 +74,32 @@ export function blankValue(facts: ColumnFacts, role: ErasedRole, dialect: Dialec
   return { value: '' };
 }
 
+/** What the erasure writes in a unique column, exactly: `erased-<12 hex>`, on an address column `@erased.invalid` after it. */
+const ERASED_TOKEN = /^erased-[0-9a-f]{12}(?:@erased\.invalid)?$/;
+
+/**
+ * Whether a unique column's value is one the erasure wrote: the token
+ * exactly, or (in a column too short for all of it) its first `maxLength`
+ * characters, as `uniqueToken` cuts it. A real value that merely starts with
+ * `erased-` (`erased-bob@example.com`) is somebody's, and is erased.
+ */
+export function isErasedToken(value: string, role: ErasedRole, maxLength: number | null): boolean {
+  if (ERASED_TOKEN.test(value)) return true;
+  const shape = role === 'email' ? `erased-${'x'.repeat(12)}@${ERASED_DOMAIN}` : `erased-${'x'.repeat(12)}`;
+  if (maxLength === null || shape.length <= maxLength || value.length !== maxLength) return false;
+  for (let at = 0; at < maxLength; at += 1) {
+    const ch = value[at]!;
+    if (at >= 7 && at < 19 ? !/[0-9a-f]/.test(ch) : ch !== shape[at]) return false;
+  }
+  return true;
+}
+
 /** Whether a stored value is already what the rule would write (nothing to do, nothing to count). */
 export function alreadyBlank(value: unknown, facts: ColumnFacts, role: ErasedRole, erasedName: string): boolean {
   if (value === null || value === undefined) return true;
   if (facts.nullable) return false;
   if (facts.logicalType === 'boolean') return value === false || value === 0 || value === '0';
   if (typeof value !== 'string') return false;
-  if (facts.unique) return value.startsWith('erased-');
+  if (facts.unique) return isErasedToken(value, role, facts.maxLength);
   return role === 'name' ? value === erasedName || value === '' : value === '';
 }
