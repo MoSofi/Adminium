@@ -23,6 +23,8 @@
  */
 import { createHash, createHmac, hkdfSync, randomInt, timingSafeEqual } from 'node:crypto';
 
+import { PLAIN_DOTTED } from '../email/plain-address.js';
+
 /** Digits in a code, and how long one lasts. */
 export const CODE_DIGITS = 6;
 export const CODE_TTL_MS = 10 * 60_000;
@@ -151,8 +153,8 @@ export function maskAddress(address: string): string {
 
 /** A plausible address to send a code to: one @, a dotted domain, no spaces, not too long. */
 export function plausibleAddress(value: unknown): value is string {
-  // No angle brackets: a bare `local@domain`, as the do-not-email list and the mail server read it alike.
-  return typeof value === 'string' && value.length <= 254 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim());
+  // One plain `local@domain` and nothing else (`email/plain-address.ts`), as the do-not-email list and the mail server read it alike.
+  return typeof value === 'string' && value.length <= 254 && PLAIN_DOTTED.test(value.trim());
 }
 
 /** What typing a code came to. */

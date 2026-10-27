@@ -161,6 +161,7 @@ import {
 import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED, plainColumn, plainRule } from '../../public-api/anonymous-caps.js';
 import { notPlainOn, recentPlainTextOn } from '../../public-api/plain-text-on.js';
 import { appContact } from '../../outbox/sender.js';
+import { provedAddressOf } from '../../public-api/proved-address.js';
 import { createSwitches, type Switches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
@@ -977,7 +978,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
-    mailboxProved: ok.session !== null && (ok.session.level === 'verified' || ok.session.kind === 'link'),
+    provedAddress: provedAddressOf(ok.key.scope, ok.session, claimed),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
       ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
@@ -987,6 +988,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     };
   };
   const consentTicks = createConsentTicks(meta);
+
 
   /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
   /**

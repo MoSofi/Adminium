@@ -17,7 +17,8 @@
  *  - Anybody's tick (no mailbox proved) never overrules a "no" standing in
  *    the log or on the do-not-email list: it writes nothing and leaves the
  *    column at no. Signed in by the link mailed to them, the customer's own
- *    tick counts.
+ *    tick counts. A customer signed in as themselves who signs somebody
+ *    else's address up has proved nothing about that mailbox: the same.
  *  - "Delete my details" appends the customer's withdrawal before it empties
  *    the column: the log says yes, then no, from the person, and nothing else.
  */
@@ -219,11 +220,45 @@ describe.each(LEGS)('a stranger\'s consent tick — %s', (dialect, available) =>
     // The log hears nothing, and the column is put back to what the log says.
     expect(await subscriberLog(una['id'])).toEqual([]);
     expect(yes(una['opt_in'])).toBe(false);
+    // Only the do-not-email list stands against Uma (nothing in the log): the column is put back to no all the
+    // same, so taking her off the list later never turns the stranger's yes into hers.
+    await consent.stop.add({ address: 'uma@fieldmail.io', reason: 'link' });
+    expect((await signUp('uma@fieldmail.io')).statusCode).toBe(201);
+    const uma = await subscriberOf('uma@fieldmail.io');
+    expect(await subscriberLog(uma['id'])).toEqual([]);
+    expect(yes(uma['opt_in'])).toBe(false);
     // With nothing standing, the sign-up's yes is the person's own, as before.
     expect((await signUp('vic@fieldmail.io')).statusCode).toBe(201);
     const vic = await subscriberOf('vic@fieldmail.io');
     expect((await subscriberLog(vic['id'])).map((row) => [row.state, row.source])).toEqual([['yes', 'person']]);
     expect(yes(vic['opt_in'])).toBe(true);
+  });
+
+  it.skipIf(!available)('a customer who proved their own mailbox cannot overrule another person\'s "no"; that person, signed in, still can', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const subscribed = async (email: string) => (await h.rows(`select * from ${h.real('subscribers')} where email = '${email}' order by id`)).map((row) => yes(row['opt_in']));
+    const signUp = (email: string, session: string) => g.request('POST', `/records/${h.real('subscribers')}`, { payload: { values: { email, opt_in: true } }, proof: 'write', session });
+    // Wes, a customer, unsubscribed by the mail door (his address alone).
+    expect((await order({ email: 'wes@fieldmail.io', name: 'Wes' })).statusCode).toBe(201);
+    await consent.withdraw({ address: 'wes@fieldmail.io', purpose: 'newsletter', source: 'unsubscribe', detail: 'one-click' });
+    // Mallory signs in by the link mailed to HER, and signs Wes up, ticked: the row is made, his "no" stands.
+    expect((await order({ email: 'mallory@fieldmail.io', name: 'Mallory' })).statusCode).toBe(201);
+    const mallory = await g.signIn('mallory@fieldmail.io');
+    const made = await signUp('wes@fieldmail.io', mallory);
+    expect(made.statusCode, made.body).toBe(201);
+    expect((await consent.stateFor({ address: 'wes@fieldmail.io' }, 'newsletter')).state).toBe('no');
+    expect(await subscribed('wes@fieldmail.io')).toEqual([false]);
+    // The same over a do-not-email entry alone.
+    expect((await order({ email: 'wyn@fieldmail.io', name: 'Wyn' })).statusCode).toBe(201);
+    await consent.stop.add({ address: 'wyn@fieldmail.io', reason: 'link' });
+    expect((await signUp('Wyn@Fieldmail.io ', mallory)).statusCode).toBe(201);
+    expect(await subscribed('wyn@fieldmail.io')).toEqual([false]);
+    // Wes himself, signed in by the link mailed to him: his own yes counts.
+    const wes = await g.signIn('wes@fieldmail.io');
+    const own = await signUp('wes@fieldmail.io', wes);
+    expect(own.statusCode, own.body).toBe(201);
+    expect((await consent.stateFor({ address: 'wes@fieldmail.io' }, 'newsletter')).state).toBe('yes');
+    expect(await subscribed('wes@fieldmail.io')).toEqual([false, true]);
   });
 
   it.skipIf(!available)('"delete my details" appends the withdrawal first, from the person, and nothing more', async () => {

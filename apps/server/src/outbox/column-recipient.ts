@@ -20,6 +20,7 @@ import type { Kysely } from 'kysely';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { PLAIN_DOTTED } from '../email/plain-address.js';
 
 /** The producing row's column a producer sends to, and the column naming who it is for; null for any other producer. */
 export function columnRecipientOf(producer: OutboxProducer | undefined): { column: string; name?: string | undefined; language?: string | undefined } | null {
@@ -38,7 +39,8 @@ export interface ColumnAddressed {
   language: string | null;
 }
 
-const plausible = (value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+// One plain address and nothing else (`email/plain-address.ts`): what every later check of the recipient reads too.
+const plausible = (value: unknown): value is string => typeof value === 'string' && PLAIN_DOTTED.test(value.trim());
 
 /**
  * The producing row of a message (or of the values a producer is about to

@@ -94,6 +94,7 @@ export async function applyConsentToColumn(meta: MetaDb, source: ConsentTableSou
   for (const [name, value] of Object.entries(pk)) update = update.where(db.dynamic.ref(name), '=', value as never);
   await update.execute();
 
+  // An event with no id was never logged: a stranger's yes put back to no while only the do-not-email list stood.
   await auditRepo(meta).append({
     actorKind: staff.id !== null ? 'user' : 'system',
     actorId: staff.id,
@@ -104,7 +105,7 @@ export async function applyConsentToColumn(meta: MetaDb, source: ConsentTableSou
     entity: { connectionId: target.connectionId, table: table.id, pk, label: target.key },
     changes: {
       before: { [target.column]: booleanOf(before[target.column]), ...Object.fromEntries(Object.keys(stamped).map((name) => [name, before[name] ?? null])) },
-      after: { [target.column]: yes, ...stamped, consentSource: event.source, consentEvent: event.id },
+      after: { [target.column]: yes, ...stamped, consentSource: event.source, consentEvent: event.id === '' ? null : event.id },
     },
   });
   return 'written';

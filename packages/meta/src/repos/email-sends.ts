@@ -294,10 +294,12 @@ export function emailSendsRepo(meta: MetaDb) {
      * A handed message the mail queue gave up on: the row turns `failed` with
      * what the server said, or `bounced` when the server refused the address
      * for good at send time, or `skipped-stop` when the address was on the
-     * do-not-email list by the moment it was to go. Null when the row is not
-     * `sent` (already marked by a bounce notice, or not this ledger's).
+     * do-not-email list by the moment it was to go, or `skipped-consent` when
+     * the person said no to its purpose since it was queued. Null when the
+     * row is not `sent` (already marked by a bounce notice, or not this
+     * ledger's).
      */
-    async markGivenUp(id: string, reason: string, at: number = Date.now(), state: Extract<EmailSendState, 'failed' | 'bounced' | 'skipped-stop'> = 'failed'): Promise<EmailSend | null> {
+    async markGivenUp(id: string, reason: string, at: number = Date.now(), state: Extract<EmailSendState, 'failed' | 'bounced' | 'skipped-stop' | 'skipped-consent'> = 'failed'): Promise<EmailSend | null> {
       const res = await db
         .updateTable('adminium_email_sends')
         .set({ state, reason: cut(reason, EMAIL_SEND_REASON_MAX), updatedAt: at })

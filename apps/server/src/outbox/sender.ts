@@ -1467,8 +1467,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // ready: recorded as skipped, never tried again in a loop, and the people who manage e-mail are told once.
     const mailClass = mailClassOf((await appFacts(box.row.manifestId)).manifest ?? {}, { outboxKind: kind });
     let marketingBasis: 'consent' | 'existing-customers' | null = null;
+    let marketingPerson: { connectionId: string; table: string; key: string } | null = null;
     if (mailClass === 'marketing') {
       const person = await recipientPerson(ctx, box, row, found, addressed);
+      marketingPerson = person?.ref ?? null;
       const kit = marketing();
       const verdict = await kit.verdict({
         address: found.trim(),
@@ -1582,6 +1584,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         // Mail to a contact says its class (a refusal for good at send time then stop-lists the address); mail to the house has none.
         ...(mailClass === 'staff' ? {} : { mailClass }),
         ...(carry === undefined ? {} : { marketing: carry }),
+        // What it was judged on, sealed with it: the hand-over asks the same again (`jobs/email-send.ts`).
+        ...(marketingBasis === null ? {} : { standing: { purpose: DEFAULT_MARKETING_PURPOSE, basis: marketingBasis, person: marketingPerson } }),
       },
       ...(written === to ? {} : { recordTo: to }),
       ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),

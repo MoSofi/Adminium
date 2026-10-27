@@ -13,6 +13,8 @@
  *
  * ─── Who it skips: {@link MarketingMail.verdict} ───────────────────────────
  * In this order, each a reason the send log and the outbox name:
+ *   0. `not-an-address`: the recipient is not one plain address (a name, a
+ *      bracket, a quote, a list): never sent, as nothing could be judged;
  *   1. `do-not-email`: the address is on the install's do-not-email list;
  *   2. `replied`: for a sequence step, the person replied after the run
  *      started ("Replied" stops their sequences);
@@ -83,13 +85,14 @@ import {
 } from './sender/index.js';
 import { businessNameOf, postalAddressOf } from './sender/marketing-settings.js';
 import type { MarketingCarry } from './marketing-carry.js';
+import { PLAIN_RECIPIENT } from './plain-address.js';
 import type { OutboundDkim } from './types.js';
 import { existingCustomersOn as readExistingCustomersOn } from './existing-customers.js';
 import { mailLinkKeys } from './link-keys.js';
 import { makeUnsubscribeToken, unsubscribeUrl } from './unsubscribe-token.js';
 
 /** Why a marketing mail is not sent to one person. */
-export const MARKETING_SKIPS = ['do-not-email', 'not-agreed', 'replied'] as const;
+export const MARKETING_SKIPS = ['do-not-email', 'not-agreed', 'replied', 'not-an-address'] as const;
 export type MarketingSkip = (typeof MARKETING_SKIPS)[number];
 
 /** The ground a marketing mail went out on, or why it did not go. */
@@ -187,6 +190,8 @@ export function marketingSkipSentence(skip: MarketingSkip): string {
       return 'Not sent: has not agreed to marketing mail';
     case 'replied':
       return 'Not sent: they replied, which stops their e-mail sequences';
+    case 'not-an-address':
+      return 'Not sent: the recipient is not one plain e-mail address';
   }
 }
 
@@ -274,6 +279,9 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
     consent,
 
     async verdict(input) {
+      // One plain address, or nothing is judged: the list is asked by the bare address, and a mail server would deliver
+      // `x@y;`, `"x@y"` or `a,x@y` to `x@y` past it (`plain-address.ts`).
+      if (!PLAIN_RECIPIENT.test(input.address.trim())) return { skip: 'not-an-address' };
       if (await consent.stop.has(input.address)) return { skip: 'do-not-email' };
       const who = { person: input.person ?? null, address: input.address };
       if (input.repliedSince !== null && input.repliedSince !== undefined) {

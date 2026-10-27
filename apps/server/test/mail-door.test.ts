@@ -42,9 +42,11 @@ import { createNoticeEndpoints } from '../src/email/notices/endpoints.js';
 import { snsStringToSign } from '../src/email/notices/ses.js';
 import { SENDGRID_SIGNATURE_HEADER, SENDGRID_TIMESTAMP_HEADER } from '../src/email/notices/sendgrid.js';
 import { makeUnsubscribeToken } from '../src/email/unsubscribe-token.js';
+import { corePlugin, RATE_BUCKETS } from '../src/plugins/core.js';
 import { asksOneClick, mailDoorRoutes } from '../src/routes/mail-door/index.js';
 import { mailNoticeRoutes } from '../src/routes/mail-door/notices.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../src/routes/payments/ways.js';
+import { makeEnv } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { basicHeader, fixture, fixtureText, selfSignedCertificate } from './relay-notice-helpers.js';
 
@@ -79,11 +81,13 @@ for (const engine of META_ENGINES) {
     let app: FastifyInstance;
     let snsCalls: string[];
 
-    async function start(over: { secret?: string; consent?: ConsentService } = {}): Promise<void> {
+    async function start(over: { secret?: string; consent?: ConsentService; limited?: boolean } = {}): Promise<void> {
       await app?.close();
       app = Fastify({ logger: false });
       app.setValidatorCompiler(validatorCompiler);
       app.setSerializerCompiler(serializerCompiler);
+      // The server's own rate limits, as the composed server registers them first.
+      if (over.limited === true) await app.register(corePlugin, { env: makeEnv() });
       const secret = over.secret ?? SECRET;
       const reach = { networkFeatures: true, desktop: false, trustProxy: false };
       const used = over.consent ?? createConsentService({ meta, secret });
@@ -322,6 +326,37 @@ for (const engine of META_ENGINES) {
         expect(res.statusCode).toBe(503);
         expect(res.body).toContain('This page isn’t available.');
         expect(await consent.stop.count()).toBe(0);
+      });
+    });
+
+    describe('the rate limits', () => {
+      it('a flood of made-up links from one address spends that address\'s budget, never a genuine link\'s', async () => {
+        await start({ limited: true });
+        const path = await linkFor('marta@cobaltlegal.example', 'newsletter');
+        // Everybody behind a reverse proxy that is not trusted comes from the proxy's one address.
+        const proxy = { remoteAddress: '203.0.113.9' };
+        const oneClick = asForm({ 'List-Unsubscribe': 'One-Click' });
+        const flood = async (method: 'GET' | 'POST', times: number) => {
+          let last = 0;
+          for (let i = 0; i < times; i += 1) last = (await app.inject({ method, url: `/m/u/made-up-${String(i)}`, ...(method === 'POST' ? oneClick : {}), ...proxy })).statusCode;
+          return last;
+        };
+        // The page: the junk spends the address's budget to the last request, and the next is refused.
+        expect(await flood('GET', RATE_BUCKETS['mail-door-unsubscribe'].max)).toBe(404);
+        expect(await flood('GET', 1)).toBe(429);
+        // The genuine link from that same address still opens.
+        const page = await app.inject({ method: 'GET', url: path, ...proxy });
+        expect(page.statusCode).toBe(200);
+        expect(page.body).toContain('name="act" value="one"');
+        // The one-click: the same.
+        expect(await flood('POST', RATE_BUCKETS['mail-door-act'].max)).toBe(404);
+        expect(await flood('POST', 1)).toBe(429);
+        const done = await app.inject({ method: 'POST', url: path, ...oneClick, ...proxy });
+        expect(done.statusCode, done.body).toBe(200);
+        expect(await standing('marta@cobaltlegal.example')).toBe('no');
+        // A changed link is no genuine one: counted by the address, and refused with the junk.
+        const changed = `${path.slice(0, 30)}${path[30] === 'A' ? 'B' : 'A'}${path.slice(31)}`;
+        expect((await app.inject({ method: 'POST', url: changed, ...oneClick, ...proxy })).statusCode).toBe(429);
       });
     });
 

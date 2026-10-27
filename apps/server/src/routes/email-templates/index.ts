@@ -191,11 +191,13 @@ function headingOf(row: EmailTemplate): string {
 
 /**
  * A run as the routes give it. `failures` names recipients (each entry's
- * `to` is a contact's address, and its error often repeats it), so a reader
- * without `settings.manage` gets only the run's own entries (`to` empty: why
- * the run stopped, never an address); the e-mail managers get them all.
+ * `to` is a contact's address, and its error often repeats it), so only a
+ * reader who sees every recipient of the run in clear gets them all (`full`,
+ * from {@link failureSight}); anybody else gets only the run's own entries
+ * (`to` empty: why the run stopped, never an address).
  */
-function runView(run: EmailRun, full: boolean): EmailRunView {
+async function runView(run: EmailRun, sight: (run: EmailRun) => Promise<boolean>): Promise<EmailRunView> {
+  const full = run.failures.every((failure) => failure.to === '') || (await sight(run));
   return {
     id: run.id,
     status: run.status,
@@ -315,7 +317,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     row: EmailTemplate,
     labels: Map<string, string>,
     latest: Map<string, EmailRun>,
-    full: boolean,
+    sight: (run: EmailRun) => Promise<boolean>,
   ): Promise<EmailDocumentSummaryView> {
     const run = latest.get(row.id);
     return {
@@ -337,11 +339,11 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       brand: row.brand === null ? null : { accent: row.brand.accent, mark: row.brand.mark },
       heading: headingOf(row),
       topicLabel: labels.get(row.key) ?? row.name,
-      ...(run === undefined ? {} : { run: runView(run, full) }),
+      ...(run === undefined ? {} : { run: await runView(run, sight) }),
     };
   }
 
-  async function detailOf(row: EmailTemplate, full: boolean): Promise<EmailDocumentDetailView> {
+  async function detailOf(row: EmailTemplate, sight: (run: EmailRun) => Promise<boolean>): Promise<EmailDocumentDetailView> {
     const siblings = await templates.siblings(row.key, { localeOrder: localeOrder() });
     const labels = topicLabels(siblings.length === 0 ? [row] : siblings);
     const latest = row.kind === 'campaign' ? await runs.latestByTemplates([row.id]) : new Map<string, EmailRun>();
@@ -360,7 +362,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       });
     }
     return {
-      ...(await summaryOf(row, labels, latest, full)),
+      ...(await summaryOf(row, labels, latest, sight)),
       document: normalizeDocument(row),
       vars: [...documentVars(row.key, row.starter)],
       languages: siblings.map((s) => ({
@@ -536,8 +538,35 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     }
 
     /** Whether this reader sees a run's per-recipient failures (`runView`): the e-mail managers only. */
-    async function seesFailures(request: FastifyRequest): Promise<boolean> {
-      return request.can(PERMISSIONS.settingsManage);
+    /**
+     * Whether this reader sees a run's per-recipient failures (`runView`): an
+     * e-mail manager who sees the address of every table the run wrote to in
+     * clear, by the send log's own rule (`email/send-log-sight.ts`): the
+     * tables its ledger rows came from, and its audience's table. A manager
+     * who sees one of them masked, or not at all, gets the run's own entries
+     * only, as the send log would show them nothing of the person either.
+     * Asked once per run per request.
+     */
+    function failureSight(request: FastifyRequest): (run: EmailRun) => Promise<boolean> {
+      let manager: Promise<boolean> | undefined;
+      let sightOf: Promise<ReturnType<typeof sendLogSight>> | undefined;
+      const known = new Map<string, Promise<boolean>>();
+      const judge = async (run: EmailRun): Promise<boolean> => {
+        if (!(await (manager ??= request.can(PERMISSIONS.settingsManage)))) return false;
+        const of = await (sightOf ??= app.rbac.resolve(request).then((set) => sendLogSight(meta, set)));
+        const tables: { connectionId: string | null; personTable: string | null }[] = await sends.tablesOf(run.id);
+        const audience = run.audience as { kind?: unknown; connectionId?: unknown; table?: unknown };
+        if (audience.kind === 'table' && typeof audience.connectionId === 'string' && typeof audience.table === 'string') {
+          tables.push({ connectionId: audience.connectionId, personTable: audience.table });
+        }
+        for (const one of tables) if (!(await of(one.connectionId, one.personTable)).address) return false;
+        return true;
+      };
+      return (run) => {
+        let seen = known.get(run.id);
+        if (seen === undefined) known.set(run.id, (seen = judge(run)));
+        return seen;
+      };
     }
 
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {
@@ -565,8 +594,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const labels = topicLabels(familyRows);
         const latest = await runs.latestByTemplates(rows.filter((r) => r.kind === 'campaign').map((r) => r.id));
         const items = [];
-        const full = await seesFailures(request);
-        for (const row of rows) items.push(await summaryOf(row, labels, latest, full));
+        const sight = failureSight(request);
+        for (const row of rows) items.push(await summaryOf(row, labels, latest, sight));
         if (appKey === undefined) return { items, counts: await templates.counts(archived ?? false) };
         // The badges count the same cut: this app's documents of each kind, and its archived ones.
         const shown = ofApp(await templates.list({ archived: archived ?? false }));
@@ -644,7 +673,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const { key, locale } = request.params;
         const row = await templates.findByKeyLocale(key, locale);
         if (row === null) throw new NotFoundError(`Email template ${key}/${locale} not found.`);
-        return await detailOf(row, await seesFailures(request));
+        return await detailOf(row, failureSight(request));
       },
     );
 
@@ -653,7 +682,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       { schema: { params: emailIdParams, response: { 200: emailDocumentDetail } } },
       async (request) => {
         requireUserId(request);
-        return await detailOf(await mustFind(request.params.id), await seesFailures(request));
+        return await detailOf(await mustFind(request.params.id), failureSight(request));
       },
     );
 
@@ -715,7 +744,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-template.create',
           changes: { after: { id: row.id, kind, key: row.key, locale, name, starter: starterKey } },
         });
-        return await reply.status(201).send(await detailOf(row, await seesFailures(request)));
+        return await reply.status(201).send(await detailOf(row, failureSight(request)));
       },
     );
 
@@ -766,7 +795,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             after: { key: row.key, locale: row.locale, name, enabled, blocks: doc.blocks.length, mirrored: mirrored.length },
           },
         });
-        return await detailOf(updated, await seesFailures(request));
+        return await detailOf(updated, failureSight(request));
       },
     );
 
@@ -815,7 +844,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         });
         const siblings = await templates.siblings(next.key, { localeOrder: localeOrder() });
         const latest = next.kind === 'campaign' ? await runs.latestByTemplates([next.id]) : new Map<string, EmailRun>();
-        return await summaryOf(next, topicLabels(siblings), latest, await seesFailures(request));
+        return await summaryOf(next, topicLabels(siblings), latest, failureSight(request));
       },
     );
 
@@ -840,7 +869,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             action: 'email-template.reset',
             changes: { before: { name: row.name }, after: { key: row.key, locale: row.locale, isBuiltinCopy: true } },
           });
-          return await detailOf(reset, await seesFailures(request));
+          return await detailOf(reset, failureSight(request));
         }
         await templates.removeById(row.id);
         await app.rbac.audit(request, {
@@ -888,7 +917,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-template.duplicate',
           changes: { before: { id: row.id, key: row.key }, after: { id: copy.id, key: copy.key, name } },
         });
-        return await reply.status(201).send(await detailOf(copy, await seesFailures(request)));
+        return await reply.status(201).send(await detailOf(copy, failureSight(request)));
       },
     );
 
@@ -959,7 +988,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-template.language.add',
           changes: { after: { id: created.id, key: row.key, locale, needsTranslation } },
         });
-        return await reply.status(201).send(await detailOf(created, await seesFailures(request)));
+        return await reply.status(201).send(await detailOf(created, failureSight(request)));
       },
     );
 
@@ -1002,7 +1031,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-template.from-template',
           changes: { after: { id: campaign.id, key: campaign.key, templateId: source.id } },
         });
-        return await reply.status(201).send(await detailOf(campaign, await seesFailures(request)));
+        return await reply.status(201).send(await detailOf(campaign, failureSight(request)));
       },
     );
 
@@ -1207,7 +1236,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: scheduleAt === undefined ? 'email-campaign.send' : 'email-campaign.schedule',
           changes: { after: { id: row.id, key: row.key, runId: run.id, jobId: job.id, audience: request.body.audience, runAt } },
         });
-        return await reply.status(202).send({ run: runView(withJob, await seesFailures(request)) });
+        return await reply.status(202).send({ run: await runView(withJob, failureSight(request)) });
       },
     );
 
@@ -1217,8 +1246,10 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request) => {
         requireUserId(request);
         const row = await mustFind(request.params.id);
-        const full = await seesFailures(request);
-        return { runs: (await runs.listByTemplate(row.id)).map((run) => runView(run, full)) };
+        const sight = failureSight(request);
+        const list = [];
+        for (const run of await runs.listByTemplate(row.id)) list.push(await runView(run, sight));
+        return { runs: list };
       },
     );
 
@@ -1249,7 +1280,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-campaign.cancel',
           changes: { before: { runId: run.id, status: run.status }, after: { status: next.status } },
         });
-        return { run: runView(next, await seesFailures(request)) };
+        return { run: await runView(next, failureSight(request)) };
       },
     );
 
@@ -1271,7 +1302,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const left = await sends.remaining(run.id);
         const active = run.state === 'running' || run.state === 'paused';
         return {
-          run: runView(run, await seesFailures(request)),
+          run: await runView(run, failureSight(request)),
           name: content?.name ?? null,
           done: run.total - left,
           total: run.total,
@@ -1300,7 +1331,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-campaign.pause',
           changes: { before: { runId: run.id, state: run.state }, after: { state: 'paused' } },
         });
-        return { run: runView((await runs.findById(run.id)) ?? run, await seesFailures(request)) };
+        return { run: await runView((await runs.findById(run.id)) ?? run, failureSight(request)) };
       },
     );
 
@@ -1322,7 +1353,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-campaign.resume',
           changes: { before: { runId: run.id, state: 'paused' }, after: { state: 'running' } },
         });
-        return { run: runView((await runs.findById(run.id)) ?? run, await seesFailures(request)) };
+        return { run: await runView((await runs.findById(run.id)) ?? run, failureSight(request)) };
       },
     );
 
@@ -1340,7 +1371,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-campaign.stop',
           changes: { before: { runId: run.id, state: run.state }, after: { state: 'stopped', left: stopped.left } },
         });
-        return { run: runView(stopped.run, await seesFailures(request)), left: stopped.left };
+        return { run: await runView(stopped.run, failureSight(request)), left: stopped.left };
       },
     );
 

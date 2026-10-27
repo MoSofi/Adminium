@@ -8,6 +8,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import type { BasicCredentials, NoticeEndpointConfig, NoticeEvent, NoticeEventKind, NoticeRequest } from './types.js';
+import { PLAIN_RECIPIENT } from '../plain-address.js';
 
 /** Bytes of randomness in a path token: 256 bits, 43 characters of base64url. */
 const TOKEN_BYTES = 32;
@@ -77,8 +78,8 @@ export function textOf(value: unknown): string | null {
 export function addressOf(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const address = normaliseAddress(value);
-  // A bare `local@domain`: one @, something on each side, no spaces, no display name.
-  return /^[^\s@<>]+@[^\s@<>]+$/.test(address) && address.length <= 320 ? address : null;
+  // One plain `local@domain` and nothing else (`email/plain-address.ts`): the do-not-email list refuses any other.
+  return PLAIN_RECIPIENT.test(address) && address.length <= 320 ? address : null;
 }
 
 /** An ISO date's epoch ms, or null. */

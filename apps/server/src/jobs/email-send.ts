@@ -48,7 +48,7 @@ import type {
 } from '../email/types.js';
 import type { FileStore } from '../files/store.js';
 import { QR_MAX_BYTES, qrCarries, qrPng } from '../qr/index.js';
-import { CAMPAIGN_SKIP_DO_NOT_EMAIL } from './email-campaign-checks.js';
+import { CAMPAIGN_SKIP_DO_NOT_EMAIL, CAMPAIGN_SKIP_NOT_AGREED } from './email-campaign-checks.js';
 import type { JobHandlerContext, JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
@@ -114,6 +114,18 @@ const envelopeSchema = z.object({
   /** A marketing mail's `List-Unsubscribe` and `List-Unsubscribe-Post`. */
   headers: z
     .record(z.string().regex(/^List-Unsubscribe(-Post)?$/), z.string().max(2000).regex(/^[^\r\n]*$/))
+    .optional(),
+  /**
+   * What a marketing mail was judged on when queued (`MarketingStanding`):
+   * asked again at the hand-over. Absent on one queued before this was
+   * carried: the do-not-email list alone is asked again then.
+   */
+  standing: z
+    .object({
+      purpose: z.enum(['newsletter', 'surveys']),
+      basis: z.enum(['consent', 'existing-customers']),
+      person: z.object({ connectionId: z.string().min(1).max(64), table: z.string().min(1).max(200), key: z.string().min(1).max(500) }).nullable(),
+    })
     .optional(),
 });
 
@@ -235,33 +247,52 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
   );
 
   /**
-   * THE LIST, ASKED AGAIN AT DELIVERY. A marketing mail was checked when it
-   * was queued, but an address may be stopped between then and now: an
-   * unsubscribe, a mail service's notice, an erasure while a batch was out.
-   * So the list is asked right before the hand-over, by the bare address:
+   * THE LIST, AND THE PERSON'S ANSWER, ASKED AGAIN AT DELIVERY. A marketing
+   * mail was checked when it was queued, but an address may be stopped
+   * between then and now (an unsubscribe, a mail service's notice, an
+   * erasure while a batch was out), and a person may say no to the mail's
+   * purpose (a staff member's "Record consent", their own page). So right
+   * before the hand-over, by the bare address:
    *  - a recipient that is not one plain address is never handed over (a
    *    mail server would deliver `<x@y>` to `x@y`, past the list);
    *  - a stopped address is skipped: a campaign's send-log row reads
    *    skipped-stop (the run counts one less sent, one more skipped), and an
-   *    app's outbox row is told it was not sent, and why.
+   *    app's outbox row is told it was not sent, and why;
+   *  - a mail that carries what it was judged on (`standing`) is judged again
+   *    by the very function the send side uses (`MarketingMail.verdict`: the
+   *    plain address, the list, then the answer for its purpose on its basis):
+   *    a "no" since then is skipped the same way, the send-log row reading
+   *    skipped-consent and not-agreed. One verdict per message: the queue
+   *    hands messages over one at a time, so there is no batch to ask once.
    * The list's keys unreadable (the server's secret changed without them):
    * it throws, so the mail is not sent and the queue tries again later.
    * Null when the mail may go.
    */
-  async function stoppedAtDelivery(payload: EmailSendJobPayload, to: string): Promise<'do-not-email' | 'not-an-address' | null> {
-    const address = to.trim().toLowerCase();
-    const why = !PLAIN_RECIPIENT.test(address) ? 'not-an-address' : (await marketing.consent.stop.has(address)) ? 'do-not-email' : null;
+  async function stoppedAtDelivery(payload: EmailSendJobPayload, envelope: z.infer<typeof envelopeSchema>): Promise<'do-not-email' | 'not-an-address' | 'not-agreed' | null> {
+    const address = envelope.to.trim().toLowerCase();
+    const standing = envelope.standing;
+    let why: 'do-not-email' | 'not-an-address' | 'not-agreed' | null;
+    if (standing === undefined) {
+      why = !PLAIN_RECIPIENT.test(address) ? 'not-an-address' : (await marketing.consent.stop.has(address)) ? 'do-not-email' : null;
+    } else {
+      const verdict = await marketing.verdict({ address, person: standing.person, purpose: standing.purpose, existingCustomer: standing.basis === 'existing-customers' });
+      why = !('skip' in verdict) ? null : verdict.skip === 'do-not-email' || verdict.skip === 'not-an-address' ? verdict.skip : 'not-agreed';
+    }
     if (why === null) return null;
     const at = Date.now();
     const sendId = campaignSendOfReport(payload.report);
+    const sends = emailSendsRepo(deps.meta);
+    const runs = emailRunsRepo(deps.meta);
     if (sendId !== null) {
-      const row =
-        why === 'do-not-email'
-          ? await emailSendsRepo(deps.meta).markGivenUp(sendId, CAMPAIGN_SKIP_DO_NOT_EMAIL, at, 'skipped-stop')
-          : await emailSendsRepo(deps.meta).markGivenUp(sendId, NOT_AN_ADDRESS, at, 'failed');
-      if (row !== null) await (why === 'do-not-email' ? emailRunsRepo(deps.meta).countStoppedAtDelivery(row.runId) : emailRunsRepo(deps.meta).countGivenUp(row.runId));
+      if (why === 'not-an-address') {
+        const row = await sends.markGivenUp(sendId, NOT_AN_ADDRESS, at, 'failed');
+        if (row !== null) await runs.countGivenUp(row.runId);
+      } else {
+        const row = why === 'do-not-email' ? await sends.markGivenUp(sendId, CAMPAIGN_SKIP_DO_NOT_EMAIL, at, 'skipped-stop') : await sends.markGivenUp(sendId, CAMPAIGN_SKIP_NOT_AGREED, at, 'skipped-consent');
+        if (row !== null) await runs.countStoppedAtDelivery(row.runId);
+      }
     } else if (payload.report !== undefined && deps.onGiveUp !== undefined) {
-      const sentence = why === 'do-not-email' ? marketingSkipSentence('do-not-email') : NOT_AN_ADDRESS_SENTENCE;
+      const sentence = why === 'not-an-address' ? NOT_AN_ADDRESS_SENTENCE : marketingSkipSentence(why);
       await deps.onGiveUp(payload.report, new Error(sentence)).catch(() => undefined);
     }
     return why;
@@ -279,9 +310,9 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     const envelope = envelopeSchema.parse(
       JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
     );
-    // A marketing mail asks the do-not-email list once more, right before it goes (see `stoppedAtDelivery`).
+    // A marketing mail asks the do-not-email list, and its purpose's answer, once more right before it goes (see `stoppedAtDelivery`).
     if (envelope.mailClass === 'marketing') {
-      const stopped = await stoppedAtDelivery(payload, envelope.to);
+      const stopped = await stoppedAtDelivery(payload, envelope);
       if (stopped !== null) {
         ctx.progress(100, { step: 'skipped' });
         return { templateKey: payload.templateKey, locale: payload.locale, skipped: stopped };

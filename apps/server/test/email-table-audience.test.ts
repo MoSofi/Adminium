@@ -170,13 +170,13 @@ for (const [dialect, reachable] of LEGS) {
       const dns = new Map<string, string[]>();
       const lookup = createTxtLookup({ cacheMs: 0, resolve: async (name) => (dns.get(name) ?? []).map((record) => [record]) });
       s = await wholeServer(dialect, crm(), {
-        people: { mia: ['marketer'], max: ['masked'], nora: [], rita: ['reader'], hal: ['filterless'], ida: ['blindmail'], lou: ['masked'] },
+        people: { mia: ['marketer'], max: ['masked'], nora: [], rita: ['reader'], hal: ['filterless'], ida: ['blindmail'], lou: ['masked'], pia: ['reader'] },
         smtp: true,
         files: { 'seeds/crm.sample.json': JSON.stringify(SAMPLE) },
         compose: { marketingSeams: { lookup, postalAddress: async () => POSTAL } },
       });
       contacts = s.t('contacts');
-      // Everyone here may send campaigns (the e-mail screens' grant); lou also sees the contacts' addresses, by a role of their own.
+      // Everyone here but Pia may send campaigns (the e-mail screens' grant); lou also sees the contacts' addresses, by a role of their own.
       const roles = rolesRepo(s.meta);
       const campaigns = await roles.create({ slug: 'campaigns', name: 'Campaigns' });
       await permissionsRepo(s.meta).grant(campaigns.id, 'system', 'settings.manage', { allowed: true });
@@ -500,6 +500,44 @@ for (const [dialect, reachable] of LEGS) {
         expect((await log(who, '?q=Agreed')).rows, who).toEqual([]);
         expect(await csv(who), who).not.toMatch(/harbour\.dev|Ana Agreed/);
       }
+    });
+
+    it('a run\'s failure list names its people only to a manager who sees every table of the run in clear, on every reply that carries it', async () => {
+      await s.meta.db.deleteFrom('adminium_email_send_counters').execute();
+      const templateId = await campaign();
+      const res = await s.send('mia', 'POST', `/api/v1/email-templates/${templateId}/send`, { audience: audience() });
+      expect(res.statusCode, res.body).toBe(202);
+      const runId = (res.json() as { run: { id: string } }).run.id;
+      await s.jobs();
+      await s.emails();
+      // As a give-up writes it (the recipient's address, which the relay's words repeat), and one of the run's own.
+      await emailRunsRepo(s.meta).noteFailure(runId, { to: 'ana@harbour.dev', error: '550 5.1.1 <ana@harbour.dev>: no such user' });
+      await emailRunsRepo(s.meta).noteFailure(runId, { to: '', error: 'relay-down' });
+      const replies = async (who: string) => [
+        await s.get(who, `/api/v1/email-runs/${runId}`),
+        await s.get(who, `/api/v1/email-templates/${templateId}/runs`),
+        await s.get(who, `/api/v1/email-templates/${templateId}`),
+        await s.get(who, '/api/v1/email-templates?kind=campaign'),
+      ];
+      // Mia reads the contacts' addresses in clear: every reply names the person.
+      for (const reply of await replies('mia')) {
+        expect(reply.statusCode, reply.body).toBe(200);
+        expect(reply.body).toContain('ana@harbour.dev');
+      }
+      // Max (masked), Ida (the address column not shown) and Nora (no read of the table) manage e-mail too: the run's own entry only.
+      // Pia reads the contacts in clear but does not manage e-mail: the same.
+      for (const who of ['max', 'ida', 'nora', 'pia']) {
+        for (const reply of await replies(who)) {
+          expect(reply.statusCode, `${who} ${reply.body}`).toBe(200);
+          expect(reply.body, who).not.toContain('harbour.dev');
+          expect(reply.body, who).toContain('relay-down');
+        }
+      }
+      // A run refused before it wrote anybody down still names its table: a failure naming a person there is hidden the same.
+      const early = await emailRunsRepo(s.meta).create({ templateId, audience: { kind: 'table', connectionId: s.connectionId, table: contacts, purpose: 'newsletter' }, scheduledAt: 1 }, 1);
+      await emailRunsRepo(s.meta).noteFailure(early.id, { to: 'rex@harbour.dev', error: 'no-such-user' });
+      expect((await s.get('mia', `/api/v1/email-runs/${early.id}`)).body).toContain('rex@harbour.dev');
+      expect((await s.get('max', `/api/v1/email-runs/${early.id}`)).body).not.toContain('rex@harbour.dev');
     });
 
     it('a sender who loses the right to see the addresses mid-run is refused at the next batch', async () => {

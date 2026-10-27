@@ -274,6 +274,9 @@ for (const [dialect, reachable] of LEGS) {
       expect(offer.html).toContain(`href="${ORIGIN}/m/u/`);
       expect(receipt.headers).toBeUndefined();
       expect(receipt.text).not.toContain(POSTAL);
+      // What the offer was judged on is sealed with it, for the hand-over to ask again; the receipt carries none.
+      expect((offer as { standing?: unknown }).standing).toEqual({ purpose: 'newsletter', basis: 'consent', person: { connectionId: s.connectionId, table: s.t('customers'), key: '2' } });
+      expect((receipt as { standing?: unknown }).standing).toBeUndefined();
       const queued = await s.meta.db.selectFrom('adminium_jobs').select(['payload']).where('kind', '=', 'email.send').execute();
       const versions = queued.map((row) => (typeof row.payload === 'string' ? (JSON.parse(row.payload) as { v: number }) : (row.payload as { v: number })).v);
       expect(versions).toContain(4);
@@ -374,6 +377,27 @@ for (const [dialect, reachable] of LEGS) {
         now += 60_000;
         await walkRule(deps(), { rule: surveys, runId: (await begin()).id, event: { ...event, occurredAt: now } });
         expect(sent.map((one) => one.subject)).toEqual(['Welcome to our news']);
+      });
+
+      it('a value that is not one plain address is skipped as such, never judged against the list by its own spelling', async () => {
+        // Pat agreed, and her address is on the do-not-email list; a mail server would deliver each of these to it.
+        const rows = [
+          [7, 'pat@harbour.dev;'],
+          [8, '"pat@harbour.dev"'],
+          [9, 'x,pat@harbour.dev'],
+        ] as const;
+        for (const [key, email] of rows) {
+          await s.rows(`INSERT INTO shop_customers (id, email, name) VALUES (${String(key)}, '${email}', 'Pat Punct')`);
+          await consent().record({ person: { connectionId: s.connectionId, table: s.t('customers'), key: String(key) }, purpose: 'newsletter', source: 'import', state: 'yes' });
+        }
+        await consent().stop.add({ address: 'pat@harbour.dev', reason: 'link' });
+        for (const [key, email] of rows) {
+          now = Date.now() + (40 + key) * DAY;
+          sent = [];
+          const begun = await start(key);
+          expect(sent, email).toEqual([]);
+          expect(begun.first.trace.steps.find((step) => step.nodeId === 'first')?.log, email).toBe(`Not sent: the recipient is not one plain e-mail address · ${email}`);
+        }
       });
 
       it('a sender that is not ready fails the step by its reason, and nothing goes', async () => {

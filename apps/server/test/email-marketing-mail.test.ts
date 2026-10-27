@@ -23,11 +23,11 @@ import {
   type User,
 } from '@adminium/meta';
 
-import { AddressKeysLockedError, createConsentService } from '../src/consent/index.js';
+import { AddressKeysLockedError, createConsentService, looksLikeAddress } from '../src/consent/index.js';
 import { encryptSecret } from '../src/config/secrets.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
 import { emailSecretKey } from '../src/email/config.js';
-import { createMarketingMail, type MarketingMail } from '../src/email/marketing.js';
+import { createMarketingMail, marketingSkipSentence, type MarketingMail } from '../src/email/marketing.js';
 import { emailEnvelopeKey, enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
 import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import type { EmailTransport, OutboundEmail } from '../src/email/types.js';
@@ -41,6 +41,8 @@ import { withMarketingChecks } from '../src/jobs/register.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { plausibleAddress as outboxAddress } from '../src/outbox/recipient.js';
+import { plausibleAddress as codeAddress } from '../src/public-api/claim-code.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
 import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
 import type { EmailDocumentDetailView, EmailRunView } from '../src/routes/email-templates/schema.js';
@@ -137,6 +139,22 @@ for (const engine of META_ENGINES) {
         await kit.consent.markReplied({ person, staff: { id: 'usr_1', label: 'Dana' }, at: 5_000 });
         expect(await kit.verdict({ address: 'cy@cobaltlegal.dev', person, purpose: 'newsletter', repliedSince: 4_000 })).toEqual({ skip: 'replied' });
         expect(await kit.verdict({ address: 'cy@cobaltlegal.dev', person, purpose: 'newsletter', repliedSince: 6_000 })).toEqual({ send: 'consent' });
+      });
+
+      it('a value that is not one plain address is never judged: a stopped address with a ";", quotes or a list around it is skipped', async () => {
+        await kit.consent.record({ person, address: 'ana@cobaltlegal.dev', purpose: 'newsletter', source: 'import', state: 'yes' });
+        await kit.consent.stop.add({ address: 'ana@cobaltlegal.dev', reason: 'link' });
+        for (const raw of ['ana@cobaltlegal.dev;', '"ana@cobaltlegal.dev"', 'x,ana@cobaltlegal.dev', '<ana@cobaltlegal.dev>', 'Ana <ana@cobaltlegal.dev>', 'ana@cobaltlegal.dev:', 'ana(x)@cobaltlegal.dev']) {
+          expect(await kit.verdict({ address: raw, person, purpose: 'newsletter' }), raw).toEqual({ skip: 'not-an-address' });
+          // Nor is it an address to keep, to send a code to, or to send an app's mail to.
+          expect(looksLikeAddress(raw), raw).toBe(false);
+          expect(codeAddress(raw), raw).toBe(false);
+          expect(outboxAddress(raw), raw).toBe(false);
+        }
+        expect(marketingSkipSentence('not-an-address')).toBe('Not sent: the recipient is not one plain e-mail address');
+        // The bare address, spaces around it or not, is judged as before: on the list.
+        expect(await kit.verdict({ address: ' ana@cobaltlegal.dev ', person, purpose: 'newsletter' })).toEqual({ skip: 'do-not-email' });
+        expect([looksLikeAddress('ana@cobaltlegal.dev'), codeAddress('ana@cobaltlegal.dev'), outboxAddress('ana@cobaltlegal.dev')]).toEqual([true, true, true]);
       });
 
       it('fails closed: with the list’s keys unreadable, the verdict throws rather than say "not stopped"', async () => {
@@ -366,6 +384,35 @@ for (const engine of META_ENGINES) {
         expect(done.map((job) => job.status)).toEqual(['succeeded', 'succeeded']);
       });
 
+      it('asks the person’s answer for the mail’s purpose again at the hand-over: a "no" since it was queued stops it, another purpose’s does not', async () => {
+        const cy = { connectionId: 'conn_1', table: 'public.contacts', key: '9' };
+        const judged = async (to: string, basis: 'consent' | 'existing-customers', person: typeof cy | null = null) => {
+          const carry = await kit.carry({ to, purpose: basis === 'consent' ? 'newsletter' : null, locale: 'en_US' });
+          const job = await enqueueEmail(
+            { meta, secret: TEST_SECRET },
+            { to, templateKey: 'autumn-news', locale: 'en_US', vars: { name: 'Ana' }, template: message, report: { app: 'crm', connectionId: 'conn_1', table: 'public.messages', pk: { id: 3 } }, mailClass: 'marketing', marketing: carry, standing: { purpose: 'newsletter', basis, person } },
+          );
+          expect(job).not.toBeNull();
+        };
+        for (const address of ['ana@cobaltlegal.dev', 'fay@cobaltlegal.dev']) await kit.consent.record({ address, purpose: 'newsletter', source: 'import', state: 'yes' });
+        await kit.consent.record({ person: cy, purpose: 'newsletter', source: 'import', state: 'yes' });
+        await judged('ana@cobaltlegal.dev', 'consent');
+        await judged('cy@cobaltlegal.dev', 'consent', cy);
+        await judged('dee@cobaltlegal.dev', 'existing-customers');
+        await judged('eve@cobaltlegal.dev', 'existing-customers');
+        // One queued before the standing was sealed with it: the list alone is asked again.
+        await queue('fay@cobaltlegal.dev', 'marketing');
+        // Since then: Ana and Eve say no to the newsletter, Cy to surveys, Fay to the newsletter.
+        for (const address of ['ana@cobaltlegal.dev', 'eve@cobaltlegal.dev', 'fay@cobaltlegal.dev']) await kit.consent.withdraw({ address, purpose: 'newsletter', source: 'unsubscribe' });
+        await kit.consent.withdraw({ person: cy, purpose: 'surveys', source: 'unsubscribe' });
+        await drain(worker);
+        expect(sink.messages.map((one) => one.to[0]).sort()).toEqual(['cy@cobaltlegal.dev', 'dee@cobaltlegal.dev', 'fay@cobaltlegal.dev']);
+        // The rows they were for are told: not sent, and why (never the address).
+        expect(gaveUp.map((one) => String((one.error as Error).message))).toEqual(['Not sent: has not agreed to marketing mail', 'Not sent: has not agreed to marketing mail']);
+        const done = await meta.db.selectFrom('adminium_jobs').select(['status']).where('kind', '=', 'email.send').execute();
+        expect(done.map((job) => job.status)).toEqual(['succeeded', 'succeeded', 'succeeded', 'succeeded', 'succeeded']);
+      });
+
       it('fails closed at delivery: with the list’s keys unreadable, a marketing mail is not handed over', async () => {
         await kit.consent.stop.add({ address: 'ana@cobaltlegal.dev', reason: 'link' });
         const locked = createJobRegistry();
@@ -512,6 +559,17 @@ for (const engine of META_ENGINES) {
         await drain(worker);
         expect(sink.messages).toHaveLength(0);
         expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'skipped-stop', reason: 'do-not-email' });
+        expect(await emailRunsRepo(meta).findById(runId)).toMatchObject({ sent: 0, failed: 0, skipped: 4 });
+      });
+
+      it('a person who says no to the run’s purpose after their row was handed over is skipped at delivery: skipped-consent, the run counts it', async () => {
+        const runId = await marketingRun();
+        await worker.runOnce();
+        expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'sent' });
+        await kit.consent.withdraw({ address: 'agreed@cobaltlegal.dev', purpose: 'newsletter', source: 'unsubscribe' });
+        await drain(worker);
+        expect(sink.messages).toHaveLength(0);
+        expect(await stateOf(runId, 'agreed@cobaltlegal.dev')).toMatchObject({ state: 'skipped-consent', reason: 'not-agreed' });
         expect(await emailRunsRepo(meta).findById(runId)).toMatchObject({ sent: 0, failed: 0, skipped: 4 });
       });
 

@@ -89,6 +89,7 @@ import {
   prepareEmail,
   resolveGeneratedAttachments,
   type EmailSendReport,
+  type MarketingStanding,
   type PreparedEmail,
 } from '../email/send.js';
 import type { MarketingCarry } from '../email/marketing.js';
@@ -142,7 +143,7 @@ export interface CampaignSeams {
    * null for nothing. Asked after `checkRow` passed the row, in the variant's
    * language.
    */
-  carryFor?: ((row: EmailSend, run: EmailRun, locale: string) => Promise<(MarketingCarry & { clicks?: ((html: string) => string) | undefined }) | null>) | undefined;
+  carryFor?: ((row: EmailSend, run: EmailRun, locale: string) => Promise<(MarketingCarry & { clicks?: ((html: string) => string) | undefined; standing?: MarketingStanding | undefined }) | null>) | undefined;
   /**
    * The recipients of an audience that reads a source table (a table's
    * people): the first batch writes them down. Without it such a run
@@ -247,6 +248,8 @@ interface Message {
   headers?: Record<string, string> | undefined;
   /** A marketing run's Reply-To: the marketing mail settings' "Replies to marketing mail go to". */
   replyTo?: string | null | undefined;
+  /** What a marketing run's row was judged on, sealed with its message and asked again at the hand-over. */
+  standing?: MarketingStanding | undefined;
 }
 
 /** Registers the `email.campaign-run` handler on `registry` (internal kind). */
@@ -438,7 +441,15 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
           ...(carry === null ? {} : { locked: carry.locked }),
         });
         const rendered = carry?.clicks === undefined ? drawn : { ...drawn, html: carry.clicks(drawn.html) };
-        return { to: row.address, locale: variant.locale, rendered, from: prepared.from, attachments: [...prepared.attachments, ...generated], ...(carry === null ? {} : { headers: carry.headers, replyTo: carry.replyTo }) };
+        return {
+          to: row.address,
+          locale: variant.locale,
+          rendered,
+          from: prepared.from,
+          attachments: [...prepared.attachments, ...generated],
+          ...(carry === null ? {} : { headers: carry.headers, replyTo: carry.replyTo }),
+          ...(carry?.standing === undefined ? {} : { standing: carry.standing }),
+        };
       };
       /** The one transaction that makes a row handed: counted, queued, marked (see the header). */
       const handOver = async (row: EmailSend, message: Message): Promise<'handed' | 'run' | 'row'> => {
@@ -461,6 +472,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
                 ...(run.mailClass === null ? {} : { mailClass: run.mailClass }),
                 ...(message.headers === undefined ? {} : { headers: message.headers }),
                 ...(message.replyTo == null ? {} : { replyTo: message.replyTo }),
+                ...(message.standing === undefined ? {} : { standing: message.standing }),
               },
             );
             if (job === null) throw new NotQueued('the message could not be queued');
