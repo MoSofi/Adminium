@@ -288,6 +288,9 @@ function AuditLink(): ReactNode {
 
 function ResultCard({ found, asking, onDownload, onErase }: { found: PersonFound; asking: boolean; onDownload: () => void; onErase: () => void }): ReactNode {
   const navigate = useNavigate();
+  // The do-not-email list is the e-mail screens' (`settings.manage`): no "Open" for a reader it would refuse.
+  const bootstrap = useQuery(bootstrapQuery());
+  const opensList = bootstrap.data !== undefined && holdsSystemAction(bootstrap.data, 'settings.manage');
   const name = found.person?.name ?? null;
   const company = found.person?.company ?? null;
   const heading = name === null ? found.address : company === null ? name : t('studio:privacy.person.nameAt', '{name} · {company}', { name, company });
@@ -331,7 +334,7 @@ function ResultCard({ found, asking, onDownload, onErase }: { found: PersonFound
                         {count.n === '' ? null : <span className="font-mono font-semibold">{count.n}</span>}
                         {count.post}
                       </span>
-                      {source.kind === 'stop-list' ? (
+                      {source.kind === 'stop-list' && opensList ? (
                         <Button variant="link" className="min-h-[34px] text-body-sm font-bold" aria-label={t('studio:privacy.person.openLabel', 'Open {what}', { what: label })} onClick={() => void navigate({ to: '/email-templates/do-not-email' })}>
                           {t('studio:privacy.person.open', 'Open')}
                         </Button>

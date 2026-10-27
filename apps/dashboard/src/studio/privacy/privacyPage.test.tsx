@@ -174,6 +174,24 @@ describe('who opens the privacy page', () => {
     expect(calls.some((call) => call.url.startsWith('/api/v1/privacy'))).toBe(false);
   });
 
+  it('a role granted privacy.manage on purpose gets in, without ways into screens it cannot open', async () => {
+    roles = ['dpo'];
+    systemActions = ['privacy.manage'];
+    await renderAt('/studio/privacy?tab=person');
+    await userEvent.type(await screen.findByLabelText('E-mail address'), MARTA);
+    await userEvent.click(screen.getByTestId('privacy-person-find'));
+    const card = await screen.findByTestId('privacy-result');
+    expect(within(card).getByText('Do-not-email list')).toBeDefined();
+    expect(within(card).queryByRole('button', { name: 'Open Do-not-email list' })).toBeNull();
+    await userEvent.click(screen.getByTestId('privacy-erase'));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByTestId('erase-goes');
+    await userEvent.type(within(dialog).getByLabelText('Type the address to confirm'), MARTA);
+    await userEvent.click(within(dialog).getByTestId('erase-for-good'));
+    expect(await screen.findByText('Erased. Saved in the audit log.')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Open the audit log' })).toBeNull();
+  });
+
   it('the Super Admin gets exactly the three tabs, each with its own address', async () => {
     asSuperAdmin();
     const { router } = await renderAt('/studio/privacy');
