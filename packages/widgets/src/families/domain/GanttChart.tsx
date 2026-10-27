@@ -479,10 +479,19 @@ function GanttTaskRow({
             className={`absolute top-1/2 start-[var(--adm-at)] z-[1] flex h-[22px] w-[var(--adm-w)] min-w-1.5 -translate-y-1/2 items-center overflow-hidden rounded-[7px] border transition-[filter] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${TINT[tone]} ${onTaskOpen === undefined ? 'cursor-default' : 'cursor-pointer'}`}
             style={{ '--adm-at': `${String(left)}%`, '--adm-w': `${String(width)}%` }}
           >
-            <span aria-hidden="true" className={`absolute inset-y-0 start-0 w-[var(--adm-pct)] ${TONE_SOLID_BG[tone]}`} style={{ '--adm-pct': `${String(pct)}%` }} />
             {pct > 0 ? (
-              <MonoText className={`relative z-[1] ps-2 text-[10px] font-semibold ${pct >= 35 ? 'text-surface' : 'text-fg-muted'}`}>{formatPercent(task.pct)}</MonoText>
+              <MonoText className="whitespace-nowrap ps-2 text-[10px] font-semibold text-fg-muted">{formatPercent(task.pct)}</MonoText>
             ) : null}
+            {/* The fill, over the label, carries the label again in the light colour: where the fill
+                reaches, the words are light on it; past it, muted on the tint. Which part covers the
+                words depends on the bar's width in pixels, so no single colour by percent can be right. */}
+            <span
+              aria-hidden="true"
+              className={`absolute inset-y-0 start-0 z-[1] flex w-[var(--adm-pct)] items-center overflow-hidden ${TONE_SOLID_BG[tone]}`}
+              style={{ '--adm-pct': `${String(pct)}%` }}
+            >
+              {pct > 0 ? <MonoText className="whitespace-nowrap ps-2 text-[10px] font-semibold text-surface">{formatPercent(task.pct)}</MonoText> : null}
+            </span>
           </button>
         )}
       </div>
