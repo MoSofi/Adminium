@@ -29,12 +29,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ROUTERS = ['apps/dashboard/src/studio/routes.tsx', 'apps/dashboard/src/app/router.tsx'];
 const TABLE = 'apps/server/src/assistant/places.ts';
 
-// `requires="key"`, `requires={['a', 'b']}` (any of them; written `a|b` in the table), or nothing ('studio').
-const GUARD = /<StudioGuard(?:\s+requires=(?:"([^"]+)"|\{\[([^\]]+)\]\}))?\s*>/;
+// `requires="key"`, `requires={['a', 'b']}` (any of them; written `a|b` in the table), `alsoFor="key"` (the Studio
+// roles or that key: `studio|key`), or nothing ('studio').
+const GUARD = /<StudioGuard(?:\s+requires=(?:"([^"]+)"|\{\[([^\]]+)\]\})|\s+alsoFor="([^"]+)")?\s*>/;
 const guardIn = (text) => {
   const found = GUARD.exec(text);
   if (found === null) return null;
   if (found[2] !== undefined) return [...found[2].matchAll(/'([^']+)'/g)].map((key) => key[1]).join('|');
+  if (found[3] !== undefined) return `studio|${found[3]}`;
   return found[1] ?? 'studio';
 };
 
@@ -89,14 +91,16 @@ function selfTest() {
     "const helpRoute = createRoute({\n  path: '/help',\n  component: HelpPageLazy,\n})",
     "function PayRouteComponent() {\n  return (\n    <StudioGuard requires={['payments.manage', 'payments.view']}>\n      <Pay />\n    </StudioGuard>\n  );\n}",
     "const payRoute = createRoute({\n  path: '/pay',\n  component: PayRouteComponent,\n})",
+    'function HubRouteComponent() {\n  return (\n    <StudioGuard alsoFor="settings.manage">\n      <Hub />\n    </StudioGuard>\n  );\n}',
+    "const hubRoute = createRoute({\n  path: '/hub',\n  component: HubRouteComponent,\n})",
     "const auditRoute = createRoute({\n  path: '/audit',\n  component: () => (\n    <StudioGuard requires=\"audit.read\">\n      <Audit />\n    </StudioGuard>\n  ),\n})",
   ].join('\n\n');
   const routes = routesOf(router);
   const table = (rows) => placesOf(rows.map((row) => `  { path: '${row[0]}', guard: '${row[1]}', name: 'x', what: 'y' },`).join('\n'));
-  const agree = differences(table([['/settings/team', 'users.manage'], ['/files', 'studio'], ['/help', 'none'], ['/audit', 'audit.read'], ['/pay', 'payments.manage|payments.view']]), routes);
+  const agree = differences(table([['/settings/team', 'users.manage'], ['/files', 'studio'], ['/help', 'none'], ['/audit', 'audit.read'], ['/pay', 'payments.manage|payments.view'], ['/hub', 'studio|settings.manage']]), routes);
   if (agree.length !== 0) throw new Error(`self-test: a table that matches was reported: ${agree.join('; ')}`);
-  const differ = differences(table([['/settings/team', 'roles.manage'], ['/gone', 'none'], ['/files', 'none'], ['/help', 'none'], ['/help', 'none']]), routes);
-  const expected = ["/settings/team is listed with guard 'roles.manage'", '/gone is not a route', "/files is listed with guard 'none'", '/help is listed twice'];
+  const differ = differences(table([['/settings/team', 'roles.manage'], ['/gone', 'none'], ['/files', 'none'], ['/help', 'none'], ['/help', 'none'], ['/hub', 'studio']]), routes);
+  const expected = ["/settings/team is listed with guard 'roles.manage'", '/gone is not a route', "/files is listed with guard 'none'", '/help is listed twice', "/hub is listed with guard 'studio'"];
   for (const text of expected) {
     if (!differ.some((line) => line.includes(text))) throw new Error(`self-test: not reported: ${text} (got ${JSON.stringify(differ)})`);
   }

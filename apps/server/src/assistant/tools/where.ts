@@ -40,8 +40,12 @@ function matches(words: readonly string[], ...texts: readonly (string | null)[])
 async function passes(place: AssistantPlace, deps: AssistantToolDeps, studio: boolean): Promise<boolean> {
   if (place.guard === 'none') return true;
   if (place.guard === 'studio') return studio;
-  // `a|b`: any one of the keys opens the screen.
+  // `a|b`: any one of the keys opens the screen; `studio` among them is the Studio roles.
   for (const key of place.guard.split('|')) {
+    if (key === 'studio') {
+      if (studio) return true;
+      continue;
+    }
     const [resource, action] = key.split('.') as [string, string];
     if (await deps.can(`system:${resource}:${action}`)) return true;
   }

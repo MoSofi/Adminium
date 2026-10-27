@@ -18,7 +18,9 @@
  * `guard` is the dashboard's own:
  *   - `none`    anyone signed in to the dashboard;
  *   - `studio`  the Admin and Super Admin roles (`studio/studioAccess.ts`);
- *   - a key     the one `system:` permission the screen's guard names.
+ *   - a key     the one `system:` permission the screen's guard names;
+ *   - `a|b`     any one of them (`StudioGuard requires={[…]}`); `studio|key` is
+ *               `StudioGuard alsoFor="key"`: the Studio roles, or that key.
  *
  * English, like everything a model is told. It answers in the person's language.
  */
@@ -37,6 +39,9 @@ export type AssistantPlaceGuard =
   | 'storage.manage'
   | 'pages.manage'
   | 'llm.run'
+  | 'privacy.manage'
+  // The Studio roles, or the key, as `StudioGuard alsoFor="…"` reads it.
+  | 'studio|settings.manage'
   // Any of the keys, as `StudioGuard requires={[…]}` reads it.
   | 'payments.manage|payments.view';
 
@@ -69,12 +74,14 @@ export const ASSISTANT_PLACES: readonly AssistantPlace[] = Object.freeze([
   { path: '/settings/roles', guard: 'roles.manage', name: 'Roles', what: 'What each role may view, create, change and delete, table by table and column by column; who may use the assistant.' },
   { path: '/settings/defaults', guard: 'none', name: 'Global defaults', what: 'Workspace-wide appearance and language defaults.' },
   { path: '/settings/translations', guard: 'none', name: 'Languages & translations', what: 'Change any wording in the product, choose which languages people can pick, add a language.' },
+  { path: '/email-templates/do-not-email', guard: 'settings.manage', name: 'Do-not-email list', what: 'The addresses marketing mail never goes to: who unsubscribed, bounced or asked, and adding or removing addresses by hand.' },
+  { path: '/studio/privacy', guard: 'privacy.manage', name: 'Privacy', what: 'The privacy notice address, everything kept about one person (find it, download it, erase the person), and how long things are kept.' },
   { path: '/settings/maps', guard: 'settings.manage', name: 'Maps', what: 'Whether maps are shown and whether routes follow roads; which map server and routing server are asked, and what each of them learns.' },
   { path: '/studio', guard: 'connections.manage', name: 'Data connections', what: 'Connect a database, rename, pause or delete a connection, read its schema again, its regional settings (currency, time zone).' },
   { path: '/studio/pages', guard: 'pages.manage', name: 'Pages', what: 'Create, edit, reorder, hide and delete pages; a page\'s columns, filters, layout and place in the sidebar.' },
   { path: '/studio/documents', guard: 'manifests.manage', name: 'Document mappings', what: 'Which table and columns an invoice or other document is drawn from, and its numbering.' },
   { path: '/studio/lists', guard: 'studio', name: 'Lists', what: 'The answers a column accepts (option lists), named once and used from anywhere.' },
-  { path: '/studio/settings', guard: 'studio', name: 'Workspace settings', what: 'The workspace\'s own settings: its name and branding, email sending (SMTP), sign-in rules, retention, and the doors to the other Studio screens.' },
+  { path: '/studio/settings', guard: 'studio|settings.manage', name: 'Workspace settings', what: 'The workspace\'s own settings: its name and branding, email sending (SMTP), sign-in rules, retention, and the doors to the other Studio screens.' },
   { path: '/studio/settings/ai', guard: 'llm.run', name: 'AI settings', what: 'The AI provider and model, the assistant\'s name, whether it may read rows, and the daily allowance per person.' },
   { path: '/studio/settings/project', guard: 'studio', name: 'Project', what: 'The project folder this server runs, and the code it loaded.' },
   { path: '/studio/public-api', guard: 'api-keys.manage', name: 'Public API', what: 'Endpoints and keys that let your own customer or staff pages read this database, through a scope you define.' },

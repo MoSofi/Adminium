@@ -106,6 +106,11 @@ describe('where_is', () => {
       // `a|b`: any one of the keys opens it.
       let held = false;
       for (const key of place.guard.split('|')) {
+        // `studio` among the keys is the Admin role itself.
+        if (key === 'studio') {
+          held = true;
+          continue;
+        }
         const [resource, action] = key.split('.');
         held ||= await depsFor(t.users.admin).can(`system:${resource!}:${action!}`);
       }
@@ -133,6 +138,20 @@ describe('where_is', () => {
     await roles.assignToUser(keeper.id, role.id);
     expect(paths(await whereIs(depsFor(keeper), ''))).toContain('/studio/payments');
     expect(paths(await whereIs(depsFor(t.users.viewer), ''))).not.toContain('/studio/payments');
+  });
+
+  it('opens the settings hub to a role holding settings.manage without the Admin role, and not without it', async () => {
+    const roles = rolesRepo(t.meta);
+    const role = await roles.create({ slug: 'marketer', name: 'Marketer' });
+    await permissionsRepo(t.meta).grant(role.id, 'system', 'settings.manage', { allowed: true });
+    const marketer = await usersRepo(t.meta).create({ email: 'marketer@adminium.test', name: 'Marketer', passwordHash: 'x', status: 'active' });
+    await roles.assignToUser(marketer.id, role.id);
+    const open = paths(await whereIs(depsFor(marketer), ''));
+    expect(open).toContain('/studio/settings');
+    expect(open).toContain('/email-templates/do-not-email');
+    expect(open).not.toContain('/studio/privacy');
+    expect(open).not.toContain('/studio/lists');
+    expect(paths(await whereIs(depsFor(t.users.viewer), ''))).not.toContain('/studio/settings');
   });
 
   it('tells someone whose every role is one app`s screens of no dashboard screen', async () => {
