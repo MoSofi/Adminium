@@ -43,6 +43,8 @@ export const marketingReply = z.object({
     postalAddress: z.string().nullable(),
     replyTo: z.string().nullable(),
     publicOrigin: z.string().nullable(),
+    /** The business every marketing mail's locked footer names (`privacy/business.ts`): the editor shows that footer. */
+    businessName: z.string().optional(),
     senders: z.array(senderView),
   }),
 });
