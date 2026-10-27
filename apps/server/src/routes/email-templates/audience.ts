@@ -8,6 +8,9 @@
  *   GET  /email-audience/review              the first send's review
  *   POST /email-audience/review/answer       "Confirm" or "Leave out", one person
  *   PUT  /email-audience/existing-customers  the owner's switch and their tick
+ *   GET  /email-audience/people-tables       the tables whose e-mail sheet the person may open, switched off or not
+ *   GET  /email-audience/table-settings      one table's e-mail sheet
+ *   PUT  /email-audience/table-settings      the sheet's "Can be e-mailed from campaigns" and its columns
  *
  * The breakdown is the campaign's own audience preview
  * (`POST /email-templates/:id/audience/preview`), which answers it for a
@@ -50,6 +53,7 @@ import {
   type TableAudience,
 } from '../../email/audience-table.js';
 import { setExistingCustomers } from '../../email/existing-customers.js';
+import { PeopleSheetError, declaringAppName, peopleTableSheet, peopleTablesForSheet, setPeopleTableWord } from '../../email/people-table-settings.js';
 import { ForbiddenError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { estimateMinutes } from '../../jobs/email-campaign-run.js';
 import { pkOfRowKey } from '../../payments/payables.js';
@@ -108,6 +112,27 @@ const answerReply = z.object({ event: z.object({ id: z.string(), state: z.enum([
 const switchBody = tableRef.extend({ on: z.boolean(), optOutOffered: z.boolean() });
 const switchReply = z.object({ existingCustomers: existingCustomersShape });
 
+const peopleTablesReply = z.object({
+  tables: z.array(z.object({ connectionId: z.string(), table: z.string(), label: z.string(), appName: z.string(), canEmail: z.boolean() })),
+});
+const sheetReply = z.object({
+  sheet: z.object({
+    connectionId: z.string(),
+    table: z.string(),
+    label: z.string(),
+    appName: z.string(),
+    kind: z.enum(['people', 'companies']),
+    canEmail: z.boolean(),
+    email: z.string(),
+    name: z.string().nullable(),
+    /** The text columns the person sees; `address` when it may hold the address (seen in clear). */
+    columns: z.array(z.object({ name: z.string(), label: z.string(), address: z.boolean() })),
+    customer: z.object({ column: z.string(), label: z.string() }).nullable(),
+    existingCustomers: existingCustomersShape,
+  }),
+});
+const sheetBody = tableRef.extend({ canEmail: z.boolean(), email: z.string().min(1).max(128), name: z.string().min(1).max(128).nullable() });
+
 /** The signed-in person: the campaign routes' grant, and never an API key for what writes a person's consent. */
 function signedIn(request: FastifyRequest): StaffMember {
   if (request.apiKeyPrincipal != null) throw new ForbiddenError('This is done by a signed-in person, never with an API key.', 'FORBIDDEN', { reason: 'api-key' });
@@ -122,8 +147,8 @@ async function requireCampaigns(request: FastifyRequest): Promise<void> {
 }
 
 /** The table as the person reaches it, or the refusal by name. */
-async function reached(deps: AudienceDeps, userId: string, ref: { connectionId: string; table: string }): Promise<PeopleTableAccess> {
-  const opened = await openPeopleTable(deps, userId, ref.connectionId, ref.table);
+async function reached(deps: AudienceDeps, userId: string, ref: { connectionId: string; table: string }, options: { evenSwitchedOff?: boolean } = {}): Promise<PeopleTableAccess> {
+  const opened = await openPeopleTable(deps, userId, ref.connectionId, ref.table, options);
   if (!('ok' in opened)) throw new AudienceRefusedError(opened.refuse, opened.label);
   return opened.ok;
 }
@@ -247,6 +272,63 @@ export async function registerEmailAudienceRoutes(app: FastifyInstance, meta: Me
         changes: { before: { on: access.switched?.on === true }, after: { table: access.wholeTable.id, on: switched.on, optOutOffered } },
       });
       return { existingCustomers: await existingCustomersView(meta, { offered: access.offered, switched }) };
+    },
+  );
+  typed.get(
+    '/email-audience/people-tables',
+    {
+      config: { audit: auditExempt('the people tables whose e-mail sheet a person may open — reads the declarations and their grants, writes nothing') },
+      schema: { response: { 200: peopleTablesReply } },
+    },
+    async (request) => {
+      const { id } = signedIn(request);
+      await requireCampaigns(request);
+      return { tables: await peopleTablesForSheet(audience, id) };
+    },
+  );
+
+  typed.get(
+    '/email-audience/table-settings',
+    {
+      config: { audit: auditExempt('one people table\'s e-mail sheet — reads its declaration and the owner\'s word on it, writes nothing') },
+      schema: { querystring: tableRef, response: { 200: sheetReply } },
+    },
+    async (request) => {
+      const { id } = signedIn(request);
+      await requireCampaigns(request);
+      const access = await reached(audience, id, request.query, { evenSwitchedOff: true });
+      return { sheet: await peopleTableSheet(audience, access, await declaringAppName(meta, access.declared.appKey)) };
+    },
+  );
+
+  typed.put(
+    '/email-audience/table-settings',
+    {
+      config: { audit: audited('rbac') },
+      schema: { body: sheetBody, response: { 200: sheetReply } },
+    },
+    async (request) => {
+      const { id } = signedIn(request);
+      await requireCampaigns(request);
+      const access = await reached(audience, id, request.body, { evenSwitchedOff: true });
+      const before = { canEmail: access.declared.canEmail, email: access.declared.email, name: access.declared.name };
+      let wrote: boolean;
+      try {
+        wrote = await setPeopleTableWord(meta, access, { canEmail: request.body.canEmail, email: request.body.email, name: request.body.name, by: id }, app.rbac.now());
+      } catch (error) {
+        if (error instanceof PeopleSheetError) throw new ValidationFailedError(error.message, { field: error.field });
+        throw error;
+      }
+      if (wrote) {
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-audience.table-settings',
+          connectionId: access.declared.connectionId,
+          changes: { before, after: { table: access.wholeTable.id, canEmail: request.body.canEmail, email: request.body.email, name: request.body.name ?? access.declared.name } },
+        });
+      }
+      const now = await reached(audience, id, request.body, { evenSwitchedOff: true });
+      return { sheet: await peopleTableSheet(audience, now, await declaringAppName(meta, now.declared.appKey)) };
     },
   );
 }

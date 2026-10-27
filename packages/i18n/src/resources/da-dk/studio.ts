@@ -4251,5 +4251,137 @@ export default {
   },
   "privacy": {
     "erasedPerson": "Slettet person"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "Anden tjeneste",
+      "signingKey": "Signeringsnøgle",
+      "signingKeyPaste": "Indsæt signeringsnøglen fra {service}",
+      "signingKeySaved": "Signeringsnøglen er gemt.",
+      "verificationKey": "Verifikationsnøgle",
+      "verificationKeyPaste": "Indsæt verifikationsnøglen fra {service}",
+      "verificationKeySaved": "Verifikationsnøglen er gemt.",
+      "topicArn": "Topic-ARN",
+      "topicArnPaste": "Indsæt topic-ARN fra {service}",
+      "topicArnSaved": "Topic-ARN er gemt.",
+      "setOn": "Angivet {date}",
+      "failed": "Det blev ikke gemt. Prøv igen.",
+      "invalid": "Det blev ikke gemt. Tjek det, du indsatte, og prøv igen.",
+      "replace": "Erstat",
+      "copyThese": "Kopiér disse til {service}",
+      "user": "Brugernavn",
+      "copyUser": "Kopiér brugernavn",
+      "password": "Adgangskode",
+      "copyPassword": "Kopiér adgangskode",
+      "shownOnce": "Vises kun nu. „Erstat“ laver nye og stopper disse.",
+      "save": "Gem",
+      "title": "Afviste mails og spamrapporter",
+      "body": "Din mailtjeneste giver Adminium besked, når en mail bliver afvist eller markeret som spam, og den adresse kommer på listen „Ingen e-mails“.",
+      "service": "Din mailtjeneste",
+      "otherNote": "Mails, der afvises under afsendelsen, fanges stadig. Tilføj andre afviste adresser manuelt til listen „Ingen e-mails“.",
+      "paste": "Indsæt denne adresse i {service}",
+      "noOrigin": "Angiv først adressen i e-maillinks: din mailtjeneste skal bruge den for at nå denne server.",
+      "setOrigin": "Angiv adressen",
+      "copyAddress": "Kopiér adresse",
+      "nothingYet": "Intet er kommet endnu",
+      "lastNotice": "Seneste besked {ago}"
+    },
+    "copied": "Kopieret til udklipsholderen.",
+    "dne": {
+      "why": {
+        "link": "Afmeldt via link",
+        "spam": "Markeret som spam",
+        "bounce": "Afvist",
+        "hand": "Tilføjet manuelt",
+        "relayUnsubscribe": "Afmeldt via mailtjenesten",
+        "oldMark": "Afmeldt, før der blev ført optegnelser",
+        "leadFinder": "Indsigelse via Lead finder",
+        "erased": "Slettet efter anmodning"
+      },
+      "addedBy": "Tilføjet af {name}",
+      "leadFinder": "Lead finder",
+      "add": "Tilføj adresser",
+      "title": "Listen „Ingen e-mails“",
+      "loadFailed": "Listen kunne ikke indlæses. Prøv igen.",
+      "empty": "Der er ingen på listen endnu.",
+      "search": "Søg i adresser",
+      "whyLabel": "Hvorfor",
+      "whyAny": "Hvorfor: alle",
+      "count": "{count, plural, one {# post} other {# poster}}",
+      "col": {
+        "address": "Adresse",
+        "why": "Hvorfor",
+        "when": "Hvornår",
+        "from": "Hvorfra",
+        "actions": "Handlinger"
+      },
+      "noMatch": "Ingen poster passer.",
+      "erased": "Slettet person — beholdt, så de aldrig får en mail igen",
+      "remove": "Fjern",
+      "more": "Vis flere",
+      "added": "{added, plural, one {# adresse tilføjet} other {# adresser tilføjet}}",
+      "notAddresses": "Ikke adresser, udeladt: {list}",
+      "already": "{count, plural, one {# var allerede på listen} other {# var allerede på listen}}",
+      "removed": "{address} er ikke længere på listen.",
+      "addFailed": "Adresserne blev ikke tilføjet. Prøv igen.",
+      "addresses": "Adresser",
+      "onePerLine": "Én adresse pr. linje",
+      "removeFailed": "Adressen blev ikke fjernet. Prøv igen.",
+      "removeTitle": "Fjern fra listen?",
+      "removeBody": "De får kun marketingmails igen, hvis de giver samtykke igen."
+    },
+    "close": "Luk",
+    "cancel": "Annullér",
+    "dkim": {
+      "makeFailed": "Nøglen kunne ikke oprettes. Prøv igen.",
+      "checking": "Tjekker {domain} i DNS …",
+      "checkAgain": "Tjek igen",
+      "label": "Signér marketingmails (DKIM)",
+      "unusable": "Denne nøgle virker ikke længere på denne server. Opret en ny, og udgiv dens post.",
+      "make": "Opret en nøgle",
+      "copy": "Kopiér DNS-post",
+      "found": "Fundet i DNS",
+      "notFound": "Ikke fundet endnu — DNS kan tage en time"
+    },
+    "postal": {
+      "label": "Postadresse",
+      "sub": "Påkrævet for marketingmails.",
+      "error": "Højst 300 tegn."
+    },
+    "replyTo": {
+      "label": "Svar på marketingmails går til",
+      "error": "Angiv én e-mailadresse, f.eks. hello@example.com."
+    },
+    "dns": {
+      "unchecked": "DNS kunne ikke forespørges",
+      "asking": "Spørger DNS …"
+    },
+    "heading": "Marketingmails",
+    "freeMail": "Kan ikke sende marketingmails: brug dit eget domæne.",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "Fundet:",
+      "notFound": "Ikke fundet",
+      "howTo": "Sådan tilføjer du en DMARC-post"
+    },
+    "sheet": {
+      "titlePlain": "E-mailindstillinger",
+      "refused": "Du kan ikke ændre e-mailindstillingerne for denne tabel.",
+      "loadFailed": "Indstillingerne kunne ikke indlæses. Prøv igen.",
+      "saved": "E-mailindstillingerne er gemt.",
+      "saveFailed": "Indstillingerne blev ikke gemt. Prøv igen.",
+      "title": "E-mailindstillinger for {table}",
+      "subtitle": "{table} — {app}",
+      "canEmail": "Kan mailes fra kampagner",
+      "emailColumn": "E-mailkolonne",
+      "nameColumn": "Navnekolonne",
+      "existingHeading": "Eksisterende kunder",
+      "existing": "Eksisterende kunder må få marketingmails uden at sætte et flueben",
+      "existingBody": "I Storbritannien, EU og Canada (i to år efter et køb) må du maile dine egne kunder om lignende ting, hvis du gav dem mulighed for at sige nej, da du fik deres adresse, og i hver mail. Det gælder ikke overalt:",
+      "guide": "se vejledningen",
+      "customer": "Hvem tæller som kunde",
+      "tick": "Jeg tilbød en måde at sige nej på, da vi fik deres adresse",
+      "save": "Gem"
+    }
   }
 } as const;

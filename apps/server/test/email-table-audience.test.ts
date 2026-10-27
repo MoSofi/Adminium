@@ -364,12 +364,16 @@ for (const [dialect, reachable] of LEGS) {
         ['cal@harbour.dev', 'Hello Cal from Leeds'],
       ]);
       expect(mails.every((mail) => mail.html.includes(POSTAL))).toBe(true);
+      // No reply address set: the mail carries none.
+      expect(mails.map((mail) => (mail as { replyTo?: string }).replyTo)).toEqual([undefined, undefined]);
       // Clicks counted, as its sender asked: the link goes through a signed one of this server's.
       expect(mails.every((mail) => mail.html.includes(`${ORIGIN}/m/l/`) && !mail.html.includes('href="https://meridian.example/news"'))).toBe(true);
       expect((await emailRunsRepo(s.meta).findById(run.id))?.status).toBe('sent');
     });
 
     it('writes the whole table into the ledger the way the breakdown counts it', async () => {
+      // Replies go where the marketing mail settings say.
+      await settingsRepo(s.meta).set('email.marketingReplyTo', 'hello@meridian.example', { updatedBy: null });
       const res = await sendRun('mia', { audience: audience({ existingCustomers: true }) });
       expect(res.statusCode, res.body).toBe(202);
       const runId = (res.json() as { run: { id: string } }).run.id;
@@ -395,6 +399,8 @@ for (const [dialect, reachable] of LEGS) {
       expect(mails.map((mail) => mail.to).sort()).toEqual(['ana@harbour.dev', 'cal@harbour.dev']);
       // Not asked for, no click is counted: the link goes where it says.
       expect(mails.every((mail) => mail.html.includes('href="https://meridian.example/news"') && !mail.html.includes('/m/l/'))).toBe(true);
+      expect(mails.map((mail) => (mail as { replyTo?: string }).replyTo)).toEqual(['hello@meridian.example', 'hello@meridian.example']);
+      await settingsRepo(s.meta).set('email.marketingReplyTo', null, { updatedBy: null });
     });
 
     it('a run whose owner switches existing customers off goes on for the people who agreed, and leaves its existing customers out', async () => {

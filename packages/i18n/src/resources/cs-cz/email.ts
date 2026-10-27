@@ -16,7 +16,8 @@ export default {
     "senders": "Spravovat odesílatele",
     "exportAll": "Exportovat vše",
     "settings": "Nastavení e-mailu",
-    "archived": "Archivované"
+    "archived": "Archivované",
+    "doNotEmail": "Seznam „Neposílat e-maily“"
   },
   "archivedChip": {
     "field": "Zobrazeno",

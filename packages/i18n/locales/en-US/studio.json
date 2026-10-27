@@ -4241,5 +4241,137 @@
   },
   "privacy": {
     "erasedPerson": "Erased person"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "Another service",
+      "signingKey": "Signing key",
+      "signingKeyPaste": "Paste the signing key from {service}",
+      "signingKeySaved": "Signing key saved.",
+      "verificationKey": "Verification key",
+      "verificationKeyPaste": "Paste the verification key from {service}",
+      "verificationKeySaved": "Verification key saved.",
+      "topicArn": "Topic ARN",
+      "topicArnPaste": "Paste the topic ARN from {service}",
+      "topicArnSaved": "Topic ARN saved.",
+      "setOn": "Set on {date}",
+      "failed": "That was not saved. Try again.",
+      "invalid": "That was not saved. Check what you pasted and try again.",
+      "replace": "Replace",
+      "copyThese": "Copy these into {service}",
+      "user": "User name",
+      "copyUser": "Copy user name",
+      "password": "Password",
+      "copyPassword": "Copy password",
+      "shownOnce": "Shown only now. “Replace” makes new ones and stops these.",
+      "save": "Save",
+      "title": "Bounces and spam reports",
+      "body": "Your mail service tells Adminium when a mail bounces or is marked as spam, and that address goes on the do-not-email list.",
+      "service": "Your mail service",
+      "otherNote": "Mails refused while sending are still caught. Add other bounces by hand to the do-not-email list.",
+      "paste": "Paste this address into {service}",
+      "noOrigin": "Set the address in email links first: your mail service needs it to reach this server.",
+      "setOrigin": "Set the address",
+      "copyAddress": "Copy address",
+      "nothingYet": "Nothing has arrived yet",
+      "lastNotice": "Last notice {ago}"
+    },
+    "copied": "Copied to the clipboard.",
+    "dne": {
+      "why": {
+        "link": "Unsubscribed by link",
+        "spam": "Marked as spam",
+        "bounce": "Bounced",
+        "hand": "Added by hand",
+        "relayUnsubscribe": "Unsubscribed through the mail service",
+        "oldMark": "Unsubscribed before records were kept",
+        "leadFinder": "Objected through Lead finder",
+        "erased": "Erased on request"
+      },
+      "addedBy": "Added by {name}",
+      "leadFinder": "Lead finder",
+      "add": "Add addresses",
+      "title": "Do-not-email list",
+      "loadFailed": "The list could not be loaded. Try again.",
+      "empty": "Nobody is on the list yet.",
+      "search": "Search addresses",
+      "whyLabel": "Why",
+      "whyAny": "Why: any",
+      "count": "{count, plural, one {# entry} other {# entries}}",
+      "col": {
+        "address": "Address",
+        "why": "Why",
+        "when": "When",
+        "from": "Where from",
+        "actions": "Actions"
+      },
+      "noMatch": "No entry matches.",
+      "erased": "Erased person — kept so they’re never e-mailed again",
+      "remove": "Remove",
+      "more": "Show more",
+      "added": "{added, plural, one {# address added} other {# addresses added}}",
+      "notAddresses": "Not addresses, left out: {list}",
+      "already": "{count, plural, one {# was on the list already} other {# were on the list already}}",
+      "removed": "{address} is off the list.",
+      "addFailed": "The addresses were not added. Try again.",
+      "addresses": "Addresses",
+      "onePerLine": "One address per line",
+      "removeFailed": "The address was not removed. Try again.",
+      "removeTitle": "Remove from the list?",
+      "removeBody": "They will get marketing mail again only if they agree again."
+    },
+    "close": "Close",
+    "cancel": "Cancel",
+    "dkim": {
+      "makeFailed": "The key could not be made. Try again.",
+      "checking": "Checking {domain} in DNS…",
+      "checkAgain": "Check again",
+      "label": "Sign marketing mail (DKIM)",
+      "unusable": "This key no longer works on this server. Make a new one and publish its record.",
+      "make": "Make a key",
+      "copy": "Copy DNS record",
+      "found": "Found in DNS",
+      "notFound": "Not found yet — DNS can take an hour"
+    },
+    "postal": {
+      "label": "Postal address",
+      "sub": "Required for marketing mail.",
+      "error": "At most 300 characters."
+    },
+    "replyTo": {
+      "label": "Replies to marketing mail go to",
+      "error": "Enter one e-mail address, such as hello@example.com."
+    },
+    "dns": {
+      "unchecked": "DNS could not be asked",
+      "asking": "Asking DNS…"
+    },
+    "heading": "Marketing mail",
+    "freeMail": "Can’t send marketing mail: use your own domain.",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "Found:",
+      "notFound": "Not found",
+      "howTo": "How to add a DMARC record"
+    },
+    "sheet": {
+      "titlePlain": "E-mail settings",
+      "refused": "You can’t change the e-mail settings of this table.",
+      "loadFailed": "These settings could not be loaded. Try again.",
+      "saved": "E-mail settings saved.",
+      "saveFailed": "The settings were not saved. Try again.",
+      "title": "E-mail settings for {table}",
+      "subtitle": "{table} — {app}",
+      "canEmail": "Can be e-mailed from campaigns",
+      "emailColumn": "E-mail column",
+      "nameColumn": "Name column",
+      "existingHeading": "Existing customers",
+      "existing": "Existing customers may get marketing mail without ticking a box",
+      "existingBody": "In the UK, the EU and Canada (for two years after a purchase) you may e-mail your own customers about similar things if you offered a way to say no when you took their address, and in every mail. It does not apply everywhere:",
+      "guide": "check the guide",
+      "customer": "Who counts as a customer",
+      "tick": "I offered a way to say no when we took their address",
+      "save": "Save"
+    }
   }
 }

@@ -89,9 +89,13 @@ const DESCRIPTIONS = {
   designer:
     'Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself ' +
     '(a Super Admin, with their password). The Designer’s own routes exist only while the server runs it',
+  email:
+    'The marketing mail settings — each sender’s DKIM key and DNS checks, where replies go, and the addresses ' +
+    'a mail service calls to report bounces and spam (no reply ever carries a key or a secret)',
   'email-audience':
     'A campaign to the people of a table — the tables you may send to, their saved views, the first send’s ' +
-    'review of people ticked before records were kept, and the owner’s switch for existing customers',
+    'review of people ticked before records were kept, the owner’s switch for existing customers, and a ' +
+    'table’s e-mail settings (whether campaigns may mail it, its address and name columns)',
   'email-blocks': 'Reusable email sections saved from the editor — list, save one, delete one',
   'email-runs': 'Campaign sends — cancel a scheduled or running run',
   'email-templates':

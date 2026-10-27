@@ -62,6 +62,7 @@ import {
 
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { MapsSettingsPage } from './MapsSettingsPage.js';
+import { DoNotEmailPage } from '../marketing/DoNotEmailPage.js';
 import {
   BRANDING_QUERY_KEY,
   deleteBrandingLogo,
@@ -99,6 +100,16 @@ import {
   type SecuritySettings,
   type WorkspaceSettingsData,
 } from './workspaceApi.js';
+import { BounceCard } from '../marketing/BounceCard.js';
+import { SenderMarketingBlock } from '../marketing/SenderMarketingBlock.js';
+import {
+  MARKETING_QUERY_KEY,
+  marketingQuery,
+  putMarketingReplyTo,
+  putPostalAddress,
+  type MarketingSender,
+  type MarketingSettings,
+} from '../marketing/marketingApi.js';
 
 const SUPER_ADMIN_ROLE = 'super-admin';
 
@@ -158,6 +169,21 @@ interface FormValues {
   attachmentMb: string;
   /** `system.publicOrigin` as typed; empty = not set. */
   publicOrigin: string;
+  /** The sender's postal address every marketing mail carries (`email.postalAddress`); empty = not set. */
+  postalAddress: string;
+  /** "Replies to marketing mail go to" (`email.marketingReplyTo`); empty = not set. */
+  marketingReplyTo: string;
+}
+
+/** The registry's cap on `email.postalAddress`. */
+const POSTAL_ADDRESS_MAX = 300;
+/** `REPLY_TO` in apps/server/src/email/send.ts, mirrored: one plain address. */
+const REPLY_TO_SHAPE = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/;
+
+/** A sender's address as the server compares it (`bareAddress`): the part in angle brackets, trimmed, in lower case. */
+function bareOf(value: string): string {
+  const angled = /<([^>]+)>/.exec(value);
+  return (angled?.[1] ?? value).trim().toLowerCase();
 }
 
 const MB = 1024 * 1024;
@@ -207,6 +233,7 @@ function toValues(
   data: WorkspaceSettingsData,
   security: SecuritySettings,
   email: EmailSettings,
+  marketing: MarketingSettings,
 ): FormValues {
   return {
     appName: data.branding.appName,
@@ -225,6 +252,8 @@ function toValues(
     senders: email.senders.map((sender) => ({ ...sender })),
     attachmentMb: toMb(email.maxAttachmentBytes),
     publicOrigin: email.publicOrigin ?? '',
+    postalAddress: marketing.postalAddress ?? '',
+    marketingReplyTo: marketing.replyTo ?? '',
   };
 }
 
@@ -432,27 +461,39 @@ function WorkspaceForm({
   initial,
   initialSecurity,
   initialEmail,
+  initialMarketing,
 }: {
   initial: WorkspaceSettingsData;
   initialSecurity: SecuritySettings;
   initialEmail: EmailSettings;
+  initialMarketing: MarketingSettings;
 }): ReactNode {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
   const [values, setValues] = useState<FormValues>(() =>
-    toValues(initial, initialSecurity, initialEmail),
+    toValues(initial, initialSecurity, initialEmail, initialMarketing),
   );
   const [reviewOpen, setReviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const before = toValues(initial, initialSecurity, initialEmail);
+  const before = toValues(initial, initialSecurity, initialEmail, initialMarketing);
+  // The senders' keys and DNS move without the draft: read live, not from the form's snapshot.
+  const marketing = useQuery({ ...marketingQuery(), initialData: initialMarketing }).data;
 
   // `/studio/settings#email` — where the email manager's "Email settings" and
-  // "Manage senders" items land: scroll the SMTP card into view.
+  // "Manage senders" items land: scroll the SMTP card into view. Any other id
+  // on the page works the same (the send dialog's fix links open
+  // `#marketing-postal-address`, `#senders`, `#email-link-origin`, `#bounces`),
+  // and a field it names takes the focus.
   const hash = useLocation({ select: (location) => location.hash });
   useEffect(() => {
-    if (hash.replace(/^#/, '') !== 'email') return;
-    document.getElementById('email')?.scrollIntoView({ block: 'start' });
+    const id = hash.replace(/^#/, '');
+    if (id === '') return;
+    const target = document.getElementById(id);
+    if (target === null) return;
+    target.scrollIntoView({ block: id === 'email' ? 'start' : 'center' });
+    const field = target instanceof HTMLInputElement ? target : id === 'email' ? null : target.querySelector('input');
+    field?.focus({ preventScroll: true });
   }, [hash]);
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]): void {
@@ -544,6 +585,47 @@ function WorkspaceForm({
   const linkOriginInvalid = linkOriginText !== '' && linkOrigin === null;
   const linkOriginDirty = (linkOrigin ?? linkOriginText) !== before.publicOrigin;
 
+  // --- marketing mail: the postal address and the reply address --------------
+  const postalText = values.postalAddress.trim();
+  const postalDirty = postalText !== before.postalAddress;
+  const postalInvalid = postalText.length > POSTAL_ADDRESS_MAX;
+  const replyText = values.marketingReplyTo.trim();
+  const replyDirty = replyText.toLowerCase() !== before.marketingReplyTo.toLowerCase();
+  const replyInvalid = replyText !== '' && (replyText.length > 254 || !REPLY_TO_SHAPE.test(replyText));
+
+  // --- marketing mail: the block under each saved sender ----------------------
+  // A sender as the server saved it: a row being typed into, or one not yet
+  // saved, has no block until it is (its DNS and key are about the saved one).
+  const implicitSender = marketing.senders.find((sender) => sender.implicit) ?? null;
+  const savedSender = (address: string): MarketingSender | null => marketing.senders.find((sender) => !sender.implicit && sender.address === bareOf(address)) ?? null;
+  const shown: MarketingSender[] = [
+    ...(implicitSender !== null && smtpFrom !== '' && implicitSender.address === bareOf(smtpFrom) ? [implicitSender] : []),
+    ...values.senders.flatMap((sender) => {
+      const saved = savedSender(sender.address);
+      return saved === null ? [] : [saved];
+    }),
+  ];
+  // The postal address and the reply address are one each per install: they
+  // show in one block, the first sender's at the business's own domain.
+  const hostAddress = (shown.find((sender) => !sender.freeMail) ?? shown[0])?.address ?? null;
+  const marketingBlockFor = (sender: MarketingSender | null): ReactNode =>
+    sender === null ? null : (
+      <SenderMarketingBlock
+        sender={sender}
+        host={sender.address === hostAddress}
+        postal={{
+          value: values.postalAddress,
+          error: postalInvalid ? t('studio:marketingMail.postal.error', 'At most 300 characters.') : null,
+          onChange: (value) => set('postalAddress', value),
+        }}
+        replyTo={{
+          value: values.marketingReplyTo,
+          error: replyInvalid ? t('studio:marketingMail.replyTo.error', 'Enter one e-mail address, such as hello@example.com.') : null,
+          onChange: (value) => set('marketingReplyTo', value),
+        }}
+      />
+    );
+
   const dirty =
     nameDirty ||
     versionDirty ||
@@ -552,7 +634,9 @@ function WorkspaceForm({
     smtpDirty ||
     sendersDirty ||
     capDirty ||
-    linkOriginDirty;
+    linkOriginDirty ||
+    postalDirty ||
+    replyDirty;
 
   const appNameInvalid = values.appName.trim().length === 0 || values.appName.trim().length > 60;
   const invalid =
@@ -565,7 +649,9 @@ function WorkspaceForm({
     (smtpInUse && smtpPort === null) ||
     sendersInvalid ||
     attachmentMb === null ||
-    linkOriginInvalid;
+    linkOriginInvalid ||
+    postalInvalid ||
+    replyInvalid;
 
   // Review-then-confirm: the modal lists exactly what changes.
   const change = (beforeValue: string, afterValue: string): string =>
@@ -688,6 +774,18 @@ function WorkspaceForm({
       value: change(before.publicOrigin === '' ? '—' : before.publicOrigin, linkOrigin ?? '—'),
     });
   }
+  if (postalDirty) {
+    changes.push({
+      label: t('studio:marketingMail.postal.label', 'Postal address'),
+      value: change(before.postalAddress === '' ? '—' : before.postalAddress, postalText === '' ? '—' : postalText),
+    });
+  }
+  if (replyDirty) {
+    changes.push({
+      label: t('studio:marketingMail.replyTo.label', 'Replies to marketing mail go to'),
+      value: change(before.marketingReplyTo === '' ? '—' : before.marketingReplyTo, replyText === '' ? '—' : replyText),
+    });
+  }
 
   function save(): void {
     setSaving(true);
@@ -760,6 +858,17 @@ function WorkspaceForm({
         if (Object.keys(emailBody).length > 0) {
           queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(emailBody));
         }
+        // The marketing mail fields: each its own put, only when it changed.
+        if (postalDirty && !postalInvalid) {
+          const postalAddress = await putPostalAddress(postalText === '' ? null : postalText);
+          queryClient.setQueryData<MarketingSettings>(MARKETING_QUERY_KEY, (prev) => (prev === undefined ? prev : { ...prev, postalAddress }));
+        }
+        if (replyDirty && !replyInvalid) {
+          const replyTo = await putMarketingReplyTo(replyText === '' ? null : replyText);
+          queryClient.setQueryData<MarketingSettings>(MARKETING_QUERY_KEY, (prev) => (prev === undefined ? prev : { ...prev, replyTo }));
+        }
+        // A sender added or removed changes the marketing blocks under them.
+        if (sendersDirty || smtpDirty || linkOriginDirty) void queryClient.invalidateQueries({ queryKey: MARKETING_QUERY_KEY });
 
         queryClient.setQueryData(WORKSPACE_SETTINGS_QUERY_KEY, data);
         // The rail reads the branding query, not this one — without this the
@@ -1122,13 +1231,16 @@ function WorkspaceForm({
             )}
           </p>
 
-          <ul className="flex flex-col gap-3" data-part="email-senders">
+          <ul id="senders" className="flex flex-col gap-3" data-part="email-senders">
             {smtpFrom === '' ? null : (
-              <li className="flex items-center gap-3 rounded-md border border-border bg-surface-2 px-3 py-2">
-                <span className="min-w-0 flex-1 truncate text-body-sm text-fg">{smtpFrom}</span>
-                <span className="shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-caption font-bold text-fg-muted">
-                  {t('studio:settingsHub.email.senders.implicit', 'SMTP From address')}
-                </span>
+              <li className="overflow-hidden rounded-lg border border-border">
+                <div className="flex items-center gap-3 bg-surface-2 px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-body-sm text-fg">{smtpFrom}</span>
+                  <span className="shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-caption font-bold text-fg-muted">
+                    {t('studio:settingsHub.email.senders.implicit', 'SMTP From address')}
+                  </span>
+                </div>
+                {marketingBlockFor(implicitSender !== null && implicitSender.address === bareOf(smtpFrom) ? implicitSender : null)}
               </li>
             )}
             {values.senders.map((sender, index) => {
@@ -1137,43 +1249,46 @@ function WorkspaceForm({
               return (
                 // Index keys are correct here: rows are a positional list the
                 // admin adds to and removes from, with no identity of their own.
-                <li key={index} className="grid gap-3 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
-                  <FormField label={t('studio:settingsHub.email.senders.name', 'Display name')}>
-                    <Input
-                      value={sender.name}
-                      autoComplete="off"
-                      onChange={(event) =>
-                        set(
-                          'senders',
-                          values.senders.map((row, i) => (i === index ? { ...row, name: event.target.value } : row)),
-                        )
-                      }
-                    />
-                  </FormField>
-                  <FormField
-                    label={t('studio:settingsHub.email.senders.address', 'Address')}
-                    {...(invalidAddress
-                      ? { error: t('studio:settingsHub.email.senders.error', 'Enter an email address.') }
-                      : {})}
-                  >
-                    <Input
-                      value={sender.address}
-                      autoComplete="off"
-                      onChange={(event) =>
-                        set(
-                          'senders',
-                          values.senders.map((row, i) => (i === index ? { ...row, address: event.target.value } : row)),
-                        )
-                      }
-                    />
-                  </FormField>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => set('senders', values.senders.filter((_, i) => i !== index))}
-                  >
-                    {t('studio:settingsHub.email.senders.remove', 'Remove sender')}
-                  </Button>
+                <li key={index} className="overflow-hidden rounded-lg border border-border">
+                  <div className="grid gap-3 p-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+                    <FormField label={t('studio:settingsHub.email.senders.name', 'Display name')}>
+                      <Input
+                        value={sender.name}
+                        autoComplete="off"
+                        onChange={(event) =>
+                          set(
+                            'senders',
+                            values.senders.map((row, i) => (i === index ? { ...row, name: event.target.value } : row)),
+                          )
+                        }
+                      />
+                    </FormField>
+                    <FormField
+                      label={t('studio:settingsHub.email.senders.address', 'Address')}
+                      {...(invalidAddress
+                        ? { error: t('studio:settingsHub.email.senders.error', 'Enter an email address.') }
+                        : {})}
+                    >
+                      <Input
+                        value={sender.address}
+                        autoComplete="off"
+                        onChange={(event) =>
+                          set(
+                            'senders',
+                            values.senders.map((row, i) => (i === index ? { ...row, address: event.target.value } : row)),
+                          )
+                        }
+                      />
+                    </FormField>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => set('senders', values.senders.filter((_, i) => i !== index))}
+                    >
+                      {t('studio:settingsHub.email.senders.remove', 'Remove sender')}
+                    </Button>
+                  </div>
+                  {marketingBlockFor(savedSender(sender.address))}
                 </li>
               );
             })}
@@ -1193,7 +1308,7 @@ function WorkspaceForm({
               (system.publicOrigin). On this card, beside the cap, because it
               shapes the message rather than the relay and saves without one.
               The row pattern is the cap's own. */}
-          <div className="mt-4 border-t border-border pt-4 sm:max-w-md">
+          <div id="email-link-origin" className="mt-4 border-t border-border pt-4 sm:max-w-md">
             <FormField
               label={t('studio:settingsHub.email.linkOrigin.label', 'Address in email links')}
               helper={t(
@@ -1246,6 +1361,11 @@ function WorkspaceForm({
         </CardBody>
       </Card>
 
+      {/* Where the mail service reports bounces and spam: its own card after
+          Senders (comp 5a). Its saves are its own, at the click: a key pasted
+          into a form that waits for "Save changes" is a key left in a draft. */}
+      <BounceCard />
+
       <div className="flex items-center justify-end gap-3">
         <Button disabled={!dirty || invalid} onClick={() => setReviewOpen(true)}>
           {t('studio:settingsHub.save', 'Save changes')}
@@ -1284,8 +1404,8 @@ function WorkspaceFormLoader(): ReactNode {
   // One `useSuspenseQueries`, not three `useSuspenseQuery` calls: the second of
   // those does not start until the first has resolved and the component has
   // re-run, which turns independent GETs into a waterfall.
-  const [{ data }, { data: security }, { data: email }] = useSuspenseQueries({
-    queries: [workspaceSettingsQuery(), securitySettingsQuery(), emailSettingsQuery()],
+  const [{ data }, { data: security }, { data: email }, { data: marketing }] = useSuspenseQueries({
+    queries: [workspaceSettingsQuery(), securitySettingsQuery(), emailSettingsQuery(), marketingQuery()],
   });
   // Remount on server change so a realtime refetch resets the draft — every
   // field the form owns is in the key, or an edit made elsewhere would leave
@@ -1307,9 +1427,11 @@ function WorkspaceFormLoader(): ReactNode {
     email.senders.map((sender) => `${sender.name}<${sender.address}>`).join(','),
     String(email.maxAttachmentBytes),
     email.publicOrigin ?? '',
+    marketing.postalAddress ?? '',
+    marketing.replyTo ?? '',
   ].join('|');
   return (
-    <WorkspaceForm key={key} initial={data} initialSecurity={security} initialEmail={email} />
+    <WorkspaceForm key={key} initial={data} initialSecurity={security} initialEmail={email} initialMarketing={marketing} />
   );
 }
 
@@ -1539,16 +1661,19 @@ export interface StudioSettingsPageProps {
   onOpenProject?: (() => void) | undefined;
   /** Never set on the hub: see {@link StudioSettingsOrMapsProps}. */
   maps?: undefined;
+  doNotEmail?: undefined;
 }
 
 /**
  * What the router mounts from this chunk: the hub, or — for `/settings/maps`,
- * with `maps` — the Maps page, which rides in the hub's chunk so that it adds
- * no lazy ref of its own to everybody's first load.
+ * with `maps` — the Maps page, or — for `/email-templates/do-not-email`, with
+ * `doNotEmail` — the do-not-email list, which ride in the hub's chunk so that
+ * they add no lazy ref of their own to everybody's first load.
  */
-export type StudioSettingsOrMapsProps = StudioSettingsPageProps | { maps: true };
+export type StudioSettingsOrMapsProps = StudioSettingsPageProps | { maps: true; doNotEmail?: undefined } | { doNotEmail: true; maps?: undefined };
 
 export function StudioSettingsPage(props: StudioSettingsOrMapsProps): ReactNode {
+  if (props.doNotEmail === true) return <DoNotEmailPage />;
   return props.maps === true ? <MapsSettingsPage /> : <StudioSettingsHub {...props} />;
 }
 
@@ -1592,7 +1717,9 @@ function StudioSettingsHub({
         )}
       />
 
-      {isSuperAdmin ? (
+      {/* The settings routes check `settings.manage`, which a role other than
+          the Super Admin may hold (a marketer setting up their senders). */}
+      {holds('settings.manage') ? (
         <WorkspaceFormLoader />
       ) : (
         <Alert

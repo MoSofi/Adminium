@@ -16,7 +16,8 @@ export default {
     "senders": "管理发件人",
     "exportAll": "全部导出",
     "settings": "邮件设置",
-    "archived": "已归档"
+    "archived": "已归档",
+    "doNotEmail": "禁止发送邮件名单"
   },
   "archivedChip": {
     "field": "正在显示",

@@ -777,6 +777,15 @@ export const SETTINGS_REGISTRY = {
     P,
   ),
   'email.postalAddress': def<string | null>(z.string().trim().min(1).max(300).nullable(), null, 'The sender\'s postal address, printed in every marketing mail', P),
+  // Where replies to marketing mail go: the Reply-To of every campaign mail,
+  // and of an app's or a rule's marketing mail that names no reply address of
+  // its own. Empty means not set: replies then go to the From address.
+  'email.marketingReplyTo': def<string | null>(
+    z.string().trim().min(3).max(254).regex(/^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/, 'must be one plain e-mail address').nullable(),
+    null,
+    'Where replies to marketing mail go (its Reply-To)',
+    P,
+  ),
 } as const;
 
 export type SettingsRegistry = typeof SETTINGS_REGISTRY;

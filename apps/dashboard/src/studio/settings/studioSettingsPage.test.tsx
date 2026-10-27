@@ -29,6 +29,7 @@ import type {
   WorkspaceBranding,
   WorkspaceSettingsData,
 } from './workspaceApi.js';
+import type { MarketingSettings } from '../marketing/marketingApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -109,6 +110,9 @@ let systemActions: string[] | undefined;
 
 /** `GET /public-api` as the server holds it; a PUT merges into it. */
 let publicApi = { enabled: true, registered: true, origins: ['https://shop.example.com'], docsEnabled: false };
+
+/** `GET /email/marketing`: no senders, nothing set, unless a test says otherwise. */
+let marketing: MarketingSettings = { postalAddress: null, replyTo: null, publicOrigin: null, senders: [] };
 
 function stubFetch(
   roles: string[],
@@ -212,6 +216,26 @@ function stubFetch(
     if (url === '/api/v1/connections' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { connections }));
     }
+    if (url === '/api/v1/email/marketing' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { data: marketing }));
+    }
+    if (url === '/api/v1/email/marketing/check' && method === 'POST') {
+      return Promise.resolve(jsonResponse(200, { data: { dmarc: { policy: 'quarantine', recordDomain: 'meridian.example' }, dkim: 'found', refusals: [] } }));
+    }
+    if (url === '/api/v1/email/notice-endpoints' && method === 'GET') {
+      const services = ['ses', 'postmark', 'mailgun', 'brevo', 'sendgrid', 'other'].map((service) => ({
+        service,
+        opened: false,
+        secretRow: 'copy-credentials',
+        ready: false,
+        secretSetAt: null,
+        confirmedAt: null,
+        lastNoticeAt: null,
+        noticeCount: 0,
+        address: null,
+      }));
+      return Promise.resolve(jsonResponse(200, { data: { publicOrigin: null, suggested: null, services } }));
+    }
     if (method === 'DELETE' && url.startsWith('/api/v1/connections/')) {
       return Promise.resolve(jsonResponse(200, { ok: true }));
     }
@@ -256,6 +280,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   systemActions = undefined;
   publicApi = { enabled: true, registered: true, origins: ['https://shop.example.com'], docsEnabled: false };
+  marketing = { postalAddress: null, replyTo: null, publicOrigin: null, senders: [] };
 });
 
 describe('StudioSettingsPage', () => {
@@ -615,6 +640,8 @@ describe('StudioSettingsPage', () => {
   });
 
   it('admins get the super-admin notice, no settings fetch, but keep the danger zone', async () => {
+    // The built-in Admin holds connections.manage and not settings.manage.
+    systemActions = ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run', 'project.read'];
     const { fetchMock } = await renderPage(['admin']);
     expect(
       await screen.findByText('Only a super admin can change workspace identity and security settings.'),

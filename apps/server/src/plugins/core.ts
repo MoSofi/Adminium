@@ -337,6 +337,11 @@ export const RATE_BUCKETS = {
   'privacy-export': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
   // Erasing a person: rare, deliberate, and it walks every people table and the audit log.
   'privacy-erase': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  // The marketing mail settings: "Check again" asks DNS (up to nine names a
+  // sender), "Make a key" makes an RSA key. A person setting up a sender
+  // checks a few times an hour; these stop a script hammering DNS or the CPU.
+  'mail-dns': { max: 240, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  'mail-settings': { max: 120, timeWindowMs: 3_600_000, keyBy: 'principal' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

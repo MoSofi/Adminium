@@ -215,9 +215,17 @@ function piiAllowedFor(set: PermissionSet, connectionId: string, tableId: string
 
 /**
  * The people table `table` on `connectionId` as `userId` reaches it now, or
- * why they may not mail it.
+ * why they may not mail it. `evenSwitchedOff` opens a table the owner
+ * switched off campaigns for, as its e-mail sheet does (to switch it back
+ * on); every other check stands.
  */
-export async function openPeopleTable(deps: AudienceDeps, userId: string | null, connectionId: string, tableName: string): Promise<Opened<PeopleTableAccess>> {
+export async function openPeopleTable(
+  deps: AudienceDeps,
+  userId: string | null,
+  connectionId: string,
+  tableName: string,
+  options: { evenSwitchedOff?: boolean } = {},
+): Promise<Opened<PeopleTableAccess>> {
   let whole: SnapshotView;
   try {
     whole = await loadSnapshotView(deps.meta, connectionId);
@@ -232,7 +240,7 @@ export async function openPeopleTable(deps: AudienceDeps, userId: string | null,
   }
   const label = wholeTable.table.label ?? wholeTable.name;
   const declared = await peopleTablesOf(deps.meta).of(connectionId, whole.model, wholeTable.id);
-  if (declared === null || !declared.canEmail || declared.email === null || declared.appStatus !== 'installed' || wholeTable.primaryKey.length === 0) {
+  if (declared === null || (!declared.canEmail && options.evenSwitchedOff !== true) || declared.email === null || declared.appStatus !== 'installed' || wholeTable.primaryKey.length === 0) {
     return { refuse: 'not-people', label };
   }
   const user = userId === null ? null : await usersRepo(deps.meta).findById(userId);
@@ -830,7 +838,7 @@ export interface AudienceTableEntry {
 }
 
 /** An app's name as its manifest says it. */
-function appNameOf(document: unknown, fallback: string): string {
+export function appNameOf(document: unknown, fallback: string): string {
   const name = (document as { name?: unknown } | null)?.name;
   return typeof name === 'string' && name !== '' ? name : fallback;
 }

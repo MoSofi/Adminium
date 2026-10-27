@@ -4251,5 +4251,137 @@ export default {
   },
   "privacy": {
     "erasedPerson": "Vymazaná osoba"
+  },
+  "marketingMail": {
+    "bounce": {
+      "other": "Jiná služba",
+      "signingKey": "Podpisový klíč",
+      "signingKeyPaste": "Vložte podpisový klíč ze služby {service}",
+      "signingKeySaved": "Podpisový klíč uložen.",
+      "verificationKey": "Ověřovací klíč",
+      "verificationKeyPaste": "Vložte ověřovací klíč ze služby {service}",
+      "verificationKeySaved": "Ověřovací klíč uložen.",
+      "topicArn": "ARN tématu",
+      "topicArnPaste": "Vložte ARN tématu ze služby {service}",
+      "topicArnSaved": "ARN tématu uloženo.",
+      "setOn": "Nastaveno {date}",
+      "failed": "Neuloženo. Zkuste to znovu.",
+      "invalid": "Neuloženo. Zkontrolujte, co jste vložili, a zkuste to znovu.",
+      "replace": "Nahradit",
+      "copyThese": "Zkopírujte je do {service}",
+      "user": "Uživatelské jméno",
+      "copyUser": "Zkopírovat uživatelské jméno",
+      "password": "Heslo",
+      "copyPassword": "Zkopírovat heslo",
+      "shownOnce": "Zobrazeno jen teď. „Nahradit“ vytvoří nové a tyto zneplatní.",
+      "save": "Uložit",
+      "title": "Nedoručitelné e-maily a hlášení spamu",
+      "body": "Vaše poštovní služba dá Adminiu vědět, když se e-mail vrátí nebo je označen jako spam, a tato adresa se přidá na seznam „Neposílat e-maily“.",
+      "service": "Vaše poštovní služba",
+      "otherNote": "E-maily odmítnuté při odesílání se zachytí i tak. Ostatní nedoručitelné adresy přidejte ručně na seznam „Neposílat e-maily“.",
+      "paste": "Vložte tuto adresu do {service}",
+      "noOrigin": "Nejprve nastavte adresu v odkazech v e-mailech: vaše poštovní služba ji potřebuje, aby se k tomuto serveru dostala.",
+      "setOrigin": "Nastavit adresu",
+      "copyAddress": "Zkopírovat adresu",
+      "nothingYet": "Zatím nic nedorazilo",
+      "lastNotice": "Poslední hlášení {ago}"
+    },
+    "copied": "Zkopírováno do schránky.",
+    "dne": {
+      "why": {
+        "link": "Odhlášeno odkazem",
+        "spam": "Označeno jako spam",
+        "bounce": "Nedoručitelné",
+        "hand": "Přidáno ručně",
+        "relayUnsubscribe": "Odhlášeno přes poštovní službu",
+        "oldMark": "Odhlášeno před zavedením záznamů",
+        "leadFinder": "Námitka přes Lead finder",
+        "erased": "Vymazáno na žádost"
+      },
+      "addedBy": "Přidal(a) {name}",
+      "leadFinder": "Lead finder",
+      "add": "Přidat adresy",
+      "title": "Seznam „Neposílat e-maily“",
+      "loadFailed": "Seznam se nepodařilo načíst. Zkuste to znovu.",
+      "empty": "Na seznamu zatím nikdo není.",
+      "search": "Hledat adresy",
+      "whyLabel": "Důvod",
+      "whyAny": "Důvod: jakýkoli",
+      "count": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
+      "col": {
+        "address": "Adresa",
+        "why": "Důvod",
+        "when": "Kdy",
+        "from": "Odkud",
+        "actions": "Akce"
+      },
+      "noMatch": "Žádný záznam neodpovídá.",
+      "erased": "Vymazaná osoba — ponechána, aby už nikdy nedostala e-mail",
+      "remove": "Odebrat",
+      "more": "Zobrazit další",
+      "added": "{added, plural, one {Přidána # adresa} few {Přidány # adresy} many {Přidáno # adresy} other {Přidáno # adres}}",
+      "notAddresses": "Nejsou to adresy, vynecháno: {list}",
+      "already": "{count, plural, one {# už na seznamu byla} few {# už na seznamu byly} many {# už na seznamu bylo} other {# už na seznamu bylo}}",
+      "removed": "{address} už na seznamu není.",
+      "addFailed": "Adresy nebyly přidány. Zkuste to znovu.",
+      "addresses": "Adresy",
+      "onePerLine": "Jedna adresa na řádek",
+      "removeFailed": "Adresa nebyla odebrána. Zkuste to znovu.",
+      "removeTitle": "Odebrat ze seznamu?",
+      "removeBody": "Marketingové e-maily znovu dostane, jen pokud znovu souhlasí."
+    },
+    "close": "Zavřít",
+    "cancel": "Zrušit",
+    "dkim": {
+      "makeFailed": "Klíč se nepodařilo vytvořit. Zkuste to znovu.",
+      "checking": "Kontroluje se {domain} v DNS…",
+      "checkAgain": "Zkontrolovat znovu",
+      "label": "Podepisovat marketingové e-maily (DKIM)",
+      "unusable": "Tento klíč na tomto serveru už nefunguje. Vytvořte nový a zveřejněte jeho záznam.",
+      "make": "Vytvořit klíč",
+      "copy": "Zkopírovat záznam DNS",
+      "found": "Nalezeno v DNS",
+      "notFound": "Zatím nenalezeno — DNS může trvat hodinu"
+    },
+    "postal": {
+      "label": "Poštovní adresa",
+      "sub": "Povinné pro marketingové e-maily.",
+      "error": "Nejvýše 300 znaků."
+    },
+    "replyTo": {
+      "label": "Odpovědi na marketingové e-maily chodí na",
+      "error": "Zadejte jednu e-mailovou adresu, například hello@example.com."
+    },
+    "dns": {
+      "unchecked": "DNS se nepodařilo dotázat",
+      "asking": "Dotazuje se DNS…"
+    },
+    "heading": "Marketingové e-maily",
+    "freeMail": "Nelze posílat marketingové e-maily: použijte vlastní doménu.",
+    "dmarc": {
+      "label": "DMARC",
+      "found": "Nalezeno:",
+      "notFound": "Nenalezeno",
+      "howTo": "Jak přidat záznam DMARC"
+    },
+    "sheet": {
+      "titlePlain": "Nastavení e-mailu",
+      "refused": "Nastavení e-mailu této tabulky nemůžete měnit.",
+      "loadFailed": "Nastavení se nepodařilo načíst. Zkuste to znovu.",
+      "saved": "Nastavení e-mailu uloženo.",
+      "saveFailed": "Nastavení nebylo uloženo. Zkuste to znovu.",
+      "title": "Nastavení e-mailu pro {table}",
+      "subtitle": "{table} — {app}",
+      "canEmail": "Lze oslovit e-mailem z kampaní",
+      "emailColumn": "Sloupec e-mailu",
+      "nameColumn": "Sloupec jména",
+      "existingHeading": "Stávající zákazníci",
+      "existing": "Stávající zákazníci mohou dostávat marketingové e-maily, aniž by zaškrtli políčko",
+      "existingBody": "Ve Spojeném království, v EU a v Kanadě (po dva roky od nákupu) smíte psát svým zákazníkům o podobných věcech, pokud jste jim při získání adresy a v každém e-mailu nabídli možnost odmítnout. Neplatí to všude:",
+      "guide": "podívejte se do průvodce",
+      "customer": "Kdo se počítá jako zákazník",
+      "tick": "Při získání adresy jsem nabídl(a) možnost odmítnout",
+      "save": "Uložit"
+    }
   }
 } as const;

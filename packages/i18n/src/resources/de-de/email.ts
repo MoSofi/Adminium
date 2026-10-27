@@ -16,7 +16,8 @@ export default {
     "senders": "Absender verwalten",
     "exportAll": "Alle herunterladen",
     "settings": "E-Mail-Einstellungen",
-    "archived": "Archiviert"
+    "archived": "Archiviert",
+    "doNotEmail": "Liste „Keine E-Mails“"
   },
   "archivedChip": {
     "field": "Angezeigt",

@@ -28,14 +28,18 @@ export { hasStudioAccess };
 export function StudioGuard({
   children,
   requires,
+  alsoFor,
 }: {
   children: ReactNode;
   /** One key, or a list meaning ANY of them opens the screen (Payments: `payments.manage` or `payments.view`). */
   requires?: SystemAction | readonly SystemAction[];
+  /** With no `requires`: the role test, or this key (the settings hub opens to a marketer holding `settings.manage`). */
+  alsoFor?: SystemAction;
 }) {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const keys: readonly SystemAction[] | null = requires === undefined ? null : typeof requires === 'string' ? [requires] : requires;
-  const allowed = keys === null ? hasStudioAccess(bootstrap.roles) : keys.some((key) => holdsSystemAction(bootstrap, key));
+  const allowed =
+    keys === null ? hasStudioAccess(bootstrap.roles) || (alsoFor !== undefined && holdsSystemAction(bootstrap, alsoFor)) : keys.some((key) => holdsSystemAction(bootstrap, key));
   if (!allowed) {
     return <StatePage stateId="forbidden" fullPage={false} />;
   }

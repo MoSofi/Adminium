@@ -304,8 +304,9 @@ function ListsRouteComponent() {
 
 function SettingsRouteComponent() {
   const navigate = useNavigate();
+  // A marketer's role holds `settings.manage` without being an Admin: their senders are set up here.
   return (
-    <StudioGuard>
+    <StudioGuard alsoFor="settings.manage">
       <StudioBody>
         <StudioSettingsPageLazy
           onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })}
@@ -330,6 +331,17 @@ function SettingsRouteComponent() {
  * settings hub's chunk (`maps` picks it there): a lazy ref of its own would be
  * one more thing in everybody's first load, for a page a few people open.
  */
+/** The do-not-email list (from the e-mail templates' ⋯ menu): it rides the settings hub's chunk, as Maps does. */
+function DoNotEmailRouteComponent() {
+  return (
+    <StudioGuard requires="settings.manage">
+      <StudioBody>
+        <StudioSettingsPageLazy doNotEmail />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
 function MapsSettingsRouteComponent() {
   return (
     <StudioGuard requires="settings.manage">
@@ -506,6 +518,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: AiSettingsRouteComponent,
   });
 
+  const doNotEmailRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/email-templates/do-not-email',
+    component: DoNotEmailRouteComponent,
+  });
+
   const mapsSettingsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/settings/maps',
@@ -620,6 +638,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     aiSettingsRoute,
     projectSettingsRoute,
     mapsSettingsRoute,
+    doNotEmailRoute,
     publicApiRoute,
     hostedAppsRoute,
     appSettingsRoute,

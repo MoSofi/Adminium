@@ -16,7 +16,8 @@ export default {
     "senders": "Manage senders",
     "exportAll": "Export all",
     "settings": "Email settings",
-    "archived": "Archived"
+    "archived": "Archived",
+    "doNotEmail": "Do-not-email list"
   },
   "archivedChip": {
     "field": "Showing",

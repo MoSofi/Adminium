@@ -15547,6 +15547,10 @@
     "status": "mt",
     "srcHash": "eddc813f35b1"
   },
+  "email.actions.doNotEmail": {
+    "status": "mt",
+    "srcHash": "3abaa313fc52"
+  },
   "email.actions.exportAll": {
     "status": "mt",
     "srcHash": "f146c71d62a3"
@@ -28022,6 +28026,446 @@
   "studio.llmRuns.review.value.widgetCount": {
     "status": "src",
     "srcHash": "cba2fb9c3015"
+  },
+  "studio.marketingMail.bounce.body": {
+    "status": "mt",
+    "srcHash": "73dff4d6e23b"
+  },
+  "studio.marketingMail.bounce.copyAddress": {
+    "status": "mt",
+    "srcHash": "4eaae53e88ef"
+  },
+  "studio.marketingMail.bounce.copyPassword": {
+    "status": "mt",
+    "srcHash": "cda3abab4f3a"
+  },
+  "studio.marketingMail.bounce.copyThese": {
+    "status": "mt",
+    "srcHash": "10d657301397"
+  },
+  "studio.marketingMail.bounce.copyUser": {
+    "status": "mt",
+    "srcHash": "f5d82a7401a6"
+  },
+  "studio.marketingMail.bounce.failed": {
+    "status": "mt",
+    "srcHash": "1a21b76bd7bd"
+  },
+  "studio.marketingMail.bounce.invalid": {
+    "status": "mt",
+    "srcHash": "c2fe935c16d2"
+  },
+  "studio.marketingMail.bounce.lastNotice": {
+    "status": "mt",
+    "srcHash": "2e082fce0622"
+  },
+  "studio.marketingMail.bounce.noOrigin": {
+    "status": "mt",
+    "srcHash": "f1da06e52ec4"
+  },
+  "studio.marketingMail.bounce.nothingYet": {
+    "status": "mt",
+    "srcHash": "ec88d30ee4a5"
+  },
+  "studio.marketingMail.bounce.other": {
+    "status": "mt",
+    "srcHash": "7c2bd23abe68"
+  },
+  "studio.marketingMail.bounce.otherNote": {
+    "status": "mt",
+    "srcHash": "e7e7f1031106"
+  },
+  "studio.marketingMail.bounce.password": {
+    "status": "mt",
+    "srcHash": "8be3c943b160"
+  },
+  "studio.marketingMail.bounce.paste": {
+    "status": "mt",
+    "srcHash": "111683bc2fff"
+  },
+  "studio.marketingMail.bounce.replace": {
+    "status": "mt",
+    "srcHash": "a7cf7b25a703"
+  },
+  "studio.marketingMail.bounce.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.marketingMail.bounce.service": {
+    "status": "mt",
+    "srcHash": "d8d6791ffc41"
+  },
+  "studio.marketingMail.bounce.setOn": {
+    "status": "mt",
+    "srcHash": "ebc90a8ba8d7"
+  },
+  "studio.marketingMail.bounce.setOrigin": {
+    "status": "mt",
+    "srcHash": "4d0eadd3f849"
+  },
+  "studio.marketingMail.bounce.shownOnce": {
+    "status": "mt",
+    "srcHash": "d944b30d020a"
+  },
+  "studio.marketingMail.bounce.signingKey": {
+    "status": "mt",
+    "srcHash": "6a9927fb9538"
+  },
+  "studio.marketingMail.bounce.signingKeyPaste": {
+    "status": "mt",
+    "srcHash": "bcca23d31c15"
+  },
+  "studio.marketingMail.bounce.signingKeySaved": {
+    "status": "mt",
+    "srcHash": "eac862ea4e8a"
+  },
+  "studio.marketingMail.bounce.title": {
+    "status": "mt",
+    "srcHash": "d18f497531ed"
+  },
+  "studio.marketingMail.bounce.topicArn": {
+    "status": "mt",
+    "srcHash": "742ec8f91756"
+  },
+  "studio.marketingMail.bounce.topicArnPaste": {
+    "status": "mt",
+    "srcHash": "b7ebbad5548c"
+  },
+  "studio.marketingMail.bounce.topicArnSaved": {
+    "status": "mt",
+    "srcHash": "aa0c49151895"
+  },
+  "studio.marketingMail.bounce.user": {
+    "status": "mt",
+    "srcHash": "542fc71480de"
+  },
+  "studio.marketingMail.bounce.verificationKey": {
+    "status": "mt",
+    "srcHash": "bb18aa69776f"
+  },
+  "studio.marketingMail.bounce.verificationKeyPaste": {
+    "status": "mt",
+    "srcHash": "f17fadb5d385"
+  },
+  "studio.marketingMail.bounce.verificationKeySaved": {
+    "status": "mt",
+    "srcHash": "4406f274eae3"
+  },
+  "studio.marketingMail.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.marketingMail.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.marketingMail.copied": {
+    "status": "mt",
+    "srcHash": "fee2a7f7af20"
+  },
+  "studio.marketingMail.dkim.checkAgain": {
+    "status": "mt",
+    "srcHash": "e185048ce3c0"
+  },
+  "studio.marketingMail.dkim.checking": {
+    "status": "mt",
+    "srcHash": "fa53c351522e"
+  },
+  "studio.marketingMail.dkim.copy": {
+    "status": "mt",
+    "srcHash": "901f3f04a1f2"
+  },
+  "studio.marketingMail.dkim.found": {
+    "status": "mt",
+    "srcHash": "fd068d584942"
+  },
+  "studio.marketingMail.dkim.label": {
+    "status": "mt",
+    "srcHash": "926ff677bfe6"
+  },
+  "studio.marketingMail.dkim.make": {
+    "status": "mt",
+    "srcHash": "fcb94d2bf366"
+  },
+  "studio.marketingMail.dkim.makeFailed": {
+    "status": "mt",
+    "srcHash": "660dc906596d"
+  },
+  "studio.marketingMail.dkim.notFound": {
+    "status": "mt",
+    "srcHash": "77ef45ce7cfb"
+  },
+  "studio.marketingMail.dkim.unusable": {
+    "status": "mt",
+    "srcHash": "4dd1ed2eecee"
+  },
+  "studio.marketingMail.dmarc.found": {
+    "status": "mt",
+    "srcHash": "ff3954373821"
+  },
+  "studio.marketingMail.dmarc.howTo": {
+    "status": "mt",
+    "srcHash": "f8674693190e"
+  },
+  "studio.marketingMail.dmarc.label": {
+    "status": "src",
+    "srcHash": "7023e86cdecb"
+  },
+  "studio.marketingMail.dmarc.notFound": {
+    "status": "mt",
+    "srcHash": "475c848673a3"
+  },
+  "studio.marketingMail.dne.add": {
+    "status": "mt",
+    "srcHash": "884b8ce64c1b"
+  },
+  "studio.marketingMail.dne.addFailed": {
+    "status": "mt",
+    "srcHash": "91ec11a8f8b7"
+  },
+  "studio.marketingMail.dne.added": {
+    "status": "mt",
+    "srcHash": "a4dd71407966"
+  },
+  "studio.marketingMail.dne.addedBy": {
+    "status": "mt",
+    "srcHash": "19b77b48a1ea"
+  },
+  "studio.marketingMail.dne.addresses": {
+    "status": "mt",
+    "srcHash": "4ca7b9663ad2"
+  },
+  "studio.marketingMail.dne.already": {
+    "status": "mt",
+    "srcHash": "ca77b77d9133"
+  },
+  "studio.marketingMail.dne.col.actions": {
+    "status": "src",
+    "srcHash": "c3cd636a585b"
+  },
+  "studio.marketingMail.dne.col.address": {
+    "status": "mt",
+    "srcHash": "d70f93df5e8f"
+  },
+  "studio.marketingMail.dne.col.from": {
+    "status": "mt",
+    "srcHash": "e6ad44f1edd9"
+  },
+  "studio.marketingMail.dne.col.when": {
+    "status": "mt",
+    "srcHash": "769bb19e615b"
+  },
+  "studio.marketingMail.dne.col.why": {
+    "status": "mt",
+    "srcHash": "21e2caea4476"
+  },
+  "studio.marketingMail.dne.count": {
+    "status": "mt",
+    "srcHash": "213994eef1d3"
+  },
+  "studio.marketingMail.dne.empty": {
+    "status": "mt",
+    "srcHash": "e096e703dcad"
+  },
+  "studio.marketingMail.dne.erased": {
+    "status": "mt",
+    "srcHash": "467cb25522d7"
+  },
+  "studio.marketingMail.dne.leadFinder": {
+    "status": "src",
+    "srcHash": "80d5b58262f3"
+  },
+  "studio.marketingMail.dne.loadFailed": {
+    "status": "mt",
+    "srcHash": "27f7b321bda8"
+  },
+  "studio.marketingMail.dne.more": {
+    "status": "mt",
+    "srcHash": "25911d48e023"
+  },
+  "studio.marketingMail.dne.noMatch": {
+    "status": "mt",
+    "srcHash": "611ba8450fcd"
+  },
+  "studio.marketingMail.dne.notAddresses": {
+    "status": "mt",
+    "srcHash": "a97019cfbc6d"
+  },
+  "studio.marketingMail.dne.onePerLine": {
+    "status": "mt",
+    "srcHash": "5251340a1b08"
+  },
+  "studio.marketingMail.dne.remove": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
+  },
+  "studio.marketingMail.dne.removeBody": {
+    "status": "mt",
+    "srcHash": "7b89336d7cd9"
+  },
+  "studio.marketingMail.dne.removeFailed": {
+    "status": "mt",
+    "srcHash": "4516dfeff0c3"
+  },
+  "studio.marketingMail.dne.removeTitle": {
+    "status": "mt",
+    "srcHash": "1ac1582fc9ec"
+  },
+  "studio.marketingMail.dne.removed": {
+    "status": "mt",
+    "srcHash": "0bdf1b83211c"
+  },
+  "studio.marketingMail.dne.search": {
+    "status": "mt",
+    "srcHash": "2f2e3fd1afe2"
+  },
+  "studio.marketingMail.dne.title": {
+    "status": "mt",
+    "srcHash": "3abaa313fc52"
+  },
+  "studio.marketingMail.dne.why.bounce": {
+    "status": "mt",
+    "srcHash": "dfe939fe6b97"
+  },
+  "studio.marketingMail.dne.why.erased": {
+    "status": "mt",
+    "srcHash": "7a9b9347c51f"
+  },
+  "studio.marketingMail.dne.why.hand": {
+    "status": "mt",
+    "srcHash": "f39dc4805437"
+  },
+  "studio.marketingMail.dne.why.leadFinder": {
+    "status": "mt",
+    "srcHash": "1ebf8daad688"
+  },
+  "studio.marketingMail.dne.why.link": {
+    "status": "mt",
+    "srcHash": "c94d7b24d564"
+  },
+  "studio.marketingMail.dne.why.oldMark": {
+    "status": "mt",
+    "srcHash": "bfd7ecfe8a2d"
+  },
+  "studio.marketingMail.dne.why.relayUnsubscribe": {
+    "status": "mt",
+    "srcHash": "13ccfb43ff43"
+  },
+  "studio.marketingMail.dne.why.spam": {
+    "status": "mt",
+    "srcHash": "71f7d60ed63e"
+  },
+  "studio.marketingMail.dne.whyAny": {
+    "status": "mt",
+    "srcHash": "d6d6159fe648"
+  },
+  "studio.marketingMail.dne.whyLabel": {
+    "status": "mt",
+    "srcHash": "21e2caea4476"
+  },
+  "studio.marketingMail.dns.asking": {
+    "status": "mt",
+    "srcHash": "09b1b79eb427"
+  },
+  "studio.marketingMail.dns.unchecked": {
+    "status": "mt",
+    "srcHash": "55d3bbac3b91"
+  },
+  "studio.marketingMail.freeMail": {
+    "status": "mt",
+    "srcHash": "565485f3cb1b"
+  },
+  "studio.marketingMail.heading": {
+    "status": "mt",
+    "srcHash": "43881ba86a0d"
+  },
+  "studio.marketingMail.postal.error": {
+    "status": "mt",
+    "srcHash": "8353bc8f7027"
+  },
+  "studio.marketingMail.postal.label": {
+    "status": "mt",
+    "srcHash": "b71c421a710c"
+  },
+  "studio.marketingMail.postal.sub": {
+    "status": "mt",
+    "srcHash": "55358cb083a7"
+  },
+  "studio.marketingMail.replyTo.error": {
+    "status": "mt",
+    "srcHash": "9bb03595b6a7"
+  },
+  "studio.marketingMail.replyTo.label": {
+    "status": "mt",
+    "srcHash": "c3fd059bcd4e"
+  },
+  "studio.marketingMail.sheet.canEmail": {
+    "status": "mt",
+    "srcHash": "24a11b64a891"
+  },
+  "studio.marketingMail.sheet.customer": {
+    "status": "mt",
+    "srcHash": "b3b8ee6f1458"
+  },
+  "studio.marketingMail.sheet.emailColumn": {
+    "status": "mt",
+    "srcHash": "cfe65458478b"
+  },
+  "studio.marketingMail.sheet.existing": {
+    "status": "mt",
+    "srcHash": "f3a133c21c6d"
+  },
+  "studio.marketingMail.sheet.existingBody": {
+    "status": "mt",
+    "srcHash": "1bc882382f36"
+  },
+  "studio.marketingMail.sheet.existingHeading": {
+    "status": "mt",
+    "srcHash": "57a090208f55"
+  },
+  "studio.marketingMail.sheet.guide": {
+    "status": "mt",
+    "srcHash": "7a842e1e8eed"
+  },
+  "studio.marketingMail.sheet.loadFailed": {
+    "status": "mt",
+    "srcHash": "d7ff31527e67"
+  },
+  "studio.marketingMail.sheet.nameColumn": {
+    "status": "mt",
+    "srcHash": "5834f5333b02"
+  },
+  "studio.marketingMail.sheet.refused": {
+    "status": "mt",
+    "srcHash": "bcf7fa832ab9"
+  },
+  "studio.marketingMail.sheet.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.marketingMail.sheet.saveFailed": {
+    "status": "mt",
+    "srcHash": "ebc92fab25eb"
+  },
+  "studio.marketingMail.sheet.saved": {
+    "status": "mt",
+    "srcHash": "031c5f745be4"
+  },
+  "studio.marketingMail.sheet.subtitle": {
+    "status": "src",
+    "srcHash": "6fb02a819a80"
+  },
+  "studio.marketingMail.sheet.tick": {
+    "status": "mt",
+    "srcHash": "3174b50ea7d9"
+  },
+  "studio.marketingMail.sheet.title": {
+    "status": "mt",
+    "srcHash": "8bb85db9ed1f"
+  },
+  "studio.marketingMail.sheet.titlePlain": {
+    "status": "mt",
+    "srcHash": "dacae69bd16e"
   },
   "studio.meta.checking": {
     "status": "mt",

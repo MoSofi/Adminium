@@ -9,4 +9,10 @@ import type { LockedFooter } from './render.js';
 export interface MarketingCarry {
   headers: Record<string, string>;
   locked: LockedFooter;
+  /**
+   * Where replies go: the mail's own reply address when it has one, else the
+   * marketing mail settings' "Replies to marketing mail go to"; null when
+   * neither is set (replies then go to the From).
+   */
+  replyTo: string | null;
 }

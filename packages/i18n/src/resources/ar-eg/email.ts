@@ -16,7 +16,8 @@ export default {
     "senders": "إدارة المرسلين",
     "exportAll": "تصدير الكل",
     "settings": "إعدادات البريد الإلكتروني",
-    "archived": "المؤرشفة"
+    "archived": "المؤرشفة",
+    "doNotEmail": "قائمة عدم المراسلة"
   },
   "archivedChip": {
     "field": "يعرض",

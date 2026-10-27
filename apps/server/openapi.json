@@ -83186,6 +83186,458 @@
         }
       }
     },
+    "/api/v1/email-audience/people-tables": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "appName": {
+                            "type": "string"
+                          },
+                          "canEmail": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "table",
+                          "label",
+                          "appName",
+                          "canEmail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "tables"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-audience/table-settings": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sheet": {
+                      "type": "object",
+                      "properties": {
+                        "connectionId": {
+                          "type": "string"
+                        },
+                        "table": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "appName": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "people",
+                            "companies"
+                          ]
+                        },
+                        "canEmail": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "columns": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "address": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "label",
+                              "address"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "customer": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "existingCustomers": {
+                          "type": "object",
+                          "properties": {
+                            "offered": {
+                              "type": "boolean"
+                            },
+                            "on": {
+                              "type": "boolean"
+                            },
+                            "at": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "by": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "offered",
+                            "on",
+                            "at",
+                            "by"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "connectionId",
+                        "table",
+                        "label",
+                        "appName",
+                        "kind",
+                        "canEmail",
+                        "email",
+                        "name",
+                        "columns",
+                        "customer",
+                        "existingCustomers"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "sheet"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "canEmail": {
+                    "type": "boolean"
+                  },
+                  "email": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "canEmail",
+                  "email",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sheet": {
+                      "type": "object",
+                      "properties": {
+                        "connectionId": {
+                          "type": "string"
+                        },
+                        "table": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "appName": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "people",
+                            "companies"
+                          ]
+                        },
+                        "canEmail": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "columns": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "address": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "label",
+                              "address"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "customer": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "existingCustomers": {
+                          "type": "object",
+                          "properties": {
+                            "offered": {
+                              "type": "boolean"
+                            },
+                            "on": {
+                              "type": "boolean"
+                            },
+                            "at": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "by": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "offered",
+                            "on",
+                            "at",
+                            "by"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "connectionId",
+                        "table",
+                        "label",
+                        "appName",
+                        "kind",
+                        "canEmail",
+                        "email",
+                        "name",
+                        "columns",
+                        "customer",
+                        "existingCustomers"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "sheet"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invoices": {
       "get": {
         "parameters": [
@@ -122248,6 +122700,1007 @@
                         "counts",
                         "left",
                         "filesFailed"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/marketing": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "postalAddress": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "replyTo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "publicOrigin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "senders": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "address": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "implicit": {
+                                "type": "boolean"
+                              },
+                              "domain": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "freeMail": {
+                                "type": "boolean"
+                              },
+                              "key": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "domain": {
+                                        "type": "string"
+                                      },
+                                      "selector": {
+                                        "type": "string"
+                                      },
+                                      "record": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "type": {
+                                            "type": "string",
+                                            "enum": [
+                                              "TXT"
+                                            ]
+                                          },
+                                          "value": {
+                                            "type": "string"
+                                          },
+                                          "text": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "type",
+                                          "value",
+                                          "text"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "createdAt": {
+                                        "type": "number"
+                                      },
+                                      "usable": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "domain",
+                                      "selector",
+                                      "record",
+                                      "createdAt",
+                                      "usable"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "address",
+                              "name",
+                              "implicit",
+                              "domain",
+                              "freeMail",
+                              "key"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "postalAddress",
+                        "replyTo",
+                        "publicOrigin",
+                        "senders"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/marketing/check": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  }
+                },
+                "required": [
+                  "address"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dmarc": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "policy": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "none",
+                                            "quarantine",
+                                            "reject"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "recordDomain": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "policy",
+                                    "recordDomain"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "unchecked"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "dkim": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "found",
+                                "other-key",
+                                "not-found",
+                                "unchecked"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "refusals": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "no-postal-address",
+                              "free-mail-from",
+                              "dns-unchecked",
+                              "no-dmarc",
+                              "not-aligned",
+                              "no-public-address"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "dmarc",
+                        "dkim",
+                        "refusals"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/marketing/dkim-keys": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 253
+                  }
+                },
+                "required": [
+                  "domain"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "object",
+                          "properties": {
+                            "domain": {
+                              "type": "string"
+                            },
+                            "selector": {
+                              "type": "string"
+                            },
+                            "record": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "TXT"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string"
+                                },
+                                "text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "type",
+                                "value",
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "createdAt": {
+                              "type": "number"
+                            },
+                            "usable": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "domain",
+                            "selector",
+                            "record",
+                            "createdAt",
+                            "usable"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/marketing/reply-to": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "replyTo": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "replyTo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "replyTo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "replyTo"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/notice-endpoints": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "publicOrigin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "suggested": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "ses",
+                                "postmark",
+                                "mailgun",
+                                "brevo",
+                                "sendgrid",
+                                "other"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "services": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "service": {
+                                "type": "string",
+                                "enum": [
+                                  "ses",
+                                  "postmark",
+                                  "mailgun",
+                                  "brevo",
+                                  "sendgrid",
+                                  "other"
+                                ]
+                              },
+                              "opened": {
+                                "type": "boolean"
+                              },
+                              "secretRow": {
+                                "type": "string",
+                                "enum": [
+                                  "signing-key",
+                                  "verification-key",
+                                  "topic-arn",
+                                  "copy-credentials"
+                                ]
+                              },
+                              "ready": {
+                                "type": "boolean"
+                              },
+                              "secretSetAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "confirmedAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "lastNoticeAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "noticeCount": {
+                                "type": "number"
+                              },
+                              "address": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "service",
+                              "opened",
+                              "secretRow",
+                              "ready",
+                              "secretSetAt",
+                              "confirmedAt",
+                              "lastNoticeAt",
+                              "noticeCount",
+                              "address"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "publicOrigin",
+                        "suggested",
+                        "services"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/notice-endpoints/{service}": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ses",
+                "postmark",
+                "mailgun",
+                "brevo",
+                "sendgrid",
+                "other"
+              ]
+            },
+            "in": "path",
+            "name": "service",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "endpoint": {
+                          "type": "object",
+                          "properties": {
+                            "service": {
+                              "type": "string",
+                              "enum": [
+                                "ses",
+                                "postmark",
+                                "mailgun",
+                                "brevo",
+                                "sendgrid",
+                                "other"
+                              ]
+                            },
+                            "opened": {
+                              "type": "boolean"
+                            },
+                            "secretRow": {
+                              "type": "string",
+                              "enum": [
+                                "signing-key",
+                                "verification-key",
+                                "topic-arn",
+                                "copy-credentials"
+                              ]
+                            },
+                            "ready": {
+                              "type": "boolean"
+                            },
+                            "secretSetAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "confirmedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "lastNoticeAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "noticeCount": {
+                              "type": "number"
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "service",
+                            "opened",
+                            "secretRow",
+                            "ready",
+                            "secretSetAt",
+                            "confirmedAt",
+                            "lastNoticeAt",
+                            "noticeCount",
+                            "address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "credentials": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "user": {
+                                  "type": "string"
+                                },
+                                "pass": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "user",
+                                "pass"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "endpoint",
+                        "credentials"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/notice-endpoints/{service}/credentials": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ses",
+                "postmark",
+                "mailgun",
+                "brevo",
+                "sendgrid",
+                "other"
+              ]
+            },
+            "in": "path",
+            "name": "service",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "endpoint": {
+                          "type": "object",
+                          "properties": {
+                            "service": {
+                              "type": "string",
+                              "enum": [
+                                "ses",
+                                "postmark",
+                                "mailgun",
+                                "brevo",
+                                "sendgrid",
+                                "other"
+                              ]
+                            },
+                            "opened": {
+                              "type": "boolean"
+                            },
+                            "secretRow": {
+                              "type": "string",
+                              "enum": [
+                                "signing-key",
+                                "verification-key",
+                                "topic-arn",
+                                "copy-credentials"
+                              ]
+                            },
+                            "ready": {
+                              "type": "boolean"
+                            },
+                            "secretSetAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "confirmedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "lastNoticeAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "noticeCount": {
+                              "type": "number"
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "service",
+                            "opened",
+                            "secretRow",
+                            "ready",
+                            "secretSetAt",
+                            "confirmedAt",
+                            "lastNoticeAt",
+                            "noticeCount",
+                            "address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "credentials": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "user": {
+                                  "type": "string"
+                                },
+                                "pass": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "user",
+                                "pass"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "endpoint",
+                        "credentials"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email/notice-endpoints/{service}/secret": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "secret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  }
+                },
+                "required": [
+                  "secret"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ses",
+                "postmark",
+                "mailgun",
+                "brevo",
+                "sendgrid",
+                "other"
+              ]
+            },
+            "in": "path",
+            "name": "service",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "endpoint": {
+                          "type": "object",
+                          "properties": {
+                            "service": {
+                              "type": "string",
+                              "enum": [
+                                "ses",
+                                "postmark",
+                                "mailgun",
+                                "brevo",
+                                "sendgrid",
+                                "other"
+                              ]
+                            },
+                            "opened": {
+                              "type": "boolean"
+                            },
+                            "secretRow": {
+                              "type": "string",
+                              "enum": [
+                                "signing-key",
+                                "verification-key",
+                                "topic-arn",
+                                "copy-credentials"
+                              ]
+                            },
+                            "ready": {
+                              "type": "boolean"
+                            },
+                            "secretSetAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "confirmedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "lastNoticeAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "noticeCount": {
+                              "type": "number"
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "service",
+                            "opened",
+                            "secretRow",
+                            "ready",
+                            "secretSetAt",
+                            "confirmedAt",
+                            "lastNoticeAt",
+                            "noticeCount",
+                            "address"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "endpoint"
                       ],
                       "additionalProperties": false
                     }

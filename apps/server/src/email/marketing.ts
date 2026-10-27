@@ -67,6 +67,7 @@ import { reachability } from '../payments/reachability.js';
 import { normalizePublicOrigin } from '../security/public-origin.js';
 import { translatorForLocale } from './builtins.js';
 import { bareAddress } from './document.js';
+import { replyToOf } from './send.js';
 import { isDirectRelay, permanentRefusal, type PermanentRefusal } from './refused.js';
 import {
   createDkimKeys,
@@ -76,6 +77,8 @@ import {
   relayOf,
   senderFacts,
   trackingOffHeaders,
+  type DkimKeys,
+  type DkimKeyView,
   type MarketingRefusal,
   type TxtLookup,
 } from './sender/index.js';
@@ -117,7 +120,11 @@ export interface MarketingCarryInput {
   locale: string;
   /** The business the footer names; the workspace's name when absent. */
   business?: string | undefined;
-  /** The mail's reply address: the one-click header also offers `mailto:` it. */
+  /**
+   * The mail's own reply address; when it has none, the marketing mail
+   * settings' reply address is used. The one-click header also offers
+   * `mailto:` it.
+   */
   replyTo?: string | null | undefined;
   /** The campaign send (ledger row) it goes in. */
   send?: string | null | undefined;
@@ -200,11 +207,20 @@ export function marketingRefusalSentence(refusal: MarketingRefusal): string {
 }
 
 /** The domain and its parents of two labels or more: a key for any of them can sign mail from it (relaxed alignment). */
-function domainsUp(domain: string): string[] {
+export function domainsUp(domain: string): string[] {
   const labels = domain.split('.').filter((label) => label !== '');
   const out: string[] = [];
   for (let i = 0; i + 2 <= labels.length; i += 1) out.push(labels.slice(i).join('.'));
   return out;
+}
+
+/** Adminium's key for mail from `domain`: the domain's own, else the nearest parent's; null when none. */
+export async function signingKeyFor(keys: Pick<DkimKeys, 'forDomain'>, domain: string): Promise<DkimKeyView | null> {
+  for (const candidate of domainsUp(domain)) {
+    const key = await keys.forDomain(candidate);
+    if (key !== null) return key;
+  }
+  return null;
 }
 
 export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
@@ -224,13 +240,7 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
   }
 
   /** Adminium's key for mail from `domain`: the domain's own, else the nearest parent's. */
-  async function keyFor(domain: string) {
-    for (const candidate of domainsUp(domain)) {
-      const key = await keys.forDomain(candidate);
-      if (key !== null) return key;
-    }
-    return null;
-  }
+  const keyFor = (domain: string) => signingKeyFor(keys, domain);
 
   async function managers(): Promise<string[]> {
     const roles = rolesRepo(meta);
@@ -286,7 +296,9 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
       const key = await linkKeys.unsubscribe();
       const token = makeUnsubscribeToken(key, install, { address: input.to, purpose: input.purpose, send: input.send ?? null, language: input.locale });
       const url = unsubscribeUrl(origin, token);
-      const replyTo = input.replyTo?.trim() ?? '';
+      // The mail's own reply address, else the one the marketing mail settings name.
+      const own = input.replyTo?.trim() ?? '';
+      const replyTo = own !== '' ? own : (replyToOf(await settings.get('email.marketingReplyTo')) ?? '');
       const headers: Record<string, string> = {
         'List-Unsubscribe': replyTo === '' ? `<${url}>` : `<${url}>, <mailto:${replyTo}?subject=unsubscribe>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -300,7 +312,7 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
             ? t('email:marketingFooter.surveys', { business, defaultValue: 'Unsubscribe from {business}’s surveys' })
             : t('email:marketingFooter.newsletter', { business, defaultValue: 'Unsubscribe from {business}’s newsletter' });
       const postal = await (deps.postalAddress ?? postalAddressOf)(meta);
-      return { headers, locked: { lines: postal === null ? [] : [postal], link: { text, href: url } } };
+      return { headers, locked: { lines: postal === null ? [] : [postal], link: { text, href: url } }, replyTo: replyTo === '' ? null : replyTo };
     },
 
     async signing(from, smtpHost) {
