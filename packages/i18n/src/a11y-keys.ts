@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3461 entries. */
+/** `namespace:key` — 3460 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -470,7 +470,6 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:consent.confirm.saidNoTitle',
   'common:consent.dialog.close',
   'common:consent.dialog.title',
-  'common:consent.panel.title',
   'common:desktop.chip.lanShare',
   'common:desktop.chip.local',
   'common:desktop.chip.remoteDb',
