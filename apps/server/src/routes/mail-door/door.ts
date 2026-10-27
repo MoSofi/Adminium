@@ -5,11 +5,15 @@
  * page is in, and the two unsubscribe actions.
  *
  * ─── The door is open only where the outside can reach it ──────────────────
- * Every request asks first (`reachable`): the same check the pay page makes
- * (`payments/reachability.ts`), about this server's public address
- * (`system.publicOrigin`), the address every marketing mail's links are
- * written on. While it fails, nothing a stranger sends is acted on, and
- * the pages say "This page isn't available".
+ * Every request asks first (`reachable`): the very check the send side makes
+ * before a marketing mail goes (`email/door-reach.ts`), about this server's
+ * public address (`system.publicOrigin`), the address every marketing mail's
+ * links are written on. So the door is never shut while mail linking to it
+ * can go out. While it fails, nothing a stranger sends is acted on, and the
+ * pages say "This page isn't available". It never reads the request: a
+ * request through a reverse proxy (forwarding headers, with
+ * `ADMINIUM_TRUST_PROXY` off) is served like any other; the signed link is
+ * the gate, not the caller's network address.
  *
  * ─── The two buttons ──────────────────────────────────────────────────────
  *  - "Unsubscribe" withdraws the mail's purpose: a "no" row in the consent
@@ -34,14 +38,13 @@ import type { FastifyRequest } from 'fastify';
 
 import type { ConsentService } from '../../consent/index.js';
 import { readClickLinkWith, type ClickClaim } from '../../email/click-link.js';
+import { mailDoorReach, storedPublicOrigin } from '../../email/door-reach.js';
 import { mailLinkKeys } from '../../email/link-keys.js';
 import { readUnsubscribeTokenWith, type UnsubscribeClaim } from '../../email/unsubscribe-token.js';
 import { loadOverrideMap, recipientLocale } from '../../i18n/server-i18n.js';
 import { bcp47 } from '../../i18n/bcp47.js';
-import { reachability } from '../../payments/reachability.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
 import { businessName, privacyNoticeOf } from '../../privacy/business.js';
-import { normalizePublicOrigin } from '../../security/public-origin.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { MAIL_DOOR_LANGUAGES, type MailDoorBusiness, type Translate, type UnsubscribeReason } from './page.js';
 
@@ -70,32 +73,21 @@ export type UnsubscribeVia = 'link' | 'one-click';
 /** What an unsubscribe did. */
 export type UnsubscribeOutcome = { done: 'newsletter' | 'surveys' | 'all' } | { already: true };
 
-/** The request carried a proxy's forwarding headers. */
-function forwardedOf(request: FastifyRequest): boolean {
-  return request.headers['x-forwarded-for'] !== undefined || request.headers['x-forwarded-proto'] !== undefined || request.headers['forwarded'] !== undefined;
-}
-
 export function createMailDoor(deps: MailDoorDeps) {
   const { meta, consent } = deps;
   const now = deps.now ?? Date.now;
   const settings = settingsRepo(meta);
   const linkKeys = mailLinkKeys(meta, deps.secret);
 
-  async function publicOrigin(): Promise<string | null> {
-    const stored = await settings.get('system.publicOrigin');
-    return typeof stored === 'string' && stored !== '' ? normalizePublicOrigin(stored) : null;
-  }
+  const publicOrigin = () => storedPublicOrigin(meta);
 
-  /** Whether the outside can reach this server at its public address (see the header). */
-  async function reachable(request: FastifyRequest): Promise<boolean> {
-    const answer = reachability({
-      networkFeatures: deps.networkFeatures,
-      desktop: deps.desktop,
-      trustProxy: deps.trustProxy,
-      publicOrigin: await publicOrigin(),
-      forwarded: forwardedOf(request),
-    });
-    return answer.state === 'reachable';
+  /**
+   * Whether the outside can reach this server at its public address (see
+   * the header): the very check a marketing send makes before it goes, so
+   * the door is open whenever mail linking to it may leave.
+   */
+  async function reachable(): Promise<boolean> {
+    return (await mailDoorReach(meta, deps)).open;
   }
 
   async function install(): Promise<string> {
