@@ -62,6 +62,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'pages/PageDirectoryBinding.tsx': [],
   'pages/PageQueueInboxBinding.tsx': [],
   'pages/PageMasterDetailBinding.tsx': [],
+  // A people table's e-mail consent on the record page: the panel, its words and the dashboard's dialogs for it.
+  'consent/RecordConsentPanel.tsx': ['consent/ConsentPanel.tsx', 'consent/consentDialogs.tsx', 'consent/consentWords.ts'],
   'pages/dashboard-builder/DashboardBuilder.tsx': [
     'pages/dashboard-builder/BuilderGrid.tsx',
     'pages/dashboard-builder/ConfigInspector.tsx',
@@ -91,8 +93,18 @@ function catalogued(key: string): unknown {
   return node;
 }
 
+/**
+ * The kit's own: an app's screen draws a part only once its words are in
+ * (`kit-host/root.tsx` loads them before the first render), and those words
+ * are the kit's own files, held to the catalogues by `kit-host/words.test.ts`.
+ * So the kit is not a reader of the dashboard's deferred words, and a part a
+ * kit part draws (the consent panel) may be imported by it.
+ */
+const KIT = 'kit-host/';
+
 describe('the modules that read a deferred group of common', () => {
   const readers = sourceFiles(SRC)
+    .filter((file) => !relative(SRC, file).split('\\').join('/').startsWith(KIT))
     // A reader names a key the catalogue HAS: `audit.read` in the router is a permission's name, as on the server below.
     .filter((file) => keysIn(file).some((key) => catalogued(key) !== undefined))
     .map((file) => relative(SRC, file).split('\\').join('/'))
@@ -103,7 +115,12 @@ describe('the modules that read a deferred group of common', () => {
     expect(readers.filter((file) => !covered.includes(file))).toEqual([]);
     // A screen dropped from the list above would otherwise pass unseen.
     expect(readers.length).toBeGreaterThanOrEqual(12);
-    expect(covered.filter((file) => !readers.includes(file))).toEqual([]);
+    // Every part listed reads the words; a screen does, or waits for the parts it draws (the consent panel's).
+    const stale = Object.entries(SCREENS).flatMap(([root, parts]) => [
+      ...parts.filter((part) => !readers.includes(part)),
+      ...(readers.includes(root) || parts.some((part) => readers.includes(part)) ? [] : [root]),
+    ]);
+    expect(stale).toEqual([]);
     for (const root of Object.keys(SCREENS)) {
       const text = readFileSync(join(SRC, root), 'utf8');
       expect(text.includes("import { useCommonWords } from '"), root).toBe(true);
@@ -125,7 +142,9 @@ describe('the modules that read a deferred group of common', () => {
           .map((file) => relative(SRC, file).split('\\').join('/'));
         const family = [root, ...parts];
         // Every importer is the screen, one of its parts, or a module of the same folder that the screen draws.
-        const strangers = importers.filter((file) => !family.includes(file) && !family.some((member) => member.split('/').slice(0, -1).join('/') === file.split('/').slice(0, -1).join('/')));
+        const strangers = importers.filter(
+          (file) => !file.startsWith(`${KIT}parts/`) && !family.includes(file) && !family.some((member) => member.split('/').slice(0, -1).join('/') === file.split('/').slice(0, -1).join('/')),
+        );
         expect(strangers, `${part} is imported outside ${root}`).toEqual([]);
       }
     }

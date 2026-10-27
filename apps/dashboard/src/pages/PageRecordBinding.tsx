@@ -753,7 +753,8 @@ export function PageRecordBinding({
     return [
       {
         id: 'consent',
-        title: t('common:consent.panel.title', 'E-mail consent'),
+        // Named by the panel's own heading, in words it waits for: the page draws none over it.
+        title: '',
         ownHeading: true,
         content: (
           <Suspense fallback={null}>
