@@ -17,7 +17,7 @@
 | `role` | no | `pk` (primary key), `created_at` or `updated_at`. |
 | `semantic` | no | A hint for widgets: `name`, `money`, `image`, `email`, `avatar`, `geo-lat`, `geo-lng`. `money` (like a `money` column, or `"scale": "currency"`) makes the column money wherever Adminium draws it, whatever it is called: a board's totals and card, a chart's **Show data** table, a list. Read by Adminium 0.3.28 and later; an older release takes it as a hint only. |
 | `enum` | for `enum` | The allowed values, at least one. |
-| `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. A name the manifest does not declare is a table the database already has (a shop's own `customers`, with a one-column primary key): the app then installs only on a database with that table, the check warns about it, and anywhere else the install is refused (`UNRESOLVED_REFERENCE`). |
+| `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. A name the manifest does not declare is a table the database already has (a shop's own `customers`, with a one-column primary key): the app then installs only on a database with that table, the check warns about it, and anywhere else the install is refused (`UNRESOLVED_REFERENCE`). Adminium's own `adminium_*` tables can never be linked to (`RESERVED_TABLE`). |
 | `maxLength` | no | `text` only: creates `varchar(n)` instead of unbounded text. 1–1000. Leave it out for long text (notes, a description): text with no `maxLength` has no limit. |
 | `scale` | no | `decimal` and `money` only: the places kept after the point. See [Decimal places](https://docs.adminium.dev/reference/manifest/#decimal-places). |
 | `default` | no | The value the database fills when an insert leaves the column out. See [Defaults](https://docs.adminium.dev/reference/manifest/#defaults). |
@@ -95,16 +95,3 @@ A default must mean the same thing on Postgres, MySQL and SQLite, so only these 
 
 A value that comes from somewhere else when the row is made (the connection's currency, a
 setting) is not a database default: use the [`default` rule](https://docs.adminium.dev/reference/manifest/#column-rules).
-
-`"now"` is filled by Adminium on every create, through every door, so what the create works out can
-read it (a visit's [hours](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments) are there from the start). On MySQL the
-database is given no default for it at all: an app's `timestamptz` is a `DATETIME` there, kept on
-the Adminium server's clock, and the database — whose sessions Adminium keeps in UTC — could only
-fill UTC's. A row written to that table outside Adminium, leaving the column out, gets nothing: it
-stays empty, or is refused when the column may not be empty. Adminium also fills a MySQL `DATETIME`
-whose database default is `CURRENT_TIMESTAMP` (a table made before, or one of your own) on its own
-creates, with the server's own time: before, the database filled it with UTC's time, so on a server
-not in UTC a row Adminium makes now differs from one another program stamps. On Postgres and SQLite
-the database's own default is kept as well.
-
-#### Decimal places

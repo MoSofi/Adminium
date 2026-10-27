@@ -94,4 +94,20 @@ describe.each(ENGINES)('an app linking to a table the database has, on %s', (dia
     expect(reply.body).toContain('points at a table called \\"customers\\"');
     await expect(h.rows('SELECT 1 FROM loyalty_accounts')).rejects.toThrow();
   });
+
+  it.skipIf(!available)('is refused when the link names one of Adminium’s own tables, even one the database has', async () => {
+    harness = await installHarness(dialect);
+    const h = harness;
+    // On a database that also holds the meta store, `adminium_*` tables are right there to be linked to.
+    await h.run(SHOP[dialect]!.replace('customers', 'adminium_probe'));
+    const columns = MANIFEST.requiredSchema.tables[0]!.columns.map((c) => (c.ref === 'customer_id' ? { ...c, references: 'adminium_probe' } : c));
+    const manifest = { ...MANIFEST, requiredSchema: { ...MANIFEST.requiredSchema, tables: [{ ...MANIFEST.requiredSchema.tables[0]!, columns }] } };
+
+    const reply = await h.install(manifest);
+    expect(reply.statusCode, reply.body).toBeGreaterThanOrEqual(400);
+    expect(reply.statusCode, reply.body).toBeLessThan(500);
+    expect(reply.body).toContain('RESERVED_TABLE');
+    expect(reply.body).toContain('one of Adminium');
+    await expect(h.rows('SELECT 1 FROM loyalty_accounts')).rejects.toThrow();
+  });
 });

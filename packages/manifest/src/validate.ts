@@ -153,7 +153,12 @@ export function manifestWarnings(manifest: Manifest): ManifestIssue[] {
   (manifest.requiredSchema?.tables ?? []).forEach((table, t) => {
     table.columns.forEach((column, c) => {
       // A link to a table the database must already have (a shop's own `customers`): the install refuses any other database.
-      if (column.type === 'fk' && column.references !== undefined && !declared.has(column.references)) {
+      if (column.type === 'fk' && column.references?.startsWith('adminium_') === true && !declared.has(column.references)) {
+        out.push({
+          path: `requiredSchema.tables.${String(t)}.columns.${String(c)}.references`,
+          message: `"${table.ref}.${column.ref}" links to "${column.references}", one of Adminium's own tables: the install refuses it on every database`,
+        });
+      } else if (column.type === 'fk' && column.references !== undefined && !declared.has(column.references)) {
         out.push({
           path: `requiredSchema.tables.${String(t)}.columns.${String(c)}.references`,
           message: `"${table.ref}.${column.ref}" links to "${column.references}", which this app does not create, so it installs only on a database that already has a table called "${column.references}"`,
