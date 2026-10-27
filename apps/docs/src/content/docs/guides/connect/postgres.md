@@ -102,6 +102,10 @@ GRANT pg_read_all_data TO adminium_ro;
 The probe will report `read-only role`, and you get a read-only app with a
 banner saying so.
 
+Neither form gets past [Row Level Security](#row-level-security-supabase-lovable):
+`pg_read_all_data` grants `SELECT`, not the right to skip policies. On a
+database whose tables have policies, read that section first.
+
 :::caution[A read-only role forces a separate meta store]
 Adminium must write its own `adminium_*` tables somewhere. A read-only role
 cannot host them, so same-database placement is refused with
@@ -189,6 +193,71 @@ With the app's tables installed under its prefix, for example:
 GRANT SELECT ON boxoffice_settings, boxoffice_ticket_types, boxoffice_events, boxoffice_halls TO adminium_rw;
 GRANT UPDATE (total, ticket_count) ON boxoffice_orders TO adminium_rw;
 ```
+
+## Row Level Security (Supabase, Lovable)
+
+A table with Row Level Security turned on shows a role only the rows a policy
+lets it see. Apps built on Supabase, Lovable's among them, turn it on for their
+tables and write policies for the people who use the app (`anon`,
+`authenticated`), never for a role you create for Adminium. So the recipes
+above connect, and then:
+
+- every list on such a table is **empty, with no error**: Postgres filters the
+  rows rather than refusing the query;
+- an edit changes **no row**, again with no error, and a new row is refused
+  with `new row violates row-level security policy`.
+
+Your app's policies protect your customers from each other. A back office
+needs every row, so give Adminium's role the right to skip them:
+
+```sql
+ALTER ROLE adminium_rw BYPASSRLS;
+```
+
+Only a superuser, or a role that has `BYPASSRLS` itself, may give it. To see
+whether the role you are signed in as can:
+
+```sql
+SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user;
+```
+
+Where neither is true, a policy per table does the same for that table, and a
+table added later needs its own:
+
+```sql
+CREATE POLICY adminium_all ON public.orders
+  TO adminium_rw USING (true) WITH CHECK (true);
+```
+
+To see which of your tables have policies:
+
+```sql
+SELECT relname FROM pg_class
+WHERE relrowsecurity AND relnamespace = 'public'::regnamespace;
+```
+
+### Tables in a schema the role cannot read
+
+Supabase keeps its own tables in schemas of its own (`auth`, `storage`), and an
+app's tables point at `auth.users`. A role made with the recipes above has no
+right to those schemas. Adminium leaves out every schema the role may not use
+and every table it may not read (the snapshot's warnings name them, as
+`schemas-unusable` and `tables-unreadable`) and drops the keys that point at
+them, so `orders.user_id` shows as the plain id.
+
+To show who placed an order instead, let the role read just the columns it
+needs, if your database lets you grant them:
+
+```sql
+GRANT USAGE ON SCHEMA auth TO adminium_rw;
+GRANT SELECT (id, email) ON auth.users TO adminium_rw;
+```
+
+Then introspect again. A read the database refuses anyway (a right taken away
+since the last introspection) is answered with `403` `SOURCE_READ_REFUSED`,
+naming the schema or table in `details.object`. A looked-up column it refuses
+comes back empty and listed in the row's `_masked` marker, and the rest of the
+list still loads.
 
 ## Hosting the meta store in the same database
 
