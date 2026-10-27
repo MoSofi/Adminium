@@ -129,6 +129,18 @@ import {
   type CsrfDeps,
 } from '../security/csrf.js';
 
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    /**
+     * What one request is counted by instead of the bucket's `keyBy`, when the
+     * route can say so (null: by `keyBy`). Only for a subject the server made
+     * itself and can check (the mail door: a link whose signature checks out),
+     * so the store stays bounded: never a value a caller can make up at will.
+     */
+    rateLimitSubject?: ((request: FastifyRequest) => Promise<string | null>) | undefined;
+  }
+}
+
 /** One bucket: a fixed window of `max` requests per `timeWindowMs`. */
 export interface RateBucket {
   max: number;
@@ -330,9 +342,13 @@ export const RATE_BUCKETS = {
   // the unsubscribe page and its posts have a budget of their own, which a
   // campaign's burst of clicks cannot spend, and each is far above what a
   // send makes: unsubscribes are a fraction of a percent of the mail sent,
-  // 600 a minute is 36,000 an hour. Not keyed by the link: a made-up token
-  // is a new key each time, so a flood of them would grow the store without
-  // bound and meet no limit at all.
+  // 600 a minute is 36,000 an hour. And those two are counted per LINK for a
+  // link whose signature checks out (the route's `rateLimitSubject`): one
+  // flooder behind the shared address cannot spend everybody's budget. Only
+  // a genuine link gets a counter of its own (the links this install made, a
+  // bounded set); a made-up or changed token is counted by network address,
+  // so a flood of them neither grows the store without bound nor escapes
+  // the limit.
   'mail-door-page': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'mail-door-unsubscribe': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'mail-door-act': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
@@ -691,13 +707,21 @@ export const corePlugin = fp<CorePluginOptions>(
           `route ${methods} ${route.url} declares unknown rate-limit bucket "${bucket}" — add it to RATE_BUCKETS (plugins/core.ts)`,
         );
       }
+      // A route may count some requests by a subject of its own (the mail door: a genuine link); the rest by the bucket's rule.
+      const subjectOf = route.config?.rateLimitSubject;
+      const byRule = (request: FastifyRequest) => (spec.keyBy === 'ip' ? request.ip : principalKey(request));
       route.config = {
         ...route.config,
         rateLimit: {
           max: spec.max,
           timeWindow: spec.timeWindowMs,
-          keyGenerator: (request: FastifyRequest) =>
-            `${bucket}:${spec.keyBy === 'ip' ? request.ip : principalKey(request)}`,
+          keyGenerator:
+            subjectOf === undefined
+              ? (request: FastifyRequest) => `${bucket}:${byRule(request)}`
+              : async (request: FastifyRequest) => {
+                  const own = await subjectOf(request).catch(() => null);
+                  return own === null ? `${bucket}:${byRule(request)}` : `${bucket}:own:${own}`;
+                },
         },
       };
     });

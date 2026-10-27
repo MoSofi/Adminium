@@ -32,6 +32,8 @@
  * - No session is read: a staff member's cookie does not change what the
  *   page does (CSRF is moot without one; the token is the gate).
  */
+import { createHash } from 'node:crypto';
+
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -133,6 +135,20 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
       }
     }
 
+    /**
+     * What the unsubscribe page and its posts are counted by
+     * (`plugins/core.ts`): a link this install signed, by a digest of the link
+     * itself, so whoever shares a network address with a flooder (everybody,
+     * behind a proxy that is not trusted) keeps their own budget; anything
+     * else by network address (null). Never the link in the counter's key,
+     * which would carry the sealed address into memory under another name.
+     */
+    async function linkSubject(request: FastifyRequest): Promise<string | null> {
+      const token = tokenOf(request.params as { '*': string });
+      if (token === '' || (await door.readUnsubscribe(token)) === null) return null;
+      return createHash('sha256').update(token).digest('base64url');
+    }
+
     /** The page's own address, with its language kept, for the form to post to. */
     function actionOf(request: FastifyRequest, token: string): string {
       const lang = (request.query as { lang?: unknown } | undefined)?.lang;
@@ -142,7 +158,7 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
     app.get(
       '/m/u/*',
       {
-        config: { rateLimitBucket: 'mail-door-unsubscribe' },
+        config: { rateLimitBucket: 'mail-door-unsubscribe', rateLimitSubject: linkSubject },
         schema: { hide: true, params: tokenParams },
       },
       async (request, reply) =>
@@ -162,6 +178,7 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
       {
         config: {
           rateLimitBucket: 'mail-door-act',
+          rateLimitSubject: linkSubject,
           csrf: 'exempt',
           audit: auditExempt('a stranger unsubscribing through a mail’s link or its one-click: the consent log row and the do-not-email entry are the record'),
         },
