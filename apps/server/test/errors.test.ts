@@ -144,12 +144,29 @@ describe('global error handler — unexpected errors', () => {
   it("answers the source database's refusal of a right no route mapped as the 403 a mapped one gives", async () => {
     const server = await build({ exposeInternalErrors: true });
     // A link row the role may not insert, as `pg` throws it.
-    server.get('/boom/privilege', async () => {
+    server.post('/boom/privilege', async () => {
       throw Object.assign(new Error('permission denied for table order_tags'), { code: '42501' });
     });
-    const res = await server.inject({ method: 'GET', url: '/boom/privilege' });
+    const res = await server.inject({ method: 'POST', url: '/boom/privilege' });
     expect(res.statusCode).toBe(403);
     expect(res.json<Envelope>().error).toMatchObject({ code: 'READ_ONLY_MODE', details: { reason: 'privileges' } });
+  });
+
+  it('says a refused READ is a read, and names what the database refused', async () => {
+    const server = await build({ exposeInternalErrors: true });
+    // A list over a table keyed to Supabase's `auth.users`, read by a role kept out of `auth`.
+    server.get('/boom/read', async () => {
+      throw Object.assign(new Error('permission denied for schema auth'), { code: '42501' });
+    });
+    const res = await server.inject({ method: 'GET', url: '/boom/read' });
+    expect(res.statusCode).toBe(403);
+    const error = res.json<Envelope>().error;
+    expect(error).toMatchObject({
+      code: 'SOURCE_READ_REFUSED',
+      details: { reason: 'privileges', object: { kind: 'schema', name: 'auth' } },
+    });
+    expect(error.message).toContain('read the schema "auth"');
+    expect(error.message).not.toContain('change');
   });
 });
 

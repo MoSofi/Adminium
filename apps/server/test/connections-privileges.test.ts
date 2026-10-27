@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { isPrivilegeRefusal, privilegesOf, writeRefused } from '../src/connections/privileges.js';
+import { isPrivilegeRefusal, privilegesOf, readRefusal, refusedObject, writeRefused } from '../src/connections/privileges.js';
 import { mapDbError } from '../src/routes/data/index.js';
 
 const MAP = {
@@ -48,5 +48,29 @@ describe('privilege refusals from the database', () => {
     expect(() => mapDbError(error)).toThrow(
       expect.objectContaining({ statusCode: 403, code: 'READ_ONLY_MODE', details: { table: null, reason: 'privileges' } }),
     );
+  });
+});
+
+describe('what a refused read names', () => {
+  it("reads the schema or table out of PostgreSQL's and MySQL's sentences", () => {
+    expect(refusedObject(new Error('permission denied for schema auth'))).toEqual({ kind: 'schema', name: 'auth' });
+    expect(refusedObject(new Error('permission denied for table users'))).toEqual({ kind: 'table', name: 'users' });
+    expect(refusedObject(new Error('permission denied for materialized view sales_mv'))).toEqual({
+      kind: 'materialized view',
+      name: 'sales_mv',
+    });
+    expect(refusedObject(new Error("SELECT command denied to user 'app'@'localhost' for table 'customers'"))).toEqual({
+      kind: 'table',
+      name: 'customers',
+    });
+    expect(refusedObject(new Error('something else'))).toBeNull();
+    expect(refusedObject(null)).toBeNull();
+  });
+
+  it('says "read", never "change", and falls back to "this table"', () => {
+    expect(readRefusal(new Error('permission denied for table users')).message).toContain('read the table "users"');
+    const unnamed = readRefusal(new Error('denied'));
+    expect(unnamed.message).toContain('read this table');
+    expect(unnamed).toMatchObject({ statusCode: 403, code: 'SOURCE_READ_REFUSED', details: { reason: 'privileges', object: null } });
   });
 });

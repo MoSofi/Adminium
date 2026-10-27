@@ -35,7 +35,7 @@ import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { hideLedgerFigures } from './ledgers/tell.js';
 import { isWriteConflict, writeConflict } from './crud/db-errors.js';
-import { isPrivilegeRefusal, privilegeRefusal } from './connections/privileges.js';
+import { isPrivilegeRefusal, privilegeRefusal, readRefusal } from './connections/privileges.js';
 import { scrubUrlForLog } from './log-scrub.js';
 import { refuseNulInRequest } from './security/nul-bytes.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -502,9 +502,11 @@ export async function buildServer(opts: BuildServerOptions = {}) {
 
     // The source database refusing a write for want of a right, on a path no
     // `mapDbError` watched (a link row, a parent total, an undo): the same 403
-    // a watched path gives, never a 500 (`connections/privileges.ts`).
+    // a watched path gives, never a 500 (`connections/privileges.ts`). On a
+    // read (GET) it is a read the role may not make, said as one: "may not
+    // change this table" on a list sent people to grant writes they had.
     if (isPrivilegeRefusal(error)) {
-      const refusal = privilegeRefusal();
+      const refusal = request.method === 'GET' || request.method === 'HEAD' ? readRefusal(error) : privilegeRefusal();
       void reply
         .status(refusal.statusCode)
         .send(errorEnvelope(refusal.code, refusal.message, requestId, refusal.details));

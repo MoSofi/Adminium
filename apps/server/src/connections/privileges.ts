@@ -66,6 +66,45 @@ export function privilegeRefusal(table?: { id: string }): ForbiddenError {
   });
 }
 
+/** What the database named when it refused a read: `schema auth`, `table users`. */
+export interface RefusedObject {
+  kind: string;
+  name: string;
+}
+
+/**
+ * The schema or table a privilege refusal names, read from the database's own
+ * sentence: PostgreSQL's `permission denied for schema auth` / `… for table
+ * users`, MySQL's `SELECT command denied to user 'x'@'h' for table 'users'`.
+ * Null when the sentence names nothing recognisable.
+ */
+export function refusedObject(error: unknown): RefusedObject | null {
+  const message = (error as { message?: unknown } | null)?.message;
+  if (typeof message !== 'string') return null;
+  const pg = /permission denied for (schema|table|view|materialized view|sequence|relation) "?([^"\s]+)"?/i.exec(message);
+  if (pg !== null) return { kind: (pg[1] ?? 'table').toLowerCase(), name: pg[2] ?? '' };
+  const mysql = /denied to user .* for table [`'"]?([^`'"\s]+)[`'"]?/i.exec(message);
+  if (mysql !== null) return { kind: 'table', name: (mysql[1] ?? '').replace(/[`'"]/g, '') };
+  return null;
+}
+
+/**
+ * The database does not let the connection's data role READ what this request
+ * reads — a schema it may not use, a table it was never granted. Not
+ * `READ_ONLY_MODE`, which is about changing a table: sent on a read, those
+ * words point at write grants the role does not need. Names what the database
+ * named, so the person granting knows where.
+ */
+export function readRefusal(error: unknown): ForbiddenError {
+  const object = refusedObject(error);
+  const what = object === null ? 'this table' : `the ${object.kind} "${object.name}"`;
+  return new ForbiddenError(
+    `The database does not let this connection's role read ${what}. Grant the role access to it, or connect as a role that has it.`,
+    'SOURCE_READ_REFUSED',
+    { reason: 'privileges', object },
+  );
+}
+
 /**
  * Whether the role may write this column on this write. A table granted by
  * column (`GRANT UPDATE (body) ON …`) carries a per-column map; any other

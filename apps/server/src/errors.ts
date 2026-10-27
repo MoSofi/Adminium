@@ -19,6 +19,8 @@ export type ErrorCode =
   | 'PAGE_FORBIDDEN'
   | 'CSRF_FAILED'
   | 'READ_ONLY_MODE'
+  /** The source database refused the connection's role a READ (a schema or table it may not see). */
+  | 'SOURCE_READ_REFUSED'
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'UNIQUE_VIOLATION'
@@ -135,6 +137,7 @@ export class ForbiddenError extends AppError {
       | 'PAGE_FORBIDDEN'
       | 'CSRF_FAILED'
       | 'READ_ONLY_MODE'
+      | 'SOURCE_READ_REFUSED'
       // Someone whose every role opens only an app's own screens.
       | 'APP_SCREENS_ONLY' = 'FORBIDDEN',
     details?: unknown,
