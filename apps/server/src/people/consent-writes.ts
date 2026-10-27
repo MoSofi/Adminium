@@ -30,7 +30,12 @@
  *    entry links (not the order), then sets that person's declared column
  *    through the door. A box left unticked writes nothing (it is no
  *    withdrawal of an earlier yes), and a tick for another person than the
- *    one signed in was refused before the write (`decide.ts`).
+ *    one signed in was refused before the write (`decide.ts`). A tick from a
+ *    request that proved no mailbox (an anonymous entry finds its person by
+ *    the address typed, which anybody can type) never overrules a "no"
+ *    already standing for that person or address, in the log or on the
+ *    do-not-email list: it writes nothing and changes no column. A public
+ *    write that sets the consent column itself is held to the same rule.
  *  - "DELETE MY DETAILS" that empties a declared consent column first
  *    appends a withdrawal from the person (`withdrawOnForget`).
  *
@@ -175,6 +180,22 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     return written;
   }
 
+  /**
+   * The "no" a public yes from a request that proved no mailbox may not
+   * overrule: the person's (or the address's) newest event for the purpose
+   * when it is a withdrawal, or the address on the do-not-email list. Such a
+   * request is anybody who typed an address, so their yes writes nothing and
+   * the person's column keeps saying no; a customer signed in with their
+   * mailbox proved still changes their mind. Null when nothing stands.
+   */
+  async function standingNo(context: WriteContext, person: ConsentPerson, address: string | null, purpose: 'newsletter' | 'surveys'): Promise<{ event: ConsentEvent | null } | null> {
+    if (context.origin !== 'public' || context.mailboxProved === true) return null;
+    const standing = await consent.stateFor({ person, address }, purpose);
+    if (standing.state === 'no') return { event: standing.event };
+    if (address !== null && (await consent.stop.has(address))) return { event: null };
+    return null;
+  }
+
   /** A public tick on the row written: one log row from the form, then the person's column. */
   async function tick(write: PeopleWrite, given: PublicConsentTick): Promise<void> {
     const { target, record, before } = write;
@@ -190,9 +211,12 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     const declared = await people.of(target.connectionId, held.view.model, held.table.id);
     const language = wordingLanguage(given.wording.text, declared?.language == null ? null : row[declared.language], given.acceptLanguage);
     const person: ConsentPerson = { connectionId: target.connectionId, table: held.table.id, key };
+    const address = declared?.email == null ? null : addressIn(row[declared.email]);
+    // Anybody's tick (no mailbox proved) never overrules a "no": nothing is written, no column changes.
+    if ((await standingNo(write.context, person, address, given.purpose)) !== null) return;
     const event = await consent.record({
       person,
-      address: declared?.email == null ? null : addressIn(row[declared.email]),
+      address,
       purpose: given.purpose,
       state: 'yes',
       source: 'form',
@@ -219,6 +243,15 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     const state = now ? 'yes' : 'no';
     // Already so in the log (an unsubscribe, a forget, a tick wrote it first): nothing more.
     if ((await consent.stateFor({ person, address }, declared.consent.purpose)).state === state) return;
+    if (state === 'yes') {
+      // A stranger's public write setting the column (no mailbox proved) over a standing "no": the log
+      // hears nothing, and the column is put back to the log's withdrawal (the log is the record).
+      const no = await standingNo(context, person, address, declared.consent.purpose);
+      if (no !== null) {
+        if (no.event !== null) await applyTo(declared, person.key, no.event);
+        return;
+      }
+    }
     const { source, staff, detail } = consentSourceOf(context);
     await consent.record({ person, address, purpose: declared.consent.purpose, state, source, detail, staff });
   }
