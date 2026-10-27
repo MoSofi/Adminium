@@ -122,6 +122,13 @@ interface PlatformNavLink {
    * since the check is on the grant and not the role.
    */
   requires?: SystemAction;
+  /**
+   * Also offered to a holder of this `system:` key who is not an admin: the
+   * surface's writes ride it (Email templates: `settings.manage`, which a
+   * marketer's role may hold without being the Admin). Discovery only, as
+   * `adminOnly` is; the server checks every request.
+   */
+  alsoFor?: SystemAction;
   /** Offered unless the server says this person can import nothing (`canImport`); an older server says nothing. */
   imports?: true;
 }
@@ -151,6 +158,7 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         fallback: 'Email templates',
         icon: Mail,
         adminOnly: true,
+        alsoFor: 'settings.manage',
       },
       /*
        * `/report-builder`: the comp's rail row is `{ key: 'reports', label:
@@ -538,7 +546,7 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
     (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter((link) =>
       link.requires !== undefined
         ? holdsSystemAction(bootstrap, link.requires)
-        : (admin || link.adminOnly !== true) && !(link.imports && bootstrap.canImport === false),
+        : (admin || link.adminOnly !== true || (link.alsoFor !== undefined && holdsSystemAction(bootstrap, link.alsoFor))) && !(link.imports && bootstrap.canImport === false),
     );
   /*
    * Add-on rows (51b). Filtered by the SAME rule the platform tail uses, so a

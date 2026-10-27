@@ -123,6 +123,22 @@ describe('platform rail rows follow the session\'s system keys', () => {
     expect(links).not.toContain('Teams');
   });
 
+  it('offers Email templates to a marketer who holds the campaigns\' grant without being the Admin', async () => {
+    // A custom role with `settings.manage` (the e-mail screens' and every campaign route's grant), reading Contacts.
+    await renderRail({ roles: ['marketer'], systemActions: ['settings.manage'] });
+    expect(railLinks()).toContain('Email templates');
+  });
+
+  it('does not offer Email templates to the same role without the grant', async () => {
+    await renderRail({ roles: ['marketer'], systemActions: [] });
+    expect(railLinks()).not.toContain('Email templates');
+  });
+
+  it('keeps Email templates for the built-in Admin, as before', async () => {
+    await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS });
+    expect(railLinks()).toContain('Email templates');
+  });
+
   it('shows a Super Admin every row', async () => {
     await renderRail({ roles: ['super-admin'] });
     const links = railLinks();
