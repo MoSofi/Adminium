@@ -4,6 +4,10 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/public-access--origins.md` | Origins | 853 |
+| `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
+| `references/guides/public-access--rate-limits.md` | Rate limits | 984 |
+| `references/guides/maps--overview.md` | Maps, places and routes | 367 |
 | `references/guides/maps--what-works-with-nothing-set-up.md` | What works with nothing set up | 842 |
 | `references/guides/maps--the-map-server.md` | The map server | 1337 |
 | `references/guides/maps--the-link-out-to-a-maps-app.md` | The link out to a maps app | 1185 |

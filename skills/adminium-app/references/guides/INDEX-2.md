@@ -4,6 +4,10 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--rows-the-job-sets-aside.md` | Rows the job sets aside | 1431 |
+| `references/guides/timed-moves--what-a-timed-move-never-does.md` | What a timed move never does | 1374 |
+| `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
+| `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
 | `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
 | `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
 | `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
@@ -85,9 +89,5 @@
 | `references/guides/public-access--what-an-add-on-adds.md` | What an add-on adds | 2366 |
 | `references/guides/public-access--what-the-app-s-keys-can-never-do.md` | What the app's keys can never do | 1221 |
 | `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
-| `references/guides/public-access--origins.md` | Origins | 853 |
-| `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
-| `references/guides/public-access--rate-limits.md` | Rate limits | 984 |
-| `references/guides/maps--overview.md` | Maps, places and routes | 367 |
 
 More: `references/guides/INDEX-3.md`

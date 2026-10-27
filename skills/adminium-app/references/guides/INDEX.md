@@ -18,6 +18,9 @@
 | `references/guides/manifest-by-task--sample-data.md` | Sample data | 1495 |
 | `references/guides/manifest-by-task--settings-the-operator-fills-in.md` | Settings the operator fills in | 1069 |
 | `references/guides/manifest-by-task--emails.md` | Emails | 721 |
+| `references/guides/manifest-by-task--marketing-or-service-mail.md` | Marketing or service mail | 1202 |
+| `references/guides/manifest-by-task--the-people-the-app-keeps.md` | The people the app keeps | 1728 |
+| `references/guides/manifest-by-task--a-table-the-law-keeps.md` | A table the law keeps | 599 |
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
@@ -83,9 +86,5 @@
 | `references/guides/timed-moves--moments.md` | Moments | 3425 |
 | `references/guides/timed-moves--the-venue-s-clock.md` | The venue's clock | 560 |
 | `references/guides/timed-moves--the-job-that-makes-the-moves.md` | The job that makes the moves | 2092 |
-| `references/guides/timed-moves--rows-the-job-sets-aside.md` | Rows the job sets aside | 1431 |
-| `references/guides/timed-moves--what-a-timed-move-never-does.md` | What a timed move never does | 1374 |
-| `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
-| `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
 
 More: `references/guides/INDEX-2.md`

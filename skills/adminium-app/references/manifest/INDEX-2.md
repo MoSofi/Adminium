@@ -4,13 +4,16 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1240 |
+| `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
+| `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |
 | `references/manifest/public-access--limits-on-a-guest-s-change.md` | Public access — Limits on a guest's change | 1325 |
 | `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1923 |
 | `references/manifest/public-access--pictures.md` | Public access — Pictures | 1198 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 6658 |
+| `references/manifest/automations.md` | Automations | 6858 |
 | `references/manifest/automations--a-notice-in-the-reader-s-language.md` | Automations — A notice in the reader's language | 1568 |
 | `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1413 |
 | `references/manifest/automations--the-people-listed-on-the-row.md` | Automations — The people listed on the row | 1966 |

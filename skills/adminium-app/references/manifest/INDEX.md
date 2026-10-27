@@ -13,7 +13,7 @@
 | `references/manifest/requiredschema.md` | requiredSchema | 720 |
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 3104 |
-| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 3218 |
+| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 3445 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7610 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 1125 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 6981 |
@@ -41,6 +41,7 @@
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--removed-rows.md` | requiredSchema — Removed rows | 3442 |
+| `references/manifest/requiredschema--kept-by-law.md` | requiredSchema — Kept by law | 1055 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
 | `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 5018 |
 | `references/manifest/parts.md` | Parts | 5719 |
@@ -68,13 +69,15 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7724 |
-| `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 7602 |
-| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 1660 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 6904 |
+| `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 3871 |
+| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 6445 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
+| `references/manifest/emails--marketing-or-service.md` | Emails — Marketing or service | 3737 |
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7062 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 4763 |
+| `references/manifest/people.md` | People | 6162 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7731 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 5292 |
@@ -85,9 +88,7 @@
 | `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 4601 |
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
+| `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
 | `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
-| `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1240 |
-| `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
-| `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |
 
 More: `references/manifest/INDEX-2.md`
