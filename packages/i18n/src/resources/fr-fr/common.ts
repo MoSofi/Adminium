@@ -1978,16 +1978,20 @@ export default {
       "apiNo": "Mis à non via l’API",
       "systemYes": "Mis à oui",
       "systemNo": "Mis à non",
-      "unsubscribed": "Désabonné de « {purpose} » par le lien de l’e-mail",
+      "unsubscribed": {
+        "newsletter": "Désabonné de la newsletter par le lien de l’e-mail",
+        "surveys": "Désabonné des enquêtes par le lien de l’e-mail"
+      },
       "unsubscribedAll": "Désabonné de tous les e-mails marketing par le lien de l’e-mail",
       "oneClick": "Désabonné avec le bouton de désabonnement de sa messagerie",
       "mailService": "Arrêté par le service d’e-mail",
       "replied": "A répondu — séquences d’e-mails arrêtées",
       "by": "par {name}",
-      "from": "depuis {ip}"
+      "from": "depuis {ip}",
+      "note": "« {note} »"
     },
     "toast": {
-      "recorded": "Consentement enregistré pour « {purpose} ».",
+      "recorded": "Consentement enregistré : {purpose}.",
       "replied": "Marqué comme ayant répondu. Ses séquences d’e-mails s’arrêtent.",
       "saidNo": "Cette personne est maintenant sur la liste « Pas d’e-mail ».",
       "already": "Cette personne était déjà sur la liste « Pas d’e-mail ».",

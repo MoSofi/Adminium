@@ -1978,16 +1978,20 @@ export default {
       "apiNo": "Nastaveno na ne přes API",
       "systemYes": "Nastaveno na ano",
       "systemNo": "Nastaveno na ne",
-      "unsubscribed": "Odhlášeno z „{purpose}“ odkazem v e-mailu",
+      "unsubscribed": {
+        "newsletter": "Odhlášeno z newsletteru odkazem v e-mailu",
+        "surveys": "Odhlášeno z průzkumů odkazem v e-mailu"
+      },
       "unsubscribedAll": "Odhlášeno ze všech marketingových e-mailů odkazem v e-mailu",
       "oneClick": "Odhlášeno tlačítkem pro odhlášení v poštovní aplikaci",
       "mailService": "Zastaveno poštovní službou",
       "replied": "Odpověď – série e-mailů zastaveny",
       "by": "– {name}",
-      "from": "z {ip}"
+      "from": "z {ip}",
+      "note": "„{note}“"
     },
     "toast": {
-      "recorded": "Souhlas pro „{purpose}“ zaznamenán.",
+      "recorded": "Souhlas zaznamenán: {purpose}.",
       "replied": "Označeno jako odpověď. Série e-mailů se zastaví.",
       "saidNo": "Tento člověk je teď na seznamu „Neposílat e-maily“.",
       "already": "Tento člověk už na seznamu „Neposílat e-maily“ byl.",

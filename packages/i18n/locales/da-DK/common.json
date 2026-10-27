@@ -1968,16 +1968,20 @@
       "apiNo": "Sat til nej via API'et",
       "systemYes": "Sat til ja",
       "systemNo": "Sat til nej",
-      "unsubscribed": "Afmeldt {purpose} via linket i mailen",
+      "unsubscribed": {
+        "newsletter": "Afmeldt nyhedsbrevet via linket i mailen",
+        "surveys": "Afmeldt undersøgelser via linket i mailen"
+      },
       "unsubscribedAll": "Afmeldt al marketingmail via linket i mailen",
       "oneClick": "Afmeldt med mailprogrammets afmeldingsknap",
       "mailService": "Stoppet af mailtjenesten",
       "replied": "Har svaret – mailserier stoppet",
       "by": "af {name}",
-      "from": "fra {ip}"
+      "from": "fra {ip}",
+      "note": "»{note}«"
     },
     "toast": {
-      "recorded": "Samtykke registreret for {purpose}.",
+      "recorded": "Samtykke registreret: {purpose}.",
       "replied": "Markeret som svaret. Mailserierne stopper.",
       "saidNo": "Personen er nu på listen „Ingen e-mails“.",
       "already": "Personen var allerede på listen „Ingen e-mails“.",

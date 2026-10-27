@@ -1978,16 +1978,20 @@ export default {
       "apiNo": "通过 API 设为否",
       "systemYes": "设为是",
       "systemNo": "设为否",
-      "unsubscribed": "通过邮件链接退订了{purpose}",
+      "unsubscribed": {
+        "newsletter": "通过邮件链接退订了新闻通讯",
+        "surveys": "通过邮件链接退订了调查"
+      },
       "unsubscribedAll": "通过邮件链接退订了所有营销邮件",
       "oneClick": "通过邮件应用的退订按钮退订",
       "mailService": "被邮件服务停止",
       "replied": "已回复 — 邮件序列已停止",
       "by": "由 {name}",
-      "from": "来自 {ip}"
+      "from": "来自 {ip}",
+      "note": "“{note}”"
     },
     "toast": {
-      "recorded": "已记录对{purpose}的同意。",
+      "recorded": "已记录同意：{purpose}。",
       "replied": "已标记为回复。发给对方的邮件序列会停止。",
       "saidNo": "对方现已在禁止发送邮件名单上。",
       "already": "对方已在禁止发送邮件名单上。",

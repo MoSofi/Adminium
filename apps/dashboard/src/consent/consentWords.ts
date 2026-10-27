@@ -80,6 +80,11 @@ function versionOf(stored: string | null): string | null {
   return first === '' ? null : first;
 }
 
+/** A staff member's note, in the language's own quotation marks; none when there is none. */
+function quoted(t: Translate, note: string | null): string | null {
+  return note === null || note.trim() === '' ? null : t('common:consent.line.note', '“{note}”', { note });
+}
+
 /** A yes a staff member recorded, by how the person gave it: one sentence each, so every language words it whole. */
 function recordedLine(t: Translate, how: ConsentHow, name: string): string {
   switch (how) {
@@ -110,10 +115,10 @@ function sentence(t: Translate, event: ConsentEventView): { text: string; icon: 
       return { text, icon: 'file-check', tone: 'pos', extra: event.ip === null ? null : t('common:consent.line.from', 'from {ip}', { ip: event.ip }) };
     }
     case 'staff':
-      if (yes && event.how !== null) return { text: recordedLine(t, event.how, name), icon: 'file-pen', tone: 'pos', extra: event.note };
+      if (yes && event.how !== null) return { text: recordedLine(t, event.how, name), icon: 'file-pen', tone: 'pos', extra: quoted(t, event.note) };
       return yes
-        ? { text: t('common:consent.line.ticked', 'Ticked by {name}', { name }), icon: 'square-check', tone: 'neutral', extra: event.note }
-        : { text: t('common:consent.line.unticked', 'Unticked by {name}', { name }), icon: 'mail-x', tone: 'neutral', extra: event.note };
+        ? { text: t('common:consent.line.ticked', 'Ticked by {name}', { name }), icon: 'square-check', tone: 'neutral', extra: quoted(t, event.note) }
+        : { text: t('common:consent.line.unticked', 'Unticked by {name}', { name }), icon: 'mail-x', tone: 'neutral', extra: quoted(t, event.note) };
     case 'review':
       return yes
         ? { text: t('common:consent.line.reviewYes', 'Confirmed by {name}', { name }), icon: 'square-check', tone: 'neutral', extra: t('common:consent.line.reviewYesExtra', '(ticked before records were kept)') }
@@ -134,7 +139,9 @@ function sentence(t: Translate, event: ConsentEventView): { text: string; icon: 
         ? t('common:consent.line.unsubscribedAll', 'Unsubscribed from all marketing mail by the e-mail link')
         : via.startsWith('one-click')
           ? t('common:consent.line.oneClick', "Unsubscribed with their mail app's unsubscribe button")
-          : t('common:consent.line.unsubscribed', 'Unsubscribed from the {purpose} by the e-mail link', { purpose });
+          : event.purpose === 'surveys'
+            ? t('common:consent.line.unsubscribed.surveys', 'Unsubscribed from Surveys by the e-mail link')
+            : t('common:consent.line.unsubscribed.newsletter', 'Unsubscribed from the Newsletter by the e-mail link');
       return { text, icon: 'mail-x', tone: 'danger', extra: null };
     }
     case 'relay':

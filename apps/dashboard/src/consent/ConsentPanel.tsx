@@ -225,7 +225,7 @@ export function ConsentPanel({ record, view, client, name, address, locale, onCh
             try {
               await client.recordConsent(record, input);
               setRecording(false);
-              tell(t('common:consent.toast.recorded', 'Consent recorded for the {purpose}.', { purpose: purposeName(t, input.purpose) }), 'success');
+              tell(t('common:consent.toast.recorded', 'Consent recorded: {purpose}.', { purpose: purposeName(t, input.purpose) }), 'success');
               await onChanged();
             } catch (error) {
               failed(error);

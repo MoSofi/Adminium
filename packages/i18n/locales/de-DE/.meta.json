@@ -5423,6 +5423,10 @@
     "status": "mt",
     "srcHash": "1a47c715d265"
   },
+  "common.consent.line.note": {
+    "status": "mt",
+    "srcHash": "032a781c617f"
+  },
   "common.consent.line.oneClick": {
     "status": "mt",
     "srcHash": "170a2d310204"
@@ -5487,9 +5491,13 @@
     "status": "mt",
     "srcHash": "c4a386cb0f5f"
   },
-  "common.consent.line.unsubscribed": {
+  "common.consent.line.unsubscribed.newsletter": {
     "status": "mt",
-    "srcHash": "47d5aa3dafcd"
+    "srcHash": "93e63bf9a504"
+  },
+  "common.consent.line.unsubscribed.surveys": {
+    "status": "mt",
+    "srcHash": "8f0f31dc43fd"
   },
   "common.consent.line.unsubscribedAll": {
     "status": "mt",

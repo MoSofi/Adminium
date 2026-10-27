@@ -212,7 +212,7 @@ describe('the e-mail consent panel', () => {
     expect(screen.getByTestId('consent-badge-surveys').textContent).toBe('May be e-mailed');
     expect(screen.getByTestId('consent-history').textContent).toContain('Agreed by phone, recorded by Mia Marketer');
     // Without a toast to tell it to, the panel says it in a polite line of its own.
-    expect(screen.getByRole('status').textContent).toBe('Consent recorded for the Surveys.');
+    expect(screen.getByRole('status').textContent).toBe('Consent recorded: Surveys.');
   });
 
   it('names the address in the dialog for a reader shown it in clear', async () => {
@@ -235,9 +235,13 @@ describe('the e-mail consent panel', () => {
     await user.click(screen.getByTestId('consent-record'));
     const dialog = await screen.findByRole('dialog', { name: 'Record consent' });
     expect(within(dialog).getByTestId('consent-dialog-who').textContent).toBe('Marta Kovac');
+    await user.click(within(dialog).getByRole('radio', { name: 'On paper' }));
+    // The chosen answer is the one drawn as chosen.
+    expect(within(dialog).getByRole('radio', { name: 'On paper' }).getAttribute('aria-checked')).toBe('true');
+    expect(within(dialog).getByRole('radio', { name: 'In person' }).getAttribute('aria-checked')).toBe('false');
     await user.click(within(dialog).getByTestId('consent-dialog-save'));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(calls).toEqual([{ what: 'record', body: { purpose: 'newsletter', how: 'in-person', note: null } }]);
+    expect(calls).toEqual([{ what: 'record', body: { purpose: 'newsletter', how: 'paper', note: null } }]);
   });
 
   it('"They said no" asks first, writes once, and then shows the banner', async () => {

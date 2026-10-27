@@ -1968,16 +1968,20 @@
       "apiNo": "透過 API 設為否",
       "systemYes": "設為是",
       "systemNo": "設為否",
-      "unsubscribed": "透過郵件連結取消訂閱了{purpose}",
+      "unsubscribed": {
+        "newsletter": "透過郵件連結取消訂閱了電子報",
+        "surveys": "透過郵件連結取消訂閱了問卷"
+      },
       "unsubscribedAll": "透過郵件連結取消訂閱了所有行銷郵件",
       "oneClick": "透過郵件應用程式的取消訂閱按鈕取消訂閱",
       "mailService": "被郵件服務停止",
       "replied": "已回覆 — 郵件序列已停止",
       "by": "由 {name}",
-      "from": "來自 {ip}"
+      "from": "來自 {ip}",
+      "note": "「{note}」"
     },
     "toast": {
-      "recorded": "已記錄對{purpose}的同意。",
+      "recorded": "已記錄同意：{purpose}。",
       "replied": "已標記為回覆。寄給對方的郵件序列會停止。",
       "saidNo": "對方現已在禁止寄送郵件名單上。",
       "already": "對方已在禁止寄送郵件名單上。",

@@ -1156,16 +1156,20 @@ export default {
       "apiNo": "Set to no through the API",
       "systemYes": "Set to yes",
       "systemNo": "Set to no",
-      "unsubscribed": "Unsubscribed from the {purpose} by the e-mail link",
+      "unsubscribed": {
+        "newsletter": "Unsubscribed from the Newsletter by the e-mail link",
+        "surveys": "Unsubscribed from Surveys by the e-mail link"
+      },
       "unsubscribedAll": "Unsubscribed from all marketing mail by the e-mail link",
       "oneClick": "Unsubscribed with their mail app's unsubscribe button",
       "mailService": "Stopped by the mail service",
       "replied": "Replied — e-mail sequences stopped",
       "by": "by {name}",
-      "from": "from {ip}"
+      "from": "from {ip}",
+      "note": "“{note}”"
     },
     "toast": {
-      "recorded": "Consent recorded for the {purpose}.",
+      "recorded": "Consent recorded: {purpose}.",
       "replied": "Marked as replied. Their e-mail sequences stop.",
       "saidNo": "They are on the do-not-email list now.",
       "already": "They were on the do-not-email list already.",
