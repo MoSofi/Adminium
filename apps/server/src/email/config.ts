@@ -181,6 +181,7 @@ export function mailOptionsOf(msg: OutboundEmail, defaultFrom: string) {
     text: msg.text,
     html: msg.html,
     ...(msg.headers === undefined ? {} : { headers: msg.headers }),
+    ...(msg.messageId === undefined ? {} : { messageId: msg.messageId }),
     // Adminium's own signature on a marketing mail, for this message alone (nodemailer signs per message).
     ...(msg.dkim === undefined ? {} : { dkim: msg.dkim }),
     // BYTES ONLY: `content` is a Buffer the delivery layer

@@ -35,6 +35,8 @@ export const otherNoticeSchema = z
             kind: z.enum(['bounce', 'complaint', 'unsubscribe']),
             permanent: z.boolean().optional(),
             id: z.string().max(255).optional(),
+            // The Message-ID of the mail it is about, when the service knows it: a campaign mail's marks its send-log row.
+            messageId: z.string().max(255).optional(),
             at: z.union([z.iso.datetime({ offset: true }), z.number().int().nonnegative()]).optional(),
           })
           .strict(),
@@ -52,7 +54,7 @@ export function otherEvents(body: unknown): NoticeEvent[] | null {
     const address = addressOf(event.address);
     if (address === null) return null;
     const at = event.at === undefined ? null : typeof event.at === 'number' ? event.at : Date.parse(event.at);
-    out.push({ address, kind: event.kind, permanent: event.permanent ?? true, relayEventId: event.id ?? null, at });
+    out.push({ address, kind: event.kind, permanent: event.permanent ?? true, relayEventId: event.id ?? null, at, ...(event.messageId === undefined ? {} : { messageId: event.messageId }) });
   }
   return out;
 }

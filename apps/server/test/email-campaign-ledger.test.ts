@@ -50,6 +50,8 @@ import {
   type CampaignRowVerdict,
 } from '../src/jobs/email-campaign-run.js';
 import { registerEmailSendHandler } from '../src/jobs/email-send.js';
+import { sendIdOfMessageId } from '../src/email/message-id.js';
+import { markSendLog } from '../src/routes/mail-door/notices.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
@@ -84,6 +86,8 @@ async function drain(worker: JobWorker, timeoutMs = 60_000): Promise<number> {
 
 interface Recorder {
   sent: OutboundEmail[];
+  /** Every try that was refused, as it was handed over. */
+  refused: OutboundEmail[];
   /** Addresses refused; the count is how many times each still refuses. */
   refuse: Map<string, number>;
   make: () => EmailTransport;
@@ -92,12 +96,14 @@ interface Recorder {
 function recorder(): Recorder {
   const rec: Recorder = {
     sent: [],
+    refused: [],
     refuse: new Map(),
     make: () => ({
       send: async (msg) => {
         const left = rec.refuse.get(msg.to) ?? 0;
         if (left > 0) {
           rec.refuse.set(msg.to, left - 1);
+          rec.refused.push(msg);
           throw new Error(`451 try again later (${msg.to})`);
         }
         rec.sent.push(msg);
@@ -566,20 +572,71 @@ for (const engine of META_ENGINES) {
       const csv = await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log.csv?filter=all`, headers: as(manager) });
       expect(csv.statusCode, csv.body).toBe(200);
       expect(csv.headers['content-type']).toContain('text/csv');
-      const lines = csv.body.replace(/^﻿/, '').trimEnd().split('\r\n');
+      const lines = csv.body.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
       expect(lines[0]).toBe('name,address,state,time,detail');
       expect(lines).toHaveLength(7);
       expect(lines[3]).toMatch(/^Ruth Adeyemi,ruth@shop\.test,failed,\d{4}-\d\d-\d\dT[^,]+,451 try again later \(ruth@shop\.test\)$/);
       expect(lines[5]).toBe(`"'=HYPERLINK(""http://x"")",formula@shop.test,sent,${new Date(all.rows[4]!.time!).toISOString()},`);
       expect(lines[6]).toBe('Aisha Rahman,aisha@shop.test,skipped-consent,' + new Date(all.rows[5]!.time!).toISOString() + ',campaign-mail-off');
       const skippedCsv = await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log.csv?filter=skipped&q=callum`, headers: as(manager) });
-      expect(skippedCsv.body.replace(/^﻿/, '').trimEnd().split('\r\n')).toHaveLength(2);
+      expect(skippedCsv.body.replace(/^\uFEFF/, '').trimEnd().split('\r\n')).toHaveLength(2);
       const downloads = await meta.db.selectFrom('adminium_audit_log').select(['action']).where('action', '=', 'email-campaign.log-download').execute();
       expect(downloads).toHaveLength(2);
 
       // Without the grant: no log, no file.
       expect((await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log`, headers: as(viewer) })).statusCode).toBe(403);
       expect((await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log.csv`, headers: as(viewer) })).statusCode).toBe(403);
+    });
+
+    it('every campaign mail leaves with a Message-ID naming its row (the same on a retry); a notice naming it marks that row, and the summary counts it', async () => {
+      const users = usersRepo(meta);
+      const ruth = await users.create({ email: 'ruth@shop.test', name: 'Ruth Adeyemi', status: 'active' });
+      await users.create({ email: 'callum@shop.test', name: 'Callum Brookes', status: 'active' });
+      transport.refuse.set(ruth.email, 1);
+      const doc = await campaign();
+      const run = await send(doc.id);
+      const w = worker('message-id');
+      await drain(w);
+      clock += 60_000;
+      await drain(w);
+      const rows = await emailSendsRepo(meta).list(run.id, { limit: 50 });
+      expect(transport.sent).toHaveLength(4);
+      for (const msg of transport.sent) {
+        const row = rows.find((one) => one.address === msg.to)!;
+        // The From is news@shop.test: its domain is the Message-ID's right-hand side.
+        expect(msg.messageId).toBe(`<${row.id}@shop.test>`);
+        expect(sendIdOfMessageId(msg.messageId)).toBe(row.id);
+      }
+      // The refused first try went with the same Message-ID as the one that got through.
+      expect(transport.refused.map((msg) => msg.messageId)).toEqual([`<${rows.find((one) => one.address === ruth.email)!.id}@shop.test>`]);
+
+      const idOf = (address: string) => rows.find((one) => one.address === address)!.id;
+      const marked = await markSendLog(
+        meta,
+        'other',
+        [
+          // A bounce for good naming Ruth's mail: her row reads bounced.
+          { address: 'ruth@shop.test', kind: 'bounce', permanent: true, relayEventId: null, at: null, messageId: `<${idOf('ruth@shop.test')}@shop.test>` },
+          // A spam report naming Callum's mail, as a service may hand it back: no brackets, other case.
+          { address: 'CALLUM@shop.test', kind: 'complaint', permanent: true, relayEventId: null, at: null, messageId: `${idOf('callum@shop.test').toLowerCase()}@shop.test` },
+          // A soft bounce marks nothing; nor does a notice whose address is not the row's, or a Message-ID of another shape.
+          { address: 'ava@shop.test', kind: 'bounce', permanent: false, relayEventId: null, at: null, messageId: `<${idOf('ava@shop.test')}@shop.test>` },
+          { address: 'someone@else.test', kind: 'bounce', permanent: true, relayEventId: null, at: null, messageId: `<${idOf('liam@shop.test')}@shop.test>` },
+          { address: 'liam@shop.test', kind: 'bounce', permanent: true, relayEventId: null, at: null, messageId: '<0100018c.relay-own-id@email.amazonses.com>' },
+        ],
+        clock,
+      );
+      expect(marked).toBe(2);
+      // A second notice about a row already marked changes nothing.
+      expect(await markSendLog(meta, 'other', [{ address: 'ruth@shop.test', kind: 'complaint', permanent: true, relayEventId: null, at: null, messageId: `<${idOf('ruth@shop.test')}@shop.test>` }], clock)).toBe(0);
+      const log = await app.inject({ method: 'GET', url: `/email-runs/${run.id}/log`, headers: as(manager) });
+      expect(log.statusCode, log.body).toBe(200);
+      const body = log.json() as { summary: Record<string, number>; rows: { address: string; state: string; reason: string | null }[] };
+      expect(body.summary).toEqual({ total: 4, sent: 2, waiting: 0, skipped: 0, bounced: 1, spam: 1, failed: 0, unsubscribed: 0 });
+      expect(body.rows.filter((row) => row.state !== 'sent').map((row) => [row.address, row.state, row.reason])).toEqual([
+        ['ruth@shop.test', 'bounced', 'notice:other'],
+        ['callum@shop.test', 'spam', 'notice:other'],
+      ]);
     });
 
     it('the preview and the run say how long a capped send takes', async () => {

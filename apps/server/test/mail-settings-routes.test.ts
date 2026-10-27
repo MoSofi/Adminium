@@ -122,6 +122,8 @@ for (const engine of META_ENGINES) {
         postalAddress: null,
         replyTo: null,
         publicOrigin: null,
+        // The name the locked footer gives: nothing set here yet (no shop, business or workspace name, no public address).
+        businessName: '',
         senders: [
           { address: 'news@meridian.example', name: 'Meridian', implicit: true, domain: 'meridian.example', freeMail: false, key: null },
           { address: 'sales@meridian.example', name: 'Meridian Sales', implicit: false, domain: 'meridian.example', freeMail: false, key: null },

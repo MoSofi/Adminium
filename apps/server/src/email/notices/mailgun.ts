@@ -39,17 +39,19 @@ export function mailgunEvents(data: unknown): NoticeEvent[] | null {
   if (!isRecord(data) || typeof data['event'] !== 'string') return null;
   const id = textOf(data['id']);
   const at = secondsTime(data['timestamp']);
+  // The mail's own Message-ID, which Mailgun keeps from what was sent (without its angle brackets).
+  const message = isRecord(data['message']) && isRecord(data['message']['headers']) ? textOf(data['message']['headers']['message-id']) : null;
   switch (data['event']) {
     case 'failed':
     case 'permanent_fail':
     case 'temporary_fail': {
       const permanent = data['severity'] === 'permanent' || data['event'] === 'permanent_fail';
-      return eventOf(data['recipient'], 'bounce', permanent, id, at);
+      return eventOf(data['recipient'], 'bounce', permanent, id, at, message);
     }
     case 'complained':
-      return eventOf(data['recipient'], 'complaint', true, id, at);
+      return eventOf(data['recipient'], 'complaint', true, id, at, message);
     case 'unsubscribed':
-      return eventOf(data['recipient'], 'unsubscribe', true, id, at);
+      return eventOf(data['recipient'], 'unsubscribe', true, id, at, message);
     default:
       return [];
   }

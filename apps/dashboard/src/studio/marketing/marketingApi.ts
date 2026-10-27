@@ -40,6 +40,8 @@ export interface MarketingSettings {
   postalAddress: string | null;
   replyTo: string | null;
   publicOrigin: string | null;
+  /** The business the locked footer names; absent from an older server. */
+  businessName?: string | undefined;
   senders: MarketingSender[];
 }
 

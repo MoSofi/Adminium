@@ -79986,6 +79986,26 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "refusals": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "no-postal-address",
+                          "free-mail-from",
+                          "dns-unchecked",
+                          "no-dmarc",
+                          "not-aligned",
+                          "no-public-address"
+                        ]
+                      }
+                    },
+                    "sender": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -122745,6 +122765,9 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "businessName": {
+                          "type": "string"
                         },
                         "senders": {
                           "type": "array",

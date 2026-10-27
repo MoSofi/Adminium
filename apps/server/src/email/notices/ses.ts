@@ -115,8 +115,25 @@ async function certificateOf(url: string, deps: SesReaderDeps): Promise<X509Cert
 }
 
 /** The events of one SES notice (the JSON inside `Message`). */
+/** The `Message-ID` the mail left with: SES's `commonHeaders`, else the original headers when the topic includes them. */
+function sentMessageId(notice: Record<string, unknown>): string | null {
+  const mail = notice['mail'];
+  if (!isRecord(mail)) return null;
+  const common = mail['commonHeaders'];
+  if (isRecord(common)) {
+    const named = textOf(common['messageId']);
+    if (named !== null) return named;
+  }
+  const headers = Array.isArray(mail['headers']) ? mail['headers'] : [];
+  for (const header of headers) {
+    if (isRecord(header) && textOf(header['name'])?.toLowerCase() === 'message-id') return textOf(header['value']);
+  }
+  return null;
+}
+
 export function sesEvents(notice: unknown, messageId: string | null): NoticeEvent[] {
   if (!isRecord(notice)) return [];
+  const sent = sentMessageId(notice);
   const type = textOf(notice['notificationType']) ?? textOf(notice['eventType']);
   if (type === 'Bounce' && isRecord(notice['bounce'])) {
     const bounce = notice['bounce'];
@@ -124,7 +141,7 @@ export function sesEvents(notice: unknown, messageId: string | null): NoticeEven
     const id = textOf(bounce['feedbackId']) ?? messageId;
     const at = isoTime(bounce['timestamp']);
     const recipients = Array.isArray(bounce['bouncedRecipients']) ? bounce['bouncedRecipients'] : [];
-    return recipients.flatMap((recipient) => (isRecord(recipient) ? eventOf(recipient['emailAddress'], 'bounce', permanent, id, at) : []));
+    return recipients.flatMap((recipient) => (isRecord(recipient) ? eventOf(recipient['emailAddress'], 'bounce', permanent, id, at, sent) : []));
   }
   if (type === 'Complaint' && isRecord(notice['complaint'])) {
     const complaint = notice['complaint'];
@@ -133,7 +150,7 @@ export function sesEvents(notice: unknown, messageId: string | null): NoticeEven
     const id = textOf(complaint['feedbackId']) ?? messageId;
     const at = isoTime(complaint['timestamp']);
     const recipients = Array.isArray(complaint['complainedRecipients']) ? complaint['complainedRecipients'] : [];
-    return recipients.flatMap((recipient) => (isRecord(recipient) ? eventOf(recipient['emailAddress'], 'complaint', true, id, at) : []));
+    return recipients.flatMap((recipient) => (isRecord(recipient) ? eventOf(recipient['emailAddress'], 'complaint', true, id, at, sent) : []));
   }
   // Deliveries, sends, opens, delays: nothing for the list.
   return [];

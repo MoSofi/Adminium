@@ -36,6 +36,7 @@ import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
 import { createMarketingMail, type MarketingMail } from '../email/marketing.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
+import { campaignMessageId, campaignSendOfReport } from '../email/message-id.js';
 import type { PermanentRefusal } from '../email/refused.js';
 import { EMAIL_SEND_JOB_KIND, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
 import type {
@@ -250,6 +251,8 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     const from = envelope.from ?? config.from;
     const signed = envelope.mailClass === 'marketing' ? await marketing.signing(from, config.host) : null;
     const headers = { ...(envelope.headers ?? {}), ...(signed?.headers ?? {}) };
+    // A campaign mail leaves with a Message-ID naming its send-log row: a mail service's notice about it finds the row.
+    const sendId = campaignSendOfReport(payload.report);
     try {
       await makeTransport(config).send({
         to: envelope.to,
@@ -261,6 +264,7 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
         ...(attachments.length === 0 ? {} : { attachments }),
         ...(Object.keys(headers).length === 0 ? {} : { headers }),
         ...(signed?.dkim == null ? {} : { dkim: signed.dkim }),
+        ...(sendId === null ? {} : { messageId: campaignMessageId(sendId, from) }),
       });
     } catch (error) {
       // A contact's address refused for good: on the do-not-email list, the row told now, and never tried again.

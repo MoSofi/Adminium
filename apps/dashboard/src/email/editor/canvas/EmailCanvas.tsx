@@ -19,7 +19,7 @@
  * becomes optional rather than being faked by the caller.
  */
 import { Eye, Monitor, Plus, Smartphone } from 'lucide-react';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { SegmentedControl, Switch, cn } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
@@ -66,6 +66,8 @@ export interface EmailCanvasProps {
   /** Writes one text of a block back: a placeholder's backup, typed in its chip. */
   onBlockText?: ((id: string, path: TextPath, value: string) => void) | undefined;
   onBlockTextEditStart?: ((id: string) => void) | undefined;
+  /** A marketing e-mail's locked lines (the postal address, the unsubscribe link), drawn under the footer text. */
+  lockedFooter?: ReactNode;
 }
 
 /** The line under the toolbar while the missing-values preview is on: whose email this is. */
@@ -105,6 +107,7 @@ export function EmailCanvas({
   onMissingChange,
   onBlockText,
   onBlockTextEditStart,
+  lockedFooter,
 }: EmailCanvasProps) {
   const missingId = useId();
   const asReader = readOnly !== true && missing === true;
@@ -260,6 +263,7 @@ export function EmailCanvas({
                 testId="email-section-footer"
               >
                 <FooterText text={asReader ? fillPlaceholders(document.footer, {}) : document.footer} />
+                {lockedFooter ?? null}
               </FixedSection>
             </div>
           </div>

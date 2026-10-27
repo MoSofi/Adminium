@@ -321,6 +321,25 @@ export function emailSendsRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * A mail service's notice about the mail this row went as (its
+     * `Message-ID` names the row): a bounce for good reads `bounced`, a spam
+     * report `spam`, the service's own unsubscribe `unsubscribed`, with
+     * `reason` saying which service told. Only a sent row moves, and only when
+     * the notice is about this row's address (any case), so a notice naming
+     * another mail's id changes nothing. True when the row moved.
+     */
+    async markNoticed(id: string, address: string, state: Extract<EmailSendState, 'bounced' | 'spam' | 'unsubscribed'>, reason: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_email_sends')
+        .set({ state, reason: cut(reason, EMAIL_SEND_REASON_MAX), updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'sent')
+        .where(sql<boolean>`lower(address) = ${address.trim().toLowerCase()}`)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
     /** A signed link in this send was followed: one more click. False when there is no such row (or it is full). */
     async countClick(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db

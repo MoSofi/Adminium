@@ -2,12 +2,14 @@
 /**
  * Campaigns in the editor: *Send campaign* saves first and POSTs the
  * audience with the picked roles, then reads *Campaign sent!*; *Schedule*
- * sends `scheduleAt` and reads *Campaign scheduled!*; a running run's chip
- * follows a synthetic `jobs:<id>` progress event and `completed` refetches
- * the document; the Design tab's campaign status pills have no click
- * handler (D13); a scheduled campaign's header shows the chip and *Cancel
- * schedule* POSTs `/cancel`. The realtime client is replaced at the module
- * seam so events can be fired by hand.
+ * sends `scheduleAt` and reads *Campaign scheduled!*; a sending run reads
+ * "Sending · 2 of 5" (the run's own counts) with *Pause sending* and *Stop
+ * sending* (which asks first), a paused one "Paused" with *Go on sending*,
+ * and a `completed` event on the job channel refetches the document; the
+ * Design tab's campaign status pills have no click handler (D13); a
+ * scheduled campaign's header shows the chip and *Cancel schedule* POSTs
+ * `/cancel`. The realtime client is replaced at the module seam so events
+ * can be fired by hand.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -122,6 +124,13 @@ function stubFetch(current: () => EmailDocumentDetail) {
         return Promise.resolve(jsonResponse(202, { run: input.scheduleAt === undefined ? run('running', { scheduledAt: 1 }) : run('scheduled', { scheduledAt: input.scheduleAt }) }));
       }
       if (url === '/api/v1/email-runs/run_1/cancel' && method === 'POST') return Promise.resolve(jsonResponse(200, { run: run('cancelled') }));
+      if (url === '/api/v1/email-runs/run_1' && method === 'GET') {
+        const latest = current().run ?? run('running');
+        return Promise.resolve(jsonResponse(200, { run: latest, name: 'Launch', done: 2, total: 5, left: 3, estimateMinutes: null }));
+      }
+      if (url === '/api/v1/email-runs/run_1/pause' && method === 'POST') return Promise.resolve(jsonResponse(200, { run: run('running', { state: 'paused' }) }));
+      if (url === '/api/v1/email-runs/run_1/resume' && method === 'POST') return Promise.resolve(jsonResponse(200, { run: run('running', { state: 'running' }) }));
+      if (url === '/api/v1/email-runs/run_1/stop' && method === 'POST') return Promise.resolve(jsonResponse(200, { run: run('cancelled', { state: 'stopped' }), left: 3 }));
       if (url.startsWith('/api/v1/users')) return Promise.resolve(jsonResponse(200, { users: [], nextCursor: null, counts: { active: 1, invited: 0, suspended: 0 } }));
       if (url.startsWith('/api/v1/files?')) return Promise.resolve(jsonResponse(200, { data: [], nextCursor: null }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: `no route: ${method} ${url}` } }));
@@ -166,7 +175,7 @@ describe('Campaigns', () => {
     const { user, calls } = await renderEditor(() => detail());
     await user.click(screen.getByTestId('email-send'));
     const dialog = await screen.findByRole('dialog');
-    await waitFor(() => expect(within(dialog).getByTestId('email-campaign-count').textContent).toBe('5 recipients · 1 opted out'));
+    await waitFor(() => expect(within(dialog).getByTestId('email-campaign-count').textContent).toBe('4 recipients · 1 skipped'));
     expect(within(dialog).queryByTestId('email-campaign-unfilled')).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Admins' }));
     const notice = await within(dialog).findByTestId('email-campaign-unfilled');
@@ -188,7 +197,7 @@ describe('Campaigns', () => {
     expect(within(dialog).getByRole('heading', { name: 'Send campaign' })).toBeDefined();
     expect(within(dialog).getByText('Variables are filled per recipient — {{name}} becomes each person’s name.')).toBeDefined();
     await waitFor(() => {
-      expect(within(dialog).getByTestId('email-campaign-count').textContent).toBe('5 recipients · 1 opted out');
+      expect(within(dialog).getByTestId('email-campaign-count').textContent).toBe('4 recipients · 1 skipped');
     });
     await user.click(within(dialog).getByRole('button', { name: 'Editors' }));
     await waitFor(() => {
@@ -202,7 +211,8 @@ describe('Campaigns', () => {
     const sendIndex = calls.findIndex((c) => c.method === 'POST' && c.url.endsWith('/send'));
     expect(putIndex).toBeGreaterThan(-1);
     expect(putIndex).toBeLessThan(sendIndex);
-    expect(calls[sendIndex]?.body).toEqual({ audience: { kind: 'users', roleIds: ['r_editor'] } });
+    // The comp's default speed: at most 100 an hour.
+    expect(calls[sendIndex]?.body).toEqual({ audience: { kind: 'users', roleIds: ['r_editor'] }, ratePerHour: 100 });
     expect(await screen.findByText('Campaign sent!')).toBeDefined();
     expect(screen.getByText('Launch is on its way to 2 recipients.')).toBeDefined();
     await user.click(screen.getByRole('button', { name: 'Done' }));
@@ -232,19 +242,21 @@ describe('Campaigns', () => {
     expect(screen.getByText(/^Launch goes out /)).toBeDefined();
   });
 
-  it('a running run wears Sending with the job channel progress; completed refetches the document', async () => {
-    const { calls } = await renderEditor(() => detail(run('running', { sent: 2 })));
-    const chip = screen.getByTestId('email-run-chip');
+  it('a sending run wears "Sending · 2 of 5" with Pause and Stop; completed refetches the document', async () => {
+    const { calls, user } = await renderEditor(() => detail(run('running', { sent: 2, state: 'running' })));
+    const chip = await screen.findByTestId('email-run-chip');
     expect(chip.getAttribute('data-status')).toBe('running');
-    expect(chip.textContent).toContain('Sending · 0%');
-    expect(screen.getByTestId('email-send').hasAttribute('disabled')).toBe(true);
-    const client = jobClient();
-    act(() => {
-      client.onEvent({ channel: 'jobs:job_1', type: 'progress', data: { pct: 42, step: 'send', message: '2 sent · 0 failed' }, ts: '2026-09-06T10:00:00Z' });
-    });
     await waitFor(() => {
-      expect(screen.getByTestId('email-run-chip').textContent).toContain('Sending · 42%');
+      expect(screen.getByTestId('email-run-count').textContent).toBe('Sending · 2 of 5');
     });
+    expect(screen.getByTestId('email-send').hasAttribute('disabled')).toBe(true);
+    // The info strip under the header: the run sends what it froze at its start.
+    expect(screen.getByTestId('email-run-strip').textContent).toBe('Changes you make now apply to the next send, not this one.');
+    await user.click(screen.getByTestId('email-run-pause'));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/v1/email-runs/run_1/pause')).toHaveLength(1);
+    });
+    const client = jobClient();
     const detailGets = () => calls.filter((c) => c.method === 'GET' && c.url === '/api/v1/email-templates/et_c').length;
     const before = detailGets();
     act(() => {
@@ -252,6 +264,44 @@ describe('Campaigns', () => {
     });
     await waitFor(() => {
       expect(detailGets()).toBeGreaterThan(before);
+    });
+  });
+
+  it('Stop sending asks first, with the focus on Keep sending; Stop sending POSTs /stop and says who won’t get it', async () => {
+    const { calls, user } = await renderEditor(() => detail(run('running', { sent: 2, state: 'running' })));
+    await user.click(await screen.findByTestId('email-run-stop'));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(within(confirm).getByRole('heading', { name: 'Stop for good?' })).toBeDefined();
+    await waitFor(() => {
+      expect(within(confirm).getByText('3 people won’t get it. A stopped send can’t be started again.')).toBeDefined();
+    });
+    expect(document.activeElement).toBe(within(confirm).getByTestId('email-run-keep'));
+    // "Keep sending" closes it and stops nothing.
+    await user.click(within(confirm).getByTestId('email-run-keep'));
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+    expect(calls.filter((c) => c.url.endsWith('/stop'))).toHaveLength(0);
+    await user.click(screen.getByTestId('email-run-stop'));
+    await user.click(within(await screen.findByRole('alertdialog')).getByTestId('email-run-stop-confirm'));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/v1/email-runs/run_1/stop')).toHaveLength(1);
+    });
+    expect(await screen.findByText('Stopped. 3 people won’t get it.')).toBeDefined();
+  });
+
+  it('a paused run reads "Paused · 2 of 5", offers Stop sending and Go on sending, and Go on POSTs /resume', async () => {
+    const { calls, user } = await renderEditor(() => detail(run('running', { sent: 2, state: 'paused' })));
+    await waitFor(() => {
+      expect(screen.getByTestId('email-run-count').textContent).toBe('Paused · 2 of 5');
+    });
+    expect(screen.getByTestId('email-run-chip').getAttribute('data-status')).toBe('paused');
+    expect(screen.queryByTestId('email-run-pause')).toBeNull();
+    expect(screen.getByTestId('email-run-stop')).toBeDefined();
+    expect(screen.getByTestId('email-run-strip')).toBeDefined();
+    await user.click(screen.getByTestId('email-run-resume'));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'POST' && c.url === '/api/v1/email-runs/run_1/resume')).toHaveLength(1);
     });
   });
 

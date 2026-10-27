@@ -56,7 +56,7 @@ import {
   type DkimKeys,
   type TxtLookup,
 } from '../../email/sender/index.js';
-import { postalAddressOf } from '../../email/sender/marketing-settings.js';
+import { businessNameOf, postalAddressOf } from '../../email/sender/marketing-settings.js';
 import { replyToOf } from '../../email/send.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { reachability } from '../../payments/reachability.js';
@@ -195,7 +195,7 @@ export function mailSettingsRoutes(deps: MailSettingsRoutesDeps): FastifyPluginA
           out.push({ ...sender, domain, freeMail, key: key === null ? null : await keyView(key) });
         }
         const stored = await settings.get('email.marketingReplyTo');
-        return { data: { postalAddress: await postalAddressOf(meta), replyTo: replyToOf(stored), publicOrigin: await publicOrigin(), senders: out } };
+        return { data: { postalAddress: await postalAddressOf(meta), replyTo: replyToOf(stored), publicOrigin: await publicOrigin(), businessName: await businessNameOf(meta), senders: out } };
       },
     );
 

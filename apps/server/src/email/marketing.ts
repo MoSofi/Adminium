@@ -73,7 +73,7 @@ import {
   createDkimKeys,
   createTxtLookup,
   domainOfAddress,
-  marketingRefusal,
+  marketingRefusals,
   relayOf,
   senderFacts,
   trackingOffHeaders,
@@ -159,6 +159,13 @@ export interface MarketingMail {
   verdict(input: MarketingVerdictInput): Promise<MarketingVerdict>;
   /** The first refusal a marketing send from `from` meets now, or null when it may go. */
   refusal(from: string): Promise<MarketingRefusal | null>;
+  /**
+   * Every refusal a marketing send from `from` meets now, in the send
+   * dialog's order (empty when it may go): what the dialog lists before a
+   * send, and what the send refuses with, so the two never disagree with
+   * the run's own first-batch check ({@link refusal} is the first of these).
+   */
+  refusals(from: string): Promise<MarketingRefusal[]>;
   carry(input: MarketingCarryInput): Promise<MarketingCarry>;
   /** At delivery: Adminium's DKIM options for the From (when a key exists) and the relay's tracking-off headers. */
   signing(from: string, smtpHost: string): Promise<{ dkim: OutboundDkim | null; headers: Record<string, string> }>;
@@ -242,6 +249,18 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
   /** Adminium's key for mail from `domain`: the domain's own, else the nearest parent's. */
   const keyFor = (domain: string) => signingKeyFor(keys, domain);
 
+  /** Every refusal a marketing send from `from` meets now: the postal address, the From's DNS, the public address. */
+  async function refusalsOf(from: string): Promise<MarketingRefusal[]> {
+    const address = bareAddress(from);
+    const origin = await publicOrigin();
+    const postal = await (deps.postalAddress ?? postalAddressOf)(meta);
+    const reached = reachability({ ...reach, publicOrigin: origin, forwarded: false });
+    const domain = domainOfAddress(address);
+    const key = domain === null ? null : await keyFor(domain);
+    const facts = await senderFacts(lookup, address, key === null ? null : { domain: key.domain, selector: key.selector, publicKey: key.publicKey });
+    return marketingRefusals(address, { postalAddress: postal, publicOrigin: origin, reachable: reached.state === 'reachable' }, facts);
+  }
+
   async function managers(): Promise<string[]> {
     const roles = rolesRepo(meta);
     const roleIds = new Set<string>();
@@ -277,15 +296,10 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
     },
 
     async refusal(from) {
-      const address = bareAddress(from);
-      const origin = await publicOrigin();
-      const postal = await (deps.postalAddress ?? postalAddressOf)(meta);
-      const reached = reachability({ ...reach, publicOrigin: origin, forwarded: false });
-      const domain = domainOfAddress(address);
-      const key = domain === null ? null : await keyFor(domain);
-      const facts = await senderFacts(lookup, address, key === null ? null : { domain: key.domain, selector: key.selector, publicKey: key.publicKey });
-      return marketingRefusal(address, { postalAddress: postal, publicOrigin: origin, reachable: reached.state === 'reachable' }, facts);
+      return (await refusalsOf(from))[0] ?? null;
     },
+
+    refusals: refusalsOf,
 
     async carry(input) {
       const origin = await publicOrigin();

@@ -18,19 +18,22 @@
  *   3. each permanent event goes on the do-not-email list, with its reason:
  *      a hard bounce `bounce`, a spam report `spam`, the service's own
  *      unsubscribe `relay-unsubscribe`. A soft bounce writes nothing;
- *   4. the endpoint counts the notice (`noticed`), and Amazon SNS's answered
+ *   4. an event that names a campaign mail's `Message-ID` marks that mail's
+ *      row of the send log (`markSendLog`);
+ *   5. the endpoint counts the notice (`noticed`), and Amazon SNS's answered
  *      handshake marks it confirmed (`confirmed`).
  * A write that fails answers 503 and forgets the call in the replay guard,
  * so the service's retry is taken rather than refused as a replay.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-import type { MetaDb } from '@adminium/meta';
+import { emailSendsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { looksLikeAddress, type ConsentService, type StopReason } from '../../consent/index.js';
+import { sendIdOfMessageId } from '../../email/message-id.js';
 import { createNoticeEndpoints } from '../../email/notices/endpoints.js';
 import { createNoticeReader, createReplayGuard, noticeAnswer, type NoticeEvent, type NoticeService, type ReplayGuard, type SnsFetch } from '../../email/notices/index.js';
 import { createMailDoor, type MailDoorDeps } from './door.js';
@@ -84,6 +87,32 @@ function trackedReplays(): { guard: ReplayGuard; scope: AsyncLocalStorage<string
   };
 }
 
+/** The send-log state a notice's event puts a campaign mail's row in. */
+function sendStateOf(event: NoticeEvent): 'bounced' | 'spam' | 'unsubscribed' {
+  return event.kind === 'complaint' ? 'spam' : event.kind === 'unsubscribe' ? 'unsubscribed' : 'bounced';
+}
+
+/** The send log's reason on a row a notice marked: which service told (the screen words it). */
+export const noticeReason = (service: NoticeService): string => `notice:${service}`;
+
+/**
+ * Each event for good that names a campaign mail's `Message-ID`
+ * (`email/message-id.ts`) marks that mail's send-log row: "Bounced", "Marked
+ * as spam" or "Unsubscribed". A soft bounce marks nothing, as it adds no
+ * address to the list. Returns how many rows moved.
+ */
+export async function markSendLog(meta: MetaDb, service: NoticeService, events: readonly NoticeEvent[], now: number): Promise<number> {
+  const sends = emailSendsRepo(meta);
+  let marked = 0;
+  for (const event of events) {
+    if (!event.permanent) continue;
+    const sendId = sendIdOfMessageId(event.messageId);
+    if (sendId === null) continue;
+    if (await sends.markNoticed(sendId, event.address, sendStateOf(event), noticeReason(service), event.at ?? now)) marked += 1;
+  }
+  return marked;
+}
+
 export async function writeNoticeEvents(consent: ConsentService, service: NoticeService, events: readonly NoticeEvent[], now: number): Promise<number> {
   let written = 0;
   for (const event of events) {
@@ -134,6 +163,7 @@ export function mailNoticeRoutes(deps: MailNoticeDeps): FastifyPluginAsyncZod {
         if (!verdict.genuine) return reply.code(noticeAnswer(verdict)).send({ received: false });
         try {
           await writeNoticeEvents(deps.consent, endpoint.service, verdict.events, now());
+          await markSendLog(meta, endpoint.service, verdict.events, now());
           if (verdict.reply?.kind === 'subscription-confirmed') await endpoints.confirmed(endpoint.id);
           await endpoints.noticed(endpoint.id);
         } catch (error) {

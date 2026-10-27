@@ -12,19 +12,19 @@
  * the editor) rather than at the comp's `top: 0`.
  *
  * A campaign gets a secondary *Save* before the primary *Send campaign* (D11);
- * a template's primary IS the save. While a run is scheduled or running the
- * campaign wears a chip — *Scheduled · date* / *Sending · N %* — with an
- * explicit cancel beside it (D11: cancel is explicit), and *Send campaign*
- * waits: the server refuses a second active run anyway.
+ * a template's primary IS the save. While a run is scheduled, sending or
+ * paused the campaign wears its controls (`runControls`: *Scheduled · date*
+ * and *Cancel schedule*, or *Sending · 120 of 470* with *Pause sending* and
+ * *Stop sending*, or *Paused* with *Go on sending*; the Studio's campaign
+ * screens draw them), and *Send campaign* waits: the server refuses a second
+ * active run anyway.
  */
-import { CalendarClock, Copy, LayoutTemplate, Loader2, Redo2, Save, Send, Trash2, Undo2 } from 'lucide-react';
+import { Copy, LayoutTemplate, Redo2, Save, Send, Trash2, Undo2 } from 'lucide-react';
 import type { FocusEvent, ReactNode, Ref } from 'react';
 import { Button, IconButton, Tag, cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import { formatStamp } from '../../team/teamApi.js';
-import type { EmailDocumentKind, EmailLanguageView, EmailRunView } from '../api.js';
-import type { RunProgress } from '../useRunProgress.js';
+import type { EmailDocumentKind, EmailLanguageView } from '../api.js';
 import { LanguageMenu } from './LanguageMenu.js';
 import { SaveChip } from './SaveChip.js';
 import type { SaveStatus } from './useEditorDraft.js';
@@ -53,13 +53,8 @@ export interface EditorHeaderProps {
   testAvailable: boolean;
   /** A campaign that is not archived and has no scheduled/running run. */
   sendAvailable: boolean;
-  /** The campaign's latest run — the chip shows while it is scheduled or running. */
-  run?: EmailRunView | undefined;
-  progress: RunProgress | null;
-  /** BCP 47, for the schedule stamp. */
-  localeTag: string;
-  onCancelRun: () => void;
-  cancelling: boolean;
+  /** The run's controls while the campaign's latest run is scheduled, sending or paused (drawn by the editor). */
+  runControls?: ReactNode;
   /**
    * The comp's *Ask …* button, in its slot after the undo/redo tray. Passed
    * as a node rather than built here: this header is presentational, and the
@@ -93,16 +88,11 @@ export function EditorHeader({
   onSend,
   testAvailable,
   sendAvailable,
-  run,
-  progress,
-  localeTag,
-  onCancelRun,
-  cancelling,
+  runControls,
   askAssistant,
   ref,
 }: EditorHeaderProps) {
   const isTemplate = kind === 'template';
-  const activeRun = run !== undefined && (run.status === 'scheduled' || run.status === 'running') ? run : null;
   return (
     <header
       ref={ref}
@@ -129,20 +119,8 @@ export function EditorHeader({
       </div>
       <LanguageMenu currentLocale={locale} languages={languages} adding={addingLocale} onOpen={onOpenLanguage} onAdd={onAddLanguage} />
       <SaveChip status={status} error={error} />
-      {activeRun === null ? null : (
-        <div className="flex items-center gap-1.5" data-testid="email-run-chip" data-status={activeRun.status}>
-          <Tag tone={activeRun.status === 'scheduled' ? 'warn' : 'accent'} className="gap-1 rounded-[20px] px-[9px] py-[3px] text-[10.5px]">
-            {activeRun.status === 'scheduled' ? <CalendarClock className="size-3" aria-hidden="true" /> : <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
-            {activeRun.status === 'scheduled'
-              ? t('email:campaign.chipScheduled', 'Scheduled · {when}', { when: formatStamp(activeRun.scheduledAt, localeTag) ?? '' })
-              : t('email:campaign.chipSending', 'Sending · {pct}%', { pct: progress?.pct ?? 0 })}
-          </Tag>
-          <Button variant="outline" size="sm" onClick={onCancelRun} loading={cancelling} data-testid="email-cancel-run">
-            {activeRun.status === 'scheduled' ? t('email:campaign.cancelSchedule', 'Cancel schedule') : t('email:campaign.cancelSending', 'Cancel sending')}
-          </Button>
-        </div>
-      )}
-      <div className="ms-auto flex items-center gap-2">
+      {runControls ?? null}
+      <div className="ms-auto flex flex-wrap items-center gap-2">
         <div className="flex gap-0.5 rounded-[9px] border border-border bg-surface-2 p-[3px]">
           <IconButton variant="ghost" size="sm" label={t('email:editor.undo', 'Undo')} onClick={onUndo} disabled={!canUndo} data-testid="email-undo">
             <Undo2 className="size-[15px]" />

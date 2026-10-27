@@ -65,6 +65,13 @@ export interface OutboundEmail {
   from?: string | undefined;
   /** Where a reply goes (`Reply-To`): one plain address, checked before it gets here. */
   replyTo?: string | undefined;
+  /**
+   * The `Message-ID` it goes with (`<…@…>`), when the sender names one: a
+   * campaign mail's names its send-log row (`email/message-id.ts`), so a mail
+   * service's later notice about it finds the row. Absent, the transport
+   * makes one.
+   */
+  messageId?: string | undefined;
   attachments?: OutboundAttachment[] | undefined;
   /**
    * Adminium's own DKIM signature for this one message (a marketing mail
