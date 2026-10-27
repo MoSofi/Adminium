@@ -261,6 +261,21 @@ test('phone, dark and Arabic: the send dialog', async ({ browser }) => {
   }
 });
 
+interface RunNow {
+  id: string;
+  jobId: string | null;
+  sent: number;
+  failed: number;
+  skipped: number;
+}
+
+/** The campaign's newest run, as the server has it. */
+async function latestRun(page: Page): Promise<RunNow | undefined> {
+  const reply = await page.request.get(`/api/v1/email-templates/${campaignId}/runs`);
+  expect(reply.ok()).toBe(true);
+  return ((await reply.json()) as { runs: RunNow[] }).runs[0];
+}
+
 test('a real send at one an hour: Sending, Pause, Paused, Go on, and Stop through its confirm', async ({ browser }) => {
   test.setTimeout(180_000);
   const { page, close } = await asMarketer(browser);
@@ -274,15 +289,24 @@ test('a real send at one an hour: Sending, Pause, Paused, Go on, and Stop throug
   await expect(page.getByText('Campaign sent!')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).click();
 
-  // The first batch hands one over; the rest wait for the next hour. A busy CI runner can take a while to start it.
-  await expect(page.getByTestId('email-run-count')).toHaveText(/^Sending · 1 of \d+$/, { timeout: 120_000 });
+  // The hour's allowance is the install's, shared by every campaign run: one sent earlier this hour (the
+  // assistant's spec sends one) can leave this run nothing until the next hour. So wait for the first batch to
+  // have run (it queues the next under a new job), then go by what it really handed over: one, or none.
+  const first = await latestRun(page);
+  expect(first).toBeDefined();
+  await expect.poll(async () => (await latestRun(page))?.jobId ?? null, { timeout: 120_000 }).not.toBe(first!.jobId);
+  await page.waitForTimeout(5_000);
+  const after = (await latestRun(page))!;
+  const handed = after.sent + after.failed + after.skipped;
+  expect(handed).toBeLessThanOrEqual(1);
+  await expect(page.getByTestId('email-run-count')).toHaveText(new RegExp(`^Sending · ${String(handed)} of \\d+$`), { timeout: 30_000 });
   await expect(page.getByTestId('email-run-strip')).toHaveText('Changes you make now apply to the next send, not this one.');
   await shot(page, 'run-sending-desktop');
   await page.getByTestId('email-run-pause').click();
-  await expect(page.getByTestId('email-run-count')).toHaveText(/^Paused · 1 of \d+$/);
+  await expect(page.getByTestId('email-run-count')).toHaveText(new RegExp(`^Paused · ${String(handed)} of \\d+$`));
   await shot(page, 'run-paused-desktop');
   await page.getByTestId('email-run-resume').click();
-  await expect(page.getByTestId('email-run-count')).toHaveText(/^Sending · 1 of \d+$/);
+  await expect(page.getByTestId('email-run-count')).toHaveText(new RegExp(`^Sending · ${String(handed)} of \\d+$`));
   await page.getByTestId('email-run-stop').click();
   const confirm = page.getByRole('alertdialog', { name: 'Stop for good?' });
   await expect(confirm.getByTestId('email-run-keep')).toBeFocused();
@@ -298,12 +322,14 @@ test('the send log of that run: the summary, a filter and the search, on desktop
   await page.goto(`/email-templates/${campaignId}`);
   await page.getByTestId('email-view-log').click();
   const log = page.getByTestId('email-send-log');
-  await expect(log.getByTestId('email-log-summary-sent')).toHaveText('Sent1');
+  // One, or none when the hour's shared allowance was already used (see the send above).
+  const sent = (await latestRun(page))!.sent;
+  await expect(log.getByTestId('email-log-summary-sent')).toHaveText(`Sent${String(sent)}`);
   // Stopped for good: the rest were not sent, and say so.
   await expect(log.getByTestId('email-log-summary-waiting')).toContainText('Not sent');
   await shot(page, 'log-desktop');
   await log.getByRole('radio', { name: 'Sent', exact: true }).click();
-  await expect(log.getByRole('table', { name: 'Send log' }).getByTestId('email-log-row')).toHaveCount(1);
+  await expect(log.getByRole('table', { name: 'Send log' }).getByTestId('email-log-row')).toHaveCount(sent);
   await log.getByRole('radio', { name: 'Not sent' }).click();
   await expect(log.getByRole('table', { name: 'Send log' }).getByTestId('email-log-state').first()).toHaveText('Not sent — the send was stopped');
   await log.getByRole('radio', { name: 'All' }).click();
