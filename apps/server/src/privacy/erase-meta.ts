@@ -327,7 +327,9 @@ export async function sweepMailAddress(meta: MetaDb, address: string, at: number
       const rows = (await query.orderBy('id', 'asc').limit(BATCH).execute()) as unknown as { id: string; text: string | null }[];
       const hit = rows.filter((row) => typeof row.text === 'string' && holdsAddress(row.text, address)).map((row) => row.id);
       for (const ids of chunks(hit)) {
-        await db.updateTable(table).set({ [column]: null } as never).where('id', 'in', ids).execute();
+        // Each store named as it is, so it reads as Adminium's own (never an app's database).
+        if (table === 'adminium_email_sends') await db.updateTable('adminium_email_sends').set({ reason: null }).where('id', 'in', ids).execute();
+        else await db.updateTable('adminium_jobs').set({ lastError: null }).where('id', 'in', ids).execute();
         changed += ids.length;
       }
       if (rows.length < BATCH) break;
