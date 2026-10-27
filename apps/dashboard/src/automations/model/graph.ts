@@ -66,6 +66,9 @@ export type EmailRecipient =
   /** The people a table that lists people against the record names for it, by that table's id: those of them who can open it. */
   | { kind: 'listed'; table: string };
 
+export type MailClass = 'marketing' | 'service';
+export type MailPurpose = 'newsletter' | 'surveys';
+
 export type NotificationAudience = { roles: string[] } | { users: string[] } | { column: string } | { listed: string };
 
 /** One section of a summary: the rows of a table whose `owner` is the person written to. */
@@ -104,6 +107,15 @@ export type Action =
       vars?: Record<string, string> | undefined;
       /** Where a reply goes: the person a staff column names. Set by an app's own rules; the step's editor keeps it as it is. */
       replyTo?: { staff: string } | undefined;
+      /**
+       * Marketing or service mail: said only of a mail to the record's own
+       * address (`to.kind` `field`). The do-not-email list stops marketing
+       * mail, never service mail. A step that says none goes as service mail,
+       * as it did before a step could say.
+       */
+      class?: MailClass | undefined;
+      /** Why a marketing mail writes ("Why you're writing"): the consent it needs. None is the newsletter. */
+      purpose?: MailPurpose | undefined;
     }
   | {
       kind: 'notification';

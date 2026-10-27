@@ -1897,5 +1897,114 @@
     "digestDay": "Jour",
     "digestWhenRun": "Le jour où chacun est préparé",
     "digestTime": "Heure"
+  },
+  "consent": {
+    "panel": {
+      "title": "Consentement aux e-mails",
+      "replied": "A répondu",
+      "repliedHint": "Cette personne a répondu à un e-mail marketing. Cela arrête ses séquences d’e-mails.",
+      "record": "Enregistrer un consentement…",
+      "saidNo": "A refusé",
+      "loadFailed": "Le consentement aux e-mails n’a pas pu être chargé.",
+      "retry": "Réessayer",
+      "loading": "Chargement du consentement aux e-mails…",
+      "banner": "Sur la liste « Pas d’e-mail » depuis le {date} ({why}). Les e-mails marketing l’ignorent ; les e-mails de service comme les devis et les reçus lui parviennent toujours.",
+      "erased": "Cette personne a été effacée. Son adresse reste sur la liste « Pas d’e-mail », pour qu’elle ne reçoive plus jamais d’e-mail. Rien d’autre n’est conservé à son sujet.",
+      "noAddress": "Cette fiche n’a pas encore d’adresse e-mail.",
+      "history": "Historique du consentement",
+      "historyNote": "Du plus récent au plus ancien. Conservé tel quel ; les entrées ne peuvent pas être modifiées.",
+      "historyEmpty": "Rien d’enregistré pour l’instant."
+    },
+    "purpose": {
+      "newsletter": "Newsletter",
+      "surveys": "Enquêtes"
+    },
+    "state": {
+      "yes": "Peut recevoir des e-mails",
+      "notAsked": "Pas demandé",
+      "unsubscribed": "Désabonné",
+      "no": "A refusé"
+    },
+    "why": {
+      "link": "désabonnement",
+      "spam": "signalé comme spam",
+      "bounce": "e-mail rejeté",
+      "hand": "ajouté à la main",
+      "relayUnsubscribe": "désabonnement via le service d’e-mail",
+      "oldMark": "désabonnement avant la tenue des registres",
+      "leadFinder": "opposition via Lead finder",
+      "erased": "effacé sur demande"
+    },
+    "how": {
+      "inPerson": "En personne",
+      "phone": "Par téléphone",
+      "email": "Par e-mail",
+      "paper": "Sur papier"
+    },
+    "line": {
+      "form": "Accord donné via le formulaire « {form} »",
+      "formVersion": "Accord donné via le formulaire « {form} » (texte {version})",
+      "confirmed": "Confirmé par e-mail",
+      "confirmedOn": "confirmé par e-mail le {date}",
+      "recorded": {
+        "inPerson": "Accord donné en personne, enregistré par {name}",
+        "phone": "Accord donné par téléphone, enregistré par {name}",
+        "email": "Accord donné par e-mail, enregistré par {name}",
+        "paper": "Accord donné sur papier, enregistré par {name}"
+      },
+      "ticked": "Coché par {name}",
+      "unticked": "Décoché par {name}",
+      "reviewYes": "Confirmé par {name}",
+      "reviewYesExtra": "(coché avant la tenue des registres)",
+      "reviewNo": "Écarté par {name} lors de la revue d’envoi",
+      "import": "Importé depuis un fichier",
+      "importNo": "Importé depuis un fichier comme un refus",
+      "ownPageYes": "A accepté sur sa propre page",
+      "ownPageNo": "A refusé sur sa propre page",
+      "forget": "A demandé l’oubli de ses données",
+      "ruleYes": "Mis à oui par une automatisation",
+      "ruleNo": "Mis à non par une automatisation",
+      "apiYes": "Mis à oui via l’API",
+      "apiNo": "Mis à non via l’API",
+      "systemYes": "Mis à oui",
+      "systemNo": "Mis à non",
+      "unsubscribed": {
+        "newsletter": "Désabonné de la newsletter par le lien de l’e-mail",
+        "surveys": "Désabonné des enquêtes par le lien de l’e-mail"
+      },
+      "unsubscribedAll": "Désabonné de tous les e-mails marketing par le lien de l’e-mail",
+      "oneClick": "Désabonné avec le bouton de désabonnement de sa messagerie",
+      "mailService": "Arrêté par le service d’e-mail",
+      "replied": "A répondu — séquences d’e-mails arrêtées",
+      "by": "par {name}",
+      "from": "depuis {ip}",
+      "note": "« {note} »"
+    },
+    "toast": {
+      "recorded": "Consentement enregistré : {purpose}.",
+      "replied": "Marqué comme ayant répondu. Ses séquences d’e-mails s’arrêtent.",
+      "saidNo": "Cette personne est maintenant sur la liste « Pas d’e-mail ».",
+      "already": "Cette personne était déjà sur la liste « Pas d’e-mail ».",
+      "failed": "Rien n’a été enregistré. Réessayez.",
+      "erased": "Cette personne a été effacée : plus rien n’est enregistré à son sujet."
+    },
+    "confirm": {
+      "repliedTitle": "Marquer comme ayant répondu ?",
+      "repliedConfirm": "Marquer comme ayant répondu",
+      "saidNoTitle": "Mettre sur la liste « Pas d’e-mail » ?",
+      "saidNoBody": "Les e-mails marketing l’ignorent désormais ; les e-mails de service comme les devis et les reçus lui parviennent toujours. Seul un Super Admin peut l’en retirer.",
+      "saidNoConfirm": "Mettre sur la liste",
+      "cancel": "Annuler"
+    },
+    "dialog": {
+      "title": "Enregistrer un consentement",
+      "purpose": "Objet",
+      "how": "Comment a-t-elle donné son accord ?",
+      "note": "Note",
+      "stamp": "Votre nom et la date du jour sont enregistrés avec.",
+      "cancel": "Annuler",
+      "save": "Enregistrer le consentement",
+      "close": "Fermer"
+    }
   }
 }

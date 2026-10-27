@@ -1907,5 +1907,114 @@ export default {
     "digestDay": "Dag",
     "digestWhenRun": "Den dag, hvert af dem laves",
     "digestTime": "Tid"
+  },
+  "consent": {
+    "panel": {
+      "title": "Samtykke til e-mail",
+      "replied": "Har svaret",
+      "repliedHint": "Personen har svaret på en marketingmail. Det stopper personens mailserier.",
+      "record": "Registrér samtykke…",
+      "saidNo": "Har sagt nej",
+      "loadFailed": "Samtykket til e-mail kunne ikke hentes.",
+      "retry": "Prøv igen",
+      "loading": "Henter samtykke til e-mail…",
+      "banner": "På listen „Ingen e-mails“, siden {date} ({why}). Marketingmails springer personen over; servicemails som tilbud og kvitteringer når stadig frem.",
+      "erased": "Personen er slettet. Adressen bliver på listen „Ingen e-mails“, så personen aldrig mailes igen. Intet andet gemmes om personen.",
+      "noAddress": "Denne post har endnu ingen e-mailadresse.",
+      "history": "Samtykkehistorik",
+      "historyNote": "Nyeste først. Gemt, som det skete; poster kan ikke ændres.",
+      "historyEmpty": "Intet registreret endnu."
+    },
+    "purpose": {
+      "newsletter": "Nyhedsbrev",
+      "surveys": "Undersøgelser"
+    },
+    "state": {
+      "yes": "Må mailes",
+      "notAsked": "Ikke spurgt",
+      "unsubscribed": "Afmeldt",
+      "no": "Har sagt nej"
+    },
+    "why": {
+      "link": "afmeldt",
+      "spam": "markeret som spam",
+      "bounce": "mailen blev afvist",
+      "hand": "tilføjet manuelt",
+      "relayUnsubscribe": "afmeldt via mailtjenesten",
+      "oldMark": "afmeldt, før der blev ført optegnelser",
+      "leadFinder": "indsigelse via Lead finder",
+      "erased": "slettet efter anmodning"
+    },
+    "how": {
+      "inPerson": "Personligt",
+      "phone": "Pr. telefon",
+      "email": "Pr. e-mail",
+      "paper": "På papir"
+    },
+    "line": {
+      "form": "Sagde ja i formularen ‘{form}’",
+      "formVersion": "Sagde ja i formularen ‘{form}’ (ordlyd {version})",
+      "confirmed": "Bekræftet pr. e-mail",
+      "confirmedOn": "bekræftet pr. e-mail {date}",
+      "recorded": {
+        "inPerson": "Sagde ja personligt, registreret af {name}",
+        "phone": "Sagde ja pr. telefon, registreret af {name}",
+        "email": "Sagde ja pr. e-mail, registreret af {name}",
+        "paper": "Sagde ja på papir, registreret af {name}"
+      },
+      "ticked": "Afkrydset af {name}",
+      "unticked": "Afkrydsning fjernet af {name}",
+      "reviewYes": "Bekræftet af {name}",
+      "reviewYesExtra": "(afkrydset, før der blev ført optegnelser)",
+      "reviewNo": "Udeladt af {name} ved gennemgangen før afsendelse",
+      "import": "Hentet ind fra en fil",
+      "importNo": "Hentet ind fra en fil som et nej",
+      "ownPageYes": "Sagde ja på sin egen side",
+      "ownPageNo": "Sagde nej på sin egen side",
+      "forget": "Bad om at få sine oplysninger glemt",
+      "ruleYes": "Sat til ja af en automatisering",
+      "ruleNo": "Sat til nej af en automatisering",
+      "apiYes": "Sat til ja via API'et",
+      "apiNo": "Sat til nej via API'et",
+      "systemYes": "Sat til ja",
+      "systemNo": "Sat til nej",
+      "unsubscribed": {
+        "newsletter": "Afmeldt nyhedsbrevet via linket i mailen",
+        "surveys": "Afmeldt undersøgelser via linket i mailen"
+      },
+      "unsubscribedAll": "Afmeldt al marketingmail via linket i mailen",
+      "oneClick": "Afmeldt med mailprogrammets afmeldingsknap",
+      "mailService": "Stoppet af mailtjenesten",
+      "replied": "Har svaret – mailserier stoppet",
+      "by": "af {name}",
+      "from": "fra {ip}",
+      "note": "»{note}«"
+    },
+    "toast": {
+      "recorded": "Samtykke registreret: {purpose}.",
+      "replied": "Markeret som svaret. Mailserierne stopper.",
+      "saidNo": "Personen er nu på listen „Ingen e-mails“.",
+      "already": "Personen var allerede på listen „Ingen e-mails“.",
+      "failed": "Det blev ikke gemt. Prøv igen.",
+      "erased": "Personen er slettet: der registreres ikke mere om personen."
+    },
+    "confirm": {
+      "repliedTitle": "Markér som svaret?",
+      "repliedConfirm": "Markér som svaret",
+      "saidNoTitle": "Sæt på listen „Ingen e-mails“?",
+      "saidNoBody": "Marketingmails springer personen over fra nu af; servicemails som tilbud og kvitteringer når stadig frem. Kun en Super Admin kan fjerne personen fra listen.",
+      "saidNoConfirm": "Sæt på listen",
+      "cancel": "Annullér"
+    },
+    "dialog": {
+      "title": "Registrér samtykke",
+      "purpose": "Formål",
+      "how": "Hvordan sagde personen ja?",
+      "note": "Note",
+      "stamp": "Dit navn og dagens dato gemmes sammen med det.",
+      "cancel": "Annullér",
+      "save": "Registrér samtykke",
+      "close": "Luk"
+    }
   }
 } as const;

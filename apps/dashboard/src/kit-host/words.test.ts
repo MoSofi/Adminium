@@ -75,6 +75,11 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
   ],
   signature: ['apps/dashboard/src/kit-host/parts/signature.tsx', 'apps/dashboard/src/kit-host/parts/file-words.ts'],
   photos: ['apps/dashboard/src/kit-host/parts/photos.tsx', 'apps/dashboard/src/kit-host/parts/file-words.ts'],
+  consent: [
+    'apps/dashboard/src/kit-host/parts/consent.tsx',
+    'apps/dashboard/src/consent/ConsentPanel.tsx',
+    'apps/dashboard/src/consent/consentWords.ts',
+  ],
 };
 
 function catalogueText(tag: string, key: string): unknown {

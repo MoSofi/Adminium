@@ -35,11 +35,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { useState, type ReactNode } from 'react';
+import { ShieldCheck } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
 import { automationIcon } from '../icons.js';
 import type { Branch, FlowNode, Graph } from '../model/graph.js';
+import { laterMarketingMails, mailClassOf, purposeOf } from '../model/mailClass.js';
 import { KIND_META, iconForNode } from '../model/vocabulary.js';
 
 export interface FlowBuilderProps {
@@ -81,8 +83,11 @@ function Stem(): ReactNode {
   );
 }
 
-export function FlowBuilder(props: FlowBuilderProps): ReactNode {
+export function FlowBuilder(outer: FlowBuilderProps): ReactNode {
   const [dragId, setDragId] = useState<string | null>(null);
+  // The marketing mails checked again when they go: every one after the first on its path (the canvas says so).
+  const laterMail = useMemo(() => laterMarketingMails(outer.graph), [outer.graph]);
+  const props = { ...outer, laterMail };
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor),
@@ -171,7 +176,12 @@ function Connector({ onClick }: { onClick: () => void }): ReactNode {
   );
 }
 
-interface NodeCardProps extends FlowBuilderProps {
+/** What the canvas works out once and every card reads. */
+interface Worked {
+  laterMail: ReadonlySet<string>;
+}
+
+interface NodeCardProps extends FlowBuilderProps, Worked {
   node: FlowNode;
   dragId: string | null;
   small: boolean;
@@ -195,6 +205,19 @@ function NodeCard(props: NodeCardProps): ReactNode {
   const sub = node.kind === 'trigger' && props.triggerSub !== undefined ? props.triggerSub : props.subFor(node);
   const tag = props.tagFor?.(node) ?? null;
   const addOn = props.addOnFor?.(node) ?? null;
+  // A mail to the record's own address says its kind of mail; a marketing one after another says it is checked again.
+  const email = node.kind === 'action' && node.action.kind === 'email' ? node.action : null;
+  const mailClass = email === null ? null : mailClassOf(email);
+  const purpose = email === null ? null : purposeOf(email);
+  const mailLine =
+    mailClass === null
+      ? null
+      : mailClass === 'service'
+        ? t('automations:mailClass.subService', 'Service mail')
+        : t('automations:mailClass.subMarketing', 'Marketing mail · {purpose}', {
+            purpose: purpose === 'surveys' ? t('automations:mailClass.surveys', 'Surveys') : t('automations:mailClass.newsletter', 'Newsletter'),
+          });
+  const recheck = mailClass === 'marketing' && props.laterMail.has(node.id);
   const gone = addOn?.gone ?? null;
 
   return (
@@ -261,6 +284,11 @@ function NodeCard(props: NodeCardProps): ReactNode {
               <bdi>{sub}</bdi>
             </div>
           )}
+          {mailLine === null ? null : (
+            <div className={`mt-0.5 text-fg-muted ${small ? 'text-[11px]' : 'text-[11.5px]'}`} data-testid="flow-node-mail-kind">
+              {mailLine}
+            </div>
+          )}
           {tag === null ? null : (
             <span data-testid="flow-node-tag" className="mt-1.5 inline-flex items-center rounded-md bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-bold text-accent">
               {tag}
@@ -290,6 +318,12 @@ function NodeCard(props: NodeCardProps): ReactNode {
           </button>
         ) : null}
       </div>
+      {recheck ? (
+        <div className={`mt-2.5 flex items-center gap-[7px] text-fg-muted ${small ? 'text-[11px]' : 'text-[12px]'}`} data-testid="flow-node-recheck">
+          <ShieldCheck aria-hidden="true" className="size-3.5 shrink-0" />
+          <span>{t('automations:mailClass.recheck', 'Checks consent and the do-not-email list again when it sends.')}</span>
+        </div>
+      ) : null}
       {gone === null ? null : (
         <div role="alert" data-testid="flow-node-gone" className="mt-3 flex items-center gap-2.5 border-t border-danger/25 pt-3">
           <Alert className="size-3.5 shrink-0 text-danger" />
@@ -335,7 +369,7 @@ function X({ className }: { className: string }): ReactNode {
 }
 
 /** The branch block: stem, bracket, two columns, stems, bracket (comp 274-307). */
-function BranchGroup(props: FlowBuilderProps & { node: FlowNode; dragId: string | null }): ReactNode {
+function BranchGroup(props: FlowBuilderProps & Worked & { node: FlowNode; dragId: string | null }): ReactNode {
   const { node } = props;
   if (node.kind !== 'branch') return null;
   return (
@@ -363,7 +397,7 @@ function BranchGroup(props: FlowBuilderProps & { node: FlowNode; dragId: string 
 }
 
 function BranchColumn(
-  props: FlowBuilderProps & { dragId: string | null; branch: Branch; first: boolean },
+  props: FlowBuilderProps & Worked & { dragId: string | null; branch: Branch; first: boolean },
 ): ReactNode {
   const { branch, first } = props;
   const drop = useDroppable({ id: `branch:${branch.id}` });

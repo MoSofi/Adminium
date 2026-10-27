@@ -153,6 +153,7 @@ const PAGE = `<!doctype html>
     <div id="board"></div>
     <div id="map"></div>
     <div id="import"></div>
+    <div id="consent"></div>
     <pre id="stored"></pre>
     <p id="failed"></p>
     <script type="module" src="./screen.js"></script>
@@ -168,7 +169,9 @@ body[data-part="board"] { margin: 12px; }
 body[data-part="map"] > h1, body[data-part="map"] > #own, body[data-part="map"] > #stored { display: none; }
 body[data-part="map"] { margin: 12px; }
 body[data-part="import"] > h1, body[data-part="import"] > #own, body[data-part="import"] > #stored { display: none; }
-body[data-part="import"] { margin: 12px; }`;
+body[data-part="import"] { margin: 12px; }
+body[data-part="consent"] > h1, body[data-part="consent"] > #own, body[data-part="consent"] > #stored { display: none; }
+body[data-part="consent"] { margin: 12px; }`;
 
 /** The whole screen: no framework, no bundler. What an app's loader does, in a dozen lines. */
 const SCREEN = `const stored = document.querySelector('#stored');
@@ -187,6 +190,13 @@ try {
     document.body.dataset.part = 'map';
     const { places } = await import('./map.js');
     window.kitScreen = { config, kit, ...(await places(config, kit, asked)) };
+    document.body.dataset.kit = 'ready';
+    throw 'mounted';
+  }
+  if (asked.get('part') === 'consent') {
+    document.body.dataset.part = 'consent';
+    const { consent } = await import('./consent.js');
+    window.kitScreen = { config, kit, ...(await consent(config, kit, asked)) };
     document.body.dataset.kit = 'ready';
     throw 'mounted';
   }
@@ -406,6 +416,27 @@ const MAP = `export async function places(config, kit, asked) {
  * which modes this person is allowed. It hands those over with the config's
  * connection and token, and hears what the import did.
  */
+/**
+ * The app's contact page: a person's e-mail consent, for the record the page
+ * is about, by its key and its name as the page shows them. The app hears
+ * each change (to read a line of its own again).
+ */
+const CONSENT = `export async function consent(config, kit, asked) {
+  const changes = [];
+  const panel = await kit.mount('consent', document.querySelector('#consent'), {
+    connectionId: config.connectionId,
+    table: config.tables.companies,
+    recordId: asked.get('id'),
+    name: asked.get('name') ?? undefined,
+    csrfToken: config.csrfToken,
+    locale: asked.get('locale') ?? config.locale,
+    dir: asked.get('dir') ?? config.dir,
+    ...(asked.get('theme') === null ? {} : { theme: asked.get('theme') }),
+    onChange: () => { changes.push(Date.now()); document.body.dataset.changes = String(changes.length); },
+  });
+  return { panel, changes };
+}`;
+
 const IMPORT = `export async function importer(config, kit, asked) {
   const done = [];
   const part = await kit.mount('import', document.querySelector('#import'), {
@@ -449,6 +480,7 @@ test.beforeAll(async ({ browser }) => {
     'staff/board.js': BOARD,
     'staff/map.js': MAP,
     'staff/import.js': IMPORT,
+    'staff/consent.js': CONSENT,
     'staff/screen.css': SHEET,
   });
   const uploaded = await page.request.post(`/api/v1/apps/upload?expectedSha512=${encodeURIComponent(bundle.integrity)}`, { headers: { 'content-type': 'application/octet-stream' }, data: bundle.buffer });
@@ -491,14 +523,15 @@ test('the config names the kit and the map, and the files it names are kept for 
   const config = (await (await page.request.get(`${STAFF}surface-config.json`)).json()) as { kit?: { contract: number; entry: string; styles: string[] }; maps?: unknown; locale?: string; dir?: string };
   expect(config.kit?.contract).toBe(1);
   expect(config.kit?.entry).toMatch(/^\/assets\/kit\/kit-[\w-]+\.js$/);
-  // Every sheet of the kit, the one all parts stand on first, then the board's own, the file parts', the import's and the map's.
-  expect(config.kit?.styles).toHaveLength(5);
+  // Every sheet of the kit, the one all parts stand on first, then the board's own, the consent panel's, the file parts', the import's and the map's.
+  expect(config.kit?.styles).toHaveLength(6);
   expect(config.kit?.styles[0]).toMatch(/^\/assets\/kit\/root-[\w-]+\.css$/);
   expect(config.kit?.styles[1]).toMatch(/^\/assets\/kit\/board-[\w-]+\.css$/);
+  expect(config.kit?.styles[2]).toMatch(/^\/assets\/kit\/consent-[\w-]+\.css$/);
   // The signature pad's and the photo field's, one sheet for the two.
-  expect(config.kit?.styles[2]).toMatch(/^\/assets\/kit\/files-[\w-]+\.css$/);
-  expect(config.kit?.styles[3]).toMatch(/^\/assets\/kit\/import-[\w-]+\.css$/);
-  expect(config.kit?.styles[4]).toMatch(/^\/assets\/kit\/map-[\w-]+\.css$/);
+  expect(config.kit?.styles[3]).toMatch(/^\/assets\/kit\/files-[\w-]+\.css$/);
+  expect(config.kit?.styles[4]).toMatch(/^\/assets\/kit\/import-[\w-]+\.css$/);
+  expect(config.kit?.styles[5]).toMatch(/^\/assets\/kit\/map-[\w-]+\.css$/);
   for (const sheet of config.kit!.styles) {
     const reply = await page.request.get(sheet);
     expect(reply.headers()['content-type']).toContain('text/css');
@@ -525,7 +558,7 @@ test('a plain page mounts the mention box, and a person picked from the real lis
 
   // The door's own answers.
   expect(await page.evaluate(() => (window as unknown as { kitScreen: { contract: number; parts: string[] } }).kitScreen.contract)).toBe(1);
-  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos']);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos', 'consent']);
   // The page has no React of its own, and the kit put none on the window.
   expect(await page.evaluate(() => 'React' in window || 'ReactDOM' in window)).toBe(false);
   // Only the mention box's files came: the door, the part, the words of one language, what they share with the dashboard, one sheet.
@@ -2562,4 +2595,104 @@ test('at 390 wide and dark, no step of the wizard makes the page scroll sideways
   expect(await companies(admin)).toHaveLength(3);
   expect(problems).toEqual([]);
   await close();
+});
+
+/* ------------------------------------------------------- the e-mail consent */
+
+/**
+ * The record's consent, as the server answers it, with `declared` set: an app
+ * that declares a people table needs Adminium 0.3.37, which this server
+ * (0.3.36) refuses to install. Every other word of the reply, and every
+ * write, is the server's own.
+ */
+async function declared(page: Page): Promise<void> {
+  await page.route('**/api/v1/consent/panel', async (route) => {
+    const answer = await route.fetch();
+    const body = (await answer.json()) as { data?: Record<string, unknown> };
+    await route.fulfill({ response: answer, json: body.data === undefined ? body : { data: { ...body.data, declared: true } } });
+  });
+}
+
+async function companyId(admin: Page, name: string): Promise<string> {
+  const { data } = (await (await admin.request.get(`/api/v1/data/${await connectionOf(admin)}/e2e_kit_companies?limit=200`)).json()) as { data: { id: number; name: string }[] };
+  return String(data.find((row) => row.name === name)!.id);
+}
+
+const consentPart = (page: Page) => page.locator('#consent');
+
+test('a plain contact page mounts the e-mail consent panel; Replied and Record consent open inside it and write through the server', async ({ page }) => {
+  await signIn(page);
+  await seedCompanies(page, [{ name: 'Harbour Cafe', code: 'HC-1', city: 'Kiel' }]);
+  const id = await companyId(page, 'Harbour Cafe');
+  await declared(page);
+  const problems = watch(page);
+  const asked: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/assets/')) asked.push(url.pathname);
+  });
+  await open(page, `?part=consent&id=${id}&name=Harbour%20Cafe`);
+  await expect(consentPart(page).locator('> .adm-kit')).toHaveAttribute('data-kit-part', 'consent');
+  const panel = consentPart(page).getByTestId('consent-panel');
+  await expect(panel.getByRole('heading', { name: 'E-mail consent' })).toBeVisible();
+  // Its own files and two sheets: not the dashboard's entry, and nothing of the house's dialogs.
+  expect(asked.filter((path) => /^\/assets\/kit\/consent-[\w-]+\.js$/.test(path))).toHaveLength(1);
+  expect(asked.filter((path) => path.endsWith('.css')).sort()).toEqual([expect.stringMatching(/^\/assets\/kit\/consent-/), expect.stringMatching(/^\/assets\/kit\/root-/)]);
+  const entry = /<script[^>]+src="(\/assets\/index-[\w-]+\.js)"/.exec(await (await page.request.get('/')).text())?.[1];
+  expect(asked).not.toContain(entry);
+  expect(await unstyledClasses(page)).toEqual([]);
+
+  // "Replied": asked inside the panel, Cancel first.
+  await panel.getByTestId('consent-replied').click();
+  const step = consentPart(page).getByRole('group', { name: 'Mark as replied?' });
+  await expect(step).toContainText('This stops their e-mail sequences.');
+  await expect(step.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  expect(await unstyledClasses(page)).toEqual([]);
+  await step.getByRole('button', { name: 'Mark as replied' }).click();
+  await expect(panel.getByTestId('consent-history')).toContainText('Replied — e-mail sequences stopped');
+  await expect(panel.getByRole('status')).toHaveText('Marked as replied. Their e-mail sequences stop.');
+  await expect(page.locator('body')).toHaveAttribute('data-changes', '1');
+
+  // "Record consent": the form inside the panel, worked by the keyboard.
+  await panel.getByTestId('consent-record').click();
+  const form = consentPart(page).getByRole('group', { name: 'Record consent' });
+  await expect(form.getByRole('radio', { name: 'Newsletter' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(form.getByRole('radio', { name: 'Surveys' })).toHaveAttribute('aria-checked', 'true');
+  await form.getByRole('radio', { name: 'By phone' }).click();
+  await form.getByTestId('consent-dialog-note').fill('Rang the café');
+  expect(await unstyledClasses(page)).toEqual([]);
+  await form.getByTestId('consent-dialog-save').click();
+  await expect(panel.getByTestId('consent-badge-surveys')).toHaveText('May be e-mailed');
+  await expect(panel.getByTestId('consent-history')).toContainText('Agreed by phone, recorded by');
+  await expect(page.locator('body')).toHaveAttribute('data-changes', '2');
+  // Escape closes a step and writes nothing.
+  await panel.getByTestId('consent-record').click();
+  await page.keyboard.press('Escape');
+  await expect(consentPart(page).getByRole('group', { name: 'Record consent' })).toHaveCount(0);
+  await expect(page.locator('body')).toHaveAttribute('data-changes', '2');
+  expect(problems).toEqual([]);
+});
+
+test('somebody whose role opens only the app’s screens reads a contact’s consent; in Arabic at 390 wide it runs right to left and nothing scrolls sideways', async ({ page: admin, browser }) => {
+  await signIn(admin);
+  const id = await companyId(admin, 'Harbour Cafe');
+  const { page, close } = await repPage(browser, admin);
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await declared(page);
+    const problems = watch(page);
+    await open(page, `?part=consent&id=${id}&locale=ar-EG&dir=rtl`);
+    const panel = consentPart(page).getByTestId('consent-panel');
+    // Read through the server's door for a screens-only person: the panel, and no button (the rep may not change a company).
+    await expect(panel.getByRole('heading', { name: 'موافقة البريد الإلكتروني' })).toBeVisible();
+    await expect(panel.getByTestId('consent-history')).toContainText('تمّ الردّ');
+    await expect(panel.getByTestId('consent-replied')).toHaveCount(0);
+    await expect(consentPart(page).locator('> .adm-kit')).toHaveAttribute('dir', 'rtl');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await unstyledClasses(page)).toEqual([]);
+    expect(problems).toEqual([]);
+  } finally {
+    await close();
+  }
 });

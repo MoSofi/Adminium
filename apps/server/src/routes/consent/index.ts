@@ -25,6 +25,15 @@
  * count). A row out of reach answers as one that is not there. Every write is
  * a signed-in person's, whose name the event keeps.
  *
+ * ─── A declared people table, an erased person ─────────────────────────────
+ * The panel says whether an app declares the table as people (the record
+ * page shows the panel only then) and which of its columns hold the address
+ * and the name, by their names alone: the page shows the values as this
+ * reader is shown them, masked or not. A row whose address the erasure
+ * rewrote onto its reserved domain is an erased person's: the panel says so
+ * (their address stays on the do-not-email list as a hash, which their row
+ * no longer leads to) and nothing more can be recorded about them.
+ *
  * ─── What is never sent back ───────────────────────────────────────────────
  * A record's address (the page has it, masked or not, from the row), any
  * hash, and a sign-up's browser. A sign-up's network address only to a reader
@@ -46,6 +55,8 @@ import { fetchVisible } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { pkOfRowKey, rowKeyOf } from '../../payments/payables.js';
+import { peopleTablesOf, type PeopleTables } from '../../people/tables-of.js';
+import { ERASED_DOMAIN } from '../../privacy/erase-values.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
@@ -77,6 +88,13 @@ export interface ConsentRoutesDeps {
   addressColumnOf?: ((connectionId: string, table: ResolvedTable) => Promise<string | null>) | undefined;
   /** A recorded yes mirrored into the record's declared consent column, through the column door (`people/consent-writes.ts`). */
   mirror?: ((event: ConsentEvent) => Promise<unknown>) | undefined;
+  /** The people tables the installed apps declare; the meta store's own reader when left out. */
+  people?: PeopleTables | undefined;
+}
+
+/** Whether a value is an address the erasure wrote: one on its reserved domain, which no mail is ever sent to. */
+export function erasedAddress(value: unknown): boolean {
+  return typeof value === 'string' && normaliseAddress(value).endsWith(`@${ERASED_DOMAIN}`);
 }
 
 /** The one column of a table read as an e-mail address; `email` when there are several; null when none. */
@@ -98,6 +116,7 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
   const { meta, service } = deps;
   const tables = deps.tables ?? consentTableSource({ meta, manager: deps.manager });
   const addressColumnOf = deps.addressColumnOf ?? (async (_connectionId: string, table: ResolvedTable) => emailColumnOf(table));
+  const people = deps.people ?? peopleTablesOf(meta);
 
   /**
    * The record as this person reaches it: refuses a table they may not read
@@ -122,8 +141,14 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
     // The row's address, read here and never sent back: what an unsubscribe that knew only the address is found by.
     const column = await addressColumnOf(input.connectionId, table);
     const raw = column === null ? null : (row as Row)[column];
-    const address = typeof raw === 'string' && looksLikeAddress(raw) ? normaliseAddress(raw) : null;
-    return { table, person, address, grant };
+    const erased = erasedAddress(raw);
+    const address = !erased && typeof raw === 'string' && looksLikeAddress(raw) ? normaliseAddress(raw) : null;
+    return { table, person, address, erased, column, grant, model: found.view.model };
+  }
+
+  /** What is recorded about a record is refused for an erased person's: the erasure left nothing to add to. */
+  function refuseErased(erased: boolean): void {
+    if (erased) throw new ValidationFailedError('This person was erased: nothing more is recorded about them.', { reason: 'ERASED' });
   }
 
   function eventView(event: ConsentEvent, seesPersonal: boolean): EventView {
@@ -211,8 +236,26 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
       '/consent/panel',
       { config: { audit: auditExempt('reading how a record stands changes nothing') }, schema: { body: recordRef, response: { 200: panelReply } } },
       async (request) => {
-        const { person, address, grant } = await reach(request, request.body, 'read');
+        const { table, person, address, erased, column, grant, model } = await reach(request, request.body, 'read');
         const seesPersonal = await grant('read_pii');
+        const declared = await people.of(request.body.connectionId, model, table.id);
+        const columns = { address: declared?.email ?? column, name: declared?.name ?? null };
+        if (erased) {
+          // Their consent rows went with them; what stands is the do-not-email entry, kept by its hash alone.
+          return {
+            data: {
+              declared: declared !== null,
+              erased: true,
+              columns,
+              addressKnown: false,
+              purposes: CONSENT_PURPOSES.map((purpose) => ({ purpose, state: 'not-asked' as const, event: null })),
+              stopped: null,
+              lastReplied: null,
+              history: [],
+              mayChange: false,
+            },
+          };
+        }
         const who = { person, address };
         const purposes = [];
         for (const purpose of CONSENT_PURPOSES) {
@@ -222,6 +265,9 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
         const entry = address === null ? null : await service.stop.entryFor(address);
         return {
           data: {
+            declared: declared !== null,
+            erased: false,
+            columns,
             addressKnown: address !== null,
             purposes,
             stopped: entry === null ? null : { since: entry.addedAt, reason: entry.reason, origin: entry.origin },
@@ -240,7 +286,8 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const staff = personOf(request);
         const body = request.body;
-        const { table, person, address, grant } = await reach(request, body, 'update');
+        const { table, person, address, erased, grant } = await reach(request, body, 'update');
+        refuseErased(erased);
         const event = await service.record({ person, address, purpose: body.purpose, state: 'yes', source: 'staff', how: body.how, note: body.note, staff });
         // The record's declared column follows the log: ticked, by this staff member.
         await deps.mirror?.(event);
@@ -261,7 +308,8 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const staff = personOf(request);
         const body = request.body;
-        const { table, person, address } = await reach(request, body, 'update');
+        const { table, person, address, erased } = await reach(request, body, 'update');
+        refuseErased(erased);
         if (address === null) throw new ValidationFailedError('This record has no e-mail address to put on the do-not-email list.', { reason: 'NO_ADDRESS' });
         const { entry, added } = await service.stop.add({ address, reason: 'hand', staff });
         if (added) {
@@ -283,7 +331,8 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const staff = personOf(request);
         const body = request.body;
-        const { table, person, address, grant } = await reach(request, body, 'update');
+        const { table, person, address, erased, grant } = await reach(request, body, 'update');
+        refuseErased(erased);
         const event = await service.markReplied({ person, address, staff });
         await app.rbac.audit(request, {
           category: 'data',

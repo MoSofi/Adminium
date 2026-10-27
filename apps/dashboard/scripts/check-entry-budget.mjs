@@ -56,9 +56,9 @@ if (namers.length > 0) {
  * (`about.title`) reads `common`, so both spellings are refused. The group
  * `reports` is deferred too and is NOT in the pattern: `reports.manage` is a
  * permission's name, which the first paint may well carry. The same for
- * `audit` (`audit.read`). `onboarding`, `capabilities`, `palette` and `account` are in it.
+ * `audit` (`audit.read`). `onboarding`, `capabilities`, `palette`, `account` and `consent` are in it.
  */
-const DEFERRED_COMMON_KEY = /['"`](?:common:)?(builder|kb|about|team|quietHours|security|changelog|onboarding|capabilities|palette|account)\.[A-Za-z]/;
+const DEFERRED_COMMON_KEY = /['"`](?:common:)?(builder|kb|about|team|quietHours|security|changelog|onboarding|capabilities|palette|account|consent)\.[A-Za-z]/;
 const commonNamers = refs.filter((ref) => DEFERRED_COMMON_KEY.test(readFileSync(join(root, 'dist', ref), 'utf8')));
 if (commonNamers.length > 0) {
   console.error(`check-entry-budget: FAIL — the entry names a key of a deferred group of common (${commonNamers.join(', ')}).`);

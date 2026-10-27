@@ -16,10 +16,10 @@
 /** The contract's number, as the side's config and `kit.json` say it. */
 export const KIT_CONTRACT = 1;
 
-export type KitPartName = 'mentions' | 'board' | 'map' | 'import' | 'signature' | 'photos';
+export type KitPartName = 'mentions' | 'board' | 'map' | 'import' | 'signature' | 'photos' | 'consent';
 
 /** The parts a mount can draw today. The others are named so that adding one changes no signature. */
-export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import', 'signature', 'photos'];
+export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import', 'signature', 'photos', 'consent'];
 
 /** One language's words, part by part: `ns:key` to its text (./words/, written by scripts/gen-kit-words.mjs). */
 export type KitWords = Record<KitPartName, Record<string, string>>;
@@ -513,6 +513,42 @@ export interface PhotosProps extends KitCommonProps, KitFileTarget {
   invalid?: boolean | undefined;
 }
 
+/**
+ * A person's e-mail consent on a record of a table the app declares as
+ * people: the panel the dashboard's record page draws ("E-mail consent"),
+ * with "Replied", "Record consent…" and "They said no" for a person who may
+ * change the record. It reads the same consent log every screen reads, so an
+ * app's own line ("May be e-mailed since…") and this panel never disagree.
+ *
+ * The part asks the server itself, with the person's own session: what it
+ * shows and offers is what their rights on the table and the row allow. It
+ * never shows an address the server sent (the server sends none); the
+ * Record consent form names the person by `name` and `address` as the app's
+ * screen shows them to this person, so leave `address` out where it is
+ * masked for them.
+ *
+ * On a table no app declares as people it draws nothing; a record the person
+ * may not read is said in a line, with "Try again".
+ */
+export interface ConsentProps extends KitCommonProps {
+  /** `connectionId` of the side's config. */
+  connectionId: string;
+  /** The table, as the `tables` of the side's config gives it. */
+  table: string;
+  /** The record's key, as text: what the app's own record route names it by. */
+  recordId: string;
+  /** The person's name as the screen shows it, for the Record consent form. */
+  name?: string | undefined;
+  /** Their address as the screen shows it to this person. Leave it out where it is masked for them. */
+  address?: string | undefined;
+  /** `csrfToken` of the side's config: the server takes no change without it. A new one is taken by `update`. */
+  csrfToken: string;
+  /** Used in place of the browser's `fetch` (same-origin paths under `/api/v1/consent`). Left out, the browser's own. */
+  fetch?: ((input: string, init?: RequestInit) => Promise<Response>) | undefined;
+  /** Called after a change was saved (consent recorded, "Replied", "They said no"): an app that shows its own line reads it again. */
+  onChange?: (() => void) | undefined;
+}
+
 /** A part that is named but cannot be mounted yet. None is, today; the type stays for the next one. */
 export type KitPartNotYet = Record<string, never>;
 
@@ -523,6 +559,7 @@ export interface KitPartProps {
   import: ImportProps;
   signature: SignatureProps;
   photos: PhotosProps;
+  consent: ConsentProps;
 }
 
 /** What a mount answers. */
@@ -541,7 +578,7 @@ export class KitPartUnavailableError extends Error {
     super(
       code === 'KIT_PART_NOT_YET'
         ? `The kit part "${part}" is not available in this version of Adminium yet.`
-        : `The kit has no part called "${part}". Its parts are: mentions, board, map, import, signature, photos.`,
+        : `The kit has no part called "${part}". Its parts are: mentions, board, map, import, signature, photos, consent.`,
     );
     this.name = 'KitPartUnavailableError';
     this.code = code;

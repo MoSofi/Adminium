@@ -20,8 +20,8 @@
  * `connectionId` is a prop: see `RecordSettings`.
  */
 
-import { Button, ChipInput, Combobox, Input, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
-import { AtSign, CircleAlert, Columns3, Link2 } from 'lucide-react';
+import { Button, ChipInput, Combobox, Input, SegmentedControl, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
+import { AtSign, CircleAlert, Columns3, Info, Link2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 
@@ -29,7 +29,8 @@ import { getI18nInstance, t } from '../../../i18n/t.js';
 import { createCrudApi } from '../../../api/crud.js';
 import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
 import { addOnNameOf, columnOfInput, inLanguage, inputMode, stepOf, type StepAction } from '../../model/addOnSteps.js';
-import type { Action, DigestSection, WriteValue } from '../../model/graph.js';
+import type { Action, DigestSection, MailClass, MailPurpose, WriteValue } from '../../model/graph.js';
+import { classPatch, classUnsaid, mailClassOf, purposeOf, recipientPatch } from '../../model/mailClass.js';
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { writeValueText } from '../../model/summaries.js';
 import { Card, Field } from './primitives.js';
@@ -309,11 +310,9 @@ function EmailSettings({
           value={to === null ? '' : to.kind}
           onChange={(event) => {
             const kind = event.target.value;
-            if (kind === 'field') onChange({ to: { kind: 'field', column: '' } });
-            else if (kind === 'fixed') onChange({ to: { kind: 'fixed', addresses: [] } });
-            else if (kind === 'staff') onChange({ to: { kind: 'staff', column: '' } });
-            else if (kind === 'listed') onChange({ to: { kind: 'listed', table: '' } });
-            else onChange({ to: null });
+            // A mail to the record's own address has a kind of mail (marketing to start with); any other has none.
+            const next = kind === 'field' ? { kind: 'field' as const, column: '' } : kind === 'fixed' ? { kind: 'fixed' as const, addresses: [] } : kind === 'staff' ? { kind: 'staff' as const, column: '' } : kind === 'listed' ? { kind: 'listed' as const, table: '' } : null;
+            onChange(recipientPatch(action, next) as Partial<Action>);
           }}
           data-testid="email-to-kind"
         >
@@ -359,6 +358,8 @@ function EmailSettings({
         </Field>
       ) : null}
 
+      {to?.kind === 'field' ? <MailKindFields action={action} onChange={onChange} /> : null}
+
       {to?.kind === 'fixed' ? (
         <Field label={t('automations:email.toFixed', 'Addresses')}>
           <ChipInput
@@ -390,6 +391,66 @@ function EmailSettings({
         </div>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * "Kind of mail" and, for marketing mail, "Why you're writing": shown only
+ * for a mail to the record's own address, the one mail the do-not-email list
+ * and the consent log judge. A step saved before steps could say goes as
+ * service mail, and says so until a kind is chosen.
+ */
+function MailKindFields({ action, onChange }: { action: Extract<Action, { kind: 'email' }>; onChange: (patch: Partial<Action>) => void }): ReactNode {
+  const id = useId();
+  const kind = mailClassOf(action) ?? 'service';
+  const purpose = purposeOf(action);
+  return (
+    <div className="flex flex-col gap-3" data-testid="email-mail-kind">
+      <div className="flex flex-col gap-[7px]">
+        <span id={`${id}-kind`} className="text-[11.5px] font-bold">
+          {t('automations:mailClass.label', 'Kind of mail')}
+        </span>
+        <SegmentedControl
+          aria-labelledby={`${id}-kind`}
+          aria-describedby={`${id}-help`}
+          className="self-start"
+          value={kind}
+          onValueChange={(value) => onChange(classPatch(value as MailClass, action) as Partial<Action>)}
+          options={[
+            { value: 'marketing', label: t('automations:mailClass.marketing', 'Marketing mail') },
+            { value: 'service', label: t('automations:mailClass.service', 'Service mail') },
+          ]}
+          data-testid="email-class"
+        />
+        <span id={`${id}-help`} className="text-[11.5px] leading-normal text-fg-muted">
+          {t('automations:mailClass.help', 'Service mail (a quote, a receipt, a booking) still reaches people on the do-not-email list. Marketing mail never does.')}
+        </span>
+        {classUnsaid(action) ? (
+          <p className="m-0 flex items-start gap-[7px] text-[11.5px] font-semibold leading-normal text-fg-muted" data-testid="email-class-unsaid">
+            <Info className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+            <span>{t('automations:mailClass.older', 'Saved before mail had kinds: it goes as service mail until you choose.')}</span>
+          </p>
+        ) : null}
+      </div>
+      {purpose === null ? null : (
+        <div className="flex flex-col gap-[7px]">
+          <span id={`${id}-why`} className="text-[11.5px] font-bold">
+            {t('automations:mailClass.why', "Why you're writing")}
+          </span>
+          <SegmentedControl
+            aria-labelledby={`${id}-why`}
+            className="self-start"
+            value={purpose}
+            onValueChange={(value) => onChange({ purpose: value as MailPurpose } as Partial<Action>)}
+            options={[
+              { value: 'newsletter', label: t('automations:mailClass.newsletter', 'Newsletter') },
+              { value: 'surveys', label: t('automations:mailClass.surveys', 'Surveys') },
+            ]}
+            data-testid="email-purpose"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

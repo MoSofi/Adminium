@@ -83,6 +83,12 @@ const eventView = z.object({
 
 export const panelReply = z.object({
   data: z.object({
+    /** Whether an installed app declares the table as people: the record page shows the panel only then. */
+    declared: z.boolean(),
+    /** The row is an erased person's: nothing is known of them, and nothing more is recorded. */
+    erased: z.boolean(),
+    /** The columns that hold the record's address and name, by name only (never their values). */
+    columns: z.object({ address: z.string().nullable(), name: z.string().nullable() }),
     /** Whether the record's address was found (a table with one e-mail column); without it, only the row's own events count. */
     addressKnown: z.boolean(),
     purposes: z.array(z.object({ purpose: z.enum(CONSENT_PURPOSES), state: z.enum(['yes', 'no', 'not-asked']), event: eventView.nullable() })),

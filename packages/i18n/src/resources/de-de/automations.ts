@@ -515,5 +515,18 @@ export default {
     "pick": "Eingetragen in",
     "choose": "Tabelle wählen…",
     "help": "Von den eingetragenen Personen werden nur die benachrichtigt, die sich anmelden und diesen Datensatz öffnen können. Ein Datensatz ohne eingetragene Personen benachrichtigt niemanden, und der Lauf vermerkt das."
+  },
+  "mailClass": {
+    "label": "Art der Mail",
+    "marketing": "Marketing-E-Mail",
+    "service": "Service-E-Mail",
+    "help": "Service-E-Mails (ein Angebot, ein Beleg, eine Buchung) erreichen auch Personen auf der Liste „Keine E-Mails“. Marketing-E-Mails nie.",
+    "why": "Warum Sie schreiben",
+    "newsletter": "Newsletter",
+    "surveys": "Umfragen",
+    "subMarketing": "Marketing-E-Mail · {purpose}",
+    "subService": "Service-E-Mail",
+    "recheck": "Prüft Einwilligung und Liste „Keine E-Mails“ beim Senden erneut.",
+    "older": "Gespeichert, bevor Mails eine Art hatten: Sie geht als Service-E-Mail, bis Sie wählen."
   }
 } as const;

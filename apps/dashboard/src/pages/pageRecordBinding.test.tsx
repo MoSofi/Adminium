@@ -165,12 +165,17 @@ interface Fixture {
   deleteReply?: () => Response;
   /** `GET` of order 21. */
   orderReply?: () => Response;
+  /** `POST /api/v1/consent/panel`; absent answers 404, as for a reader refused it. */
+  consentReply?: () => Response;
 }
 
 function stubFetch(fixture: Fixture = {}) {
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
+    if (url === '/api/v1/consent/panel' && method === 'POST' && fixture.consentReply !== undefined) {
+      return Promise.resolve(fixture.consentReply());
+    }
     if (url.startsWith('/api/v1/connections/conn_1/schema') && fixture.schemaReply !== undefined) {
       return Promise.resolve(fixture.schemaReply());
     }
@@ -1147,5 +1152,50 @@ describe('a document’s states on the record page', () => {
     await user.type(confirmInput, 'Northwind');
     await user.click(within(confirmDialog).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText('This record cannot be deleted. Void it instead.')).toBeDefined();
+  });
+});
+
+describe('the e-mail consent panel on a people table\'s record', () => {
+  const panel = (declared: boolean) => ({
+    declared,
+    erased: false,
+    columns: { address: 'email', name: 'name' },
+    addressKnown: true,
+    purposes: [
+      { purpose: 'newsletter', state: 'not-asked', event: null },
+      { purpose: 'surveys', state: 'not-asked', event: null },
+    ],
+    stopped: null,
+    lastReplied: null,
+    history: [],
+    mayChange: true,
+  });
+  // A marketer shown the address masked: the row holds no address for them.
+  const MASKED = { ...CUSTOMER, email: null, _masked: ['phone', 'email'] };
+
+  it('shows the panel below the tabs for a declared table, and the dialog names the person without the masked address', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderAt('/p/customers/r/1', {
+      consentReply: () => jsonResponse(200, { data: panel(true) }),
+      recordReply: () => jsonResponse(200, { data: MASKED, inboundCounts: [] }),
+    });
+    const shown = await screen.findByTestId('consent-panel', undefined, { timeout: 5_000 });
+    expect(within(shown).getByRole('heading', { name: 'E-mail consent' })).toBeTruthy();
+    const asked = fetchMock.mock.calls.find(([url]) => String(url) === '/api/v1/consent/panel');
+    expect(JSON.parse(String((asked?.[1] as RequestInit | undefined)?.body))).toEqual({ connectionId: 'conn_1', table: 'public.customers', recordId: '1' });
+    await user.click(within(shown).getByTestId('consent-record'));
+    expect((await screen.findByTestId('consent-dialog-who')).textContent).toBe('Northwind');
+  });
+
+  it('shows no panel for a table no app declares as people', async () => {
+    const { fetchMock } = await renderAt('/p/customers/r/1', { consentReply: () => jsonResponse(200, { data: panel(false) }) });
+    // The panel was asked about, and its answer is in.
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url) === '/api/v1/consent/panel')).toBe(true), { timeout: 10_000 });
+    await screen.findByTestId('record-panel-consent').catch(() => null);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(screen.queryByTestId('consent-panel')).toBeNull();
+    expect(screen.queryByTestId('record-panel-consent')).toBeNull();
   });
 });

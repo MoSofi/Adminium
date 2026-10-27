@@ -1907,5 +1907,114 @@ export default {
     "digestDay": "Tag",
     "digestWhenRun": "Am Tag, an dem sie erstellt werden",
     "digestTime": "Uhrzeit"
+  },
+  "consent": {
+    "panel": {
+      "title": "E-Mail-Einwilligung",
+      "replied": "Geantwortet",
+      "repliedHint": "Die Person hat auf eine Marketing-E-Mail geantwortet. Das stoppt ihre E-Mail-Serien.",
+      "record": "Einwilligung erfassen…",
+      "saidNo": "Hat abgelehnt",
+      "loadFailed": "Die E-Mail-Einwilligung konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "loading": "E-Mail-Einwilligung wird geladen…",
+      "banner": "Seit {date} auf der Liste „Keine E-Mails“ ({why}). Marketing-E-Mails überspringen diese Person; Service-E-Mails wie Angebote und Belege erreichen sie weiterhin.",
+      "erased": "Diese Person wurde gelöscht. Ihre Adresse bleibt auf der Liste „Keine E-Mails“, damit sie nie wieder angeschrieben wird. Sonst wird nichts über sie aufbewahrt.",
+      "noAddress": "Dieser Datensatz hat noch keine E-Mail-Adresse.",
+      "history": "Verlauf der Einwilligung",
+      "historyNote": "Neueste zuerst. So aufbewahrt, wie es geschah; Einträge lassen sich nicht ändern.",
+      "historyEmpty": "Noch nichts erfasst."
+    },
+    "purpose": {
+      "newsletter": "Newsletter",
+      "surveys": "Umfragen"
+    },
+    "state": {
+      "yes": "Darf angeschrieben werden",
+      "notAsked": "Nicht gefragt",
+      "unsubscribed": "Abgemeldet",
+      "no": "Abgelehnt"
+    },
+    "why": {
+      "link": "abgemeldet",
+      "spam": "als Spam markiert",
+      "bounce": "Mail unzustellbar",
+      "hand": "von Hand hinzugefügt",
+      "relayUnsubscribe": "über den Mail-Dienst abgemeldet",
+      "oldMark": "abgemeldet, bevor Aufzeichnungen geführt wurden",
+      "leadFinder": "Widerspruch über Lead finder",
+      "erased": "auf Wunsch gelöscht"
+    },
+    "how": {
+      "inPerson": "Persönlich",
+      "phone": "Telefonisch",
+      "email": "Per E-Mail",
+      "paper": "Auf Papier"
+    },
+    "line": {
+      "form": "Im Formular „{form}“ zugestimmt",
+      "formVersion": "Im Formular „{form}“ zugestimmt (Wortlaut {version})",
+      "confirmed": "Per E-Mail bestätigt",
+      "confirmedOn": "per E-Mail bestätigt {date}",
+      "recorded": {
+        "inPerson": "Persönlich zugestimmt, erfasst von {name}",
+        "phone": "Telefonisch zugestimmt, erfasst von {name}",
+        "email": "Per E-Mail zugestimmt, erfasst von {name}",
+        "paper": "Auf Papier zugestimmt, erfasst von {name}"
+      },
+      "ticked": "Angehakt von {name}",
+      "unticked": "Haken entfernt von {name}",
+      "reviewYes": "Bestätigt von {name}",
+      "reviewYesExtra": "(angehakt, bevor Aufzeichnungen geführt wurden)",
+      "reviewNo": "Bei der Versandprüfung ausgelassen von {name}",
+      "import": "Aus einer Datei übernommen",
+      "importNo": "Aus einer Datei als Nein übernommen",
+      "ownPageYes": "Auf der eigenen Seite zugestimmt",
+      "ownPageNo": "Auf der eigenen Seite abgelehnt",
+      "forget": "Bat darum, die eigenen Daten zu vergessen",
+      "ruleYes": "Von einer Automatisierung auf Ja gesetzt",
+      "ruleNo": "Von einer Automatisierung auf Nein gesetzt",
+      "apiYes": "Über die API auf Ja gesetzt",
+      "apiNo": "Über die API auf Nein gesetzt",
+      "systemYes": "Auf Ja gesetzt",
+      "systemNo": "Auf Nein gesetzt",
+      "unsubscribed": {
+        "newsletter": "Vom Newsletter über den E-Mail-Link abgemeldet",
+        "surveys": "Von Umfragen über den E-Mail-Link abgemeldet"
+      },
+      "unsubscribedAll": "Von allen Marketing-E-Mails über den E-Mail-Link abgemeldet",
+      "oneClick": "Mit der Abmeldetaste des eigenen Mailprogramms abgemeldet",
+      "mailService": "Vom Mail-Dienst gestoppt",
+      "replied": "Geantwortet – E-Mail-Serien gestoppt",
+      "by": "von {name}",
+      "from": "von {ip}",
+      "note": "„{note}“"
+    },
+    "toast": {
+      "recorded": "Einwilligung erfasst: {purpose}.",
+      "replied": "Als geantwortet markiert. Die E-Mail-Serien stoppen.",
+      "saidNo": "Die Person steht jetzt auf der Liste „Keine E-Mails“.",
+      "already": "Die Person stand bereits auf der Liste „Keine E-Mails“.",
+      "failed": "Das wurde nicht gespeichert. Versuchen Sie es erneut.",
+      "erased": "Diese Person wurde gelöscht: Über sie wird nichts mehr erfasst."
+    },
+    "confirm": {
+      "repliedTitle": "Als geantwortet markieren?",
+      "repliedConfirm": "Als geantwortet markieren",
+      "saidNoTitle": "Auf die Liste „Keine E-Mails“ setzen?",
+      "saidNoBody": "Marketing-E-Mails überspringen diese Person ab jetzt; Service-E-Mails wie Angebote und Belege erreichen sie weiterhin. Nur ein Super Admin kann sie wieder von der Liste nehmen.",
+      "saidNoConfirm": "Auf die Liste setzen",
+      "cancel": "Abbrechen"
+    },
+    "dialog": {
+      "title": "Einwilligung erfassen",
+      "purpose": "Zweck",
+      "how": "Wie wurde zugestimmt?",
+      "note": "Notiz",
+      "stamp": "Ihr Name und das heutige Datum werden dazu gespeichert.",
+      "cancel": "Abbrechen",
+      "save": "Einwilligung erfassen",
+      "close": "Schließen"
+    }
   }
 } as const;

@@ -1897,5 +1897,114 @@
     "digestDay": "Den",
     "digestWhenRun": "V den, kdy se vytvoří",
     "digestTime": "Čas"
+  },
+  "consent": {
+    "panel": {
+      "title": "Souhlas s e-maily",
+      "replied": "Odpověděl(a)",
+      "repliedHint": "Tento člověk odpověděl na marketingový e-mail. Tím se zastaví jeho série e-mailů.",
+      "record": "Zaznamenat souhlas…",
+      "saidNo": "Odmítl(a)",
+      "loadFailed": "Souhlas s e-maily se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "loading": "Načítá se souhlas s e-maily…",
+      "banner": "Na seznamu „Neposílat e-maily“ od {date} ({why}). Marketingové e-maily tohoto člověka vynechají; servisní e-maily jako nabídky a účtenky mu dál chodí.",
+      "erased": "Tento člověk byl vymazán. Jeho adresa zůstává na seznamu „Neposílat e-maily“, aby mu už nikdy nepřišel e-mail. Nic dalšího se o něm neuchovává.",
+      "noAddress": "Tento záznam zatím nemá e-mailovou adresu.",
+      "history": "Historie souhlasu",
+      "historyNote": "Nejnovější nahoře. Uchováno tak, jak se to stalo; záznamy nelze upravit.",
+      "historyEmpty": "Zatím nic nezaznamenáno."
+    },
+    "purpose": {
+      "newsletter": "Newsletter",
+      "surveys": "Průzkumy"
+    },
+    "state": {
+      "yes": "Smí dostávat e-maily",
+      "notAsked": "Nedotázáno",
+      "unsubscribed": "Odhlášeno",
+      "no": "Odmítnuto"
+    },
+    "why": {
+      "link": "odhlášení",
+      "spam": "označeno jako spam",
+      "bounce": "e-mail se vrátil",
+      "hand": "přidáno ručně",
+      "relayUnsubscribe": "odhlášení přes poštovní službu",
+      "oldMark": "odhlášení před zavedením záznamů",
+      "leadFinder": "námitka přes Lead finder",
+      "erased": "vymazáno na žádost"
+    },
+    "how": {
+      "inPerson": "Osobně",
+      "phone": "Telefonicky",
+      "email": "E-mailem",
+      "paper": "Na papíře"
+    },
+    "line": {
+      "form": "Souhlas ve formuláři „{form}“",
+      "formVersion": "Souhlas ve formuláři „{form}“ (znění {version})",
+      "confirmed": "Potvrzeno e-mailem",
+      "confirmedOn": "potvrzeno e-mailem {date}",
+      "recorded": {
+        "inPerson": "Souhlas osobně, zaznamenal(a) {name}",
+        "phone": "Souhlas telefonicky, zaznamenal(a) {name}",
+        "email": "Souhlas e-mailem, zaznamenal(a) {name}",
+        "paper": "Souhlas na papíře, zaznamenal(a) {name}"
+      },
+      "ticked": "Zaškrtl(a) {name}",
+      "unticked": "Zrušil(a) zaškrtnutí {name}",
+      "reviewYes": "Potvrdil(a) {name}",
+      "reviewYesExtra": "(zaškrtnuto před zavedením záznamů)",
+      "reviewNo": "Vynechal(a) {name} při kontrole odeslání",
+      "import": "Převzato ze souboru",
+      "importNo": "Převzato ze souboru jako ne",
+      "ownPageYes": "Souhlas na vlastní stránce",
+      "ownPageNo": "Odmítnutí na vlastní stránce",
+      "forget": "Žádost o zapomenutí údajů",
+      "ruleYes": "Nastaveno na ano automatizací",
+      "ruleNo": "Nastaveno na ne automatizací",
+      "apiYes": "Nastaveno na ano přes API",
+      "apiNo": "Nastaveno na ne přes API",
+      "systemYes": "Nastaveno na ano",
+      "systemNo": "Nastaveno na ne",
+      "unsubscribed": {
+        "newsletter": "Odhlášeno z newsletteru odkazem v e-mailu",
+        "surveys": "Odhlášeno z průzkumů odkazem v e-mailu"
+      },
+      "unsubscribedAll": "Odhlášeno ze všech marketingových e-mailů odkazem v e-mailu",
+      "oneClick": "Odhlášeno tlačítkem pro odhlášení v poštovní aplikaci",
+      "mailService": "Zastaveno poštovní službou",
+      "replied": "Odpověď – série e-mailů zastaveny",
+      "by": "– {name}",
+      "from": "z {ip}",
+      "note": "„{note}“"
+    },
+    "toast": {
+      "recorded": "Souhlas zaznamenán: {purpose}.",
+      "replied": "Označeno jako odpověď. Série e-mailů se zastaví.",
+      "saidNo": "Tento člověk je teď na seznamu „Neposílat e-maily“.",
+      "already": "Tento člověk už na seznamu „Neposílat e-maily“ byl.",
+      "failed": "Nic se neuložilo. Zkuste to znovu.",
+      "erased": "Tento člověk byl vymazán: nic dalšího se o něm nezaznamenává."
+    },
+    "confirm": {
+      "repliedTitle": "Označit jako odpověď?",
+      "repliedConfirm": "Označit jako odpověď",
+      "saidNoTitle": "Dát na seznam „Neposílat e-maily“?",
+      "saidNoBody": "Marketingové e-maily tohoto člověka od teď vynechají; servisní e-maily jako nabídky a účtenky mu dál chodí. Ze seznamu ho může vyřadit jen Super Admin.",
+      "saidNoConfirm": "Dát na seznam",
+      "cancel": "Zrušit"
+    },
+    "dialog": {
+      "title": "Zaznamenat souhlas",
+      "purpose": "Účel",
+      "how": "Jak souhlas dal(a)?",
+      "note": "Poznámka",
+      "stamp": "Uloží se s ním vaše jméno a dnešní datum.",
+      "cancel": "Zrušit",
+      "save": "Zaznamenat souhlas",
+      "close": "Zavřít"
+    }
   }
 }

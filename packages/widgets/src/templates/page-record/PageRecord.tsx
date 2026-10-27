@@ -337,6 +337,12 @@ export interface PageRecordPanel {
   title: string;
   /** Rendered inside the page's own panel chrome, so it matches the rest. */
   content: ReactNode;
+  /**
+   * The content is a card with a heading of its own (the e-mail consent
+   * panel, drawn as its comp draws it): the page then draws no heading over
+   * it, and `title` names nothing on screen.
+   */
+  ownHeading?: boolean | undefined;
 }
 
 /** One host-supplied topbar action. */
@@ -1543,12 +1549,18 @@ export function PageRecord({
         */}
       {panels !== undefined && panels.length > 0 && (
         <div className="flex flex-col gap-4" data-testid="record-host-panels">
-          {panels.map((panel) => (
-            <section key={panel.id} data-testid={`record-panel-${panel.id}`}>
-              <h2 className="mb-2 text-sm font-medium text-fg-muted">{panel.title}</h2>
-              {panel.content}
-            </section>
-          ))}
+          {panels.map((panel) =>
+            panel.ownHeading === true ? (
+              <div key={panel.id} data-testid={`record-panel-${panel.id}`}>
+                {panel.content}
+              </div>
+            ) : (
+              <section key={panel.id} data-testid={`record-panel-${panel.id}`}>
+                <h2 className="mb-2 text-sm font-medium text-fg-muted">{panel.title}</h2>
+                {panel.content}
+              </section>
+            ),
+          )}
         </div>
       )}
 

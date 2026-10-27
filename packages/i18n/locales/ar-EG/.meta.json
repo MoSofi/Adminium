@@ -2511,6 +2511,50 @@
     "status": "mt",
     "srcHash": "d3f06a581b2b"
   },
+  "automations.mailClass.help": {
+    "status": "mt",
+    "srcHash": "bd1ed0cbb859"
+  },
+  "automations.mailClass.label": {
+    "status": "mt",
+    "srcHash": "fdca86863e54"
+  },
+  "automations.mailClass.marketing": {
+    "status": "mt",
+    "srcHash": "43881ba86a0d"
+  },
+  "automations.mailClass.newsletter": {
+    "status": "mt",
+    "srcHash": "6ed05e720ccc"
+  },
+  "automations.mailClass.older": {
+    "status": "mt",
+    "srcHash": "215b61d7492e"
+  },
+  "automations.mailClass.recheck": {
+    "status": "mt",
+    "srcHash": "d9888dc8aa75"
+  },
+  "automations.mailClass.service": {
+    "status": "mt",
+    "srcHash": "3e052a2b8889"
+  },
+  "automations.mailClass.subMarketing": {
+    "status": "mt",
+    "srcHash": "8cc24ffaa122"
+  },
+  "automations.mailClass.subService": {
+    "status": "mt",
+    "srcHash": "3e052a2b8889"
+  },
+  "automations.mailClass.surveys": {
+    "status": "mt",
+    "srcHash": "0762895fdf43"
+  },
+  "automations.mailClass.why": {
+    "status": "mt",
+    "srcHash": "f6fde29be26f"
+  },
   "automations.menu.delete": {
     "status": "mt",
     "srcHash": "f6fdbe48dc54"
@@ -5258,6 +5302,346 @@
   "common.common.undo": {
     "srcHash": "39fc72124884",
     "status": "mt"
+  },
+  "common.consent.confirm.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "common.consent.confirm.repliedConfirm": {
+    "status": "mt",
+    "srcHash": "adb5a76bea4f"
+  },
+  "common.consent.confirm.repliedTitle": {
+    "status": "mt",
+    "srcHash": "1ba578419549"
+  },
+  "common.consent.confirm.saidNoBody": {
+    "status": "mt",
+    "srcHash": "6e320dce7ae7"
+  },
+  "common.consent.confirm.saidNoConfirm": {
+    "status": "mt",
+    "srcHash": "36ba864dbf36"
+  },
+  "common.consent.confirm.saidNoTitle": {
+    "status": "mt",
+    "srcHash": "a8eaa6a81658"
+  },
+  "common.consent.dialog.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "common.consent.dialog.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "common.consent.dialog.how": {
+    "status": "mt",
+    "srcHash": "b2c8fae1c694"
+  },
+  "common.consent.dialog.note": {
+    "status": "mt",
+    "srcHash": "2c924e308820"
+  },
+  "common.consent.dialog.purpose": {
+    "status": "mt",
+    "srcHash": "a0fb821bdaf9"
+  },
+  "common.consent.dialog.save": {
+    "status": "mt",
+    "srcHash": "eb7c9ea96375"
+  },
+  "common.consent.dialog.stamp": {
+    "status": "mt",
+    "srcHash": "c1f28c1874da"
+  },
+  "common.consent.dialog.title": {
+    "status": "mt",
+    "srcHash": "eb7c9ea96375"
+  },
+  "common.consent.how.email": {
+    "status": "mt",
+    "srcHash": "14093b7e615a"
+  },
+  "common.consent.how.inPerson": {
+    "status": "mt",
+    "srcHash": "fb95e850a658"
+  },
+  "common.consent.how.paper": {
+    "status": "mt",
+    "srcHash": "370e3f5868d5"
+  },
+  "common.consent.how.phone": {
+    "status": "mt",
+    "srcHash": "0737ba24a8bd"
+  },
+  "common.consent.line.apiNo": {
+    "status": "mt",
+    "srcHash": "6f8f2036bac4"
+  },
+  "common.consent.line.apiYes": {
+    "status": "mt",
+    "srcHash": "a5caa548c576"
+  },
+  "common.consent.line.by": {
+    "status": "mt",
+    "srcHash": "3ca2d1d26637"
+  },
+  "common.consent.line.confirmed": {
+    "status": "mt",
+    "srcHash": "bf04411f603b"
+  },
+  "common.consent.line.confirmedOn": {
+    "status": "mt",
+    "srcHash": "45302f06807c"
+  },
+  "common.consent.line.forget": {
+    "status": "mt",
+    "srcHash": "ca07c75328ec"
+  },
+  "common.consent.line.form": {
+    "status": "mt",
+    "srcHash": "5b5063d92dc3"
+  },
+  "common.consent.line.formVersion": {
+    "status": "mt",
+    "srcHash": "4df8d8e97a35"
+  },
+  "common.consent.line.from": {
+    "status": "mt",
+    "srcHash": "05c452d50d8f"
+  },
+  "common.consent.line.import": {
+    "status": "mt",
+    "srcHash": "9687811e94af"
+  },
+  "common.consent.line.importNo": {
+    "status": "mt",
+    "srcHash": "c97c7ea38f07"
+  },
+  "common.consent.line.mailService": {
+    "status": "mt",
+    "srcHash": "1a47c715d265"
+  },
+  "common.consent.line.note": {
+    "status": "mt",
+    "srcHash": "032a781c617f"
+  },
+  "common.consent.line.oneClick": {
+    "status": "mt",
+    "srcHash": "170a2d310204"
+  },
+  "common.consent.line.ownPageNo": {
+    "status": "mt",
+    "srcHash": "6c90c8daf24a"
+  },
+  "common.consent.line.ownPageYes": {
+    "status": "mt",
+    "srcHash": "ee0e7f5feda6"
+  },
+  "common.consent.line.recorded.email": {
+    "status": "mt",
+    "srcHash": "d7b58918b78c"
+  },
+  "common.consent.line.recorded.inPerson": {
+    "status": "mt",
+    "srcHash": "74b51044cf7f"
+  },
+  "common.consent.line.recorded.paper": {
+    "status": "mt",
+    "srcHash": "872709d33fca"
+  },
+  "common.consent.line.recorded.phone": {
+    "status": "mt",
+    "srcHash": "723d6c6a863f"
+  },
+  "common.consent.line.replied": {
+    "status": "mt",
+    "srcHash": "ebb8eedb8ddb"
+  },
+  "common.consent.line.reviewNo": {
+    "status": "mt",
+    "srcHash": "e19a4c3ac876"
+  },
+  "common.consent.line.reviewYes": {
+    "status": "mt",
+    "srcHash": "4b14779fa4e6"
+  },
+  "common.consent.line.reviewYesExtra": {
+    "status": "mt",
+    "srcHash": "ba993b56b5cf"
+  },
+  "common.consent.line.ruleNo": {
+    "status": "mt",
+    "srcHash": "8ad555625fa8"
+  },
+  "common.consent.line.ruleYes": {
+    "status": "mt",
+    "srcHash": "ecd06462e76a"
+  },
+  "common.consent.line.systemNo": {
+    "status": "mt",
+    "srcHash": "12e7623b4de4"
+  },
+  "common.consent.line.systemYes": {
+    "status": "mt",
+    "srcHash": "ccfc3e9ff2df"
+  },
+  "common.consent.line.ticked": {
+    "status": "mt",
+    "srcHash": "c4a386cb0f5f"
+  },
+  "common.consent.line.unsubscribed.newsletter": {
+    "status": "mt",
+    "srcHash": "93e63bf9a504"
+  },
+  "common.consent.line.unsubscribed.surveys": {
+    "status": "mt",
+    "srcHash": "8f0f31dc43fd"
+  },
+  "common.consent.line.unsubscribedAll": {
+    "status": "mt",
+    "srcHash": "773ca392876e"
+  },
+  "common.consent.line.unticked": {
+    "status": "mt",
+    "srcHash": "b604eb99e4f6"
+  },
+  "common.consent.panel.banner": {
+    "status": "mt",
+    "srcHash": "9f4057e8c168"
+  },
+  "common.consent.panel.erased": {
+    "status": "mt",
+    "srcHash": "bc9765594895"
+  },
+  "common.consent.panel.history": {
+    "status": "mt",
+    "srcHash": "9f998ba2b5f8"
+  },
+  "common.consent.panel.historyEmpty": {
+    "status": "mt",
+    "srcHash": "7a6a4a0a9fe3"
+  },
+  "common.consent.panel.historyNote": {
+    "status": "mt",
+    "srcHash": "f4179f07537e"
+  },
+  "common.consent.panel.loadFailed": {
+    "status": "mt",
+    "srcHash": "398ab9b42a72"
+  },
+  "common.consent.panel.loading": {
+    "status": "mt",
+    "srcHash": "a2c51eccad90"
+  },
+  "common.consent.panel.noAddress": {
+    "status": "mt",
+    "srcHash": "53ebb0f0bcb9"
+  },
+  "common.consent.panel.record": {
+    "status": "mt",
+    "srcHash": "ffaa2c4ddb0b"
+  },
+  "common.consent.panel.replied": {
+    "status": "mt",
+    "srcHash": "7d688ab4a80b"
+  },
+  "common.consent.panel.repliedHint": {
+    "status": "mt",
+    "srcHash": "926c891552eb"
+  },
+  "common.consent.panel.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "common.consent.panel.saidNo": {
+    "status": "mt",
+    "srcHash": "e9fcf2659b9d"
+  },
+  "common.consent.panel.title": {
+    "status": "mt",
+    "srcHash": "13b6f878a612"
+  },
+  "common.consent.purpose.newsletter": {
+    "status": "mt",
+    "srcHash": "6ed05e720ccc"
+  },
+  "common.consent.purpose.surveys": {
+    "status": "mt",
+    "srcHash": "0762895fdf43"
+  },
+  "common.consent.state.no": {
+    "status": "mt",
+    "srcHash": "a4f02721bcca"
+  },
+  "common.consent.state.notAsked": {
+    "status": "mt",
+    "srcHash": "4b8b0278e3ae"
+  },
+  "common.consent.state.unsubscribed": {
+    "status": "mt",
+    "srcHash": "9ab84878a997"
+  },
+  "common.consent.state.yes": {
+    "status": "mt",
+    "srcHash": "3de8729421c8"
+  },
+  "common.consent.toast.already": {
+    "status": "mt",
+    "srcHash": "3b55c01e5be9"
+  },
+  "common.consent.toast.erased": {
+    "status": "mt",
+    "srcHash": "611487b8c3e1"
+  },
+  "common.consent.toast.failed": {
+    "status": "mt",
+    "srcHash": "1a21b76bd7bd"
+  },
+  "common.consent.toast.recorded": {
+    "status": "mt",
+    "srcHash": "b98b29b9255e"
+  },
+  "common.consent.toast.replied": {
+    "status": "mt",
+    "srcHash": "e64b4c4a4c0d"
+  },
+  "common.consent.toast.saidNo": {
+    "status": "mt",
+    "srcHash": "df19cf30d567"
+  },
+  "common.consent.why.bounce": {
+    "status": "mt",
+    "srcHash": "c8a210c4e9cc"
+  },
+  "common.consent.why.erased": {
+    "status": "mt",
+    "srcHash": "5481ee18983c"
+  },
+  "common.consent.why.hand": {
+    "status": "mt",
+    "srcHash": "4697eecefd07"
+  },
+  "common.consent.why.leadFinder": {
+    "status": "mt",
+    "srcHash": "9b0a5c41b26c"
+  },
+  "common.consent.why.link": {
+    "status": "mt",
+    "srcHash": "e4c2014fdf86"
+  },
+  "common.consent.why.oldMark": {
+    "status": "mt",
+    "srcHash": "75c7107b82fd"
+  },
+  "common.consent.why.relayUnsubscribe": {
+    "status": "mt",
+    "srcHash": "0e5ef80a314a"
+  },
+  "common.consent.why.spam": {
+    "status": "mt",
+    "srcHash": "4ac2d685b8c4"
   },
   "common.desktop.chip.lanShare": {
     "srcHash": "32651de5cf51",

@@ -75,6 +75,15 @@ describe('host-supplied panels on the record page', () => {
     expect(screen.getByTestId('record-panel-certs')).not.toBeNull();
   });
 
+  it('draws no heading over a panel that brings its own', async () => {
+    renderRecord({
+      panels: [{ id: 'consent', title: 'E-mail consent', ownHeading: true, content: <section aria-labelledby="own"><h2 id="own">E-mail consent</h2></section> }],
+    });
+    expect(await screen.findByTestId('record-panel-consent')).not.toBeNull();
+    // One heading of that name: the panel's own.
+    expect(screen.getAllByRole('heading', { name: 'E-mail consent' })).toHaveLength(1);
+  });
+
   it('puts them OUTSIDE the tab strip, so nothing is hidden behind a click', async () => {
     /*
      * The placement decision, pinned. A tab hides its contents until somebody

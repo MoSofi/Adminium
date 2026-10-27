@@ -1,6 +1,6 @@
 ---
 title: Adminium's own parts on an app's screen
-description: "Draw one of Adminium's larger parts, the text box that mentions people, the board, the map, the import wizard, the signature pad or the photo field, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
+description: "Draw one of Adminium's larger parts, the text box that mentions people, the board, the map, the import wizard, the signature pad, the photo field or a person's e-mail consent, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
 ---
 
 A staff side is a bundle of its own: its own React, or none. Some parts are too large to write
@@ -9,9 +9,9 @@ mentioned, the board, the map, the import. Adminium serves these itself, and a s
 with a small call: "draw it in this element". The part is drawn by Adminium's own React. Yours
 never meets it, so a screen written in plain JavaScript can use a part as well as one in React.
 
-Six parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`), **the
-map** (`map`), **the import wizard** (`import`), **the signature pad** (`signature`) and **the
-photo field** (`photos`). `kit.parts` lists the ones this Adminium can
+Seven parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`), **the
+map** (`map`), **the import wizard** (`import`), **the signature pad** (`signature`), **the
+photo field** (`photos`) and **a person's e-mail consent** (`consent`). `kit.parts` lists the ones this Adminium can
 mount: an older Adminium has fewer, and refuses one it names and has not built yet with an error
 whose `code` is `KIT_PART_NOT_YET`.
 
@@ -700,6 +700,59 @@ The pad keeps a signature it sent and you have not given back as `value` until i
 then throws it away; the field does the same with a photo the person takes out. A file you gave as
 `value` is the record's, and the part never throws it away.
 
+## A person's e-mail consent
+
+The "E-mail consent" panel of a record of a table your app declares as people (`people` in the
+manifest): how the person stands for each purpose, whether their address is on the do-not-email
+list, and the history of what they said, newest first. A person who may change the record also
+gets "Replied" (they answered a marketing e-mail: their e-mail sequences stop), "Record consent…"
+(a yes they gave in person, by phone, by e-mail or on paper, saved with the staff member's name and
+the date) and "They said no" (their address goes on the do-not-email list). It is the panel the
+dashboard draws on a generated record page, so the two say the same.
+
+```ts
+const consent = await kit.mount('consent', document.querySelector('#consent'), {
+  connectionId: config.connectionId,
+  table: config.tables.contacts,
+  recordId: String(contact.id),
+  name: contact.name,
+  // Only where your screen shows this person the address in clear.
+  ...(contact.email === null ? {} : { address: contact.email }),
+  csrfToken: config.csrfToken,
+  locale: config.locale,
+  dir: config.dir,
+  onChange: () => refreshTheConsentLine(),
+});
+```
+
+### Props
+
+| Prop | |
+|---|---|
+| `connectionId`, `table`, `recordId` | The record: the side's `connectionId`, the table as the config's `tables` gives it, and the record's key as text. Required. |
+| `csrfToken` | `csrfToken` of the side's config. Required: the server takes no change without it. |
+| `locale`, `dir` | From the side's config. Required. |
+| `name` | The person's name as your screen shows it: the Record consent form names them by it. |
+| `address` | Their address as your screen shows it to this person. Leave it out where it is masked for them: the part never shows an address the server sent, and the server sends none. |
+| `fetch` | Used in place of the browser's `fetch` (same-origin paths under `/api/v1/consent`). |
+| `onChange()` | Called after a change was saved, so a line of your own reads again. |
+| `theme` | `light` or `dark`, as for every part. |
+
+The part reads `POST /api/v1/consent/panel` itself, as the signed-in person, and reads it again
+after every change. A line of your own that says how a person stands ("May be e-mailed since…")
+should read the same route, so the two never disagree: its reply says each purpose's state and the
+log row it comes from, the do-not-email entry (`stopped`), `lastReplied`, the history, and whether
+this person may change the record (`mayChange`). It never holds the address.
+
+What the person's role decides: the panel shows to whoever may read the table and reaches the row;
+the three buttons only to whoever may update it and reaches the row to change it. Somebody whose
+role is [screens only](/guides/apps/roles-and-staff-access/) can use the part. The install-wide
+do-not-email list and taking an address off it stay the dashboard's.
+
+The part's confirms and its Record consent form open inside the panel, not over your page. On a
+table no app declares as people it draws nothing; a record the person may not read is said in a
+line with "Try again". An erased person's row says so, and offers nothing.
+
 ## The look
 
 The kit brings its own styles and loads them when a part is first mounted. Every rule is held
@@ -741,7 +794,7 @@ board is mounted. The map brings the map library (about 290 kB compressed) and i
 150 kB), the dashboard's own files too, and only when a map is drawn: with maps switched off
 neither is fetched. The import wizard brings its own code and controls (about 25 kB compressed)
 and nothing of the dashboard's first load; the signature pad and the photo field a few kilobytes
-each. The files carry
+each; the consent panel about 9 kB, also with nothing of the dashboard's first load. The files carry
 a hash of their content in their names and are kept by the browser for good.
 
 All of it comes from the address the side is served from, so it fits

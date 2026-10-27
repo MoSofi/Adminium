@@ -11,7 +11,8 @@
  * (its stock words), which of their app's own rules are switched on, and
  * bringing a file in to a table their role may import (a "paste a list"
  * screen of their app), and the files a record of theirs keeps (a crew's
- * signature and photos). Forty-odd routes check only that someone is signed in, so this
+ * signature and photos), and a record's e-mail consent (the panel, and recording consent,
+ * "Replied" and "They said no" on it). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -97,6 +98,15 @@ const IMPORT_ROUTES: ReadonlySet<string> = new Set([
 const FILE_ROUTES: ReadonlySet<string> = new Set(['POST /files', 'GET /files/:id', 'GET /files/:id/content', 'DELETE /files/:id']);
 
 /**
+ * A record's e-mail consent, on a screen of their app (the kit's consent part, an app's own "may be
+ * e-mailed" line): the panel, and the three things a person who may change the record records on it.
+ * Each route asks the table's read (or update) right and the row inside the person's reach
+ * (`routes/consent`), never sends the address back, and is a signed-in person's alone. The
+ * install-wide do-not-email list stays the dashboard's.
+ */
+const CONSENT_ROUTES: ReadonlySet<string> = new Set(['POST /consent/panel', 'POST /consent/record-consent', 'POST /consent/replied', 'POST /consent/said-no']);
+
+/**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
  * never by the request line, which can spell the same route another way
@@ -143,6 +153,7 @@ export function allowedForScreensOnly(
   // shown to whoever made them. The list of imports, and every other route of the jobs, stay the dashboard's.
   if (IMPORT_ROUTES.has(`${method} ${rest}`)) return true;
   if (FILE_ROUTES.has(`${method} ${rest}`)) return true;
+  if (CONSENT_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

@@ -515,5 +515,18 @@ export default {
     "pick": "Uvedeni v",
     "choose": "Vyberte tabulku…",
     "help": "Z uvedených lidí dostanou zprávu jen ti, kdo se mohou přihlásit a tento záznam otevřít. Záznam, u kterého nikdo uveden není, nikoho neupozorní a běh to uvede."
+  },
+  "mailClass": {
+    "label": "Druh e-mailu",
+    "marketing": "Marketingový e-mail",
+    "service": "Servisní e-mail",
+    "help": "Servisní e-mail (nabídka, účtenka, rezervace) dojde i lidem na seznamu „Neposílat e-maily“. Marketingový nikdy.",
+    "why": "Proč píšete",
+    "newsletter": "Newsletter",
+    "surveys": "Průzkumy",
+    "subMarketing": "Marketingový e-mail · {purpose}",
+    "subService": "Servisní e-mail",
+    "recheck": "Při odeslání znovu ověří souhlas a seznam „Neposílat e-maily“.",
+    "older": "Uloženo dřív, než e-maily měly druh: odejde jako servisní, dokud nevyberete."
   }
 } as const;
