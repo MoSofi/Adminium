@@ -502,6 +502,38 @@ for (const [dialect, reachable] of LEGS) {
       }
     });
 
+    it('a run\'s failure list names its people only to a manager who sees every table of the run in clear, on every reply that carries it', async () => {
+      await s.meta.db.deleteFrom('adminium_email_send_counters').execute();
+      const templateId = await campaign();
+      const res = await s.send('mia', 'POST', `/api/v1/email-templates/${templateId}/send`, { audience: audience() });
+      expect(res.statusCode, res.body).toBe(202);
+      const runId = (res.json() as { run: { id: string } }).run.id;
+      await s.jobs();
+      await s.emails();
+      // As a give-up writes it (the recipient's address, which the relay's words repeat), and one of the run's own.
+      await emailRunsRepo(s.meta).noteFailure(runId, { to: 'ana@harbour.dev', error: '550 5.1.1 <ana@harbour.dev>: no such user' });
+      await emailRunsRepo(s.meta).noteFailure(runId, { to: '', error: 'relay-down' });
+      const replies = async (who: string) => [
+        await s.get(who, `/api/v1/email-runs/${runId}`),
+        await s.get(who, `/api/v1/email-templates/${templateId}/runs`),
+        await s.get(who, `/api/v1/email-templates/${templateId}`),
+        await s.get(who, '/api/v1/email-templates?kind=campaign'),
+      ];
+      // Mia reads the contacts' addresses in clear: every reply names the person.
+      for (const reply of await replies('mia')) {
+        expect(reply.statusCode, reply.body).toBe(200);
+        expect(reply.body).toContain('ana@harbour.dev');
+      }
+      // Max (masked), Ida (the address column not shown) and Nora (no read of the table) manage e-mail too: the run's own entry only.
+      for (const who of ['max', 'ida', 'nora']) {
+        for (const reply of await replies(who)) {
+          expect(reply.statusCode, `${who} ${reply.body}`).toBe(200);
+          expect(reply.body, who).not.toContain('harbour.dev');
+          expect(reply.body, who).toContain('relay-down');
+        }
+      }
+    });
+
     it('a sender who loses the right to see the addresses mid-run is refused at the next batch', async () => {
       // One an hour, in an hour nothing else was sent in: the first batch hands one message over, the next waits.
       await s.meta.db.deleteFrom('adminium_email_send_counters').execute();
