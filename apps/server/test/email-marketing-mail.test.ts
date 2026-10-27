@@ -204,6 +204,8 @@ for (const engine of META_ENGINES) {
           [554, 'RCPT TO', '554 no such user'],
           [550, 'DATA', '550 User unknown'],
           [550, 'MAIL FROM', '550 5.1.1 sender unknown'],
+          // A dotted number later in the line is no enhanced code: only the one right after the reply code is.
+          [550, 'RCPT TO', '550 Mail from 5.1.2.3 refused by local policy'],
         ];
         for (const [code, step, line] of notTheAddress) {
           expect(permanentRefusal(smtpError(code, step, line)), line).toBeNull();
@@ -379,10 +381,13 @@ for (const engine of META_ENGINES) {
 
       it('never hands over a marketing mail to a value that is not one plain address', async () => {
         // Queued by the mail layer: refused there.
-        for (const to of ['<ana@cobaltlegal.dev>', 'Ana <ana@cobaltlegal.dev>', 'ana@cobaltlegal.dev, bo@cobaltlegal.dev']) {
-          const carry = await kit.carry({ to: 'ana@cobaltlegal.dev', purpose: 'newsletter', locale: 'en_US' });
-          expect(await enqueueEmail({ meta, secret: TEST_SECRET }, { to, templateKey: 'autumn-news', locale: 'en_US', vars: {}, template: message, mailClass: 'marketing', marketing: carry }), to).toBeNull();
-        }
+        const carry = await kit.carry({ to: 'ana@cobaltlegal.dev', purpose: 'newsletter', locale: 'en_US' });
+        const enqueue = (to: string) => enqueueEmail({ meta, secret: TEST_SECRET }, { to, templateKey: 'autumn-news', locale: 'en_US', vars: { name: 'Ana' }, template: message, mailClass: 'marketing', marketing: carry });
+        for (const to of ['<ana@cobaltlegal.dev>', 'Ana <ana@cobaltlegal.dev>', 'ana@cobaltlegal.dev, bo@cobaltlegal.dev']) expect(await enqueue(to), to).toBeNull();
+        // The plain address is queued (then taken back, so the queue holds only the hand-sealed one below).
+        const plain = await enqueue('ana@cobaltlegal.dev');
+        expect(plain).not.toBeNull();
+        await meta.db.deleteFrom('adminium_jobs').where('id', '=', plain!.id).execute();
         // One sealed by hand (an older queue): refused at delivery, the row told.
         const envelope = { to: '<ana@cobaltlegal.dev>', subject: 'x', html: '<p>x</p>', text: 'x', mailClass: 'marketing' };
         await jobsRepo(meta).enqueue({

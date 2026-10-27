@@ -635,10 +635,7 @@ export async function enqueueEmail(
   }
   const to = input.to.trim();
   if (to.length === 0) return null;
-  if (input.mailClass === 'marketing' && !PLAIN_RECIPIENT.test(to)) {
-    deps.logger?.warn({ templateKey: input.templateKey }, 'a marketing mail was not queued: its recipient is not one plain e-mail address');
-    return null;
-  }
+  // A marketing mail's recipient must be one plain address: refused below, in `enqueueRenderedEmail`.
 
   // Cheap short-circuit: an instance with no SMTP must not accumulate a queue
   // of mail it can never deliver, so the check is here and not in the handler.
