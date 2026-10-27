@@ -237,6 +237,28 @@ for (const dialect of TEST_DIALECTS) {
       expect(await sends.countClick(sent!.id, 10)).toBe(false);
       expect((await sends.findById(sent!.id))?.clicks).toBe(EMAIL_SEND_CLICKS_MAX);
     });
+
+    it('a mail service’s notice marks only a sent row, only for its own address (any case), with the service named', async () => {
+      const doc = await campaign(t.meta);
+      const run = await emailRunsRepo(t.meta).create({ templateId: doc.id, audience: { kind: 'users' }, scheduledAt: 1 }, 1);
+      const sends = emailSendsRepo(t.meta);
+      await sends.write(run.id, [person(1), person(2), person(3)], 0, 1);
+      const [first, second, waiting] = await sends.claim(run.id, 3, 'tok-n', 2);
+      expect(await sends.markHanded(first!.id, 'tok-n', 'job_1', 3)).toBe(true);
+      expect(await sends.markHanded(second!.id, 'tok-n', 'job_2', 3)).toBe(true);
+      expect(await sends.unclaimAll(run.id, 'tok-n', 4)).toBe(1);
+
+      // Another address than the row's: nothing moves.
+      expect(await sends.markNoticed(first!.id, 'someone@else.test', 'bounced', 'notice:postmark', 5)).toBe(false);
+      expect(await sends.markNoticed(first!.id, first!.address.toUpperCase(), 'bounced', 'notice:postmark', 5)).toBe(true);
+      expect(await sends.findById(first!.id)).toMatchObject({ state: 'bounced', reason: 'notice:postmark', updatedAt: 5 });
+      expect(await sends.markNoticed(second!.id, second!.address, 'spam', 'notice:ses', 6)).toBe(true);
+      expect(await sends.findById(second!.id)).toMatchObject({ state: 'spam', reason: 'notice:ses' });
+      // Once marked it stays, and a row not handed over is never marked.
+      expect(await sends.markNoticed(first!.id, first!.address, 'spam', 'notice:ses', 7)).toBe(false);
+      expect(await sends.markNoticed(waiting!.id, waiting!.address, 'bounced', 'notice:ses', 7)).toBe(false);
+      expect(await sends.findById(waiting!.id)).toMatchObject({ state: 'queued' });
+    });
   });
 
   describe.skipIf(!dialect.available)(`0067 on a store that has runs [${dialect.name}]`, () => {
