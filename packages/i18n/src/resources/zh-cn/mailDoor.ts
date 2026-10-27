@@ -11,6 +11,7 @@
 export default {
   "language": "语言",
   "questions": "有疑问？请写信至",
+  "privacyNotice": "隐私声明",
   "optional": "选填",
   "why": "原因？",
   "reason": {

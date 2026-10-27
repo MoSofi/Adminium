@@ -11,6 +11,7 @@
 export default {
   "language": "Sprache",
   "questions": "Fragen? Schreiben Sie an",
+  "privacyNotice": "Datenschutzhinweis",
   "optional": "Optional",
   "why": "Warum?",
   "reason": {

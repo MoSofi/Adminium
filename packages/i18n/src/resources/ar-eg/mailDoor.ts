@@ -11,6 +11,7 @@
 export default {
   "language": "اللغة",
   "questions": "أسئلة؟ اكتب إلى",
+  "privacyNotice": "إشعار الخصوصية",
   "optional": "اختياري",
   "why": "لماذا؟",
   "reason": {

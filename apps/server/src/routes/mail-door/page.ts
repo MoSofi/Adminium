@@ -22,9 +22,9 @@
  *  2. The language menu is a `<details>` list of links: it opens and closes
  *     with no script, but has no arrow keys and Escape does not close it.
  *  3. The header shows the business's initial in the accent colour, not an
- *     uploaded logo, and no city line; the footer has no legal name, city or
- *     "Privacy notice" link. Those come with the business's privacy settings,
- *     which do not exist yet.
+ *     uploaded logo, and no city line; the footer has no legal name or city.
+ *     Its "Privacy notice" link shows only once the privacy settings name
+ *     the notice's address (Studio → Privacy & public pages).
  *  4. System fonts: Manrope and the mono face are served from the
  *     dashboard's own files, which a customer domain does not answer.
  *  5. A mail sent on the "existing customers" basis has no purpose, so its
@@ -77,6 +77,8 @@ export interface MailDoorBusiness {
   name: string;
   /** Where a person writes to; null when the business has not said. */
   email: string | null;
+  /** The business's privacy notice (an https address); null while it is not set: then no link. */
+  privacyNotice: string | null;
 }
 
 /** What the page shows in its main column. */
@@ -307,6 +309,9 @@ export function renderMailDoorPage(input: MailDoorPageInput): { html: string; po
   const main = mainOf(input);
   const questions =
     business.email === null ? '' : `<span>${escapeHtml(t('mailDoor:questions', 'Questions? Write to'))} ${mailLink(business.email, false)}</span>`;
+  // The notice opens on the business's own site: no referrer, and no hold on this page.
+  const notice =
+    business.privacyNotice === null ? '' : `<a href="${escapeHtml(business.privacyNotice)}" rel="noopener noreferrer">${escapeHtml(t('mailDoor:privacyNotice', 'Privacy notice'))}</a>`;
   const html = `<!doctype html>
 <html lang="${escapeHtml(input.lang)}" dir="${dir}">
 <head>
@@ -320,7 +325,7 @@ export function renderMailDoorPage(input: MailDoorPageInput): { html: string; po
 <body>
 <header class="head"><div class="bar"><span class="mark" aria-hidden="true" dir="ltr">${escapeHtml(initialOf(business.name))}</span><bdi class="name">${escapeHtml(business.name)}</bdi>${languageMenu(input)}</div></header>
 <main>${main}</main>
-<footer class="foot"><div class="bar"><bdi>${escapeHtml(business.name)}</bdi>${questions}</div></footer>
+<footer class="foot"><div class="bar"><bdi>${escapeHtml(business.name)}</bdi>${questions}${notice}</div></footer>
 </body>
 </html>
 `;

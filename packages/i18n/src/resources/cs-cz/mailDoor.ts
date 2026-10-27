@@ -11,6 +11,7 @@
 export default {
   "language": "Jazyk",
   "questions": "Máte otázky? Napište na",
+  "privacyNotice": "Zásady ochrany osobních údajů",
   "optional": "Nepovinné",
   "why": "Proč?",
   "reason": {

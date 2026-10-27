@@ -11,6 +11,7 @@
 export default {
   "language": "Langue",
   "questions": "Des questions ? Écrivez à",
+  "privacyNotice": "Avis de confidentialité",
   "optional": "Facultatif",
   "why": "Pourquoi ?",
   "reason": {

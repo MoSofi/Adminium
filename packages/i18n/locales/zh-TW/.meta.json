@@ -19387,6 +19387,10 @@
     "status": "mt",
     "srcHash": "0c6c4102d4df"
   },
+  "mailDoor.privacyNotice": {
+    "status": "mt",
+    "srcHash": "ec7c829b3908"
+  },
   "mailDoor.questions": {
     "status": "mt",
     "srcHash": "330603f0cdba"
