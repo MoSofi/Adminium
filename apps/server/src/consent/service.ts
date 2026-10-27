@@ -17,6 +17,7 @@
  * every other source names none.
  */
 import { consentLogRepo, stopListRepo, type AddressHash, type ConsentPerson, type ConsentSubject, type MetaDb, type StopEntry } from '@adminium/meta';
+import { PLAIN_RECIPIENT } from '../email/plain-address.js';
 
 import { ValidationFailedError } from '../errors.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
@@ -40,14 +41,15 @@ const STAFF_SOURCES: ReadonlySet<string> = new Set(['staff', 'review']);
 export const ADDRESS_MAX = 254;
 
 /**
- * Whether a text is an address worth keeping: one `@`, something either
- * side, no spaces, no angle brackets, not too long. A bracketed `<x@y>` is
- * refused: the do-not-email list is keyed by the bare address, so a stored
- * `<x@y>` would pass the list while the mail server delivers to `x@y`.
+ * Whether a text is an address worth keeping: one plain address and nothing
+ * else (`email/plain-address.ts`), not too long. A bracketed `<x@y>`, a
+ * quoted `"x@y"`, `x@y;` or `a,x@y` is refused: the do-not-email list is
+ * keyed by the bare address, so a stored one of those would pass the list
+ * while the mail server delivers to `x@y`.
  */
 export function looksLikeAddress(address: string): boolean {
   const norm = normaliseAddress(address);
-  return norm.length <= ADDRESS_MAX && /^[^\s@<>]+@[^\s@<>]+$/.test(norm);
+  return norm.length <= ADDRESS_MAX && PLAIN_RECIPIENT.test(norm);
 }
 
 /** A page cursor: the time and id of the last entry given. */

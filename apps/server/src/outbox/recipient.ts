@@ -20,6 +20,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { SettingReader } from './timing.js';
 import { columnAddressed, columnRecipientOf, type ColumnAddressed } from './column-recipient.js';
+import { PLAIN_DOTTED } from '../email/plain-address.js';
 
 export interface Addressed {
   address: string | null;
@@ -34,8 +35,8 @@ export interface Addressed {
   byColumn?: ColumnAddressed | undefined;
 }
 
-// No angle brackets: a bare `local@domain`, as the do-not-email list and the mail server read it alike.
-export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim());
+// One plain `local@domain` and nothing else (`email/plain-address.ts`), as the do-not-email list and the mail server read it alike.
+export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && PLAIN_DOTTED.test(value.trim());
 
 
 /** The table a column's foreign key points at. */

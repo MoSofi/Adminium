@@ -23,11 +23,11 @@ import {
   type User,
 } from '@adminium/meta';
 
-import { AddressKeysLockedError, createConsentService } from '../src/consent/index.js';
+import { AddressKeysLockedError, createConsentService, looksLikeAddress } from '../src/consent/index.js';
 import { encryptSecret } from '../src/config/secrets.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
 import { emailSecretKey } from '../src/email/config.js';
-import { createMarketingMail, type MarketingMail } from '../src/email/marketing.js';
+import { createMarketingMail, marketingSkipSentence, type MarketingMail } from '../src/email/marketing.js';
 import { emailEnvelopeKey, enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
 import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import type { EmailTransport, OutboundEmail } from '../src/email/types.js';
@@ -41,6 +41,8 @@ import { withMarketingChecks } from '../src/jobs/register.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { plausibleAddress as outboxAddress } from '../src/outbox/recipient.js';
+import { plausibleAddress as codeAddress } from '../src/public-api/claim-code.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
 import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
 import type { EmailDocumentDetailView, EmailRunView } from '../src/routes/email-templates/schema.js';
@@ -137,6 +139,22 @@ for (const engine of META_ENGINES) {
         await kit.consent.markReplied({ person, staff: { id: 'usr_1', label: 'Dana' }, at: 5_000 });
         expect(await kit.verdict({ address: 'cy@cobaltlegal.dev', person, purpose: 'newsletter', repliedSince: 4_000 })).toEqual({ skip: 'replied' });
         expect(await kit.verdict({ address: 'cy@cobaltlegal.dev', person, purpose: 'newsletter', repliedSince: 6_000 })).toEqual({ send: 'consent' });
+      });
+
+      it('a value that is not one plain address is never judged: a stopped address with a ";", quotes or a list around it is skipped', async () => {
+        await kit.consent.record({ person, address: 'ana@cobaltlegal.dev', purpose: 'newsletter', source: 'import', state: 'yes' });
+        await kit.consent.stop.add({ address: 'ana@cobaltlegal.dev', reason: 'link' });
+        for (const raw of ['ana@cobaltlegal.dev;', '"ana@cobaltlegal.dev"', 'x,ana@cobaltlegal.dev', '<ana@cobaltlegal.dev>', 'Ana <ana@cobaltlegal.dev>', 'ana@cobaltlegal.dev:', 'ana(x)@cobaltlegal.dev']) {
+          expect(await kit.verdict({ address: raw, person, purpose: 'newsletter' }), raw).toEqual({ skip: 'not-an-address' });
+          // Nor is it an address to keep, to send a code to, or to send an app's mail to.
+          expect(looksLikeAddress(raw), raw).toBe(false);
+          expect(codeAddress(raw), raw).toBe(false);
+          expect(outboxAddress(raw), raw).toBe(false);
+        }
+        expect(marketingSkipSentence('not-an-address')).toBe('Not sent: the recipient is not one plain e-mail address');
+        // The bare address, spaces around it or not, is judged as before: on the list.
+        expect(await kit.verdict({ address: ' ana@cobaltlegal.dev ', person, purpose: 'newsletter' })).toEqual({ skip: 'do-not-email' });
+        expect([looksLikeAddress('ana@cobaltlegal.dev'), codeAddress('ana@cobaltlegal.dev'), outboxAddress('ana@cobaltlegal.dev')]).toEqual([true, true, true]);
       });
 
       it('fails closed: with the list’s keys unreadable, the verdict throws rather than say "not stopped"', async () => {

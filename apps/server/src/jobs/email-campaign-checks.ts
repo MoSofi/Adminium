@@ -39,6 +39,7 @@ import type { CampaignSeams } from './email-campaign-run.js';
 /** Why a ledger row was skipped, as the send log's reason code. */
 export const CAMPAIGN_SKIP_DO_NOT_EMAIL = 'do-not-email';
 export const CAMPAIGN_SKIP_NOT_AGREED = 'not-agreed';
+export const CAMPAIGN_SKIP_NOT_AN_ADDRESS = 'not-an-address';
 
 /** The purpose a run is sent for: its audience's, when the audience names one. */
 export function runPurpose(run: Pick<EmailRun, 'audience'>): ConsentPurpose {
@@ -87,7 +88,9 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
       if (run.mailClass !== 'marketing') return 'send';
       const verdict = await verdictOf(row, run);
       if ('skip' in verdict) {
-        return verdict.skip === 'do-not-email' ? { skip: 'skipped-stop', reason: CAMPAIGN_SKIP_DO_NOT_EMAIL } : { skip: 'skipped-consent', reason: CAMPAIGN_SKIP_NOT_AGREED };
+        if (verdict.skip === 'do-not-email') return { skip: 'skipped-stop', reason: CAMPAIGN_SKIP_DO_NOT_EMAIL };
+        // Not one plain address (an audience writes none such): the code the delivery check gives it too.
+        return { skip: 'skipped-consent', reason: verdict.skip === 'not-an-address' ? CAMPAIGN_SKIP_NOT_AN_ADDRESS : CAMPAIGN_SKIP_NOT_AGREED };
       }
       passed.set(row.id, verdict);
       return 'send';

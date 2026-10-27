@@ -72,6 +72,7 @@ import {
   type RenderedEmail,
 } from './render.js';
 import type { MarketingCarry } from './marketing-carry.js';
+import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
@@ -105,15 +106,16 @@ export const EMAIL_SEND_PAYLOAD_VERSION_MARKETING = 4;
 export type EmailMailClass = 'marketing' | 'service';
 
 /** One plain address, and nothing a header could be split on or a list made of. */
-export const REPLY_TO = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/;
+export const REPLY_TO = PLAIN_DOTTED;
 
 /**
  * One plain address and nothing else (no name, no angle brackets, no list):
  * what a marketing mail's recipient must be. The do-not-email list is asked
  * by the bare address, and a mail server delivers `<x@y>` or `Name <x@y>` to
- * `x@y`, so anything else could pass the list and still arrive.
+ * `x@y`, so anything else could pass the list and still arrive
+ * (`plain-address.ts`, the class every address check shares).
  */
-export const PLAIN_RECIPIENT = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+$/;
+export { PLAIN_RECIPIENT };
 
 /**
  * A Reply-To as a message carries it: the value trimmed when it is one plain
