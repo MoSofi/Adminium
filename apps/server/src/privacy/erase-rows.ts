@@ -20,9 +20,10 @@
  *    address that matched. Where the app's "delete my details" stamps when
  *    it happened, the erasure stamps it too, so its outbox reads them as
  *    forgotten (`outbox/forgotten.ts`).
- *  - THEIR COPIES on other tables (a quote's recipient, a signer): each
- *    declared copy column whose link names one of their rows, or that holds
- *    their address. Nothing else on that row changes.
+ *  - THEIR COPIES on other tables (a quote's recipient, a signer, a booking
+ *    taken by phone), row by row as `copy-rows.ts` finds them: the copies of
+ *    theirs on the row, and, when nobody else is on it, every column marked
+ *    personal (their own words on it). Nothing else on that row changes.
  *  - THEIR MAIL in each app's outbox: to their address, or linking one of
  *    their rows. Its address, the values kept for it and any wording written
  *    for it are emptied; one still waiting is skipped, with the same
@@ -53,9 +54,9 @@ import { rowKeyOf } from '../payments/payables.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { forgetOf, forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
+import { inList, linkColumnsOf, theirCopyRows } from './copy-rows.js';
 import { alreadyBlank, blankValue, columnFacts, type ErasedRole } from './erase-values.js';
 import { addressIs, keptTablesOf, NO_SECRETS, PRESENT, tableOf, type AppOnDatabase } from './sources.js';
-import { isAddress } from './values.js';
 
 /** What the erasure does to one row. */
 export interface ErasedRow {
@@ -111,16 +112,6 @@ export interface EraseRowsDeps {
   now: () => number;
 }
 
-/** The columns any link of the model starts from or points at: never emptied, so every link stays whole. */
-function linkColumnsOf(view: SnapshotView, tableId: string): Set<string> {
-  const out = new Set<string>();
-  for (const relation of view.model.relations) {
-    if (relation.from.tableId === tableId) for (const column of relation.from.columns) out.add(column);
-    if (relation.to.tableId === tableId) for (const column of relation.to.columns) out.add(column);
-  }
-  return out;
-}
-
 /** Whether a stamp is set by a change of one of these columns. */
 function stampTouches(stamp: ColumnStamp, columns: ReadonlySet<string>): boolean {
   const triggers = Array.isArray(stamp.on) ? stamp.on : [stamp.on];
@@ -171,15 +162,6 @@ async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, condi
 }
 
 const pkOf = (table: ResolvedTable, row: Row): Row => Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
-
-/** `column in (values)`, a chunk at a time so no engine meets too long a list. */
-function inList(column: string, values: readonly unknown[]): ReturnType<typeof sql<boolean>>[] {
-  const out: ReturnType<typeof sql<boolean>>[] = [];
-  for (let at = 0; at < values.length; at += 500) {
-    out.push(sql<boolean>`${sql.ref(column)} in (${sql.join(values.slice(at, at + 500).map((value) => sql`${value as never}`))})`);
-  }
-  return out;
-}
 
 /**
  * The values one row gets: each column as the rule says (`erase-values.ts`),
@@ -237,6 +219,8 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string): Prom
     };
     /** Their rows' key values, per people table: what a copy's link and an outbox's recipient point at. */
     const keysOf = new Map<string, unknown[]>();
+    /** Their rows as found, per people table: their phone numbers are read from them. */
+    const rowsOf = new Map<string, Row[]>();
 
     // ── their own rows ───────────────────────────────────────────────────────
     for (const entry of declared) {
@@ -245,6 +229,7 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string): Prom
       const rows = await rowsWhere(db, table, [addressIs(entry.email, address)]);
       if (rows.length === 0) continue;
       if (table.primaryKey.length === 1) keysOf.set(table.id, [...(keysOf.get(table.id) ?? []), ...rows.map((row) => row[table.primaryKey[0]!])]);
+      rowsOf.set(table.id, [...(rowsOf.get(table.id) ?? []), ...rows]);
       // A table the law keeps stays whole ("What stays" lists it).
       if (kept.has(table.id)) continue;
       const columns = ownColumns(view, table, entry, forgets);
@@ -260,20 +245,15 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string): Prom
       sources.push(source);
     }
 
-    // ── their copies on other tables ─────────────────────────────────────────
+    // ── their copies on other tables (`copy-rows.ts` says which rows, and which columns) ──
     for (const entry of declared) {
       const owner = tableOf(view, entry.table);
       const pks = owner === null ? [] : (keysOf.get(owner.id) ?? []);
-      const pkSet = new Set(pks.map((pk) => String(pk)));
-      const byTable = new Map<string, typeof entry.copies>();
-      for (const copy of entry.copies) byTable.set(copy.table, [...(byTable.get(copy.table) ?? []), copy]);
-      for (const [copyTableId, copies] of byTable) {
-        const table = tableOf(view, copyTableId);
-        if (table === null || table.primaryKey.length === 0 || kept.has(table.id)) continue;
-        const conditions = copies.flatMap((copy) => [...(copy.holds === 'email' ? [addressIs(copy.column, address)] : []), ...(copy.via !== null && pks.length > 0 ? inList(copy.via, pks) : [])]);
-        const rows = await rowsWhere(db, table, conditions);
-        if (rows.length === 0) continue;
-        const links = linkColumnsOf(view, table.id);
+      const ownRows = owner === null ? [] : (rowsOf.get(owner.id) ?? []);
+      const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id) });
+      for (const { table, copies, rows } of copyTables) {
+        // A table the law keeps stays whole, their copies on it included.
+        if (kept.has(table.id)) continue;
         const source: ErasedSource = {
           id: `copy-${entry.appKey}-${entry.ref}-${copies[0]!.ref}`,
           kind: 'copy',
@@ -285,17 +265,9 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string): Prom
           copies: copies.map((copy) => ({ column: copy.column, via: copy.via })),
           rows: [],
         };
-        for (const row of rows) {
-          // Only the copies that are theirs on this row: linked to one of their rows, or holding their address.
-          const columns = new Map<string, ErasedRole>();
-          for (const copy of copies) {
-            const theirs = (copy.via !== null && pkSet.has(String(row[copy.via]))) || (copy.holds === 'email' && isAddress(row[copy.column], address));
-            const resolved = table.columns.get(copy.column);
-            if (!theirs || resolved === undefined || resolved.isPrimaryKey || links.has(copy.column)) continue;
-            columns.set(copy.column, copy.holds === 'email' ? 'email' : copy.holds === 'name' ? 'name' : 'other');
-          }
-          if (columns.size === 0) continue;
-          source.rows.push({ key: rowKeyOf(table, row), pk: pkOf(table, row), before: row, ...blankRow(table, row, columns, dialect, deps.erasedName, leftOf(table)) });
+        for (const theirs of rows) {
+          if (theirs.columns.size === 0) continue;
+          source.rows.push({ key: theirs.key, pk: pkOf(table, theirs.row), before: theirs.row, ...blankRow(table, theirs.row, theirs.columns, dialect, deps.erasedName, leftOf(table)) });
         }
         if (source.rows.length > 0) sources.push(source);
       }

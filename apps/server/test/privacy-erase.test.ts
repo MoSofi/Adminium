@@ -112,14 +112,17 @@ function crm(): Record<string, unknown> {
             text('to_name'),
             fk('accepted_by_id', 'contacts'),
             text('accepted_name'),
-            // A copy that follows the contact, and is not declared: the erasure never moves it.
+            // A copy that follows the contact, not declared but marked personal: it goes with her where nobody else is on the quote.
             text('to_phone', 40, { rules: { personal: true, copy: { via: 'sent_to_contact_id', from: 'phone', mode: 'always', follow: true } } }),
             { ref: 'total', type: 'int', nullable: true },
             { ref: 'sent_at', type: 'timestamptz', nullable: true },
           ],
         },
         { ref: 'sign_offs', columns: [id, fk('quote_id', 'quotes'), fk('contact_id', 'contacts'), text('signer_name'), { ref: 'signed_at', type: 'timestamptz', nullable: true }] },
-        { ref: 'visits', removal: { history: true }, columns: [id, fk('contact_id', 'contacts'), text('visitor_name'), text('day', 10)] },
+        // A remark marked personal: their own words on a copy table go with them.
+        { ref: 'visits', removal: { history: true }, columns: [id, fk('contact_id', 'contacts'), text('visitor_name'), text('day', 10), text('remark', 200, { rules: { personal: true } })] },
+        // Leads, often never linked to a contact (a portal's enquiries): found by the address, or by a phone number alone.
+        { ref: 'leads', columns: [id, fk('contact_id', 'contacts'), text('name'), text('email', 254), text('phone', 40), text('notes', 400, { rules: { personal: true } }), text('source', 20)] },
         { ref: 'invoices', keyField: 'number', keep: { law: 'tax' }, columns: [id, text('number', 20), fk('contact_id', 'contacts'), text('bill_to_name'), { ref: 'amount', type: 'int', nullable: true }] },
         {
           ref: 'messages',
@@ -152,6 +155,9 @@ function crm(): Record<string, unknown> {
           { table: 'sign_offs', column: 'signer_name', holds: 'name', via: 'contact_id' },
           { table: 'visits', column: 'visitor_name', holds: 'name', via: 'contact_id' },
           { table: 'invoices', column: 'bill_to_name', holds: 'name', via: 'contact_id' },
+          { table: 'leads', column: 'name', holds: 'name', via: 'contact_id' },
+          { table: 'leads', column: 'email', holds: 'email', via: 'contact_id' },
+          { table: 'leads', column: 'phone', holds: 'phone', via: 'contact_id' },
         ],
       },
       { table: 'companies', kind: 'companies', name: 'name' },
@@ -264,7 +270,19 @@ for (const [dialect, reachable] of LEGS) {
           `(3, 'Q-3', 'sent', 2, 'ben@other.example', 'Ben Other', 1, 'Marta Kovac', '+44 20 7946 0002', 500, '2026-09-04 09:00:00')`,
       );
       await s.rows(`INSERT INTO crm_sign_offs (id, quote_id, contact_id, signer_name, signed_at) VALUES (1, 1, 1, 'Marta Kovac', '2026-09-05 12:00:00'), (2, 2, 2, 'Ben Other', '2026-09-05 12:00:00')`);
-      await s.rows(`INSERT INTO crm_visits (id, contact_id, visitor_name, day) VALUES (1, 1, 'Marta Kovac', '2026-08-01'), (2, 1, 'Marta Kovac', '2026-08-15'), (3, 2, 'Ben Other', '2026-08-15')`);
+      await s.rows(`INSERT INTO crm_visits (id, contact_id, visitor_name, day, remark) VALUES (1, 1, 'Marta Kovac', '2026-08-01', NULL), (2, 1, 'Marta Kovac', '2026-08-15', 'Needs step-free access'), (3, 2, 'Ben Other', '2026-08-15', 'Brought samples')`);
+      await s.rows(
+        `INSERT INTO crm_leads (id, contact_id, name, email, phone, notes, source) VALUES ` +
+          // Hers by the address, never linked to her contact.
+          `(1, NULL, 'Marta K.', '${MARTA}', '+44 20 7946 0001', 'Wants ten desks', 'web'), ` +
+          // Hers by her number alone, written another way: no address, no link.
+          `(2, NULL, 'M. Kovac', NULL, '020 7946 0001', 'Called about chairs', 'phone'), ` +
+          `(3, 2, 'Ben Other', 'ben@other.example', '+44 20 7946 0002', 'Ben wants lamps', 'web'), ` +
+          // Ben's lead, given her number: only her number on it goes.
+          `(4, 2, 'Ben Other', 'ben@other.example', '+44 20 7946 0001', 'Ben, call back on the office line', 'phone'), ` +
+          // Somebody else's, with a number that only shares a few digits with hers.
+          `(5, NULL, 'Ola Near', NULL, '+48 7946 0001', 'Near miss', 'phone')`,
+      );
       await s.rows(`INSERT INTO crm_invoices (id, number, contact_id, bill_to_name, amount) VALUES (1, 'INV-1', 1, 'Marta Kovac', 1200)`);
       await s.rows(
         `INSERT INTO crm_messages (id, kind, status, to_address, contact_id, quote_id, error) VALUES ` +
@@ -325,7 +343,7 @@ for (const [dialect, reachable] of LEGS) {
       expect(await notificationsFor('rita')).toBeGreaterThan(told);
       await s.emails();
 
-      for (const [ref, key] of [['quotes', 1], ['quotes', 2], ['quotes', 3], ['sign_offs', 1], ['invoices', 1], ['deals', 1], ['contacts', 2], ['enquiries', 2]] as const) before[`${ref}:${String(key)}`] = await one(ref, key);
+      for (const [ref, key] of [['quotes', 1], ['quotes', 2], ['quotes', 3], ['sign_offs', 1], ['invoices', 1], ['deals', 1], ['contacts', 2], ['enquiries', 2], ['visits', 3], ['leads', 3], ['leads', 4], ['leads', 5]] as const) before[`${ref}:${String(key)}`] = await one(ref, key);
     }, 240_000);
     afterAll(async () => {
       await s?.close();
@@ -347,7 +365,7 @@ for (const [dialect, reachable] of LEGS) {
       const view = dataOf<Preview>(res);
       expect(view.found).toBe(true);
       const goes = Object.fromEntries(view.goes.map((item) => [item.table ?? item.kind, item.count]));
-      expect(goes).toMatchObject({ [s.t('contacts')]: 1, [s.t('enquiries')]: 1, [s.t('quotes')]: 2, [s.t('sign_offs')]: 1, [s.t('visits')]: 1, [s.t('messages')]: 2, consent: 2, 'campaign-mail': 1, files: 1 });
+      expect(goes).toMatchObject({ [s.t('contacts')]: 1, [s.t('enquiries')]: 1, [s.t('quotes')]: 2, [s.t('sign_offs')]: 1, [s.t('visits')]: 1, [s.t('leads')]: 3, [s.t('messages')]: 2, consent: 2, 'campaign-mail': 1, files: 1 });
       // The invoice is the law's: it stays, and is never in "what goes".
       expect(goes[s.t('invoices')]).toBeUndefined();
       expect(view.stays).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'app-rows', reason: 'tax', table: s.t('invoices') }), expect.objectContaining({ kind: 'do-not-email', reason: 'objection' })]));
@@ -387,16 +405,24 @@ for (const [dialect, reachable] of LEGS) {
 
       // The sent quote: her copies blanked, and nothing else (its state, total, sent time, and the copy that follows the contact).
       const quote = await one('quotes', 1);
-      expect(quote).toEqual({ ...before['quotes:1'], to_email: null, to_name: null, accepted_name: null });
-      expect(quote['to_phone']).toBe('+44 20 7946 0001');
+      // Her number, marked personal, goes too: nobody else is on this quote.
+      expect(quote).toEqual({ ...before['quotes:1'], to_email: null, to_name: null, accepted_name: null, to_phone: null });
       expect(ms(quote['sent_at'])).toBe(ms(before['quotes:1']!['sent_at']));
       expect(await one('quotes', 2)).toEqual(before['quotes:2']);
-      // Ben's quote she accepted: her copy goes, his stay.
+      // Ben's quote she accepted: her copy goes, his stay (his number marked personal on it included).
       expect(await one('quotes', 3)).toEqual({ ...before['quotes:3'], accepted_name: null });
       // The signed sign-off keeps its signing; her name goes.
       expect(await one('sign_offs', 1)).toEqual({ ...before['sign_offs:1'], signer_name: null });
       // Her visit left; the removed one's row is kept below.
-      expect((await one('visits', 2))['visitor_name']).toBeNull();
+      expect(await one('visits', 2)).toMatchObject({ visitor_name: null, remark: null, day: '2026-08-15', contact_id: 1 });
+      expect(await one('visits', 3)).toEqual(before['visits:3']);
+      // Her leads: the one by her address and the one by her number alone lose every copy and her words; the source stays.
+      expect(await one('leads', 1)).toEqual({ id: 1, contact_id: null, name: null, email: null, phone: null, notes: null, source: 'web' });
+      expect(await one('leads', 2)).toEqual({ id: 2, contact_id: null, name: null, email: null, phone: null, notes: null, source: 'phone' });
+      // Ben's: his own untouched; the one given her number loses the number alone.
+      expect(await one('leads', 3)).toEqual(before['leads:3']);
+      expect(await one('leads', 4)).toEqual({ ...before['leads:4'], phone: null });
+      expect(await one('leads', 5)).toEqual(before['leads:5']);
       // The law's invoice is untouched, her name on it included.
       expect(await one('invoices', 1)).toEqual(before['invoices:1']);
       // Ben is untouched.

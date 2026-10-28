@@ -618,8 +618,10 @@ data (find, export, erase) can find them.
 - `email` must be the column the outbox writes to (`recipient.email`) when the outbox's
   `recipient.table` is this table.
 - `consent` is a yes/no column. Leave it out if the app has none: the consent log holds it.
-- List under `copies` every column on another table that holds the person's address or name, so
-  an erasure blanks it too.
+- List under `copies` every column on another table that holds the person's address, name or
+  phone, so an erasure blanks it too. A copy table with no link back (a booking taken on the
+  phone) is found by the address or the phone copy. Mark the person's own words on such a row
+  (`"personal": true`) and they go with them.
 - `optOutMark` is a moment column with a strict stamp, set where your screen shows "you can say no
   to our mail": the screen's save sends `"optOut": { "shown": true }` beside its values. Leave it
   out unless your screens show that line.

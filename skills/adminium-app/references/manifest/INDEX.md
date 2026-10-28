@@ -77,7 +77,7 @@
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7062 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 4763 |
-| `references/manifest/people.md` | People | 6162 |
+| `references/manifest/people.md` | People | 6586 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7731 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 5292 |

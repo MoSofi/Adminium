@@ -6,9 +6,9 @@
  *   - every people table an installed app declares (`people/declared.ts`,
  *     the owner's overrides included): the rows whose address column is the
  *     address;
- *   - each declared copy of a person on another table: a copy that holds an
- *     address, by the address; a copy that holds a name or a phone, by its
- *     link back to one of the person's rows;
+ *   - each declared copy of a person on another table, row by row as
+ *     `copy-rows.ts` finds them: by a link back to one of the person's rows,
+ *     by the address, or by one of their phone numbers;
  *   - the app's own outbox: mail to the address, or to one of their rows;
  *   - the consent log (by the address and by each of their rows) and the
  *     do-not-email list, through the consent door (never by reading their
@@ -41,6 +41,7 @@ import { rowKeyOf } from '../payments/payables.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
+import { theirCopyRows } from './copy-rows.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
 import type { FoundSource } from './types.js';
 import { plainRow, plainValue } from './values.js';
@@ -230,6 +231,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
     const kept = await keptTablesOf(meta, connectionId, apps, view);
     /** The key values of the person's rows, per people table: what a copy's link and an outbox's recipient point at. */
     const keysOf = new Map<string, unknown[]>();
+    /** Their rows as found, per people table: their phone numbers are read from them. */
+    const rowsOf = new Map<string, Row[]>();
     const note = (table: ResolvedTable, rows: readonly Row[]) => {
       for (const row of rows) appRows.push({ connectionId, table: table.id, tableName: table.name, key: rowKeyOf(table, row) });
     };
@@ -249,35 +252,30 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
       }
       note(table, rows);
       if (table.primaryKey.length === 1) keysOf.set(table.id, [...(keysOf.get(table.id) ?? []), ...rows.map((row) => row[table.primaryKey[0]!])]);
+      rowsOf.set(table.id, [...(rowsOf.get(table.id) ?? []), ...rows]);
       if (person === null && entry.kind === 'people') person = await personOf(db, view, declared, entry, table, rows[0]!);
       sources.push(found);
     }
 
-    // ── their copies on other tables ────────────────────────────────────────
+    // ── their copies on other tables (`copy-rows.ts` says which rows, and which columns) ──
     for (const entry of declared) {
       const owner = tableOf(view, entry.table);
       const pks = owner === null ? [] : (keysOf.get(owner.id) ?? []);
-      const byTable = new Map<string, typeof entry.copies>();
-      for (const copy of entry.copies) byTable.set(copy.table, [...(byTable.get(copy.table) ?? []), copy]);
-      for (const [copyTableId, copies] of byTable) {
-        const table = tableOf(view, copyTableId);
-        if (table === null) continue;
-        const conditions = copies.flatMap((copy) => [
-          ...(copy.holds === 'email' ? [addressIs(copy.column, address)] : []),
-          ...(copy.via !== null && pks.length > 0 ? [sql<boolean>`${sql.ref(copy.via)} in (${sql.join(pks.map((pk) => sql`${pk as never}`))})`] : []),
-        ]);
-        const rows = await rowsWhere(db, table, conditions);
-        if (rows.length === 0) continue;
-        // Only what holds the person: the copies and their links (the rest of a quote is the business's).
-        const only = new Set(copies.flatMap((copy) => [copy.column, ...(copy.via === null ? [] : [copy.via])]));
+      const ownRows = owner === null ? [] : (rowsOf.get(owner.id) ?? []);
+      const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id), limit: ROWS_MAX });
+      for (const { table, copies, rows } of copyTables) {
         const found = appSource('copy', `copy-${entry.appKey}-${entry.ref}-${copies[0]!.ref}`, connectionId, table, entry.appKey, copies[0]!.ref, kept.get(table.id)?.reason ?? null);
-        for (const row of rows) {
+        for (const theirs of rows) {
+          // Only what is theirs: their copies, their words, and the links to them (the rest of a quote is the business's).
           // A row matched by a link alone, whose copies hold nobody (blank), is still the person's.
           found.count += 1;
-          found.keys.push(rowKeyOf(table, row));
-          found.rows.push(exported(table, row, only));
+          found.keys.push(theirs.key);
+          found.rows.push(exported(table, theirs.row, new Set([...theirs.columns.keys(), ...theirs.links])));
         }
-        note(table, rows);
+        note(
+          table,
+          rows.map((theirs) => theirs.row),
+        );
         sources.push(found);
       }
     }

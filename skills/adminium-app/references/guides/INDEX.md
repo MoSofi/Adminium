@@ -19,7 +19,7 @@
 | `references/guides/manifest-by-task--settings-the-operator-fills-in.md` | Settings the operator fills in | 1069 |
 | `references/guides/manifest-by-task--emails.md` | Emails | 721 |
 | `references/guides/manifest-by-task--marketing-or-service-mail.md` | Marketing or service mail | 1202 |
-| `references/guides/manifest-by-task--the-people-the-app-keeps.md` | The people the app keeps | 1728 |
+| `references/guides/manifest-by-task--the-people-the-app-keeps.md` | The people the app keeps | 1930 |
 | `references/guides/manifest-by-task--a-table-the-law-keeps.md` | A table the law keeps | 599 |
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |

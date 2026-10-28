@@ -90,9 +90,18 @@ follows another row is never moved.
   (`erased-…@erased.invalid` for an address, a domain no mail goes to). A
   column that can be none of these (a date that may not be empty) is left,
   and the answer lists it under `left`.
-- **Copies of them** the app declares on other tables, where the copy links
-  to one of their rows or holds their address. Nothing else on that row
-  changes. A table the app marks `keep: { law }` is left whole.
+- **Copies of them** the app declares on other tables. A row is theirs when
+  one of their copies on it links to one of their rows, holds their address,
+  or holds one of their phone numbers (a booking taken on the phone, with no
+  address and no link back; a number written another way, with a leading 0
+  or a country code, is the same number). On such a row their copies go,
+  each other copy of theirs with no link on it (an unlinked enquiry's name)
+  too, and, when nobody else is on the row, every column marked personal
+  (their own words on it: a stay's note, an enquiry's message). Where a copy
+  links to another person (a quote sent to one contact and accepted by
+  another), only what is theirs by a link, the address or the number goes.
+  Nothing else on the row changes. A table the app marks `keep: { law }` is
+  left whole, and "What stays" counts their rows on it.
 - **Their mail** in each app's outbox loses its address; a message still
   waiting is skipped.
 - **Their consent history** is deleted. **The do-not-email list** keeps their
