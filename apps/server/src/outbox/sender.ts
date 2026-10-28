@@ -1676,13 +1676,20 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     let query = db.selectFrom(outbox.id as never).selectAll().where(cols.status as never, '=', 'queued' as never);
     // Only what has come due: a batch whose window is open, a message for a later
     // day, wait — and so does one whose day cannot be worked out yet.
+    // A reminder before a moment goes as soon as it is queued: the scan queues it
+    // only once its lead has come, and its due column keeps the moment itself
+    // (the visit's start, which makes a moved visit a new reminder, and which a
+    // desk's "Send now" writes too, so the scan's own one does not follow).
     if (due !== undefined) {
       const spelled = bindWriteValue(due, at, dialect);
-      const timed = [...new Set((box.definition.producers ?? []).filter((p) => p.due !== undefined || p.batchMinutes !== undefined || p.holdSeconds !== undefined).map((p) => p.kind))];
+      const producers = box.definition.producers ?? [];
+      const timed = [...new Set(producers.filter((p) => p.due !== undefined || p.batchMinutes !== undefined || p.holdSeconds !== undefined).map((p) => p.kind))];
+      const ahead = [...new Set(producers.filter((p) => 'before' in p).map((p) => p.kind))].filter((kind) => !timed.includes(kind));
       query = query.where((eb) =>
         eb.or([
           eb(sql.ref(due.name), '<=', spelled),
           timed.length === 0 ? eb(sql.ref(due.name), 'is', null) : eb.and([eb(sql.ref(due.name), 'is', null), eb(sql.ref(cols.kind), 'not in', timed)]),
+          ...(ahead.length === 0 ? [] : [eb(sql.ref(cols.kind), 'in', ahead)]),
         ]),
       );
     }
