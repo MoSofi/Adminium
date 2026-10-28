@@ -112,6 +112,10 @@ test.describe.configure({ mode: 'serial' });
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage({ baseURL: BASE_URL, storageState: test.info().project.use.storageState as string });
   await signIn(page);
+  // What an earlier attempt left: the marketer first, for good (a plain delete only suspends, and a role somebody
+  // still holds cannot be deleted), then the role.
+  const users = (await (await page.request.get('/api/v1/users?q=e2e-campaigner')).json()) as { users?: { id: string; email: string }[] };
+  for (const user of users.users ?? []) if (user.email === MARKETER.email) await page.request.delete(`/api/v1/users/${user.id}?permanent=true`);
   const roles = ((await (await page.request.get('/api/v1/roles')).json()) as { roles: { id: string; name: string }[] }).roles;
   for (const one of roles) if (one.name === ROLE) await page.request.delete(`/api/v1/roles/${one.id}`);
   const made = await page.request.post('/api/v1/roles', { data: { name: ROLE } });
@@ -119,8 +123,6 @@ test.beforeAll(async ({ browser }) => {
   roleId = ((await made.json()) as { id: string }).id;
   const granted = await page.request.put(`/api/v1/roles/${roleId}/permissions`, { data: { grants: ['system:settings:manage'] } });
   expect(granted.ok(), await granted.text()).toBe(true);
-  const users = (await (await page.request.get('/api/v1/users?q=e2e-campaigner')).json()) as { users?: { id: string; email: string }[] };
-  for (const user of users.users ?? []) if (user.email === MARKETER.email) await page.request.delete(`/api/v1/users/${user.id}`);
   const invited = await page.request.post('/api/v1/users', { data: { email: MARKETER.email, name: MARKETER.name, roleIds: [roleId] } });
   expect(invited.status(), await invited.text()).toBe(201);
   const { invite, user } = (await invited.json()) as { invite: { token: string }; user: { id: string } };
@@ -149,7 +151,7 @@ test.afterAll(async ({ browser }) => {
   const page = await browser.newPage({ baseURL: BASE_URL, storageState: test.info().project.use.storageState as string });
   await signIn(page);
   if (campaignId !== '') await page.request.delete(`/api/v1/email-templates/${campaignId}`).catch(() => undefined);
-  if (marketer !== undefined) await page.request.delete(`/api/v1/users/${marketer.id}`).catch(() => undefined);
+  if (marketer !== undefined) await page.request.delete(`/api/v1/users/${marketer.id}?permanent=true`).catch(() => undefined);
   if (roleId !== '') await page.request.delete(`/api/v1/roles/${roleId}`).catch(() => undefined);
   await page.close();
 });
@@ -285,16 +287,21 @@ test('a real send at one an hour: Sending, Pause, Paused, Go on, and Stop throug
   await dialog.getByRole('radio', { name: 'Workspace users' }).click();
   await expect(dialog.getByTestId('email-campaign-count')).toContainText('recipients');
   await dialog.getByTestId('email-send-rate').fill('1');
+  const sending = page.waitForResponse((reply) => reply.request().method() === 'POST' && reply.url().endsWith(`/api/v1/email-templates/${campaignId}/send`));
   await dialog.getByTestId('email-campaign-send').click();
+  const sent = await sending;
+  expect(sent.status(), await sent.text()).toBe(202);
+  // The first batch's job, as the send queued it. Read back from the runs list instead, a quick worker has already
+  // run it and queued the next an hour away, and the wait below would be for that one.
+  const firstJob = ((await sent.json()) as { run: RunNow }).run.jobId;
+  expect(firstJob).not.toBeNull();
   await expect(page.getByText('Campaign sent!')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).click();
 
   // The hour's allowance is the install's, shared by every campaign run: one sent earlier this hour (the
   // assistant's spec sends one) can leave this run nothing until the next hour. So wait for the first batch to
   // have run (it queues the next under a new job), then go by what it really handed over: one, or none.
-  const first = await latestRun(page);
-  expect(first).toBeDefined();
-  await expect.poll(async () => (await latestRun(page))?.jobId ?? null, { timeout: 120_000 }).not.toBe(first!.jobId);
+  await expect.poll(async () => (await latestRun(page))?.jobId ?? null, { timeout: 120_000 }).not.toBe(firstJob);
   await page.waitForTimeout(5_000);
   const after = (await latestRun(page))!;
   const handed = after.sent + after.failed + after.skipped;
