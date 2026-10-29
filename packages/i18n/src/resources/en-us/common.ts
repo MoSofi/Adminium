@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "Welcome back",
       "subtitle": "Sign in to your Adminium workspace.",
+      "passwordSetTitle": "Password saved",
+      "passwordSetSubtitle": "Sign in with your email and the password you just chose.",
       "email": "Email",
       "emailInvalid": "Enter a valid email address.",
       "password": "Password",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "Choose a password",
-      "subtitle": "Must be at least 8 characters.",
+      "subtitle": "Must be at least {min} characters.",
       "password": "Password",
       "confirm": "Confirm password",
       "showPassword": "Show password",
@@ -70,7 +72,7 @@ export default {
       "fair": "Fair",
       "good": "Good",
       "strong": "Strong",
-      "tooShort": "Use at least 8 characters.",
+      "tooShort": "Use at least {min} characters.",
       "submit": "Save password",
       "failed": "That did not save. Try again.",
       "mismatch": "Passwords don't match."
@@ -197,7 +199,7 @@ export default {
     },
     "forbidden": {
       "title": "You don’t have access",
-      "body": "This dashboard is restricted. Ask a workspace admin to grant you access.",
+      "body": "This page is restricted. Ask a workspace admin to grant you access.",
       "primary": "Request access",
       "secondary": "Go back"
     },

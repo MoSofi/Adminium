@@ -18,7 +18,7 @@ import { StaffHandover } from './StaffHandover.js';
 
 export function LoginPage() {
   const router = useRouter();
-  const { returnTo, next } = useSearch({ from: '/login' });
+  const { returnTo, next, passwordSet } = useSearch({ from: '/login' });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // On an app's staff address the words are the venue's (`App Address Pages.dc.html`).
@@ -60,13 +60,20 @@ export function LoginPage() {
     <AuthScreenLayout documentTitle={t('auth.signIn.submit', 'Sign in')}>
       <SignInForm
         labels={{
+          // Straight after choosing a password (an invite, or a reset) the
+          // person may never have signed in: "Welcome back" greeted a new
+          // helper (V28). Say what just happened instead.
           title:
-            surface === undefined
-              ? t('auth.signIn.title', 'Welcome back')
-              : t('auth.signIn.submit', 'Sign in'),
-          ...(surface === undefined
-            ? { subtitle: t('auth.signIn.subtitle', 'Sign in to your Adminium workspace.') }
-            : {}),
+            passwordSet === '1'
+              ? t('auth.signIn.passwordSetTitle', 'Password saved')
+              : surface === undefined
+                ? t('auth.signIn.title', 'Welcome back')
+                : t('auth.signIn.submit', 'Sign in'),
+          ...(passwordSet === '1'
+            ? { subtitle: t('auth.signIn.passwordSetSubtitle', 'Sign in with your email and the password you just chose.') }
+            : surface === undefined
+              ? { subtitle: t('auth.signIn.subtitle', 'Sign in to your Adminium workspace.') }
+              : {}),
           email: t('auth.signIn.email', 'Email'),
           password: t('auth.signIn.password', 'Password'),
           forgot: t('auth.signIn.forgot', 'Forgot?'),

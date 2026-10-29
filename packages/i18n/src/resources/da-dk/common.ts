@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "Velkommen tilbage",
       "subtitle": "Log ind på dit Adminium-arbejdsområde.",
+      "passwordSetTitle": "Adgangskode gemt",
+      "passwordSetSubtitle": "Log ind med din e-mail og den adgangskode, du lige har valgt.",
       "email": "E-mail",
       "emailInvalid": "Indtast en gyldig e-mailadresse.",
       "password": "Adgangskode",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "Vælg en adgangskode",
-      "subtitle": "Skal være på mindst 8 tegn.",
+      "subtitle": "Skal være på mindst {min} tegn.",
       "password": "Adgangskode",
       "confirm": "Bekræft adgangskode",
       "showPassword": "Vis adgangskode",
@@ -70,7 +72,7 @@ export default {
       "fair": "Rimelig",
       "good": "God",
       "strong": "Stærk",
-      "tooShort": "Brug mindst 8 tegn.",
+      "tooShort": "Brug mindst {min} tegn.",
       "submit": "Gem adgangskode",
       "failed": "Det blev ikke gemt. Prøv igen.",
       "mismatch": "Adgangskoderne er ikke ens."
@@ -216,7 +218,7 @@ export default {
     },
     "forbidden": {
       "title": "Du har ikke adgang",
-      "body": "Dette dashboard er adgangsbegrænset. Bed en administrator i arbejdsområdet om at give dig adgang.",
+      "body": "Denne side er adgangsbegrænset. Bed en administrator i arbejdsområdet om at give dig adgang.",
       "primary": "Anmod om adgang",
       "secondary": "Gå tilbage"
     },
@@ -624,6 +626,7 @@ export default {
     "resetDone": "Layout nulstillet til den delte standard.",
     "sharedNote": "Du redigerer det delte dashboard, som alle ser.",
     "personalNote": "Du redigerer dit personlige layout — kun du ser disse ændringer.",
+    "sampleNote": "Kortene viser eksempeltal, mens du redigerer. Dine data kommer tilbage, når du er færdig med at redigere.",
     "savedShared": "Dashboard gemt for alle med adgang.",
     "empty": "Dette dashboard har endnu ingen widgets.",
     "emptyAction": "Tilføj widget",
@@ -1623,7 +1626,7 @@ export default {
       "confirm": "Bekræft ny adgangskode",
       "current": "Nuværende adgangskode",
       "failed": "Din adgangskode kunne ikke skiftes",
-      "helper": "Mindst 8 tegn.",
+      "helper": "Mindst {min} tegn.",
       "mismatch": "De to adgangskoder er ikke ens.",
       "new": "Ny adgangskode",
       "submit": "Skift adgangskode",

@@ -243,6 +243,12 @@ export interface BootstrapData {
    * server, which is read as "offer it", as before.
    */
   canImport?: boolean | undefined;
+  /**
+   * Whether this person could export from at least one table, or manages
+   * everyone's exports: the menu offers "Data exports" unless this is false.
+   * A hint only, read as `canImport` is; absent from an older server.
+   */
+  canExport?: boolean | undefined;
   prefs: ResolvedPrefs;
   nav: NavTree;
   version: string;

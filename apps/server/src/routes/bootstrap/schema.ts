@@ -340,6 +340,8 @@ export const bootstrapReply = z.object({
      * judged by `POST /imports` for the table chosen.
      */
     canImport: z.boolean(),
+    /** Whether this person could export from at least one table, or manages everyone's exports. A hint for the rail. */
+    canExport: z.boolean(),
     /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,

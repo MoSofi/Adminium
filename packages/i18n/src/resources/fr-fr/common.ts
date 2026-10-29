@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "Bon retour",
       "subtitle": "Connectez-vous à votre espace de travail Adminium.",
+      "passwordSetTitle": "Mot de passe enregistré",
+      "passwordSetSubtitle": "Connectez-vous avec votre e-mail et le mot de passe que vous venez de choisir.",
       "email": "E-mail",
       "emailInvalid": "Saisissez une adresse e-mail valide.",
       "password": "Mot de passe",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "Choisissez un mot de passe",
-      "subtitle": "8 caractères minimum.",
+      "subtitle": "{min} caractères minimum.",
       "password": "Mot de passe",
       "confirm": "Confirmer le mot de passe",
       "showPassword": "Afficher le mot de passe",
@@ -70,7 +72,7 @@ export default {
       "fair": "Moyen",
       "good": "Bon",
       "strong": "Fort",
-      "tooShort": "Utilisez au moins 8 caractères.",
+      "tooShort": "Utilisez au moins {min} caractères.",
       "submit": "Enregistrer le mot de passe",
       "failed": "L’enregistrement a échoué. Réessayez.",
       "mismatch": "Les mots de passe ne correspondent pas."
@@ -216,7 +218,7 @@ export default {
     },
     "forbidden": {
       "title": "Vous n’avez pas accès",
-      "body": "Ce tableau de bord est restreint. Demandez à un administrateur de l’espace de travail de vous donner accès.",
+      "body": "Cette page est restreinte. Demandez à un administrateur de l’espace de travail de vous donner accès.",
       "primary": "Demander l’accès",
       "secondary": "Retour"
     },
@@ -624,6 +626,7 @@ export default {
     "resetDone": "Disposition réinitialisée sur la valeur partagée par défaut.",
     "sharedNote": "Vous modifiez le tableau de bord partagé que tout le monde voit.",
     "personalNote": "Vous modifiez votre disposition personnelle — vous seul voyez ces changements.",
+    "sampleNote": "Les cartes affichent des chiffres d’exemple pendant la modification. Vos données reviennent quand vous avez fini de modifier.",
     "savedShared": "Tableau de bord enregistré pour tous les utilisateurs autorisés.",
     "empty": "Ce tableau de bord ne contient encore aucun widget.",
     "emptyAction": "Ajouter un widget",
@@ -1623,7 +1626,7 @@ export default {
       "confirm": "Confirmer le nouveau mot de passe",
       "current": "Mot de passe actuel",
       "failed": "Impossible de modifier votre mot de passe",
-      "helper": "Au moins 8 caractères.",
+      "helper": "Au moins {min} caractères.",
       "mismatch": "Les deux mots de passe ne correspondent pas.",
       "new": "Nouveau mot de passe",
       "submit": "Modifier le mot de passe",

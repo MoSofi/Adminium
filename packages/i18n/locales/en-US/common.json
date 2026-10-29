@@ -19,6 +19,8 @@
     "signIn": {
       "title": "Welcome back",
       "subtitle": "Sign in to your Adminium workspace.",
+      "passwordSetTitle": "Password saved",
+      "passwordSetSubtitle": "Sign in with your email and the password you just chose.",
       "email": "Email",
       "emailInvalid": "Enter a valid email address.",
       "password": "Password",
@@ -50,7 +52,7 @@
     },
     "reset": {
       "title": "Choose a password",
-      "subtitle": "Must be at least 8 characters.",
+      "subtitle": "Must be at least {min} characters.",
       "password": "Password",
       "confirm": "Confirm password",
       "showPassword": "Show password",
@@ -60,7 +62,7 @@
       "fair": "Fair",
       "good": "Good",
       "strong": "Strong",
-      "tooShort": "Use at least 8 characters.",
+      "tooShort": "Use at least {min} characters.",
       "submit": "Save password",
       "failed": "That did not save. Try again.",
       "mismatch": "Passwords don't match."
@@ -206,7 +208,7 @@
     },
     "forbidden": {
       "title": "You don’t have access",
-      "body": "This dashboard is restricted. Ask a workspace admin to grant you access.",
+      "body": "This page is restricted. Ask a workspace admin to grant you access.",
       "primary": "Request access",
       "secondary": "Go back"
     },
@@ -614,6 +616,7 @@
     "resetDone": "Layout reset to the shared default.",
     "sharedNote": "You’re editing the shared dashboard everyone sees.",
     "personalNote": "You’re editing your personal layout — only you see these changes.",
+    "sampleNote": "The cards show sample numbers while you edit. Your data comes back when you finish editing.",
     "savedShared": "Dashboard saved for everyone with access.",
     "empty": "This dashboard has no widgets yet.",
     "emptyAction": "Add a widget",
@@ -1613,7 +1616,7 @@
       "confirm": "Confirm new password",
       "current": "Current password",
       "failed": "Could not change your password",
-      "helper": "At least 8 characters.",
+      "helper": "At least {min} characters.",
       "mismatch": "The two passwords do not match.",
       "new": "New password",
       "submit": "Change password",

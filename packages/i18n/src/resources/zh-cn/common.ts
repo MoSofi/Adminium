@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "欢迎回来",
       "subtitle": "登录你的 Adminium 工作区。",
+      "passwordSetTitle": "密码已保存",
+      "passwordSetSubtitle": "请使用你的邮箱和刚刚设置的密码登录。",
       "email": "邮箱",
       "emailInvalid": "请输入有效的邮箱地址。",
       "password": "密码",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "设置密码",
-      "subtitle": "至少 8 个字符。",
+      "subtitle": "至少 {min} 个字符。",
       "password": "密码",
       "confirm": "确认密码",
       "showPassword": "显示密码",
@@ -70,7 +72,7 @@ export default {
       "fair": "一般",
       "good": "良好",
       "strong": "强",
-      "tooShort": "请至少使用 8 个字符。",
+      "tooShort": "请至少使用 {min} 个字符。",
       "submit": "保存密码",
       "failed": "未能保存，请重试。",
       "mismatch": "两次输入的密码不一致。"
@@ -216,7 +218,7 @@ export default {
     },
     "forbidden": {
       "title": "你没有访问权限",
-      "body": "此仪表盘已受限。请让工作区管理员为你开通访问权限。",
+      "body": "此页面已受限。请让工作区管理员为你开通访问权限。",
       "primary": "申请访问权限",
       "secondary": "返回"
     },
@@ -624,6 +626,7 @@ export default {
     "resetDone": "布局已重置为共享默认值。",
     "sharedNote": "你正在编辑所有人都能看到的共享仪表盘。",
     "personalNote": "你正在编辑个人布局——只有你能看到这些更改。",
+    "sampleNote": "编辑时，卡片显示的是示例数字。完成编辑后会恢复为你的数据。",
     "savedShared": "仪表盘已为所有有权限的人保存。",
     "empty": "此仪表盘尚无任何小组件。",
     "emptyAction": "添加小组件",
@@ -1623,7 +1626,7 @@ export default {
       "confirm": "确认新密码",
       "current": "当前密码",
       "failed": "无法更改你的密码",
-      "helper": "至少 8 个字符。",
+      "helper": "至少 {min} 个字符。",
       "mismatch": "两次输入的密码不一致。",
       "new": "新密码",
       "submit": "更改密码",

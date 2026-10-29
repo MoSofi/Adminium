@@ -129,6 +129,28 @@ export function canImportSomewhere(set: Pick<PermissionSet, 'superAdmin' | 'gran
 }
 
 /**
+ * Whether a permission set could take a file out of some table of one of
+ * `live`: the connections that are not paused (a read-only one exports fine).
+ * A Super Admin can, and so can a holder of `system:exports:manage`, whose page
+ * lists everyone's exports; anybody else needs a table grant whose action is
+ * `export` (or every action) on one of them, by name or by a wildcard. The
+ * rail offers "Data exports" unless this is false (V28: a helper with no
+ * export right saw it). Read off the resolved grants, like `canImportSomewhere`.
+ */
+export function canExportSomewhere(set: Pick<PermissionSet, 'superAdmin' | 'grants'>, live: ReadonlySet<string>): boolean {
+  if (set.superAdmin) return true;
+  for (const grant of set.grants) {
+    const parsed = parseGrant(grant);
+    if (parsed === null) continue;
+    if (parsed.kind === 'system' && parsed.area === 'exports' && parsed.verb === 'manage') return true;
+    if (parsed.kind !== 'table') continue;
+    if (parsed.action !== 'export' && parsed.action !== '*') continue;
+    if (parsed.connectionId === '*' || live.has(parsed.connectionId)) return true;
+  }
+  return false;
+}
+
+/**
  * Buckets page rows into the five fixed groups; empty groups are omitted.
  * `connections` (id → name + currency) annotates every item with its owning
  * connection so multi-connection sidebars can label generated groups
@@ -1005,6 +1027,9 @@ export async function bootstrapHandler(
       canImport:
         permissions !== null &&
         canImportSomewhere(permissions, new Set(connectionRows.filter((row) => row.disabledAt === null && !readBool(row.readOnly)).map((row) => row.id))),
+      canExport:
+        permissions !== null &&
+        canExportSomewhere(permissions, new Set(connectionRows.filter((row) => row.disabledAt === null).map((row) => row.id))),
       prefs,
       nav,
       version: APP_VERSION,

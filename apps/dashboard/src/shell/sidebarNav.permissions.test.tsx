@@ -215,3 +215,24 @@ describe('the rail offers "Import data" to whoever can bring a file in', () => {
     expect(await screen.findByRole('heading', { name: 'Import data' })).toBeTruthy();
   });
 });
+
+describe('the rail offers "Data exports" to whoever can take a file out (V28)', () => {
+  // By address: the fixture's nav also holds a generated page titled "Data exports" (`/p/exports`).
+  const exportsRow = () =>
+    screen.getByRole('navigation', { name: 'Primary' }).querySelector('a[href="/exports"]');
+
+  it('leaves it out for a session the server says can export nothing', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: false, canExport: false });
+    expect(exportsRow()).toBeNull();
+  });
+
+  it('shows it to a session that can', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canExport: true });
+    expect(exportsRow()).not.toBeNull();
+  });
+
+  it('shows it as before when the reply says nothing: an older server', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canExport: undefined });
+    expect(exportsRow()).not.toBeNull();
+  });
+});

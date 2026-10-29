@@ -17,7 +17,7 @@
  * renaming it would churn nine strings across eight locales to say the same
  * thing.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyRound } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -32,12 +32,15 @@ import {
 } from '@adminium/ui';
 
 import { changePassword } from './securityApi.js';
+import { setupStateQuery } from '../setup/setupApi.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 
 export function PasswordCard(): ReactNode {
   // This screen's words load with it, not with the first paint.
   useCommonWords();
+  // The workspace's own rule, not a hard-coded 8 (V28); 8 is the policy's floor.
+  const minLength = useQuery(setupStateQuery()).data?.passwordMinLength ?? 8;
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -83,7 +86,7 @@ export function PasswordCard(): ReactNode {
           <FormField
             label={t('security.password.new', 'New password')}
             required
-            helper={t('security.password.helper', 'At least 8 characters.')}
+            helper={t('security.password.helper', 'At least {min} characters.', { min: minLength })}
           >
             <Input
               type="password"

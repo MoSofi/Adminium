@@ -78,7 +78,7 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     icon: Lock,
     tone: 'warn',
     title: { key: 'states.forbidden.title', en: 'You don’t have access' },
-    body: { key: 'states.forbidden.body', en: 'This dashboard is restricted. Ask a workspace admin to grant you access.' },
+    body: { key: 'states.forbidden.body', en: 'This page is restricted. Ask a workspace admin to grant you access.' },
     primary: { label: { key: 'states.forbidden.primary', en: 'Request access' }, icon: UserPlus },
     secondary: { key: 'states.forbidden.secondary', en: 'Go back' },
   },

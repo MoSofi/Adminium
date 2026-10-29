@@ -287,9 +287,11 @@ const loginRoute = createRoute({
    * `/\host` and absolute URLs are dropped, never followed — and `next` is
    * followed only into an app's own screens (auth/nextTarget.ts).
    */
-  validateSearch: (search: Record<string, unknown>): { returnTo?: string; next?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { returnTo?: string; next?: string; passwordSet?: '1' } => ({
     ...(isLocalPath(search.returnTo) ? { returnTo: search.returnTo } : {}),
     ...(isLocalPath(search.next) ? { next: search.next } : {}),
+    // Set by the reset/invite page once a password is saved: the screen says so, not "Welcome back".
+    ...(search.passwordSet === '1' || search.passwordSet === 1 ? { passwordSet: '1' as const } : {}),
   }),
   beforeLoad: async ({ context }) => {
     redirectIfAuthed(context.queryClient);

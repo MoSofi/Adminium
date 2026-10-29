@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "歡迎回來",
       "subtitle": "登入你的 Adminium 工作區。",
+      "passwordSetTitle": "密碼已儲存",
+      "passwordSetSubtitle": "請使用你的電子郵件和剛剛設定的密碼登入。",
       "email": "電子郵件",
       "emailInvalid": "請輸入有效的電子郵件地址。",
       "password": "密碼",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "設定密碼",
-      "subtitle": "至少 8 個字元。",
+      "subtitle": "至少 {min} 個字元。",
       "password": "密碼",
       "confirm": "確認密碼",
       "showPassword": "顯示密碼",
@@ -70,7 +72,7 @@ export default {
       "fair": "普通",
       "good": "良好",
       "strong": "強",
-      "tooShort": "請至少使用 8 個字元。",
+      "tooShort": "請至少使用 {min} 個字元。",
       "submit": "儲存密碼",
       "failed": "未能儲存，請再試一次。",
       "mismatch": "兩次輸入的密碼不一致。"
@@ -216,7 +218,7 @@ export default {
     },
     "forbidden": {
       "title": "你沒有存取權限",
-      "body": "這個儀表板受到限制。請向工作區管理員申請存取權限。",
+      "body": "這個頁面受到限制。請向工作區管理員申請存取權限。",
       "primary": "申請存取權限",
       "secondary": "返回上頁"
     },
@@ -624,6 +626,7 @@ export default {
     "resetDone": "版面已重設為共用預設值。",
     "sharedNote": "你正在編輯所有人都能看到的共用儀表板。",
     "personalNote": "你正在編輯個人版面——只有你能看到這些變更。",
+    "sampleNote": "編輯時，卡片顯示的是範例數字。完成編輯後會恢復為你的資料。",
     "savedShared": "儀表板已為所有有權限的人儲存。",
     "empty": "此儀表板尚無任何小工具。",
     "emptyAction": "新增小工具",
@@ -1623,7 +1626,7 @@ export default {
       "confirm": "確認新密碼",
       "current": "目前的密碼",
       "failed": "無法變更你的密碼",
-      "helper": "至少 8 個字元。",
+      "helper": "至少 {min} 個字元。",
       "mismatch": "兩次輸入的密碼不一致。",
       "new": "新密碼",
       "submit": "變更密碼",

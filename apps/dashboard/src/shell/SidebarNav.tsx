@@ -131,6 +131,8 @@ interface PlatformNavLink {
   alsoFor?: SystemAction;
   /** Offered unless the server says this person can import nothing (`canImport`); an older server says nothing. */
   imports?: true;
+  /** Offered unless the server says this person can export nothing (`canExport`); an older server says nothing. */
+  exports?: true;
 }
 
 const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly PlatformNavLink[] }> = [
@@ -138,7 +140,7 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
     group: 'library',
     links: [
       { to: '/imports', labelKey: 'nav.imports', fallback: 'Import data', icon: Upload, imports: true },
-      { to: '/exports', labelKey: 'nav.exports', fallback: 'Data exports', icon: Download },
+      { to: '/exports', labelKey: 'nav.exports', fallback: 'Data exports', icon: Download, exports: true },
       /*
        * `/files`. In `library` beside imports and exports because it is the
        * same kind of thing — a workspace-wide view of artifacts, not a page
@@ -546,7 +548,7 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
     (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter((link) =>
       link.requires !== undefined
         ? holdsSystemAction(bootstrap, link.requires)
-        : (admin || link.adminOnly !== true || (link.alsoFor !== undefined && holdsSystemAction(bootstrap, link.alsoFor))) && !(link.imports && bootstrap.canImport === false),
+        : (admin || link.adminOnly !== true || (link.alsoFor !== undefined && holdsSystemAction(bootstrap, link.alsoFor))) && !(link.imports && bootstrap.canImport === false) && !(link.exports && bootstrap.canExport === false),
     );
   /*
    * Add-on rows (51b). Filtered by the SAME rule the platform tail uses, so a

@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "Willkommen zurück",
       "subtitle": "Melden Sie sich in Ihrem Adminium-Workspace an.",
+      "passwordSetTitle": "Passwort gespeichert",
+      "passwordSetSubtitle": "Melde dich mit deiner E-Mail-Adresse und dem gerade gewählten Passwort an.",
       "email": "E-Mail",
       "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein.",
       "password": "Passwort",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "Passwort wählen",
-      "subtitle": "Mindestens 8 Zeichen.",
+      "subtitle": "Mindestens {min} Zeichen.",
       "password": "Passwort",
       "confirm": "Passwort bestätigen",
       "showPassword": "Passwort anzeigen",
@@ -70,7 +72,7 @@ export default {
       "fair": "Ausreichend",
       "good": "Gut",
       "strong": "Stark",
-      "tooShort": "Verwenden Sie mindestens 8 Zeichen.",
+      "tooShort": "Verwenden Sie mindestens {min} Zeichen.",
       "submit": "Passwort speichern",
       "failed": "Das wurde nicht gespeichert. Versuchen Sie es erneut.",
       "mismatch": "Die Passwörter stimmen nicht überein."
@@ -216,7 +218,7 @@ export default {
     },
     "forbidden": {
       "title": "Sie haben keinen Zugriff",
-      "body": "Dieses Dashboard ist eingeschränkt. Bitten Sie eine Administratorin oder einen Administrator des Workspace, Ihnen Zugriff zu gewähren.",
+      "body": "Diese Seite ist eingeschränkt. Bitten Sie eine Administratorin oder einen Administrator des Workspace, Ihnen Zugriff zu gewähren.",
       "primary": "Zugriff anfordern",
       "secondary": "Zurück"
     },
@@ -624,6 +626,7 @@ export default {
     "resetDone": "Layout auf die geteilte Standardansicht zurückgesetzt.",
     "sharedNote": "Du bearbeitest das geteilte Dashboard, das alle sehen.",
     "personalNote": "Du bearbeitest dein persönliches Layout – nur du siehst diese Änderungen.",
+    "sampleNote": "Die Karten zeigen beim Bearbeiten Beispielzahlen. Deine Daten erscheinen wieder, sobald du mit dem Bearbeiten fertig bist.",
     "savedShared": "Dashboard für alle mit Zugriff gespeichert.",
     "empty": "Dieses Dashboard enthält noch keine Widgets.",
     "emptyAction": "Widget hinzufügen",
@@ -1623,7 +1626,7 @@ export default {
       "confirm": "Neues Passwort bestätigen",
       "current": "Aktuelles Passwort",
       "failed": "Ihr Passwort konnte nicht geändert werden",
-      "helper": "Mindestens 8 Zeichen.",
+      "helper": "Mindestens {min} Zeichen.",
       "mismatch": "Die beiden Passwörter stimmen nicht überein.",
       "new": "Neues Passwort",
       "submit": "Passwort ändern",

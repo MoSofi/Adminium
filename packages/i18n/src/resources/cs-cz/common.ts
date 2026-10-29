@@ -29,6 +29,8 @@ export default {
     "signIn": {
       "title": "Vítejte zpět",
       "subtitle": "Přihlaste se do svého pracovního prostoru Adminium.",
+      "passwordSetTitle": "Heslo uloženo",
+      "passwordSetSubtitle": "Přihlaste se svým e-mailem a heslem, které jste právě zvolili.",
       "email": "E-mail",
       "emailInvalid": "Zadejte platnou e-mailovou adresu.",
       "password": "Heslo",
@@ -60,7 +62,7 @@ export default {
     },
     "reset": {
       "title": "Zvolte si heslo",
-      "subtitle": "Musí mít alespoň 8 znaků.",
+      "subtitle": "Musí mít alespoň {min} znaků.",
       "password": "Heslo",
       "confirm": "Potvrzení hesla",
       "showPassword": "Zobrazit heslo",
@@ -70,7 +72,7 @@ export default {
       "fair": "Ucházející",
       "good": "Dobré",
       "strong": "Silné",
-      "tooShort": "Použijte alespoň 8 znaků.",
+      "tooShort": "Použijte alespoň {min} znaků.",
       "mismatch": "Hesla se neshodují.",
       "submit": "Uložit heslo",
       "failed": "Nepodařilo se uložit. Zkuste to znovu."
@@ -216,7 +218,7 @@ export default {
     },
     "forbidden": {
       "title": "Nemáte přístup",
-      "body": "Tento přehled je omezený. Požádejte správce pracovního prostoru, aby vám přístup udělil.",
+      "body": "Tato stránka je omezená. Požádejte správce pracovního prostoru, aby vám přístup udělil.",
       "primary": "Požádat o přístup",
       "secondary": "Zpět"
     },
@@ -624,6 +626,7 @@ export default {
     "resetDone": "Rozvržení obnoveno na sdílené výchozí.",
     "sharedNote": "Upravujete sdílený dashboard, který vidí všichni.",
     "personalNote": "Upravujete své osobní rozvržení — tyto změny vidíte jen vy.",
+    "sampleNote": "Během úprav karty ukazují ukázková čísla. Vaše data se vrátí, až úpravy dokončíte.",
     "savedShared": "Dashboard uložen pro všechny s přístupem.",
     "empty": "Tento dashboard zatím nemá žádné widgety.",
     "emptyAction": "Přidat widget",
@@ -1623,7 +1626,7 @@ export default {
       "confirm": "Potvrzení nového hesla",
       "current": "Současné heslo",
       "failed": "Vaše heslo se nepodařilo změnit",
-      "helper": "Alespoň 8 znaků.",
+      "helper": "Alespoň {min} znaků.",
       "mismatch": "Hesla se neshodují.",
       "new": "Nové heslo",
       "submit": "Změnit heslo",
