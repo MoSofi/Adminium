@@ -204,6 +204,38 @@ describe('composeCrudBody — column selection', () => {
     expect(columns.some((c) => c.name === 'notes')).toBe(false);
     expect(columns.some((c) => c.name === 'signing_key')).toBe(false);
   });
+
+  it('lists the display column first even when it is classified free text', () => {
+    /*
+     * Lovable's Crumb & Co. schema (yt-03, V22): Postgres `text` with no length
+     * classifies as free-text, and the free-text exclusion ran before the
+     * display-column rule, so the Cakes list showed prices and no cake names.
+     * The display column is the row's name: it is always listed, and first.
+     */
+    const { table, classified } = build(
+      'public.cakes',
+      [
+        { name: 'id', logicalType: 'uuid', semantic: 'pk-id', isPrimaryKey: true, nullable: false, defaultKind: 'function' },
+        { name: 'name', logicalType: 'text', semantic: 'free-text', nullable: false },
+        { name: 'description', logicalType: 'text', semantic: 'free-text', nullable: false },
+        { name: 'price', logicalType: 'decimal', semantic: 'money', format: 'currency', nullable: false },
+        { name: 'category', logicalType: 'enum', semantic: 'category-enum', enumValues: ['birthday', 'wedding'] },
+        { name: 'is_available', logicalType: 'boolean', semantic: 'boolean-flag' },
+        { name: 'created_at', logicalType: 'timestamptz', semantic: 'created-at', defaultKind: 'now' },
+      ],
+      { displayColumn: 'name' },
+    );
+    const columns = composeCrudBody(table, classified, ctx()).columns;
+    expect(columns.filter((c) => c.hidden !== true).map((c) => c.name)).toEqual([
+      'name',
+      'price',
+      'created_at',
+      'category',
+      'is_available',
+    ]);
+    // A free-text column that is not the name stays out of the list.
+    expect(columns.find((c) => c.name === 'description')).toMatchObject({ hidden: true });
+  });
 });
 
 describe('composeCrudBody — sort, key field, read-only derivation', () => {

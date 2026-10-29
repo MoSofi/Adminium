@@ -111,8 +111,11 @@ function rankColumn(
   // text-typed `image-url` columns `columnSpecFor` seeds one on. A `binary` or
   // `json` column stays excluded by the line above whatever its tag says.
   if (tag === 'image-url' && column.logicalType !== 'text' && column.logicalType !== 'varchar') return null;
-  if (tag === 'json-config' || tag === 'free-text') return null;
+  // The display column is the row's name, so it is listed first even when it is
+  // classified free text: Postgres `text` with no length often is (a Lovable
+  // `cakes.name`), and the exclusion below would leave a list with no names.
   if (column.name === displayColumn) return 0;
+  if (tag === 'json-config' || tag === 'free-text') return null;
   switch (tag) {
     case 'status-workflow':
       return 1;
