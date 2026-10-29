@@ -51,7 +51,8 @@ import { embeddedMetaWarning, metaEngineFromUrl, metaUrlCryptoFromSecret } from 
 import { findProject } from '../../project/locate.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
-import { tildify } from '../data-dir.js';
+import { defaultDataDir, tildify } from '../data-dir.js';
+import { KEPT_SECRET_FILE, prepareTrySecret } from '../kept-secret.js';
 import { createRelocationHost } from '../relocation-host.js';
 import { CliError, EXIT_OK } from '../exit.js';
 import type { CliIo, SelectChoice, Style } from '../io.js';
@@ -428,12 +429,23 @@ export const initCommand: Command = {
       ...(bridgeOrigins === undefined ? {} : { bridgeOrigins }),
     });
 
-    // Fails fast and actionably when ADMINIUM_SECRET is absent — before a single
-    // question, because nothing we collect could be stored without it.
+    // No ADMINIUM_SECRET: a new data folder gets one of its own, kept beside
+    // its data (`kept-secret.ts`), so `try` asks nothing first (V21). A folder
+    // that already holds an instance is refused in words of its own, before a
+    // single question, because nothing we collect could be stored without it.
+    const secretDir = dataDirFlag ?? (deps.env.ADMINIUM_DATA_DIR || defaultDataDir());
+    const { madeIn: secretMadeIn } = prepareTrySecret(deps.env, secretDir);
     let env = loadCliEnv(deps.env, overrides(metaUrlFlag));
 
     io.intro('Adminium setup');
     io.note('Connect a database, get an admin app. Ctrl-C to stop.', 'dim');
+    if (secretMadeIn !== null) {
+      io.note(
+        `Made a secret for this folder and kept it in ${tildify(secretMadeIn)}/${KEPT_SECRET_FILE}. ` +
+          'It unlocks the connection strings stored here: keep it with the folder.',
+        'dim',
+      );
+    }
     io.note();
 
     const surface = await chooseSurface(io, {

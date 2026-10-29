@@ -118,6 +118,20 @@ describe('adminium new over an existing instance', () => {
     await expect(runCli(['new', 'x', '--yes', '--import', join(dir, 'nothing-here')], { io: missing, deps: realDeps(dir) })).resolves.toBe(1);
     expect(missing.stderr()).toContain('holds no Adminium instance');
   });
+
+  it('takes the secret `adminium try` kept beside an imported instance, with none in the environment', async () => {
+    await instanceIn(join(dir, 'tried'));
+    writeFileSync(join(dir, 'tried', 'secret'), `${INSTALL_SECRET}\n`, { mode: 0o600 });
+    const io = fakeIo({ interactive: false });
+    const code = await runCli(['new', 'shop', '--yes', '--no-install', '--no-git', '--import', join(dir, 'tried')], {
+      io,
+      deps: realDeps(dir, { ADMINIUM_SECRET: undefined }),
+    });
+    expect(code).toBe(0);
+    expect(readDotEnv(join(dir, 'shop'))).toMatchObject({ ADMINIUM_SECRET: INSTALL_SECRET });
+    expect(io.stdout()).toContain("Took the instance's ADMINIUM_SECRET from");
+    expect(existsSync(join(dir, 'shop', 'pages', 'customers.json'))).toBe(true);
+  });
 });
 
 /** A project folder whose store already holds generated pages and their files. */

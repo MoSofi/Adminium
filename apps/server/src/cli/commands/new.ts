@@ -45,8 +45,10 @@ import { scaffoldProject } from '../../project/scaffold.js';
 import { APP_VERSION } from '../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
+import { tildify } from '../data-dir.js';
 import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK } from '../exit.js';
 import { CliCancelled, type CliIo } from '../io.js';
+import { KEPT_SECRET_FILE, readKeptSecret } from '../kept-secret.js';
 import { readyMetaStore } from '../project-store.js';
 import { loadCliEnv, runProcess as defaultRunProcess, type CliDeps, type RunProcess } from '../runtime.js';
 
@@ -330,8 +332,14 @@ export const newCommand: Command = {
     let secret: string | null = null;
     if ((dotenv?.ADMINIUM_SECRET ?? '') === '') {
       const inherited = deps.env.ADMINIUM_SECRET?.trim() ?? '';
+      // The secret `adminium try` made for the instance and kept beside it.
+      const keptIn = importFrom ?? join(root, 'data');
+      const kept = hasInstance ? readKeptSecret(keptIn) : null;
       if (!hasInstance) {
         secret = randomBytes(32).toString('hex');
+      } else if (kept !== null) {
+        secret = kept;
+        io.out(`Took the instance's ADMINIUM_SECRET from ${tildify(join(keptIn, KEPT_SECRET_FILE))} into .env.`);
       } else if (inherited.length >= 16) {
         secret = inherited;
         io.out('data/ holds an Adminium instance; its ADMINIUM_SECRET was taken from your environment.');

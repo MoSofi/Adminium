@@ -135,6 +135,13 @@ Then it introspects, generates and starts the server. Its data goes to
 `~/.adminium`, and `adminium new --import ~/.adminium` turns it into a project
 later without losing anything.
 
+You don't need to set `ADMINIUM_SECRET` first. With none set, `try` makes one
+for a new data folder and keeps it there, in `~/.adminium/secret`, readable by
+you only. `adminium start` on the same folder reads it back, and
+`new --import` copies it into the project's `.env`. Keep it with the folder:
+it unlocks the connection strings stored there. A folder that already holds an
+instance never gets a new one; `try` asks you to set the secret it was made with.
+
 :::note[The wizard needs a TTY]
 `try` refuses to run non-interactively — there is nothing useful it could do
 with unanswerable questions. In CI, containers and systemd, configure through

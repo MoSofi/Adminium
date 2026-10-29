@@ -95,7 +95,9 @@ describe('every command fails fast without ADMINIUM_SECRET', () => {
     '%s exits 1 and names the variable',
     async (command) => {
       const io = fakeIo();
-      const deps = fakeDeps({ env: {} });
+      // An empty data folder of its own: one on this machine holding a kept
+      // secret (`adminium try`'s) would answer for the variable.
+      const deps = fakeDeps({ env: { ADMINIUM_DATA_DIR: await mkdtemp(join(tmpdir(), 'adminium-nosecret-')) } });
       const argv = command === 'introspect' || command === 'generate-prompt'
         ? [command, '--connection', 'conn_1']
         : [command];
@@ -580,11 +582,16 @@ describe('adminium try', () => {
     expect(io.stderr()).toContain('adminium start');
   });
 
-  it('fails fast on a missing secret before asking a single question', async () => {
+  it('refuses a folder whose instance was made with a secret nobody gave, before a single question', async () => {
+    // A new secret would leave that instance's stored connection strings unreadable.
+    const dataDir = await mkdtemp(join(tmpdir(), 'adminium-try-'));
+    await writeFile(join(dataDir, 'meta.db'), '');
     const io = fakeIo({ interactive: true });
-    await expect(runCli(['try'], { io, deps: fakeDeps({ env: {} }) })).resolves.toBe(1);
+    await expect(runCli(['try'], { io, deps: fakeDeps({ env: { ADMINIUM_DATA_DIR: dataDir } }) })).resolves.toBe(1);
+    expect(io.stderr()).toContain('holds an Adminium instance');
     expect(io.stderr()).toContain('ADMINIUM_SECRET');
     expect(io.questions()).toEqual([]);
+    await expect(readFile(join(dataDir, 'secret'), 'utf8')).rejects.toThrow();
   });
 
   it('still answers to its old name, `init`', async () => {

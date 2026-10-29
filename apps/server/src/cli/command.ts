@@ -94,7 +94,7 @@ export function renderRootHelp(commands: readonly Command[], version: string): s
     `${INDENT}-v, --version  Show the version`,
     '',
     'Environment:',
-    `${INDENT}ADMINIUM_SECRET    Required. Derives the key encrypting stored DSNs and API keys.`,
+    `${INDENT}ADMINIUM_SECRET    Required (try makes one and keeps it in <data dir>/secret). Derives the key encrypting stored DSNs and API keys.`,
     `${INDENT}ADMINIUM_META_URL  Meta store DSN (postgres://, mysql://, sqlite:<path>).`,
     `${INDENT}ADMINIUM_DATA_DIR  Writable data directory (default ./data).`,
     `${INDENT}PORT, HOST         Listen address (default 4600, 0.0.0.0).`,

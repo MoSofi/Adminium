@@ -44,6 +44,7 @@ import type { ProjectServerOptions } from '../project/service.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
 import { defaultDataDir } from './data-dir.js';
+import { readKeptSecret } from './kept-secret.js';
 import { resolveStaticRoot } from './static-root.js';
 import { discoverSurfaces, resolveSurfacesDir } from './surfaces-root.js';
 
@@ -103,6 +104,13 @@ export function loadCliEnv(
   // treats it one line below.
   if (merged.ADMINIUM_DATA_DIR === undefined || merged.ADMINIUM_DATA_DIR === '') {
     merged.ADMINIUM_DATA_DIR = defaultDataDir();
+  }
+
+  // No secret given: the one `adminium try` kept beside this data, if any
+  // (`kept-secret.ts`). The environment's own always wins.
+  if ((merged.ADMINIUM_SECRET ?? '').trim() === '') {
+    const kept = readKeptSecret(merged.ADMINIUM_DATA_DIR);
+    if (kept !== null) merged.ADMINIUM_SECRET = kept;
   }
 
   const result = envSchema.safeParse(merged);

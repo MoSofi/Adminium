@@ -43,7 +43,7 @@ the Studio creates; an introspection from the CLI is the same snapshot.
 
 | Variable | |
 |---|---|
-| `ADMINIUM_SECRET` | **Required.** Derives the key encrypting stored DSNs and API keys. |
+| `ADMINIUM_SECRET` | **Required.** Derives the key encrypting stored DSNs and API keys. With none set, the one `adminium try` kept in `<data dir>/secret` is used. |
 | `ADMINIUM_META_URL` | Meta store DSN (`postgres://`, `mysql://`, `sqlite:<path>`) |
 | `ADMINIUM_DATA_DIR` | Writable data directory (default `./data` inside a project, else `~/.adminium`) |
 | `PORT`, `HOST` | Listen address (default `4600`, `0.0.0.0`) |

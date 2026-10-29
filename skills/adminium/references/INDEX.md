@@ -75,7 +75,7 @@ file. Every file is 8 KB or less.
 |---|---|---|
 | `references/cli/overview.md` | CLI reference | 1706 |
 | `references/cli/global-options.md` | Global options | 271 |
-| `references/cli/environment.md` | Environment | 894 |
+| `references/cli/environment.md` | Environment | 969 |
 | `references/cli/exit-codes.md` | Exit codes | 1102 |
 | `references/cli/project-files.md` | Project files | 1899 |
 | `references/cli/new.md` | `new` | 3070 |
