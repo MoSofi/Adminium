@@ -69,7 +69,7 @@ pooler is the point, stay on it — nothing breaks.
 | Provider | Pooled | Direct |
 |---|---|---|
 | Neon | host ends in `-pooler`, e.g. `ep-x-123456-pooler.us-east-1.aws.neon.tech` | the same host without `-pooler` — `ep-x-123456.us-east-1.aws.neon.tech`. The Neon console calls this the "Direct connection" string. |
-| Supabase | the transaction pooler on port `6543` | the direct connection on port `5432`, or the session pooler, which accepts startup parameters and so never triggers the downgrade. |
+| Supabase | the transaction pooler on port `6543` | the session pooler (port `5432` on the pooler host), which accepts startup parameters and so never triggers the downgrade; or the direct connection, which is IPv6-only unless you buy Supabase's IPv4 add-on. The shared pooler, in either mode, wants the user as `role.project-ref`: see [Supabase, step by step](#supabase-step-by-step). |
 
 The meta store has its own, separate answer to pooling — a pooled Postgres
 endpoint is safe for the migration lock, and MySQL behind a transaction pooler
@@ -245,19 +245,77 @@ and every table it may not read (the snapshot's warnings name them, as
 `schemas-unusable` and `tables-unreadable`) and drops the keys that point at
 them, so `orders.user_id` shows as the plain id.
 
-To show who placed an order instead, let the role read just the columns it
-needs, if your database lets you grant them:
+Where you own the other schema (your own Postgres server), you can let the role
+read just the columns it needs, and introspect again:
 
 ```sql
 GRANT USAGE ON SCHEMA auth TO adminium_rw;
 GRANT SELECT (id, email) ON auth.users TO adminium_rw;
 ```
 
-Then introspect again. A read the database refuses anyway (a right taken away
-since the last introspection) is answered with `403` `SOURCE_READ_REFUSED`,
-naming the schema or table in `details.object`. A looked-up column it refuses
-comes back empty and listed in the row's `_masked` marker, and the rest of the
-list still loads.
+**On hosted Supabase this grant does nothing.** The `auth` schema belongs to
+`supabase_admin`, and the `postgres` role you are signed in as may use it but
+not pass that on. Postgres skips the grant with a warning, and the SQL editor
+still says "Success". To see what the role really has:
+
+```sql
+SELECT has_schema_privilege('adminium_rw', 'auth', 'USAGE');
+```
+
+So on Supabase, `user_id` columns stay plain ids. Most apps keep the customer's
+name and email in their own tables anyway (Lovable's `orders` has
+`customer_name` and `customer_email`), and those show as usual.
+
+A read the database refuses anyway (a right taken away since the last
+introspection) is answered with `403` `SOURCE_READ_REFUSED`, naming the schema
+or table in `details.object`. A looked-up column it refuses comes back empty and
+listed in the row's `_masked` marker, and the rest of the list still loads.
+
+## Supabase, step by step
+
+For an app built on Supabase, including one made with Lovable, Bolt or v0 on
+your own Supabase project. Run the SQL in Supabase's **SQL Editor**.
+
+1. **Make the role.** Use the [read-write recipe](#a-read-write-role) with
+   `postgres` as the database name, then let it skip row security:
+
+   ```sql
+   ALTER ROLE adminium_rw BYPASSRLS;
+   ```
+
+   Supabase's `postgres` role has `BYPASSRLS` itself, so it may give it. Skip
+   the `auth` grant above; it does nothing here.
+
+2. **Copy the connection string.** Click **Connect** and take the **Session
+   pooler** string. It looks like this:
+
+   ```
+   postgresql://postgres.abcdefghijklmnop:[YOUR-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+   ```
+
+   This shared pooler finds your project by the part after the dot in the user name.
+   So keep it, and change only the role: `adminium_rw.abcdefghijklmnop`. With
+   the role name alone, the login fails. Then put your role's password in place
+   of `[YOUR-PASSWORD]`.
+
+   The **Direct connection** string works too, without the project part
+   (`adminium_rw@db.abcdefghijklmnop.supabase.co:5432`), but Supabase serves it
+   over IPv6 unless you buy their IPv4 add-on, and many home and office
+   networks can't reach it. The transaction pooler (port `6543`) works with the
+   limits in [Pooled endpoints](#pooled-endpoints).
+
+3. **Paste it into Adminium.** Adminium lists only your app's tables. It leaves
+   out Supabase's own schemas (`auth`, `storage`, `realtime` and the rest) with
+   a `schemas-unusable` warning, and keeps its own data (users, roles, pages)
+   out of your database: the role cannot create tables, so same-database
+   placement is not offered.
+
+:::note[Lovable Cloud]
+An app on Lovable's built-in backend (Lovable Cloud, an address ending in
+`lovable.cloud`) does not live in your Supabase account, and Lovable's own docs
+describe no connection string for it. Connect a Lovable app that uses your own
+Supabase project.
+:::
 
 ## Hosting the meta store in the same database
 
