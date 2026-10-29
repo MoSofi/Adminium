@@ -22,7 +22,7 @@ export default defineConfig({
     starlight({
       title: 'Adminium',
       description:
-        'Point Adminium at a database, get a real admin panel. Open-source, self-hosted, read-and-write.',
+        'How to run Adminium, a free, open-source back office: from your database, from a description, or from a ready-made app. Self-hosted.',
       customCss: [
         // Restyle Starlight onto the product palette. Order matters —
         // tokens first, then the remap that reads them.
