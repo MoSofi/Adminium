@@ -445,6 +445,21 @@ describe('introspectPostgres — table shape', () => {
     expect(model.tables[0]!.rowCountExact).toBe(false);
   });
 
+  it.each([
+    // V24: a table nobody has analysed yet (a fresh Supabase project's `cakes`)
+    // showed "—" where it had 8 rows; the live-row counter knows.
+    ['a never-analysed table takes the live-row count', 'r', -1, 8, 8],
+    ['an empty never-analysed table is 0, not unknown', 'r', -1, 0, 0],
+    ['an analysed estimate wins over the counter', 'r', 500, 8, 500],
+    ['no counter either: still unknown', 'r', -1, null, null],
+    // A partitioned parent always reads -1 and counts 0 live rows of its own.
+    ['a partitioned parent is never given the counter', 'p', -1, 0, null],
+  ] as const)('row estimate fallback: %s', async (_label, relkind, reltuples, n_live, expected) => {
+    const exec = catalog({ classes: [classRow({ rel_oid: 1, table_name: 't', relkind, reltuples, n_live })] });
+    const model = await introspectPostgres(exec, CTX);
+    expect(model.tables[0]!.rowCountEstimate).toBe(expected);
+  });
+
   it('omits row estimates entirely when collectRowEstimates is off', async () => {
     const exec = catalog({ classes: [classRow({ rel_oid: 1, table_name: 't', reltuples: 500 })] });
     const model = await introspectPostgres(exec, CTX, { collectRowEstimates: false });

@@ -251,7 +251,8 @@ SELECT n.nspname AS schema_name,
        (SELECT count(*) FROM pg_catalog.pg_policy p WHERE p.polrelid = c.oid)::int AS policy_count,
        s.n_tup_ins::int8 AS n_ins,
        s.n_tup_upd::int8 AS n_upd,
-       s.n_tup_del::int8 AS n_del
+       s.n_tup_del::int8 AS n_del,
+       s.n_live_tup::int8 AS n_live
 FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 LEFT JOIN pg_catalog.pg_stat_user_tables s ON s.relid = c.oid
@@ -664,6 +665,12 @@ export async function introspectPostgres(
       relkind === 'v' ? 'view' : relkind === 'm' ? 'materialized-view' : ('table' as const);
     const reltuples = num(row['reltuples']);
     const inserts = num(row['n_ins']);
+    // A table nobody has analysed yet reads -1 (PostgreSQL 14+): a fresh
+    // Supabase project's 8 cakes showed "—" (V24). The live-row counter knows,
+    // for a plain table or a materialised view; a partitioned parent counts
+    // none of its own, so it is never given it.
+    const liveRows = relkind === 'r' || relkind === 'm' ? num(row['n_live']) : null;
+    const estimate = reltuples !== null && reltuples >= 0 ? reltuples : liveRows !== null && liveRows >= 0 ? liveRows : null;
     tablesByOid.set(oid, {
       id: `${schema}.${name}`,
       schema,
@@ -676,9 +683,7 @@ export async function introspectPostgres(
       checks: [],
       indexes: [],
       rowCountEstimate:
-        collectRowEstimates && kind !== 'view' && reltuples !== null && reltuples >= 0
-          ? Math.round(reltuples)
-          : null,
+        collectRowEstimates && kind !== 'view' && estimate !== null ? Math.round(estimate) : null,
       rowCountExact: false,
       sizeBytes: sizeByOid.get(oid) ?? null,
       activity:

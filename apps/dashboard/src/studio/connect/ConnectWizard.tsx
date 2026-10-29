@@ -268,8 +268,14 @@ export function ConnectWizard({
     }
   })();
 
+  /** The neighbouring step, past the meta step when the first-run wizard already asked it. */
+  const stepBeside = (direction: 1 | -1): WizardStepId | undefined => {
+    const id = WIZARD_STEP_IDS[stepIndex + direction];
+    return id === 'meta' && state.metaAsked ? WIZARD_STEP_IDS[stepIndex + 2 * direction] : id;
+  };
+
   const advance = () => {
-    const next = WIZARD_STEP_IDS[stepIndex + 1];
+    const next = stepBeside(1);
     if (next === undefined) return;
 
     // ── Leaving the meta step MOVES the store ─────────────────────────────
@@ -340,7 +346,7 @@ export function ConnectWizard({
   };
 
   const back = () => {
-    const previous = WIZARD_STEP_IDS[stepIndex - 1];
+    const previous = stepBeside(-1);
     if (previous !== undefined) goTo(previous);
   };
 

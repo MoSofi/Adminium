@@ -996,3 +996,36 @@ describe('enrich step on a database with no tables', () => {
     expect(continueButton()).toHaveProperty('disabled', true);
   });
 });
+
+/**
+ * V24: the first-run wizard asks where Adminium keeps its own data, then hands
+ * over to this wizard at the tables step. Asking again here was the same
+ * question twice in two minutes.
+ */
+describe('meta step — skipped when the first-run wizard already asked', () => {
+  it('goes from Tables to Enrich, and Back from Enrich to Tables', async () => {
+    saveWizardState({
+      ...INITIAL_WIZARD_STATE,
+      step: 'tables',
+      intent: 'full-admin',
+      name: 'Prod',
+      dsn: 'postgres://ava@db.acme.io:5432/prod',
+      connectionId: 'conn_1',
+      metaAsked: true,
+    });
+    scriptFetch();
+    renderWizard();
+
+    await screen.findByText('public.customers');
+    await userEvent.click(continueButton());
+    await waitFor(() => {
+      expect(JSON.parse(window.sessionStorage.getItem('adminium-studio-connect') ?? '{}')).toHaveProperty('step', 'enrich');
+    });
+    expect(screen.queryByText('Where should Adminium keep its own tables?')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => {
+      expect(JSON.parse(window.sessionStorage.getItem('adminium-studio-connect') ?? '{}')).toHaveProperty('step', 'tables');
+    });
+  });
+});

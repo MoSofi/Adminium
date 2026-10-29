@@ -446,6 +446,11 @@ export interface WizardState {
   privileges: DsnPrivileges | null;
   includedTables: string[] | null;
   metaPlacement: MetaPlacement | null;
+  /**
+   * The first-run wizard already asked where Adminium keeps its own data, and
+   * handed over to this one (V24): the meta step is skipped, not asked twice.
+   */
+  metaAsked: boolean;
   separateMetaDsn: string;
   separateMetaTested: boolean;
   /**
@@ -475,6 +480,7 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   privileges: null,
   includedTables: null,
   metaPlacement: null,
+  metaAsked: false,
   separateMetaDsn: '',
   separateMetaTested: false,
   enrichIntent: null,

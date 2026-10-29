@@ -159,6 +159,22 @@ export function OnboardingPage({
     held.probedDsn !== dsnTrimmed;
 
   /**
+   * Continue pressed while the check is still out (V24). Pasting a string and
+   * pressing Continue at once is the ordinary way through this step, and a
+   * Continue that was disabled for those 400 ms swallowed the press, so the
+   * person had to press it again. Held instead: the button shows busy, and the
+   * step moves on by itself once the answer is in, unless the answer is an
+   * Adminium already in there, whose choices this screen then shows.
+   */
+  const [continueHeld, setContinueHeld] = useState(false);
+  useEffect(() => {
+    if (!continueHeld || probing) return;
+    setContinueHeld(false);
+    if (step !== 'connect' || held.existing !== null || connectDsnError(held.dsn.trim()) !== null) return;
+    onNext();
+  });
+
+  /**
    * Where the meta store lives. Fetched only once the account exists — the
    * route needs a session, and before step 3 there is none. `enabled` is what
    * keeps this from firing a 401 behind the first two screens.
@@ -342,6 +358,8 @@ export function OnboardingPage({
       connectionId: connection.connectionId,
       readOnly: connection.readOnly,
       privileges: connection.privileges,
+      // Asked on this wizard's storage step: the Studio's must not ask again.
+      metaAsked: true,
     });
     return '/studio/connect';
   }
@@ -383,6 +401,10 @@ export function OnboardingPage({
   }
 
   function onNext(): void {
+    if (probing) {
+      setContinueHeld(true);
+      return;
+    }
     if (step === 'account') {
       submitAccount();
       return;
@@ -410,13 +432,10 @@ export function OnboardingPage({
     <OnboardingWizard
       step={step}
       steps={steps}
-      busy={busy}
+      busy={busy || continueHeld}
       error={error}
       nextDisabled={
         (step === 'connect' && dsnError !== null) ||
-        // Wait for the check. Skip stays live: passing the step means "no
-        // database", which needs no answer about one.
-        probing ||
         // A database of its own has to be PROVEN before the store moves into
         // it: a failed relocation is the one failure here with no way back.
         (step === 'meta' &&

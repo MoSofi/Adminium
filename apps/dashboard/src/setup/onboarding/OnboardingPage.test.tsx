@@ -129,21 +129,47 @@ describe('the walk', () => {
 });
 
 describe('the check on the connection string', () => {
-  it('holds Continue until it has an answer — Skip stays open', async () => {
+  it('a Continue pressed during the check waits for its answer, then moves on by itself (V24)', async () => {
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://u@h:5432/db');
 
-    // The probe is debounced and then in flight; pressing Continue in that
-    // window is exactly how the panel used to appear a screen too late.
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Continue/ }).disabled).toBe(true);
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Skip' }).disabled).toBe(false);
+    // Pressed inside the debounce: it used to do nothing, so the person had to
+    // press it again once the check had run.
+    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    expect(screen.getByRole('heading', { name: 'Connect your database' })).toBeDefined();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Skip' }).disabled).toBe(true);
 
     await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: /Continue/ }).disabled).toBe(false);
+      expect(screen.getByRole('heading', { name: 'Create your account' })).toBeDefined();
     });
-    // And the answer is on THIS screen, before the account is asked for.
-    expect(screen.getByRole('heading', { name: 'Connect your database' })).toBeDefined();
+  });
+
+  it('stays on this screen when the check finds an Adminium already in there', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const normal = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).includes('/api/v1/setup/probe')) {
+        return jsonResponse(200, {
+          data: { reachable: true, reason: null, tables: [], occupied: ['adminium_users'], secretMatches: true },
+        });
+      }
+      return normal!(input, init);
+    });
+    try {
+      renderPage();
+      await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+      await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://u@h:5432/taken');
+      await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+      // The answer is on THIS screen, before the account is asked for.
+      await waitFor(() => {
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Skip' }).disabled).toBe(false);
+      });
+      expect(screen.getByRole('heading', { name: 'Connect your database' })).toBeDefined();
+      expect(screen.queryByRole('heading', { name: 'Create your account' })).toBeNull();
+    } finally {
+      fetchMock.mockImplementation(normal!);
+    }
   });
 
   it('does not wait on a string that is not a DSN yet', async () => {
@@ -311,11 +337,11 @@ describe('finishing', () => {
     await userEvent.click(screen.getByRole('radio', { name: /CRUD tables/ }));
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://u@h:5432/shop');
-    // Continue waits for the check now — this used to walk straight past it.
-    await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: /Continue/ }).disabled).toBe(false);
-    });
+    // Continue waits for the check, then moves on by itself.
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Create your account' })).toBeDefined();
+    });
     submit.mockResolvedValue({
       kind: 'ok',
       connection: {
