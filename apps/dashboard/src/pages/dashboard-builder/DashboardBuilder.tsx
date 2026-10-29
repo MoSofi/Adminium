@@ -283,7 +283,9 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
             <p className="mt-0.5 text-caption text-fg-muted">
               {canEditShared
                 ? t('builder.sharedNote', 'You’re editing the shared dashboard everyone sees.')
-                : t('builder.personalNote', 'You’re editing your personal layout — only you see these changes.')}
+                : t('builder.personalNote', 'You’re editing your personal layout — only you see these changes.')}{' '}
+              {/* BuilderGrid draws every card from demo data, not live queries. */}
+              {t('builder.sampleNote', 'The cards show sample numbers while you edit. Your data comes back when you finish editing.')}
             </p>
           ) : null}
         </div>

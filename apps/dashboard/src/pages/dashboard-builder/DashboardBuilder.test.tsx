@@ -114,6 +114,20 @@ describe('edit-mode gating', () => {
   });
 });
 
+describe('the edit canvas says its numbers are samples (V27)', () => {
+  // BuilderGrid draws every card from demo data, so "44,615" stood where the
+  // live page said 78, with nothing to say why.
+  it.each<[string, { roles: string[]; canEditLayout?: boolean }]>([
+    ['a personal layout', { roles: ['viewer'] }],
+    ['the shared layout', { roles: ['editor'], canEditLayout: true }],
+  ])('says so while editing %s', async (_name, who) => {
+    const { user } = renderBuilder(who);
+    expect(screen.queryByText(/sample numbers/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByText(/sample numbers/)).toBeDefined();
+  });
+});
+
 describe('edit-mode exits are explicit', () => {
   it('opens from a plain Edit button, not a View/Edit toggle', () => {
     renderBuilder({ roles: ['admin'] });
