@@ -14,7 +14,7 @@
  * broken stream's message, an error the provider wrote into the stream) goes
  * through `scrubSecret` before it is thrown.
  */
-import { codeForStatus, outboundFetch, scrubCause, scrubSecret } from './http.js';
+import { codeForStatus, outboundFetch, readBounded, scrubCause, scrubSecret } from './http.js';
 import { ProviderError, type ProviderId } from './types.js';
 
 export interface StreamRequestOptions {
@@ -111,7 +111,7 @@ export async function* streamRequest(opts: StreamRequestOptions): AsyncGenerator
     if (!res.ok) {
       let raw = '';
       try {
-        raw = (await res.text()).slice(0, 2000);
+        raw = (await readBounded(res, 64 * 1024)).slice(0, 2000);
       } catch {
         // The status says enough.
       }

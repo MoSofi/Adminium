@@ -15,17 +15,19 @@
  *    shows the picture, under "Picture credits", by the side's `Picture`;
  *  - `credit-same`: CC BY-SA, hidden from a search until the person asks;
  *  - `own`: a picture the person uploaded;
- *  - `template`: a picture that came with the person's site template.
+ *  - `template`: a picture that came with the person's site template;
+ *  - `made`: a picture made with AI in the dialog or by the Designer
+ *. Its credit names the service and the model, never a person.
  *
  * A search result whose code is none of the first four is dropped: an
  * unknown licence is never shown as a known one. The two neutral badges are
  * for pictures that never came from a search.
  */
 
-export const LICENCE_CODES = ['cc0', 'pdm', 'by', 'by-sa', 'pexels', 'unsplash', 'pixabay', 'own', 'template'] as const;
+export const LICENCE_CODES = ['cc0', 'pdm', 'by', 'by-sa', 'pexels', 'unsplash', 'pixabay', 'own', 'template', 'made'] as const;
 export type LicenceCode = (typeof LICENCE_CODES)[number];
 
-export const LICENCE_BADGES = ['no-credit', 'host', 'credit', 'credit-same', 'own', 'template'] as const;
+export const LICENCE_BADGES = ['no-credit', 'host', 'credit', 'credit-same', 'own', 'template', 'made'] as const;
 export type LicenceBadge = (typeof LICENCE_BADGES)[number];
 
 /** The badges a search may be narrowed to, in the order the filter shows them. */
@@ -45,7 +47,11 @@ const BADGE: Readonly<Record<LicenceCode, LicenceBadge>> = {
   pixabay: 'host',
   own: 'own',
   template: 'template',
+  made: 'made',
 };
+
+/** A made picture's licence words: written in the credit line's plain text too, so a reader that does not know the code still says it. */
+export const MADE_LICENCE_NAME = 'Made with AI';
 
 export const badgeOf = (code: LicenceCode): LicenceBadge => BADGE[code];
 

@@ -18,6 +18,10 @@
  */
 import {
   canBuild,
+  compatiblePictures,
+  geminiPictures,
+  openAiPictures,
+  PictureError,
   readsImages as readsImagesProbe,
   createProviderClient,
   createProviderRunner,
@@ -26,6 +30,8 @@ import {
   setOutboundFetch,
   type CanBuild,
   type LlmKeyCrypto,
+  type PictureMaker,
+  type PictureMakerKind,
   type ModelInfo,
   type ProviderClient,
   type ProviderConfig,
@@ -33,6 +39,7 @@ import {
   type ProviderRunner,
 } from '@adminium/llm';
 import type { SettingsRepo } from '@adminium/meta';
+import { createHash } from 'node:crypto';
 
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { ValidationFailedError } from '../errors.js';
@@ -69,6 +76,29 @@ export interface ResolvedRunner {
   model: string;
   connectionId: ConnectionId;
 }
+
+/** Where a picture can be made: a connection that has a picture route, or Gemini's picture-only key. */
+export type PictureMakerId = 'database' | 'env:openai' | 'env:openai-compatible' | 'env:ollama' | 'google';
+
+export interface PictureMakerInfo {
+  id: PictureMakerId;
+  kind: PictureMakerKind;
+  /** The service's name as the person reads it: never an address. */
+  label: string;
+  /** Ollama: made on a machine of the person's, at no charge (a `:cloud` model is not). */
+  local: boolean;
+}
+
+/**
+ * A short fingerprint of what a maker would be called with: its kind, its address and its key. Kept with the
+ * choice so a key swapped behind the same connection is noticed. Never sent to a page.
+ */
+export const pictureKeyHash = (kind: string, baseUrl: string | undefined, apiKey: string | undefined): string =>
+  createHash('sha256').update(`${kind}\u0000${baseUrl ?? ''}\u0000${apiKey ?? ''}`).digest('hex').slice(0, 24);
+
+/** The providers of a chat connection that also make pictures. Never `anthropic` (it makes none) and never `adminium-managed` (Adminium would pay). */
+const MAKES_PICTURES: readonly string[] = ['openai', 'openai-compatible', 'ollama'];
+const PICTURE_LABEL: Readonly<Record<string, string>> = { openai: 'OpenAI', 'openai-compatible': 'Your own server', ollama: 'Ollama', google: 'Google Gemini' };
 
 /** Why no model may be called. */
 export type ConnectionRefusal = 'no-provider' | 'network-disabled';
@@ -113,6 +143,15 @@ export interface AiConnections {
   canBuildWith(id: ConnectionId, model: string): Promise<CanBuild>;
   /** Whether a model reads pictures: asked once and kept; null when it could not be asked. */
   readsImages(id: ConnectionId, model: string): Promise<boolean | null>;
+  /** The services that can make pictures now, network rule applied. Nothing is called. */
+  pictureMakers(): Promise<PictureMakerInfo[]>;
+  /** A picture maker, its address checked as every call's is; the key goes into it and nowhere else. Throws `PictureError('config')` when it may not be used. */
+  pictureMaker(id: PictureMakerId, model?: string | null): Promise<{ maker: PictureMaker; info: PictureMakerInfo; keyHash: string }>;
+  /**
+   * Keep (or with `null` take away) an OpenAI or Google key for pictures, where keys can be given here (the desktop's
+   * key store, or the project's `.env`), WITHOUT choosing a chat model: a key given for pictures moves nobody's chat.
+   */
+  savePictureKey(provider: 'openai' | 'google', key: string | null): void;
   readonly envWritable: boolean;
   /** Where a host keeps model keys instead of the project's `.env` (the desktop app), or `null`. */
   keptBy(): 'key-store' | 'plain' | null;
@@ -131,6 +170,8 @@ export interface AiConnectionsDeps {
   blockPrivate?: boolean;
   createClient?: (config: ProviderConfig) => ProviderClient;
   createRunner?: (config: ProviderConfig) => ProviderRunner;
+  /** A test's own picture makers (a fake): given what the real one would be built with. */
+  createPictureMaker?: (kind: PictureMakerKind, opts: { apiKey?: string | undefined; baseUrl?: string | undefined }) => PictureMaker;
   resolve?: ResolveCheckOptions['resolve'];
 }
 
@@ -443,6 +484,57 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       pictures.set(key, probe.reads);
       unasked.delete(key);
       return probe.reads;
+    },
+    async pictureMakers() {
+      const out: PictureMakerInfo[] = [];
+      for (const connection of await list()) {
+        if (!MAKES_PICTURES.includes(connection.provider) || refusal(connection) !== null) continue;
+        const id = connection.id as PictureMakerId;
+        const kind: PictureMakerKind = connection.provider === 'openai' ? 'openai' : 'openai-compatible';
+        out.push({ id, kind, label: PICTURE_LABEL[connection.provider] ?? connection.provider, local: connection.provider === 'ollama' });
+      }
+      // Gemini's key is a cloud's: never with network features off.
+      if (deps.networkFeatures && aiEnv.read().ADMINIUM_AI_GOOGLE_API_KEY !== undefined) out.push({ id: 'google', kind: 'google', label: PICTURE_LABEL['google'] as string, local: false });
+      return out;
+    },
+    async pictureMaker(id, model) {
+      const build = deps.createPictureMaker ?? ((kind: PictureMakerKind, opts: { apiKey?: string | undefined; baseUrl?: string | undefined }): PictureMaker =>
+        kind === 'openai' ? openAiPictures({ apiKey: opts.apiKey ?? '', baseUrl: opts.baseUrl }) : kind === 'google' ? geminiPictures({ apiKey: opts.apiKey ?? '' }) : compatiblePictures({ baseUrl: opts.baseUrl ?? '', apiKey: opts.apiKey }));
+      if (id === 'google') {
+        if (!deps.networkFeatures) throw new PictureError('config', 'outside network use is switched off on this server, so Gemini cannot be called');
+        const apiKey = aiEnv.read().ADMINIUM_AI_GOOGLE_API_KEY;
+        if (apiKey === undefined) throw new PictureError('config', 'no Gemini key is set (ADMINIUM_AI_GOOGLE_API_KEY)');
+        return { maker: build('google', { apiKey }), info: { id, kind: 'google', label: PICTURE_LABEL['google'] as string, local: false }, keyHash: pictureKeyHash('google', undefined, apiKey) };
+      }
+      let resolved: Awaited<ReturnType<typeof configFor>>;
+      try {
+        // The same door as every call: the address by name and by what it resolves to, the network rule, the loopback rule.
+        resolved = await configFor(id, model);
+      } catch (error) {
+        if (error instanceof PictureError) throw error;
+        throw new PictureError('config', error instanceof ProviderNotConfiguredError ? 'that picture service is not set up here' : 'that picture service may not be called from this server');
+      }
+      const { connection, config } = resolved;
+      if (!MAKES_PICTURES.includes(connection.provider)) throw new PictureError('config', 'that connection makes no pictures');
+      const kind: PictureMakerKind = connection.provider === 'openai' ? 'openai' : 'openai-compatible';
+      // Ollama's picture route copies OpenAI's, under /v1.
+      const baseUrl = connection.provider === 'ollama' ? `${(config.baseUrl ?? 'http://localhost:11434').replace(/\/+$/, '')}/v1` : config.baseUrl;
+      const local = connection.provider === 'ollama' && !(model ?? '').endsWith(':cloud');
+      return {
+        maker: build(kind, { apiKey: config.apiKey, baseUrl }),
+        info: { id, kind, label: PICTURE_LABEL[connection.provider] ?? connection.provider, local },
+        keyHash: pictureKeyHash(connection.provider, baseUrl ?? undefined, config.apiKey),
+      };
+    },
+    savePictureKey(provider, key) {
+      const name: AiEnvName = provider === 'openai' ? 'ADMINIUM_AI_OPENAI_API_KEY' : 'ADMINIUM_AI_GOOGLE_API_KEY';
+      if (!aiEnv.writable && aiEnv.keptBy() === null) {
+        throw new ValidationFailedError(`This server keeps its keys in its environment: set ${name} there.`, { reason: 'ENV_NOT_WRITABLE' });
+      }
+      if (aiEnv.fromOperator().includes(name)) {
+        throw new ValidationFailedError(`${name} is set in this server's own environment, which wins over the project's .env. Change it there.`, { reason: 'ENV_SHADOWED', names: [name] });
+      }
+      aiEnv.write({ [name]: key });
     },
     get envWritable() {
       return aiEnv.writable;

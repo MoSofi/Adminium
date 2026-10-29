@@ -972,6 +972,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         },
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
+        pictures: { perDay: await settings.get('designer.pictures.perDay'), perDayAll: await settings.get('designer.pictures.perDayAll'), perTurn: await settings.get('designer.pictures.perTurn') },
       };
     }
 
@@ -1036,6 +1037,16 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           await settings.set(key, next as never, by);
           before[`voice.${field}`] = held;
           after[`voice.${field}`] = next;
+        }
+        // Pictures made with AI: each limit its own decision, 0 turning it off.
+        for (const [field, key] of [['perDay', 'designer.pictures.perDay'], ['perDayAll', 'designer.pictures.perDayAll'], ['perTurn', 'designer.pictures.perTurn']] as const) {
+          const next = body.pictures?.[field];
+          if (next === undefined) continue;
+          const held = await settings.get(key);
+          if (held === next) continue;
+          await settings.set(key, next, by);
+          before[`pictures.${field}`] = held;
+          after[`pictures.${field}`] = next;
         }
         // One entry for what really changed, with what it was: who let the assistant write is on record.
         if (Object.keys(after).length > 0) {

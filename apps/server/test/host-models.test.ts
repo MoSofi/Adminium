@@ -57,7 +57,8 @@ describe('with a host that keeps the keys', () => {
     expect(env.ignored().sort()).toEqual(['ADMINIUM_AI_COMPATIBLE_BASE_URL', 'ADMINIUM_AI_MODEL']);
     // Only the names a host keeps are held; the picture keys are held for their own reader.
     expect(hostModels()?.read()).toEqual({ ADMINIUM_AI_ANTHROPIC_API_KEY: KEY, ADMINIUM_AI_MODEL: 'anthropic/claude', PEXELS_API_KEY: 'px' });
-    expect(HOST_KEPT_NAMES).toHaveLength(9);
+    // Six for chat models, Gemini's for pictures, three picture sources'.
+    expect(HOST_KEPT_NAMES).toHaveLength(10);
   });
 
   it('a save goes to the host, is readable at once, and never touches the project’s .env; null takes a name away', () => {

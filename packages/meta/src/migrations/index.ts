@@ -92,6 +92,7 @@ import { up as up0067 } from './0067_email_send_ledger.js';
 import { up as up0068 } from './0068_mail_relay_secrets.js';
 import { up as up0069 } from './0069_email_run_track_clicks.js';
 import { up as up0070 } from './0070_privacy_exports.js';
+import { up as up0071 } from './0071_pictures_made.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -171,4 +172,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0068_mail_relay_secrets', up: up0068 },
   { name: '0069_email_run_track_clicks', up: up0069 },
   { name: '0070_privacy_exports', up: up0070 },
+  { name: '0071_pictures_made', up: up0071 },
 ];

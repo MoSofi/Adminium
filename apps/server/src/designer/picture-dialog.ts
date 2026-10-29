@@ -74,6 +74,11 @@ export interface PictureDialogDeps {
   shelf: PictureShelf;
   keys?: PictureKeys;
   download?: typeof downloadPicture;
+  /** Pictures made with AI: found on disk by their ids before the shelf is asked. */
+  made?: {
+    found(sessionId: string, shelf: string, picture: string): { picture: FoundPicture; bytes: Buffer; ext: 'jpg' | 'png' | 'webp'; sha256: string } | null;
+    pin(sessionId: string, shelf: string, picture: string): boolean;
+  };
   now?: () => number;
 }
 
@@ -160,6 +165,8 @@ export function createPictureDialog(deps: PictureDialogDeps): PictureDialog {
     },
     async pin(sessionId, shelf, picture, signal) {
       if (!SESSION.test(sessionId) || !SHELF.test(shelf) || !PICTURE.test(picture)) return { state: 'gone' };
+      // A made picture is kept on disk already: pinning it keeps it past a day, for the Apply.
+      if (deps.made?.pin(sessionId, shelf, picture) === true) return { state: 'kept', small: false };
       const found = deps.shelf.pin(sessionId, shelf, picture);
       if (found === null) return { state: 'gone' };
       if (found.shown !== undefined) return { state: 'kept', small: false, shown: true };
@@ -168,6 +175,8 @@ export function createPictureDialog(deps: PictureDialogDeps): PictureDialog {
     },
     async picked(sessionId, shelf, picture, signal) {
       if (!SESSION.test(sessionId) || !SHELF.test(shelf) || !PICTURE.test(picture)) return null;
+      const made = deps.made?.found(sessionId, shelf, picture) ?? null;
+      if (made !== null) return { picture: made.picture, staged: { bytes: made.bytes, ext: made.ext, small: false, sha256: made.sha256 } };
       const found = deps.shelf.find(sessionId, shelf, picture);
       if (found === null) return null;
       if (found.shown !== undefined) return { picture: found, staged: null };

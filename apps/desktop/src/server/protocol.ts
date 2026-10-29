@@ -99,7 +99,7 @@ export const serverBusyMessageSchema = z.object({
   busy: z.object({ kind: z.string().min(1), sessionId: z.string().nullable() }).nullable(),
 });
 
-/** The names of the keys the app keeps for a project's server: a model's six and the three picture sources'. */
+/** The names of the keys the app keeps for a project's server: a model's six, Gemini's for pictures, and the three picture sources'. */
 export const KEPT_KEY_NAMES = [
   'ADMINIUM_AI_ANTHROPIC_API_KEY',
   'ADMINIUM_AI_OPENAI_API_KEY',
@@ -107,6 +107,7 @@ export const KEPT_KEY_NAMES = [
   'ADMINIUM_AI_COMPATIBLE_API_KEY',
   'ADMINIUM_AI_OLLAMA_BASE_URL',
   'ADMINIUM_AI_MODEL',
+  'ADMINIUM_AI_GOOGLE_API_KEY',
   'PEXELS_API_KEY',
   'UNSPLASH_ACCESS_KEY',
   'PIXABAY_API_KEY',

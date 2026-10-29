@@ -31,6 +31,8 @@ export const AI_ENV_NAMES = [
   'ADMINIUM_AI_COMPATIBLE_API_KEY',
   'ADMINIUM_AI_OLLAMA_BASE_URL',
   'ADMINIUM_AI_MODEL',
+  // A key for Gemini's pictures only: no chat connection, but a key like the others, kept out of the environment.
+  'ADMINIUM_AI_GOOGLE_API_KEY',
 ] as const;
 export type AiEnvName = (typeof AI_ENV_NAMES)[number];
 

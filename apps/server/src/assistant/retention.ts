@@ -21,7 +21,7 @@
  * anything that was SAVED outlives it and is the durable record.
  */
 
-import { assistantSessionsRepo, assistantUseDay, assistantUseRepo, settingsRepo, DAY_MS, type MetaDb } from '@adminium/meta';
+import { assistantSessionsRepo, assistantUseDay, assistantUseRepo, pictureUseRepo, settingsRepo, DAY_MS, type MetaDb } from '@adminium/meta';
 
 /** How long an open session may sit untouched before the sweep closes it. */
 export const ABANDONED_SESSION_MS = DAY_MS;
@@ -60,5 +60,7 @@ export async function sweepAssistantSessions(
   // What each person used on a day is held against that day's allowance and nothing later;
   // the rows are kept as long as the conversations are, then dropped.
   await assistantUseRepo(meta).purgeBefore(assistantUseDay(at - days * DAY_MS));
+  // Pictures made with AI by everybody, a day at a time: each person's count goes with their row above.
+  await pictureUseRepo(meta).purgeBefore(assistantUseDay(at - days * DAY_MS));
   return { closed, deleted: purged.sessions, turns: purged.turns };
 }

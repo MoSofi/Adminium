@@ -1907,6 +1907,9 @@
                         "canImport": {
                           "type": "boolean"
                         },
+                        "canExport": {
+                          "type": "boolean"
+                        },
                         "prefs": {
                           "type": "object",
                           "properties": {
@@ -3549,6 +3552,7 @@
                         "pagesWithheld",
                         "hasConnections",
                         "canImport",
+                        "canExport",
                         "prefs",
                         "nav",
                         "version",
@@ -153585,6 +153589,26 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "pictures": {
+                      "type": "object",
+                      "properties": {
+                        "perDay": {
+                          "type": "number"
+                        },
+                        "perDayAll": {
+                          "type": "number"
+                        },
+                        "perTurn": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "perDay",
+                        "perDayAll",
+                        "perTurn"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -153595,7 +153619,8 @@
                     "staffAddresses",
                     "voice",
                     "today",
-                    "roles"
+                    "roles",
+                    "pictures"
                   ],
                   "additionalProperties": false
                 }
@@ -153656,6 +153681,27 @@
                       },
                       "output": {
                         "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "pictures": {
+                    "type": "object",
+                    "properties": {
+                      "perDay": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000
+                      },
+                      "perDayAll": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100000
+                      },
+                      "perTurn": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 50
                       }
                     },
                     "additionalProperties": false
@@ -153800,6 +153846,26 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "pictures": {
+                      "type": "object",
+                      "properties": {
+                        "perDay": {
+                          "type": "number"
+                        },
+                        "perDayAll": {
+                          "type": "number"
+                        },
+                        "perTurn": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "perDay",
+                        "perDayAll",
+                        "perTurn"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -153810,7 +153876,8 @@
                     "staffAddresses",
                     "voice",
                     "today",
-                    "roles"
+                    "roles",
+                    "pictures"
                   ],
                   "additionalProperties": false
                 }

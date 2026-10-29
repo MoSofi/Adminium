@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { outboundFetch, requestJson, scrubCause, scrubSecret, setOutboundFetch } from './http.js';
+import { outboundFetch, requestJson, RESPONSE_MAX_BYTES, scrubCause, scrubSecret, setOutboundFetch } from './http.js';
 import { ProviderError } from './types.js';
 
 afterEach(() => {
@@ -155,3 +155,26 @@ describe('the host’s choice of fetch for an address', () => {
   });
 });
 
+
+describe('requestJson reads no more than its bound', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('stops a long answer on the success path and the error path', async () => {
+    const long = JSON.stringify({ text: 'x'.repeat(4096) });
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(long, { status: 200 }))));
+    await expect(requestJson({ provider: 'openai', url: 'https://api.openai.com/v1/x', maxBytes: 1024 })).rejects.toMatchObject({ code: 'bad_response' });
+    expect(await requestJson({ provider: 'openai', url: 'https://api.openai.com/v1/x', maxBytes: 8192 })).toEqual({ text: 'x'.repeat(4096) });
+    // An error answer past its own bound is not read: its status alone is said.
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response('e'.repeat(200 * 1024), { status: 500 }))));
+    const error = await requestJson({ provider: 'openai', url: 'https://api.openai.com/v1/x' }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect((error as ProviderError).message).toBe('openai: HTTP 500');
+  });
+
+  it('refuses an answer whose stated length is over the bound without reading it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response('{}', { status: 200, headers: { 'content-length': String(RESPONSE_MAX_BYTES + 1) } }))));
+    await expect(requestJson({ provider: 'openai', url: 'https://api.openai.com/v1/x' })).rejects.toMatchObject({ code: 'bad_response' });
+  });
+});

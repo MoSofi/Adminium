@@ -813,7 +813,7 @@ describe('the build page', () => {
   it('asks for the pictures of the spots a design made, and the chip in the saved row opens the dialog with what is left to fill', async () => {
     picturesView = {
       ownBuild: false,
-      spots: [{ id: 'hero', label: 'Hero', shape: 'wide', shows: 'a dish', search: 'fried chicken', version: 'a1', thumb: null, alt: '', decorative: false, licence: null }],
+      spots: [{ id: 'hero', label: 'Hero', shape: 'wide', shows: 'a dish', search: 'fried chicken', words: 'fried chicken, photo, natural light, no text', version: 'a1', thumb: null, alt: '', decorative: false, licence: null }],
       tables: [],
       inApp: [],
       mode: 'choose',
@@ -840,10 +840,10 @@ describe('the build page', () => {
   });
 
   it('keeps a way to the pictures in the top bar after one picture is applied, while a turn runs, and at none to fill', async () => {
-    const cakes = { table: 'cakes', label: 'Cake', column: 'picture', rows: [1, 2, 3, 4, 5, 6].map((row) => ({ row, label: `Cake ${String(row)}`, version: `r${String(row)}`, thumb: null as string | null })) };
+    const cakes = { table: 'cakes', label: 'Cake', column: 'picture', people: false, groups: [], rows: [1, 2, 3, 4, 5, 6].map((row) => ({ row, label: `Cake ${String(row)}`, version: `r${String(row)}`, thumb: null as string | null, words: `Cake ${String(row)}` })) };
     let view: PicturesView = {
       ownBuild: false,
-      spots: [{ id: 'hero', label: 'Front page picture', shape: 'wide', shows: 'a cake', search: 'homemade cake bakery', version: 'a1', thumb: null, alt: '', decorative: false, licence: null }],
+      spots: [{ id: 'hero', label: 'Front page picture', shape: 'wide', shows: 'a cake', search: 'homemade cake bakery', words: 'homemade cake bakery, photo, natural light, no text', version: 'a1', thumb: null, alt: '', decorative: false, licence: null }],
       tables: [cakes],
       inApp: [],
       mode: 'placeholders',

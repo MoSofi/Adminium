@@ -2389,6 +2389,16 @@
       "saveFailed": "Could not save that. Try again.",
       "aloud": "{name} reads its replies aloud",
       "aloudWhat": "Uses the browser’s own voices. Each person switches it on for themselves."
+    },
+    "pictures": {
+      "saveFailed": "Could not save that. Try again.",
+      "perDay": "Pictures a person may make in a day",
+      "perDayAll": "Pictures everybody together may make in a day",
+      "perTurn": "Pictures one Designer chat turn may make",
+      "title": "Pictures made with AI",
+      "what": "Each picture the Designer makes is charged to the account of the key it is made with. The service is chosen in the Designer’s picture dialog.",
+      "zero": "0 turns making pictures off",
+      "save": "Save"
     }
   },
   "settingsHub": {

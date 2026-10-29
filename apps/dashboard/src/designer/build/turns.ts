@@ -10,7 +10,7 @@
  * files"); the header still counts every step. The end-of-turn check, build
  * and apply join the list as rows of their own.
  */
-import type { DesignerAttachment, DesignerCard, DesignerPicked, DesignerEvent, FolderHold, LimitKind, SpendMark, StepFacts, TurnOutcome } from '../api.js';
+import type { DesignerAttachment, DesignerCard, DesignerPicked, DesignerEvent, FolderHold, LimitKind, MakeJob, SpendMark, StepFacts, TurnOutcome } from '../api.js';
 
 export interface StepRow extends StepFacts {
   id: string;
@@ -35,7 +35,9 @@ export interface CardView {
 export type PictureLine =
   | { kind: 'applied'; names: string[]; version: { n: number; name: string } | null }
   | { kind: 'undone'; to: number }
-  | { kind: 'note'; note: 'placeholders' | 'still-empty'; count: number };
+  | { kind: 'note'; note: 'placeholders' | 'still-empty'; count: number }
+  /** Pictures the Designer made with AI in this turn and put in place. */
+  | { kind: 'made'; job: MakeJob };
 
 export interface TurnView {
   turn: number;
@@ -289,6 +291,10 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
         break;
       case 'pictures-note':
         turn.pictures.push({ kind: 'note', note: event.note, count: event.count });
+        break;
+      // Only the chat's own make is said under its reply; the dialog's progress is the dialog's (`by: 'person'`, above).
+      case 'picture-make':
+        turn.pictures.push({ kind: 'made', job: event.job });
         break;
       case 'stopped':
         break;

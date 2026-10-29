@@ -587,7 +587,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           )}
           {turn.style === null ? null : <StyleChip title={turn.style.title} fontsLater={turn.style.fonts.length > 0} />}
         </DesignerMessage>
-        <PictureLines lines={turn.pictures} />
+        <PictureLines lines={turn.pictures} sessionId={sessionId} />
       </div>
     );
   };

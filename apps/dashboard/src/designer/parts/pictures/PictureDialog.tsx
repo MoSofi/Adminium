@@ -20,7 +20,7 @@
  * select, three tiles a row, and the details replace the grid.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUpRight, ChevronDown, ChevronRight, ChevronUp, CircleAlert, CloudOff, Globe, Hourglass, ImageUp, Images, Info, KeyRound, LayoutTemplate, ListFilter, LoaderCircle, Replace, Search, SearchX, TriangleAlert, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronDown, ChevronRight, ChevronUp, CircleAlert, CloudOff, Globe, Hourglass, ImageUp, Images, Info, KeyRound, LayoutTemplate, ListFilter, LoaderCircle, Replace, Search, SearchX, Sparkles, TriangleAlert, Upload, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Modal, ModalHeader, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 import { PictureGrid, type GridAspect, type GridTile } from '@adminium/widgets';
@@ -28,7 +28,8 @@ import { PictureGrid, type GridAspect, type GridTile } from '@adminium/widgets';
 import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
 import { useAppToasts } from '../../../pages/toasts.js';
-import { designerApi, designerKeys, type FoundPicture, type LicenceCode, type PictureFill, type PictureShape, type PictureSourceName, type PicturesApplied, type PicturesMode, type PicturesView } from '../../api.js';
+import { designerApi, designerKeys, type FoundPicture, type LicenceCode, type MadePicture, type PictureFill, type PictureShape, type PictureSourceName, type PicturesApplied, type PicturesMode, type PicturesView } from '../../api.js';
+import { MakePanel, type MadePut, type MakeTableInfo } from './MakePanel.js';
 import { badgeOf, DEFAULT_BADGES, LicenceBadgePill, licenceName, licenceSentence, type SearchBadge } from './licence.js';
 import { keysButtonLabel, PictureKeysPanel } from './pictureKeys.js';
 
@@ -61,6 +62,8 @@ interface Target {
   thumb: string | null;
   /** What to search with first. */
   search: string;
+  /** What a picture made with AI starts from. */
+  words: string;
   spot?: string;
   row?: { table: string; row: number };
 }
@@ -102,6 +105,9 @@ const shapeOption = (shape: PictureShape): string =>
   shape === 'wide' ? t('designer:pictureDialog.shapeOption.wide', 'Wide') : shape === 'square' ? t('designer:pictureDialog.shapeOption.square', 'Square') : t('designer:pictureDialog.shapeOption.tall', 'Tall');
 const aspectOf = (shape: PictureShape): GridAspect => (shape === 'wide' ? 'wide' : shape === 'square' ? 'square' : 'tall');
 
+/** A picked picture's first words for people who cannot see it: a made picture's subject, as our code wrote it, else its title. */
+const altOf = (picture: FoundPicture): string => (picture.made === undefined ? picture.title : (picture.made.words.split(',')[0] ?? '').trim() || picture.title);
+
 /** A grey frame, hatched: a spot with no picture. */
 const HATCH = 'border border-border-strong bg-[repeating-linear-gradient(135deg,var(--color-surface-3)_0_4px,var(--color-surface-2)_4px_8px)]';
 
@@ -123,6 +129,8 @@ export interface PictureDialogProps {
   swapping: boolean;
   /** Where focus goes when the dialog closes: what opened it. */
   returnFocus?: (() => void) | undefined;
+  /** The tab it opens on: search, unless said (a story of the Make one tab). */
+  initialTab?: 'search' | 'upload' | 'app' | 'make' | undefined;
 }
 
 export function PictureDialog(props: PictureDialogProps): ReactNode {
@@ -150,7 +158,7 @@ export function PictureDialog(props: PictureDialogProps): ReactNode {
   );
 }
 
-function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, onApplied, onSwappable, swapping, phone, closing }: PictureDialogProps & { phone: boolean; closing: { current: (() => void) | null } }): ReactNode {
+function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, onApplied, onSwappable, swapping, phone, closing, initialTab }: PictureDialogProps & { phone: boolean; closing: { current: (() => void) | null } }): ReactNode {
   const ids = useId();
   const toasts = useAppToasts();
   const queryClient = useQueryClient();
@@ -161,11 +169,11 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
   const targets = useMemo((): { page: Target[]; tables: { table: string; label: string; rows: Target[] }[] } => {
     if (data === undefined) return { page: [], tables: [] };
     return {
-      page: data.spots.map((spot) => ({ key: `spot:${spot.id}`, name: spot.label, shape: spot.shape, version: spot.version, thumb: spot.thumb, search: spot.search || spot.shows, spot: spot.id })),
+      page: data.spots.map((spot) => ({ key: `spot:${spot.id}`, name: spot.label, shape: spot.shape, version: spot.version, thumb: spot.thumb, search: spot.search || spot.shows, words: spot.words, spot: spot.id })),
       tables: data.tables.map((table) => ({
         table: table.table,
         label: table.label,
-        rows: table.rows.map((row) => ({ key: `row:${table.table}:${String(row.row)}`, name: row.label, shape: 'square' as const, version: row.version, thumb: row.thumb, search: row.label, row: { table: table.table, row: row.row } })),
+        rows: table.rows.map((row) => ({ key: `row:${table.table}:${String(row.row)}`, name: row.label, shape: 'square' as const, version: row.version, thumb: row.thumb, search: row.label, words: row.words, row: { table: table.table, row: row.row } })),
       })),
     };
   }, [data]);
@@ -184,7 +192,10 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
   const setPick = (key: string, patch: Partial<Pick>): void => setPicks((before) => before.map((pick) => (pick.target === key ? { ...pick, ...patch } : pick)));
 
   // ── where a picture comes from ─────────────────────────────────────────────
-  const [tab, setTab] = useState<'search' | 'upload' | 'app'>('search');
+  const [tab, setTab] = useState<'search' | 'upload' | 'app' | 'make'>(initialTab ?? 'search');
+  /** The pictures the Make one tab shows, as tiles. */
+  const [madeShown, setMadeShown] = useState<readonly MadePicture[]>([]);
+  const [making, setMaking] = useState(false);
   const sources = (data?.sources ?? []).filter((source) => !(source.name === 'Unsplash' && data?.unsplash === 'closed'));
   const unsplashClosed = data !== undefined && data.unsplash === 'closed' && data.sources.some((source) => source.name === 'Unsplash');
   const [source, setSource] = useState<PictureSourceName | null>(null);
@@ -263,7 +274,9 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
         : []
       : tab === 'app'
         ? appItems.map((item) => ({ id: item.key, src: item.thumb, name: t('designer:pictureDialog.tileApp', '{name}, {badge}', { name: item.name, badge: licenceName(item.licence) }), title: item.name, open: opened?.kind === 'app' && opened.key === item.key }))
-        : [];
+        : tab === 'make'
+          ? madeShown.map((picture) => tileOf(picture, picture.shelf))
+          : [];
   const tileId = (index: number): string => `${ids}-tile-${String(index)}`;
   const focusSoon = (id: string): void => {
     // After the frame that draws it: focus moves 40 ms on, as every dialog of the product does.
@@ -275,6 +288,9 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
     if (tab === 'search' && found.state === 'ok') {
       const picture = visible[index];
       if (picture !== undefined) setOpened({ kind: 'found', picture, shelf: found.shelf });
+    } else if (tab === 'make') {
+      const picture = madeShown[index];
+      if (picture !== undefined) setOpened({ kind: 'found', picture, shelf: picture.shelf });
     } else if (tab === 'app') {
       const item = appItems[index];
       if (item !== undefined) setOpened({ kind: 'app', key: item.key, name: item.name, thumb: item.thumb, licence: item.licence });
@@ -294,7 +310,7 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
       const { picture, shelf } = opened;
       setPicks((before) => [
         ...before.filter((pick) => pick.target !== key),
-        { ...base, from: { shelf, picture: picture.id }, title: picture.title, creator: picture.creator, licence: picture.licence.code, thumb: designerApi.pictureThumbUrl(sessionId, shelf, picture.id), alt: picture.title },
+        { ...base, from: { shelf, picture: picture.id }, title: picture.title, creator: picture.creator, licence: picture.licence.code, thumb: designerApi.pictureThumbUrl(sessionId, shelf, picture.id), alt: altOf(picture) },
       ]);
       // Kept for the session, and its bytes fetched now: a small copy is said on its row before Apply.
       void designerApi
@@ -309,6 +325,35 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
     toasts.push({ variant: 'info', title: t('designer:pictureDialog.added', '{spot} is in what changes.', { spot: target.name }) });
     closePane();
   };
+
+  /** Pictures made for a spot, a row or a group, put in "what changes" on their targets: kept for the Apply. */
+  const putMade = (puts: readonly MadePut[]): void => {
+    const known = puts.filter((one) => all.some((candidate) => candidate.key === one.targetKey));
+    if (known.length === 0) return;
+    setPicks((before) => [
+      ...before.filter((pick) => !known.some((one) => one.targetKey === pick.target)),
+      ...known.map(({ targetKey, picture }): Pick => ({
+        target: targetKey,
+        from: { shelf: picture.shelf, picture: picture.id },
+        placeholder: false,
+        title: picture.title,
+        creator: picture.creator,
+        licence: 'made',
+        thumb: designerApi.pictureThumbUrl(sessionId, picture.shelf, picture.id),
+        alt: altOf(picture),
+        decorative: false,
+        flag: null,
+      })),
+    ]);
+    for (const picture of new Set(known.map((one) => one.picture))) void designerApi.pinPicture(sessionId, picture.shelf, picture.id).catch(() => undefined);
+  };
+  const tableOfTarget: MakeTableInfo | null = (() => {
+    const row = target?.row;
+    if (row === undefined) return null;
+    const table = data?.tables.find((one) => one.table === row.table);
+    const listed = targets.tables.find((one) => one.table === row.table);
+    return table === undefined || listed === undefined ? null : { table: table.table, label: table.label, people: table.people, groups: table.groups, rows: listed.rows };
+  })();
 
   const onUpload = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return;
@@ -405,6 +450,8 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
       focusSoon(`${ids}-keep`);
       return;
     }
+    // A make goes on when the dialog closes: what it makes waits in Made earlier.
+    if (making) toasts.push({ variant: 'info', title: t('designer:pictureDialog.make.stillMaking', 'Still making pictures. They will be in Made earlier.') });
     onOpenChange(false);
   };
   closing.current = tryClose;
@@ -835,6 +882,20 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
     </div>
   );
 
+  const makePanel = (
+    <MakePanel
+      sessionId={sessionId}
+      target={target}
+      table={tableOfTarget}
+      ids={ids}
+      onShown={setMadeShown}
+      grid={(label) => grid(aspectOf(target?.shape ?? 'wide'), label)}
+      message={message}
+      onPut={putMade}
+      onRunning={setMaking}
+    />
+  );
+
   const appPanel = appItems.length === 0 ? message({ icon: <Images className="size-[18px]" />, text: t('designer:pictureDialog.appEmpty', 'No pictures in this app yet.') }) : grid('wide', t('designer:pictureDialog.results', 'Pictures for {spot}', { spot: target?.name ?? '' }));
 
   const pane =
@@ -895,6 +956,10 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
               <TabsTrigger value="search">{t('designer:pictureDialog.tabSearch', 'Search pictures')}</TabsTrigger>
               <TabsTrigger value="upload">{t('designer:pictureDialog.tabUpload', 'Upload')}</TabsTrigger>
               <TabsTrigger value="app">{t('designer:pictureDialog.tabApp', 'Already in this app')}</TabsTrigger>
+              <TabsTrigger value="make" className="gap-1.5">
+                <Sparkles aria-hidden="true" className="size-3.5" />
+                {t('designer:pictureDialog.tabMake', 'Make one')}
+              </TabsTrigger>
             </TabsList>
             {phone && pane !== null ? (
               pane
@@ -909,6 +974,9 @@ function DialogBody({ sessionId, onOpenChange, appName, spot: openOn, working, o
                 </TabsContent>
                 <TabsContent value="app" className="nb-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-5 pb-5 pt-4">
                   {appPanel}
+                </TabsContent>
+                <TabsContent value="make" className="nb-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-5 pb-5 pt-4">
+                  {makePanel}
                 </TabsContent>
               </>
             )}
@@ -1029,7 +1097,8 @@ function DetailsPane({
   const sentence = licenceSentence(code);
   const title = opened.kind === 'found' ? opened.picture.title : opened.name;
   const src = opened.kind === 'found' ? designerApi.pictureThumbUrl(sessionId, opened.shelf, opened.picture.id) : opened.thumb;
-  const sourceName = opened.kind === 'found' ? opened.picture.source : code === 'template' ? t('designer:pictureDialog.fromTemplate', 'Your template') : t('designer:pictureDialog.uploaded', 'Uploaded');
+  const made = opened.kind === 'found' ? opened.picture.made : undefined;
+  const sourceName = made !== undefined ? made.label : opened.kind === 'found' ? opened.picture.source : code === 'template' ? t('designer:pictureDialog.fromTemplate', 'Your template') : t('designer:pictureDialog.uploaded', 'Uploaded');
   return (
     <div role="region" aria-labelledby={headingId} className="nb-scroll flex min-h-0 flex-1 flex-col overflow-auto bg-surface">
       <div className="flex shrink-0 items-center gap-2 border-b border-border py-2 pe-2.5 ps-4">
@@ -1054,9 +1123,9 @@ function DetailsPane({
           </h3>
           {web ? <div className="text-body-sm text-fg-muted">{t('designer:pictureDialog.by', 'by {creator}', { creator: opened.picture.creator })}</div> : null}
           <div className="flex flex-wrap items-center gap-1.5 text-caption text-fg-subtle">
-            {web ? <Globe aria-hidden="true" className="size-[13px]" /> : code === 'template' ? <LayoutTemplate aria-hidden="true" className="size-[13px]" /> : <Upload aria-hidden="true" className="size-[13px]" />}
+            {made !== undefined ? <Sparkles aria-hidden="true" className="size-[13px]" /> : web ? <Globe aria-hidden="true" className="size-[13px]" /> : code === 'template' ? <LayoutTemplate aria-hidden="true" className="size-[13px]" /> : <Upload aria-hidden="true" className="size-[13px]" />}
             <span className="font-bold">{sourceName}</span>
-            {web && badgeOf(opened.picture.licence.code) !== 'host' ? (
+            {web && made === undefined && badgeOf(opened.picture.licence.code) !== 'host' ? (
               <>
                 <span aria-hidden="true">·</span>
                 <span dir="ltr" className="font-mono font-semibold">
@@ -1070,6 +1139,14 @@ function DetailsPane({
           <LicenceBadgePill code={code} />
           {sentence === null ? null : <p className="m-0 text-pretty text-body-sm">{sentence}</p>}
         </div>
+        {made === undefined ? null : (
+          <div className="flex flex-col gap-1">
+            <span className="text-caption font-bold text-fg-muted">{t('designer:pictureDialog.make.wordsUsed', 'Made from these words')}</span>
+            <p dir="auto" className="m-0 rounded-[10px] bg-surface-2 px-3 py-2 text-body-sm">
+              {made.words}
+            </p>
+          </div>
+        )}
         {web && opened.picture.page !== '' ? (
           <a href={opened.picture.page} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-[5px] self-start text-body-sm font-bold text-accent">
             {t('designer:pictureDialog.openPage', 'Open the picture’s own page')}
@@ -1079,7 +1156,7 @@ function DetailsPane({
         <div className="flex flex-col gap-1.5 rounded-[10px] border border-border bg-surface-2 px-3 py-2.5">
           <div className="flex items-start gap-2 text-body-sm text-fg-muted">
             <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
-            <span>{t('designer:pictureDialog.note', 'A licence covers the photo, not the people, logos or art in it.')}</span>
+            <span>{made !== undefined ? t('designer:pictureDialog.make.note', 'A made picture shows nothing real. Replace pictures of what you sell with photos of your own before you open.') : t('designer:pictureDialog.note', 'A licence covers the photo, not the people, logos or art in it.')}</span>
           </div>
           <button type="button" aria-expanded={moreAbout} aria-controls={moreId} onClick={onMoreAbout} className="nb-ib ms-4 inline-flex items-center gap-[5px] self-start rounded-[6px] px-1.5 py-[3px] text-xs font-bold text-fg">
             {moreAbout ? <ChevronDown aria-hidden="true" className="size-[13px]" /> : <ChevronRight aria-hidden="true" className="size-[13px] rtl:-scale-x-100" />}

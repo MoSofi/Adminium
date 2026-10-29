@@ -2399,6 +2399,16 @@ export default {
       "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
       "aloud": "{name} liest Antworten vor",
       "aloudWhat": "Verwendet die Stimmen des Browsers. Jede Person schaltet es für sich selbst ein."
+    },
+    "pictures": {
+      "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+      "perDay": "Bilder, die eine Person pro Tag erstellen darf",
+      "perDayAll": "Bilder, die alle zusammen pro Tag erstellen dürfen",
+      "perTurn": "Bilder, die eine Runde im Designer-Chat erstellen darf",
+      "title": "Mit KI erstellte Bilder",
+      "what": "Jedes Bild, das der Designer erstellt, wird dem Konto des Schlüssels berechnet, mit dem es erstellt wird. Der Dienst wird im Bilderdialog des Designers ausgewählt.",
+      "zero": "0 schaltet das Erstellen von Bildern aus",
+      "save": "Speichern"
     }
   },
   "settingsHub": {

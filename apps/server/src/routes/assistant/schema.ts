@@ -328,6 +328,8 @@ export const assistantSettingsReply = z.object({
   }),
   /** The roles that may use the assistant (the role matrix is where that is set). */
   roles: z.array(z.object({ id: z.string(), name: z.string() })),
+  /** Pictures made with AI in the Designer: a person's day, everybody's, a chat turn's. 0 turns each off. */
+  pictures: z.object({ perDay: z.number(), perDayAll: z.number(), perTurn: z.number() }),
 });
 
 /** Each field is its own decision: what is left out is left as it is. */
@@ -338,6 +340,7 @@ export const assistantSettingsPutBody = z
     maxRows: z.number().int().min(1).max(ASSISTANT_MAX_ROWS_CEILING).optional(),
     staffAddresses: z.boolean().optional(),
     voice: z.object({ input: z.boolean(), dailyMinutes: z.number().int().min(0).max(1_440), output: z.boolean() }).partial().strict().optional(),
+    pictures: z.object({ perDay: z.number().int().min(0).max(10_000), perDayAll: z.number().int().min(0).max(100_000), perTurn: z.number().int().min(0).max(50) }).partial().strict().optional(),
   })
   .strict();
 

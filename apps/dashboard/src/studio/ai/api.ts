@@ -132,6 +132,8 @@ export interface AssistantSettings {
   staffAddresses: boolean;
   /** Voice: speaking to the assistant, the minutes a person may in a day (0 = no limit), reading aloud, and who writes a recording down here. */
   voice: { input: boolean; dailyMinutes: number; output: boolean; writtenBy: 'provider' | 'browser' };
+  /** Pictures made with AI in the Designer: a person's day, everybody's, a chat turn's. 0 turns each off. */
+  pictures: { perDay: number; perDayAll: number; perTurn: number };
   today: {
     day: string;
     /** The instant the day's use starts again (epoch ms). */
@@ -338,7 +340,7 @@ export const aiApi = {
   /** The assistant's allowance and today's use. Needs the settings permission, not the model's. */
   getAssistantSettings: () => api.get<AssistantSettings>('/api/v1/assistant/settings'),
   /** Each field is its own decision: what is left out is left as it is. */
-  putAssistantSettings: (body: { dailyTokens?: number; abilities?: Partial<AssistantAbilities>; maxRows?: number; staffAddresses?: boolean; voice?: { input?: boolean; dailyMinutes?: number; output?: boolean } }) =>
+  putAssistantSettings: (body: { dailyTokens?: number; abilities?: Partial<AssistantAbilities>; maxRows?: number; staffAddresses?: boolean; voice?: { input?: boolean; dailyMinutes?: number; output?: boolean }; pictures?: { perDay?: number; perDayAll?: number; perTurn?: number } }) =>
     api.put<AssistantSettings>('/api/v1/assistant/settings', body),
 
   /** One small turn in the assistant's reply format, with one tool: can the saved model run it? */

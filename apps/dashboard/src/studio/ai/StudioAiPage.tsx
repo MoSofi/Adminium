@@ -44,6 +44,7 @@ import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
 import { holdsSystemAction, bootstrapQuery } from '../../app/bootstrap.js';
 import { AbilitiesCard } from './AbilitiesCard.js';
+import { PicturesCard } from './PicturesCard.js';
 import { VoiceCard } from './VoiceCard.js';
 import { AllowanceCard } from './AllowanceCard.js';
 import { AssistantCard } from './AssistantCard.js';
@@ -367,6 +368,7 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
       {mayManageSettings ? <AbilitiesCard name={config.assistantName} /> : null}
       {mayManageSettings ? <VoiceCard name={config.assistantName} /> : null}
       {mayManageSettings ? <AllowanceCard name={config.assistantName} /> : null}
+      {mayManageSettings ? <PicturesCard /> : null}
       <DesignerLiveCard />
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
     </PageSurface>

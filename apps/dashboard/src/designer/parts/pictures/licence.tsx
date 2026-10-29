@@ -2,16 +2,17 @@
 /**
  * A picture's licence, as the person reads it: four badges for pictures a
  * search found, two neutral ones for pictures that came from the person or
- * their template, each with the one sentence of what it asks. The badge is
+ * their template, and one for a picture made with AI, each with
+ * the one sentence of what it asks. The badge is
  * decided by the server from the source's own code; the words are here.
  */
-import { CircleCheck, LayoutTemplate, Repeat, Upload, UserRound } from 'lucide-react';
+import { CircleCheck, LayoutTemplate, Repeat, Sparkles, Upload, UserRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { t } from '../../../i18n/t.js';
 import type { LicenceCode } from '../../api.js';
 
-export type LicenceBadge = 'no-credit' | 'host' | 'credit' | 'credit-same' | 'own' | 'template';
+export type LicenceBadge = 'no-credit' | 'host' | 'credit' | 'credit-same' | 'own' | 'template' | 'made';
 /** The badges a search may be narrowed to, in the order the filter shows them. */
 export const SEARCH_BADGES = ['no-credit', 'host', 'credit', 'credit-same'] as const satisfies readonly LicenceBadge[];
 export type SearchBadge = (typeof SEARCH_BADGES)[number];
@@ -44,6 +45,8 @@ export function badgeName(badge: LicenceBadge, source: string): string {
       return t('designer:pictureDialog.badge.own', 'Your picture');
     case 'template':
       return t('designer:pictureDialog.badge.template', 'From your template');
+    case 'made':
+      return t('designer:pictureDialog.badge.made', 'Made with AI');
   }
 }
 
@@ -62,6 +65,8 @@ export function badgeSentence(badge: LicenceBadge, source: string): string | nul
       return null;
     case 'template':
       return t('designer:pictureDialog.sentence.template', 'Its licence is the template’s. Check the template’s licence file.');
+    case 'made':
+      return t('designer:pictureDialog.sentence.made', 'Made with AI from words. Check the service’s terms before you sell it as it is.');
   }
 }
 
@@ -72,6 +77,7 @@ const TONE: Readonly<Record<LicenceBadge, string>> = {
   'credit-same': 'bg-warn-soft text-warn',
   own: 'bg-surface-3 text-fg-muted',
   template: 'bg-surface-3 text-fg-muted',
+  made: 'bg-surface-3 text-fg-muted',
 };
 
 const ICON: Readonly<Record<LicenceBadge, ReactNode>> = {
@@ -81,6 +87,7 @@ const ICON: Readonly<Record<LicenceBadge, ReactNode>> = {
   'credit-same': <Repeat aria-hidden="true" className="size-3" />,
   own: <Upload aria-hidden="true" className="size-3" />,
   template: <LayoutTemplate aria-hidden="true" className="size-3" />,
+  made: <Sparkles aria-hidden="true" className="size-3" />,
 };
 
 /** A licence's badge: a pill in its tone, with its icon. */

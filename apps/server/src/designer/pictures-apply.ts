@@ -32,6 +32,7 @@ import { hasOwnBuild } from '../project/apps/own-build.js';
 import { DEFAULT_LOOK } from '../project/apps/scaffold-app.js';
 import { appDir, SIDES } from '../project/apps/read-app.js';
 import type { Attachments } from './attachments.js';
+import { holdsPeople, pictureWords } from './picture-words.js';
 import type { LicenceCode } from './licences.js';
 import { creditOf, UNSPLASH_HOST, type FoundPicture, type PictureCredit, type PictureShape } from './pictures.js';
 import type { PictureDialog } from './picture-dialog.js';
@@ -74,6 +75,8 @@ export interface DialogSpot {
   version: string;
   /** Where its picture is shown from in the dialog; null for a wireframe. */
   thumb: string | null;
+  /** The words a picture made with AI starts from, by plain code. */
+  words: string;
   alt: string;
   decorative: boolean;
   licence: { code: LicenceCode; name: string; title: string; creator: string } | null;
@@ -84,6 +87,15 @@ export interface DialogRow {
   label: string;
   version: string;
   thumb: string | null;
+  /** The words a picture made for this row starts from: no row name in it for a table of people. */
+  words: string;
+}
+
+/** A column whose sample rows share a few values: "one picture for each" of them. */
+export interface DialogGroup {
+  column: string;
+  label: string;
+  values: { value: string; rows: number[]; words: string }[];
 }
 
 export interface DialogTable {
@@ -91,6 +103,9 @@ export interface DialogTable {
   label: string;
   column: string;
   rows: DialogRow[];
+  /** The table holds people: their names are never sent to make a picture. */
+  people: boolean;
+  groups: DialogGroup[];
 }
 
 export interface InAppPicture {
@@ -124,18 +139,41 @@ function readBundle(root: string, key: string): Bundle | null {
 /** A sample row's picture as it is now: the version an Apply names, so a row someone changed is not written over. */
 export const rowVersion = (value: unknown): string => sha(JSON.stringify(value ?? null)).slice(0, 16);
 
+/** The app's name and what the person said of its look: what a made picture's words say it is for. */
+function appWords(root: string, key: string, version: string): { name: string; look: string } {
+  const manifest = checkApp(root, key, { version }).manifest;
+  const raw = (manifest as { name?: unknown } | null)?.name;
+  const name = typeof raw === 'string' ? raw : typeof (raw as Record<string, unknown> | undefined)?.['en-US'] === 'string' ? ((raw as Record<string, string>)['en-US'] as string) : '';
+  let look = '';
+  try {
+    const parsed = JSON.parse(readFileSync(join(appDir(root, key), 'look.json'), 'utf8')) as { words?: unknown };
+    if (typeof parsed.words === 'string') look = parsed.words;
+  } catch {
+    // No look, or one that does not read: the words say nothing of it.
+  }
+  return { name, look };
+}
+
 /** The tables whose sample rows take a picture: a text column marked as a picture, with sample rows. */
-export function pictureTables(root: string, key: string, version: string): { table: string; label: string; column: string; labelColumn: string | null }[] {
+export function pictureTables(root: string, key: string, version: string): { table: string; label: string; column: string; labelColumn: string | null; columns: { ref: string; label: string; type: string; semantic?: string }[] }[] {
   const manifest = checkApp(root, key, { version }).manifest;
   if (manifest === null || manifest.kind !== 'app') return [];
-  const out: { table: string; label: string; column: string; labelColumn: string | null }[] = [];
+  const out: { table: string; label: string; column: string; labelColumn: string | null; columns: { ref: string; label: string; type: string; semantic?: string }[] }[] = [];
   for (const table of manifest.requiredSchema?.tables ?? []) {
     const column = table.columns.find((candidate) => candidate.type === 'text' && 'semantic' in candidate && candidate.semantic === 'image');
     if (column === undefined) continue;
     const named = ['name', 'title', 'label'].find((ref) => table.columns.some((candidate) => candidate.ref === ref && candidate.type === 'text'));
     const text = table.columns.find((candidate) => candidate.type === 'text' && candidate.ref !== column.ref && !('semantic' in candidate && candidate.semantic === 'image'));
     const label = typeof table.label === 'string' ? table.label : typeof (table.label as Record<string, unknown> | undefined)?.['en-US'] === 'string' ? ((table.label as Record<string, string>)['en-US'] as string) : table.ref;
-    out.push({ table: table.ref, label, column: column.ref, labelColumn: named ?? text?.ref ?? null });
+    const columnLabel = (candidate: { ref: string; label?: unknown }): string =>
+      typeof candidate.label === 'string' ? candidate.label : typeof (candidate.label as Record<string, unknown> | undefined)?.['en-US'] === 'string' ? ((candidate.label as Record<string, string>)['en-US'] as string) : candidate.ref;
+    const columns = table.columns.map((candidate) => ({
+      ref: candidate.ref,
+      label: columnLabel(candidate as { ref: string; label?: unknown }),
+      type: candidate.type,
+      ...('semantic' in candidate && typeof candidate.semantic === 'string' ? { semantic: candidate.semantic } : {}),
+    }));
+    out.push({ table: table.ref, label, column: column.ref, labelColumn: named ?? text?.ref ?? null, columns });
   }
   return out;
 }
@@ -183,6 +221,7 @@ export function picturesState(
   if (hasOwnBuild(root, key)) return { ownBuild: true, spots: [], tables: [], inApp: [], mode: 'placeholders', legacy: 0 };
   const credits = readCredits(root, key);
   const creditFor = (file: string): PictureCredit | undefined => credits.find((line) => line.file === file);
+  const app = appWords(root, key, opts.version);
   const spots = readSpots(root, key).map((spot): DialogSpot => {
     const isAddress = spot.file !== null && spot.file.startsWith('https:');
     const file = spot.file === null ? null : isAddress ? spot.file : `${PICTURES_DIR}/${spot.file}`;
@@ -194,6 +233,7 @@ export function picturesState(
       shape: spot.shape,
       shows: spot.shows,
       search: spot.search,
+      words: pictureWords({ subject: spot.search || spot.shows || spot.label, appName: app.name, look: app.look, shape: spot.shape }),
       version: spotVersion(spot),
       thumb: !present || file === null ? null : isAddress ? file : opts.fileUrl(file),
       alt: spot.alt,
@@ -205,18 +245,36 @@ export function picturesState(
   const tables = pictureTables(root, key, opts.version).flatMap((table): DialogTable[] => {
     const rows = bundle?.tables?.find((candidate) => candidate.ref === table.table)?.rows ?? [];
     if (rows.length === 0) return [];
+    const people = holdsPeople(table.columns.map((column) => ({ name: column.ref, semantic: column.semantic })));
+    const wordsFor = (subject: string): string => pictureWords({ subject, table: table.label, appName: app.name, look: app.look, shape: 'square', people });
+    // Text and choice columns only, never ids, numbers or yes/no: 2 to 12 values, at least one shared by two rows.
+    const groups = table.columns.flatMap((column): DialogGroup[] => {
+      if (column.ref === table.column || column.ref === table.labelColumn || !['text', 'enum'].includes(column.type) || /(^|_)id$/i.test(column.ref) || column.semantic !== undefined) return [];
+      const byValue = new Map<string, number[]>();
+      rows.forEach((row, index) => {
+        const value = row[column.ref];
+        if (typeof value !== 'string' || value.trim() === '' || value.length > 80) return;
+        byValue.set(value, [...(byValue.get(value) ?? []), index + 1]);
+      });
+      if (byValue.size < 2 || byValue.size > 12 || ![...byValue.values()].some((list) => list.length > 1)) return [];
+      return [{ column: column.ref, label: column.label, values: [...byValue.entries()].map(([value, list]) => ({ value: plainWords(value, 80), rows: list, words: wordsFor(value) })) }];
+    });
     return [
       {
         table: table.table,
         label: table.label,
         column: table.column,
+        people,
+        groups,
         rows: rows.map((row, index): DialogRow => {
           const value = row[table.column];
           const asset = value !== null && typeof value === 'object' ? bundle?.assets?.[String((value as Record<string, unknown>)['@asset'])] : undefined;
           const own = table.labelColumn === null ? null : row[table.labelColumn];
+          const label = plainWords(typeof own === 'string' || typeof own === 'number' ? String(own) : '', 60) || `#${String(index + 1)}`;
           return {
             row: index + 1,
-            label: plainWords(typeof own === 'string' || typeof own === 'number' ? String(own) : '', 60) || `#${String(index + 1)}`,
+            label,
+            words: wordsFor(label),
             version: rowVersion(value),
             thumb: asset !== undefined && typeof asset.file === 'string' && asset.file.startsWith('seeds/pictures/') ? opts.fileUrl(asset.file) : null,
           };
@@ -367,6 +425,8 @@ export async function writeFills(
   const nextSpots = spots.map((spot) => ({ ...spot }));
   let rowsChanged = false;
   const freshCredits: PictureCredit[] = [];
+  /** A picture file this Apply writes for a table's rows, by its bytes: written once, named by every row that shows it. */
+  const sharedFiles = new Map<string, string>();
   /** The files sample rows named before this Apply. */
   const rowFilesBefore = Object.values(bundle?.assets ?? {}).map((asset) => asset.file);
 
@@ -414,13 +474,18 @@ export async function writeFills(
     }
     if (one.bytes === undefined) at[table.column] = null;
     else {
-      const name = `${row.table}-${String(row.row)}-${one.bytes.sha256.slice(0, 8)}.${one.bytes.ext}`;
-      const path = `seeds/pictures/${name}`;
-      files.push({ path, data: one.bytes.data });
+      // The same picture on several rows of a table is one file every row names.
+      const sharedKey = `${row.table}\u0000${one.bytes.sha256}`;
+      const shared = sharedFiles.get(sharedKey);
+      const path = shared ?? `seeds/pictures/${row.table}-${String(row.row)}-${one.bytes.sha256.slice(0, 8)}.${one.bytes.ext}`;
+      if (shared === undefined) {
+        sharedFiles.set(sharedKey, path);
+        files.push({ path, data: one.bytes.data });
+        if (one.credit !== undefined) freshCredits.push({ ...one.credit, file: path });
+      }
       const label = `picture-${row.table}-${String(row.row)}`;
       (bundle as Bundle).assets = { ...((bundle as Bundle).assets ?? {}), [label]: { file: path, sha256: one.bytes.sha256 } };
       at[table.column] = { '@asset': label };
-      if (one.credit !== undefined) freshCredits.push({ ...one.credit, file: path });
     }
     if (one.picked !== undefined) chosen.push(one.picked);
     const own = table.labelColumn === null ? null : at[table.labelColumn];

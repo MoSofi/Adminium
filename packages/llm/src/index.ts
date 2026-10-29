@@ -29,3 +29,6 @@ export { NAV_GROUP_MAX } from './nav-group.js';
 
 // The page assistant: turn contract, system prompt, line differ.
 export * from './assistant/index.js';
+
+// Making pictures with AI.
+export * from './pictures/index.js';

@@ -72,6 +72,49 @@ export interface RequestJsonOptions {
   apiKey?: string;
   /** Abort after this many ms; defaults to `DEFAULT_TIMEOUT_MS`. */
   timeoutMs?: number;
+  /**
+   * The most of the answer that is read, on the success path and the error
+   * path alike; defaults to `RESPONSE_MAX_BYTES`. The read stops as soon as
+   * it is passed: a server cannot fill this process's memory.
+   */
+  maxBytes?: number;
+}
+
+/** The most of a provider's answer read by default: far above any chat answer, far below a process's memory. */
+export const RESPONSE_MAX_BYTES = 8 * 1024 * 1024;
+
+/** An answer longer than its bound. */
+export class AnswerTooLargeError extends Error {
+  override readonly name = 'AnswerTooLargeError';
+}
+
+/**
+ * A response's body as text, read as a stream and stopped as soon as it
+ * passes `maxBytes` ({@link AnswerTooLargeError}). Never the whole of an
+ * answer first and its length after.
+ */
+export async function readBounded(res: Response, maxBytes: number): Promise<string> {
+  const declared = Number(res.headers.get('content-length') ?? '');
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new AnswerTooLargeError(`the answer says it is ${String(declared)} bytes, over ${String(maxBytes)}`);
+  }
+  if (res.body === null) return '';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let read = 0;
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    read += value.byteLength;
+    if (read > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new AnswerTooLargeError(`the answer passed ${String(maxBytes)} bytes`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
 }
 
 /**
@@ -154,8 +197,9 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
     });
   }
 
+  const maxBytes = opts.maxBytes ?? RESPONSE_MAX_BYTES;
   if (!res.ok) {
-    const raw = await safeText(res);
+    const raw = await safeText(res, maxBytes);
     const snippet = scrubSecret(raw, apiKey).slice(0, 500);
     throw new ProviderError({
       provider,
@@ -165,8 +209,21 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
     });
   }
 
+  let text: string;
   try {
-    return (await res.json()) as T;
+    text = await readBounded(res, maxBytes);
+  } catch (err) {
+    if (opts.signal?.aborted === true) throw new ProviderError({ provider, code: 'aborted', message: `${provider}: the request was stopped` });
+    throw new ProviderError({
+      provider,
+      code: 'bad_response',
+      status: res.status,
+      message: err instanceof AnswerTooLargeError ? `${provider}: the answer was larger than ${String(maxBytes)} bytes` : `${provider}: the answer could not be read`,
+      cause: scrubCause(err, apiKey),
+    });
+  }
+  try {
+    return JSON.parse(text) as T;
   } catch (err) {
     throw new ProviderError({
       provider,
@@ -178,9 +235,10 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
   }
 }
 
-async function safeText(res: Response): Promise<string> {
+/** An error answer's text, as much of it as the bound allows; what is past it is not read. */
+async function safeText(res: Response, maxBytes: number): Promise<string> {
   try {
-    return await res.text();
+    return await readBounded(res, Math.min(maxBytes, 64 * 1024));
   } catch {
     return '';
   }

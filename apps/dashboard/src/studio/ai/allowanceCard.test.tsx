@@ -27,6 +27,7 @@ function settings(overrides: Partial<AssistantSettings> = {}): AssistantSettings
     maxRowsCeiling: 50,
     staffAddresses: true,
     voice: { input: false, dailyMinutes: 30, output: true, writtenBy: 'provider' },
+    pictures: { perDay: 20, perDayAll: 100, perTurn: 8 },
     today: {
       day: '2026-10-09',
       resetsAt: RESETS_AT,

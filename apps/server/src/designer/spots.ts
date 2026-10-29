@@ -244,6 +244,8 @@ export function readCredits(root: string, key: string): PictureCredit[] {
           source: text('source', 40),
           page: https('page'),
           ...(isLicenceCode(line['licenceCode']) ? { licenceCode: line['licenceCode'] } : {}),
+          // A made picture's words: kept for "make again", never drawn on a page.
+          ...(typeof line['words'] === 'string' && line['words'] !== '' ? { words: text('words', 600) } : {}),
         },
       ];
     });

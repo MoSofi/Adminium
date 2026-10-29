@@ -11,6 +11,8 @@ import type { AddressInfo } from 'node:net';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { fakePictures as fakePictureMaker, type MakeRequest } from '@adminium/llm';
+import { assistantUseDay, auditRepo, pictureUseRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -106,6 +108,8 @@ export interface Client {
   root: string;
   meta: import('@adminium/meta').MetaDb;
   fake: FakePictures;
+  /** What the fake picture maker was asked. */
+  made: MakeRequest[];
   call: (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown>; raw: Buffer; headers: Record<string, unknown> }>;
   session: () => Promise<string>;
 }
@@ -121,6 +125,7 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
   await buildProject({ root, configFile: join(root, 'adminium.config.ts') }, { version: APP_VERSION });
   const { meta } = install;
   const fake = fakePictures();
+  const made: MakeRequest[] = [];
   const runService = createRunService({ meta });
   const store: MetaStoreHandle = { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() };
   composed = await composeServer({
@@ -137,6 +142,7 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
     designer: { mode: 'local' as const, token: 'a'.repeat(64), port: DESIGN_PORT },
     designerBundler: () => true,
     pictureSeams: fake.seams,
+    pictureMakerSeam: () => fakePictureMaker({ calls: made }),
     designerSeam: async (step, detail) => {
       if (step === 'write' && detail === failWrite) throw new Error('the disk is full');
     },
@@ -155,6 +161,7 @@ async function server(opts: { keys?: boolean } = {}): Promise<Client> {
     root,
     meta,
     fake,
+    made,
     call,
     session: async () => {
       const made = await call('POST', '/api/v1/designer/sessions', { name: 'Crispy Bites', target: 'web', connectionId: 'env:ollama', model: 'fake' });
@@ -438,7 +445,19 @@ describe('the picture dialog’s view of an app', { timeout: 180_000 }, () => {
     const app = await withApp();
     const state = await app.state();
     expect(state.spots.map((spot) => [spot.id, spot.thumb])).toEqual([['hero', null], ['team', null], ['kitchen', null]]);
-    expect(state.tables).toEqual([{ table: 'items', label: expect.any(String), column: 'picture', rows: [expect.objectContaining({ row: 1, label: 'Spicy wings', thumb: null }), expect.objectContaining({ row: 2, label: 'Classic burger' })] }]);
+    expect(state.tables).toEqual([
+      {
+        table: 'items',
+        label: expect.any(String),
+        column: 'picture',
+        people: false,
+        groups: [],
+        rows: [expect.objectContaining({ row: 1, label: 'Spicy wings', thumb: null }), expect.objectContaining({ row: 2, label: 'Classic burger' })],
+      },
+    ]);
+    // The words a made picture starts from, by plain code.
+    expect((state.tables[0]?.rows[0] as unknown as { words: string }).words).toMatch(/^Spicy wings/);
+    expect((state.spots[0] as unknown as { words: string }).words).toMatch(/^fried chicken, for /);
     expect(state.version).toBe(2);
     expect(state.legacy).toBe(0);
     for (const path of ['../../../.env', 'assets/pictures/../../look.json', 'assets/pictures/spots.json', 'look.json', 'seeds/sample.json']) {
@@ -711,5 +730,224 @@ describe('a picture the person placed', { timeout: 180_000 }, () => {
     const turn = await turnOf(app, 'Make the hero rounder.', [() => ({ calls: [{ name: 'write_file', arguments: { path: HERO, content: drawn.replace('hero-media', 'hero-media round') } }] })]);
     await vi.waitFor(async () => expect((await eventsOf(app)).find((event) => event.kind === 'turn-finished' && event.turn === turn)).toMatchObject({ outcome: 'done' }), { timeout: 60_000, interval: 100 });
     expect((await eventsOf(app)).some((event) => event.kind === 'card' && event.card?.type === 'keep-spot')).toBe(false);
+  });
+});
+
+// ─── making a picture with AI ──────────────────────────────────────
+
+type MadePicture = { id: string; shelf: string; title: string; creator: string; licence: { code: string }; made: { label: string; model: string; words: string }; pinned: boolean };
+type Job = { job: string; state: string; stoppedBy?: string; lines: { name: string; asked: number; made: number; refused: number; failed: number; state: string; code?: string; pictures: MadePicture[] }[]; left: { mine: number; all: number } };
+
+/** Make, and wait for the job to end. */
+async function make(app: WithApp, body: Record<string, unknown>): Promise<{ status: number; reply: Record<string, unknown>; job: Job | null }> {
+  const res = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/make`, { id: `make-${Math.random().toString(36).slice(2, 12)}`, shape: 'wide', count: 1, ...body });
+  if (res.body['state'] !== 'accepted') return { status: res.status, reply: res.body, job: null };
+  const id = (res.body['job'] as Job).job;
+  let job: Job | null = null;
+  await vi.waitFor(
+    async () => {
+      job = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/pictures/make/${id}`)).body as unknown as Job;
+      expect(job.state).not.toBe('running');
+    },
+    { timeout: 20_000, interval: 50 },
+  );
+  return { status: res.status, reply: res.body, job };
+}
+
+const choose = async (app: WithApp) => {
+  const chosen = await app.call('PUT', '/api/v1/designer/pictures/maker', { id: 'env:ollama', model: 'fake-picture-1' });
+  expect(chosen.status, JSON.stringify(chosen.body)).toBe(200);
+  return chosen.body;
+};
+
+describe('making a picture with AI', { timeout: 180_000 }, () => {
+  it('makes nothing until someone who manages AI chooses a service, then makes, counts and keeps what it made', async () => {
+    const app = await withApp();
+    // Nobody chose: nothing is made, and nothing is counted.
+    expect((await app.call('GET', '/api/v1/designer/pictures/makers')).body).toMatchObject({ state: 'none', chosen: null, canChoose: true, limits: { mine: 20, all: 100 } });
+    expect((await make(app, { lines: [{ words: 'a fried chicken shop at night', target: { spot: 'hero' } }] })).reply).toEqual({ state: 'none' });
+    expect(app.made).toHaveLength(0);
+
+    const chosen = await choose(app);
+    expect(chosen).toMatchObject({ state: 'ok', chosen: { id: 'env:ollama', model: 'fake-picture-1', local: true }, chat: true });
+    expect((chosen['makers'] as { id: string; models: string[] }[]).find((one) => one.id === 'env:ollama')?.models).toEqual(['fake-picture-1']);
+
+    const words = 'a fried chicken shop at night, warm light';
+    const { status, job } = await make(app, { lines: [{ words, target: { spot: 'hero' } }], count: 2 });
+    expect(status).toBe(200);
+    expect(job).toMatchObject({ state: 'done', left: { mine: 18, all: 98 }, lines: [{ name: 'Hero', asked: 2, made: 2, refused: 0, failed: 0, state: 'done' }] });
+    // Only the words, the model, the count and the shape reach the service.
+    expect(app.made.at(-1)).toMatchObject({ prompt: words, model: 'fake-picture-1', shape: 'wide', count: 2 });
+    const pictures = job?.lines[0]?.pictures ?? [];
+    // Kept for an Apply only once it is picked: of two made, the one not chosen may make way later.
+    expect(pictures[0]).toMatchObject({ title: 'Hero', creator: 'Ollama · fake-picture-1', licence: { code: 'made' }, made: { label: 'Ollama', model: 'fake-picture-1', words }, pinned: false });
+
+    // Its tile is served from disk, whole, with the headers every picture of the dialog has.
+    const tile = await app.call('GET', `/api/v1/designer/sessions/${app.id}/picture-thumb/${pictures[0]?.shelf ?? ''}/${pictures[0]?.id ?? ''}`);
+    expect(tile.status).toBe(200);
+    expect(tile.headers['content-type']).toBe('image/png');
+    // Listed again from disk, for "Made earlier".
+    expect(((await app.call('GET', `/api/v1/designer/sessions/${app.id}/pictures/made`)).body['pictures'] as unknown[]).length).toBe(2);
+    // Its events reached the session's log.
+    const events = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as { kind: string }[];
+    expect(events.filter((event) => event.kind === 'picture-make').length).toBeGreaterThanOrEqual(2);
+
+    // Applied like any pick: the credit says it was made with AI, keeps the words, and the side draws neither the words nor a person.
+    const state = await app.state();
+    const applied = await app.apply([{ spot: 'hero', version: versionOf(state, 'hero'), from: { shelf: pictures[0]?.shelf, picture: pictures[0]?.id } }]);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    const creditOf = () => (JSON.parse(app.disk('assets/pictures/CREDITS.json')) as { file: string; licenceCode?: string; licence: string; words?: string; creator: string }[]).find((line) => line.licenceCode === 'made');
+    expect(creditOf()).toMatchObject({ licence: 'Made with AI', creator: 'Ollama · fake-picture-1', words, source: 'AI' });
+    // A second Apply, of another spot, keeps the words of the first.
+    const [found] = await app.pick('kitchen');
+    expect((await app.apply([{ spot: 'kitchen', version: versionOf(await app.state(), 'kitchen'), from: found }])).status).toBe(200);
+    expect(creditOf()?.words).toBe(words);
+
+    // The audit says who, which service and how many: never the words.
+    const audit = await auditRepo(app.meta).list({ limit: 50 });
+    const line = audit.find((entry) => entry.action === 'designer.picture.made');
+    expect(line).toBeDefined();
+    expect(JSON.stringify(line)).not.toContain('fried chicken');
+  });
+
+  it('answers the same request once, refuses its id for other words, and holds every make to the day’s allowance', async () => {
+    const app = await withApp();
+    await choose(app);
+    const body = { id: 'make-same-0001', lines: [{ words: 'chefs at work', target: { spot: 'team' } }], shape: 'wide', count: 1 };
+    const first = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/make`, body);
+    const again = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/make`, body);
+    expect((again.body['job'] as Job).job).toBe((first.body['job'] as Job).job);
+    const other = await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/make`, { ...body, lines: [{ words: 'something else', target: { spot: 'team' } }] });
+    expect(other.status).toBe(409);
+    await vi.waitFor(async () => expect(((await app.call('GET', '/api/v1/designer/pictures/makers')).body['left'] as { mine: number }).mine).toBe(19), { timeout: 10_000 });
+    expect(app.made).toHaveLength(1);
+    await vi.waitFor(async () => expect(((await app.call('GET', `/api/v1/designer/sessions/${app.id}/pictures/made`)).body['running'])).toBeNull(), { timeout: 10_000 });
+
+    // Two Makes at the same moment (a double click): one is made and paid for, the other is busy.
+    const twice = await Promise.all(
+      ['make-twice-0001', 'make-twice-0002'].map((id) => app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/make`, { id, lines: [{ words: 'slow chefs', target: { spot: 'team' } }], shape: 'wide', count: 1 })),
+    );
+    expect(twice.map((res) => res.body['state']).sort()).toEqual(['accepted', 'busy']);
+    await vi.waitFor(async () => expect(((await app.call('GET', '/api/v1/designer/pictures/makers')).body['left'] as { mine: number }).mine).toBe(18), { timeout: 10_000 });
+    await vi.waitFor(async () => expect(((await app.call('GET', `/api/v1/designer/sessions/${app.id}/pictures/made`)).body['running'])).toBeNull(), { timeout: 10_000 });
+    expect(app.made).toHaveLength(2);
+
+    // Over the person's day: nothing is asked.
+    await settingsRepo(app.meta).set('designer.pictures.perDay', 3);
+    expect((await make(app, { lines: [{ words: 'x', target: { spot: 'hero' } }], count: 2 })).reply).toMatchObject({ state: 'allowance', left: { mine: 1 } });
+    // 0 turns making off: not "no limit".
+    await settingsRepo(app.meta).set('designer.pictures.perDay', 0);
+    expect((await make(app, { lines: [{ words: 'x', target: { spot: 'hero' } }] })).reply).toEqual({ state: 'switched-off' });
+    expect(app.made).toHaveLength(2);
+  });
+
+  it('keeps a refusal counted, gives back what a rate limit proves was never made, and stops the batch there', async () => {
+    const app = await withApp();
+    await choose(app);
+    const day = assistantUseDay(Date.now());
+    const userId = (await usersRepo(app.meta).findByEmail('owner@example.test'))?.id ?? '';
+    const refused = await make(app, { lines: [{ words: 'please refuse this', target: { spot: 'hero' } }] });
+    expect(refused.job?.lines[0]).toMatchObject({ refused: 1, made: 0, code: 'refused' });
+    expect((await pictureUseRepo(app.meta).use(userId, day)).mine).toBe(1);
+
+    const batch = await make(app, {
+      lines: [
+        { words: 'one kitchen', target: { spot: 'kitchen' } },
+        { words: 'busy now', target: { spot: 'team' } },
+        { words: 'never asked', target: { spot: 'hero' } },
+      ],
+    });
+    expect(batch.job).toMatchObject({ state: 'stopped', stoppedBy: 'rate_limit' });
+    expect(batch.job?.lines.map((line) => [line.made, line.state])).toEqual([
+      [1, 'done'],
+      [0, 'done'],
+      [0, 'done'],
+    ]);
+    // The made one and the refusal stay counted; the rate-limited and the never-sent lines came back.
+    expect((await pictureUseRepo(app.meta).use(userId, day)).mine).toBe(2);
+    expect(app.made.map((one) => one.prompt)).toEqual(['please refuse this', 'one kitchen', 'busy now']);
+  });
+
+  it('refuses a group the table does not have, and puts one picture on several rows as one file', async () => {
+    const app = await withApp();
+    await choose(app);
+    // A group is a value a column of the table really holds: this one does not.
+    expect((await make(app, { lines: [{ words: 'chicken dishes', target: { table: 'items', column: 'title', value: 'Mains' } }], shape: 'square' })).status).toBe(422);
+    const { job } = await make(app, { lines: [{ words: 'chicken dishes', target: { table: 'items', row: 1 } }], shape: 'square' });
+    const picture = job?.lines[0]?.pictures[0];
+    expect(job?.lines[0]).toMatchObject({ name: 'Spicy wings', made: 1 });
+    const rows = (await app.state()).tables.find((table) => table.table === 'items')?.rows ?? [];
+    const from = { shelf: picture?.shelf, picture: picture?.id };
+    const applied = await app.apply(rows.map((row) => ({ row: { table: 'items', row: row.row }, version: row.version, from })));
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    const bundle = JSON.parse(app.disk('seeds/sample.json')) as { assets: Record<string, { file: string }> };
+    const files = new Set(Object.values(bundle.assets).map((asset) => asset.file));
+    expect(Object.keys(bundle.assets)).toHaveLength(2);
+    expect(files.size).toBe(1);
+    const credits = (JSON.parse(app.disk('assets/pictures/CREDITS.json')) as { file: string; licenceCode?: string }[]).filter((line) => line.licenceCode === 'made');
+    expect(credits.map((line) => line.file)).toEqual([...files]);
+  });
+
+  it('says the service changed when the key behind the choice is not the one it was made with', async () => {
+    const app = await withApp();
+    await choose(app);
+    const held = await settingsRepo(app.meta).get('designer.pictures.maker');
+    await settingsRepo(app.meta).set('designer.pictures.maker', { ...(held as { id: string; provider: string; keyHash: string; model: string }), keyHash: 'another-key' });
+    expect((await app.call('GET', '/api/v1/designer/pictures/makers')).body).toMatchObject({ state: 'changed' });
+    expect((await make(app, { lines: [{ words: 'x', target: { spot: 'hero' } }] })).reply).toEqual({ state: 'changed' });
+    // A target the app does not have is refused before anything is asked.
+    await choose(app);
+    expect((await make(app, { lines: [{ words: 'x', target: { spot: 'nowhere' } }] })).status).toBe(422);
+    expect(app.made).toHaveLength(0);
+  });
+});
+
+describe('the Designer making pictures in the chat', { timeout: 180_000 }, () => {
+  const finished = async (app: WithApp, turns: number) => {
+    let events: { kind: string; turn: number; label?: string; tool?: string; state?: string; job?: Job; by?: string }[] = [];
+    await vi.waitFor(
+      async () => {
+        events = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as never;
+        expect(events.filter((event) => event.kind === 'turn-finished')).toHaveLength(turns);
+      },
+      { timeout: 60_000, interval: 100 },
+    );
+    return events;
+  };
+
+  it('makes a spot’s picture with the chosen service, puts it in place, says it in its turn, and counts it', async () => {
+    const app = await withApp();
+    await choose(app);
+    script = [() => ({ calls: [{ name: 'make_pictures', arguments: { for: 'spot', spot: 'hero', words: 'a crispy fried chicken bucket' } }] })];
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Make me a hero picture.' })).status).toBe(202);
+    const events = await finished(app, 2);
+    const made = events.find((event) => event.kind === 'picture-make' && event.by !== 'person');
+    expect(made?.job).toMatchObject({ state: 'done', lines: [{ name: 'Hero', made: 1 }] });
+    // The dialog's progress events are not in a chat turn: the chat's make said nothing as it went.
+    expect(events.filter((event) => event.kind === 'picture-make')).toHaveLength(1);
+    expect(app.made.at(-1)).toMatchObject({ prompt: 'a crispy fried chicken bucket', count: 1, shape: 'wide' });
+    const spots = JSON.parse(app.disk('assets/pictures/spots.json')) as Record<string, { file: string | null; alt: string }>;
+    expect(spots['hero']?.file).not.toBeNull();
+    expect(spots['hero']?.alt).toBe('a crispy fried chicken bucket');
+    expect((JSON.parse(app.disk('assets/pictures/CREDITS.json')) as { licenceCode?: string }[]).some((line) => line.licenceCode === 'made')).toBe(true);
+    expect(((await app.call('GET', '/api/v1/designer/pictures/makers')).body['left'] as { mine: number }).mine).toBe(19);
+  });
+
+  it('makes nothing when the chat is switched off, or past what a turn may make', async () => {
+    const app = await withApp();
+    await choose(app);
+    await app.call('PUT', '/api/v1/designer/pictures/maker', { chat: false });
+    script = [() => ({ calls: [{ name: 'make_pictures', arguments: { for: 'spot', spot: 'hero' } }] })];
+    await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Pictures please.' });
+    let events = await finished(app, 2);
+    expect(events.find((event) => event.kind === 'step' && event.tool === 'make_pictures' && event.state === 'done')).toBeUndefined();
+    expect(app.made).toHaveLength(0);
+
+    await app.call('PUT', '/api/v1/designer/pictures/maker', { chat: true });
+    await settingsRepo(app.meta).set('designer.pictures.perTurn', 1);
+    script = [() => ({ calls: [{ name: 'make_pictures', arguments: { for: 'rows', table: 'items' } }] })];
+    await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text: 'Pictures for the menu.' });
+    events = await finished(app, 3);
+    expect(app.made).toHaveLength(0);
   });
 });

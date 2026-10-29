@@ -74,6 +74,11 @@ export interface FoundPicture {
   shown?: string;
   /** The source's address to call when the picture is chosen, where its rules ask for that. Never leaves the server. */
   chosenUrl?: string;
+  /**
+   * A picture made with AI: the service's label, the model, and the words it was made from. Its bytes are
+   * on disk under the session's `made/` folder, found by its ids; `files` is empty and `thumb` names nothing.
+   */
+  made?: { label: string; model: string; words: string };
 }
 
 /** What a source's answer said of the calls left, read from its headers; null where it did not say. */
@@ -391,6 +396,12 @@ export interface PictureCredit {
   page: string;
   /** The licence's code, for its badge; absent on a line written before badges. */
   licenceCode?: LicenceCode;
+  /**
+   * A made picture's words, the person's own or filled from the
+   * app, cleaned: kept so the picture can be made again. Never drawn on a page:
+   * the side's credit names only the title, the service and the model.
+   */
+  words?: string;
 }
 
 export const creditOf = (picture: FoundPicture, file: string): PictureCredit => ({
@@ -403,6 +414,8 @@ export const creditOf = (picture: FoundPicture, file: string): PictureCredit => 
   source: picture.source,
   page: picture.page,
   licenceCode: picture.licenceCode,
+  // A made picture's words: kept with its credit, never drawn.
+  ...(picture.made === undefined || picture.made.words === '' ? {} : { words: picture.made.words }),
 });
 
 /**

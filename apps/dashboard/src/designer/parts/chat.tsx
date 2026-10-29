@@ -9,50 +9,11 @@
  * context, option groups, a token hint) and the `assistant` words.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import {
-  Blocks,
-  FileSpreadsheet,
-  ArrowDown,
-  Image as ImageIcon,
-  ImageMinus,
-  Images,
-  Minus,
-  Undo2,
-  Plug,
-  Shapes,
-  Type,
-  Wind,
-  Camera,
-  Check,
-  Copy,
-  ChevronDown,
-  CircleSlash2,
-  CirclePause,
-  CircleAlert,
-  Info,
-  CircleStop,
-  CircleX,
-  Gauge,
-  GitCommitHorizontal,
-  ListChecks,
-  LoaderCircle,
-  MessageCircleQuestion,
-  Package,
-  Palette,
-  Play,
-  RotateCcw,
-  RotateCw,
-  TriangleAlert,
-  Ban,
-  Globe,
-  ShieldAlert,
-  UserPlus,
-  UsersRound,
-} from 'lucide-react';
+import { ArrowDown, Ban, Blocks, Camera, Check, ChevronDown, CircleAlert, CirclePause, CircleSlash2, CircleStop, CircleX, Copy, FileSpreadsheet, Gauge, GitCommitHorizontal, Globe, Image as ImageIcon, ImageMinus, Images, Info, ListChecks, LoaderCircle, MessageCircleQuestion, Minus, Package, Palette, Play, Plug, RotateCcw, RotateCw, Shapes, ShieldAlert, Sparkles, TriangleAlert, Type, Undo2, UserPlus, UsersRound, Wind } from 'lucide-react';
 import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type NeedItem, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
+import { designerApi, LOOK_DIRECTIONS, type AccessChangeView, type DesignerCard, type LimitKind, type MakeJob, type NeedItem, type PictureShape, type PicturesMode, type SpendMark, type StyleChoice } from '../api.js';
 import { figmaPausedLine, SUBJECT, secondsOf, shortSubject, stepCost, stepLine } from '../build/stepLine.js';
 import type { PictureLine, StepRow } from '../build/turns.js';
 import { versionName } from '../build/versionName.js';
@@ -1441,12 +1402,15 @@ export function PicturesButton({ toFill, onOpen }: { toFill: number; onOpen: () 
 }
 
 /** What happened to the pictures under a reply: an Apply of the dialog, or its Undo. */
-export function PictureLines({ lines }: { lines: readonly PictureLine[] }): ReactNode {
+export function PictureLines({ lines, sessionId }: { lines: readonly PictureLine[]; sessionId?: string }): ReactNode {
   const shown = lines.filter((line) => line.kind !== 'note');
   if (shown.length === 0) return null;
   return (
     <div className="flex flex-col items-start gap-1.5">
-      {shown.map((line, index) => (
+      {shown.map((line, index) =>
+        line.kind === 'made' ? (
+          <MadeLine key={index} job={line.job} sessionId={sessionId} />
+        ) : (
         <div key={index} data-part="pictures-line" className="flex items-start gap-1.5 rounded-[10px] bg-surface-3 px-2.5 py-1 text-[11.5px] font-bold leading-normal text-fg-muted">
           {line.kind === 'applied' ? <ImageIcon aria-hidden="true" className="mt-0.5 size-3 shrink-0" /> : <Undo2 aria-hidden="true" className="mt-0.5 size-3 shrink-0" />}
           <span dir="auto">
@@ -1459,7 +1423,36 @@ export function PictureLines({ lines }: { lines: readonly PictureLine[] }): Reac
                 : null}
           </span>
         </div>
-      ))}
+        ),
+      )}
+    </div>
+  );
+}
+
+/**
+ * What the Designer made with AI in a turn: how many, by which service, that it was charged to that
+ * account, what is left today, and the pictures. To change them, the Pictures button under the message.
+ */
+function MadeLine({ job, sessionId }: { job: MakeJob; sessionId: string | undefined }): ReactNode {
+  const pictures = job.lines.flatMap((line) => line.pictures);
+  const made = pictures.length;
+  return (
+    <div data-part="pictures-made" className="flex flex-col gap-1.5 rounded-[10px] bg-surface-3 px-2.5 py-1.5 text-[11.5px] font-bold leading-normal text-fg-muted">
+      <span className="flex items-start gap-1.5" dir="auto">
+        <Sparkles aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
+        <span>
+          {made === 0
+            ? t('designer:spots.madeNone', 'No picture was made with {service}.', { service: `${job.label} · ${job.model}` })
+            : t('designer:spots.made', 'Made {count, plural, one {# picture} other {# pictures}} with {service}, charged to that account. {left} left today.', { count: made, service: `${job.label} · ${job.model}`, left: Math.min(job.left.mine, job.left.all) })}
+        </span>
+      </span>
+      {sessionId === undefined || made === 0 ? null : (
+        <span className="flex flex-wrap gap-1.5">
+          {pictures.map((picture) => (
+            <img key={picture.id} src={designerApi.pictureThumbUrl(sessionId, picture.shelf, picture.id)} alt={picture.title} loading="lazy" className="block h-9 w-14 rounded-[6px] object-cover" />
+          ))}
+        </span>
+      )}
     </div>
   );
 }

@@ -402,7 +402,7 @@ export const envSchema = z.object({
    * Model connections named by the environment: one per provider, and the
    * model in use as `<provider>/<model>`. A project keeps the same names in
    * its `.env`, where the Designer writes them; those are read from the file
-   * and never copied in here, so what arrives through these six is only what
+   * and never copied in here, so what arrives through these seven is only what
    * the operator set themselves.
    */
   ADMINIUM_AI_ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
@@ -410,6 +410,7 @@ export const envSchema = z.object({
   ADMINIUM_AI_COMPATIBLE_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
   ADMINIUM_AI_COMPATIBLE_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
   ADMINIUM_AI_OLLAMA_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
+  ADMINIUM_AI_GOOGLE_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
   ADMINIUM_AI_MODEL: z.preprocess(
     emptyToUndefined,
     z
@@ -727,6 +728,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_AI_COMPATIBLE_BASE_URL: 'the address of an OpenAI-compatible server, e.g. http://localhost:8000/v1',
   ADMINIUM_AI_COMPATIBLE_API_KEY: 'the key for that server, when it wants one',
   ADMINIUM_AI_OLLAMA_BASE_URL: 'the address of Ollama, e.g. http://localhost:11434',
+  ADMINIUM_AI_GOOGLE_API_KEY: 'a Google AI Studio key, for making pictures with Gemini',
   ADMINIUM_AI_MODEL: '<provider>/<model>, e.g. anthropic/claude-sonnet-5-5',
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
   ADMINIUM_DATA_DIR:

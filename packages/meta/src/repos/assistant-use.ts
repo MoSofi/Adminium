@@ -104,7 +104,8 @@ export function assistantUseRepo(meta: MetaDb) {
 
     async listDay(day: string): Promise<AssistantUse[]> {
       const rows = await db.selectFrom('adminium_assistant_use').selectAll().where('day', '=', day).orderBy('tokens', 'desc').orderBy('userId', 'asc').execute();
-      return rows.map((row) => ({ userId: row.userId, day: row.day, tokens: Number(row.tokens), turns: Number(row.turns), voiceSeconds: Number(row.voiceSeconds) }));
+      // A person who only made pictures or only dictated did not use the assistant's turns: not listed as using it.
+      return rows.filter((row) => Number(row.tokens) > 0 || Number(row.turns) > 0 || Number(row.voiceSeconds) > 0).map((row) => ({ userId: row.userId, day: row.day, tokens: Number(row.tokens), turns: Number(row.turns), voiceSeconds: Number(row.voiceSeconds) }));
     },
 
     /** Forget days before one: a day's use matters on that day. */

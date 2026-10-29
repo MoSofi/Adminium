@@ -267,12 +267,22 @@ export const designerPicturesReply = z.object({
       search: z.string(),
       version: z.string(),
       thumb: z.string().nullable(),
+      words: z.string(),
       alt: z.string(),
       decorative: z.boolean(),
       licence: z.object({ code: designerLicenceCode, name: z.string(), title: z.string(), creator: z.string() }).nullable(),
     }),
   ),
-  tables: z.array(z.object({ table: z.string(), label: z.string(), column: z.string(), rows: z.array(z.object({ row: z.number().int(), label: z.string(), version: z.string(), thumb: z.string().nullable() })) })),
+  tables: z.array(
+    z.object({
+      table: z.string(),
+      label: z.string(),
+      column: z.string(),
+      rows: z.array(z.object({ row: z.number().int(), label: z.string(), version: z.string(), thumb: z.string().nullable(), words: z.string() })),
+      people: z.boolean(),
+      groups: z.array(z.object({ column: z.string(), label: z.string(), values: z.array(z.object({ value: z.string(), rows: z.array(z.number().int()), words: z.string() })) })),
+    }),
+  ),
   inApp: z.array(z.object({ key: z.string(), name: z.string(), thumb: z.string(), licence: designerLicenceCode })),
   /** Null for an app whose look was kept before styles: it keeps no choice, and the dialog asks none. */
   mode: z.enum(['placeholders', 'choose']).nullable(),
@@ -328,6 +338,101 @@ export const designerPicturesApplyReply = z.object({
   before: z.number().int().nullable(),
 });
 export const designerPicturesUndoBody = z.object({ from: z.number().int().min(1), to: z.number().int().min(0) });
+
+// ─── pictures made with AI ─────────────────────────────────────────
+const designerMakeTarget = z.union([
+  z.object({ spot: z.string().regex(/^[a-z0-9-]{1,40}$/) }).strict(),
+  z.object({ table: z.string().min(1).max(120), row: z.number().int().min(1).max(10_000) }).strict(),
+  z.object({ table: z.string().min(1).max(120), column: z.string().min(1).max(120), value: z.string().max(80) }).strict(),
+]);
+/** A made picture as the page sees it: our ids, the target's name, the service's label and model, the words. */
+const designerMadePicture = z.object({
+  id: designerPictureId,
+  shelf: designerShelfId,
+  title: z.string(),
+  creator: z.string(),
+  source: z.literal('AI'),
+  licence: z.object({ code: z.literal('made'), name: z.string() }),
+  page: z.literal(''),
+  made: z.object({ label: z.string(), model: z.string(), words: z.string() }),
+  target: designerMakeTarget.nullable(),
+  pinned: z.boolean(),
+  at: z.number(),
+});
+const designerLeft = z.object({ mine: z.number().int(), all: z.number().int() });
+export const designerMakeJob = z.object({
+  job: z.string(),
+  state: z.enum(['running', 'done', 'stopped', 'lost']),
+  stoppedBy: z.string().optional(),
+  label: z.string(),
+  model: z.string(),
+  lines: z.array(
+    z.object({
+      target: designerMakeTarget.nullable(),
+      name: z.string(),
+      asked: z.number().int(),
+      made: z.number().int(),
+      refused: z.number().int(),
+      failed: z.number().int(),
+      state: z.enum(['waiting', 'making', 'done', 'gone']),
+      code: z.string().optional(),
+      pictures: z.array(designerMadePicture),
+    }),
+  ),
+  left: designerLeft,
+});
+export const designerMakeBody = z
+  .object({
+    id: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+    lines: z.array(z.object({ words: z.string().min(1).max(2000), target: designerMakeTarget.optional() }).strict()).min(1).max(12),
+    shape: z.enum(PICTURE_SHAPES),
+    count: z.number().int().min(1).max(4),
+  })
+  .strict()
+  .refine((body) => body.lines.length === 1 || body.count === 1, { message: 'A batch makes one picture a line.' });
+const makerStates = ['none', 'changed', 'model-gone', 'not-here', 'off', 'switched-off'] as const;
+export const designerMakeReply = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('accepted'), job: designerMakeJob }),
+  z.object({ state: z.literal('allowance'), left: designerLeft, resetsAt: z.number() }),
+  z.object({ state: z.literal('busy'), job: z.string().nullable() }),
+  z.object({ state: z.literal('full') }),
+  z.object({ state: z.literal('none') }),
+  z.object({ state: z.literal('changed') }),
+  z.object({ state: z.literal('model-gone') }),
+  z.object({ state: z.literal('not-here') }),
+  z.object({ state: z.literal('off') }),
+  z.object({ state: z.literal('switched-off') }),
+]);
+export const designerMakeJobParams = z.object({ id: z.string().regex(/^ds_[0-9a-z]{24}$/), job: z.string().regex(/^job_[0-9a-f]{16}$/) });
+export const designerMadeReply = z.object({ pictures: z.array(designerMadePicture), running: z.string().nullable() });
+export const designerMakersReply = z.object({
+  makers: z.array(
+    z.object({
+      id: z.string(),
+      kind: z.enum(['openai', 'openai-compatible', 'google']),
+      label: z.string(),
+      local: z.boolean(),
+      models: z.array(z.string()),
+      listed: z.enum(['ok', 'unreachable']),
+    }),
+  ),
+  chosen: z.object({ id: z.string(), label: z.string(), model: z.string(), local: z.boolean() }).nullable(),
+  state: z.enum(['ok', ...makerStates]),
+  usd: z.number().nullable(),
+  left: designerLeft,
+  limits: designerLeft,
+  resetsAt: z.number(),
+  chat: z.boolean(),
+  canChoose: z.boolean(),
+});
+/** An OpenAI or Google key for pictures only: `null` takes it away. */
+export const designerPictureMakerKeyBody = z
+  .object({ provider: z.enum(['openai', 'google']), key: z.string().trim().regex(/^[A-Za-z0-9_.-]{20,300}$/).nullable() })
+  .strict();
+export const designerMakerBody = z.union([
+  z.object({ id: z.enum(['database', 'env:openai', 'env:openai-compatible', 'env:ollama', 'google']), model: z.string().min(1).max(120), chat: z.boolean().optional() }).strict(),
+  z.object({ chat: z.boolean() }).strict(),
+]);
 export const designerPicturePinBody = z.object({ shelf: designerShelfId, picture: designerPictureId });
 export const designerPicturePinReply = z.discriminatedUnion('state', [
   z.object({ state: z.literal('kept'), small: z.boolean(), shown: z.literal(true).optional() }),

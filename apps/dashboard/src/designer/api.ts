@@ -315,15 +315,24 @@ export type PictureShape = 'wide' | 'tall' | 'square';
 /** What a design does with the page's pictures: leaves placeholders, or opens the picture dialog after it. */
 export type PicturesMode = 'placeholders' | 'choose';
 /** A licence's code, as the server reads it from the source: its badge is decided from it. */
-export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'pixabay' | 'own' | 'template';
+export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'pixabay' | 'own' | 'template' | 'made';
 export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash' | 'Pixabay';
 
 /** What the picture dialog draws for an app (`GET …/pictures`). */
 export interface PicturesView {
   /** The app builds its own screens: its pictures are in its own files, and the dialog does not open. */
   ownBuild: boolean;
-  spots: { id: string; label: string; shape: PictureShape; shows: string; search: string; version: string; thumb: string | null; alt: string; decorative: boolean; licence: { code: LicenceCode; name: string; title: string; creator: string } | null }[];
-  tables: { table: string; label: string; column: string; rows: { row: number; label: string; version: string; thumb: string | null }[] }[];
+  spots: { id: string; label: string; shape: PictureShape; shows: string; search: string; version: string; thumb: string | null; words: string; alt: string; decorative: boolean; licence: { code: LicenceCode; name: string; title: string; creator: string } | null }[];
+  tables: {
+    table: string;
+    label: string;
+    column: string;
+    rows: { row: number; label: string; version: string; thumb: string | null; words: string }[];
+    /** The table holds people: no row's name goes into a made picture's words. */
+    people: boolean;
+    /** Columns whose rows share a few values: one picture for each value. */
+    groups: { column: string; label: string; values: { value: string; rows: number[]; words: string }[] }[];
+  }[];
   /** Pictures already in the app, to use again: a file of `assets/pictures/`, or a picture attached in this session. */
   inApp: { key: string; name: string; thumb: string; licence: LicenceCode }[];
   /** What a design does with the page's pictures; null for an app whose look was kept before styles, which keeps no choice. */
@@ -358,6 +367,61 @@ export interface FoundPicture {
   page: string;
   /** Shown from its source's site, never copied. */
   shown?: true;
+  /** Made with AI: the service, the model, and the words it was made from. */
+  made?: { label: string; model: string; words: string };
+}
+
+// ─── pictures made with AI ─────────────────────────────────────────
+export type MakeTarget = { spot: string } | { table: string; row: number } | { table: string; column: string; value: string };
+/** A made picture, as the server names it: its ids, the target's name, the service and model, the words. */
+export interface MadePicture extends FoundPicture {
+  shelf: string;
+  source: 'AI';
+  licence: { code: 'made'; name: string };
+  made: { label: string; model: string; words: string };
+  target: MakeTarget | null;
+  pinned: boolean;
+  at: number;
+}
+export interface MakeJobLine {
+  target: MakeTarget | null;
+  name: string;
+  asked: number;
+  made: number;
+  refused: number;
+  failed: number;
+  state: 'waiting' | 'making' | 'done' | 'gone';
+  code?: string;
+  pictures: MadePicture[];
+}
+export interface MakeJob {
+  job: string;
+  state: 'running' | 'done' | 'stopped' | 'lost';
+  stoppedBy?: string;
+  label: string;
+  model: string;
+  lines: MakeJobLine[];
+  left: { mine: number; all: number };
+}
+/** Why the tab cannot make a picture now, in its own words; `ok` when it can. */
+export type MakerState = 'ok' | 'none' | 'changed' | 'model-gone' | 'not-here' | 'off' | 'switched-off';
+export type MakeReply =
+  | { state: 'accepted'; job: MakeJob }
+  | { state: 'allowance'; left: { mine: number; all: number }; resetsAt: number }
+  | { state: 'busy'; job: string | null }
+  | { state: 'full' }
+  | { state: Exclude<MakerState, 'ok'> };
+export interface MakersView {
+  makers: { id: string; kind: 'openai' | 'openai-compatible' | 'google'; label: string; local: boolean; models: string[]; listed: 'ok' | 'unreachable' }[];
+  chosen: { id: string; label: string; model: string; local: boolean } | null;
+  state: MakerState;
+  /** About what one picture costs at the chosen model, in US dollars; null when not known. */
+  usd: number | null;
+  left: { mine: number; all: number };
+  limits: { mine: number; all: number };
+  resetsAt: number;
+  chat: boolean;
+  canChoose: boolean;
 }
 export type PictureSearchReply =
   /** `q`: the fewer words that found these, when the words asked for found none. */
@@ -494,7 +558,9 @@ export type DesignerEventBody =
   /** The pictures' Undo: back to this version. */
   | { kind: 'pictures-undone'; to: number }
   /** The server's word on the page's pictures as a turn ends. */
-  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number };
+  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number }
+  /** A make of pictures with AI: the dialog's progress (by the person), or what the chat's make_pictures made (in its turn). */
+  | { kind: 'picture-make'; job: MakeJob };
 
 /** What a person can do from a page that takes the app's folder for a moment. */
 export type FolderHold = 'save' | 'style' | 'restore' | 'start' | 'pictures';
@@ -581,6 +647,8 @@ export const designerKeys = {
   architecture: (id: string) => ['designer', 'architecture', id] as const,
   files: (id: string) => ['designer', 'files', id] as const,
   pictures: (id: string) => ['designer', 'pictures', id] as const,
+  makers: ['designer', 'picture-makers'] as const,
+  made: (id: string) => ['designer', 'made', id] as const,
   siteTemplates: ['designer', 'site-templates'] as const,
 };
 
@@ -761,6 +829,13 @@ export const designerApi = {
     ),
   /** Keep a Pexels or Unsplash key where the host keeps keys (the desktop app); `null` takes it away. */
   keepPictureKey: (source: KeyedPictureSource, key: string | null) => api.put<{ keys: PictureKeys }>(`${BASE}/picture-keys`, { source, key }),
+  makers: () => api.get<MakersView>(`${BASE}/pictures/makers`),
+  chooseMaker: (input: { id: string; model: string; chat?: boolean } | { chat: boolean }) => api.put<MakersView>(`${BASE}/pictures/maker`, input),
+  savePictureMakerKey: (provider: 'openai' | 'google', key: string | null) => api.put<MakersView>(`${BASE}/pictures/key`, { provider, key }),
+  makePictures: (id: string, body: { id: string; lines: { words: string; target?: MakeTarget }[]; shape: PictureShape; count: number }) => api.post<MakeReply>(`${BASE}/sessions/${id}/pictures/make`, body),
+  makeJob: (id: string, job: string) => api.get<MakeJob>(`${BASE}/sessions/${id}/pictures/make/${job}`),
+  stopMake: (id: string, job: string) => api.post<{ stopped: boolean }>(`${BASE}/sessions/${id}/pictures/make/${job}/stop`, {}),
+  madePictures: (id: string) => api.get<{ pictures: MadePicture[]; running: string | null }>(`${BASE}/sessions/${id}/pictures/made`),
   pinPicture: (id: string, shelf: string, picture: string) => api.post<PicturePinReply>(`${BASE}/sessions/${id}/pictures/pin`, { shelf, picture }),
   applyPictures: (id: string, applyId: string, fills: readonly PictureFill[], mode?: PicturesMode) =>
     api.post<PicturesApplied>(`${BASE}/sessions/${id}/pictures/apply`, { id: applyId, fills, ...(mode === undefined ? {} : { mode }) }),

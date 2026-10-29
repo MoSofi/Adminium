@@ -30,7 +30,7 @@ export interface DesignerLive {
   reason: 'not-allowed' | 'no-project' | 'disk-not-kept' | 'no-bundler' | 'not-writable' | null;
 }
 
-const LIVE_KEY = ['designer', 'live'] as const;
+export const LIVE_KEY = ['designer', 'live'] as const;
 
 function reasonLine(reason: NonNullable<DesignerLive['reason']>): string {
   switch (reason) {

@@ -2389,6 +2389,16 @@
       "saveFailed": "无法保存。请重试。",
       "aloud": "{name} 朗读回复",
       "aloudWhat": "使用浏览器自带的语音。每个人自行开启。"
+    },
+    "pictures": {
+      "saveFailed": "无法保存。请重试。",
+      "perDay": "每人每天可生成的图片数",
+      "perDayAll": "所有人每天合计可生成的图片数",
+      "perTurn": "Designer 聊天每轮可生成的图片数",
+      "title": "AI 生成的图片",
+      "what": "Designer 生成的每张图片，都会向生成时所用密钥的账户计费。服务在 Designer 的图片对话框中选择。",
+      "zero": "0 表示关闭图片生成",
+      "save": "保存"
     }
   },
   "settingsHub": {

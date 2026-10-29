@@ -1457,6 +1457,14 @@ export interface AdminiumAssistantUseTable {
   tokens: ColumnType<number, number | undefined, number>;
   turns: ColumnType<number, number | undefined, number>;
   voiceSeconds: ColumnType<number, number | undefined, number>;
+  /** Pictures made with AI this day. */
+  picturesMade: ColumnType<number, number | undefined, number>;
+}
+
+/** Pictures made with AI by everybody, one row a UTC day. */
+export interface AdminiumPictureUseTable {
+  day: string;
+  made: ColumnType<number, number | undefined, number>;
 }
 
 /** A named set of people (0057): a role's rows can reach "those of the teams this person leads". */
@@ -1967,6 +1975,7 @@ export interface MetaDB {
   adminium_assistant_sessions: AdminiumAssistantSessionsTable;
   adminium_assistant_turns: AdminiumAssistantTurnsTable;
   adminium_assistant_use: AdminiumAssistantUseTable;
+  adminium_picture_use: AdminiumPictureUseTable;
   adminium_teams: AdminiumTeamsTable;
   adminium_team_members: AdminiumTeamMembersTable;
   adminium_automation_spells: AdminiumAutomationSpellsTable;

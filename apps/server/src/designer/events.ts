@@ -76,7 +76,9 @@ export type DesignerEventBody =
    * The server's word on the app's pictures as a turn ends: the spots it added are placeholders (the person chose
    * nothing yet), or some are still empty. Said in the page's language, from the counts.
    */
-  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number };
+  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number }
+  /** A make of pictures with AI, as it goes: the job's whole state, each line's, and what is left today. */
+  | { kind: 'picture-make'; job: import('./picture-jobs.js').JobView };
 
 /** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
 export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';

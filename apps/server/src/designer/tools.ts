@@ -25,6 +25,7 @@
  * server code is written, only after the person said yes in that turn. A bad
  * input is an answer the model can read and fix, never a crash of the turn.
  */
+import { makePicturesTool, type MakePicturesDeps } from './make-pictures-tool.js';
 import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, PICTURE_FILE_KINDS, PUBLIC_PICTURE_MAX_BYTES, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -136,6 +137,8 @@ export interface ToolsDeps {
     /** The app's sample rows are in already: once the app is next applied, they are added again with their pictures. */
     reseed?(appKey: string): void;
   };
+  /** Making pictures with AI from the chat: offered only where the server makes pictures. */
+  makePictures?: Omit<MakePicturesDeps, 'root' | 'version' | 'picturesOf' | 'reseed' | 'ownBuild'>;
 }
 
 /** What an app can build on an add-on, as the end of its line: its shapes by the way each is built, and its ledgers. */
@@ -2337,6 +2340,22 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             );
       return site === null ? [] : [site];
     })(),
+    // Pictures made with AI, from the chat: only where this server makes pictures.
+    ...(deps.makePictures === undefined
+      ? []
+      : [
+          makePicturesTool(
+            {
+              ...deps.makePictures,
+              root: deps.root,
+              version: deps.version,
+              picturesOf: (id) => deps.designer().picturesOf(id),
+              ownBuild: (key) => hasOwnBuild(deps.root, key),
+              reseed: (key) => deps.pictures?.reseed?.(key),
+            },
+            appKey,
+          ),
+        ]),
     // Only where the session holds a frame imported from Figma: elsewhere its definition would take room from every request for nothing.
     ...(() => {
       const figma = deps.figma === undefined || deps.attachments === undefined || sessionId === undefined ? null : readFigmaTool({ ...deps.figma, attachments: deps.attachments }, sessionId);
@@ -2475,6 +2494,7 @@ export const DESIGNER_TOOL_NAMES = [
   'use_pictures',
   'ask_person',
   'request_package',
+  'make_pictures',
   'read_figma',
   'use_site',
   'allow_picture_site',

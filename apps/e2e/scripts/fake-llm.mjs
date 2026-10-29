@@ -625,6 +625,9 @@ export function createFakeLlmServer() {
  * `then` is what it calls after that and before the check, one call a reply;
  * `reply` is what it says at the end.
  */
+/** A 4×3 PNG as base64: every picture the fake's picture route makes. */
+const FAKE_PICTURE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGM4UWEDRww4OQBiHhHR6R4GfQAAAABJRU5ErkJggg==';
+
 export function createDesignerModelServer({ appKey, appName, files, then = [], reply = 'The app has a jobs table now. It is applied and saved.' }) {
   const line = (res, value) => res.write(`${JSON.stringify(value)}\n`);
   const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: 900, eval_count: 40, message: { role: 'assistant', content: '' } };
@@ -636,6 +639,21 @@ export function createDesignerModelServer({ appKey, appName, files, then = [], r
     if (req.method === 'GET' && url.startsWith('/api/tags')) {
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ models: [{ name: 'fake', model: 'fake' }] }));
+      return;
+    }
+    // Ollama's picture route, as it copies OpenAI's: a list with one picture model, and small real PNGs.
+    if (req.method === 'GET' && url.startsWith('/v1/models')) {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ data: [{ id: 'fake' }, { id: 'x/flux2-klein' }] }));
+      return;
+    }
+    if (req.method === 'POST' && url.startsWith('/v1/images/generations')) {
+      void readBody(req).then((raw) => {
+        const body = JSON.parse(raw);
+        const n = Math.max(1, Math.min(4, Number(body?.n ?? 1)));
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ data: Array.from({ length: n }, () => ({ b64_json: FAKE_PICTURE_PNG })) }));
+      });
       return;
     }
     if (req.method !== 'POST' || !url.startsWith('/api/chat')) {

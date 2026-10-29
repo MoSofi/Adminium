@@ -33,8 +33,8 @@ const SESSION = 'ds_000000000000000000000001';
 const VIEW: PicturesView = {
   ownBuild: false,
   spots: [
-    { id: 'hero', label: 'Hero', shape: 'wide', shows: 'the shop’s best dish', search: 'fried chicken', version: 'a1', thumb: null, alt: '', decorative: false, licence: null },
-    { id: 'kitchen', label: 'Kitchen', shape: 'square', shows: 'the kitchen at work', search: 'restaurant kitchen', version: 'b2', thumb: null, alt: '', decorative: false, licence: null },
+    { id: 'hero', label: 'Hero', shape: 'wide', shows: 'the shop’s best dish', search: 'fried chicken', words: 'fried chicken, photo, natural light, no text', version: 'a1', thumb: null, alt: '', decorative: false, licence: null },
+    { id: 'kitchen', label: 'Kitchen', shape: 'square', shows: 'the kitchen at work', search: 'restaurant kitchen', words: 'restaurant kitchen, photo, natural light, no text', version: 'b2', thumb: null, alt: '', decorative: false, licence: null },
   ],
   tables: [],
   inApp: [],

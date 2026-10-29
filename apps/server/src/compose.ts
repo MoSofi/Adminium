@@ -133,6 +133,8 @@ import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
 import { createRegistry } from './designer/registry.js';
 import { createPictureDialog, type PictureKeys } from './designer/picture-dialog.js';
+import { createPictureJobs } from './designer/picture-jobs.js';
+import { personLog } from './designer/events.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
 import { createPictureShelf, downloadPicture, openverse, pexels, pixabay, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
@@ -555,6 +557,8 @@ export interface ComposeServerOptions {
    * pictures they name), so a fake answers in their place. There is no setting for this either.
    */
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
+  /** A test's own picture makers: given what the real one would be built with. */
+  pictureMakerSeam?: import('./llm/connections.js').AiConnectionsDeps['createPictureMaker'] | undefined;
   /**
    * For tests only: marketing mail's DNS answers, the sender's postal address and the per-table "existing
    * customers" switch, given in place of the real ones (`email/marketing.ts`). There is no setting for this.
@@ -822,6 +826,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     production: process.env.NODE_ENV === 'production',
     // On a live server a signed-in person names the model's address: loopback and private ranges are refused (M22).
     ...(liveAllowed ? { blockPrivate: true } : {}),
+    ...(opts.pictureMakerSeam === undefined ? {} : { createPictureMaker: opts.pictureMakerSeam }),
   });
   if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
 
@@ -2637,7 +2642,62 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
           keep: (source, key) => hostModels()?.keep({ [source === 'Pexels' ? 'PEXELS_API_KEY' : 'UNSPLASH_ACCESS_KEY']: key }),
         };
-        const pictureDialog = createPictureDialog({ root, search: designerSearch, shelf: designerShelf, keys: pictureKeys, download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }) });
+        // Pictures made with AI: the service a person who may set up AI chose, a day's allowance, jobs whose pictures are kept on disk.
+        const pictureJobs = createPictureJobs({
+          root,
+          meta,
+          settings: settingsRepo(meta),
+          connections: aiConnections,
+          networkFeatures: () => addOnCatalog.networkFeaturesAllowed(),
+          target: (sessionId, target) => {
+            try {
+              const view = designer?.picturesOf(sessionId);
+              if (view === undefined || view === null) return null;
+              if ('spot' in target) {
+                const spot = view.spots.find((one) => one.id === target.spot);
+                return spot === undefined ? null : { name: spot.label };
+              }
+              const table = view.tables.find((one) => one.table === target.table);
+              if (table === undefined) return null;
+              if ('row' in target) {
+                const row = table.rows.find((one) => one.row === target.row);
+                return row === undefined ? null : { name: row.label };
+              }
+              // A group is a value its column holds now: one that changed under a running make is gone.
+              const group = table.groups.find((one) => one.column === target.column)?.values.find((one) => one.value === target.value);
+              return group === undefined ? null : { name: group.value };
+            } catch {
+              return null;
+            }
+          },
+          emit: (sessionId, body) => {
+            const current = designer;
+            if (current === null) return;
+            personLog(current.runner.events(sessionId)).emit(current.store.read(sessionId).turns, body);
+          },
+          audit: (action, actor, detail) => designerAudit(action, actor, detail),
+        });
+        pictureJobs.sweep();
+        // Unused made pictures go after a day while the server runs too, not only at its next start.
+        const madeSweep = setInterval(() => {
+          try {
+            pictureJobs.sweep();
+          } catch (error) {
+            app.log.warn({ err: error }, 'could not sweep made pictures');
+          }
+        }, 60 * 60_000);
+        madeSweep.unref();
+        app.addHook('onClose', async () => {
+          clearInterval(madeSweep);
+        });
+        const pictureDialog = createPictureDialog({
+          root,
+          search: designerSearch,
+          shelf: designerShelf,
+          keys: pictureKeys,
+          made: { found: (sessionId, shelf, picture) => pictureJobs.found(sessionId, shelf, picture), pin: (sessionId, shelf, picture) => pictureJobs.pin(sessionId, shelf, picture) },
+          download: (picture, downloadOpts) => downloadPicture(picture, { ...downloadOpts, fetcher: pictureFetch }),
+        });
 
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
@@ -2746,6 +2806,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                 ...(pictureSites === undefined ? {} : { pictureSites }),
                 newestVersion: designerRegistry,
                 pictures: { reseed: (key) => designer?.reseedAfterApply(key) },
+                makePictures: {
+                  jobs: pictureJobs,
+                  dialog: pictureDialog,
+                  settings: async () => ({ chat: await settingsRepo(meta).get('designer.pictures.chat'), perTurn: await settingsRepo(meta).get('designer.pictures.perTurn') }),
+                },
                 readAddOn: (key) => readAddOnManifest({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET), store: addOnStore }, key),
                 figma: { reader: figmaReader, cache: figmaCache, windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'] },
                 windowOf: async (forSession) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(forSession.connectionId))?.provider ?? 'openai-compatible'],
@@ -2765,6 +2830,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             figma: { imports: figmaImports, reader: figmaReader },
             pictures: designerShelf,
             pictureDialog,
+            pictureJobs,
             audit: designerAudit,
             ...(live === null ? {} : { live }),
             root,

@@ -2399,6 +2399,16 @@ export default {
       "saveFailed": "Det kunne ikke gemmes. Prøv igen.",
       "aloud": "{name} læser sine svar højt",
       "aloudWhat": "Bruger browserens egne stemmer. Hver person slår det til for sig selv."
+    },
+    "pictures": {
+      "saveFailed": "Det kunne ikke gemmes. Prøv igen.",
+      "perDay": "Billeder, en person må lave om dagen",
+      "perDayAll": "Billeder, alle tilsammen må lave om dagen",
+      "perTurn": "Billeder, én tur i Designer-chatten må lave",
+      "title": "Billeder lavet med AI",
+      "what": "Hvert billede, Designeren laver, betales af kontoen for den nøgle, det laves med. Tjenesten vælges i Designerens billeddialog.",
+      "zero": "0 slår billeder fra",
+      "save": "Gem"
     }
   },
   "settingsHub": {

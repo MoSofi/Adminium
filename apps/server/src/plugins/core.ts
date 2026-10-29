@@ -286,6 +286,11 @@ export const RATE_BUCKETS = {
    */
   // (A tall picture is sent with its parts: up to nine files for one.)
   'designer-files': { max: 360, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  /*
+   * Making pictures with AI: each one is charged to a key's account. Its own small budget on top of the
+   * day's allowance, so a page that loops cannot spend that allowance in a minute.
+   */
+  'designer-make': { max: 10, timeWindowMs: 60_000, keyBy: 'principal' },
   'file-bytes': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
   /*
    * `POST /files` only.

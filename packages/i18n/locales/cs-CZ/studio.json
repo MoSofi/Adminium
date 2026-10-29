@@ -2389,6 +2389,16 @@
       "saveFailed": "To se nepodařilo uložit. Zkuste to znovu.",
       "aloud": "{name} čte své odpovědi nahlas",
       "aloudWhat": "Používá hlasy prohlížeče. Každý si to zapíná sám pro sebe."
+    },
+    "pictures": {
+      "saveFailed": "To se nepodařilo uložit. Zkuste to znovu.",
+      "perDay": "Počet obrázků, které může člověk vytvořit za den",
+      "perDayAll": "Počet obrázků, které mohou všichni dohromady vytvořit za den",
+      "perTurn": "Počet obrázků, které může vytvořit jedno kolo chatu Designeru",
+      "title": "Obrázky vytvořené pomocí AI",
+      "what": "Každý obrázek, který Designer vytvoří, se účtuje na účet klíče, se kterým byl vytvořen. Služba se vybírá v dialogu obrázků v Designeru.",
+      "zero": "0 vytváření obrázků vypne",
+      "save": "Uložit"
     }
   },
   "settingsHub": {

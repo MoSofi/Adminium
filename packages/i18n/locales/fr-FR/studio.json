@@ -2389,6 +2389,16 @@
       "saveFailed": "Impossible d’enregistrer cela. Réessayez.",
       "aloud": "{name} lit ses réponses à voix haute",
       "aloudWhat": "Utilise les voix du navigateur. Chaque personne l’active pour elle-même."
+    },
+    "pictures": {
+      "saveFailed": "Impossible d’enregistrer cela. Réessayez.",
+      "perDay": "Images qu’une personne peut créer par jour",
+      "perDayAll": "Images que tout le monde ensemble peut créer par jour",
+      "perTurn": "Images qu’un tour de chat du Designer peut créer",
+      "title": "Images créées par IA",
+      "what": "Chaque image créée par le Designer est facturée sur le compte de la clé utilisée pour la créer. Le service se choisit dans la fenêtre Images du Designer.",
+      "zero": "0 désactive la création d’images",
+      "save": "Enregistrer"
     }
   },
   "settingsHub": {

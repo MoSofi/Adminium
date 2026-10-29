@@ -8,7 +8,7 @@
  * server runs. Every route declares the `designer` rate bucket itself, so no
  * address pattern can take its limit away.
  */
-import { anthropicEfforts, type RunEffort } from '@adminium/llm';
+import { anthropicEfforts, PictureError, type RunEffort } from '@adminium/llm';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
@@ -93,6 +93,14 @@ import {
   designerPicturesApplyReply,
   designerPicturesReply,
   designerPicturesUndoBody,
+  designerMakeBody,
+  designerMakeJob,
+  designerMakeJobParams,
+  designerMakeReply,
+  designerMadeReply,
+  designerMakerBody,
+  designerMakersReply,
+  designerPictureMakerKeyBody,
   designerPicturePinReply,
   designerPictureSearchQuery,
   designerPictureSearchReply,
@@ -165,6 +173,8 @@ export interface DesignerRoutesDeps {
   pictures?: import('../../designer/pictures.js').PictureShelf;
   /** The picture dialog: searching a source, and keeping what the person picks. */
   pictureDialog?: import('../../designer/picture-dialog.js').PictureDialog;
+  /** Making pictures with AI: the service, the jobs, the pictures made. */
+  pictureJobs?: import('../../designer/picture-jobs.js').PictureJobs;
   /** How an app fits together, from what the engine applied. */
   architecture?: ((appKey: string) => Promise<ArchitectureDocument>) | undefined;
 }
@@ -635,7 +645,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       { preHandler: guard, config: { rateLimitBucket: 'designer-files' as const }, schema: { params: designerPictureThumbParams } },
       async (request, reply) => {
         const session = store.read(request.params.id);
-        const thumb = (await deps.pictures?.thumb(session.id, request.params.shelf, request.params.picture)) ?? null;
+        // A picture made with AI is on disk, whole: no small copy is made of it (no encoder), and the tile loads it lazily.
+        const thumb = deps.pictureJobs?.file(session.id, request.params.shelf, request.params.picture) ?? (await deps.pictures?.thumb(session.id, request.params.shelf, request.params.picture)) ?? null;
         if (thumb === null) throw new NotFoundError('There is no such picture on a card of this session.');
         return reply
           .header('content-type', thumb.mime)
@@ -732,6 +743,106 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         return deps.pictureDialog.pin(session.id, request.body.shelf, request.body.picture);
       },
     );
+
+    /*
+     * MAKING PICTURES WITH AI. Which service makes them is a setting that only
+     * someone who may set up AI chooses; making one is the Designer's own right and a day's allowance. A Make
+     * answers at once with its job, and the job says how it goes as session events.
+     */
+    const jobs = deps.pictureJobs;
+    const pictureMakeError = (error: unknown): never => {
+      if (error instanceof PictureError && error.code === 'config') {
+        if (error.message.includes('request id')) throw new ConflictError('That request was already made with other words. Press Make again.', 'CONFLICT', { reason: 'REQUEST_ID_REUSED' });
+        throw new ValidationFailedError(`The pictures could not be asked for: ${error.message}.`, { reason: 'MAKE_REFUSED' });
+      }
+      throw error;
+    };
+
+    app.get('/designer/pictures/makers', { preHandler: guard, config: RATE, schema: { response: { 200: designerMakersReply } } }, async (request) => {
+      if (jobs === undefined) throw new NotFoundError('This server makes no pictures.');
+      return jobs.view(request.user?.id ?? null, await request.can(PERMISSIONS.llmRun));
+    });
+
+    app.put(
+      '/designer/pictures/maker',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits the choice of picture service itself, with the service and the model') },
+        schema: { body: designerMakerBody, response: { 200: designerMakersReply } },
+      },
+      async (request) => {
+        if (jobs === undefined) throw new NotFoundError('This server makes no pictures.');
+        // Whose money a picture spends is the decision of someone who may set up AI.
+        if (!(await request.can(PERMISSIONS.llmRun))) throw new ForbiddenError('Only someone who manages AI settings can choose the picture service.', 'FORBIDDEN', { reason: 'NOT_LLM_RUN' });
+        try {
+          return await jobs.choose(request.body, actorOf(request));
+        } catch (error) {
+          return pictureMakeError(error);
+        }
+      },
+    );
+
+    app.post(
+      '/designer/sessions/:id/pictures/make',
+      {
+        preHandler: guard,
+        config: { rateLimitBucket: 'designer-make' as const, audit: auditExempt('the Designer audits each make itself when it ends: the service, the model and the counts, never the words') },
+        schema: { params: designerSessionParams, body: designerMakeBody, response: { 200: designerMakeReply } },
+      },
+      async (request) => {
+        const session = store.read(request.params.id);
+        if (jobs === undefined) return { state: 'none' as const };
+        try {
+          return await jobs.start(session, actorOf(request), request.body);
+        } catch (error) {
+          return pictureMakeError(error);
+        }
+      },
+    );
+
+    app.get(
+      '/designer/sessions/:id/pictures/make/:job',
+      { preHandler: guard, config: RATE, schema: { params: designerMakeJobParams, response: { 200: designerMakeJob } } },
+      async (request) => {
+        const session = store.read(request.params.id);
+        const job = (await jobs?.get(session.id, request.params.job)) ?? null;
+        if (job === null) throw new NotFoundError('There is no such make in this session.');
+        return job;
+      },
+    );
+
+    app.post(
+      '/designer/sessions/:id/pictures/make/:job/stop',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('stopping a make asks for nothing more; the make is audited when it ends') },
+        schema: { params: designerMakeJobParams, response: { 200: designerStopReply } },
+      },
+      async (request) => {
+        const session = store.read(request.params.id);
+        return { stopped: jobs?.stop(session.id, request.params.job, request.user?.id ?? null) ?? false };
+      },
+    );
+
+    // A key for pictures only (OpenAI's or Google's): kept where keys are kept here, with no chat model chosen.
+    app.put(
+      '/designer/pictures/key',
+      { preHandler: guard, config: { ...RATE, audit: audited('rbac') }, schema: { body: designerPictureMakerKeyBody, response: { 200: designerMakersReply } } },
+      async (request) => {
+        if (jobs === undefined) throw new NotFoundError('This server makes no pictures.');
+        refuseOnLive();
+        if (!(await request.can(PERMISSIONS.llmRun))) throw new ForbiddenError('Only someone who manages AI settings can add a picture service.', 'FORBIDDEN', { reason: 'NOT_LLM_RUN' });
+        connections.savePictureKey(request.body.provider, request.body.key);
+        // Which service only: a key is never in an audit entry.
+        await app.rbac.audit(request, { category: 'settings', action: request.body.key === null ? 'designer.picture-key.removed' : 'designer.picture-key.saved', changes: { after: { provider: request.body.provider } } });
+        return jobs.view(request.user?.id ?? null, true);
+      },
+    );
+
+    app.get('/designer/sessions/:id/pictures/made', { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerMadeReply } } }, async (request) => {
+      const session = store.read(request.params.id);
+      return jobs?.list(session.id) ?? { pictures: [], running: null };
+    });
 
     // A Pexels or Unsplash key, given in the picture dialog: kept by the host that keeps keys (the desktop app), in use from the next search.
     app.put(

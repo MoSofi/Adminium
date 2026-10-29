@@ -563,7 +563,12 @@ export function sideSpots(root: string, key: string, assetsDir: string, prefix: 
       src,
       alt: spot.alt,
       decorative: spot.decorative,
-      ...(credit === undefined ? {} : { credit: { title: credit.title, creator: credit.creator, creatorUrl: credit.creatorUrl, licence: credit.licence, licenceUrl: credit.licenceUrl, page: credit.page } }),
+      ...(credit === undefined
+        ? {}
+        : credit.licenceCode === 'made'
+          ? // "Made with AI by OpenAI · gpt-image-2": the service and model, never the words.
+            { credit: { title: 'Made with AI', creator: credit.creator, creatorUrl: '', licence: '', licenceUrl: credit.licenceUrl, page: '' } }
+          : { credit: { title: credit.title, creator: credit.creator, creatorUrl: credit.creatorUrl, licence: credit.licence, licenceUrl: credit.licenceUrl, page: credit.page } }),
     };
   }
   return out;

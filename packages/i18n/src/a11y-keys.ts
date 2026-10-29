@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3510 entries. */
+/** `namespace:key` — 3524 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -368,6 +368,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:auth.otp.title',
   'common:auth.reset.subtitle',
   'common:auth.reset.title',
+  'common:auth.signIn.passwordSetSubtitle',
+  'common:auth.signIn.passwordSetTitle',
   'common:auth.signIn.submit',
   'common:auth.signIn.subtitle',
   'common:auth.signIn.title',
@@ -1024,6 +1026,14 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:pictureDialog.closeDetails',
   'designer:pictureDialog.leavePlaceholders',
   'designer:pictureDialog.loading',
+  'designer:pictureDialog.make.change',
+  'designer:pictureDialog.make.chooseService',
+  'designer:pictureDialog.make.forEachBy',
+  'designer:pictureDialog.make.howMany',
+  'designer:pictureDialog.make.key',
+  'designer:pictureDialog.make.lineWords',
+  'designer:pictureDialog.make.service',
+  'designer:pictureDialog.make.stillMaking',
   'designer:pictureDialog.remove',
   'designer:pictureDialog.retry',
   'designer:pictureDialog.searchAgain',
@@ -2794,6 +2804,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:settingsAi.history.connection',
   'studio:settingsAi.history.errorTitle',
   'studio:settingsAi.history.openReview',
+  'studio:settingsAi.pictures.perDay',
+  'studio:settingsAi.pictures.perDayAll',
+  'studio:settingsAi.pictures.perTurn',
+  'studio:settingsAi.pictures.saveFailed',
   'studio:settingsAi.provider.anthropic.label',
   'studio:settingsAi.provider.heading',
   'studio:settingsAi.provider.networkDisabledTitle',

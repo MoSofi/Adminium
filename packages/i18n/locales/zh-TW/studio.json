@@ -2389,6 +2389,16 @@
       "saveFailed": "無法儲存。請再試一次。",
       "aloud": "{name} 朗讀回覆",
       "aloudWhat": "使用瀏覽器內建的語音。每個人自行開啟。"
+    },
+    "pictures": {
+      "saveFailed": "無法儲存。請再試一次。",
+      "perDay": "每人每天可生成的圖片數",
+      "perDayAll": "所有人每天合計可生成的圖片數",
+      "perTurn": "Designer 聊天每輪可生成的圖片數",
+      "title": "AI 生成的圖片",
+      "what": "Designer 生成的每張圖片，都會向生成時所用金鑰的帳戶計費。服務在 Designer 的圖片對話框中選擇。",
+      "zero": "0 表示關閉圖片生成",
+      "save": "儲存"
     }
   },
   "settingsHub": {

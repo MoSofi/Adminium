@@ -287,6 +287,10 @@ const ALLOWED_HOSTS = [
     why: 'JSON Schema dialect identifiers ($schema) emitted by Zod. Identifiers, same as above',
   },
   {
+    test: /^openai\.com$|^ai\.google\.dev$/,
+    why: 'the terms pages of the services that make pictures with AI, written as a made picture\'s licence link in its credit (CREDITS.json). A link a person may follow, never requested by the server or the window',
+  },
+  {
     test: /^www\.figma\.com$/,
     why: 'the placeholder of the Designer\'s "From Figma…" link field, showing the shape of a link to paste. Text in an input, never requested: the server reads Figma, the window does not',
   },

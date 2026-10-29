@@ -4239,6 +4239,14 @@
     "srcHash": "46affb94e0a5",
     "status": "mt"
   },
+  "common.auth.signIn.passwordSetSubtitle": {
+    "status": "mt",
+    "srcHash": "f2f7877a56ba"
+  },
+  "common.auth.signIn.passwordSetTitle": {
+    "status": "mt",
+    "srcHash": "f6fab237db3e"
+  },
   "common.auth.signIn.rateLimited": {
     "srcHash": "7bac1d063041",
     "status": "mt"
@@ -5038,6 +5046,10 @@
   "common.builder.resetTitle": {
     "srcHash": "0e85e0611dec",
     "status": "mt"
+  },
+  "common.builder.sampleNote": {
+    "status": "mt",
+    "srcHash": "3107a00fe410"
   },
   "common.builder.saveAsVersion": {
     "srcHash": "4ed1f6bd0e3b",
@@ -12683,6 +12695,10 @@
     "status": "mt",
     "srcHash": "c6ab411a3f55"
   },
+  "designer.pictureDialog.badge.made": {
+    "status": "mt",
+    "srcHash": "f0934bf89ddd"
+  },
   "designer.pictureDialog.badge.noCredit": {
     "status": "mt",
     "srcHash": "1858b9ae0eb7"
@@ -12794,6 +12810,306 @@
   "designer.pictureDialog.loading": {
     "status": "mt",
     "srcHash": "fd651c746768"
+  },
+  "designer.pictureDialog.make.addKey": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "designer.pictureDialog.make.addService": {
+    "status": "mt",
+    "srcHash": "bacbdfe77da5"
+  },
+  "designer.pictureDialog.make.ask": {
+    "status": "mt",
+    "srcHash": "eff1be81dd49"
+  },
+  "designer.pictureDialog.make.auth": {
+    "status": "mt",
+    "srcHash": "b592266e8ab8"
+  },
+  "designer.pictureDialog.make.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "designer.pictureDialog.make.billing": {
+    "status": "mt",
+    "srcHash": "d651fa047677"
+  },
+  "designer.pictureDialog.make.busy": {
+    "status": "mt",
+    "srcHash": "db1df878368d"
+  },
+  "designer.pictureDialog.make.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "designer.pictureDialog.make.changed": {
+    "status": "mt",
+    "srcHash": "2692b70d0ef7"
+  },
+  "designer.pictureDialog.make.chat": {
+    "status": "mt",
+    "srcHash": "eb2e38829aaf"
+  },
+  "designer.pictureDialog.make.chooseService": {
+    "status": "mt",
+    "srcHash": "6d433cb3ea38"
+  },
+  "designer.pictureDialog.make.chooserTitle": {
+    "status": "mt",
+    "srcHash": "a80b48f75c71"
+  },
+  "designer.pictureDialog.make.cost": {
+    "status": "mt",
+    "srcHash": "dd0e9d7274cd"
+  },
+  "designer.pictureDialog.make.costKnown": {
+    "status": "mt",
+    "srcHash": "d8a24a019e83"
+  },
+  "designer.pictureDialog.make.costLocal": {
+    "status": "mt",
+    "srcHash": "c85b17f33b48"
+  },
+  "designer.pictureDialog.make.counter": {
+    "status": "mt",
+    "srcHash": "7b370ac644c6"
+  },
+  "designer.pictureDialog.make.dayDone": {
+    "status": "mt",
+    "srcHash": "4a08f6100b8c"
+  },
+  "designer.pictureDialog.make.done": {
+    "status": "mt",
+    "srcHash": "f479f6f56082"
+  },
+  "designer.pictureDialog.make.doneRefused": {
+    "status": "mt",
+    "srcHash": "a187def9dd08"
+  },
+  "designer.pictureDialog.make.eachGroup": {
+    "status": "mt",
+    "srcHash": "7910da944c68"
+  },
+  "designer.pictureDialog.make.eachRow": {
+    "status": "mt",
+    "srcHash": "231112fd5532"
+  },
+  "designer.pictureDialog.make.earlier": {
+    "status": "mt",
+    "srcHash": "f845277fe2fc"
+  },
+  "designer.pictureDialog.make.error": {
+    "status": "mt",
+    "srcHash": "39a5a07a1035"
+  },
+  "designer.pictureDialog.make.failed": {
+    "status": "mt",
+    "srcHash": "0f16cfd8fd29"
+  },
+  "designer.pictureDialog.make.forEach": {
+    "status": "mt",
+    "srcHash": "0ba539ddbbb2"
+  },
+  "designer.pictureDialog.make.forEachBy": {
+    "status": "mt",
+    "srcHash": "dde1e008b9d5"
+  },
+  "designer.pictureDialog.make.forEachTitle": {
+    "status": "mt",
+    "srcHash": "8b75262f59e7"
+  },
+  "designer.pictureDialog.make.full": {
+    "status": "mt",
+    "srcHash": "dba04c2bdb68"
+  },
+  "designer.pictureDialog.make.honest": {
+    "status": "mt",
+    "srcHash": "103eabc7ccdd"
+  },
+  "designer.pictureDialog.make.howMany": {
+    "status": "mt",
+    "srcHash": "503ce86651fc"
+  },
+  "designer.pictureDialog.make.key": {
+    "status": "mt",
+    "srcHash": "c67dd20ee842"
+  },
+  "designer.pictureDialog.make.keyNote": {
+    "status": "mt",
+    "srcHash": "0a2000cffcc8"
+  },
+  "designer.pictureDialog.make.lineFailed": {
+    "status": "mt",
+    "srcHash": "5f5f8758f5f2"
+  },
+  "designer.pictureDialog.make.lineGone": {
+    "status": "mt",
+    "srcHash": "4bad28970345"
+  },
+  "designer.pictureDialog.make.lineMade": {
+    "status": "mt",
+    "srcHash": "e572f95f9d1f"
+  },
+  "designer.pictureDialog.make.lineMaking": {
+    "status": "mt",
+    "srcHash": "3097ef218af5"
+  },
+  "designer.pictureDialog.make.lineRefused": {
+    "status": "mt",
+    "srcHash": "a503bc1da23a"
+  },
+  "designer.pictureDialog.make.lineWaiting": {
+    "status": "mt",
+    "srcHash": "12625ba3c14e"
+  },
+  "designer.pictureDialog.make.lineWords": {
+    "status": "mt",
+    "srcHash": "f9ed8f72e7db"
+  },
+  "designer.pictureDialog.make.loadFailed": {
+    "status": "mt",
+    "srcHash": "a8751fa3843b"
+  },
+  "designer.pictureDialog.make.lost": {
+    "status": "mt",
+    "srcHash": "f7a7bd4d48ec"
+  },
+  "designer.pictureDialog.make.madeBy": {
+    "status": "mt",
+    "srcHash": "eae192773b7b"
+  },
+  "designer.pictureDialog.make.make": {
+    "status": "mt",
+    "srcHash": "a94431ee22f0"
+  },
+  "designer.pictureDialog.make.makeThem": {
+    "status": "mt",
+    "srcHash": "0069cbc1e48f"
+  },
+  "designer.pictureDialog.make.making": {
+    "status": "mt",
+    "srcHash": "98da2ffa1b4c"
+  },
+  "designer.pictureDialog.make.model": {
+    "status": "mt",
+    "srcHash": "68c2cc7f0cea"
+  },
+  "designer.pictureDialog.make.modelGone": {
+    "status": "mt",
+    "srcHash": "73e57277a052"
+  },
+  "designer.pictureDialog.make.modelTyped": {
+    "status": "mt",
+    "srcHash": "69f0de3887ab"
+  },
+  "designer.pictureDialog.make.next": {
+    "status": "mt",
+    "srcHash": "6638923ea774"
+  },
+  "designer.pictureDialog.make.noFilter": {
+    "status": "mt",
+    "srcHash": "0a3bbc5169f6"
+  },
+  "designer.pictureDialog.make.noMakers": {
+    "status": "mt",
+    "srcHash": "0a77053ac60e"
+  },
+  "designer.pictureDialog.make.none": {
+    "status": "mt",
+    "srcHash": "e3fde961023f"
+  },
+  "designer.pictureDialog.make.notHere": {
+    "status": "mt",
+    "srcHash": "c679d4fbb141"
+  },
+  "designer.pictureDialog.make.notSent": {
+    "status": "mt",
+    "srcHash": "db424f31452b"
+  },
+  "designer.pictureDialog.make.note": {
+    "status": "mt",
+    "srcHash": "c207c9790fd0"
+  },
+  "designer.pictureDialog.make.off": {
+    "status": "mt",
+    "srcHash": "7cdc57420bcb"
+  },
+  "designer.pictureDialog.make.onThisComputer": {
+    "status": "mt",
+    "srcHash": "d8d94eb7bdf9"
+  },
+  "designer.pictureDialog.make.ownList": {
+    "status": "mt",
+    "srcHash": "ed098e771f5d"
+  },
+  "designer.pictureDialog.make.people": {
+    "status": "mt",
+    "srcHash": "8dedd7531db0"
+  },
+  "designer.pictureDialog.make.pictures": {
+    "status": "mt",
+    "srcHash": "31c3cc49be36"
+  },
+  "designer.pictureDialog.make.progress": {
+    "status": "mt",
+    "srcHash": "20f7b80198ac"
+  },
+  "designer.pictureDialog.make.putAll": {
+    "status": "mt",
+    "srcHash": "d2cc122cc75d"
+  },
+  "designer.pictureDialog.make.putOn": {
+    "status": "mt",
+    "srcHash": "6aff329fccd5"
+  },
+  "designer.pictureDialog.make.rateLimit": {
+    "status": "mt",
+    "srcHash": "83a7b3e58004"
+  },
+  "designer.pictureDialog.make.refused": {
+    "status": "mt",
+    "srcHash": "617083256a85"
+  },
+  "designer.pictureDialog.make.results": {
+    "status": "mt",
+    "srcHash": "b4c7d7921cdf"
+  },
+  "designer.pictureDialog.make.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "designer.pictureDialog.make.service": {
+    "status": "mt",
+    "srcHash": "329cb8b6ba8c"
+  },
+  "designer.pictureDialog.make.stillMaking": {
+    "status": "mt",
+    "srcHash": "00330f54fbcd"
+  },
+  "designer.pictureDialog.make.stop": {
+    "status": "mt",
+    "srcHash": "9e253470c876"
+  },
+  "designer.pictureDialog.make.switchedOff": {
+    "status": "mt",
+    "srcHash": "9b20404a8814"
+  },
+  "designer.pictureDialog.make.tooMany": {
+    "status": "mt",
+    "srcHash": "1de8cbb53469"
+  },
+  "designer.pictureDialog.make.total": {
+    "status": "mt",
+    "srcHash": "5acf5635c7a0"
+  },
+  "designer.pictureDialog.make.wordsLabel": {
+    "status": "mt",
+    "srcHash": "a653198f3479"
+  },
+  "designer.pictureDialog.make.wordsUsed": {
+    "status": "mt",
+    "srcHash": "6a940a27709f"
   },
   "designer.pictureDialog.more": {
     "status": "mt",
@@ -12907,6 +13223,10 @@
     "status": "mt",
     "srcHash": "4189e9e3aded"
   },
+  "designer.pictureDialog.sentence.made": {
+    "status": "mt",
+    "srcHash": "68d35f7026fe"
+  },
   "designer.pictureDialog.sentence.noCredit": {
     "status": "mt",
     "srcHash": "177a06eae127"
@@ -12986,6 +13306,10 @@
   "designer.pictureDialog.tabApp": {
     "status": "mt",
     "srcHash": "6c269e5eb724"
+  },
+  "designer.pictureDialog.tabMake": {
+    "status": "mt",
+    "srcHash": "a30f68113d6f"
   },
   "designer.pictureDialog.tabSearch": {
     "status": "mt",
@@ -13954,6 +14278,14 @@
   "designer.spots.list": {
     "status": "mt",
     "srcHash": "21c03152b257"
+  },
+  "designer.spots.made": {
+    "status": "mt",
+    "srcHash": "2e92c4bfc0ed"
+  },
+  "designer.spots.madeNone": {
+    "status": "mt",
+    "srcHash": "23515fc5a6a3"
   },
   "designer.spots.noteEmpty": {
     "status": "mt",
@@ -36018,6 +36350,38 @@
   "studio.settingsAi.history.tableLabel": {
     "srcHash": "d6735d1c321e",
     "status": "mt"
+  },
+  "studio.settingsAi.pictures.perDay": {
+    "status": "mt",
+    "srcHash": "421b5f8901e5"
+  },
+  "studio.settingsAi.pictures.perDayAll": {
+    "status": "mt",
+    "srcHash": "1e1d5ec72e13"
+  },
+  "studio.settingsAi.pictures.perTurn": {
+    "status": "mt",
+    "srcHash": "0ff91dfbbbb8"
+  },
+  "studio.settingsAi.pictures.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.pictures.saveFailed": {
+    "status": "mt",
+    "srcHash": "848e72d4e660"
+  },
+  "studio.settingsAi.pictures.title": {
+    "status": "mt",
+    "srcHash": "ee02fd1de2d3"
+  },
+  "studio.settingsAi.pictures.what": {
+    "status": "mt",
+    "srcHash": "fa59f327bfa3"
+  },
+  "studio.settingsAi.pictures.zero": {
+    "status": "mt",
+    "srcHash": "b2e1314e95d2"
   },
   "studio.settingsAi.provider.active": {
     "srcHash": "a733b809d2f1",

@@ -271,7 +271,7 @@ describe('the Designer’s tools', () => {
   it('are a closed list, each with an object schema', () => {
     // read_figma is offered only in a session that holds a frame imported from Figma (designer-figma-tool.test.ts),
     // and use_site only in one that holds a site template, a page or a stylesheet.
-    expect(tools.map((candidate) => candidate.name)).toEqual(DESIGNER_TOOL_NAMES.filter((name) => name !== 'read_figma' && name !== 'use_site'));
+    expect(tools.map((candidate) => candidate.name)).toEqual(DESIGNER_TOOL_NAMES.filter((name) => name !== 'read_figma' && name !== 'use_site' && name !== 'make_pictures'));
     for (const candidate of tools) expect(candidate.inputSchema['type'], candidate.name).toBe('object');
   });
 

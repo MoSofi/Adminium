@@ -13,7 +13,7 @@ half-configured and fail later.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `ADMINIUM_SECRET` | **Yes** | — | Derives the key encrypting stored DSNs and API keys. **Minimum 16 characters.** |
+| `ADMINIUM_SECRET` | **Yes** | the data folder's `secret` file, if `adminium try` made one | Derives the key encrypting stored DSNs and API keys. **Minimum 16 characters.** |
 | `PORT` | No | `4600` | Listen port. Integer 1–65535. |
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
@@ -43,6 +43,7 @@ half-configured and fail later.
 | `ADMINIUM_AI_COMPATIBLE_BASE_URL` | No | — | The address of an OpenAI-compatible server (`http://localhost:8000/v1`). |
 | `ADMINIUM_AI_COMPATIBLE_API_KEY` | No | — | The key for that server, when it wants one. |
 | `ADMINIUM_AI_OLLAMA_BASE_URL` | No | — | The address of Ollama (`http://localhost:11434`). |
+| `ADMINIUM_AI_GOOGLE_API_KEY` | No | — | A Google AI Studio key, used only to [make pictures with Gemini](/projects/designer/#make-a-picture-with-ai) in the Designer. It is no chat connection. |
 | `ADMINIUM_AI_MODEL` | No | — | The model in use, as `<provider>/<model>`: `anthropic/claude-sonnet-5-5`, `ollama/qwen3`. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_TRUSTED_PROXIES` | No | `loopback,uniquelocal` | Which connections count as your proxy while `ADMINIUM_TRUST_PROXY` is on. See below. |
@@ -75,6 +76,11 @@ The only required variable, and the one worth understanding.
 ```bash
 export ADMINIUM_SECRET=$(openssl rand -hex 32)
 ```
+
+With none set, a CLI command reads the one `adminium try` kept in the data
+folder's `secret` file, if there is one (`try` makes it for a new folder). On a
+server, set the variable: a key kept beside the data it unlocks protects nothing
+from someone who can read the folder.
 
 It derives — via a KDF, it is not used directly — the AES-256-GCM key that
 encrypts every stored DSN and provider API key at rest, and it signs the session

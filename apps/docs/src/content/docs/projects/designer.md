@@ -183,13 +183,14 @@ change that choice in the dialog's footer.
 The **picture dialog** opens from the **Pictures** chip under the last reply, from the card, from a
 spot's **Choose a picture**, or by pointing at a picture (**Pick an element**, then **Change the
 picture…**). It lists the page's spots, then each table's sample rows that take a picture. A
-picture can come from three places:
+picture can come from four places:
 
 | From | What happens |
 |---|---|
 | **Search pictures** | One source at a time, searched with the spot's own words. Each picture shows its licence as a badge and what it asks of you |
 | **Upload** | A PNG, JPEG, WebP or GIF of yours, up to 5 MB. Use only pictures you made or have permission to use |
 | **Already in this app** | A picture the app has, or one you attached in this session |
+| **Make one** | A picture made with AI by the picture service your workspace chose. See [Make a picture with AI](#make-a-picture-with-ai) |
 
 Each choice goes into **What changes**, with the words that describe it for people who cannot see
 it (or **Decorative: say nothing**). **Apply** writes them all at once, with no turn and no model:
@@ -222,6 +223,46 @@ Pixabay's own licence, not Creative Commons.
 
 An app made before spots keeps the pictures its screens import. **Make them swappable** in the
 dialog turns them into spots in one turn, with the same pictures and credits.
+
+#### Make a picture with AI
+
+The dialog's **Make one** tab makes a picture from words. The words are filled in for you from the
+spot or the row and the app (change them as you like), with the shape and how many to make (1 to 4).
+Each picture is charged to the account of the picture service's key, so the tab says where the words
+go and, for a model whose price is known, about what it costs, before you press **Make**.
+
+| Service | How |
+|---|---|
+| OpenAI | A model connection to OpenAI (`ADMINIUM_AI_OPENAI_API_KEY`, or Settings → AI), or an OpenAI key added in the tab for pictures only |
+| Google Gemini | `ADMINIUM_AI_GOOGLE_API_KEY`, or a Google AI Studio key added in the tab. Used for pictures only; every Gemini picture carries Google's invisible SynthID mark |
+| An OpenAI-compatible server | The `openai-compatible` connection, if the server has a picture route. It may have no content filter |
+| Ollama | The Ollama connection, with an image model pulled. Made on that computer, at no charge. The one service that works with outside network use switched off |
+
+**Who chooses.** Nothing is made until someone who manages AI settings chooses the service and its
+model, in the tab (**Choose a service**). A key added there is kept where this project keeps its keys
+(the project's `.env`, or the desktop app's key store) and changes no chat model. If the key behind
+the chosen service changes, making stops until it is chosen again.
+
+**How many.** A person may make 20 pictures a day, everybody together 100, and one chat turn 8; set
+them in Settings → AI → **Pictures made with AI**, where 0 turns making off. A picture counts once
+it is asked for: one the service refused still counts, since it may have been charged. One whose
+answer proves nothing was made (a wrong key, a rate limit, a model that is gone) does not.
+
+**Make one for each.** For a table's sample rows, **Make one for each…** makes one picture for each
+row, or one for each value of a column (a kind, a category) that all its rows share. Every line's
+words are shown before anything is made, at most 12 at a time; each picture goes into What changes
+on its rows. A table that holds people never sends their names. These are made-up pictures: replace
+the ones of what you sell with photos of your own before you open.
+
+A make goes on when you close the dialog; what it made waits under **Made earlier** for a day (a
+week once put on a spot or a row). A made picture's credit in `CREDITS.json` has `"licenceCode":
+"made"`, `"licence": "Made with AI"`, the service and model as its creator, and the words it was made
+from as `"words"`; the page shows "Made with AI by OpenAI · gpt-image-2" and never the words.
+
+**In the chat.** The Designer can make pictures itself with the same service, when you ask for
+pictures or say yes when it offers. It says how many it made and what is left today. The person who
+chose the service can switch that off in the tab (**Let the Designer make pictures in the chat**);
+the tab's own Make stays.
 
 ### Your own styles
 
