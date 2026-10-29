@@ -115,7 +115,7 @@ describe('emitDomainDashboardCandidates — the widget set', () => {
     ]);
     expect(kpis.map((c) => c.config?.['title'])).toEqual([
       'Total Orders',
-      'Total Total Amount',
+      'Total Amount',
       'New Orders (30d)',
       'Open Orders',
     ]);
@@ -123,8 +123,10 @@ describe('emitDomainDashboardCandidates — the widget set', () => {
 
   it('binds the money and status KPIs to compilable descriptors', () => {
     const money = candidates?.find((c) => c.instanceId === 'kpi-sum-orders-total_amount');
+    // `metricFormat`, which the card reads; a string `format` was dropped.
+    expect(money?.config).not.toHaveProperty('format');
     expect(money?.config).toMatchObject({
-      format: 'currency',
+      metricFormat: 'currency',
       binding: {
         source: { schema: 'public', name: 'orders', type: 'table' },
         aggregations: [{ fn: 'sum', column: 'total_amount', alias: 'value' }],

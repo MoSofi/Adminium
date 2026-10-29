@@ -20,7 +20,10 @@ export interface Domain {
   label: string;
   /** All member table ids, sorted. */
   tableIds: string[];
-  /** The weighted hub — highest relation degree, ties by row estimate then name. */
+  /**
+   * The weighted hub: never a join or line-items table; a line-items table's
+   * parent first, then the highest relation degree, ties by row estimate then name.
+   */
   hubTableId: string;
 }
 
@@ -110,10 +113,24 @@ export function detectDomains(model: DatabaseModel, tables: readonly TableModel[
   }
 
   const byId = new Map(tables.map((t) => [t.id, t]));
+  // A line-items table belongs to the table it cascades from (`order_items` →
+  // `orders`). It links to both its parent and a catalogue, so by link count
+  // alone it would win the hub, and the dashboard would sum a unit price.
+  const lineItemParents = new Set<string>();
+  for (const relation of model.relations) {
+    if (relation.onDelete !== 'cascade' || relation.confidence < EDGE_CONFIDENCE) continue;
+    if (byId.get(relation.from.tableId)?.semantics?.role !== 'line-items') continue;
+    lineItemParents.add(relation.to.tableId);
+  }
   const hubOf = (members: readonly string[]): string => {
-    const candidates = members.filter((id) => byId.get(id)?.semantics?.role !== 'join-table');
+    const candidates = members.filter((id) => {
+      const role = byId.get(id)?.semantics?.role;
+      return role !== 'join-table' && role !== 'line-items';
+    });
     const pool = candidates.length > 0 ? candidates : [...members];
     return [...pool].sort((a, b) => {
+      const pp = Number(lineItemParents.has(b)) - Number(lineItemParents.has(a));
+      if (pp !== 0) return pp;
       const dd = (degree.get(b) ?? 0) - (degree.get(a) ?? 0);
       if (dd !== 0) return dd;
       const rr = (byId.get(b)?.rowCountEstimate ?? 0) - (byId.get(a)?.rowCountEstimate ?? 0);

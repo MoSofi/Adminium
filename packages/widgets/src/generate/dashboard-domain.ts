@@ -39,6 +39,7 @@ import type { TemplateCandidate } from '../templates/compose.js';
 import {
   humanize,
   columnTitle,
+  moneySumTitle,
   tableTitle,
   type CandidateColumn,
   type CandidateRelation,
@@ -124,6 +125,12 @@ function rankDomainColumns(
       ordinalOf(a.column) - ordinalOf(b.column),
   );
   return out;
+}
+
+/** A money column charted per month: "Amount", or "Value" for one called just "Total". */
+function heroMoneyTitle(column: CandidateColumn): string {
+  const title = columnTitle(column);
+  return title.trim().toLowerCase() === 'total' ? 'Value' : title;
 }
 
 const TIMESTAMPY = new Set(['date', 'timestamp', 'timestamptz']);
@@ -226,7 +233,7 @@ function kpiRow(
     items.push(
       kpi(
         `kpi-sum-${money.entry.table.name}-${money.column.name}`,
-        `Total ${columnTitle(money.column)}`,
+        moneySumTitle(money.column),
         {
           kind: 'table-query',
           connectionId,
@@ -234,8 +241,11 @@ function kpiRow(
           shape: 'single-metric',
           aggregations: [{ fn: 'sum', column: money.column.name, alias: 'value' }],
         },
+        // `metricFormat`, not `format`: the card reads `metricFormat`, and a
+        // string `format` fails the shared format object's check and is
+        // dropped, so the sum showed with no currency (kpi.money-sum's note).
         // A minor-unit column (`amount_cents`) sums to cents, never whole units.
-        formatOf(money.entry, money.column) === 'currency-cents' ? {} : { format: 'currency' },
+        { metricFormat: formatOf(money.entry, money.column) === 'currency-cents' ? 'plain' : 'currency' },
       ),
     );
   }
@@ -344,7 +354,7 @@ export function emitDomainDashboardCandidates(
     config: {
       title:
         heroMoney !== undefined
-          ? `${columnTitle(heroMoney)} per Month`
+          ? `${heroMoneyTitle(heroMoney)} per Month`
           : `${tableTitle(ts.entry.table)} per Month`,
       binding: {
         kind: 'table-query',

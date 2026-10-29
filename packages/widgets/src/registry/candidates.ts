@@ -337,6 +337,22 @@ export function tableTitle(table: { name: string; label?: string | undefined }):
 /** The same for a column: "Unit price", never a humanized `unit_price` it has a name for. */
 export const columnTitle = tableTitle;
 
+/** "Total Unit Price" → "Total unit price": a board stat's label style. */
+function sentenceCase(title: string): string {
+  return title.charAt(0) + title.slice(1).toLowerCase();
+}
+
+/**
+ * The title of a money column's SUM: "Total Amount" for `amount`. A column
+ * already called a total keeps its own name ("Order Total", "Total Amount"),
+ * and one called just "Total" is "Total Value", never "Total Total".
+ */
+export function moneySumTitle(column: { name: string; label?: string | undefined }): string {
+  const title = columnTitle(column);
+  if (!/\btotal\b/i.test(title)) return `Total ${title}`;
+  return title.trim().toLowerCase() === 'total' ? 'Total Value' : title;
+}
+
 /** Deterministic 3-decimal rounding — float association must never reorder ties. */
 function round3(value: number): number {
   return Math.round(value * 1000) / 1000;
@@ -646,7 +662,7 @@ function boardStatsOf(
   }
   if (facts.amount !== undefined) {
     const money = view.columns.find((c) => c.name === facts.amount);
-    stats.push({ kind: 'amount', column: facts.amount, label: `Total ${columnTitle(money ?? { name: facts.amount }).toLowerCase()}`, figure: ask({ aggregations: [{ fn: 'sum', column: facts.amount, alias: 'value' }] }) });
+    stats.push({ kind: 'amount', column: facts.amount, label: sentenceCase(moneySumTitle(money ?? { name: facts.amount })), figure: ask({ aggregations: [{ fn: 'sum', column: facts.amount, alias: 'value' }] }) });
   } else if (facts.owner !== undefined) {
     const ownerColumn = facts.owner[0]?.split('.')[0];
     if (ownerColumn !== undefined) stats.push({ kind: 'people', label: 'People', figure: ask({ aggregations: [{ fn: 'count_distinct', column: ownerColumn, alias: 'value' }] }) });
@@ -869,7 +885,7 @@ const kpiMoneySum: CandidateRule = {
         // the config drawer so it could not be repaired by hand either.
         // A minor-unit column (`amount_cents`) sums to cents: a currency
         // format would print them as whole units ("$490K" for €4,900.00).
-        config: { title: `Total ${columnTitle(column)}`, metricFormat: column.format === 'currency-cents' ? 'plain' : 'currency' },
+        config: { title: moneySumTitle(column), metricFormat: column.format === 'currency-cents' ? 'plain' : 'currency' },
       }));
   },
 };

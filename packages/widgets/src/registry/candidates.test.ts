@@ -6,6 +6,7 @@ import {
   candidateRules,
   emitCandidates,
   emitModelCandidates,
+  moneySumTitle,
   type CandidateColumn,
   type CandidateContext,
   type CandidateTable,
@@ -309,7 +310,7 @@ describe('emitCandidates — on a timestamped money table', () => {
     // `metricFormat`, not `format`. This assertion pinned the broken value for as
     // long as it existed: the shared `format` key is an object, so the string
     // never parsed and KpiStatCard rendered every money total unformatted.
-    expect(money.config).toEqual({ title: 'Total Total Amount', metricFormat: 'currency' });
+    expect(money.config).toEqual({ title: 'Total Amount', metricFormat: 'currency' });
 
     const fresh = result.find((c) => c.rule === 'kpi.new-this-period') as WidgetCandidate;
     expect(fresh.shape).toBe('metric+delta');
@@ -846,5 +847,15 @@ describe('emitCandidates — a place column (geo.place-column)', () => {
 
   it('offers nothing for the same json column without the rule', () => {
     expect(emitCandidates(customers(false).table, customers(false).classified, ctx).filter((c) => c.family === 'geo')).toEqual([]);
+  });
+});
+
+describe('moneySumTitle — a sum is never "Total Total" (yt-03, V23)', () => {
+  it('prefixes a plain money column, keeps a total, and names a bare total "Total Value"', () => {
+    expect(moneySumTitle({ name: 'unit_price' })).toBe('Total Unit Price');
+    expect(moneySumTitle({ name: 'total_amount' })).toBe('Total Amount');
+    expect(moneySumTitle({ name: 'order_total' })).toBe('Order Total');
+    expect(moneySumTitle({ name: 'total' })).toBe('Total Value');
+    expect(moneySumTitle({ name: 'total', label: 'Revenue' })).toBe('Total Revenue');
   });
 });

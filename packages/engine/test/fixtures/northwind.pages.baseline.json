@@ -105,7 +105,7 @@
                       }
                     ]
                   },
-                  "format": "currency"
+                  "metricFormat": "currency"
                 }
               },
               {
@@ -232,7 +232,7 @@
               }
             ]
           },
-          "generatedHash": "0174b222607a169408837ad7ed4b44ae4f94b7641257845a8f4d438345dd1fb5"
+          "generatedHash": "28bd93a2159fde3281e49fc422536d2a686cf8b6553d298f81dacec5f05b84d5"
         }
       },
       {
@@ -336,6 +336,13 @@
         "config": {
           "columns": [
             {
+              "name": "customer_desc",
+              "label": "Customer Desc",
+              "logicalType": "text",
+              "semantic": "free-text",
+              "sortable": true
+            },
+            {
               "name": "customer_type_id",
               "label": "Customer Type Id",
               "logicalType": "varchar",
@@ -364,7 +371,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "generatedHash": "a6f494d3c6e56f71e7e3774f11dee3b1077bfaf929ce748dd946e9ef3bd46d97"
+          "generatedHash": "3c61728618d54b71df9121d5e2777fa3cdb5e57109651c9f87582b4f66213f27"
         }
       },
       {
@@ -1593,7 +1600,7 @@
                       }
                     ]
                   },
-                  "format": "currency"
+                  "metricFormat": "currency"
                 }
               },
               {
@@ -1720,7 +1727,7 @@
               }
             ]
           },
-          "generatedHash": "0174b222607a169408837ad7ed4b44ae4f94b7641257845a8f4d438345dd1fb5"
+          "generatedHash": "28bd93a2159fde3281e49fc422536d2a686cf8b6553d298f81dacec5f05b84d5"
         }
       },
       {
@@ -1824,6 +1831,13 @@
         "config": {
           "columns": [
             {
+              "name": "customer_desc",
+              "label": "Customer Desc",
+              "logicalType": "text",
+              "semantic": "free-text",
+              "sortable": true
+            },
+            {
               "name": "customer_type_id",
               "label": "Customer Type Id",
               "logicalType": "varchar",
@@ -1852,7 +1866,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "generatedHash": "f3acffe1fe128c10dfc3973a9f8b42c6d2cd1035db13b4ecd28239210be20c8a"
+          "generatedHash": "adfbe605bfde45b950d8d846c3f8ab2477ddf1ade492f3a36d6db1593088b7ff"
         }
       },
       {
@@ -3078,6 +3092,13 @@
         "config": {
           "columns": [
             {
+              "name": "customer_desc",
+              "label": "Customer Desc",
+              "logicalType": "text",
+              "semantic": "free-text",
+              "sortable": true
+            },
+            {
               "name": "customer_type_id",
               "label": "Customer Type Id",
               "logicalType": "varchar",
@@ -3106,7 +3127,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "generatedHash": "a6f494d3c6e56f71e7e3774f11dee3b1077bfaf929ce748dd946e9ef3bd46d97"
+          "generatedHash": "3c61728618d54b71df9121d5e2777fa3cdb5e57109651c9f87582b4f66213f27"
         }
       },
       {
