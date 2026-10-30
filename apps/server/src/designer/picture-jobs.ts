@@ -43,6 +43,10 @@ import { DESIGNER_DIR } from './session-store.js';
 import { writeWhole } from './spots.js';
 import { plainWords } from './untrusted.js';
 
+import type { JobLine, JobState, JobView, MadePublic, MakeTarget } from './picture-job-view.js';
+
+export type { JobLine, JobState, JobView, LineState, MadePublic, MakeTarget } from './picture-job-view.js';
+
 // ─── limits ──────────────────────────────────────────────────────────────────
 
 /** The most lines one job makes. */
@@ -71,9 +75,6 @@ const PICTURE = /^pic_[0-9a-f]{12}$/;
 const JOB = /^job_[0-9a-f]{16}$/;
 export const MAKE_REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
 
-/** Where a picture is made for: a spot, a sample row, or every row of a table that holds one value (a group). */
-export type MakeTarget = { spot: string } | { table: string; row: number } | { table: string; column: string; value: string };
-
 /** The service's terms page, for a made picture's credit. */
 const TERMS: Readonly<Record<string, string>> = {
   openai: 'https://openai.com/policies/usage-policies/',
@@ -82,49 +83,6 @@ const TERMS: Readonly<Record<string, string>> = {
 
 // ─── what a page is told ─────────────────────────────────────────────────────
 
-/** A made picture as a page sees it: our ids, the target's name, the service's label and model, the words. Never a path. */
-export interface MadePublic {
-  id: string;
-  shelf: string;
-  title: string;
-  creator: string;
-  source: 'AI';
-  licence: { code: 'made'; name: string };
-  page: '';
-  made: { label: string; model: string; words: string };
-  target: MakeTarget | null;
-  pinned: boolean;
-  at: number;
-}
-
-export type LineState = 'waiting' | 'making' | 'done' | 'gone';
-
-export interface JobLine {
-  target: MakeTarget | null;
-  /** The target's name, as the dialog shows it. */
-  name: string;
-  asked: number;
-  made: number;
-  refused: number;
-  failed: number;
-  state: LineState;
-  /** Why it ended with nothing: a code, never the service's words. */
-  code?: string;
-  pictures: MadePublic[];
-}
-
-export type JobState = 'running' | 'done' | 'stopped' | 'lost';
-
-export interface JobView {
-  job: string;
-  state: JobState;
-  /** Why a stopped job stopped: a wrong key, no credit, a rate limit, the model gone, or the person. */
-  stoppedBy?: string;
-  label: string;
-  model: string;
-  lines: JobLine[];
-  left: { mine: number; all: number };
-}
 
 /** The states the tab and the chat say in their own words */
 export type MakerState = 'ok' | 'none' | 'changed' | 'model-gone' | 'not-here' | 'off' | 'switched-off';
