@@ -461,4 +461,19 @@ describe('the model connections', () => {
     const nowhere = connections(envOf({}));
     await expect(nowhere.save({ provider: 'anthropic', apiKey: 'k', model: 'm' })).rejects.toMatchObject({ details: { reason: 'ENV_NOT_WRITABLE' } });
   });
+
+  it('adds a pictures-only key, but never swaps or removes the OpenAI key the chat may run on', async () => {
+    put('');
+    const all = connections(createAiEnv({ root, fromEnvironment: {} }));
+    all.savePictureKey('openai', 'sk-pictures-0000000001');
+    expect(readDotEnv(root)).toMatchObject({ ADMINIUM_AI_OPENAI_API_KEY: 'sk-pictures-0000000001' });
+    for (const key of ['sk-pictures-0000000002', null]) {
+      expect(() => all.savePictureKey('openai', key)).toThrow(expect.objectContaining({ details: { reason: 'KEY_IN_USE', names: ['ADMINIUM_AI_OPENAI_API_KEY'] } }));
+    }
+    expect(readDotEnv(root)).toMatchObject({ ADMINIUM_AI_OPENAI_API_KEY: 'sk-pictures-0000000001' });
+    // Gemini's key makes pictures only: it may be changed here.
+    all.savePictureKey('google', 'gemini-key-000000000001');
+    all.savePictureKey('google', 'gemini-key-000000000002');
+    expect(readDotEnv(root)).toMatchObject({ ADMINIUM_AI_GOOGLE_API_KEY: 'gemini-key-000000000002' });
+  });
 });

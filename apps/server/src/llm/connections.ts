@@ -534,6 +534,10 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       if (aiEnv.fromOperator().includes(name)) {
         throw new ValidationFailedError(`${name} is set in this server's own environment, which wins over the project's .env. Change it there.`, { reason: 'ENV_SHADOWED', names: [name] });
       }
+      // The chat reads the same OpenAI key: a key "for pictures only" must never swap or remove the one it runs on.
+      if (provider === 'openai' && aiEnv.read()[name] !== undefined) {
+        throw new ValidationFailedError('An OpenAI key is already set here, and the chat may use it. It makes pictures too: choose OpenAI above. Change the key in the AI settings.', { reason: 'KEY_IN_USE', names: [name] });
+      }
       aiEnv.write({ [name]: key });
     },
     get envWritable() {
