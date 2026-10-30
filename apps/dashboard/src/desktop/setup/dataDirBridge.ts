@@ -37,7 +37,7 @@ export async function chooseDataDir(defaultPath: string | null): Promise<string 
   const api = getDesktopApi();
   if (api === null) return null;
   return api.chooseDirectory({
-    title: t('desktop.setup.dataDir.dialogTitle', 'Choose where Adminium keeps your data'),
+    title: t('onboarding.desktopSetup.dataDir.dialogTitle', 'Choose where Adminium keeps your data'),
     ...(defaultPath === null ? {} : { defaultPath }),
   });
 }

@@ -68,13 +68,13 @@ export type DesktopSetupStepId = (typeof DESKTOP_SETUP_STEP_IDS)[number];
 export function desktopSetupStepLabel(id: DesktopSetupStepId): string {
   switch (id) {
     case 'location':
-      return t('desktop.setup.step.location', 'Welcome');
+      return t('onboarding.desktopSetup.step.location', 'Welcome');
     case 'database':
-      return t('desktop.setup.step.database', 'Your first database');
+      return t('onboarding.desktopSetup.step.database', 'Your first database');
     case 'account':
-      return t('desktop.setup.step.account', 'Your account');
+      return t('onboarding.desktopSetup.step.account', 'Your account');
     case 'generate':
-      return t('desktop.setup.step.generate', 'Generate');
+      return t('onboarding.desktopSetup.step.generate', 'Generate');
   }
 }
 
@@ -131,12 +131,25 @@ export interface DesktopSetupState {
 
   /** Step 3. The password is deliberately absent — see the module header. */
   singleUser: boolean;
+  /**
+   * The super admin exists. Step 3 is a one-way door (the server 409s a second
+   * account), so once this is true a trip back to step 2 — to fix a connection
+   * string step 4 could not log in with — goes from step 2 straight to step 4.
+   */
+  accountCreated: boolean;
   locale: LocaleId | null;
   theme: ThemePref | null;
 
   /** Step 4. */
   intent: GenerateIntent;
   connectionId: string | null;
+  /**
+   * The schema of {@link DesktopSetupState.connectionId} has been read. Kept
+   * apart from the id because a connection can exist and its first read fail
+   * (a job that ends `failed`): Try again must then read it again, not skip to
+   * Generate over a connection with no snapshot.
+   */
+  introspected: boolean;
   enrichIntent: EnrichIntent | null;
   enrichSections: LlmSection[];
   enrichLocales: LlmLocale[];
@@ -157,10 +170,12 @@ export const INITIAL_DESKTOP_SETUP_STATE: DesktopSetupState = {
   remoteDsn: '',
   // "Skip login on this computer" is CHECKED by default.
   singleUser: true,
+  accountCreated: false,
   locale: null,
   theme: null,
   intent: 'full-admin',
   connectionId: null,
+  introspected: false,
   enrichIntent: null,
   enrichSections: [...ENRICH_SECTIONS],
   enrichLocales: [LOCKED_LOCALE],

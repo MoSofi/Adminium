@@ -56,13 +56,13 @@ export interface SourceStepProps {
 function cardTitle(id: SourceCardId): string {
   switch (id) {
     case 'local':
-      return t('desktop.setup.source.local.title', 'Create a new local database');
+      return t('onboarding.desktopSetup.source.local.title', 'Create a new local database');
     case 'open-sqlite':
-      return t('desktop.setup.source.openSqlite.title', 'Open an existing SQLite file');
+      return t('onboarding.desktopSetup.source.openSqlite.title', 'Open an existing SQLite file');
     case 'remote':
-      return t('desktop.setup.source.remote.title', 'Connect to a server database');
+      return t('onboarding.desktopSetup.source.remote.title', 'Connect to a server database');
     case 'demo':
-      return t('desktop.setup.source.demo.title', 'Explore the demo database');
+      return t('onboarding.desktopSetup.source.demo.title', 'Explore the demo database');
   }
 }
 
@@ -70,22 +70,22 @@ function cardDescription(id: SourceCardId): string {
   switch (id) {
     case 'local':
       return t(
-        'desktop.setup.source.local.description',
+        'onboarding.desktopSetup.source.local.description',
         'Start from nothing, or from a schema file you already have. The database is created inside your data folder.',
       );
     case 'open-sqlite':
       return t(
-        'desktop.setup.source.openSqlite.description',
+        'onboarding.desktopSetup.source.openSqlite.description',
         'Point Adminium at a .sqlite file on this computer. It is opened where it is — nothing is copied or moved.',
       );
     case 'remote':
       return t(
-        'desktop.setup.source.remote.description',
+        'onboarding.desktopSetup.source.remote.description',
         'PostgreSQL or MySQL. Requires a reachable network database; Adminium’s own tables still stay on this computer.',
       );
     case 'demo':
       return t(
-        'desktop.setup.source.demo.description',
+        'onboarding.desktopSetup.source.demo.description',
         'A ready-made team-operations database, so you can see what Adminium builds before pointing it at your own data. Delete it whenever you like.',
       );
   }
@@ -119,11 +119,11 @@ export function SourceStep({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-section text-fg">
-          {t('desktop.setup.source.heading', 'What should Adminium build from?')}
+          {t('onboarding.desktopSetup.source.heading', 'What should Adminium build from?')}
         </h2>
         <p className="text-body-sm text-fg-muted">
           {t(
-            'desktop.setup.source.description',
+            'onboarding.desktopSetup.source.description',
             'Adminium reads a database’s schema and generates an admin app from it. You can add more databases later.',
           )}
         </p>
@@ -133,7 +133,7 @@ export function SourceStep({
         className="flex flex-col gap-3"
         value={state.source ?? ''}
         onValueChange={(value) => onPatch({ source: value as SourceCardId })}
-        aria-label={t('desktop.setup.source.groupLabel', 'Database source')}
+        aria-label={t('onboarding.desktopSetup.source.groupLabel', 'Database source')}
       >
         <RadioCard
           value="local"
@@ -145,46 +145,46 @@ export function SourceStep({
         {state.source === 'local' ? (
           <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-4">
             <FormField
-              label={t('desktop.setup.source.local.name', 'Database name')}
+              label={t('onboarding.desktopSetup.source.local.name', 'Database name')}
               required
               {...(state.localName.length > 0 && slug.length === 0
                 ? {
                     error: t(
-                      'desktop.setup.source.local.nameUnusable',
+                      'onboarding.desktopSetup.source.local.nameUnusable',
                       'Use at least one letter or number — the file name is built from this.',
                     ),
                   }
                 : slug.length > 0
-                  ? { helper: t('desktop.setup.source.local.fileHelper', 'Creates {file}', { file: `${slug}.sqlite` }) }
+                  ? { helper: t('onboarding.desktopSetup.source.local.fileHelper', 'Creates {file}', { file: `${slug}.sqlite` }) }
                   : {})}
             >
               <Input
                 value={state.localName}
                 disabled={busy}
                 onChange={(event) => onPatch({ localName: event.target.value })}
-                placeholder={t('desktop.setup.source.local.namePlaceholder', 'Operations')}
+                placeholder={t('onboarding.desktopSetup.source.local.namePlaceholder', 'Operations')}
               />
             </FormField>
 
             <div className="flex flex-col gap-2">
-              <Label>{t('desktop.setup.source.local.schemaLabel', 'Start from')}</Label>
+              <Label>{t('onboarding.desktopSetup.source.local.schemaLabel', 'Start from')}</Label>
               <SegmentedControl
                 value={state.localSchema}
                 onValueChange={(value) => onPatch({ localSchema: value === 'file' ? 'file' : 'blank' })}
                 options={[
-                  { value: 'blank', label: t('desktop.setup.source.local.blank', 'Blank') },
-                  { value: 'file', label: t('desktop.setup.source.local.fromFile', 'A schema file') },
+                  { value: 'blank', label: t('onboarding.desktopSetup.source.local.blank', 'Blank') },
+                  { value: 'file', label: t('onboarding.desktopSetup.source.local.fromFile', 'A schema file') },
                 ]}
-                aria-label={t('desktop.setup.source.local.schemaLabel', 'Start from')}
+                aria-label={t('onboarding.desktopSetup.source.local.schemaLabel', 'Start from')}
               />
             </div>
 
             {state.localSchema === 'file' ? (
               <div className="flex flex-col gap-3">
                 <FormField
-                  label={t('desktop.setup.source.local.schemaFile', 'Schema file')}
+                  label={t('onboarding.desktopSetup.source.local.schemaFile', 'Schema file')}
                   helper={t(
-                    'desktop.setup.source.local.schemaFileHelper',
+                    'onboarding.desktopSetup.source.local.schemaFileHelper',
                     '.sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django or Adminium JSON. Adminium translates it to SQLite.',
                   )}
                 >
@@ -210,11 +210,11 @@ export function SourceStep({
                 <div className="flex items-start gap-3">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <Label htmlFor="desktop-setup-placeholder-rows" className="text-body font-semibold text-fg">
-                      {t('desktop.setup.source.local.placeholder', 'Auto-generate placeholder entries')}
+                      {t('onboarding.desktopSetup.source.local.placeholder', 'Auto-generate placeholder entries')}
                     </Label>
                     <p id="desktop-setup-placeholder-rows-description" className="text-body-sm text-fg-muted">
                       {t(
-                        'desktop.setup.source.local.placeholderHelper',
+                        'onboarding.desktopSetup.source.local.placeholderHelper',
                         'You imported a schema with no rows. Seed each table with realistic sample data so your dashboards and charts render immediately.',
                       )}
                     </p>
@@ -255,8 +255,8 @@ export function SourceStep({
             >
               <FileUp aria-hidden className="size-4" />
               {state.sqliteFile === null
-                ? t('desktop.setup.source.openSqlite.browse', 'Choose a .sqlite file…')
-                : t('desktop.setup.source.openSqlite.change', 'Choose a different file…')}
+                ? t('onboarding.desktopSetup.source.openSqlite.browse', 'Choose a .sqlite file…')
+                : t('onboarding.desktopSetup.source.openSqlite.change', 'Choose a different file…')}
             </button>
             {state.sqliteFile === null ? null : (
               <MonoText className="break-all text-body-sm text-fg-muted">{state.sqliteFile}</MonoText>
@@ -266,9 +266,9 @@ export function SourceStep({
               // this is the one file risk the user gets to overrule.
               <Alert
                 tone="warn"
-                title={t('desktop.setup.source.openSqlite.networkTitle', 'That file is on a network share')}
+                title={t('onboarding.desktopSetup.source.openSqlite.networkTitle', 'That file is on a network share')}
                 body={t(
-                  'desktop.setup.source.openSqlite.networkBody',
+                  'onboarding.desktopSetup.source.openSqlite.networkBody',
                   'SQLite locking is unreliable over network file shares, and a dropped connection mid-write can corrupt the database. A copy on this computer’s own disk is safer.',
                 )}
               />
@@ -287,34 +287,34 @@ export function SourceStep({
           <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-4">
             <Alert
               tone="info"
-              title={t('desktop.setup.source.remote.networkNote', 'Requires a reachable network database')}
+              title={t('onboarding.desktopSetup.source.remote.networkNote', 'Requires a reachable network database')}
               body={t(
-                'desktop.setup.source.remote.metaNote',
+                'onboarding.desktopSetup.source.remote.metaNote',
                 'Adminium’s own tables — your pages, settings and sign-in — stay in the data folder on this computer either way.',
               )}
             />
             <div className="flex flex-col gap-2">
-              <Label>{t('desktop.setup.source.remote.engine', 'Engine')}</Label>
+              <Label>{t('onboarding.desktopSetup.source.remote.engine', 'Engine')}</Label>
               <SegmentedControl
                 value={state.remoteEngine}
                 onValueChange={(value) => onPatch({ remoteEngine: value as ConnectionEngine })}
                 options={REMOTE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine) }))}
-                aria-label={t('desktop.setup.source.remote.engine', 'Engine')}
+                aria-label={t('onboarding.desktopSetup.source.remote.engine', 'Engine')}
               />
             </div>
-            <FormField label={t('desktop.setup.source.remote.name', 'Connection name')} required>
+            <FormField label={t('onboarding.desktopSetup.source.remote.name', 'Connection name')} required>
               <Input
                 value={state.remoteName}
                 disabled={busy}
                 onChange={(event) => onPatch({ remoteName: event.target.value })}
-                placeholder={t('desktop.setup.source.remote.namePlaceholder', 'Production')}
+                placeholder={t('onboarding.desktopSetup.source.remote.namePlaceholder', 'Production')}
               />
             </FormField>
             <FormField
-              label={t('desktop.setup.source.remote.dsn', 'Connection string')}
+              label={t('onboarding.desktopSetup.source.remote.dsn', 'Connection string')}
               required
               helper={t(
-                'desktop.setup.source.remote.dsnHelper',
+                'onboarding.desktopSetup.source.remote.dsnHelper',
                 'Adminium tests this when it connects. Use a read-only role if you only want dashboards.',
               )}
             >
@@ -343,7 +343,7 @@ export function SourceStep({
             demoAvailable
               ? cardDescription('demo')
               : t(
-                  'desktop.setup.source.demo.unavailable',
+                  'onboarding.desktopSetup.source.demo.unavailable',
                   'This build does not include the demo data, so there is nothing to load. Pick one of the options above.',
                 )
           }

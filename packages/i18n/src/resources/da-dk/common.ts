@@ -20,7 +20,8 @@ export default {
     "loading": "Indlæser",
     "clearSearch": "Ryd søgning",
     "clear": "Ryd",
-    "save": "Gem"
+    "save": "Gem",
+    "supabasePoolerUser": "På Supabases pooler er brugeren rollen, et punktum og din projekt-ref – for eksempel adminium_rw.abcdefghijklmnop – og adgangskoden er rollens."
   },
   "auth": {
     "headline": "Forvandl enhver database til et dashboard.",
@@ -583,6 +584,116 @@ export default {
       "dismiss": "Skjul tjeklisten",
       "continue": "Fortsæt opsætning",
       "banner": "Færdiggør opsætningen af dit arbejdsområde — {done} af {total} trin klaret."
+    },
+    "desktopSetup": {
+      "title": "Velkommen til Adminium",
+      "subtitle": "Fire korte trin, og Adminium har bygget en administrationsapp ud fra din database. Alt bliver på denne computer.",
+      "progress": "Opsætningsforløb",
+      "back": "Tilbage",
+      "continue": "Fortsæt",
+      "createAccount": "Opret konto og fortsæt",
+      "step": {
+        "location": "Velkommen",
+        "database": "Din første database",
+        "account": "Din konto",
+        "generate": "Generér"
+      },
+      "dataDir": {
+        "heading": "Hvor skal Adminium gemme dine data?",
+        "description": "Dine databaser, indstillinger og sikkerhedskopier ligger alle i denne mappe. Alt bliver på denne computer — intet uploades nogen steder.",
+        "label": "Datamappe",
+        "loading": "Læser den nuværende placering…",
+        "pending": "Adminium genstarter, når du fortsætter, så det kan flytte til denne mappe.",
+        "change": "Skift…",
+        "revert": "Fortryd",
+        "dialogTitle": "Vælg, hvor Adminium gemmer dine data",
+        "cloudSyncTitle": "Denne mappe synkroniseres til skyen",
+        "cloudSyncWarning": "Adminium gemmer sine data i SQLite-filer. {provider} synkroniserer filer i “{folder}” ved at kopiere dem i baggrunden, hvilket kan ødelægge en database, der er åben — og miste data uden varsel. Vælg en mappe uden for {provider}.",
+        "chooseAnother": "Vælg en anden mappe",
+        "useAnyway": "Brug den alligevel — jeg accepterer risikoen",
+        "unusableTitle": "Adminium kan ikke bruge den mappe",
+        "failed": "Adminium kunne ikke bruge den mappe."
+      },
+      "source": {
+        "heading": "Hvad skal Adminium bygge ud fra?",
+        "description": "Adminium læser en databases skema og genererer en administrationsapp ud fra det. Du kan tilføje flere databaser senere.",
+        "groupLabel": "Databasekilde",
+        "local": {
+          "title": "Opret en ny lokal database",
+          "description": "Start fra ingenting, eller fra en skemafil du allerede har. Databasen oprettes inde i din datamappe.",
+          "name": "Databasenavn",
+          "namePlaceholder": "Drift",
+          "nameUnusable": "Brug mindst ét bogstav eller tal — filnavnet bygges ud fra dette.",
+          "fileHelper": "Opretter {file}",
+          "schemaLabel": "Start fra",
+          "blank": "Tom",
+          "fromFile": "En skemafil",
+          "schemaFile": "Skemafil",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django eller Adminium-JSON. Adminium oversætter det til SQLite.",
+          "placeholder": "Generér pladsholderposter automatisk",
+          "placeholderHelper": "Du importerede et skema uden rækker. Fyld hver tabel med realistiske eksempeldata, så dine dashboards og diagrammer vises med det samme."
+        },
+        "openSqlite": {
+          "title": "Åbn en eksisterende SQLite-fil",
+          "description": "Peg Adminium mod en .sqlite-fil på denne computer. Den åbnes, hvor den ligger — intet kopieres eller flyttes.",
+          "browse": "Vælg en .sqlite-fil…",
+          "change": "Vælg en anden fil…",
+          "networkTitle": "Den fil ligger på et netværksdrev",
+          "networkBody": "SQLite-låsning er upålidelig over netværksdrev, og en afbrudt forbindelse midt i en skrivning kan ødelægge databasen. En kopi på denne computers egen disk er sikrere."
+        },
+        "remote": {
+          "title": "Forbind til en serverdatabase",
+          "description": "PostgreSQL eller MySQL. Kræver en database, der kan nås på netværket; Adminiums egne tabeller bliver stadig på denne computer.",
+          "networkNote": "Kræver en database, der kan nås på netværket",
+          "metaNote": "Adminiums egne tabeller — dine sider, indstillinger og login — bliver i datamappen på denne computer under alle omstændigheder.",
+          "engine": "Motor",
+          "name": "Forbindelsesnavn",
+          "namePlaceholder": "Produktion",
+          "dsn": "Forbindelsesstreng",
+          "dsnHelper": "Adminium tester den, når det forbinder. Brug en skrivebeskyttet rolle, hvis du kun vil have dashboards."
+        },
+        "demo": {
+          "title": "Udforsk demodatabasen",
+          "description": "En færdig database over teamdrift, så du kan se, hvad Adminium bygger, før du peger det mod dine egne data. Slet den, når du vil.",
+          "unavailable": "Denne udgave indeholder ikke demodataene, så der er intet at indlæse. Vælg en af mulighederne ovenfor."
+        }
+      },
+      "account": {
+        "heading": "Opret din konto",
+        "description": "Dette er administratorkontoen for denne kopi af Adminium. Adgangskoden beskytter dine sikkerhedskopier og alle, du deler med på dit netværk — du bliver ikke spurgt om den ved hver opstart.",
+        "name": "Dit navn",
+        "email": "E-mail",
+        "password": "Adgangskode",
+        "passwordHelper": "Mindst {min} tegn.",
+        "confirm": "Bekræft adgangskode",
+        "strength": "Adgangskodens styrke",
+        "strengthLevels": {
+          "weak": "Svag",
+          "fair": "Nogenlunde",
+          "good": "God",
+          "strong": "Stærk"
+        },
+        "singleUser": "Spring login over på denne computer",
+        "singleUserHelper": "Adminium logger dig automatisk ind, når du åbner det her. Slå dette fra, hvis andre bruger denne maskine. Du kan ændre det senere under Indstillinger → Skrivebord.",
+        "locale": "Sprog",
+        "theme": "Udseende",
+        "alreadyExists": "Denne kopi af Adminium har allerede en konto. Log ind med den i stedet.",
+        "failed": "Adminium kunne ikke oprette den konto."
+      },
+      "generate": {
+        "checking": "Tjekker forbindelsen…",
+        "creating": "Sætter din database op…",
+        "introspecting": "Læser dit skema — tabeller, kolonner og relationer…",
+        "working": "Arbejder…",
+        "offlineNote": "Alt dette sker på denne computer.",
+        "failedTitle": "Adminium kunne ikke sætte den database op",
+        "refusedTitle": "Adminium kunne ikke oprette forbindelse til den database",
+        "failedBody": "Noget gik galt. Prøv igen.",
+        "retry": "Prøv igen",
+        "changeConnection": "Ret forbindelsen",
+        "connectRefused": "Databasen afviste forbindelsen.",
+        "readFailed": "Adminium kunne ikke læse databasens tabeller."
+      }
     }
   },
   "views": {
@@ -1180,111 +1291,6 @@ export default {
       "transportBody": "Del kun på netværk, du stoler på. Brug Adminium self-host bag HTTPS til fjernadgang.",
       "firewall": "Første gang du deler, spørger dit styresystem, om indgående forbindelser skal tillades — vælg Tillad, ellers kan andre enheder ikke nå Adminium.",
       "manageTeam": "Administrér brugere og roller"
-    },
-    "setup": {
-      "title": "Velkommen til Adminium",
-      "subtitle": "Fire korte trin, og Adminium har bygget en administrationsapp ud fra din database. Alt bliver på denne computer.",
-      "progress": "Opsætningsforløb",
-      "back": "Tilbage",
-      "continue": "Fortsæt",
-      "createAccount": "Opret konto og fortsæt",
-      "step": {
-        "location": "Velkommen",
-        "database": "Din første database",
-        "account": "Din konto",
-        "generate": "Generér"
-      },
-      "dataDir": {
-        "heading": "Hvor skal Adminium gemme dine data?",
-        "description": "Dine databaser, indstillinger og sikkerhedskopier ligger alle i denne mappe. Alt bliver på denne computer — intet uploades nogen steder.",
-        "label": "Datamappe",
-        "loading": "Læser den nuværende placering…",
-        "pending": "Adminium genstarter, når du fortsætter, så det kan flytte til denne mappe.",
-        "change": "Skift…",
-        "revert": "Fortryd",
-        "dialogTitle": "Vælg, hvor Adminium gemmer dine data",
-        "cloudSyncTitle": "Denne mappe synkroniseres til skyen",
-        "cloudSyncWarning": "Adminium gemmer sine data i SQLite-filer. {provider} synkroniserer filer i “{folder}” ved at kopiere dem i baggrunden, hvilket kan ødelægge en database, der er åben — og miste data uden varsel. Vælg en mappe uden for {provider}.",
-        "chooseAnother": "Vælg en anden mappe",
-        "useAnyway": "Brug den alligevel — jeg accepterer risikoen",
-        "unusableTitle": "Adminium kan ikke bruge den mappe",
-        "failed": "Adminium kunne ikke bruge den mappe."
-      },
-      "source": {
-        "heading": "Hvad skal Adminium bygge ud fra?",
-        "description": "Adminium læser en databases skema og genererer en administrationsapp ud fra det. Du kan tilføje flere databaser senere.",
-        "groupLabel": "Databasekilde",
-        "local": {
-          "title": "Opret en ny lokal database",
-          "description": "Start fra ingenting, eller fra en skemafil du allerede har. Databasen oprettes inde i din datamappe.",
-          "name": "Databasenavn",
-          "namePlaceholder": "Drift",
-          "nameUnusable": "Brug mindst ét bogstav eller tal — filnavnet bygges ud fra dette.",
-          "fileHelper": "Opretter {file}",
-          "schemaLabel": "Start fra",
-          "blank": "Tom",
-          "fromFile": "En skemafil",
-          "schemaFile": "Skemafil",
-          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django eller Adminium-JSON. Adminium oversætter det til SQLite.",
-          "placeholder": "Generér pladsholderposter automatisk",
-          "placeholderHelper": "Du importerede et skema uden rækker. Fyld hver tabel med realistiske eksempeldata, så dine dashboards og diagrammer vises med det samme."
-        },
-        "openSqlite": {
-          "title": "Åbn en eksisterende SQLite-fil",
-          "description": "Peg Adminium mod en .sqlite-fil på denne computer. Den åbnes, hvor den ligger — intet kopieres eller flyttes.",
-          "browse": "Vælg en .sqlite-fil…",
-          "change": "Vælg en anden fil…",
-          "networkTitle": "Den fil ligger på et netværksdrev",
-          "networkBody": "SQLite-låsning er upålidelig over netværksdrev, og en afbrudt forbindelse midt i en skrivning kan ødelægge databasen. En kopi på denne computers egen disk er sikrere."
-        },
-        "remote": {
-          "title": "Forbind til en serverdatabase",
-          "description": "PostgreSQL eller MySQL. Kræver en database, der kan nås på netværket; Adminiums egne tabeller bliver stadig på denne computer.",
-          "networkNote": "Kræver en database, der kan nås på netværket",
-          "metaNote": "Adminiums egne tabeller — dine sider, indstillinger og login — bliver i datamappen på denne computer under alle omstændigheder.",
-          "engine": "Motor",
-          "name": "Forbindelsesnavn",
-          "namePlaceholder": "Produktion",
-          "dsn": "Forbindelsesstreng",
-          "dsnHelper": "Adminium tester den, når det forbinder. Brug en skrivebeskyttet rolle, hvis du kun vil have dashboards."
-        },
-        "demo": {
-          "title": "Udforsk demodatabasen",
-          "description": "En færdig database over teamdrift, så du kan se, hvad Adminium bygger, før du peger det mod dine egne data. Slet den, når du vil.",
-          "unavailable": "Denne udgave indeholder ikke demodataene, så der er intet at indlæse. Vælg en af mulighederne ovenfor."
-        }
-      },
-      "account": {
-        "heading": "Opret din konto",
-        "description": "Dette er administratorkontoen for denne kopi af Adminium. Adgangskoden beskytter dine sikkerhedskopier og alle, du deler med på dit netværk — du bliver ikke spurgt om den ved hver opstart.",
-        "name": "Dit navn",
-        "email": "E-mail",
-        "password": "Adgangskode",
-        "passwordHelper": "Mindst {min} tegn.",
-        "confirm": "Bekræft adgangskode",
-        "strength": "Adgangskodens styrke",
-        "strengthLevels": {
-          "weak": "Svag",
-          "fair": "Nogenlunde",
-          "good": "God",
-          "strong": "Stærk"
-        },
-        "singleUser": "Spring login over på denne computer",
-        "singleUserHelper": "Adminium logger dig automatisk ind, når du åbner det her. Slå dette fra, hvis andre bruger denne maskine. Du kan ændre det senere under Indstillinger → Skrivebord.",
-        "locale": "Sprog",
-        "theme": "Udseende",
-        "alreadyExists": "Denne kopi af Adminium har allerede en konto. Log ind med den i stedet.",
-        "failed": "Adminium kunne ikke oprette den konto."
-      },
-      "generate": {
-        "creating": "Sætter din database op…",
-        "introspecting": "Læser dit skema — tabeller, kolonner og relationer…",
-        "working": "Arbejder…",
-        "offlineNote": "Alt dette sker på denne computer.",
-        "failedTitle": "Adminium kunne ikke sætte den database op",
-        "failedBody": "Noget gik galt. Prøv igen.",
-        "retry": "Prøv igen"
-      }
     },
     "stop": {
       "turn": "Designeren er midt i en omgang.",

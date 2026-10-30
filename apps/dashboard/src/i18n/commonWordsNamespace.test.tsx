@@ -57,6 +57,15 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   // A card of the notification settings that waits for its own words: the page around it is drawn without them.
   'account/QuietHoursCard.tsx': [],
   'desktop/updates.tsx': [],
+  // The desktop first-run wizard (`onboarding.desktopSetup`): the host waits, and draws its steps and their rules.
+  'desktop/setup/desktopSetupHost.tsx': [
+    'desktop/setup/dataDirBridge.ts',
+    'desktop/setup/desktopSetupState.ts',
+    'desktop/setup/steps/AccountStep.tsx',
+    'desktop/setup/steps/DataLocationStep.tsx',
+    'desktop/setup/steps/GenerateStep.tsx',
+    'desktop/setup/steps/SourceStep.tsx',
+  ],
   'pages/builders/PageBuilderBinding.tsx': [],
   // Three page templates' words (`templates`): each binding is fetched with its page.
   'pages/PageDirectoryBinding.tsx': [],

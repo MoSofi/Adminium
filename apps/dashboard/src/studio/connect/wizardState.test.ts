@@ -27,6 +27,8 @@ import {
   forgetWizardConnection,
   formatRowEstimate,
   hintForErrorCode,
+  isSupabasePooler,
+  supabasePoolerHint,
   loadWizardState,
   providerChipsFor,
   sameDbDisabledReason,
@@ -244,6 +246,25 @@ describe('error hints', () => {
     expect(hintForErrorCode('HOST_UNREACHABLE')).toMatch(/allowlist/i);
     expect(hintForErrorCode('TLS')).toMatch(/sslmode/i);
     expect(hintForErrorCode('SOMETHING_ELSE')).toMatch(/verify the DSN/i);
+  });
+});
+
+describe('Supabase pooler login hint (V25, V29)', () => {
+  const pooler = 'postgresql://postgres.abcdefghijklmnop:x@aws-0-eu-west-1.pooler.supabase.com:5432/postgres';
+
+  it('knows the shared pooler by its host, and nothing else', () => {
+    expect(isSupabasePooler(pooler)).toBe(true);
+    expect(isSupabasePooler('postgres://u:p@aws-1-us-east-1.pooler.supabase.com:6543/postgres')).toBe(true);
+    expect(isSupabasePooler('postgresql://postgres:x@db.abcdefghijklmnop.supabase.co:5432/postgres')).toBe(false);
+    expect(isSupabasePooler('postgres://shop:shop@localhost:5432/shop')).toBe(false);
+    expect(isSupabasePooler('not a url')).toBe(false);
+  });
+
+  it('adds the user rule to a refused login on the pooler only', () => {
+    expect(supabasePoolerHint('AUTH', pooler)).toMatch(/adminium_rw\.abcdefghijklmnop/);
+    expect(supabasePoolerHint('HOST_UNREACHABLE', pooler)).toBeNull();
+    expect(supabasePoolerHint('AUTH', 'postgres://shop:shop@localhost:5432/shop')).toBeNull();
+    expect(supabasePoolerHint(undefined, pooler)).toBeNull();
   });
 });
 

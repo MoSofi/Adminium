@@ -20,7 +20,8 @@ export default {
     "loading": "Wird geladen",
     "clearSearch": "Suche löschen",
     "clear": "Leeren",
-    "save": "Speichern"
+    "save": "Speichern",
+    "supabasePoolerUser": "Beim Pooler von Supabase besteht der Benutzer aus der Rolle, einem Punkt und Ihrer Projekt-Ref – zum Beispiel adminium_rw.abcdefghijklmnop –, und das Passwort ist das dieser Rolle."
   },
   "auth": {
     "headline": "Machen Sie aus jeder Datenbank ein Dashboard.",
@@ -583,6 +584,116 @@ export default {
       "dismiss": "Setup-Checkliste ausblenden",
       "continue": "Setup fortsetzen",
       "banner": "Richten Sie Ihren Workspace fertig ein — {done} von {total} Schritten erledigt."
+    },
+    "desktopSetup": {
+      "title": "Willkommen bei Adminium",
+      "subtitle": "Vier kurze Schritte und Adminium hat aus Ihrer Datenbank eine Admin-App gebaut. Alles bleibt auf diesem Computer.",
+      "progress": "Einrichtungsfortschritt",
+      "back": "Zurück",
+      "continue": "Weiter",
+      "createAccount": "Konto erstellen und fortfahren",
+      "step": {
+        "location": "Willkommen",
+        "database": "Ihre erste Datenbank",
+        "account": "Ihr Konto",
+        "generate": "Generieren"
+      },
+      "dataDir": {
+        "heading": "Wo soll Adminium Ihre Daten speichern?",
+        "description": "Ihre Datenbanken, Einstellungen und Backups liegen alle in diesem Ordner. Alles bleibt auf diesem Computer — nichts wird irgendwohin hochgeladen.",
+        "label": "Datenordner",
+        "loading": "Aktueller Speicherort wird gelesen…",
+        "pending": "Adminium startet beim Fortfahren neu, um in diesen Ordner zu wechseln.",
+        "change": "Ändern…",
+        "revert": "Rückgängig",
+        "dialogTitle": "Wählen Sie, wo Adminium Ihre Daten speichert",
+        "cloudSyncTitle": "Dieser Ordner wird mit der Cloud synchronisiert",
+        "cloudSyncWarning": "Adminium speichert seine Daten in SQLite-Dateien. {provider} synchronisiert Dateien in „{folder}“, indem es sie im Hintergrund kopiert — das kann eine geöffnete Datenbank beschädigen und ohne Warnung Daten vernichten. Wählen Sie einen Ordner außerhalb von {provider}.",
+        "chooseAnother": "Anderen Ordner wählen",
+        "useAnyway": "Trotzdem verwenden — ich akzeptiere das Risiko",
+        "unusableTitle": "Adminium kann diesen Ordner nicht verwenden",
+        "failed": "Adminium konnte diesen Ordner nicht verwenden."
+      },
+      "source": {
+        "heading": "Woraus soll Adminium bauen?",
+        "description": "Adminium liest das Schema einer Datenbank und generiert daraus eine Admin-App. Weitere Datenbanken können Sie später hinzufügen.",
+        "groupLabel": "Datenbankquelle",
+        "local": {
+          "title": "Neue lokale Datenbank erstellen",
+          "description": "Beginnen Sie bei null oder mit einer Schemadatei, die Sie bereits haben. Die Datenbank wird in Ihrem Datenordner angelegt.",
+          "name": "Datenbankname",
+          "namePlaceholder": "Betrieb",
+          "nameUnusable": "Verwenden Sie mindestens einen Buchstaben oder eine Ziffer — daraus wird der Dateiname gebildet.",
+          "fileHelper": "Erstellt {file}",
+          "schemaLabel": "Beginnen mit",
+          "blank": "Leer",
+          "fromFile": "Einer Schemadatei",
+          "schemaFile": "Schemadatei",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django oder Adminium-JSON. Adminium übersetzt es nach SQLite.",
+          "placeholder": "Platzhaltereinträge automatisch erzeugen",
+          "placeholderHelper": "Sie haben ein Schema ohne Zeilen importiert. Befüllen Sie jede Tabelle mit realistischen Beispieldaten, damit Ihre Dashboards und Diagramme sofort etwas anzeigen."
+        },
+        "openSqlite": {
+          "title": "Vorhandene SQLite-Datei öffnen",
+          "description": "Richten Sie Adminium auf eine .sqlite-Datei auf diesem Computer. Sie wird dort geöffnet, wo sie liegt — nichts wird kopiert oder verschoben.",
+          "browse": ".sqlite-Datei auswählen…",
+          "change": "Andere Datei auswählen…",
+          "networkTitle": "Diese Datei liegt auf einer Netzwerkfreigabe",
+          "networkBody": "Die Sperrmechanik von SQLite ist über Netzwerkfreigaben unzuverlässig, und eine abbrechende Verbindung mitten im Schreibvorgang kann die Datenbank beschädigen. Eine Kopie auf der lokalen Festplatte dieses Computers ist sicherer."
+        },
+        "remote": {
+          "title": "Mit einer Server-Datenbank verbinden",
+          "description": "PostgreSQL oder MySQL. Erfordert eine erreichbare Netzwerkdatenbank; Adminiums eigene Tabellen bleiben trotzdem auf diesem Computer.",
+          "networkNote": "Erfordert eine erreichbare Netzwerkdatenbank",
+          "metaNote": "Adminiums eigene Tabellen — Ihre Seiten, Einstellungen und Anmeldung — bleiben in jedem Fall im Datenordner auf diesem Computer.",
+          "engine": "Engine",
+          "name": "Verbindungsname",
+          "namePlaceholder": "Produktion",
+          "dsn": "Verbindungszeichenfolge",
+          "dsnHelper": "Adminium testet dies beim Verbinden. Verwenden Sie eine Nur-Lese-Rolle, wenn Sie nur Dashboards möchten."
+        },
+        "demo": {
+          "title": "Demo-Datenbank erkunden",
+          "description": "Eine fertige Team-Betriebsdatenbank, damit Sie sehen, was Adminium baut, bevor Sie es auf Ihre eigenen Daten richten. Löschen Sie sie, wann immer Sie möchten.",
+          "unavailable": "Dieses Build enthält die Demodaten nicht, es gibt also nichts zu laden. Wählen Sie eine der Optionen oben."
+        }
+      },
+      "account": {
+        "heading": "Konto erstellen",
+        "description": "Dies ist das Administratorkonto für diese Adminium-Installation. Das Passwort schützt Ihre Backups und alle, mit denen Sie im Netzwerk teilen — bei jedem Start wird es nicht abgefragt.",
+        "name": "Ihr Name",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "passwordHelper": "Mindestens {min} Zeichen.",
+        "confirm": "Passwort bestätigen",
+        "strength": "Passwortstärke",
+        "strengthLevels": {
+          "weak": "Schwach",
+          "fair": "Mittel",
+          "good": "Gut",
+          "strong": "Stark"
+        },
+        "singleUser": "Anmeldung auf diesem Computer überspringen",
+        "singleUserHelper": "Adminium meldet Sie hier automatisch an. Schalten Sie dies aus, wenn andere Personen diesen Computer nutzen. Sie können es später unter Einstellungen → Desktop ändern.",
+        "locale": "Sprache",
+        "theme": "Darstellung",
+        "alreadyExists": "Diese Adminium-Installation hat bereits ein Konto. Melden Sie sich stattdessen damit an.",
+        "failed": "Adminium konnte dieses Konto nicht erstellen."
+      },
+      "generate": {
+        "checking": "Verbindung wird geprüft…",
+        "creating": "Ihre Datenbank wird eingerichtet…",
+        "introspecting": "Ihr Schema wird gelesen — Tabellen, Spalten und Beziehungen…",
+        "working": "Wird ausgeführt…",
+        "offlineNote": "All dies geschieht auf diesem Computer.",
+        "failedTitle": "Adminium konnte diese Datenbank nicht einrichten",
+        "refusedTitle": "Adminium konnte keine Verbindung zu dieser Datenbank herstellen",
+        "failedBody": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
+        "retry": "Erneut versuchen",
+        "changeConnection": "Verbindung ändern",
+        "connectRefused": "Die Datenbank hat die Verbindung abgelehnt.",
+        "readFailed": "Adminium konnte die Tabellen dieser Datenbank nicht lesen."
+      }
     }
   },
   "views": {
@@ -1180,111 +1291,6 @@ export default {
       "transportBody": "Geben Sie nur in Netzwerken frei, denen Sie vertrauen. Nutzen Sie für den Fernzugriff Adminium self-host hinter HTTPS.",
       "firewall": "Beim ersten Freigeben fragt Ihr Betriebssystem, ob eingehende Verbindungen erlaubt werden sollen — wählen Sie Zulassen, sonst können andere Geräte Adminium nicht erreichen.",
       "manageTeam": "Benutzer & Rollen verwalten"
-    },
-    "setup": {
-      "title": "Willkommen bei Adminium",
-      "subtitle": "Vier kurze Schritte und Adminium hat aus Ihrer Datenbank eine Admin-App gebaut. Alles bleibt auf diesem Computer.",
-      "progress": "Einrichtungsfortschritt",
-      "back": "Zurück",
-      "continue": "Weiter",
-      "createAccount": "Konto erstellen und fortfahren",
-      "step": {
-        "location": "Willkommen",
-        "database": "Ihre erste Datenbank",
-        "account": "Ihr Konto",
-        "generate": "Generieren"
-      },
-      "dataDir": {
-        "heading": "Wo soll Adminium Ihre Daten speichern?",
-        "description": "Ihre Datenbanken, Einstellungen und Backups liegen alle in diesem Ordner. Alles bleibt auf diesem Computer — nichts wird irgendwohin hochgeladen.",
-        "label": "Datenordner",
-        "loading": "Aktueller Speicherort wird gelesen…",
-        "pending": "Adminium startet beim Fortfahren neu, um in diesen Ordner zu wechseln.",
-        "change": "Ändern…",
-        "revert": "Rückgängig",
-        "dialogTitle": "Wählen Sie, wo Adminium Ihre Daten speichert",
-        "cloudSyncTitle": "Dieser Ordner wird mit der Cloud synchronisiert",
-        "cloudSyncWarning": "Adminium speichert seine Daten in SQLite-Dateien. {provider} synchronisiert Dateien in „{folder}“, indem es sie im Hintergrund kopiert — das kann eine geöffnete Datenbank beschädigen und ohne Warnung Daten vernichten. Wählen Sie einen Ordner außerhalb von {provider}.",
-        "chooseAnother": "Anderen Ordner wählen",
-        "useAnyway": "Trotzdem verwenden — ich akzeptiere das Risiko",
-        "unusableTitle": "Adminium kann diesen Ordner nicht verwenden",
-        "failed": "Adminium konnte diesen Ordner nicht verwenden."
-      },
-      "source": {
-        "heading": "Woraus soll Adminium bauen?",
-        "description": "Adminium liest das Schema einer Datenbank und generiert daraus eine Admin-App. Weitere Datenbanken können Sie später hinzufügen.",
-        "groupLabel": "Datenbankquelle",
-        "local": {
-          "title": "Neue lokale Datenbank erstellen",
-          "description": "Beginnen Sie bei null oder mit einer Schemadatei, die Sie bereits haben. Die Datenbank wird in Ihrem Datenordner angelegt.",
-          "name": "Datenbankname",
-          "namePlaceholder": "Betrieb",
-          "nameUnusable": "Verwenden Sie mindestens einen Buchstaben oder eine Ziffer — daraus wird der Dateiname gebildet.",
-          "fileHelper": "Erstellt {file}",
-          "schemaLabel": "Beginnen mit",
-          "blank": "Leer",
-          "fromFile": "Einer Schemadatei",
-          "schemaFile": "Schemadatei",
-          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django oder Adminium-JSON. Adminium übersetzt es nach SQLite.",
-          "placeholder": "Platzhaltereinträge automatisch erzeugen",
-          "placeholderHelper": "Sie haben ein Schema ohne Zeilen importiert. Befüllen Sie jede Tabelle mit realistischen Beispieldaten, damit Ihre Dashboards und Diagramme sofort etwas anzeigen."
-        },
-        "openSqlite": {
-          "title": "Vorhandene SQLite-Datei öffnen",
-          "description": "Richten Sie Adminium auf eine .sqlite-Datei auf diesem Computer. Sie wird dort geöffnet, wo sie liegt — nichts wird kopiert oder verschoben.",
-          "browse": ".sqlite-Datei auswählen…",
-          "change": "Andere Datei auswählen…",
-          "networkTitle": "Diese Datei liegt auf einer Netzwerkfreigabe",
-          "networkBody": "Die Sperrmechanik von SQLite ist über Netzwerkfreigaben unzuverlässig, und eine abbrechende Verbindung mitten im Schreibvorgang kann die Datenbank beschädigen. Eine Kopie auf der lokalen Festplatte dieses Computers ist sicherer."
-        },
-        "remote": {
-          "title": "Mit einer Server-Datenbank verbinden",
-          "description": "PostgreSQL oder MySQL. Erfordert eine erreichbare Netzwerkdatenbank; Adminiums eigene Tabellen bleiben trotzdem auf diesem Computer.",
-          "networkNote": "Erfordert eine erreichbare Netzwerkdatenbank",
-          "metaNote": "Adminiums eigene Tabellen — Ihre Seiten, Einstellungen und Anmeldung — bleiben in jedem Fall im Datenordner auf diesem Computer.",
-          "engine": "Engine",
-          "name": "Verbindungsname",
-          "namePlaceholder": "Produktion",
-          "dsn": "Verbindungszeichenfolge",
-          "dsnHelper": "Adminium testet dies beim Verbinden. Verwenden Sie eine Nur-Lese-Rolle, wenn Sie nur Dashboards möchten."
-        },
-        "demo": {
-          "title": "Demo-Datenbank erkunden",
-          "description": "Eine fertige Team-Betriebsdatenbank, damit Sie sehen, was Adminium baut, bevor Sie es auf Ihre eigenen Daten richten. Löschen Sie sie, wann immer Sie möchten.",
-          "unavailable": "Dieses Build enthält die Demodaten nicht, es gibt also nichts zu laden. Wählen Sie eine der Optionen oben."
-        }
-      },
-      "account": {
-        "heading": "Konto erstellen",
-        "description": "Dies ist das Administratorkonto für diese Adminium-Installation. Das Passwort schützt Ihre Backups und alle, mit denen Sie im Netzwerk teilen — bei jedem Start wird es nicht abgefragt.",
-        "name": "Ihr Name",
-        "email": "E-Mail",
-        "password": "Passwort",
-        "passwordHelper": "Mindestens {min} Zeichen.",
-        "confirm": "Passwort bestätigen",
-        "strength": "Passwortstärke",
-        "strengthLevels": {
-          "weak": "Schwach",
-          "fair": "Mittel",
-          "good": "Gut",
-          "strong": "Stark"
-        },
-        "singleUser": "Anmeldung auf diesem Computer überspringen",
-        "singleUserHelper": "Adminium meldet Sie hier automatisch an. Schalten Sie dies aus, wenn andere Personen diesen Computer nutzen. Sie können es später unter Einstellungen → Desktop ändern.",
-        "locale": "Sprache",
-        "theme": "Darstellung",
-        "alreadyExists": "Diese Adminium-Installation hat bereits ein Konto. Melden Sie sich stattdessen damit an.",
-        "failed": "Adminium konnte dieses Konto nicht erstellen."
-      },
-      "generate": {
-        "creating": "Ihre Datenbank wird eingerichtet…",
-        "introspecting": "Ihr Schema wird gelesen — Tabellen, Spalten und Beziehungen…",
-        "working": "Wird ausgeführt…",
-        "offlineNote": "All dies geschieht auf diesem Computer.",
-        "failedTitle": "Adminium konnte diese Datenbank nicht einrichten",
-        "failedBody": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
-        "retry": "Erneut versuchen"
-      }
     },
     "stop": {
       "turn": "Der Designer ist mitten in einem Durchgang.",

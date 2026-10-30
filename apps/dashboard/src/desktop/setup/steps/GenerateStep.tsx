@@ -36,7 +36,7 @@ import { INITIAL_WIZARD_STATE, type WizardState } from '../../../studio/connect/
 import type { DesktopSetupState } from '../desktopSetupState.js';
 
 /** What the source pipeline is doing, for the progress copy. */
-export type PreparePhase = 'idle' | 'creating' | 'introspecting' | 'ready' | 'error';
+export type PreparePhase = 'idle' | 'checking' | 'creating' | 'introspecting' | 'ready' | 'error';
 
 export interface GenerateStepProps {
   state: DesktopSetupState;
@@ -45,6 +45,12 @@ export interface GenerateStepProps {
   error: string | null;
   /** Re-run create → introspect after a failure. */
   onRetry: () => void;
+  /**
+   * Present when the database REFUSED the connection string before anything was
+   * created (finding V29): the fix is the string, so the action is back to
+   * step 2 rather than Try again, which would be refused the same way.
+   */
+  onChangeConnection?: (() => void) | undefined;
   onOpenApp: () => void;
   onOpenReview: (runId: string) => void;
   /** Test seams, forwarded to the Studio components unchanged. */
@@ -78,14 +84,16 @@ export function toWizardState(state: DesktopSetupState): WizardState {
 
 function phaseLabel(phase: PreparePhase): string {
   switch (phase) {
+    case 'checking':
+      return t('onboarding.desktopSetup.generate.checking', 'Checking the connection…');
     case 'creating':
-      return t('desktop.setup.generate.creating', 'Setting up your database…');
+      return t('onboarding.desktopSetup.generate.creating', 'Setting up your database…');
     case 'introspecting':
-      return t('desktop.setup.generate.introspecting', 'Reading your schema — tables, columns and relationships…');
+      return t('onboarding.desktopSetup.generate.introspecting', 'Reading your schema — tables, columns and relationships…');
     case 'idle':
     case 'ready':
     case 'error':
-      return t('desktop.setup.generate.working', 'Working…');
+      return t('onboarding.desktopSetup.generate.working', 'Working…');
   }
 }
 
@@ -93,16 +101,27 @@ export function GenerateStep(props: GenerateStepProps): ReactNode {
   const wizardState = toWizardState(props.state);
 
   if (props.phase === 'error') {
+    const refused = props.onChangeConnection !== undefined;
     return (
       <Alert
         tone="danger"
         role="alert"
-        title={t('desktop.setup.generate.failedTitle', 'Adminium could not set that database up')}
-        body={props.error ?? t('desktop.setup.generate.failedBody', 'Something went wrong. Try again.')}
+        title={
+          refused
+            ? t('onboarding.desktopSetup.generate.refusedTitle', 'Adminium could not connect to that database')
+            : t('onboarding.desktopSetup.generate.failedTitle', 'Adminium could not set that database up')
+        }
+        body={props.error ?? t('onboarding.desktopSetup.generate.failedBody', 'Something went wrong. Try again.')}
         action={
-          <Button variant="outline" onClick={props.onRetry}>
-            {t('desktop.setup.generate.retry', 'Try again')}
-          </Button>
+          refused ? (
+            <Button variant="outline" onClick={props.onChangeConnection}>
+              {t('onboarding.desktopSetup.generate.changeConnection', 'Change the connection')}
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={props.onRetry}>
+              {t('onboarding.desktopSetup.generate.retry', 'Try again')}
+            </Button>
+          )
         }
       />
     );
@@ -114,7 +133,7 @@ export function GenerateStep(props: GenerateStepProps): ReactNode {
         <Loader2 aria-hidden className="size-5 animate-spin text-accent" />
         <p className="text-body text-fg">{phaseLabel(props.phase)}</p>
         <MonoText className="text-body-sm text-fg-muted">
-          {t('desktop.setup.generate.offlineNote', 'All of this happens on this computer.')}
+          {t('onboarding.desktopSetup.generate.offlineNote', 'All of this happens on this computer.')}
         </MonoText>
       </div>
     );

@@ -28,6 +28,7 @@ import {
   effectiveEngine,
   generateIntentOf,
   hintForErrorCode,
+  supabasePoolerHint,
   type WizardState,
 } from '../wizardState.js';
 
@@ -183,10 +184,14 @@ export function TestStep({
       push('running', t('studio:test.log.connecting', 'Establishing secure connection…'));
       const probe = await studioApi.testDsn(engine, dsn);
       if (!probe.ok) {
+        const code = probe.error?.code ?? 'UNKNOWN';
+        // Supabase's pooler: say how it wants the user written (V25, V29).
+        const pooler = supabasePoolerHint(code, dsn);
+        const hint = probe.error?.hint ?? null;
         fail(
           probe.error?.message ?? t('studio:test.log.connectFailed', 'Connection failed.'),
-          probe.error?.code ?? 'UNKNOWN',
-          probe.error?.hint,
+          code,
+          pooler === null ? hint : `${hint ?? hintForErrorCode(code)} ${pooler}`,
         );
         return;
       }

@@ -41,10 +41,10 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-section text-fg">{t('desktop.setup.dataDir.heading', 'Where should Adminium keep your data?')}</h2>
+        <h2 className="text-section text-fg">{t('onboarding.desktopSetup.dataDir.heading', 'Where should Adminium keep your data?')}</h2>
         <p className="text-body-sm text-fg-muted">
           {t(
-            'desktop.setup.dataDir.description',
+            'onboarding.desktopSetup.dataDir.description',
             'Your databases, settings and backups all live in this folder. Everything stays on this computer — nothing is uploaded anywhere.',
           )}
         </p>
@@ -55,11 +55,11 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
           <IconTile tone="accent" size="md" icon={<HardDrive />} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-body-sm font-semibold text-fg">
-              {t('desktop.setup.dataDir.label', 'Data folder')}
+              {t('onboarding.desktopSetup.dataDir.label', 'Data folder')}
             </span>
             {effective === null ? (
               <span className="text-body-sm text-fg-muted">
-                {t('desktop.setup.dataDir.loading', 'Reading the current location…')}
+                {t('onboarding.desktopSetup.dataDir.loading', 'Reading the current location…')}
               </span>
             ) : (
               <MonoText className="break-all text-body-sm text-fg-muted">{effective}</MonoText>
@@ -67,7 +67,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
             {props.pendingDataDir === null ? null : (
               <p className="text-body-sm text-fg-muted">
                 {t(
-                  'desktop.setup.dataDir.pending',
+                  'onboarding.desktopSetup.dataDir.pending',
                   'Adminium restarts when you continue, so it can move to this folder.',
                 )}
               </p>
@@ -76,7 +76,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
           <div className="flex shrink-0 items-center gap-2">
             {props.pendingDataDir === null ? null : (
               <Button variant="ghost" onClick={props.onRevert} disabled={props.busy}>
-                {t('desktop.setup.dataDir.revert', 'Undo')}
+                {t('onboarding.desktopSetup.dataDir.revert', 'Undo')}
               </Button>
             )}
             <Button
@@ -85,7 +85,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
               disabled={props.busy}
               iconLeft={<FolderOpen aria-hidden />}
             >
-              {t('desktop.setup.dataDir.change', 'Change…')}
+              {t('onboarding.desktopSetup.dataDir.change', 'Change…')}
             </Button>
           </div>
         </CardBody>
@@ -95,7 +95,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
         <Alert
           tone="danger"
           role="alert"
-          title={t('desktop.setup.dataDir.cloudSyncTitle', 'This folder is synced to the cloud')}
+          title={t('onboarding.desktopSetup.dataDir.cloudSyncTitle', 'This folder is synced to the cloud')}
         >
           <div className="flex flex-col gap-3">
             {/* The main process names the KEY (`config.ts`'s
@@ -118,7 +118,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
             </p>
             <div className="flex items-center gap-3">
               <Button variant="outline" onClick={props.onChoose} disabled={props.busy}>
-                {t('desktop.setup.dataDir.chooseAnother', 'Choose another folder')}
+                {t('onboarding.desktopSetup.dataDir.chooseAnother', 'Choose another folder')}
               </Button>
               {/* "require explicit confirmation" — a second, deliberate act,
                   never a checkbox that Continue could carry along with it. */}
@@ -128,7 +128,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
                 loading={props.busy}
                 iconLeft={<AlertTriangle aria-hidden />}
               >
-                {t('desktop.setup.dataDir.useAnyway', 'Use it anyway — I accept the risk')}
+                {t('onboarding.desktopSetup.dataDir.useAnyway', 'Use it anyway — I accept the risk')}
               </Button>
             </div>
           </div>
@@ -139,7 +139,7 @@ export function DataLocationStep(props: DataLocationStepProps): ReactNode {
         <Alert
           tone="danger"
           role="alert"
-          title={t('desktop.setup.dataDir.unusableTitle', 'Adminium cannot use that folder')}
+          title={t('onboarding.desktopSetup.dataDir.unusableTitle', 'Adminium cannot use that folder')}
           body={props.unusableReason}
         />
       )}

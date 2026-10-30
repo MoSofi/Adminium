@@ -5311,6 +5311,10 @@
     "srcHash": "efc007a393f6",
     "status": "mt"
   },
+  "common.common.supabasePoolerUser": {
+    "status": "mt",
+    "srcHash": "5d25ae52693d"
+  },
   "common.common.undo": {
     "srcHash": "39fc72124884",
     "status": "mt"
@@ -5822,338 +5826,6 @@
   "common.desktop.settings.title": {
     "status": "mt",
     "srcHash": "564490a84de5"
-  },
-  "common.desktop.setup.account.alreadyExists": {
-    "srcHash": "dc4ac8af82db",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.confirm": {
-    "srcHash": "4a7c565d4c44",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.description": {
-    "srcHash": "856fe752fe29",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.email": {
-    "srcHash": "84add5b29527",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.failed": {
-    "srcHash": "1452425ce9d3",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.heading": {
-    "srcHash": "4046b5818208",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.locale": {
-    "srcHash": "89b86ab0e66f",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.name": {
-    "srcHash": "ab42293e29e1",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.password": {
-    "srcHash": "8be3c943b160",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.passwordHelper": {
-    "srcHash": "85bd20cddffd",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.singleUser": {
-    "srcHash": "ddbbc0d9f829",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.singleUserHelper": {
-    "srcHash": "64760cbfd425",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.strength": {
-    "srcHash": "ee1ff19fe954",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.strengthLevels.fair": {
-    "srcHash": "64b985898db9",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.strengthLevels.good": {
-    "srcHash": "61dedcf053ff",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.strengthLevels.strong": {
-    "srcHash": "cf8468705371",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.strengthLevels.weak": {
-    "srcHash": "8bfada821419",
-    "status": "mt"
-  },
-  "common.desktop.setup.account.theme": {
-    "srcHash": "41def7a0febe",
-    "status": "mt"
-  },
-  "common.desktop.setup.back": {
-    "srcHash": "b52b36b7269f",
-    "status": "mt"
-  },
-  "common.desktop.setup.continue": {
-    "srcHash": "2e02623966f9",
-    "status": "mt"
-  },
-  "common.desktop.setup.createAccount": {
-    "srcHash": "16dde290bfce",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.change": {
-    "srcHash": "49b1cd843f93",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.chooseAnother": {
-    "srcHash": "af3575d7895a",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.cloudSyncTitle": {
-    "srcHash": "05d81dbe9e41",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.cloudSyncWarning": {
-    "srcHash": "268c129d0453",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.description": {
-    "srcHash": "7c17db941437",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.dialogTitle": {
-    "srcHash": "956078672b10",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.failed": {
-    "srcHash": "c4e1710f4dfe",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.heading": {
-    "srcHash": "1fcfc09868ce",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.label": {
-    "srcHash": "9421c0213aaf",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.loading": {
-    "srcHash": "999677267c60",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.pending": {
-    "srcHash": "21b25e09b87f",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.revert": {
-    "srcHash": "39fc72124884",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.unusableTitle": {
-    "srcHash": "9dd7be56ea78",
-    "status": "mt"
-  },
-  "common.desktop.setup.dataDir.useAnyway": {
-    "srcHash": "6f57846ee366",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.creating": {
-    "srcHash": "b90ff9d62725",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.failedBody": {
-    "srcHash": "4244e822a06c",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.failedTitle": {
-    "srcHash": "0d6921c904c7",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.introspecting": {
-    "srcHash": "ad4631b83605",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.offlineNote": {
-    "srcHash": "6239bcf14734",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.retry": {
-    "srcHash": "042c862e4467",
-    "status": "mt"
-  },
-  "common.desktop.setup.generate.working": {
-    "srcHash": "13b7bfcac438",
-    "status": "mt"
-  },
-  "common.desktop.setup.progress": {
-    "srcHash": "1a8adefd3247",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.demo.description": {
-    "srcHash": "17bd01adba1d",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.demo.title": {
-    "srcHash": "a010e3de7d14",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.demo.unavailable": {
-    "srcHash": "25918bc70ee3",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.description": {
-    "srcHash": "3fbebc2205e3",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.groupLabel": {
-    "srcHash": "d60f537151c8",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.heading": {
-    "srcHash": "af8c893851e7",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.blank": {
-    "srcHash": "276c9361fff1",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.description": {
-    "srcHash": "1773be12221a",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.fileHelper": {
-    "srcHash": "87429432ba77",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.fromFile": {
-    "srcHash": "5e88d4a9a141",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.name": {
-    "srcHash": "83956a7f31d1",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.namePlaceholder": {
-    "srcHash": "a1fdaa6b2a84",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.nameUnusable": {
-    "srcHash": "c5f37eb4447f",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.placeholder": {
-    "srcHash": "b046e1dace6e",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.placeholderHelper": {
-    "srcHash": "bcc79a347b8e",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.schemaFile": {
-    "srcHash": "9bd10e7170f7",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.schemaFileHelper": {
-    "srcHash": "807994648a54",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.schemaLabel": {
-    "srcHash": "62a53f0baa7a",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.local.title": {
-    "srcHash": "77dfd4dea5a4",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.openSqlite.browse": {
-    "srcHash": "0c39ff1bc54b",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.openSqlite.change": {
-    "srcHash": "56a8672dc528",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.openSqlite.description": {
-    "srcHash": "eb9ef887e929",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.openSqlite.networkBody": {
-    "srcHash": "3b8a87fecfa3",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.openSqlite.networkTitle": {
-    "srcHash": "01ebe91b0385",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.openSqlite.title": {
-    "srcHash": "6de0d2a2e53c",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.description": {
-    "srcHash": "7abeca49299c",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.dsn": {
-    "srcHash": "11a3690d0da9",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.dsnHelper": {
-    "srcHash": "bb9d60264709",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.engine": {
-    "srcHash": "c1f65ddb75ed",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.metaNote": {
-    "srcHash": "510a691ce273",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.name": {
-    "srcHash": "5584ef8e0ccb",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.namePlaceholder": {
-    "status": "src",
-    "srcHash": "df70fc7991d3"
-  },
-  "common.desktop.setup.source.remote.networkNote": {
-    "srcHash": "82167619de9f",
-    "status": "mt"
-  },
-  "common.desktop.setup.source.remote.title": {
-    "srcHash": "08854db0f541",
-    "status": "mt"
-  },
-  "common.desktop.setup.step.account": {
-    "srcHash": "4ab291020939",
-    "status": "mt"
-  },
-  "common.desktop.setup.step.database": {
-    "srcHash": "e87dcbd7bd2d",
-    "status": "mt"
-  },
-  "common.desktop.setup.step.generate": {
-    "srcHash": "fc45f9b7a9a6",
-    "status": "mt"
-  },
-  "common.desktop.setup.step.location": {
-    "srcHash": "ca4f9dcf204e",
-    "status": "mt"
-  },
-  "common.desktop.setup.subtitle": {
-    "srcHash": "1ea345f0090e",
-    "status": "mt"
-  },
-  "common.desktop.setup.title": {
-    "srcHash": "d4b1a6d5c80c",
-    "status": "mt"
   },
   "common.desktop.shared.banner": {
     "status": "mt",
@@ -6709,6 +6381,358 @@
   },
   "common.onboarding.completeBody": {
     "srcHash": "f952083bc23b",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.alreadyExists": {
+    "srcHash": "dc4ac8af82db",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.confirm": {
+    "srcHash": "4a7c565d4c44",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.description": {
+    "srcHash": "856fe752fe29",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.email": {
+    "srcHash": "84add5b29527",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.failed": {
+    "srcHash": "1452425ce9d3",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.heading": {
+    "srcHash": "4046b5818208",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.locale": {
+    "srcHash": "89b86ab0e66f",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.name": {
+    "srcHash": "ab42293e29e1",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.password": {
+    "srcHash": "8be3c943b160",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.passwordHelper": {
+    "srcHash": "85bd20cddffd",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.singleUser": {
+    "srcHash": "ddbbc0d9f829",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.singleUserHelper": {
+    "srcHash": "64760cbfd425",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.strength": {
+    "srcHash": "ee1ff19fe954",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.strengthLevels.fair": {
+    "srcHash": "64b985898db9",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.strengthLevels.good": {
+    "srcHash": "61dedcf053ff",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.strengthLevels.strong": {
+    "srcHash": "cf8468705371",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.strengthLevels.weak": {
+    "srcHash": "8bfada821419",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.account.theme": {
+    "srcHash": "41def7a0febe",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.back": {
+    "srcHash": "b52b36b7269f",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.continue": {
+    "srcHash": "2e02623966f9",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.createAccount": {
+    "srcHash": "16dde290bfce",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.change": {
+    "srcHash": "49b1cd843f93",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.chooseAnother": {
+    "srcHash": "af3575d7895a",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.cloudSyncTitle": {
+    "srcHash": "05d81dbe9e41",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.cloudSyncWarning": {
+    "srcHash": "268c129d0453",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.description": {
+    "srcHash": "7c17db941437",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.dialogTitle": {
+    "srcHash": "956078672b10",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.failed": {
+    "srcHash": "c4e1710f4dfe",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.heading": {
+    "srcHash": "1fcfc09868ce",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.label": {
+    "srcHash": "9421c0213aaf",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.loading": {
+    "srcHash": "999677267c60",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.pending": {
+    "srcHash": "21b25e09b87f",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.revert": {
+    "srcHash": "39fc72124884",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.unusableTitle": {
+    "srcHash": "9dd7be56ea78",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.dataDir.useAnyway": {
+    "srcHash": "6f57846ee366",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.changeConnection": {
+    "status": "mt",
+    "srcHash": "634600bb446e"
+  },
+  "common.onboarding.desktopSetup.generate.checking": {
+    "status": "mt",
+    "srcHash": "67f9386ce918"
+  },
+  "common.onboarding.desktopSetup.generate.connectRefused": {
+    "status": "mt",
+    "srcHash": "4085271d9f44"
+  },
+  "common.onboarding.desktopSetup.generate.creating": {
+    "srcHash": "b90ff9d62725",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.failedBody": {
+    "srcHash": "4244e822a06c",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.failedTitle": {
+    "srcHash": "0d6921c904c7",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.introspecting": {
+    "srcHash": "ad4631b83605",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.offlineNote": {
+    "srcHash": "6239bcf14734",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.readFailed": {
+    "status": "mt",
+    "srcHash": "5036fc85ee6f"
+  },
+  "common.onboarding.desktopSetup.generate.refusedTitle": {
+    "status": "mt",
+    "srcHash": "d070970a2545"
+  },
+  "common.onboarding.desktopSetup.generate.retry": {
+    "srcHash": "042c862e4467",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.generate.working": {
+    "srcHash": "13b7bfcac438",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.progress": {
+    "srcHash": "1a8adefd3247",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.demo.description": {
+    "srcHash": "17bd01adba1d",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.demo.title": {
+    "srcHash": "a010e3de7d14",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.demo.unavailable": {
+    "srcHash": "25918bc70ee3",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.description": {
+    "srcHash": "3fbebc2205e3",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.groupLabel": {
+    "srcHash": "d60f537151c8",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.heading": {
+    "srcHash": "af8c893851e7",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.blank": {
+    "srcHash": "276c9361fff1",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.description": {
+    "srcHash": "1773be12221a",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.fileHelper": {
+    "srcHash": "87429432ba77",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.fromFile": {
+    "srcHash": "5e88d4a9a141",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.name": {
+    "srcHash": "83956a7f31d1",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.namePlaceholder": {
+    "srcHash": "a1fdaa6b2a84",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.nameUnusable": {
+    "srcHash": "c5f37eb4447f",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.placeholder": {
+    "srcHash": "b046e1dace6e",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.placeholderHelper": {
+    "srcHash": "bcc79a347b8e",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.schemaFile": {
+    "srcHash": "9bd10e7170f7",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.schemaFileHelper": {
+    "srcHash": "807994648a54",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.schemaLabel": {
+    "srcHash": "62a53f0baa7a",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.local.title": {
+    "srcHash": "77dfd4dea5a4",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.openSqlite.browse": {
+    "srcHash": "0c39ff1bc54b",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.openSqlite.change": {
+    "srcHash": "56a8672dc528",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.openSqlite.description": {
+    "srcHash": "eb9ef887e929",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.openSqlite.networkBody": {
+    "srcHash": "3b8a87fecfa3",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.openSqlite.networkTitle": {
+    "srcHash": "01ebe91b0385",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.openSqlite.title": {
+    "srcHash": "6de0d2a2e53c",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.description": {
+    "srcHash": "7abeca49299c",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.dsn": {
+    "srcHash": "11a3690d0da9",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.dsnHelper": {
+    "srcHash": "bb9d60264709",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.engine": {
+    "srcHash": "c1f65ddb75ed",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.metaNote": {
+    "srcHash": "510a691ce273",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.name": {
+    "srcHash": "5584ef8e0ccb",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.namePlaceholder": {
+    "status": "src",
+    "srcHash": "df70fc7991d3"
+  },
+  "common.onboarding.desktopSetup.source.remote.networkNote": {
+    "srcHash": "82167619de9f",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.source.remote.title": {
+    "srcHash": "08854db0f541",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.step.account": {
+    "srcHash": "4ab291020939",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.step.database": {
+    "srcHash": "e87dcbd7bd2d",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.step.generate": {
+    "srcHash": "fc45f9b7a9a6",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.step.location": {
+    "srcHash": "ca4f9dcf204e",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.subtitle": {
+    "srcHash": "1ea345f0090e",
+    "status": "mt"
+  },
+  "common.onboarding.desktopSetup.title": {
+    "srcHash": "d4b1a6d5c80c",
     "status": "mt"
   },
   "common.onboarding.done": {

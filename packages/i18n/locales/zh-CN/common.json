@@ -10,7 +10,8 @@
     "loading": "加载中",
     "clearSearch": "清除搜索",
     "clear": "清除",
-    "save": "保存"
+    "save": "保存",
+    "supabasePoolerUser": "在 Supabase 的连接池中，用户名是角色、一个点和你的项目 ref，例如 adminium_rw.abcdefghijklmnop；密码是该角色的密码。"
   },
   "auth": {
     "headline": "把任何数据库变成仪表盘。",
@@ -573,6 +574,116 @@
       "dismiss": "隐藏设置清单",
       "continue": "继续设置",
       "banner": "完成工作区设置 — 已完成 {total} 个步骤中的 {done} 个。"
+    },
+    "desktopSetup": {
+      "title": "欢迎使用 Adminium",
+      "subtitle": "只需四个简短步骤，Adminium 就能从你的数据库生成一个管理应用。所有内容都保留在这台电脑上。",
+      "progress": "设置进度",
+      "back": "上一步",
+      "continue": "继续",
+      "createAccount": "创建账户并继续",
+      "step": {
+        "location": "欢迎",
+        "database": "你的第一个数据库",
+        "account": "你的账户",
+        "generate": "生成"
+      },
+      "dataDir": {
+        "heading": "Adminium 应该把你的数据保存在哪里？",
+        "description": "你的数据库、设置和备份都存放在这个文件夹中。所有内容都保留在这台电脑上——不会上传到任何地方。",
+        "label": "数据文件夹",
+        "loading": "正在读取当前位置…",
+        "pending": "继续时 Adminium 会重启，以便切换到这个文件夹。",
+        "change": "更改…",
+        "revert": "撤销",
+        "dialogTitle": "选择 Adminium 保存数据的位置",
+        "cloudSyncTitle": "该文件夹会同步到云端",
+        "cloudSyncWarning": "Adminium 将数据存储在 SQLite 文件中。{provider} 会在后台复制“{folder}”中的文件进行同步，这可能损坏正在打开的数据库——并在毫无提示的情况下丢失数据。请选择 {provider} 之外的文件夹。",
+        "chooseAnother": "选择其他文件夹",
+        "useAnyway": "仍然使用——我接受风险",
+        "unusableTitle": "Adminium 无法使用该文件夹",
+        "failed": "Adminium 无法使用该文件夹。"
+      },
+      "source": {
+        "heading": "Adminium 应该基于什么来构建？",
+        "description": "Adminium 会读取数据库的结构并据此生成管理应用。你之后可以添加更多数据库。",
+        "groupLabel": "数据库来源",
+        "local": {
+          "title": "创建新的本地数据库",
+          "description": "从零开始，或使用你已有的结构文件。数据库会创建在你的数据文件夹中。",
+          "name": "数据库名称",
+          "namePlaceholder": "运营",
+          "nameUnusable": "请至少使用一个字母或数字——文件名由此生成。",
+          "fileHelper": "将创建 {file}",
+          "schemaLabel": "起始方式",
+          "blank": "空白",
+          "fromFile": "结构文件",
+          "schemaFile": "结构文件",
+          "schemaFileHelper": ".sql、pg_dump、Prisma、Drizzle、TypeORM、Sequelize、schema.rb、Django 或 Adminium JSON。Adminium 会将其转换为 SQLite。",
+          "placeholder": "自动生成占位数据",
+          "placeholderHelper": "你导入的结构没有数据行。为每个表填充逼真的示例数据，让仪表板和图表立刻能够呈现。"
+        },
+        "openSqlite": {
+          "title": "打开现有的 SQLite 文件",
+          "description": "让 Adminium 指向这台电脑上的 .sqlite 文件。文件会在原位打开——不会复制或移动。",
+          "browse": "选择一个 .sqlite 文件…",
+          "change": "选择其他文件…",
+          "networkTitle": "该文件位于网络共享上",
+          "networkBody": "SQLite 的锁机制在网络文件共享上并不可靠，写入过程中断开连接可能损坏数据库。复制到这台电脑本地磁盘上更安全。"
+        },
+        "remote": {
+          "title": "连接到服务器数据库",
+          "description": "PostgreSQL 或 MySQL。需要一个可访问的网络数据库；Adminium 自身的数据表仍然保留在这台电脑上。",
+          "networkNote": "需要一个可访问的网络数据库",
+          "metaNote": "无论如何，Adminium 自身的数据表——你的页面、设置和登录信息——都保留在这台电脑的数据文件夹中。",
+          "engine": "引擎",
+          "name": "连接名称",
+          "namePlaceholder": "生产环境",
+          "dsn": "连接字符串",
+          "dsnHelper": "Adminium 会在连接时测试它。如果你只需要仪表板，请使用只读角色。"
+        },
+        "demo": {
+          "title": "体验演示数据库",
+          "description": "一个现成的团队运营数据库，让你在指向自己的数据之前先看看 Adminium 会构建出什么。你可以随时删除它。",
+          "unavailable": "此版本不包含演示数据，因此没有可加载的内容。请选择上面的某个选项。"
+        }
+      },
+      "account": {
+        "heading": "创建你的账户",
+        "description": "这是这份 Adminium 的管理员账户。密码用于保护你的备份以及你在网络上共享的对象——每次启动时不会向你索取密码。",
+        "name": "你的姓名",
+        "email": "邮箱",
+        "password": "密码",
+        "passwordHelper": "至少 {min} 个字符。",
+        "confirm": "确认密码",
+        "strength": "密码强度",
+        "strengthLevels": {
+          "weak": "弱",
+          "fair": "一般",
+          "good": "良好",
+          "strong": "强"
+        },
+        "singleUser": "在这台电脑上跳过登录",
+        "singleUserHelper": "在这里打开时，Adminium 会自动为你登录。如果其他人也使用这台机器，请关闭此项。你之后可以在 设置 → 桌面 中更改。",
+        "locale": "语言",
+        "theme": "外观",
+        "alreadyExists": "这份 Adminium 已经有一个账户。请改用该账户登录。",
+        "failed": "Adminium 无法创建该账户。"
+      },
+      "generate": {
+        "checking": "正在检查连接…",
+        "creating": "正在设置你的数据库…",
+        "introspecting": "正在读取你的结构——表、列和关系…",
+        "working": "处理中…",
+        "offlineNote": "这一切都在这台电脑上完成。",
+        "failedTitle": "Adminium 无法设置该数据库",
+        "refusedTitle": "Adminium 无法连接到该数据库",
+        "failedBody": "出了点问题。请重试。",
+        "retry": "重试",
+        "changeConnection": "修改连接",
+        "connectRefused": "数据库拒绝了连接。",
+        "readFailed": "Adminium 无法读取该数据库的表。"
+      }
     }
   },
   "views": {
@@ -1170,111 +1281,6 @@
       "transportBody": "仅在你信任的网络中共享。如需远程访问，请使用置于 HTTPS 之后的 Adminium 自托管版本。",
       "firewall": "首次共享时，操作系统会询问是否允许传入连接 — 请选择\"允许\"，否则其他设备将无法访问 Adminium。",
       "manageTeam": "管理用户与角色"
-    },
-    "setup": {
-      "title": "欢迎使用 Adminium",
-      "subtitle": "只需四个简短步骤，Adminium 就能从你的数据库生成一个管理应用。所有内容都保留在这台电脑上。",
-      "progress": "设置进度",
-      "back": "上一步",
-      "continue": "继续",
-      "createAccount": "创建账户并继续",
-      "step": {
-        "location": "欢迎",
-        "database": "你的第一个数据库",
-        "account": "你的账户",
-        "generate": "生成"
-      },
-      "dataDir": {
-        "heading": "Adminium 应该把你的数据保存在哪里？",
-        "description": "你的数据库、设置和备份都存放在这个文件夹中。所有内容都保留在这台电脑上——不会上传到任何地方。",
-        "label": "数据文件夹",
-        "loading": "正在读取当前位置…",
-        "pending": "继续时 Adminium 会重启，以便切换到这个文件夹。",
-        "change": "更改…",
-        "revert": "撤销",
-        "dialogTitle": "选择 Adminium 保存数据的位置",
-        "cloudSyncTitle": "该文件夹会同步到云端",
-        "cloudSyncWarning": "Adminium 将数据存储在 SQLite 文件中。{provider} 会在后台复制“{folder}”中的文件进行同步，这可能损坏正在打开的数据库——并在毫无提示的情况下丢失数据。请选择 {provider} 之外的文件夹。",
-        "chooseAnother": "选择其他文件夹",
-        "useAnyway": "仍然使用——我接受风险",
-        "unusableTitle": "Adminium 无法使用该文件夹",
-        "failed": "Adminium 无法使用该文件夹。"
-      },
-      "source": {
-        "heading": "Adminium 应该基于什么来构建？",
-        "description": "Adminium 会读取数据库的结构并据此生成管理应用。你之后可以添加更多数据库。",
-        "groupLabel": "数据库来源",
-        "local": {
-          "title": "创建新的本地数据库",
-          "description": "从零开始，或使用你已有的结构文件。数据库会创建在你的数据文件夹中。",
-          "name": "数据库名称",
-          "namePlaceholder": "运营",
-          "nameUnusable": "请至少使用一个字母或数字——文件名由此生成。",
-          "fileHelper": "将创建 {file}",
-          "schemaLabel": "起始方式",
-          "blank": "空白",
-          "fromFile": "结构文件",
-          "schemaFile": "结构文件",
-          "schemaFileHelper": ".sql、pg_dump、Prisma、Drizzle、TypeORM、Sequelize、schema.rb、Django 或 Adminium JSON。Adminium 会将其转换为 SQLite。",
-          "placeholder": "自动生成占位数据",
-          "placeholderHelper": "你导入的结构没有数据行。为每个表填充逼真的示例数据，让仪表板和图表立刻能够呈现。"
-        },
-        "openSqlite": {
-          "title": "打开现有的 SQLite 文件",
-          "description": "让 Adminium 指向这台电脑上的 .sqlite 文件。文件会在原位打开——不会复制或移动。",
-          "browse": "选择一个 .sqlite 文件…",
-          "change": "选择其他文件…",
-          "networkTitle": "该文件位于网络共享上",
-          "networkBody": "SQLite 的锁机制在网络文件共享上并不可靠，写入过程中断开连接可能损坏数据库。复制到这台电脑本地磁盘上更安全。"
-        },
-        "remote": {
-          "title": "连接到服务器数据库",
-          "description": "PostgreSQL 或 MySQL。需要一个可访问的网络数据库；Adminium 自身的数据表仍然保留在这台电脑上。",
-          "networkNote": "需要一个可访问的网络数据库",
-          "metaNote": "无论如何，Adminium 自身的数据表——你的页面、设置和登录信息——都保留在这台电脑的数据文件夹中。",
-          "engine": "引擎",
-          "name": "连接名称",
-          "namePlaceholder": "生产环境",
-          "dsn": "连接字符串",
-          "dsnHelper": "Adminium 会在连接时测试它。如果你只需要仪表板，请使用只读角色。"
-        },
-        "demo": {
-          "title": "体验演示数据库",
-          "description": "一个现成的团队运营数据库，让你在指向自己的数据之前先看看 Adminium 会构建出什么。你可以随时删除它。",
-          "unavailable": "此版本不包含演示数据，因此没有可加载的内容。请选择上面的某个选项。"
-        }
-      },
-      "account": {
-        "heading": "创建你的账户",
-        "description": "这是这份 Adminium 的管理员账户。密码用于保护你的备份以及你在网络上共享的对象——每次启动时不会向你索取密码。",
-        "name": "你的姓名",
-        "email": "邮箱",
-        "password": "密码",
-        "passwordHelper": "至少 {min} 个字符。",
-        "confirm": "确认密码",
-        "strength": "密码强度",
-        "strengthLevels": {
-          "weak": "弱",
-          "fair": "一般",
-          "good": "良好",
-          "strong": "强"
-        },
-        "singleUser": "在这台电脑上跳过登录",
-        "singleUserHelper": "在这里打开时，Adminium 会自动为你登录。如果其他人也使用这台机器，请关闭此项。你之后可以在 设置 → 桌面 中更改。",
-        "locale": "语言",
-        "theme": "外观",
-        "alreadyExists": "这份 Adminium 已经有一个账户。请改用该账户登录。",
-        "failed": "Adminium 无法创建该账户。"
-      },
-      "generate": {
-        "creating": "正在设置你的数据库…",
-        "introspecting": "正在读取你的结构——表、列和关系…",
-        "working": "处理中…",
-        "offlineNote": "这一切都在这台电脑上完成。",
-        "failedTitle": "Adminium 无法设置该数据库",
-        "failedBody": "出了点问题。请重试。",
-        "retry": "重试"
-      }
     },
     "stop": {
       "turn": "Designer 正在进行一轮操作。",

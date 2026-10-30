@@ -777,7 +777,7 @@ export interface CloudSyncWarning {
  * { provider: providerLabel })`. Lives here so the detector and the warning
  * cannot drift; the translations belong to the wizard's bundle.
  */
-export const CLOUD_SYNC_WARNING_I18N_KEY = 'desktop.setup.dataDir.cloudSyncWarning';
+export const CLOUD_SYNC_WARNING_I18N_KEY = 'onboarding.desktopSetup.dataDir.cloudSyncWarning';
 
 interface ProviderMatcher {
   provider: CloudSyncProvider;

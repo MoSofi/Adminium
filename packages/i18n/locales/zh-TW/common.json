@@ -10,7 +10,8 @@
     "loading": "載入中",
     "clearSearch": "清除搜尋",
     "clear": "清除",
-    "save": "儲存"
+    "save": "儲存",
+    "supabasePoolerUser": "在 Supabase 的連線池中，使用者名稱是角色、一個點和你的專案 ref，例如 adminium_rw.abcdefghijklmnop；密碼是該角色的密碼。"
   },
   "auth": {
     "headline": "把任何資料庫變成儀表板。",
@@ -573,6 +574,116 @@
       "dismiss": "隱藏設定清單",
       "continue": "繼續設定",
       "banner": "完成工作區設定 — 已完成 {total} 個步驟中的 {done} 個。"
+    },
+    "desktopSetup": {
+      "title": "歡迎使用 Adminium",
+      "subtitle": "只需四個簡短步驟，Adminium 就能從你的資料庫生成一個管理應用程式。所有內容都保留在這台電腦上。",
+      "progress": "設定進度",
+      "back": "上一步",
+      "continue": "繼續",
+      "createAccount": "建立帳戶並繼續",
+      "step": {
+        "location": "歡迎",
+        "database": "你的第一個資料庫",
+        "account": "你的帳戶",
+        "generate": "生成"
+      },
+      "dataDir": {
+        "heading": "Adminium 應該把你的資料儲存在哪裡？",
+        "description": "你的資料庫、設定和備份都存放在這個資料夾中。所有內容都保留在這台電腦上——不會上傳到任何地方。",
+        "label": "資料夾",
+        "loading": "正在讀取目前位置…",
+        "pending": "繼續時 Adminium 會重新啟動，以便切換到這個資料夾。",
+        "change": "變更…",
+        "revert": "復原",
+        "dialogTitle": "選擇 Adminium 儲存資料的位置",
+        "cloudSyncTitle": "該資料夾會同步到雲端",
+        "cloudSyncWarning": "Adminium 將資料儲存在 SQLite 檔案中。{provider} 會在背景複製「{folder}」中的檔案進行同步，這可能損毀正在開啟的資料庫——並在毫無提示的情況下遺失資料。請選擇 {provider} 之外的資料夾。",
+        "chooseAnother": "選擇其他資料夾",
+        "useAnyway": "仍然使用——我接受風險",
+        "unusableTitle": "Adminium 無法使用該資料夾",
+        "failed": "Adminium 無法使用該資料夾。"
+      },
+      "source": {
+        "heading": "Adminium 應該根據什麼來建構？",
+        "description": "Adminium 會讀取資料庫的結構並據此生成管理應用程式。你之後可以新增更多資料庫。",
+        "groupLabel": "資料庫來源",
+        "local": {
+          "title": "建立新的本機資料庫",
+          "description": "從零開始，或使用你已有的結構檔。資料庫會建立在你的資料夾中。",
+          "name": "資料庫名稱",
+          "namePlaceholder": "營運",
+          "nameUnusable": "請至少使用一個字母或數字——檔名由此生成。",
+          "fileHelper": "將建立 {file}",
+          "schemaLabel": "起始方式",
+          "blank": "空白",
+          "fromFile": "結構檔",
+          "schemaFile": "結構檔",
+          "schemaFileHelper": ".sql、pg_dump、Prisma、Drizzle、TypeORM、Sequelize、schema.rb、Django 或 Adminium JSON。Adminium 會將其轉換為 SQLite。",
+          "placeholder": "自動生成佔位資料",
+          "placeholderHelper": "你匯入的結構沒有資料列。為每個資料表填入逼真的範例資料，讓儀表板和圖表立刻能夠呈現。"
+        },
+        "openSqlite": {
+          "title": "開啟現有的 SQLite 檔案",
+          "description": "讓 Adminium 指向這台電腦上的 .sqlite 檔案。檔案會在原處開啟——不會複製或移動。",
+          "browse": "選擇一個 .sqlite 檔案…",
+          "change": "選擇其他檔案…",
+          "networkTitle": "該檔案位於網路共用上",
+          "networkBody": "SQLite 的鎖定機制在網路檔案共用上並不可靠，寫入過程中斷線可能損毀資料庫。複製到這台電腦本機磁碟上更安全。"
+        },
+        "remote": {
+          "title": "連線到伺服器資料庫",
+          "description": "PostgreSQL 或 MySQL。需要一個可存取的網路資料庫；Adminium 自身的資料表仍然保留在這台電腦上。",
+          "networkNote": "需要一個可存取的網路資料庫",
+          "metaNote": "無論如何，Adminium 自身的資料表——你的頁面、設定和登入資訊——都保留在這台電腦的資料夾中。",
+          "engine": "引擎",
+          "name": "連線名稱",
+          "namePlaceholder": "正式環境",
+          "dsn": "連線字串",
+          "dsnHelper": "Adminium 會在連線時測試它。如果你只需要儀表板，請使用唯讀角色。"
+        },
+        "demo": {
+          "title": "體驗示範資料庫",
+          "description": "一個現成的團隊營運資料庫，讓你在指向自己的資料之前先看看 Adminium 會建構出什麼。你可以隨時刪除它。",
+          "unavailable": "此版本不包含示範資料，因此沒有可載入的內容。請選擇上面的某個選項。"
+        }
+      },
+      "account": {
+        "heading": "建立你的帳戶",
+        "description": "這是這份 Adminium 的管理員帳戶。密碼用於保護你的備份以及你在網路上共用的對象——每次啟動時不會向你索取密碼。",
+        "name": "你的姓名",
+        "email": "電子郵件",
+        "password": "密碼",
+        "passwordHelper": "至少 {min} 個字元。",
+        "confirm": "確認密碼",
+        "strength": "密碼強度",
+        "strengthLevels": {
+          "weak": "弱",
+          "fair": "普通",
+          "good": "良好",
+          "strong": "強"
+        },
+        "singleUser": "在這台電腦上略過登入",
+        "singleUserHelper": "在這裡開啟時，Adminium 會自動為你登入。如果其他人也使用這台機器，請關閉此項。你之後可以在 設定 → 桌面 中變更。",
+        "locale": "語言",
+        "theme": "外觀",
+        "alreadyExists": "這份 Adminium 已經有一個帳戶。請改用該帳戶登入。",
+        "failed": "Adminium 無法建立該帳戶。"
+      },
+      "generate": {
+        "checking": "正在檢查連線…",
+        "creating": "正在設定你的資料庫…",
+        "introspecting": "正在讀取你的結構——資料表、欄位和關聯…",
+        "working": "處理中…",
+        "offlineNote": "這一切都在這台電腦上完成。",
+        "failedTitle": "Adminium 無法設定該資料庫",
+        "refusedTitle": "Adminium 無法連線到該資料庫",
+        "failedBody": "出了點問題。請重試。",
+        "retry": "重試",
+        "changeConnection": "修改連線",
+        "connectRefused": "資料庫拒絕了連線。",
+        "readFailed": "Adminium 無法讀取該資料庫的資料表。"
+      }
     }
   },
   "views": {
@@ -1170,111 +1281,6 @@
       "transportBody": "僅在你信任的網路中分享。如需遠端存取，請使用置於 HTTPS 之後的 Adminium 自架版本。",
       "firewall": "首次分享時，作業系統會詢問是否允許傳入連線 — 請選擇「允許」，否則其他裝置將無法存取 Adminium。",
       "manageTeam": "管理使用者與角色"
-    },
-    "setup": {
-      "title": "歡迎使用 Adminium",
-      "subtitle": "只需四個簡短步驟，Adminium 就能從你的資料庫生成一個管理應用程式。所有內容都保留在這台電腦上。",
-      "progress": "設定進度",
-      "back": "上一步",
-      "continue": "繼續",
-      "createAccount": "建立帳戶並繼續",
-      "step": {
-        "location": "歡迎",
-        "database": "你的第一個資料庫",
-        "account": "你的帳戶",
-        "generate": "生成"
-      },
-      "dataDir": {
-        "heading": "Adminium 應該把你的資料儲存在哪裡？",
-        "description": "你的資料庫、設定和備份都存放在這個資料夾中。所有內容都保留在這台電腦上——不會上傳到任何地方。",
-        "label": "資料夾",
-        "loading": "正在讀取目前位置…",
-        "pending": "繼續時 Adminium 會重新啟動，以便切換到這個資料夾。",
-        "change": "變更…",
-        "revert": "復原",
-        "dialogTitle": "選擇 Adminium 儲存資料的位置",
-        "cloudSyncTitle": "該資料夾會同步到雲端",
-        "cloudSyncWarning": "Adminium 將資料儲存在 SQLite 檔案中。{provider} 會在背景複製「{folder}」中的檔案進行同步，這可能損毀正在開啟的資料庫——並在毫無提示的情況下遺失資料。請選擇 {provider} 之外的資料夾。",
-        "chooseAnother": "選擇其他資料夾",
-        "useAnyway": "仍然使用——我接受風險",
-        "unusableTitle": "Adminium 無法使用該資料夾",
-        "failed": "Adminium 無法使用該資料夾。"
-      },
-      "source": {
-        "heading": "Adminium 應該根據什麼來建構？",
-        "description": "Adminium 會讀取資料庫的結構並據此生成管理應用程式。你之後可以新增更多資料庫。",
-        "groupLabel": "資料庫來源",
-        "local": {
-          "title": "建立新的本機資料庫",
-          "description": "從零開始，或使用你已有的結構檔。資料庫會建立在你的資料夾中。",
-          "name": "資料庫名稱",
-          "namePlaceholder": "營運",
-          "nameUnusable": "請至少使用一個字母或數字——檔名由此生成。",
-          "fileHelper": "將建立 {file}",
-          "schemaLabel": "起始方式",
-          "blank": "空白",
-          "fromFile": "結構檔",
-          "schemaFile": "結構檔",
-          "schemaFileHelper": ".sql、pg_dump、Prisma、Drizzle、TypeORM、Sequelize、schema.rb、Django 或 Adminium JSON。Adminium 會將其轉換為 SQLite。",
-          "placeholder": "自動生成佔位資料",
-          "placeholderHelper": "你匯入的結構沒有資料列。為每個資料表填入逼真的範例資料，讓儀表板和圖表立刻能夠呈現。"
-        },
-        "openSqlite": {
-          "title": "開啟現有的 SQLite 檔案",
-          "description": "讓 Adminium 指向這台電腦上的 .sqlite 檔案。檔案會在原處開啟——不會複製或移動。",
-          "browse": "選擇一個 .sqlite 檔案…",
-          "change": "選擇其他檔案…",
-          "networkTitle": "該檔案位於網路共用上",
-          "networkBody": "SQLite 的鎖定機制在網路檔案共用上並不可靠，寫入過程中斷線可能損毀資料庫。複製到這台電腦本機磁碟上更安全。"
-        },
-        "remote": {
-          "title": "連線到伺服器資料庫",
-          "description": "PostgreSQL 或 MySQL。需要一個可存取的網路資料庫；Adminium 自身的資料表仍然保留在這台電腦上。",
-          "networkNote": "需要一個可存取的網路資料庫",
-          "metaNote": "無論如何，Adminium 自身的資料表——你的頁面、設定和登入資訊——都保留在這台電腦的資料夾中。",
-          "engine": "引擎",
-          "name": "連線名稱",
-          "namePlaceholder": "正式環境",
-          "dsn": "連線字串",
-          "dsnHelper": "Adminium 會在連線時測試它。如果你只需要儀表板，請使用唯讀角色。"
-        },
-        "demo": {
-          "title": "體驗示範資料庫",
-          "description": "一個現成的團隊營運資料庫，讓你在指向自己的資料之前先看看 Adminium 會建構出什麼。你可以隨時刪除它。",
-          "unavailable": "此版本不包含示範資料，因此沒有可載入的內容。請選擇上面的某個選項。"
-        }
-      },
-      "account": {
-        "heading": "建立你的帳戶",
-        "description": "這是這份 Adminium 的管理員帳戶。密碼用於保護你的備份以及你在網路上共用的對象——每次啟動時不會向你索取密碼。",
-        "name": "你的姓名",
-        "email": "電子郵件",
-        "password": "密碼",
-        "passwordHelper": "至少 {min} 個字元。",
-        "confirm": "確認密碼",
-        "strength": "密碼強度",
-        "strengthLevels": {
-          "weak": "弱",
-          "fair": "普通",
-          "good": "良好",
-          "strong": "強"
-        },
-        "singleUser": "在這台電腦上略過登入",
-        "singleUserHelper": "在這裡開啟時，Adminium 會自動為你登入。如果其他人也使用這台機器，請關閉此項。你之後可以在 設定 → 桌面 中變更。",
-        "locale": "語言",
-        "theme": "外觀",
-        "alreadyExists": "這份 Adminium 已經有一個帳戶。請改用該帳戶登入。",
-        "failed": "Adminium 無法建立該帳戶。"
-      },
-      "generate": {
-        "creating": "正在設定你的資料庫…",
-        "introspecting": "正在讀取你的結構——資料表、欄位和關聯…",
-        "working": "處理中…",
-        "offlineNote": "這一切都在這台電腦上完成。",
-        "failedTitle": "Adminium 無法設定該資料庫",
-        "failedBody": "出了點問題。請重試。",
-        "retry": "重試"
-      }
     },
     "stop": {
       "turn": "Designer 正在進行一輪操作。",

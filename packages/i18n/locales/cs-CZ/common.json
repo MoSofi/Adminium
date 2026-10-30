@@ -10,7 +10,8 @@
     "loading": "Načítání",
     "clearSearch": "Vymazat hledání",
     "clear": "Vymazat",
-    "save": "Uložit"
+    "save": "Uložit",
+    "supabasePoolerUser": "U pooleru Supabase je uživatel role, tečka a reference vašeho projektu – například adminium_rw.abcdefghijklmnop – a heslo je heslo této role."
   },
   "auth": {
     "headline": "Proměňte jakoukoli databázi v přehledový panel.",
@@ -573,6 +574,116 @@
       "dismiss": "Skrýt kontrolní seznam",
       "continue": "Pokračovat v nastavení",
       "banner": "Dokončete nastavení prostoru — hotovo {done} z {total} kroků."
+    },
+    "desktopSetup": {
+      "title": "Vítejte v Adminiu",
+      "subtitle": "Čtyři krátké kroky a Adminium z vaší databáze postaví administrační aplikaci. Vše zůstává v tomto počítači.",
+      "progress": "Průběh nastavení",
+      "back": "Zpět",
+      "continue": "Pokračovat",
+      "createAccount": "Vytvořit účet a pokračovat",
+      "step": {
+        "location": "Vítejte",
+        "database": "Vaše první databáze",
+        "account": "Váš účet",
+        "generate": "Generovat"
+      },
+      "dataDir": {
+        "heading": "Kam má Adminium ukládat vaše data?",
+        "description": "Vaše databáze, nastavení i zálohy žijí v této složce. Vše zůstává v tomto počítači — nikam se nic nenahrává.",
+        "label": "Složka s daty",
+        "loading": "Načítá se aktuální umístění…",
+        "pending": "Adminium se po pokračování restartuje, aby přešlo do této složky.",
+        "change": "Změnit…",
+        "revert": "Vrátit zpět",
+        "dialogTitle": "Vyberte, kam má Adminium ukládat vaše data",
+        "cloudSyncTitle": "Tato složka se synchronizuje do cloudu",
+        "cloudSyncWarning": "Adminium ukládá data do souborů SQLite. {provider} synchronizuje soubory ve složce „{folder}“ tak, že je na pozadí kopíruje, což může poškodit otevřenou databázi — a bez varování ztratit data. Zvolte složku mimo {provider}.",
+        "chooseAnother": "Zvolit jinou složku",
+        "useAnyway": "Přesto ji použít — beru riziko na vědomí",
+        "unusableTitle": "Adminium tuto složku nemůže použít",
+        "failed": "Adminium tuto složku nemohlo použít."
+      },
+      "source": {
+        "heading": "Z čeho má Adminium stavět?",
+        "description": "Adminium přečte schéma databáze a vygeneruje z něj administrační aplikaci. Další databáze můžete přidat později.",
+        "groupLabel": "Zdroj databáze",
+        "local": {
+          "title": "Vytvořit novou místní databázi",
+          "description": "Začněte od nuly, nebo ze souboru se schématem, který už máte. Databáze se vytvoří ve vaší složce s daty.",
+          "name": "Název databáze",
+          "namePlaceholder": "Provoz",
+          "nameUnusable": "Použijte alespoň jedno písmeno nebo číslici — z toho se sestaví název souboru.",
+          "fileHelper": "Vytvoří {file}",
+          "schemaLabel": "Začít z",
+          "blank": "Prázdné",
+          "fromFile": "Souboru se schématem",
+          "schemaFile": "Soubor se schématem",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django nebo JSON Adminia. Adminium jej přeloží do SQLite.",
+          "placeholder": "Automaticky vygenerovat ukázkové záznamy",
+          "placeholderHelper": "Naimportovali jste schéma bez řádků. Naplňte každou tabulku realistickými ukázkovými daty, aby se vaše přehledy a grafy vykreslily hned."
+        },
+        "openSqlite": {
+          "title": "Otevřít existující soubor SQLite",
+          "description": "Nasměrujte Adminium na soubor .sqlite v tomto počítači. Otevře se tam, kde je — nic se nekopíruje ani nepřesouvá.",
+          "browse": "Vybrat soubor .sqlite…",
+          "change": "Vybrat jiný soubor…",
+          "networkTitle": "Tento soubor je na síťovém sdílení",
+          "networkBody": "Zamykání SQLite je přes síťová sdílení nespolehlivé a přerušené spojení uprostřed zápisu může databázi poškodit. Kopie na disku tohoto počítače je bezpečnější."
+        },
+        "remote": {
+          "title": "Připojit se k serverové databázi",
+          "description": "PostgreSQL nebo MySQL. Vyžaduje dostupnou síťovou databázi; vlastní tabulky Adminia i tak zůstanou v tomto počítači.",
+          "networkNote": "Vyžaduje dostupnou síťovou databázi",
+          "metaNote": "Vlastní tabulky Adminia — vaše stránky, nastavení a přihlášení — zůstávají tak jako tak ve složce s daty v tomto počítači.",
+          "engine": "Engine",
+          "name": "Název připojení",
+          "namePlaceholder": "Produkce",
+          "dsn": "Připojovací řetězec",
+          "dsnHelper": "Adminium jej při připojení otestuje. Pokud chcete jen přehledy, použijte roli jen pro čtení."
+        },
+        "demo": {
+          "title": "Prozkoumat ukázkovou databázi",
+          "description": "Hotová databáze týmového provozu, abyste viděli, co Adminium postaví, ještě než ho nasměrujete na vlastní data. Kdykoli ji smažete.",
+          "unavailable": "Tento build ukázková data neobsahuje, není tedy co načíst. Zvolte některou z možností výše."
+        }
+      },
+      "account": {
+        "heading": "Vytvořte si účet",
+        "description": "Toto je účet správce této kopie Adminia. Heslo chrání vaše zálohy i všechny, s nimiž sdílíte po síti — při každém spuštění o něj nebudete žádáni.",
+        "name": "Vaše jméno",
+        "email": "E-mail",
+        "password": "Heslo",
+        "passwordHelper": "Alespoň {min} znaků.",
+        "confirm": "Potvrďte heslo",
+        "strength": "Síla hesla",
+        "strengthLevels": {
+          "weak": "Slabé",
+          "fair": "Ucházející",
+          "good": "Dobré",
+          "strong": "Silné"
+        },
+        "singleUser": "Přeskočit přihlášení v tomto počítači",
+        "singleUserHelper": "Adminium vás zde po otevření přihlásí automaticky. Vypněte to, pokud tento počítač používají i jiní lidé. Změnit to můžete později v Nastavení → Desktop.",
+        "locale": "Jazyk",
+        "theme": "Vzhled",
+        "alreadyExists": "Tato kopie Adminia už účet má. Přihlaste se místo toho jím.",
+        "failed": "Adminium nemohlo tento účet vytvořit."
+      },
+      "generate": {
+        "checking": "Ověřuje se připojení…",
+        "creating": "Nastavuje se vaše databáze…",
+        "introspecting": "Čte se vaše schéma — tabulky, sloupce a vztahy…",
+        "working": "Pracuje se…",
+        "offlineNote": "Vše se odehrává v tomto počítači.",
+        "failedTitle": "Adminium nemohlo tuto databázi nastavit",
+        "refusedTitle": "Adminium se k této databázi nemohlo připojit",
+        "failedBody": "Něco se pokazilo. Zkuste to znovu.",
+        "retry": "Zkusit znovu",
+        "changeConnection": "Změnit připojení",
+        "connectRefused": "Databáze připojení odmítla.",
+        "readFailed": "Adminium nemohlo přečíst tabulky této databáze."
+      }
     }
   },
   "views": {
@@ -1170,111 +1281,6 @@
       "transportBody": "Sdílejte jen v sítích, kterým důvěřujete. Pro vzdálený přístup použijte vlastní hosting Adminia za HTTPS.",
       "firewall": "Při prvním sdílení se váš operační systém zeptá, zda povolit příchozí připojení — zvolte Povolit, jinak se k Adminiu ostatní zařízení nedostanou.",
       "manageTeam": "Spravovat uživatele a role"
-    },
-    "setup": {
-      "title": "Vítejte v Adminiu",
-      "subtitle": "Čtyři krátké kroky a Adminium z vaší databáze postaví administrační aplikaci. Vše zůstává v tomto počítači.",
-      "progress": "Průběh nastavení",
-      "back": "Zpět",
-      "continue": "Pokračovat",
-      "createAccount": "Vytvořit účet a pokračovat",
-      "step": {
-        "location": "Vítejte",
-        "database": "Vaše první databáze",
-        "account": "Váš účet",
-        "generate": "Generovat"
-      },
-      "dataDir": {
-        "heading": "Kam má Adminium ukládat vaše data?",
-        "description": "Vaše databáze, nastavení i zálohy žijí v této složce. Vše zůstává v tomto počítači — nikam se nic nenahrává.",
-        "label": "Složka s daty",
-        "loading": "Načítá se aktuální umístění…",
-        "pending": "Adminium se po pokračování restartuje, aby přešlo do této složky.",
-        "change": "Změnit…",
-        "revert": "Vrátit zpět",
-        "dialogTitle": "Vyberte, kam má Adminium ukládat vaše data",
-        "cloudSyncTitle": "Tato složka se synchronizuje do cloudu",
-        "cloudSyncWarning": "Adminium ukládá data do souborů SQLite. {provider} synchronizuje soubory ve složce „{folder}“ tak, že je na pozadí kopíruje, což může poškodit otevřenou databázi — a bez varování ztratit data. Zvolte složku mimo {provider}.",
-        "chooseAnother": "Zvolit jinou složku",
-        "useAnyway": "Přesto ji použít — beru riziko na vědomí",
-        "unusableTitle": "Adminium tuto složku nemůže použít",
-        "failed": "Adminium tuto složku nemohlo použít."
-      },
-      "source": {
-        "heading": "Z čeho má Adminium stavět?",
-        "description": "Adminium přečte schéma databáze a vygeneruje z něj administrační aplikaci. Další databáze můžete přidat později.",
-        "groupLabel": "Zdroj databáze",
-        "local": {
-          "title": "Vytvořit novou místní databázi",
-          "description": "Začněte od nuly, nebo ze souboru se schématem, který už máte. Databáze se vytvoří ve vaší složce s daty.",
-          "name": "Název databáze",
-          "namePlaceholder": "Provoz",
-          "nameUnusable": "Použijte alespoň jedno písmeno nebo číslici — z toho se sestaví název souboru.",
-          "fileHelper": "Vytvoří {file}",
-          "schemaLabel": "Začít z",
-          "blank": "Prázdné",
-          "fromFile": "Souboru se schématem",
-          "schemaFile": "Soubor se schématem",
-          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django nebo JSON Adminia. Adminium jej přeloží do SQLite.",
-          "placeholder": "Automaticky vygenerovat ukázkové záznamy",
-          "placeholderHelper": "Naimportovali jste schéma bez řádků. Naplňte každou tabulku realistickými ukázkovými daty, aby se vaše přehledy a grafy vykreslily hned."
-        },
-        "openSqlite": {
-          "title": "Otevřít existující soubor SQLite",
-          "description": "Nasměrujte Adminium na soubor .sqlite v tomto počítači. Otevře se tam, kde je — nic se nekopíruje ani nepřesouvá.",
-          "browse": "Vybrat soubor .sqlite…",
-          "change": "Vybrat jiný soubor…",
-          "networkTitle": "Tento soubor je na síťovém sdílení",
-          "networkBody": "Zamykání SQLite je přes síťová sdílení nespolehlivé a přerušené spojení uprostřed zápisu může databázi poškodit. Kopie na disku tohoto počítače je bezpečnější."
-        },
-        "remote": {
-          "title": "Připojit se k serverové databázi",
-          "description": "PostgreSQL nebo MySQL. Vyžaduje dostupnou síťovou databázi; vlastní tabulky Adminia i tak zůstanou v tomto počítači.",
-          "networkNote": "Vyžaduje dostupnou síťovou databázi",
-          "metaNote": "Vlastní tabulky Adminia — vaše stránky, nastavení a přihlášení — zůstávají tak jako tak ve složce s daty v tomto počítači.",
-          "engine": "Engine",
-          "name": "Název připojení",
-          "namePlaceholder": "Produkce",
-          "dsn": "Připojovací řetězec",
-          "dsnHelper": "Adminium jej při připojení otestuje. Pokud chcete jen přehledy, použijte roli jen pro čtení."
-        },
-        "demo": {
-          "title": "Prozkoumat ukázkovou databázi",
-          "description": "Hotová databáze týmového provozu, abyste viděli, co Adminium postaví, ještě než ho nasměrujete na vlastní data. Kdykoli ji smažete.",
-          "unavailable": "Tento build ukázková data neobsahuje, není tedy co načíst. Zvolte některou z možností výše."
-        }
-      },
-      "account": {
-        "heading": "Vytvořte si účet",
-        "description": "Toto je účet správce této kopie Adminia. Heslo chrání vaše zálohy i všechny, s nimiž sdílíte po síti — při každém spuštění o něj nebudete žádáni.",
-        "name": "Vaše jméno",
-        "email": "E-mail",
-        "password": "Heslo",
-        "passwordHelper": "Alespoň {min} znaků.",
-        "confirm": "Potvrďte heslo",
-        "strength": "Síla hesla",
-        "strengthLevels": {
-          "weak": "Slabé",
-          "fair": "Ucházející",
-          "good": "Dobré",
-          "strong": "Silné"
-        },
-        "singleUser": "Přeskočit přihlášení v tomto počítači",
-        "singleUserHelper": "Adminium vás zde po otevření přihlásí automaticky. Vypněte to, pokud tento počítač používají i jiní lidé. Změnit to můžete později v Nastavení → Desktop.",
-        "locale": "Jazyk",
-        "theme": "Vzhled",
-        "alreadyExists": "Tato kopie Adminia už účet má. Přihlaste se místo toho jím.",
-        "failed": "Adminium nemohlo tento účet vytvořit."
-      },
-      "generate": {
-        "creating": "Nastavuje se vaše databáze…",
-        "introspecting": "Čte se vaše schéma — tabulky, sloupce a vztahy…",
-        "working": "Pracuje se…",
-        "offlineNote": "Vše se odehrává v tomto počítači.",
-        "failedTitle": "Adminium nemohlo tuto databázi nastavit",
-        "failedBody": "Něco se pokazilo. Zkuste to znovu.",
-        "retry": "Zkusit znovu"
-      }
     },
     "stop": {
       "turn": "Designer je uprostřed kola.",

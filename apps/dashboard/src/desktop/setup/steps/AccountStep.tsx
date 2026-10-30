@@ -54,16 +54,16 @@ export function AccountStep(props: AccountStepProps): ReactNode {
   return (
     <form className="flex flex-col gap-5" onSubmit={props.onSubmit} noValidate>
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-section text-fg">{t('desktop.setup.account.heading', 'Create your account')}</h2>
+        <h2 className="text-section text-fg">{t('onboarding.desktopSetup.account.heading', 'Create your account')}</h2>
         <p className="text-body-sm text-fg-muted">
           {t(
-            'desktop.setup.account.description',
+            'onboarding.desktopSetup.account.description',
             'This is the administrator account for this copy of Adminium. The password protects your backups and anyone you share with on your network — you will not be asked for it at every launch.',
           )}
         </p>
       </div>
 
-      <FormField label={t('desktop.setup.account.name', 'Your name')}>
+      <FormField label={t('onboarding.desktopSetup.account.name', 'Your name')}>
         <Input
           autoComplete="name"
           value={values.name}
@@ -73,7 +73,7 @@ export function AccountStep(props: AccountStepProps): ReactNode {
       </FormField>
 
       <FormField
-        label={t('desktop.setup.account.email', 'Email')}
+        label={t('onboarding.desktopSetup.account.email', 'Email')}
         required
         {...(errors.email === undefined ? {} : { error: errors.email })}
       >
@@ -88,11 +88,11 @@ export function AccountStep(props: AccountStepProps): ReactNode {
       </FormField>
 
       <FormField
-        label={t('desktop.setup.account.password', 'Password')}
+        label={t('onboarding.desktopSetup.account.password', 'Password')}
         required
         {...(errors.password === undefined
           ? {
-              helper: t('desktop.setup.account.passwordHelper', 'At least {min} characters.', {
+              helper: t('onboarding.desktopSetup.account.passwordHelper', 'At least {min} characters.', {
                 min: props.passwordMinLength,
               }),
             }
@@ -110,18 +110,18 @@ export function AccountStep(props: AccountStepProps): ReactNode {
       {values.password.length === 0 ? null : (
         <PasswordStrength
           value={values.password}
-          label={t('desktop.setup.account.strength', 'Password strength')}
+          label={t('onboarding.desktopSetup.account.strength', 'Password strength')}
           labels={[
-            t('desktop.setup.account.strengthLevels.weak', 'Weak'),
-            t('desktop.setup.account.strengthLevels.fair', 'Fair'),
-            t('desktop.setup.account.strengthLevels.good', 'Good'),
-            t('desktop.setup.account.strengthLevels.strong', 'Strong'),
+            t('onboarding.desktopSetup.account.strengthLevels.weak', 'Weak'),
+            t('onboarding.desktopSetup.account.strengthLevels.fair', 'Fair'),
+            t('onboarding.desktopSetup.account.strengthLevels.good', 'Good'),
+            t('onboarding.desktopSetup.account.strengthLevels.strong', 'Strong'),
           ]}
         />
       )}
 
       <FormField
-        label={t('desktop.setup.account.confirm', 'Confirm password')}
+        label={t('onboarding.desktopSetup.account.confirm', 'Confirm password')}
         required
         {...(errors.confirm === undefined ? {} : { error: errors.confirm })}
       >
@@ -149,11 +149,11 @@ export function AccountStep(props: AccountStepProps): ReactNode {
         />
         <div className="flex min-w-0 flex-col gap-1">
           <Label htmlFor="desktop-setup-single-user" className="text-body font-semibold text-fg">
-            {t('desktop.setup.account.singleUser', 'Skip login on this computer')}
+            {t('onboarding.desktopSetup.account.singleUser', 'Skip login on this computer')}
           </Label>
           <p id="desktop-setup-single-user-description" className="text-body-sm text-fg-muted">
             {t(
-              'desktop.setup.account.singleUserHelper',
+              'onboarding.desktopSetup.account.singleUserHelper',
               'Adminium signs you in automatically when you open it here. Turn this off if other people use this machine. You can change it later in Settings → Desktop.',
             )}
           </p>
@@ -162,7 +162,7 @@ export function AccountStep(props: AccountStepProps): ReactNode {
 
       <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-4">
         <div className="flex flex-col gap-2">
-          <Label>{t('desktop.setup.account.locale', 'Language')}</Label>
+          <Label>{t('onboarding.desktopSetup.account.locale', 'Language')}</Label>
           {/* Pre-filled from the OS locale and the system theme: the
               parent seeds them from `navigator.language` / the theme provider
               before this renders, so these are pickers with an answer already in
@@ -170,15 +170,15 @@ export function AccountStep(props: AccountStepProps): ReactNode {
           <LocaleControl
             value={props.locale}
             onChange={props.onLocaleChange}
-            label={t('desktop.setup.account.locale', 'Language')}
+            label={t('onboarding.desktopSetup.account.locale', 'Language')}
           />
         </div>
         <div className="flex flex-col gap-2">
-          <Label>{t('desktop.setup.account.theme', 'Appearance')}</Label>
+          <Label>{t('onboarding.desktopSetup.account.theme', 'Appearance')}</Label>
           <ThemeControl
             value={props.theme}
             onChange={props.onThemeChange}
-            label={t('desktop.setup.account.theme', 'Appearance')}
+            label={t('onboarding.desktopSetup.account.theme', 'Appearance')}
           />
         </div>
       </div>

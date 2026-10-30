@@ -39,11 +39,13 @@ import { Alert, Button, Stepper, useThemePrefs } from '@adminium/ui';
 import { ApiError, hasCsrfToken } from '../../app/api.js';
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { useCapabilities } from '../../app/capabilities.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { t } from '../../i18n/t.js';
 import { AuthScreenLayout } from '../../auth/AuthScreenLayout.js';
 import { validateAccount, type AccountErrors } from '../../setup/accountValidation.js';
 import { createSuperAdmin, setupStateQuery } from '../../setup/setupApi.js';
-import { studioApi } from '../../studio/api.js';
+import { studioApi, type ConnectionTestResult } from '../../studio/api.js';
+import { supabasePoolerHint } from '../../studio/connect/wizardState.js';
 import { chooseDataDir, commitDataDir, readDataDir } from './dataDirBridge.js';
 import {
   DESKTOP_SETUP_STEP_IDS,
@@ -71,6 +73,11 @@ import { SourceStep } from './steps/SourceStep.js';
 const SQLITE_PICKER = { kind: 'sqlite' } as const;
 
 export function DesktopSetupHost(): ReactNode {
+  // The wizard's words are `common`'s deferred `onboarding.desktopSetup` group:
+  // only a first-run desktop user ever reads them, so they no longer ride in
+  // every user's entry chunk. Wait for them here, before the first paint, as
+  // the About and Team pages do — never render the inline English and swap.
+  useCommonWords();
   const router = useRouter();
   const capabilities = useCapabilities();
   // `useThemePrefs`, not `useTheme`: the picker sets a PREFERENCE, and
@@ -116,6 +123,11 @@ export function DesktopSetupHost(): ReactNode {
 
   const [formError, setFormError] = useState<string | null>(null);
   const [phase, setPhase] = useState<PreparePhase>('idle');
+  /**
+   * Step 4's failure was the server database refusing the connection string,
+   * before anything was created — so the fix is back on step 2, not Try again.
+   */
+  const [connectRefused, setConnectRefused] = useState(false);
 
   // The server's password policy — the SAME probe the M10 self-host wizard uses,
   // so the two agree about the same server's rule rather than each guessing.
@@ -204,7 +216,7 @@ export function DesktopSetupHost(): ReactNode {
       setUnusableReason(result.reason);
     },
     onError: (error: unknown) => {
-      setFormError(messageOf(error, t('desktop.setup.dataDir.failed', 'Adminium could not use that folder.')));
+      setFormError(messageOf(error, t('onboarding.desktopSetup.dataDir.failed', 'Adminium could not use that folder.')));
     },
   });
 
@@ -252,20 +264,21 @@ export function DesktopSetupHost(): ReactNode {
       // A fresh session: every cached query predates the account that now
       // exists. The M10 wizard does the same, for the same reason.
       router.options.context.queryClient.clear();
+      patch({ accountCreated: true });
       goTo('generate');
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.status === 409) {
         setFormError(
           t(
-            'desktop.setup.account.alreadyExists',
+            'onboarding.desktopSetup.account.alreadyExists',
             'This copy of Adminium already has an account. Sign in with it instead.',
           ),
         );
         return;
       }
       setFormError(
-        messageOf(error, t('desktop.setup.account.failed', 'Adminium could not create that account.')),
+        messageOf(error, t('onboarding.desktopSetup.account.failed', 'Adminium could not create that account.')),
       );
     },
   });
@@ -273,8 +286,19 @@ export function DesktopSetupHost(): ReactNode {
   // ─── Step 4 ────────────────────────────────────────────────────────────────
 
   /**
-   * The front half: create the source the user chose in step 2, then
-   * introspect it. The session from step 3 is what finally authorizes this.
+   * The front half: test the server database's connection string (card 3),
+   * create the source the user chose in step 2, then introspect it. The session
+   * from step 3 is what finally authorizes this.
+   *
+   * ─── TEST BEFORE CREATE (finding V29) ──────────────────────────────────────
+   *
+   * Card 3 used to go straight to `POST /connections`, which SAVES a connection
+   * whose login fails (status `error`), and a Postgres introspect answers with a
+   * JOB that this wizard took for success. A wrong password therefore walked on
+   * to Generate and ended on an empty app with a "Remote DB offline" chip, and
+   * nothing ever said why. Studio's own wizard probes first (`TestStep.tsx`);
+   * so does this now, and a refusal stops here — before anything is created —
+   * with the server's reason and a way back to step 2 to fix the string.
    *
    * ─── RUN EXACTLY ONCE, AND WHY THAT NEEDS SAYING ─────────────────────────
    *
@@ -285,8 +309,10 @@ export function DesktopSetupHost(): ReactNode {
    *  - `startedRef` stops the EFFECT below from firing it again on any re-render
    *    while it is still in flight (the window where `connectionId` is still
    *    null and a second call would create a second database).
-   *  - `state.connectionId` stops it after a SUCCESS, including across a
-   *    sessionStorage-restored refresh — the resume point.
+   *  - `state.connectionId` stops a second CREATE after one succeeded,
+   *    including across a sessionStorage-restored refresh — the resume point.
+   *    `state.introspected` then says whether the read is done too, so a retry
+   *    after a failed read reads again rather than skipping to Generate.
    *
    * A plain function, not a `useCallback`: it is invoked from the effect and
    * from Retry, never passed as a prop, so a stable identity buys nothing. It
@@ -300,28 +326,44 @@ export function DesktopSetupHost(): ReactNode {
     // exists, this returns straight to `ready`, and the button that renders
     // there mutates too. See {@link primeCsrfToken}.
     await primeCsrfToken();
-    if (state.connectionId !== null) {
+    if (state.connectionId !== null && state.introspected) {
       setPhase('ready');
       return;
     }
-    setPhase('creating');
     setFormError(null);
+    setConnectRefused(false);
     try {
-      const connectionId = await createSource();
-      patch({ connectionId });
+      let connectionId = state.connectionId;
+      if (connectionId === null) {
+        if (state.source === 'remote') {
+          setPhase('checking');
+          const probe = await studioApi.testDsn(state.remoteEngine, state.remoteDsn.trim());
+          if (!probe.ok) {
+            setFormError(refusalMessage(probe, state.remoteDsn));
+            setConnectRefused(true);
+            setPhase('error');
+            return;
+          }
+        }
+        setPhase('creating');
+        connectionId = await createSource();
+        patch({ connectionId });
+      }
       setPhase('introspecting');
-      await studioApi.introspect(connectionId);
+      const result = await studioApi.introspect(connectionId);
+      if (result.kind === 'job') await introspectJobDone(result.jobId);
+      patch({ introspected: true });
       setPhase('ready');
     } catch (error) {
       const conflict = error instanceof ApiError ? demoConflictConnectionId(error.details) : null;
       if (conflict !== null) {
         // The demo card's 409: a connection already points at the demo file. No
         // retry can ever succeed, so adopt it rather than offer a dead button.
-        patch({ connectionId: conflict });
+        patch({ connectionId: conflict, introspected: true });
         setPhase('ready');
         return;
       }
-      setFormError(messageOf(error, t('desktop.setup.generate.failedBody', 'Something went wrong. Try again.')));
+      setFormError(messageOf(error, t('onboarding.desktopSetup.generate.failedBody', 'Something went wrong. Try again.')));
       setPhase('error');
     }
   };
@@ -372,6 +414,14 @@ export function DesktopSetupHost(): ReactNode {
   /** Has the create→introspect pipeline been kicked off? See {@link prepare}. */
   const startedRef = useRef(false);
 
+  /** Step 4 refused the connection: back to step 2 to fix it. Nothing was created. */
+  const changeConnection = (): void => {
+    startedRef.current = false;
+    setConnectRefused(false);
+    setPhase('idle');
+    goTo('database');
+  };
+
   useEffect(() => {
     if (state.step !== 'generate') return;
     if (startedRef.current) return;
@@ -412,7 +462,9 @@ export function DesktopSetupHost(): ReactNode {
         onCommitDataDir(state.cloudSyncAcknowledged);
         return;
       case 'database':
-        goTo('account');
+        // Back from step 4 to fix a refused connection: the account already
+        // exists (a one-way door), so step 3 is not offered again.
+        goTo(state.accountCreated ? 'generate' : 'account');
         return;
       case 'account':
       case 'generate':
@@ -431,19 +483,22 @@ export function DesktopSetupHost(): ReactNode {
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-title text-fg">
-            {t('desktop.setup.title', 'Welcome to Adminium')}
+            {t('onboarding.desktopSetup.title', 'Welcome to Adminium')}
           </h1>
           <p className="text-body-sm text-fg-muted">
             {t(
-              'desktop.setup.subtitle',
+              'onboarding.desktopSetup.subtitle',
               'Four short steps and Adminium will have built an admin app from your database. Everything stays on this computer.',
             )}
           </p>
         </div>
 
-        <Stepper steps={steps} activeIndex={stepIndex} label={t('desktop.setup.progress', 'Setup progress')} />
+        <Stepper steps={steps} activeIndex={stepIndex} label={t('onboarding.desktopSetup.progress', 'Setup progress')} />
 
-        {formError === null ? null : <Alert tone="danger" role="alert" title={formError} />}
+        {/* Step 4 shows its own failure, with its own actions; one alert, not two. */}
+        {formError === null || state.step === 'generate' ? null : (
+          <Alert tone="danger" role="alert" title={formError} />
+        )}
 
         {state.step === 'location' ? (
           <DataLocationStep
@@ -514,12 +569,13 @@ export function DesktopSetupHost(): ReactNode {
             error={formError}
             onRetry={() => {
               // The user asking again is the one legitimate second run — and it
-              // is safe for the same reason the first was: `prepare` still bails
-              // when `connectionId` is set, so a retry after a FAILED introspect
-              // re-introspects rather than creating another database.
+              // is safe for the same reason the first was: `prepare` never
+              // creates when `connectionId` is set, so a retry after a FAILED
+              // introspect re-introspects rather than creating another database.
               setPhase('idle');
               void prepare();
             }}
+            {...(connectRefused ? { onChangeConnection: changeConnection } : {})}
             onOpenApp={finish}
             onOpenReview={(runId) => {
               router.history.push(`/studio/llm/${runId}`);
@@ -530,6 +586,7 @@ export function DesktopSetupHost(): ReactNode {
         <StepFooter
           step={state.step}
           busy={busy}
+          accountCreated={state.accountCreated}
           continueDisabled={continueDisabled}
           onBack={() => {
             const previous = DESKTOP_SETUP_STEP_IDS[stepIndex - 1];
@@ -556,6 +613,8 @@ export function DesktopSetupHost(): ReactNode {
 function StepFooter(props: {
   step: DesktopSetupStepId;
   busy: boolean;
+  /** Back on step 2 would lead to step 1, behind a one-way door: hidden. */
+  accountCreated: boolean;
   continueDisabled: boolean;
   onBack: () => void;
   onContinue: () => void;
@@ -565,18 +624,18 @@ function StepFooter(props: {
 
   return (
     <div className="flex items-center gap-3">
-      {props.step === 'location' ? null : (
+      {props.step === 'location' || props.accountCreated ? null : (
         <Button variant="outline" size="lg" onClick={props.onBack} disabled={props.busy}>
-          {t('desktop.setup.back', 'Back')}
+          {t('onboarding.desktopSetup.back', 'Back')}
         </Button>
       )}
       {props.step === 'account' ? (
         <Button size="lg" className="flex-1" onClick={props.onSubmitAccount} loading={props.busy}>
-          {t('desktop.setup.createAccount', 'Create account and continue')}
+          {t('onboarding.desktopSetup.createAccount', 'Create account and continue')}
         </Button>
       ) : (
         <Button size="lg" className="flex-1" onClick={props.onContinue} disabled={props.continueDisabled}>
-          {t('desktop.setup.continue', 'Continue')}
+          {t('onboarding.desktopSetup.continue', 'Continue')}
         </Button>
       )}
     </div>
@@ -589,6 +648,39 @@ async function pickSqliteFile(): Promise<string | null> {
   const api = getDesktopApi();
   if (api === null) return null;
   return api.openFile(SQLITE_PICKER);
+}
+
+/** How often step 4 asks whether a background introspect job is done. */
+const INTROSPECT_POLL_MS = 1000;
+
+/**
+ * Wait for an introspect job to end. Resolves on `succeeded`; throws the job's
+ * own error on `failed`/`cancelled`, so `prepare` shows it instead of calling a
+ * connection with no snapshot ready (finding V29).
+ */
+async function introspectJobDone(jobId: string): Promise<void> {
+  for (;;) {
+    const job = await studioApi.getJob(jobId);
+    if (job.status === 'succeeded') return;
+    if (job.status === 'failed' || job.status === 'cancelled') {
+      throw new Error(job.lastError ?? t('onboarding.desktopSetup.generate.readFailed', 'Adminium could not read that database’s tables.'));
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, INTROSPECT_POLL_MS));
+  }
+}
+
+/**
+ * The server's reason for refusing a connection string, its hint, and — on
+ * Supabase's shared pooler, where a refused login is nearly always the user
+ * name — how that pooler wants the user written.
+ */
+function refusalMessage(probe: ConnectionTestResult, dsn: string): string {
+  const parts = [
+    probe.error?.message ?? t('onboarding.desktopSetup.generate.connectRefused', 'The database refused the connection.'),
+    probe.error?.hint ?? null,
+    supabasePoolerHint(probe.error?.code, dsn),
+  ];
+  return parts.filter((part): part is string => part !== null && part.length > 0).join(' · ');
 }
 
 /** An `ApiError`'s message, or a localized fallback — never `[object Object]`. */

@@ -384,6 +384,35 @@ export function sameDbDisabledReason(input: {
 
 // --- adapter error remediation ---------------------------------------------------
 
+/**
+ * Is this connection string Supabase's shared pooler
+ * (`aws-0-eu-west-1.pooler.supabase.com`)? That pooler finds the project by the
+ * part after the dot in the user name (`adminium_rw.<project-ref>`), so a
+ * refused login there is most often a user written without it, or the
+ * project's `postgres.<ref>` kept with another role's password (findings
+ * V25, V29).
+ */
+export function isSupabasePooler(dsn: string): boolean {
+  try {
+    return /\.pooler\.supabase\.com$/i.test(new URL(dsn.trim()).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The line to add to a refused LOGIN on Supabase's pooler, or `null`. A
+ * `common` key, not `studio:`: the desktop first-run wizard shows it too, and
+ * it lives outside `studio/` (see `studioNamespace.test.ts`).
+ */
+export function supabasePoolerHint(code: string | null | undefined, dsn: string): string | null {
+  if (code !== 'AUTH' || !isSupabasePooler(dsn)) return null;
+  return t(
+    'common.supabasePoolerUser',
+    'On Supabase’s pooler the user is the role, a dot, and your project ref — for example adminium_rw.abcdefghijklmnop — and the password is that role’s.',
+  );
+}
+
 /** AdapterError code → remediation copy for the wizard error state. */
 export function hintForErrorCode(code: string): string {
   switch (code) {

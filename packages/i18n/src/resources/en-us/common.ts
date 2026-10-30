@@ -20,7 +20,8 @@ export default {
     "loading": "Loading",
     "clearSearch": "Clear search",
     "clear": "Clear",
-    "save": "Save"
+    "save": "Save",
+    "supabasePoolerUser": "On Supabase’s pooler the user is the role, a dot, and your project ref — for example adminium_rw.abcdefghijklmnop — and the password is that role’s."
   },
   "auth": {
     "headline": "Turn any database into a dashboard.",
@@ -618,111 +619,6 @@ export default {
       "transportBody": "Share only on networks you trust. For remote access, use Adminium self-host behind HTTPS.",
       "firewall": "The first time you share, your operating system will ask whether to allow incoming connections — choose Allow, or other devices will not be able to reach Adminium.",
       "manageTeam": "Manage users & roles"
-    },
-    "setup": {
-      "title": "Welcome to Adminium",
-      "subtitle": "Four short steps and Adminium will have built an admin app from your database. Everything stays on this computer.",
-      "progress": "Setup progress",
-      "back": "Back",
-      "continue": "Continue",
-      "createAccount": "Create account and continue",
-      "step": {
-        "location": "Welcome",
-        "database": "Your first database",
-        "account": "Your account",
-        "generate": "Generate"
-      },
-      "dataDir": {
-        "heading": "Where should Adminium keep your data?",
-        "description": "Your databases, settings and backups all live in this folder. Everything stays on this computer — nothing is uploaded anywhere.",
-        "label": "Data folder",
-        "loading": "Reading the current location…",
-        "pending": "Adminium restarts when you continue, so it can move to this folder.",
-        "change": "Change…",
-        "revert": "Undo",
-        "dialogTitle": "Choose where Adminium keeps your data",
-        "cloudSyncTitle": "This folder is synced to the cloud",
-        "cloudSyncWarning": "Adminium stores its data in SQLite files. {provider} syncs files in “{folder}” by copying them in the background, which can corrupt a database that is open — losing data with no warning. Pick a folder outside {provider}.",
-        "chooseAnother": "Choose another folder",
-        "useAnyway": "Use it anyway — I accept the risk",
-        "unusableTitle": "Adminium cannot use that folder",
-        "failed": "Adminium could not use that folder."
-      },
-      "source": {
-        "heading": "What should Adminium build from?",
-        "description": "Adminium reads a database’s schema and generates an admin app from it. You can add more databases later.",
-        "groupLabel": "Database source",
-        "local": {
-          "title": "Create a new local database",
-          "description": "Start from nothing, or from a schema file you already have. The database is created inside your data folder.",
-          "name": "Database name",
-          "namePlaceholder": "Operations",
-          "nameUnusable": "Use at least one letter or number — the file name is built from this.",
-          "fileHelper": "Creates {file}",
-          "schemaLabel": "Start from",
-          "blank": "Blank",
-          "fromFile": "A schema file",
-          "schemaFile": "Schema file",
-          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django or Adminium JSON. Adminium translates it to SQLite.",
-          "placeholder": "Auto-generate placeholder entries",
-          "placeholderHelper": "You imported a schema with no rows. Seed each table with realistic sample data so your dashboards and charts render immediately."
-        },
-        "openSqlite": {
-          "title": "Open an existing SQLite file",
-          "description": "Point Adminium at a .sqlite file on this computer. It is opened where it is — nothing is copied or moved.",
-          "browse": "Choose a .sqlite file…",
-          "change": "Choose a different file…",
-          "networkTitle": "That file is on a network share",
-          "networkBody": "SQLite locking is unreliable over network file shares, and a dropped connection mid-write can corrupt the database. A copy on this computer’s own disk is safer."
-        },
-        "remote": {
-          "title": "Connect to a server database",
-          "description": "PostgreSQL or MySQL. Requires a reachable network database; Adminium’s own tables still stay on this computer.",
-          "networkNote": "Requires a reachable network database",
-          "metaNote": "Adminium’s own tables — your pages, settings and sign-in — stay in the data folder on this computer either way.",
-          "engine": "Engine",
-          "name": "Connection name",
-          "namePlaceholder": "Production",
-          "dsn": "Connection string",
-          "dsnHelper": "Adminium tests this when it connects. Use a read-only role if you only want dashboards."
-        },
-        "demo": {
-          "title": "Explore the demo database",
-          "description": "A ready-made team-operations database, so you can see what Adminium builds before pointing it at your own data. Delete it whenever you like.",
-          "unavailable": "This build does not include the demo data, so there is nothing to load. Pick one of the options above."
-        }
-      },
-      "account": {
-        "heading": "Create your account",
-        "description": "This is the administrator account for this copy of Adminium. The password protects your backups and anyone you share with on your network — you will not be asked for it at every launch.",
-        "name": "Your name",
-        "email": "Email",
-        "password": "Password",
-        "passwordHelper": "At least {min} characters.",
-        "confirm": "Confirm password",
-        "strength": "Password strength",
-        "strengthLevels": {
-          "weak": "Weak",
-          "fair": "Fair",
-          "good": "Good",
-          "strong": "Strong"
-        },
-        "singleUser": "Skip login on this computer",
-        "singleUserHelper": "Adminium signs you in automatically when you open it here. Turn this off if other people use this machine. You can change it later in Settings → Desktop.",
-        "locale": "Language",
-        "theme": "Appearance",
-        "alreadyExists": "This copy of Adminium already has an account. Sign in with it instead.",
-        "failed": "Adminium could not create that account."
-      },
-      "generate": {
-        "creating": "Setting up your database…",
-        "introspecting": "Reading your schema — tables, columns and relationships…",
-        "working": "Working…",
-        "offlineNote": "All of this happens on this computer.",
-        "failedTitle": "Adminium could not set that database up",
-        "failedBody": "Something went wrong. Try again.",
-        "retry": "Try again"
-      }
     },
     "stop": {
       "turn": "The Designer is in the middle of a turn.",
