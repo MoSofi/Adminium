@@ -138,6 +138,10 @@ jobs:
       # inputs electron-builder's `files:` globs pack.
       - name: Build desktop bundle + workspace deps
         run: pnpm turbo run build --filter=@adminium/desktop
+        # The server's tsc needs about 2.5 GB. Node's default heap follows the
+        # runner's memory, and on macos-14 (7 GB) it stops near 2 GB.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       # Step 2 of the packaging sequence documented in apps/desktop/package.json
       # //packaging: derive resources/icons/* from the checked-in master (the
