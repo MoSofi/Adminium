@@ -449,7 +449,8 @@ describe('introspectPostgres — table shape', () => {
     // V24: a table nobody has analysed yet (a fresh Supabase project's `cakes`)
     // showed "—" where it had 8 rows; the live-row counter knows.
     ['a never-analysed table takes the live-row count', 'r', -1, 8, 8],
-    ['an empty never-analysed table is 0, not unknown', 'r', -1, 0, 0],
+    // The counter lags fresh writes, so its 0 is not proof the table is empty.
+    ['a counter of 0 stays unknown', 'r', -1, 0, null],
     ['an analysed estimate wins over the counter', 'r', 500, 8, 500],
     ['no counter either: still unknown', 'r', -1, null, null],
     // A partitioned parent always reads -1 and counts 0 live rows of its own.
