@@ -1,5 +1,31 @@
 # @adminium/server
 
+## 0.3.39
+
+### Patch Changes
+
+- e16e2ea: The Designer can make pictures with AI. The picture dialog has a fourth tab, **Make one**. It fills in the words from the spot or the sample row and makes 1 to 4 pictures with OpenAI, Google Gemini, an OpenAI-compatible server or Ollama, whichever service someone who manages AI settings chose. **Make one for each** makes a picture for each sample row, or one for each value of a column that its rows share. The Designer can also make pictures in the chat, with `make_pictures`, when the person asks. Each picture counts against a daily allowance: 20 per person, 100 for everybody and 8 per chat turn, set in Settings → AI, where 0 turns making off. A made picture is credited "Made with AI" with its service and model, and its words are kept in `CREDITS.json` but never shown on a page. `ADMINIUM_AI_GOOGLE_API_KEY` is a new picture-only key. Migration `0071_pictures_made` adds the counts. Every AI provider reply is now read with a size limit of 8 MB by default, so an outsized answer is refused instead of filling the server's memory.
+- a2c7ed4: An erasure now reaches every copy of the person, not only the declared columns that link to them or hold their address. A copy row with no link back is found by their phone number too (a booking taken on the phone, with no address; a number written with a leading 0 or a country code is the same number), and on a row that is theirs every copy of theirs goes (the name and the phone on a booking found by its address, an unlinked enquiry's name) along with every column marked personal when nobody else is on the row (a stay's note, an enquiry's message). Where a copy links to another person, only what is theirs by a link, the address or the number goes. Tables kept by law stay whole and "What stays" counts their rows there; "What goes" and the person's search and download count and show the rows found this way.
+- ee1ae7b: The password pages ask for the workspace's own minimum length (10 by default) rather than saying 8, so a 9-letter password is no longer accepted on the page and then refused when saved. This covers choosing a password from an invite or a reset, and changing it under Security. After choosing one, the sign-in screen says "Password saved" instead of greeting a new person with "Welcome back". A page you may not open says "This page is restricted", not "This dashboard is restricted". "Data exports" is no longer in the sidebar of someone who can export nothing; the session's bootstrap now carries `canExport`, worked out like `canImport`.
+- 4776a26: A reminder before a moment (an outbox `before` producer, such as a clinic's visit reminder) goes at its lead time again, not once the moment itself has passed. The minute scan queues it when its lead comes and keeps the moment in its due column, as before; since 0.3.20 the sender had waited for that due time, so every reminder went out at the visit. A reminder a desk queues by hand ("Send now", due at the visit) now goes at once, and the scan's own one still does not follow.
+- 1b2e9e6: `npx @adminiumjs/adminium try` no longer stops at once asking for `ADMINIUM_SECRET`. With none set, it makes one for a new data folder and keeps it in `<data dir>/secret`, readable by you only, and says where. `adminium start` and the other commands read it back from the same folder, and `new --import` copies it into the project's `.env`. A secret in the environment always wins. A folder that already holds an instance never gets a new one, since that would leave its stored connection strings unreadable: `try` asks you to set the secret the instance was made with. The quickstart and the environment variables page say so.
+- Updated dependencies [0007d6b]
+- Updated dependencies [e16e2ea]
+- Updated dependencies [141f417]
+- Updated dependencies [ee1ae7b]
+- Updated dependencies [58ba7a9]
+- Updated dependencies [4f96422]
+  - @adminium/engine@0.3.39
+  - @adminium/llm@0.3.39
+  - @adminium/meta@0.3.39
+  - @adminium/i18n@0.3.39
+  - @adminium/adapter-postgres@0.3.39
+  - @adminium/adapter-mysql@0.3.39
+  - @adminium/adapter-sqlite@0.3.39
+  - @adminium/schema-import@0.3.39
+  - @adminium/add-on-contracts@0.3.39
+  - @adminium/manifest@0.3.39
+
 ## 0.3.38
 
 ### Patch Changes

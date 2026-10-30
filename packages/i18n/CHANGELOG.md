@@ -1,5 +1,13 @@
 # @adminium/i18n
 
+## 0.3.39
+
+### Patch Changes
+
+- e16e2ea: The Designer can make pictures with AI. The picture dialog has a fourth tab, **Make one**. It fills in the words from the spot or the sample row and makes 1 to 4 pictures with OpenAI, Google Gemini, an OpenAI-compatible server or Ollama, whichever service someone who manages AI settings chose. **Make one for each** makes a picture for each sample row, or one for each value of a column that its rows share. The Designer can also make pictures in the chat, with `make_pictures`, when the person asks. Each picture counts against a daily allowance: 20 per person, 100 for everybody and 8 per chat turn, set in Settings → AI, where 0 turns making off. A made picture is credited "Made with AI" with its service and model, and its words are kept in `CREDITS.json` but never shown on a page. `ADMINIUM_AI_GOOGLE_API_KEY` is a new picture-only key. Migration `0071_pictures_made` adds the counts. Every AI provider reply is now read with a size limit of 8 MB by default, so an outsized answer is refused instead of filling the server's memory.
+- 141f417: Editing a dashboard now says that its cards show sample numbers. The edit canvas has always drawn every card from made-up data so you can arrange it, but nothing said so, and a dashboard that read 78 on the live page read 44,615 the moment you pressed Edit. The note under the title now reads "The cards show sample numbers while you edit. Your data comes back when you finish editing.", in all eight languages, for a personal layout and for the shared one.
+- ee1ae7b: The password pages ask for the workspace's own minimum length (10 by default) rather than saying 8, so a 9-letter password is no longer accepted on the page and then refused when saved. This covers choosing a password from an invite or a reset, and changing it under Security. After choosing one, the sign-in screen says "Password saved" instead of greeting a new person with "Welcome back". A page you may not open says "This page is restricted", not "This dashboard is restricted". "Data exports" is no longer in the sidebar of someone who can export nothing; the session's bootstrap now carries `canExport`, worked out like `canImport`.
+
 ## 0.3.38
 
 ### Patch Changes

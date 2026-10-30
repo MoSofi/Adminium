@@ -1,5 +1,15 @@
 # @adminium/engine
 
+## 0.3.39
+
+### Patch Changes
+
+- 0007d6b: A generated dashboard is now built around the right table when the schema has line items. An `order_items` table links to both `orders` and a catalogue (`cakes`), so it won the hub by link count: the dashboard was called "Order Items Dashboard", added up unit prices, counted "New Cakes" and charted cake prices per month. A line-items table is no longer a hub; the table it cascades from is. A money total no longer reads "Total Total": a column already called a total keeps its name, and one called just "Total" is "Total Value", on dashboards and boards alike. Money totals on generated dashboards now show their currency (the card's format was set under a key it does not read).
+- 58ba7a9: A generated list now always shows the table's name column, first. A name kept as Postgres `text` with no length (a Lovable or Supabase app's `cakes.name`, `orders.customer_name`, `profiles.full_name`) was classed as long text and left out, so the Cakes list showed prices and no cake names. Other long-text columns stay out of the list as before. Pages generated before and not changed since pick the column up the next time they are regenerated.
+- Updated dependencies [0007d6b]
+- Updated dependencies [58ba7a9]
+  - @adminium/widgets@0.3.39
+
 ## 0.3.38
 
 ### Patch Changes

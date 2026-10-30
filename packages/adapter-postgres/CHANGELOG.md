@@ -1,5 +1,14 @@
 # @adminium/adapter-postgres
 
+## 0.3.39
+
+### Patch Changes
+
+- 4f96422: Setting up is smoother. Pressing Continue right after pasting a connection string moves on once the string has been checked, instead of doing nothing until you press it a second time. If the check finds an Adminium already in that database, you stay on the step to choose what to do. The connect wizard that follows setup no longer asks again where Adminium keeps its own data: setup has just asked, so it goes from Tables to Enrich. A Postgres table nobody has analysed yet (a new Supabase project's) shows its row count rather than "—".
+- Updated dependencies [0007d6b]
+- Updated dependencies [58ba7a9]
+  - @adminium/engine@0.3.39
+
 ## 0.3.38
 
 ### Patch Changes
