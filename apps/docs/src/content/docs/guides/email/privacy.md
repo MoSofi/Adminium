@@ -94,12 +94,15 @@ follows another row is never moved.
   one of their copies on it links to one of their rows, holds their address,
   or holds one of their phone numbers (a booking taken on the phone, with no
   address and no link back; a number written another way, with a leading 0
-  or a country code, is the same number). On such a row their copies go,
-  each other copy of theirs with no link on it (an unlinked enquiry's name)
-  too, and, when nobody else is on the row, every column marked personal
-  (their own words on it: a stay's note, an enquiry's message). Where a copy
-  links to another person (a quote sent to one contact and accepted by
-  another), only what is theirs by a link, the address or the number goes.
+  or a country code, is the same number). On a row theirs by a link or the
+  address, their copies go, each other copy of theirs with no link on it (an
+  unlinked enquiry's name) too, and, when nobody else is on the row, every
+  column marked personal (their own words on it: a stay's note, an enquiry's
+  message). A row found by the number alone loses the number and nothing
+  else, because a number may be shared (a household's, a switchboard's).
+  Where a copy links to another person (a quote sent to one contact and
+  accepted by another), only what is theirs by a link, the address or the
+  number goes.
   Nothing else on the row changes. A table the app marks `keep: { law }` is
   left whole, and "What stays" counts their rows on it.
 - **Their mail** in each app's outbox loses its address; a message still

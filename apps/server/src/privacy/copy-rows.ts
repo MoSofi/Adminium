@@ -75,21 +75,23 @@ export interface CopyRowsInput {
 
 /** The fewest digits a number has to share at its end to be the same number written another way. */
 const SAME_TAIL = 8;
+/** The most digits one way of writing a number may add in front: a country code (a number from another country is not it). */
+const MOST_IN_FRONT = 3;
 /** The fewest digits a phone number has. */
 const PHONE_MIN = 7;
 
-/** A phone number's digits, without the leading zeros; null when it holds too few to be a number. */
+/** A phone number's digits, without the leading zeros or a "(0)" after a country code; null when it holds too few to be a number. */
 export function phoneDigits(value: unknown): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const digits = String(value).replace(/\D+/g, '').replace(/^0+/, '');
+  const digits = String(value).replace(/\(\s*0\s*\)/g, '').replace(/\D+/g, '').replace(/^0+/, '');
   return digits.length >= PHONE_MIN ? digits : null;
 }
 
-/** Whether two numbers' digits are the same number: equal, or one ending with eight or more of the other's. */
+/** Whether two numbers' digits are the same number: equal, or one ending with eight or more of the other's and at most a country code in front. */
 export function samePhone(a: string, b: string): boolean {
   if (a === b) return true;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
-  return short.length >= SAME_TAIL && long.endsWith(short);
+  return short.length >= SAME_TAIL && long.length - short.length <= MOST_IN_FRONT && long.endsWith(short);
 }
 
 const holdsPhone = (value: unknown, phones: readonly string[]): boolean => {
@@ -139,6 +141,8 @@ function phoneColumnsOf(table: ResolvedTable): string[] {
 /** What of one row is theirs (see the header); null when nothing on it is. */
 function judge(table: ResolvedTable, row: Row, copies: readonly DeclaredCopy[], pkSet: ReadonlySet<string>, address: string, phones: readonly string[], links: ReadonlySet<string>): TheirCopyRow | null {
   let matched = false;
+  // Found by a link or the address: a shared number alone does not make a row theirs to empty.
+  let surely = false;
   let someoneElse = false;
   const direct = new Set<string>();
   const linkedTo = new Set<string>();
@@ -151,6 +155,7 @@ function judge(table: ResolvedTable, row: Row, copies: readonly DeclaredCopy[], 
     const holdsTheirs = (copy.holds === 'email' && isAddress(value, address)) || (copy.holds === 'phone' && holdsPhone(value, phones));
     if (linked || holdsTheirs) {
       matched = true;
+      if (linked || copy.holds === 'email') surely = true;
       direct.add(copy.column);
     } else if (copy.holds === 'email' && !isSet(via) && isSet(value)) {
       // An unlinked address of somebody else's: the row is theirs too.
@@ -158,6 +163,8 @@ function judge(table: ResolvedTable, row: Row, copies: readonly DeclaredCopy[], 
     }
   }
   if (!matched) return null;
+  // Matched by the number alone (a household's or a switchboard's may be shared): the number goes, nothing else.
+  if (!surely) someoneElse = true;
   const columns = new Map<string, ErasedRole>();
   const take = (column: string, role: ErasedRole) => {
     const resolved = table.columns.get(column);

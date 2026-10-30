@@ -343,7 +343,7 @@ for (const [dialect, reachable] of LEGS) {
       expect(await notificationsFor('rita')).toBeGreaterThan(told);
       await s.emails();
 
-      for (const [ref, key] of [['quotes', 1], ['quotes', 2], ['quotes', 3], ['sign_offs', 1], ['invoices', 1], ['deals', 1], ['contacts', 2], ['enquiries', 2], ['visits', 3], ['leads', 3], ['leads', 4], ['leads', 5]] as const) before[`${ref}:${String(key)}`] = await one(ref, key);
+      for (const [ref, key] of [['quotes', 1], ['quotes', 2], ['quotes', 3], ['sign_offs', 1], ['invoices', 1], ['deals', 1], ['contacts', 2], ['enquiries', 2], ['visits', 3], ['leads', 2], ['leads', 3], ['leads', 4], ['leads', 5]] as const) before[`${ref}:${String(key)}`] = await one(ref, key);
     }, 240_000);
     afterAll(async () => {
       await s?.close();
@@ -416,9 +416,10 @@ for (const [dialect, reachable] of LEGS) {
       // Her visit left; the removed one's row is kept below.
       expect(await one('visits', 2)).toMatchObject({ visitor_name: null, remark: null, day: '2026-08-15', contact_id: 1 });
       expect(await one('visits', 3)).toEqual(before['visits:3']);
-      // Her leads: the one by her address and the one by her number alone lose every copy and her words; the source stays.
+      // Her leads: the one by her address loses every copy and her words; the source stays.
       expect(await one('leads', 1)).toEqual({ id: 1, contact_id: null, name: null, email: null, phone: null, notes: null, source: 'web' });
-      expect(await one('leads', 2)).toEqual({ id: 2, contact_id: null, name: null, email: null, phone: null, notes: null, source: 'phone' });
+      // The one by her number alone loses the number alone: a number may be shared.
+      expect(await one('leads', 2)).toEqual({ ...before['leads:2'], phone: null });
       // Ben's: his own untouched; the one given her number loses the number alone.
       expect(await one('leads', 3)).toEqual(before['leads:3']);
       expect(await one('leads', 4)).toEqual({ ...before['leads:4'], phone: null });

@@ -10,7 +10,8 @@
  *    name and the mobile too, not the address alone) and their request
  *    marked personal; the staff's own note stays.
  *  - A booking with no address, taken under their number written another
- *    way, is found by the number and erased the same.
+ *    way, is found by the number and loses the number alone: a number may
+ *    be shared (a household's), so the name and request on it stay.
  *  - Another person's booking that holds their number loses the number
  *    alone. A booking with a number that only shares a few digits stays.
  *  - A deposit the law keeps is left whole, found by their number, and
@@ -155,8 +156,8 @@ for (const [dialect, reachable] of LEGS) {
       expect(await one('customers', 1)).toMatchObject({ id: 1, name: 'Erased person', mobile: null, email: null });
       // By her address: the name and the mobile go with it, and her request; the staff's note and the party stay.
       expect(await one('reservations', 1)).toEqual({ ...before['reservations:1'], name: 'Erased person', mobile: null, email: null, guest_request: null });
-      // No address, no link: found by her number written another way.
-      expect(await one('reservations', 2)).toEqual({ ...before['reservations:2'], name: 'Erased person', mobile: null, guest_request: null });
+      // No address, no link: found by her number written another way, which goes alone (a number may be shared).
+      expect(await one('reservations', 2)).toEqual({ ...before['reservations:2'], mobile: null });
       // Ben's booking under her number: the number goes, his name, address and request stay.
       expect(await one('reservations', 4)).toEqual({ ...before['reservations:4'], mobile: null });
       for (const key of [3, 5, 6]) expect(await one('reservations', key)).toEqual(before[`reservations:${String(key)}`]);

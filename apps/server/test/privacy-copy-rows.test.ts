@@ -11,7 +11,7 @@ const same = (a: string, b: string) => samePhone(phoneDigits(a)!, phoneDigits(b)
 
 describe('a phone number, as an erasure matches it', () => {
   it('reads the digits without the leading zeros, and nothing too short to be a number', () => {
-    expect(phoneDigits('+44 (0)7700 900-123')).toBe('4407700900123');
+    expect(phoneDigits('+44 (0)7700 900-123')).toBe('447700900123');
     expect(phoneDigits('07700 900123')).toBe('7700900123');
     expect(phoneDigits(7700900123)).toBe('7700900123');
     for (const none of ['123 456', '', '   ', 'n/a', null, undefined, {}]) expect(phoneDigits(none)).toBeNull();
@@ -22,11 +22,18 @@ describe('a phone number, as an erasure matches it', () => {
     expect(same('+447700900123', '07700900123')).toBe(true);
     expect(same('(212) 555-0142', '+1 212 555 0142')).toBe(true);
     expect(same('020 7946 0001', '+44 20 7946 0001')).toBe(true);
+    expect(same('+353 (0)87 123 4567', '087 123 4567')).toBe(true);
   });
 
   it('never takes two numbers that share fewer than eight digits at the end', () => {
     expect(same('+48 900 123', '07700 900123')).toBe(false);
     expect(same('07700 900124', '07700 900123')).toBe(false);
     expect(samePhone('9460001', '442079460001')).toBe(false);
+  });
+
+  it('never takes a short local number for the end of a longer one from elsewhere', () => {
+    // Eight digits in front of a different area code and country: not one number.
+    expect(same('1234 5678', '+44 20 1234 5678')).toBe(false);
+    expect(same('1234 5678', '+49 30 1234 5678')).toBe(false);
   });
 });
