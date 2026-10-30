@@ -19,7 +19,7 @@
  */
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -27,10 +27,13 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dist = join(repo, 'apps', 'desktop', 'dist');
 
 /** The packed app's own program, where electron-builder leaves it unpacked on each system. */
-export function packedProgram(platform = process.platform, root = dist, exists = existsSync, list = readdirSync) {
+export function packedProgram(platform = process.platform, root = dist, exists = existsSync, list = readdirSync, arch = process.arch) {
   const folders = exists(root) ? list(root) : [];
   if (platform === 'darwin') {
-    const folder = folders.find((name) => /^mac(-arm64|-universal)?$/.test(name) && exists(join(root, name, 'Adminium.app')));
+    // The build for this machine's own chip. A mac runner packs both, and `mac` (Intel) sorts first: run under
+    // Rosetta it is many times slower, and on 2026-10-30 that ran a release's smoke out of time.
+    const own = arch === 'arm64' ? ['mac-arm64', 'mac-universal', 'mac'] : ['mac', 'mac-universal', 'mac-arm64'];
+    const folder = own.find((name) => folders.includes(name) && exists(join(root, name, 'Adminium.app')));
     return folder === undefined ? null : join(root, folder, 'Adminium.app', 'Contents', 'MacOS', 'Adminium');
   }
   if (platform === 'win32') {
@@ -119,11 +122,11 @@ async function main() {
 
   if (failed !== null) {
     console.error(`[packed smoke] STOPPED: ${failed instanceof Error ? failed.message : String(failed)}`);
-    // The app's own logs say what a window could not.
-    const logs = [join(userData, 'logs'), join(home, 'Library', 'Logs', 'Adminium')].find((folder) => existsSync(folder));
-    if (logs !== undefined) {
-      for (const name of readdirSync(logs)) console.error(`──── ${name} (last lines)\n${readFileSync(join(logs, name), 'utf8').split('\n').slice(-40).join('\n')}`);
-    }
+    // The app's own logs say what a window could not. Windows and Linux keep them in `<userData>/logs`; macOS in the
+    // REAL home's `Library/Logs/<package name>`, whatever HOME says (the app names itself only after reading the path).
+    const logs = [join(userData, 'logs'), join(homedir(), 'Library', 'Logs', '@adminium', 'desktop')].find((folder) => existsSync(folder));
+    if (logs === undefined) console.error('[packed smoke] the app left no log folder.');
+    else for (const name of readdirSync(logs)) console.error(`──── ${name} (last lines)\n${readFileSync(join(logs, name), 'utf8').split('\n').slice(-40).join('\n')}`);
     process.exit(1);
   }
   rmSync(home, { recursive: true, force: true });
