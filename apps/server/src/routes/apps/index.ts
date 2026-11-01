@@ -107,6 +107,7 @@ import {
   findSampleApp,
 } from '../../apps/sample-data.js';
 import { ownRules, shapeRules } from '../../apps/manifest-rules.js';
+import { servedPublicEntries } from '../../apps/manifest-public.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
 import { liveRowCounts } from '../../apps/table-counts.js';
 import {
@@ -1394,7 +1395,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * installed without its access, the page read "Customer screens · On"
        * over pages that open and can do nothing.
        */
-      const asks = document !== null && document.kind === 'app' && (document.publicAccess ?? []).length > 0;
+      // An entry that opens a table to forms (the key `forms`) is never served by the public API: a forms-only app asks nothing of it.
+      const asks = document !== null && document.kind === 'app' && servedPublicEntries(document.publicAccess ?? []).length > 0;
       const publicAccess = !asks
         ? undefined
         : {

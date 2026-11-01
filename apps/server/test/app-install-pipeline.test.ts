@@ -3900,6 +3900,17 @@ for (const [dialect, available] of legs) {
       expect(both.json().plan.publicAccess.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF', 'NO_CURRENCY']);
     }, 60_000);
 
+    it('says nothing of the public API on the page of an installed app whose only entries open tables to forms', async () => {
+      const h = (open = await harness(dialect));
+      await stageManifest(h, { ...MANIFEST, compatibility: { minAdminiumVersion: '0.3.40' }, publicAccess: [{ table: 'menu_items', methods: ['POST'], key: 'forms', writable: ['name'], anonymous: { perIpHour: 20 } }] });
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      // The forms door needs none of the public API: the page never says its customer side asks it for anything.
+      const settings = await h.app.inject({ method: 'GET', url: '/apps/pos/settings' });
+      expect(settings.statusCode, settings.body).toBe(200);
+      expect(settings.json()).not.toHaveProperty('publicAccess');
+    }, 60_000);
+
     it('an app with a phone side gets an app key beside its customer key, holding the same, and loses it with the side', async () => {
       const h = (open = await harness(dialect));
       const phone = (version: string, mobile: boolean, select: string[] = ['id', 'name']) => ({
