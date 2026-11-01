@@ -11,8 +11,9 @@
  * 2. **Choose each staff surface's placement**: blended into the dashboard
  *  sidebar (the default) or external at its own URL. The write takes effect
  *  immediately here; other tabs converge within seconds.
- * 3. **Attach domains**: `host → surface`, the whole map edited and saved
- *  together. Adminium answers by `Host`; DNS and the TLS proxy stay the
+ * 3. **Attach domains**: `host → surface`, or `host → the add-on pages`
+ *  (forms, with a home page `/` sends a visitor to), the whole map edited and
+ *  saved together. Adminium answers by `Host`; DNS and the TLS proxy stay the
  *  operator's, and the page says so rather than probing — a mapping is inert
  *  until traffic actually carries that Host.
  *
@@ -49,6 +50,7 @@ import {
   SURFACES_QUERY_KEY,
   domainIssuesFrom,
   domainsFromRows,
+  isPagesTarget,
   rowsFromDomains,
   saveSurfaceDomains,
   setAppName,
@@ -267,9 +269,11 @@ export function HostedAppsPage() {
         />
       )}
 
-      {data.surfaces.length > 0 && (
+      {/* A host may serve an app's side, or the add-on pages (forms): the card shows when either can be picked. */}
+      {(data.surfaces.length > 0 || (data.pageHomes ?? []).length > 0 || Object.values(data.domains).some(isPagesTarget)) && (
         <DomainsCard
           surfaces={data.surfaces}
+          pageHomes={data.pageHomes ?? []}
           instances={data.instances}
           initialRows={rowsFromDomains(data.domains)}
           busy={busy}
@@ -703,8 +707,12 @@ function InstancesCard({
   );
 }
 
+/** The surface picker's choice for the add-on pages: never an `appKey/side` pair. */
+const PAGES_CHOICE = 'pages';
+
 function DomainsCard({
   surfaces,
+  pageHomes,
   instances,
   initialRows,
   busy,
@@ -713,6 +721,7 @@ function DomainsCard({
   onSave,
 }: {
   surfaces: SurfaceSummaryDto[];
+  pageHomes: string[];
   instances: Record<string, SurfaceInstance[]>;
   initialRows: DomainRow[];
   busy: boolean;
@@ -842,11 +851,15 @@ function DomainsCard({
                   className="w-64"
                 >
                   <Select
-                    value={`${row.appKey}/${row.side}`}
+                    value={row.kind === 'pages' ? PAGES_CHOICE : `${row.appKey}/${row.side}`}
                     onChange={(event) => {
+                      if (event.target.value === PAGES_CHOICE) {
+                        patch(row.key, { kind: 'pages', home: row.home === '' ? (pageHomes[0] ?? '') : row.home });
+                        return;
+                      }
                       const [appKey, side] = event.target.value.split('/');
                       if (appKey !== undefined && (side === 'staff' || side === 'customer')) {
-                        patch(row.key, { appKey, side });
+                        patch(row.key, { kind: 'app', appKey, side });
                       }
                     }}
                   >
@@ -858,15 +871,48 @@ function DomainsCard({
                         {surface.appKey} — {surface.side}
                       </option>
                     ))}
+                    <option value={PAGES_CHOICE}>
+                      {t('studio:hostedApps.domains.pages', 'Forms and pages')}
+                    </option>
                   </Select>
                 </FormField>
+                {/*
+                  THE HOME PAGE of a host that serves the add-on pages: where
+                  its `/` sends a visitor. Picked from the live forms'
+                  addresses; one no longer live stays listed so the row says
+                  what it is saved as.
+                */}
+                {row.kind === 'pages' && (
+                  <FormField
+                    label={t('studio:hostedApps.domains.homeLabel', 'Home page')}
+                    className="w-64"
+                  >
+                    <Select
+                      value={row.home}
+                      onChange={(event) => {
+                        patch(row.key, { home: event.target.value });
+                      }}
+                    >
+                      {row.home === '' && (
+                        <option value="" disabled>
+                          {t('studio:hostedApps.domains.homeNone', 'No live form yet')}
+                        </option>
+                      )}
+                      {(pageHomes.includes(row.home) || row.home === '' ? pageHomes : [row.home, ...pageHomes]).map((home) => (
+                        <option key={home} value={home}>
+                          {home}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                )}
                 {/*
                   WHICH INSTANCE this host serves. Only where the app
                   has any: on an app with one database the control would offer a
                   single answer, and a host cannot point at an instance that
                   does not exist — the server refuses it by name.
                 */}
-                {(instances[row.appKey]?.length ?? 0) > 0 && (
+                {row.kind === 'app' && (instances[row.appKey]?.length ?? 0) > 0 && (
                   <FormField
                     label={t('studio:hostedApps.domains.instanceLabel', 'Instance')}
                     className="w-48"
@@ -904,13 +950,14 @@ function DomainsCard({
         <div className="flex gap-2">
           <Button
             variant="ghost"
-            disabled={first === undefined}
+            disabled={first === undefined && pageHomes.length === 0}
             onClick={() => {
-              if (first === undefined) return;
-              setRows((current) => [
-                ...current,
-                { key: nextKey, host: '', appKey: first.appKey, side: first.side, instance: '' },
-              ]);
+              // An app's first side when there is one; else the add-on pages, on the first live form.
+              const row: DomainRow =
+                first === undefined
+                  ? { key: nextKey, host: '', kind: 'pages', appKey: '', side: 'customer', instance: '', home: pageHomes[0] ?? '' }
+                  : { key: nextKey, host: '', kind: 'app', appKey: first.appKey, side: first.side, instance: '', home: '' };
+              setRows((current) => [...current, row]);
               setNextKey((value) => value + 1);
             }}
           >

@@ -13,11 +13,24 @@ import { api } from '../../app/api.js';
 export type SurfaceSide = 'staff' | 'customer';
 export type StaffPlacement = 'internal' | 'external';
 
-export interface SurfaceDomainTarget {
+/** A host mapped to one side of an app. */
+export interface SurfaceAppTarget {
   appKey: string;
   side: SurfaceSide;
   /** Which instance this host serves; absent is the app's own mount. */
   instance?: string;
+}
+
+/** A host mapped to the add-on pages a stranger sees (`/x/…`): `/` sends a visitor to `home`. */
+export interface SurfacePagesTarget {
+  kind: 'pages';
+  home: string;
+}
+
+export type SurfaceDomainTarget = SurfaceAppTarget | SurfacePagesTarget;
+
+export function isPagesTarget(target: SurfaceDomainTarget): target is SurfacePagesTarget {
+  return 'kind' in target && target.kind === 'pages';
 }
 
 /** Mirrors `surfaceSummary`. */
@@ -62,6 +75,8 @@ export interface SurfacesListReply {
   surfaces: SurfaceSummaryDto[];
   domains: Record<string, SurfaceDomainTarget>;
   instances: Record<string, SurfaceInstance[]>;
+  /** The live forms' addresses (`/x/forms/<slug>`): what a pages host's home is picked from. A server before them sends none. */
+  pageHomes?: string[] | undefined;
 }
 
 export const SURFACES_QUERY_KEY = ['surfaces'] as const;
@@ -128,16 +143,24 @@ export function saveSurfaceDomains(
 export interface DomainRow {
   key: number;
   host: string;
+  /** An app's side, or the add-on pages. */
+  kind: 'app' | 'pages';
   appKey: string;
   side: SurfaceSide;
   /** Instance this host serves; `''` is the app's own mount. */
   instance: string;
+  /** The pages host's home page; `''` until one is picked. */
+  home: string;
 }
 
 export function rowsFromDomains(domains: Record<string, SurfaceDomainTarget>): DomainRow[] {
   return Object.entries(domains)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([host, target], index) => ({ key: index, host, instance: '', ...target }));
+    .map(([host, target], index) =>
+      isPagesTarget(target)
+        ? { key: index, host, kind: 'pages' as const, appKey: '', side: 'customer' as const, instance: '', home: target.home }
+        : { key: index, host, kind: 'app' as const, instance: '', home: '', ...target },
+    );
 }
 
 /**
@@ -150,6 +173,10 @@ export function domainsFromRows(rows: readonly DomainRow[]): Record<string, Surf
   for (const row of rows) {
     const host = row.host.trim();
     if (host === '') continue;
+    if (row.kind === 'pages') {
+      out[host] = { kind: 'pages', home: row.home };
+      continue;
+    }
     out[host] = {
       appKey: row.appKey,
       side: row.side,

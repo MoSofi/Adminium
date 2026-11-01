@@ -472,6 +472,39 @@ describe('HostedAppsPage', () => {
     expect(screen.queryByRole('heading', { name: 'Instances' })).toBeNull();
   });
 
+  it('maps a host to the add-on pages with a home picked from the live forms', async () => {
+    const { calls } = await renderPage({ reply: makeReply({ pageHomes: ['/x/forms/fit-out', '/x/forms/newsletter'] }) });
+    await screen.findByRole('heading', { name: 'Domains' });
+    await userEvent.click(screen.getByRole('button', { name: 'Attach a domain' }));
+    const hosts = screen.getAllByLabelText(/^Host/);
+    await userEvent.type(hosts[hosts.length - 1] as HTMLInputElement, 'go.example.com');
+    const pickers = screen.getAllByLabelText(/^Surface/);
+    expect(screen.queryByLabelText(/^Home page/)).toBeNull();
+    await userEvent.selectOptions(pickers[pickers.length - 1] as HTMLSelectElement, 'pages');
+    const home = screen.getByLabelText(/^Home page/) as HTMLSelectElement;
+    expect([...home.options].map((option) => option.value)).toEqual(['/x/forms/fit-out', '/x/forms/newsletter']);
+    await userEvent.selectOptions(home, '/x/forms/newsletter');
+    await userEvent.click(screen.getByRole('button', { name: 'Save domains' }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'PUT' && c.url === '/api/v1/surfaces/domains')).toBe(true);
+    });
+    expect(calls.find((c) => c.url === '/api/v1/surfaces/domains')?.body).toEqual({
+      domains: {
+        'shop.example.com': { appKey: 'clients', side: 'customer' },
+        'go.example.com': { kind: 'pages', home: '/x/forms/newsletter' },
+      },
+    });
+  });
+
+  it('offers the domains card with no app surface when a form is live, and keeps a saved home no longer live', async () => {
+    await renderPage({ reply: { surfaces: [], instances: {}, domains: { 'go.example.com': { kind: 'pages', home: '/x/forms/old-offer' } }, pageHomes: ['/x/forms/newsletter'] } });
+    await screen.findByRole('heading', { name: 'Domains' });
+    const home = screen.getByLabelText(/^Home page/) as HTMLSelectElement;
+    expect(home.value).toBe('/x/forms/old-offer');
+    expect([...home.options].map((option) => option.value)).toEqual(['/x/forms/old-offer', '/x/forms/newsletter']);
+    expect((screen.getByLabelText(/^Surface/) as HTMLSelectElement).value).toBe('pages');
+  });
+
   it('renders the pointed empty state when nothing is served', async () => {
     await renderPage({ reply: { surfaces: [], domains: {}, instances: {} } });
     expect(await screen.findByText('No app surfaces are being served')).toBeTruthy();
@@ -490,12 +523,18 @@ describe('derived state (pure)', () => {
     expect(
       domainsFromRows([
         ...rows,
-        { key: 9, host: '   ', appKey: 'clients', side: 'staff', instance: '' },
+        { key: 9, host: '   ', kind: 'app', appKey: 'clients', side: 'staff', instance: '', home: '' },
       ]),
     ).toEqual({
       'a.example.com': { appKey: 'clients', side: 'customer' },
       'b.example.com': { appKey: 'clients', side: 'staff' },
     });
+  });
+
+  it('round-trips a host of the add-on pages: its home, and no app fields', () => {
+    const rows = rowsFromDomains({ 'go.example.com': { kind: 'pages', home: '/x/forms/newsletter' } });
+    expect(rows).toEqual([{ key: 0, host: 'go.example.com', kind: 'pages', appKey: '', side: 'customer', instance: '', home: '/x/forms/newsletter' }]);
+    expect(domainsFromRows(rows)).toEqual({ 'go.example.com': { kind: 'pages', home: '/x/forms/newsletter' } });
   });
 
   it('customerAppKeys picks customer sides only, sorted', () => {
