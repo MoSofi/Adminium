@@ -18,6 +18,8 @@ import type { MetaDb } from '@adminium/meta';
 export type ListedWebsites = () => Promise<readonly string[]>;
 
 /** The list kept for this install. Empty until the websites setting exists. */
-export function listedWebsitesOf(_meta: MetaDb): ListedWebsites {
+export function listedWebsitesOf(meta: MetaDb): ListedWebsites {
+  // The list will be read from this store's settings; until it is kept there, none is listed.
+  void meta;
   return async () => [];
 }
