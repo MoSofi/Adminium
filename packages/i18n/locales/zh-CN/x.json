@@ -20,7 +20,7 @@
   "error": {
     "required": "请回答此问题。",
     "name": "请输入您的姓名",
-    "tooLong": "最多 {max} 个字符。",
+    "tooLong": "{max, plural, other {最多 # 个字符。}}",
     "email": "请输入邮箱地址，例如 name@company.com",
     "phone": "请输入 6 到 15 位数字的电话号码。",
     "choice": "请选择其中一项。",
@@ -57,7 +57,7 @@
   },
   "stars": {
     "of": "{n} / 5",
-    "star": "{n} 星"
+    "star": "{n, plural, other {# 星}}"
   },
   "ending": {
     "thanksName": "谢谢，{name}。",

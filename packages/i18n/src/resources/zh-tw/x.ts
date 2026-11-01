@@ -30,7 +30,7 @@ export default {
   "error": {
     "required": "請回答此問題。",
     "name": "請輸入您的姓名",
-    "tooLong": "最多 {max} 個字元。",
+    "tooLong": "{max, plural, other {最多 # 個字元。}}",
     "email": "請輸入電郵地址，例如 name@company.com",
     "phone": "請輸入 6 到 15 位數字的電話號碼。",
     "choice": "請選擇其中一項。",
@@ -67,7 +67,7 @@ export default {
   },
   "stars": {
     "of": "{n} / 5",
-    "star": "{n} 星"
+    "star": "{n, plural, other {# 星}}"
   },
   "ending": {
     "thanksName": "謝謝，{name}。",
