@@ -8,9 +8,12 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { qrMatrix, qrSvg, QR_QUIET } from '../src/qr.js';
+import { QR_PAGE_MAX_BYTES, qrMatrix, qrSvg, QR_QUIET } from '../src/qr.js';
 
 const FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/qr-codes.json', import.meta.url), 'utf8')) as Record<string, string[]>;
+/** A form's address, and one at the page limit: the server holds the same file. */
+const PAGES = JSON.parse(readFileSync(new URL('./fixtures/qr-pages.json', import.meta.url), 'utf8')) as Record<string, string[]>;
+const rowsOf = (grid: boolean[][]) => grid.map((row) => row.map((dark) => (dark ? '1' : '0')).join(''));
 
 describe('a QR code drawn in the browser', () => {
   it('draws the same modules as the server, for each fixture code', () => {
@@ -37,5 +40,22 @@ describe('a QR code drawn in the browser', () => {
     expect(() => qrMatrix('')).toThrow(RangeError);
     expect(() => qrMatrix('x'.repeat(65))).toThrow(RangeError);
     expect(qrMatrix('x'.repeat(64)).length).toBeGreaterThan(21);
+  });
+});
+
+describe('a QR code of a page\'s address drawn in the browser', () => {
+  const at = (bytes: number) => `https://meridian.example/x/forms/showroom-visit?from=${'a'.repeat(bytes - 53)}`;
+
+  it('draws the same modules as the server, for a form\'s address and one at the limit', () => {
+    for (const [text, rows] of Object.entries(PAGES)) expect(rowsOf(qrMatrix(text, { page: true }))).toEqual(rows);
+  });
+
+  it('carries up to 256 bytes of an address, and no more', () => {
+    expect(QR_PAGE_MAX_BYTES).toBe(256);
+    expect(qrMatrix(at(256), { page: true })).toHaveLength(65);
+    expect(() => qrMatrix(at(257), { page: true })).toThrow(RangeError);
+    expect(qrSvg(at(256), { page: true, size: 176 })).toContain('viewBox="0 0 73 73" width="176" height="176"');
+    // The ticket's limit stays: without the option, 65 bytes are refused.
+    expect(() => qrMatrix(at(65))).toThrow(RangeError);
   });
 });

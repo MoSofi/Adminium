@@ -3,11 +3,11 @@
  * A QR code as SVG for a page (staff print): one path of the dark modules
  * on a white square, crisp at any size, a few hundred bytes.
  */
-import { QR_QUIET, qrMatrix } from './encode.js';
+import { QR_QUIET, qrMatrix, type QrOptions } from './encode.js';
 
-/** The QR code of `text` as an SVG document, `size` pixels across (the view box is in modules). */
-export function qrSvg(text: string, opts: { size?: number } = {}): string {
-  const modules = qrMatrix(text);
+/** The QR code of `text` as an SVG document, `size` pixels across (the view box is in modules); `page` for a page's address. */
+export function qrSvg(text: string, opts: { size?: number } & QrOptions = {}): string {
+  const modules = qrMatrix(text, opts);
   const width = modules.length + 2 * QR_QUIET;
   const path: string[] = [];
   modules.forEach((row, y) => {

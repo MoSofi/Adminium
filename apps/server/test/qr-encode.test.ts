@@ -12,10 +12,12 @@ import { crc32 } from 'node:zlib';
 import { PNG } from 'pngjs';
 import { describe, expect, it } from 'vitest';
 
-import { QrTextRefused, qrMatrix, qrPng, qrPngDataUrl, qrPngSize, qrRows, qrSvg } from '../src/qr/index.js';
+import { QR_PAGE_MAX_BYTES, QrTextRefused, qrCarries, qrMatrix, qrPng, qrPngDataUrl, qrPngSize, qrRows, qrSvg } from '../src/qr/index.js';
 import { readQrPng } from './qr-decode.helpers.js';
 
 const FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/qr/codes.json', import.meta.url), 'utf8')) as Record<string, string[]>;
+/** A form's address, and one at the page limit: the browser client holds the same file. */
+const PAGES = JSON.parse(readFileSync(new URL('./fixtures/qr/pages.json', import.meta.url), 'utf8')) as Record<string, string[]>;
 
 describe('a QR code of a short text', () => {
   it('draws the fixture modules for the two ticket codes', () => {
@@ -60,5 +62,33 @@ describe('a QR code of a short text', () => {
   it('refuses an empty text, and one longer than 64 bytes', () => {
     expect(() => qrMatrix('')).toThrow(QrTextRefused);
     expect(() => qrPng('é'.repeat(33))).toThrow(QrTextRefused);
+    expect(() => qrMatrix('x'.repeat(65))).toThrow(QrTextRefused);
+  });
+});
+
+describe('a QR code of a page\'s address', () => {
+  const at = (bytes: number) => `https://meridian.example/x/forms/showroom-visit?from=${'a'.repeat(bytes - 53)}`;
+
+  it('draws the fixture modules for a form\'s address and one at the limit', () => {
+    for (const [text, rows] of Object.entries(PAGES)) expect(qrRows(text, { page: true })).toEqual(rows);
+    expect(Object.keys(PAGES).map((text) => new TextEncoder().encode(text).length)).toEqual([47, QR_PAGE_MAX_BYTES]);
+  });
+
+  it('carries up to 256 bytes, and reads back as exactly the address', () => {
+    expect(QR_PAGE_MAX_BYTES).toBe(256);
+    expect(at(256)).toHaveLength(256);
+    expect(qrCarries(at(256), { page: true })).toBe(true);
+    expect(qrCarries(at(257), { page: true })).toBe(false);
+    expect(() => qrMatrix(at(257), { page: true })).toThrow(QrTextRefused);
+    expect(() => qrSvg(at(257), { page: true, size: 176 })).toThrow(QrTextRefused);
+    expect(readQrPng(qrPng(at(256), { page: true }))).toBe(at(256));
+    expect(qrPngSize(at(256), { page: true })).toBe((65 + 8) * 8);
+    expect(qrSvg(at(256), { page: true, size: 176 })).toContain('viewBox="0 0 73 73"');
+  });
+
+  it('leaves the ticket\'s limit as it is: a 65-byte code is refused without the page option', () => {
+    expect(qrCarries(at(65))).toBe(false);
+    expect(() => qrPng(at(65))).toThrow(QrTextRefused);
+    expect(qrCarries(at(65), { page: true })).toBe(true);
   });
 });

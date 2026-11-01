@@ -11,6 +11,7 @@
  * ```ts
  * import { qrSvg } from '@adminium/public-client/qr';
  * ticketEl.innerHTML = qrSvg(ticket.code, { size: 180 });
+ * formEl.innerHTML = qrSvg(formLink, { size: 176, page: true });
  * ```
  */
 import { encodeQR } from 'qr';
@@ -18,17 +19,26 @@ import { encodeQR } from 'qr';
 /** The longest text a code carries: a ticket code or a share token, never a page's address. */
 export const QR_MAX_BYTES = 64;
 
+/** The longest page address a code carries when asked for with `{ page: true }` (a form's link). */
+export const QR_PAGE_MAX_BYTES = 256;
+
 /** Modules of white around the code. */
 export const QR_QUIET = 4;
+
+/** What a code is of: a short code (the default), or a page's address. */
+export interface QrOptions {
+  page?: boolean | undefined;
+}
 
 /**
  * The modules of the QR code of `text`, row by row, `true` for a dark one,
  * with no quiet zone. Throws for an empty text or one longer than
- * {@link QR_MAX_BYTES} bytes.
+ * {@link QR_MAX_BYTES} bytes ({@link QR_PAGE_MAX_BYTES} for a page's address).
  */
-export function qrMatrix(text: string): boolean[][] {
-  if (typeof text !== 'string' || text === '' || new TextEncoder().encode(text).length > QR_MAX_BYTES) {
-    throw new RangeError(`A QR code carries 1 to ${String(QR_MAX_BYTES)} bytes of text.`);
+export function qrMatrix(text: string, opts: QrOptions = {}): boolean[][] {
+  const most = opts.page === true ? QR_PAGE_MAX_BYTES : QR_MAX_BYTES;
+  if (typeof text !== 'string' || text === '' || new TextEncoder().encode(text).length > most) {
+    throw new RangeError(`A QR code carries 1 to ${String(most)} bytes of text.`);
   }
   const framed = encodeQR(text, 'raw', { ecc: 'medium', border: 1 });
   return framed.slice(1, -1).map((row) => row.slice(1, -1));
@@ -39,8 +49,8 @@ export function qrMatrix(text: string): boolean[][] {
  * transparent: a dark page would swallow the quiet zone), `size` pixels
  * across when given. Safe to put in the page: it holds no text of the code.
  */
-export function qrSvg(text: string, opts: { size?: number } = {}): string {
-  const modules = qrMatrix(text);
+export function qrSvg(text: string, opts: { size?: number } & QrOptions = {}): string {
+  const modules = qrMatrix(text, opts);
   const width = modules.length + 2 * QR_QUIET;
   const path: string[] = [];
   modules.forEach((row, y) => {

@@ -10,7 +10,7 @@
  */
 import { crc32, deflateSync } from 'node:zlib';
 
-import { QR_QUIET, qrMatrix } from './encode.js';
+import { QR_QUIET, qrMatrix, type QrOptions } from './encode.js';
 
 /** Pixels per module. */
 export const QR_PNG_SCALE = 8;
@@ -27,13 +27,13 @@ function chunk(type: string, data: Buffer): Buffer {
 }
 
 /** The width and height of a code's PNG, in pixels. */
-export function qrPngSize(text: string): number {
-  return (qrMatrix(text).length + 2 * QR_QUIET) * QR_PNG_SCALE;
+export function qrPngSize(text: string, opts: QrOptions = {}): number {
+  return (qrMatrix(text, opts).length + 2 * QR_QUIET) * QR_PNG_SCALE;
 }
 
 /** The QR code of `text` as PNG bytes. */
-export function qrPng(text: string): Buffer {
-  const modules = qrMatrix(text);
+export function qrPng(text: string, opts: QrOptions = {}): Buffer {
+  const modules = qrMatrix(text, opts);
   const size = (modules.length + 2 * QR_QUIET) * QR_PNG_SCALE;
   const stride = Math.ceil(size / 8);
   // Each row: filter 0, then the pixels, eight to a byte, 1 = white.
@@ -60,6 +60,6 @@ export function qrPng(text: string): Buffer {
 }
 
 /** The PNG as a `data:` URL (a document's value; never an email's). */
-export function qrPngDataUrl(text: string): string {
-  return `data:image/png;base64,${qrPng(text).toString('base64')}`;
+export function qrPngDataUrl(text: string, opts: QrOptions = {}): string {
+  return `data:image/png;base64,${qrPng(text, opts).toString('base64')}`;
 }
