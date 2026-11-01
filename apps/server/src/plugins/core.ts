@@ -357,6 +357,11 @@ export const RATE_BUCKETS = {
   'mail-door-page': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'mail-door-unsubscribe': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'mail-door-act': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The forms door (`/x/`): whoever opens a form, by network address. A page
+  // load is about ten requests (the page, its files, the form, the check),
+  // and a busy office or a phone network puts many visitors behind one
+  // address. Generous; each form's own caps on what is sent are the gate.
+  'forms-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A mail service's notices: a few addresses, bursts after a send. The service's own proof is the gate.
   'mail-notice': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A person's data, by address: each search reads every people table whole,

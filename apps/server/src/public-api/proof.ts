@@ -68,9 +68,17 @@ function sign(key: Buffer, payload: string): string {
   return createHmac('sha256', key).update(payload).digest('base64url');
 }
 
-/** A new challenge for a key and a purpose. */
-export function issueChallenge(key: Buffer, keyId: string, purpose: ProofPurpose, now: number): ProofChallenge {
-  const payload: Payload = { v: 1, k: keyId, p: purpose, s: randomBytes(16).toString('base64url'), e: now + PROOF_TTL_MS, d: PROOF_DIFFICULTY };
+/** The most leading zero bits a challenge may ask for: past this, a cheap phone works for minutes. */
+export const PROOF_DIFFICULTY_MAX = 24;
+
+/**
+ * A new challenge for a key and a purpose. `difficulty` raises the work above
+ * {@link PROOF_DIFFICULTY} (a form's harder check); it is never lowered below
+ * it, and never raised past {@link PROOF_DIFFICULTY_MAX}.
+ */
+export function issueChallenge(key: Buffer, keyId: string, purpose: ProofPurpose, now: number, difficulty: number = PROOF_DIFFICULTY): ProofChallenge {
+  const d = Math.min(PROOF_DIFFICULTY_MAX, Math.max(PROOF_DIFFICULTY, Math.floor(difficulty)));
+  const payload: Payload = { v: 1, k: keyId, p: purpose, s: randomBytes(16).toString('base64url'), e: now + PROOF_TTL_MS, d };
   const text = Buffer.from(JSON.stringify(payload)).toString('base64url');
   return { id: `${text}~${sign(key, text)}`, salt: payload.s, difficulty: payload.d, expiresAt: payload.e };
 }
@@ -101,7 +109,13 @@ export function proofWork(salt: string, nonce: string): number {
 export function checkProof(
   key: Buffer,
   header: unknown,
-  expect: { keyId: string; purpose: ProofPurpose; now: number },
+  expect: {
+    keyId: string;
+    purpose: ProofPurpose;
+    now: number;
+    /** The least work this proof must have been asked for: a form's harder check refuses one made easier. */
+    difficulty?: number;
+  },
 ): { ok: true; spendId: string; expiresAt: number } | { ok: false } {
   if (typeof header !== 'string') return { ok: false };
   const match = HEADER.exec(header.trim());
@@ -118,8 +132,8 @@ export function checkProof(
   }
   if (payload.v !== 1 || payload.k !== expect.keyId || payload.p !== expect.purpose) return { ok: false };
   if (typeof payload.e !== 'number' || payload.e <= expect.now) return { ok: false };
-  // A challenge made easier than today's difficulty is not accepted.
-  if (typeof payload.d !== 'number' || payload.d < PROOF_DIFFICULTY || typeof payload.s !== 'string') return { ok: false };
+  // A challenge made easier than today's difficulty, or than the caller asks for, is not accepted.
+  if (typeof payload.d !== 'number' || payload.d < Math.max(PROOF_DIFFICULTY, expect.difficulty ?? PROOF_DIFFICULTY) || typeof payload.s !== 'string') return { ok: false };
   if (proofWork(payload.s, nonce) < payload.d) return { ok: false };
   const spendId = createHash('sha256').update(`${payload.k}|${payload.p}|${payload.s}`).digest('hex');
   return { ok: true, spendId, expiresAt: payload.e };

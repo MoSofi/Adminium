@@ -94,6 +94,9 @@ import {
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
+import { createFormsCatalog } from './forms/catalog.js';
+import { listedWebsitesOf } from './forms/websites.js';
+import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
@@ -3070,6 +3073,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // first whether the outside can reach this server.
   await app.register(
     mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }),
+  );
+
+  // The pages a stranger sees (`/x/`): forms, drawn by the engine from the
+  // forms add-ons' tables. Always registered, like the pay page: a form needs
+  // no public API; every route asks first whether the outside can reach this
+  // server.
+  await app.register(
+    formsDoorRoutes({
+      meta,
+      catalog: createFormsCatalog({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId) }),
+      secret: env.ADMINIUM_SECRET,
+      storage,
+      websites: listedWebsitesOf(meta),
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
   );
 
   const publicBlocked = publicApiRegistrationBlocked(env);
