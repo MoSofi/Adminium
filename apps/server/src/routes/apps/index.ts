@@ -1902,7 +1902,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const row = await installedRow(request.params.key);
         const key = row.row.manifestKey;
         const settings = settingsRepo(deps.meta);
-        const [apps, domains] = await Promise.all([settings.get('surfaces.apps'), settings.get('surfaces.domains')]);
+        const [apps, domains, pageHosts] = await Promise.all([settings.get('surfaces.apps'), settings.get('surfaces.domains'), settings.get('surfaces.pageHosts')]);
         const others = Object.fromEntries(Object.entries(domains).filter(([, target]) => target.appKey !== key));
         const { normalized, issues } = validateDomainEntries(
           Object.fromEntries(Object.entries(request.body.domains).map(([host, target]) => [host, { ...target, appKey: key }])),
@@ -1916,6 +1916,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           const holder = Object.entries(others).find(([mapped]) => normalizeHost(mapped) === host)?.[1];
           if (holder !== undefined) {
             issues.push({ path: host, message: `"${host}" already opens "${holder.appKey}".`, code: 'host_taken' });
+          }
+          // A host that serves the add-on pages is not this app's to take either.
+          if (Object.keys(pageHosts).some((mapped) => normalizeHost(mapped) === host)) {
+            issues.push({ path: host, message: `"${host}" already opens the add-on pages.`, code: 'host_taken' });
           }
         }
         if (issues.length > 0) throw new ValidationFailedError('The domain list did not validate.', { issues });

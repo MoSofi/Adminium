@@ -1783,6 +1783,18 @@ describe('one app’s own settings', () => {
     expect(taken.statusCode).toBe(422);
     expect(taken.body).toContain('host_taken');
 
+    // A host that serves the add-on pages is not this app's to take either, however it is written.
+    await settingsRepo(meta).set('surfaces.pageHosts', { 'go.example.test': { home: '/x/forms/newsletter' } });
+    const pages = await app.inject({
+      method: 'PUT',
+      url: '/apps/sample-desk/domains',
+      payload: { domains: { 'Go.Example.Test:443': { side: 'customer' } } },
+    });
+    expect(pages.statusCode).toBe(422);
+    expect(pages.body).toContain('already opens the add-on pages');
+    expect(await settingsRepo(meta).get('surfaces.pageHosts')).toEqual({ 'go.example.test': { home: '/x/forms/newsletter' } });
+    await settingsRepo(meta).set('surfaces.pageHosts', {});
+
     // An empty list unmaps this app's hosts, and only them.
     await app.inject({ method: 'PUT', url: '/apps/sample-desk/domains', payload: { domains: {} } });
     expect(await settingsRepo(meta).get('surfaces.domains')).toEqual({

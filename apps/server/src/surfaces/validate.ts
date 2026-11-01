@@ -108,6 +108,54 @@ export function validateDomainEntries(
   return { normalized, issues };
 }
 
+/**
+ * A home page a pages host sends `/` to: a page address under `/x/`, in lower
+ * case, never the pages' own files (`/x/assets/…`), their API (`/x/api/…`,
+ * `/x/forms/api/…`) or the loader. Null when it is fine, else what is wrong.
+ */
+export function pagesHomeIssueFor(home: string): string | null {
+  if (home.length > 200 || !/^\/x\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(home)) return 'must be a page address under /x/, such as /x/forms/newsletter';
+  const [, , first, second] = home.split('/');
+  if (first === 'assets' || first === 'api' || (first === 'forms' && (second === undefined || second === 'api'))) return 'must be a page, not the pages’ own files or API';
+  return null;
+}
+
+/**
+ * Validate host → add-on pages entries, normalising each host, against the
+ * hosts the app entries of the same save already hold (`taken`, normalised):
+ * a host is in one map or the other, never both.
+ */
+export function validatePageHostEntries(
+  entries: Readonly<Record<string, { home: string }>>,
+  ctx: { requestHost: string; taken: ReadonlySet<string> },
+): { normalized: Record<string, { home: string }>; issues: DomainIssue[] } {
+  const issues: DomainIssue[] = [];
+  const normalized: Record<string, { home: string }> = {};
+  for (const [host, target] of Object.entries(entries)) {
+    const hostIssue = hostIssueFor(host);
+    if (hostIssue !== null) {
+      issues.push({ path: host, message: `"${host}" ${hostIssue}.`, code: 'invalid_host' });
+      continue;
+    }
+    const key = normalizeHost(host);
+    if (key in normalized || ctx.taken.has(key)) {
+      issues.push({ path: host, message: `"${host}" duplicates another entry once normalized ("${key}").`, code: 'duplicate_host' });
+      continue;
+    }
+    if (ctx.requestHost !== '' && key === ctx.requestHost) {
+      issues.push({ path: host, message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`, code: 'request_host' });
+      continue;
+    }
+    const homeIssue = pagesHomeIssueFor(target.home);
+    if (homeIssue !== null) {
+      issues.push({ path: host, message: `The home page of "${host}" ${homeIssue}.`, code: 'invalid_home' });
+      continue;
+    }
+    normalized[key] = { home: target.home };
+  }
+  return { normalized, issues };
+}
+
 /** Validate one app's instance list: known app, valid unique slugs, real connections. */
 export async function validateInstanceEntries(
   appKey: string,

@@ -1098,6 +1098,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * code that plans the rows.
    */
   const addOnInstalls = keepAddOnInstalls(meta, async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
+  // The forms add-ons' published forms, as strangers are served them (the forms door) and as the host editor lists them.
+  const formsCatalog = createFormsCatalog({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId) });
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
     refresh: () => addOnInstalls.fresh(),
@@ -2245,6 +2247,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           enqueue: (input) => jobs.enqueue(input),
           // An erased person's rows: the public door's address watch ends their sessions and takes their sign-in links back.
           signIns: (event) => app.publicIdentities.onRecordEvent(event),
+          // The reach card reads the forms door's own facts.
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
         }),
       );
       // The marketing mail settings: each sender's DKIM key and DNS checks, the reply address, the bounce card's notice addresses.
@@ -2316,7 +2320,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           surfaceForHost: (request) => app.surfaceForHost(request),
         }),
       );
-      await api.register(surfacesAdminRoutes({ meta }));
+      // The host editor's home picker lists the live forms' addresses.
+      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs() }));
       // Installing an app. Registered on the same
       // terms as the surfaces admin above: with nothing installed the list is
       // empty, which is a different thing from a namespace that 404s.
@@ -3082,7 +3087,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   await app.register(
     formsDoorRoutes({
       meta,
-      catalog: createFormsCatalog({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId) }),
+      catalog: formsCatalog,
       secret: env.ADMINIUM_SECRET,
       storage,
       websites: listedWebsitesOf(meta),

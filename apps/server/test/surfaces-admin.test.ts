@@ -77,7 +77,9 @@ afterEach(async () => {
  * here: every route in this suite is under `/api/`, the pass-through the serve
  * hook honours before it ever reads the principal.
  */
-async function build(): Promise<{ app: AdminiumServer; fixture: AuthTestApp }> {
+async function build(
+  liveForms?: () => Promise<{ addOn: string; slug: string }[]>,
+): Promise<{ app: AdminiumServer; fixture: AuthTestApp }> {
   t = await buildAuthApp({ staticRoot: dist, surfaces });
   const users = usersRepo(t.meta);
   const roles = rolesRepo(t.meta);
@@ -105,7 +107,7 @@ async function build(): Promise<{ app: AdminiumServer; fixture: AuthTestApp }> {
   await t.app.register(rbacPlugin, { meta: t.meta });
   await t.app.register(
     async (api) => {
-      await api.register(surfacesAdminRoutes({ meta: t!.meta }));
+      await api.register(surfacesAdminRoutes({ meta: t!.meta, liveForms }));
     },
     { prefix: '/api/v1' },
   );
@@ -656,6 +658,76 @@ describe('PUT /api/v1/surfaces/domains', () => {
     ]);
     // A refused write changes nothing — the registry default is still served.
     expect(await settingsRepo(fixture.meta).get('surfaces.domains')).toEqual({});
+  });
+
+  it('maps a host to the add-on pages beside the app hosts: stored apart, listed as one map, with the live forms to pick a home from', async () => {
+    const { app, fixture } = await build(async () => [
+      { addOn: 'forms', slug: 'newsletter' },
+      { addOn: 'forms', slug: 'fit-out' },
+      { addOn: 'surveys', slug: 'newsletter' },
+    ]);
+    const res = await put(app, fixture.admin, {
+      'Go.Meridian.Example:443': { kind: 'pages', home: '/x/forms/newsletter' },
+      'shop.example.test': { appKey: 'clients', side: 'customer' },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const map = {
+      'go.meridian.example': { kind: 'pages', home: '/x/forms/newsletter' },
+      'shop.example.test': { appKey: 'clients', side: 'customer' },
+    };
+    expect(res.json()).toEqual({ domains: map });
+    const settings = settingsRepo(fixture.meta);
+    expect(await settings.get('surfaces.pageHosts')).toEqual({ 'go.meridian.example': { home: '/x/forms/newsletter' } });
+    expect(await settings.get('surfaces.domains')).toEqual({ 'shop.example.test': { appKey: 'clients', side: 'customer' } });
+
+    const list = await app.inject({ method: 'GET', url: '/api/v1/surfaces', headers: asUser(fixture.admin) });
+    expect(list.json().domains).toEqual(map);
+    expect(list.json().pageHomes).toEqual(['/x/forms/fit-out', '/x/forms/newsletter']);
+    // The pages host serves on the next request: `/` goes to its home page.
+    const home = await app.inject({ method: 'GET', url: '/', headers: { host: 'go.meridian.example' } });
+    expect([home.statusCode, home.headers['location']]).toEqual([302, '/x/forms/newsletter']);
+
+    const audit = await fixture.meta.db.selectFrom('adminium_audit_log').select(['changes']).where('action', '=', 'surfaces.domains').executeTakeFirstOrThrow();
+    const changes = (typeof audit.changes === 'string' ? JSON.parse(audit.changes) : audit.changes) as { after: { domains: unknown } };
+    expect(changes.after.domains).toEqual(map);
+
+    // Full-map semantics hold for both: saving the app host alone unmaps the pages host.
+    expect((await put(app, fixture.admin, { 'shop.example.test': { appKey: 'clients', side: 'customer' } })).statusCode).toBe(200);
+    expect(await settings.get('surfaces.pageHosts')).toEqual({});
+  });
+
+  it('refuses a home page outside /x/ or on the pages’ own files, and a host given to both an app and the pages', async () => {
+    const { app, fixture } = await build();
+    const res = await put(app, fixture.admin, {
+      'a.example.test': { kind: 'pages', home: '/login' },
+      'b.example.test': { kind: 'pages', home: 'https://evil.example/x/forms/a' },
+      'c.example.test': { kind: 'pages', home: '/x/assets/x-abc.js' },
+      'd.example.test': { kind: 'pages', home: '/x/forms/api/newsletter' },
+      'e.example.test': { kind: 'pages', home: '/x/forms' },
+      'f.example.test': { kind: 'pages', home: '/x/../login' },
+      'shop.example.test': { appKey: 'clients', side: 'customer' },
+      'Shop.Example.Test:443': { kind: 'pages', home: '/x/forms/newsletter' },
+      'admin.example.test': { kind: 'pages', home: '/x/forms/newsletter' },
+      'not a host': { kind: 'pages', home: '/x/forms/newsletter' },
+    });
+    expect(res.statusCode).toBe(422);
+    const issues = (res.json().error.details?.issues ?? []) as { path: string; code: string }[];
+    expect(Object.fromEntries(issues.map((issue) => [issue.path, issue.code]))).toEqual({
+      'a.example.test': 'invalid_home',
+      'b.example.test': 'invalid_home',
+      'c.example.test': 'invalid_home',
+      'd.example.test': 'invalid_home',
+      'e.example.test': 'invalid_home',
+      'f.example.test': 'invalid_home',
+      'Shop.Example.Test:443': 'duplicate_host',
+      'admin.example.test': 'request_host',
+      'not a host': 'invalid_host',
+    });
+    // A pages target takes no app fields, and an app target no home.
+    expect((await put(app, fixture.admin, { 'g.example.test': { kind: 'pages', home: '/x/forms/a', appKey: 'clients' } })).statusCode).toBe(422);
+    const settings = settingsRepo(fixture.meta);
+    expect(await settings.get('surfaces.pageHosts')).toEqual({});
+    expect(await settings.get('surfaces.domains')).toEqual({});
   });
 
   it('403s a viewer', async () => {

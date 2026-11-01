@@ -18,6 +18,10 @@
  *   surface never answers for `/x/embed.js` or `/x/assets/`.
  * - The dashboard still refuses every frame but its own; `/x/` leaves that to
  *   its own policy. No `/api/v1/` route answers with credentials for a stranger.
+ * - A website the owner lists may frame a form at once, and only a form drawn
+ *   for a frame; it is never an allowed origin of `/api/v1/`.
+ * - A host mapped to the add-on pages sends `/` to its home page, serves the
+ *   pages and refuses every dashboard path, `/apps/…`, `/ws` and `/api`.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -31,6 +35,7 @@ import { paymentSettingsRepo, settingsRepo } from '@adminium/meta';
 import { formsAddOn } from '../../../packages/manifest/test/forms-fixture.js';
 import { discoverSurfaces } from '../src/cli/surfaces-root.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
+import { addWebsites, forgetListedWebsites, removeWebsite } from '../src/forms/websites.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../src/routes/payments/ways.js';
@@ -311,5 +316,61 @@ describe.each(LEGS)('the forms door on the real server — %s', (dialect, availa
   it.skipIf(!available)('a frame of a form asks which websites it may answer, and is told none until the owner lists one', async () => {
     const shown = (await get('/x/forms/api/showroom-visit?frame=1')).json() as Doc;
     expect(shown.frameOrigins).toEqual([]);
+  });
+
+  it.skipIf(!available)('a website the owner lists may frame a form at once, with no restart, and is never let into /api/v1/', async () => {
+    const listed = await addWebsites(h.meta, ['https://shop.example', 'https://www.meridian.example'], { userId: null, at: Date.now() });
+    expect(listed.ok).toBe(true);
+    try {
+      const page = await get('/x/forms/showroom-visit?frame=1', NAVIGATE);
+      expect(String(page.headers['content-security-policy'])).toContain('frame-ancestors https://shop.example https://www.meridian.example;');
+      expect(((await get('/x/forms/api/showroom-visit?frame=1')).json() as Doc).frameOrigins).toEqual(['https://shop.example', 'https://www.meridian.example']);
+      // Not drawn for a frame: framed by nobody, listed or not.
+      expect(String((await get('/x/forms/showroom-visit', NAVIGATE)).headers['content-security-policy'])).toContain("frame-ancestors 'none'");
+      for (const url of ['/api/v1/healthz', '/api/v1/auth/me', '/api/v1/public/challenge?purpose=write']) {
+        const res = await composed.app.inject({ method: 'GET', url, headers: { host: 'forms.meridian.example', origin: 'https://shop.example' } });
+        expect(res.headers['access-control-allow-origin'], url).toBeUndefined();
+      }
+      // Taken off the list: refused on the very next request.
+      await removeWebsite(h.meta, 'https://shop.example', { userId: null, at: Date.now() });
+      expect(String((await get('/x/forms/showroom-visit?frame=1', NAVIGATE)).headers['content-security-policy'])).toContain('frame-ancestors https://www.meridian.example;');
+    } finally {
+      await settingsRepo(h.meta).set('publicPages.websites', [], { updatedBy: null });
+      forgetListedWebsites(h.meta);
+    }
+  });
+
+  it.skipIf(!available)('a host mapped to the add-on pages sends / to its home page, serves the pages, and refuses the dashboard', async () => {
+    const PAGES_HOST = 'go.meridian.example';
+    await settingsRepo(h.meta).set('surfaces.pageHosts', { [PAGES_HOST]: { home: '/x/forms/showroom-visit' } }, { updatedBy: null });
+    composed.app.surfaceSettings?.invalidate();
+    try {
+      const on = (url: string, headers: Record<string, string> = {}) => get(url, { host: PAGES_HOST, ...headers });
+      for (const headers of [{}, NAVIGATE]) {
+        const home = await on('/', headers);
+        expect(home.statusCode).toBe(302);
+        expect(home.headers['location']).toBe('/x/forms/showroom-visit');
+      }
+      const page = await on('/x/forms/showroom-visit', NAVIGATE);
+      expect(page.statusCode).toBe(200);
+      expect(page.body).toContain('x-root');
+      expect((await on('/x/forms/api/showroom-visit')).statusCode).toBe(200);
+      expect((await on('/x/embed.js')).body).toBe(EMBED);
+      expect((await on('/x/assets/x-abc123.js')).body).toBe('console.log(1);');
+      // Every dashboard path, an app's own and the rest of /api: refused, never the dashboard's page.
+      for (const url of ['/login', '/login?next=%2F', '/assets/index.js', '/ws', '/studio/privacy', '/apps/clients/customer/', '/apps/clients/staff/', '/api/v1/bootstrap', '/api/v1/public/challenge?purpose=write', '/surface-config.json']) {
+        const res = await on(url, NAVIGATE);
+        expect(res.statusCode, url).toBe(404);
+        expect(res.body, url).not.toContain('data-app=');
+      }
+      const signIn = await composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: { host: PAGES_HOST }, payload: { email: 'owner@test', password: 'x' } });
+      expect(signIn.statusCode).toBe(404);
+      expect(signIn.headers['set-cookie']).toBeUndefined();
+      // Another host is untouched: the dashboard's own.
+      expect((await get('/', NAVIGATE)).body).toContain('data-app="dashboard"');
+    } finally {
+      await settingsRepo(h.meta).set('surfaces.pageHosts', {}, { updatedBy: null });
+      composed.app.surfaceSettings?.invalidate();
+    }
   });
 });

@@ -25,7 +25,7 @@ import { appTablesRepo, publicKeysRepo, publicScopesRepo, connectionsRepo, setti
 import type { AdminiumServer } from '../src/app.js';
 import { discoverSurfaces, type HostedSurface } from '../src/cli/surfaces-root.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
-import { customerHostAllows, isHostReservedPath, RESERVED_AUTH_PATHS } from '../src/plugins/surfaces.js';
+import { customerHostAllows, isHostReservedPath, pagesHostAllows, RESERVED_AUTH_PATHS } from '../src/plugins/surfaces.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import type { DomainMapping } from '../src/surfaces/settings.js';
 import { ADMIN_EMAIL, ADMIN_NAME, buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
@@ -771,5 +771,16 @@ describe('surface-config.json (D10)', () => {
       headers: { cookie: cookie ?? '' },
     });
     expect(res.json().appName).toBeNull();
+  });
+});
+
+describe('pagesHostAllows — what a host mapped to the add-on pages serves', () => {
+  it('serves the pages and the doors they lead to, and nothing else', () => {
+    for (const path of ['/x', '/x/forms/newsletter', '/x/forms/api/newsletter/answers', '/x/embed.js', '/x/assets/x-1.js', '/m/u/abc', '/m/l/abc', '/pay', '/pay/AAA', '/pay/api/AAA', '/api/v1/payments/webhook/stripe', '/api/v1/email/notices/postmark']) {
+      expect(pagesHostAllows(path), path).toBe(true);
+    }
+    for (const path of ['/', '/login', '/otp', '/forgot', '/reset', '/assets/index.js', '/ws', '/apps/clients/customer/', '/apps', '/api/v1/auth/login', '/api/v1/public/challenge', '/api/v1/bootstrap', '/studio', '/surface-config.json', '/m', '/xforms', '/payments']) {
+      expect(pagesHostAllows(path), path).toBe(false);
+    }
   });
 });

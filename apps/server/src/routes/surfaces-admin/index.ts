@@ -38,6 +38,7 @@ import { resolveLabel } from '../../cli/surfaces-root.js';
 import {
   validateDomainEntries,
   validateInstanceEntries,
+  validatePageHostEntries,
   type DomainIssue,
 } from '../../surfaces/validate.js';
 import {
@@ -62,11 +63,22 @@ import {
   surfacePlacementParams,
   surfacePlacementReply,
   surfacesListReply,
+  type SurfaceDomainTargetDto,
   type SurfaceSummaryDto,
 } from './schema.js';
 
 export interface SurfacesAdminRoutesDeps {
   meta: MetaDb;
+  /** The live forms, by the add-on that holds them: the home picker of a pages host lists their addresses. */
+  liveForms?: (() => Promise<readonly { addOn: string; slug: string }[]>) | undefined;
+}
+
+/** The domains editor's map: the app hosts, and the add-on pages hosts beside them. */
+function editorMap(current: SurfaceSettings): Record<string, SurfaceDomainTargetDto> {
+  return {
+    ...current.domains,
+    ...Object.fromEntries(Object.entries(current.pages ?? {}).map(([host, target]) => [host, { kind: 'pages' as const, home: target.home }])),
+  };
 }
 
 export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPluginAsyncZod {
@@ -139,7 +151,9 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
           const list = instancesOf(current, surface.appKey);
           if (list.length > 0) instances[surface.appKey] = list;
         }
-        return { surfaces, domains: current.domains, instances };
+        // Each live form's address, once, in order: a stranger's page a host's `/` may send to.
+        const pageHomes = [...new Set((deps.liveForms === undefined ? [] : await deps.liveForms().catch(() => [])).map((form) => `/x/forms/${form.slug}`))].sort();
+        return { surfaces, domains: editorMap(current), instances, pageHomes };
       },
     );
 
@@ -372,27 +386,34 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
         // Read once, up front: an instance named by a host is validated against
         // the instances that actually exist.
         const declared = await readSettings();
-        const { normalized, issues } = validateDomainEntries(request.body.domains, {
-          requestHost: normalizeHost(request.host),
-          surfaces: app.surfaces,
-          settings: declared,
-        });
+        // One map on the wire, two in the store: the app hosts, and the hosts of the add-on pages.
+        const appEntries: Record<string, { appKey: string; side: 'staff' | 'customer'; instance?: string | undefined }> = {};
+        const pageEntries: Record<string, { home: string }> = {};
+        for (const [host, target] of Object.entries(request.body.domains)) {
+          if ('kind' in target) pageEntries[host] = { home: target.home };
+          else appEntries[host] = target;
+        }
+        const requestHost = normalizeHost(request.host);
+        const apps = validateDomainEntries(appEntries, { requestHost, surfaces: app.surfaces, settings: declared });
+        const pages = validatePageHostEntries(pageEntries, { requestHost, taken: new Set(Object.keys(apps.normalized)) });
+        const issues = [...apps.issues, ...pages.issues];
 
         if (issues.length > 0) {
           throw new ValidationFailedError('The domain map did not validate.', { issues });
         }
 
         const current = await readSettings();
-        await settings.set('surfaces.domains', normalized, {
-          updatedBy: (request as unknown as { user?: { id?: string } }).user?.id ?? null,
-        });
+        const updatedBy = (request as unknown as { user?: { id?: string } }).user?.id ?? null;
+        await settings.set('surfaces.domains', apps.normalized, { updatedBy });
+        await settings.set('surfaces.pageHosts', pages.normalized, { updatedBy });
         app.surfaceSettings?.invalidate();
+        const after = editorMap({ ...current, domains: apps.normalized, pages: pages.normalized });
         await app.rbac.audit(request, {
           category: 'system',
           action: 'surfaces.domains',
-          changes: { before: { domains: current.domains }, after: { domains: normalized } },
+          changes: { before: { domains: editorMap(current) }, after: { domains: after } },
         });
-        return { domains: normalized };
+        return { domains: after };
       },
     );
   };

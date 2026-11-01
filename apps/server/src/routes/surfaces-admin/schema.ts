@@ -13,15 +13,26 @@ export const staffPlacement = z.enum(['internal', 'external']);
 export type StaffPlacementDto = z.infer<typeof staffPlacement>;
 
 /**
- * A mapped host's target. The APP KEY vocabulary is the surfaces directory's
- * (`clients`, `clinic`, …) — the same shape the mint flow binds keys with.
+ * A host mapped to one side of an app. The APP KEY vocabulary is the surfaces
+ * directory's (`clients`, `clinic`, …) — the same shape the mint flow binds
+ * keys with.
  */
-export const surfaceDomainTarget = z.object({
+export const surfaceAppTarget = z.object({
   appKey: z.string().min(1).max(64),
   side: surfaceSide,
   /** Which instance this host serves; absent is the app's own mount. */
   instance: z.string().min(1).max(32).optional(),
 });
+
+/**
+ * A host mapped to the add-on pages a stranger sees (`/x/…`): `/` sends a
+ * visitor to `home`. Stored apart (`surfaces.pageHosts`), edited and saved
+ * with the app hosts as one map.
+ */
+export const surfacePagesTarget = z.object({ kind: z.literal('pages'), home: z.string().min(1).max(200) }).strict();
+
+/** A mapped host's target: the add-on pages, or one side of an app. */
+export const surfaceDomainTarget = z.union([surfacePagesTarget, surfaceAppTarget]);
 export type SurfaceDomainTargetDto = z.infer<typeof surfaceDomainTarget>;
 
 export const surfaceSummary = z.object({
@@ -84,6 +95,8 @@ export const surfacesListReply = z.object({
   domains: z.record(z.string(), surfaceDomainTarget),
   /** Per app, its extra instances — what the instances editor round-trips. */
   instances: z.record(z.string(), z.array(surfaceInstance)),
+  /** The live forms' addresses (`/x/forms/<slug>`): what a pages host's home may be picked from. */
+  pageHomes: z.array(z.string()),
 });
 
 /**

@@ -95,6 +95,7 @@ import {
   type SurfaceSettings,
   createSurfaceSettings,
   domainMappingFor,
+  pagesMappingFor,
   type SurfaceSettingsCache,
   NO_SURFACE_SETTINGS,
 } from '../surfaces/settings.js';
@@ -322,6 +323,24 @@ export function customerHostAllows(path: string, appKey: string): boolean {
     if (path === refused || path.startsWith(`${refused}/`)) return false;
   }
   return true;
+}
+
+/**
+ * What a host mapped to the ADD-ON PAGES may serve: the pages a stranger sees
+ * (`/x/…`, their API and their own files), and the doors they lead to, each
+ * public by nature and served on every host: the mail door (`/m/…`), the pay
+ * page (`/pay…`), and where a payment or a mail service calls back.
+ * Everything else, every dashboard path, `/apps/…`, `/ws` and the rest of
+ * `/api`, is refused as a customer host refuses it. `/` itself is sent to
+ * the host's home page before this is asked.
+ */
+export function pagesHostAllows(path: string): boolean {
+  if (path === X_PREFIX || path.startsWith(`${X_PREFIX}/`)) return true;
+  if (path.startsWith(`${MAIL_DOOR_PREFIX}/`)) return true;
+  if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
+  if (path.startsWith(PAYMENT_WEBHOOK_PREFIX)) return true;
+  if (path.startsWith(MAIL_NOTICE_PREFIX)) return true;
+  return false;
 }
 
 /**
@@ -1052,6 +1071,23 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       if (cache === null) return;
       const known = allSurfaces();
       const settings = await cache.read();
+      /*
+       * A host mapped to the ADD-ON PAGES: `/` goes to its home page, the
+       * pages and the doors they lead to are served by their own routes, and
+       * everything else is refused as on a customer host. No app surface is
+       * behind it, so nothing falls through to one, nor to the dashboard.
+       */
+      const pages = pagesMappingFor(settings, request.host, normalizeHost);
+      if (pages !== null) {
+        void reply.header('referrer-policy', 'no-referrer');
+        const path = pathOf(request.url);
+        if (path === '/' && (request.method === 'GET' || request.method === 'HEAD')) return reply.redirect(pages.home, 302);
+        if (pagesHostAllows(path)) return;
+        if (isDocumentNavigation(request) && !path.startsWith('/api/') && opts.metaDb !== undefined) {
+          return sendNotFoundPage(opts.metaDb, request, reply);
+        }
+        throw new NotFoundError('Nothing is served at this address.');
+      }
       const mapping = domainMappingFor(settings, request.host, normalizeHost);
       if (mapping === null) {
         // The address of an app that was uninstalled: its DNS still points here.

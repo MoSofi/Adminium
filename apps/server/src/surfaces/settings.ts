@@ -42,6 +42,11 @@ export interface DomainMapping {
   instance?: string | undefined;
 }
 
+/** A host that serves the add-on pages (`/x/…`), and where `/` sends a visitor. */
+export interface PagesMapping {
+  home: string;
+}
+
 export interface SurfaceSettings {
   apps: Record<
     string,
@@ -59,6 +64,8 @@ export interface SurfaceSettings {
   domains: Record<string, DomainMapping>;
   /** Hosts an uninstalled app was mapped to: 503, never the dashboard (see the registry). */
   retired?: Record<string, { appKey: string; side: SurfaceSide }> | undefined;
+  /** Hosts that serve the add-on pages, kept apart from `domains` (see the registry). */
+  pages?: Record<string, PagesMapping> | undefined;
   /** Each installed app's status, by key. An app with no row is not installed. */
   statuses: Record<string, ManifestStatus>;
 }
@@ -105,10 +112,11 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
       // disagree for a few seconds after a save that changed both.
       // The app statuses ride the same refresh: the gate reads all three
       // together, and a disabled app must stop answering on the same save.
-      const [apps, domains, retired, rows] = await Promise.all([
+      const [apps, domains, retired, pages, rows] = await Promise.all([
         settings.get('surfaces.apps'),
         settings.get('surfaces.domains'),
         settings.get('surfaces.retiredHosts'),
+        settings.get('surfaces.pageHosts'),
         opts.meta.db
           .selectFrom('adminium_manifests')
           .select(['manifestKey', 'status'])
@@ -119,6 +127,7 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
         apps: apps ?? {},
         domains: domains ?? {},
         retired: retired ?? {},
+        pages: pages ?? {},
         statuses: Object.fromEntries(rows.map((row) => [row.manifestKey, statusFrom(row.status)])),
       };
       value = next;
@@ -282,6 +291,20 @@ export function domainMappingFor(
   if (host === undefined || host === '') return null;
   const wanted = normalize(host);
   for (const [mapped, target] of Object.entries(settings.domains)) {
+    if (normalize(mapped) === wanted) return target;
+  }
+  return null;
+}
+
+/** The add-on pages a request's host is mapped to, or null: compared as {@link domainMappingFor} compares. */
+export function pagesMappingFor(
+  settings: SurfaceSettings,
+  host: string | undefined,
+  normalize: (host: string) => string,
+): PagesMapping | null {
+  if (host === undefined || host === '') return null;
+  const wanted = normalize(host);
+  for (const [mapped, target] of Object.entries(settings.pages ?? {})) {
     if (normalize(mapped) === wanted) return target;
   }
   return null;
