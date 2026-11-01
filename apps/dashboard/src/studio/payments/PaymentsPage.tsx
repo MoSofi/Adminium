@@ -57,6 +57,7 @@ import {
 import { formatRelativeTime } from '@adminium/widgets';
 
 import { ApiError } from '../../app/api.js';
+import { ReachCard, reachToneOf } from '../reach/ReachCard.js';
 import { t } from '../../i18n/t.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
@@ -176,13 +177,6 @@ function reachFix(state: ReachabilityState): string {
     case 'reachable':
       return '';
   }
-}
-
-function reachTone(state: ReachabilityState): 'pos' | 'warn' | 'danger' | 'neutral' {
-  if (state === 'reachable') return 'pos';
-  if (state === 'network-off') return 'neutral';
-  if (state === 'not-set' || state === 'proxy-hidden') return 'warn';
-  return 'danger';
 }
 
 function stepLabel(step: ChecklistStep, provider: KnownProvider): string {
@@ -307,69 +301,68 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 
 function ReachabilityCard({ reach, onOpenSettings, onCheckAgain, checking }: { reach: Reachability; onOpenSettings: () => void; onCheckAgain: () => void; checking: boolean }) {
   const ok = reach.state === 'reachable';
+  // The shell is the reach card the privacy page shares; the sentences are Payments' own.
   return (
-    <Card data-testid="payments-reach" data-state={reach.state}>
-      <CardHeader className="flex flex-wrap items-center gap-3">
-        <IconTile icon={<Globe />} tone={reachTone(reach.state)} />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[14.5px] font-bold">{t('studio:payments.reach.heading', 'Can customers reach this server?')}</h2>
-        </div>
-        <Badge tone={reachTone(reach.state)}>{reachBadge(reach.state)}</Badge>
-      </CardHeader>
-      <CardBody className="flex flex-col gap-3 text-[13px]">
-        {ok ? (
-          <>
-            <p data-testid="payments-reach-ok">
-              {t('studio:payments.reach.ok', 'Customers can reach this server.')}
-            </p>
-            <p className="text-fg-muted">
-              {t('studio:payments.reach.address', "This server's public address:")}{' '}
-              <span dir="ltr" className="font-mono">
-                {reach.origin}
-              </span>{' '}
-              <Button variant="link" size="sm" onClick={onOpenSettings}>
-                {t('studio:payments.reach.change', 'Change')}
+    <ReachCard
+      testId="payments-reach"
+      state={reach.state}
+      tone={reachToneOf(reach.state)}
+      icon={<Globe />}
+      heading={t('studio:payments.reach.heading', 'Can customers reach this server?')}
+      badge={reachBadge(reach.state)}
+    >
+      {ok ? (
+        <>
+          <p data-testid="payments-reach-ok">
+            {t('studio:payments.reach.ok', 'Customers can reach this server.')}
+          </p>
+          <p className="text-fg-muted">
+            {t('studio:payments.reach.address', "This server's public address:")}{' '}
+            <span dir="ltr" className="font-mono">
+              {reach.origin}
+            </span>{' '}
+            <Button variant="link" size="sm" onClick={onOpenSettings}>
+              {t('studio:payments.reach.change', 'Change')}
+            </Button>
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="font-semibold" data-testid="payments-reach-problem">
+            {reachProblem(reach.state)}
+          </p>
+          <p className="text-fg-muted">
+            {t('studio:payments.reach.current', 'Current value')}:{' '}
+            <span dir="ltr" className="font-mono">
+              {reach.state === 'network-off' ? 'ADMINIUM_NETWORK_FEATURES=off' : (reach.origin ?? t('studio:payments.reach.notSetValue', 'not set'))}
+            </span>
+          </p>
+          <p>
+            <span className="font-semibold">{t('studio:payments.reach.fixLabel', 'Fix:')}</span> {reachFix(reach.state)}
+          </p>
+          <p className="text-fg-muted">
+            {t('studio:payments.reach.still', 'Still works here: ways to pay by hand, recording payments, the card-terminal record.')}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {reach.state === 'not-set' ? (
+              <Button onClick={onOpenSettings}>{t('studio:payments.reach.setAddress', 'Set the address')}</Button>
+            ) : (
+              <Button variant="secondary" disabled={checking} onClick={onCheckAgain}>
+                {t('studio:payments.reach.checkAgain', 'Check again')}
               </Button>
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="font-semibold" data-testid="payments-reach-problem">
-              {reachProblem(reach.state)}
-            </p>
-            <p className="text-fg-muted">
-              {t('studio:payments.reach.current', 'Current value')}:{' '}
-              <span dir="ltr" className="font-mono">
-                {reach.state === 'network-off' ? 'ADMINIUM_NETWORK_FEATURES=off' : (reach.origin ?? t('studio:payments.reach.notSetValue', 'not set'))}
-              </span>
-            </p>
-            <p>
-              <span className="font-semibold">{t('studio:payments.reach.fixLabel', 'Fix:')}</span> {reachFix(reach.state)}
-            </p>
-            <p className="text-fg-muted">
-              {t('studio:payments.reach.still', 'Still works here: ways to pay by hand, recording payments, the card-terminal record.')}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {reach.state === 'not-set' ? (
-                <Button onClick={onOpenSettings}>{t('studio:payments.reach.setAddress', 'Set the address')}</Button>
-              ) : (
-                <Button variant="secondary" disabled={checking} onClick={onCheckAgain}>
-                  {t('studio:payments.reach.checkAgain', 'Check again')}
-                </Button>
-              )}
-            </div>
-          </>
-        )}
-        {reach.notPort443 ? (
-          <Alert
-            tone="warn"
-            data-testid="payments-reach-port"
-            title={t('studio:payments.reach.portTitle', 'The address has a port')}
-            body={t('studio:payments.reach.portBody', 'PayPal only sends webhooks to port 443. Use an address without a port.')}
-          />
-        ) : null}
-      </CardBody>
-    </Card>
+            )}
+          </div>
+        </>
+      )}
+      {reach.notPort443 ? (
+        <Alert
+          tone="warn"
+          data-testid="payments-reach-port"
+          title={t('studio:payments.reach.portTitle', 'The address has a port')}
+          body={t('studio:payments.reach.portBody', 'PayPal only sends webhooks to port 443. Use an address without a port.')}
+        />
+      ) : null}
+    </ReachCard>
   );
 }
 
