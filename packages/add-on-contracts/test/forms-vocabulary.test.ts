@@ -521,6 +521,7 @@ describe('an answer, checked', () => {
   it('takes a number within its bounds, whole where asked, and no 20-character "number"', () => {
     expect(errorsOf(with_({ qsize: '24' }))).toEqual({});
     expect(errorsOf(with_({ qsize: '12345678901234567890' }))).toEqual({ qsize: 'number' });
+    expect(errorsOf(with_({ qsize: '24.00000000000000000' }))).toEqual({ qsize: 'number' });
     expect(errorsOf(with_({ qsize: 12345678901234567890 }))).toEqual({ qsize: 'number' });
     expect(errorsOf(with_({ qsize: '24 m²' }))).toEqual({ qsize: 'number' });
     expect(errorsOf(with_({ qsize: 24.5 }))).toEqual({ qsize: 'whole' });

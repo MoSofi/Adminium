@@ -141,6 +141,17 @@ describe('an add-on\'s forms', () => {
     expect(installFloorWords(doc).map((word) => word.word)).toContain('addOn.forms');
   });
 
+  it('installs like an app on its forms alone, and is checked as one', () => {
+    const bare = () =>
+      changed((d) => {
+        delete d['roles'];
+        (d['requiredSchema'] as Doc)['prefixed'] = false;
+      });
+    const result = validateManifest(bare());
+    expect(result.ok && installsLikeAnApp(result.manifest)).toBe(true);
+    expect(issuesOf(changed((d) => (columnOf(d, 'answers', 'values')['type'] = 'text'), bare)).join('\n')).toContain('"answers.values" is read and written by Adminium as json');
+  });
+
   it('needs only the forms and the answers', () => {
     const doc = changed((d) => {
       block(d)['invitations'] = undefined;
