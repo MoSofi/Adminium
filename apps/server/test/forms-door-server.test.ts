@@ -249,6 +249,22 @@ describe.each(LEGS)('the forms door on the real server — %s', (dialect, availa
     expect(Number((await h.rows(`SELECT COUNT(*) AS n FROM ${answers}`))[0]!['n'])).toBe(0);
   });
 
+  it.skipIf(!available)('no form is served while the privacy notice is not set', async () => {
+    const want = await get('/x/forms/api/no-such-form');
+    const settings = settingsRepo(h.meta);
+    await settings.set('privacy.noticeUrl', null, { updatedBy: null });
+    try {
+      // A lookup is kept a few seconds.
+      await new Promise((resolve) => setTimeout(resolve, 5_200));
+      const shown = await get('/x/forms/api/showroom-visit');
+      expect([shown.statusCode, shown.json()]).toEqual([want.statusCode, { ...(want.json() as Doc), business: { ...(want.json() as Doc).business, privacyNotice: null } }]);
+    } finally {
+      await settings.set('privacy.noticeUrl', 'https://www.meridian.example/privacy', { updatedBy: null });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5_200));
+    expect((await get('/x/forms/api/showroom-visit')).statusCode).toBe(200);
+  }, 30_000);
+
   it.skipIf(!available)('works on a host mapped to an app’s customer side, and no app surface answers for its loader or files', async () => {
     for (const host of [CUSTOMER_HOST, STAFF_HOST]) {
       const page = await get('/x/forms/showroom-visit', { host, ...NAVIGATE });
