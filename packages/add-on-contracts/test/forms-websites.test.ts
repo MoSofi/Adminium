@@ -37,6 +37,10 @@ describe('one line of "Your websites"', () => {
     for (const line of ['https://crm.meridian.example', 'HTTPS://CRM.Meridian.Example/', 'https://crm.meridian.example:443']) expect(code(line), line).toBe('self');
     // No public address set: nothing is "this server".
     expect(checkWebsiteLine('https://crm.meridian.example', { self: null, listed: [] }).code).toBe('ok');
+    // The server's address as stored in another spelling is still this server, and a listed one still listed.
+    const spelled = { self: 'HTTPS://CRM.Meridian.Example:443/', listed: ['https://WWW.meridian.example/'] };
+    expect(checkWebsiteLine('https://crm.meridian.example', spelled).code).toBe('self');
+    expect(checkWebsiteLine('https://www.meridian.example', spelled).code).toBe('listed');
   });
 
   it('then refuses a website already listed', () => {
