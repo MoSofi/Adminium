@@ -668,6 +668,13 @@ export async function publicAccessWarnings(
   signIn?: { appKey: string; byLink: boolean },
   /** The app keeps money: its amounts are shown in the connection's currency. */
   keepsMoney = false,
+  /**
+   * Whether anything of the app is served by the public API. An app whose
+   * only entries open tables to forms (the key `forms`) has none: the forms
+   * door answers strangers whether or not the public API is on, so neither
+   * its switch nor its origins are said.
+   */
+  servesPublicApi = true,
 ): Promise<PublicAccessPlan['warnings']> {
   const out: PublicAccessPlan['warnings'] = [];
   const byLink = signIn?.byLink === true;
@@ -686,10 +693,10 @@ export async function publicAccessWarnings(
       message: 'This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.',
     });
   }
-  if (!(await settingsRepo(meta).get('publicApi.enabled'))) {
+  if (servesPublicApi && !(await settingsRepo(meta).get('publicApi.enabled'))) {
     out.push({ code: 'PUBLIC_API_OFF', message: 'The public API is switched off, so these endpoints will not answer until it is on.' });
   }
-  if (!configuredOrigins.includes(SELF_ORIGIN_SENTINEL)) {
+  if (servesPublicApi && !configuredOrigins.includes(SELF_ORIGIN_SENTINEL)) {
     out.push({
       code: 'ORIGIN_SELF_MISSING',
       message: 'The allowed origins do not include "self", so the app’s own pages on this server cannot call them.',

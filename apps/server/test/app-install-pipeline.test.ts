@@ -3883,6 +3883,23 @@ for (const [dialect, available] of legs) {
       expect(await endpoints()).toEqual([]);
     }, 60_000);
 
+    it('says nothing of the public API for an app whose only entries open tables to forms', async () => {
+      const h = (open = await harness(dialect));
+      const forms = { ...MANIFEST, compatibility: { minAdminiumVersion: '0.3.40' }, publicAccess: [{ table: 'menu_items', methods: ['POST'], key: 'forms', writable: ['name'], anonymous: { perIpHour: 20 } }] };
+      await stageManifest(h, forms);
+      const planned = await post(h, '/apps/plan');
+      expect(planned.statusCode, planned.body).toBe(200);
+      const access = planned.json().plan.publicAccess;
+      // The forms door answers strangers with the public API off: neither its switch nor its origins are said, and no endpoint is planned.
+      expect(access.endpoints).toEqual([]);
+      expect(access.warnings.map((w: { code: string }) => w.code)).toEqual(['NO_CURRENCY']);
+      // Beside an entry the public API serves, its switch is said again.
+      await stageManifest(h, { ...forms, version: '1.0.1', publicAccess: [...forms.publicAccess, { table: 'payments', methods: ['GET'], claim: { match: ['id', 'method'] } }] });
+      const both = await post(h, '/apps/plan', { version: '1.0.1' });
+      expect(both.statusCode, both.body).toBe(200);
+      expect(both.json().plan.publicAccess.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF', 'NO_CURRENCY']);
+    }, 60_000);
+
     it('an app with a phone side gets an app key beside its customer key, holding the same, and loses it with the side', async () => {
       const h = (open = await harness(dialect));
       const phone = (version: string, mobile: boolean, select: string[] = ['id', 'name']) => ({

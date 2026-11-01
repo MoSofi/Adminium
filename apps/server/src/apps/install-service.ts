@@ -1385,6 +1385,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         (manifest.publicAccess ?? []).some((entry) => entry.confirm !== undefined) || manifest.outbox !== undefined,
         { appKey: manifest.key, byLink: signsInByLink(manifest) },
         keepsMoney(manifest),
+        // An app whose only entries open tables to forms serves nothing through the public API.
+        planned.length > 0,
       ),
       canGrant: await actor.can(PERMISSIONS.apiKeysManage),
     };
