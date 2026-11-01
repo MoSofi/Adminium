@@ -38,6 +38,11 @@
  * no rewrite, no second dist, no base change (the bundles reference their
  * assets by absolute `/apps/…` paths, which stay mounted host-agnostically).
  *
+ * A host mapped to the ADD-ON PAGES (`surfaces.pageHosts`) has no surface
+ * behind it: `/` goes to its home page, the pages and the doors they lead to
+ * are served by their own routes ({@link pagesHostAllows}), and everything
+ * else is refused as on a customer host.
+ *
  * A spoofed `Host` header is NOT a threat model here: host-routing selects
  * which PUBLIC STATIC BUNDLE is served — never a principal, never a scope,
  * never data. A forged `Host` gets an attacker a bundle they could fetch

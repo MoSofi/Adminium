@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Managing hosted app surfaces (server half): what this instance serves, where
- * each staff surface appears, and which hosts are attached to which surface.
+ * each staff surface appears, and which hosts are attached to which surface,
+ * or to the add-on pages a stranger sees (`/x/…`, with a home page `/` sends
+ * a visitor to). The editor saves both kinds of host as one map; they are
+ * stored apart (`surfaces.domains`, `surfaces.pageHosts`) so everything that
+ * reads an app's hosts reads what it always did.
  *
  * Behind `system:settings:manage` — placement and domain attachment are
  * instance configuration, not key management (which stays with
