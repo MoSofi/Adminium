@@ -41,12 +41,12 @@ import type { CatalogBrowse, CatalogEntry } from './addOnsApi.js';
 /**
  * The vocabulary, which is also `ADD_ON_CATEGORIES` in
  * `@adminium/add-on-contracts`. Kept as a local list rather than imported
- * because this is a LABEL ORDER, not a validation: the rail renders these five
+ * because this is a LABEL ORDER, not a validation: the rail renders these six
  * first, in this order, and anything else an add-on declares follows in the
  * order the server sent it. Importing the enum would tie the rail's layout to
  * a package whose job is to police manifests.
  */
-const KNOWN_CATEGORIES = ['artwork', 'delivery', 'payments', 'email', 'data'] as const;
+const KNOWN_CATEGORIES = ['artwork', 'delivery', 'payments', 'email', 'data', 'marketing'] as const;
 
 /**
  * A category's label, or the slug itself.
@@ -68,6 +68,8 @@ function categoryLabel(slug: string): string {
       return t('studio:addOns.category.email', 'Email');
     case 'data':
       return t('studio:addOns.category.data', 'Data');
+    case 'marketing':
+      return t('studio:addOns.category.marketing', 'Marketing');
     default:
       return slug;
   }

@@ -53,6 +53,7 @@ export default {
       "data": "البيانات",
       "delivery": "الشحن",
       "email": "البريد",
+      "marketing": "التسويق",
       "payments": "المدفوعات"
     },
     "confirm": {

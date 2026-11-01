@@ -23355,6 +23355,10 @@
     "status": "mt",
     "srcHash": "84add5b29527"
   },
+  "studio.addOns.category.marketing": {
+    "status": "mt",
+    "srcHash": "e0c534a05742"
+  },
   "studio.addOns.category.payments": {
     "status": "mt",
     "srcHash": "44357ae55a21"

@@ -53,6 +53,7 @@ export default {
       "data": "数据",
       "delivery": "配送",
       "email": "邮件",
+      "marketing": "营销",
       "payments": "支付"
     },
     "confirm": {

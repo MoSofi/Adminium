@@ -145,7 +145,7 @@ describe('contract registry', () => {
 
 describe('add-on categories', () => {
   it('are their own closed vocabulary, not the app facet set', () => {
-    expect([...ADD_ON_CATEGORIES]).toEqual(['artwork', 'delivery', 'payments', 'email', 'data']);
+    expect([...ADD_ON_CATEGORIES]).toEqual(['artwork', 'delivery', 'payments', 'email', 'data', 'marketing']);
     // An add-on is not a vertical: forcing a carrier into `commerce` is the
     // mistake this vocabulary exists to prevent.
     expect(ADD_ON_CATEGORIES as readonly string[]).not.toContain('commerce');

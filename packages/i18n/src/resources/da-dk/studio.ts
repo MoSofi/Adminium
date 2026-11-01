@@ -53,6 +53,7 @@ export default {
       "data": "Data",
       "delivery": "Levering",
       "email": "E-mail",
+      "marketing": "Markedsføring",
       "payments": "Betalinger"
     },
     "confirm": {
