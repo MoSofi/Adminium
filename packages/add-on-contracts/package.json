@@ -30,6 +30,10 @@
       "types": "./dist/forms/index.d.ts",
       "default": "./dist/forms/index.js"
     },
+    "./forms/check": {
+      "types": "./dist/forms/check.d.ts",
+      "default": "./dist/forms/check.js"
+    },
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"

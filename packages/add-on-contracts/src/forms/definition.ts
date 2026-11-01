@@ -20,7 +20,10 @@
  */
 import { z } from 'zod';
 
+import { FORM_FILES_MAX, SCALE_OF } from './scales.js';
 import { FORM_LANGUAGES, FORM_WORDS_MAX, formLanguageSchema, wordsSchema, type FormLanguage, type Words } from './words.js';
+
+export { FORM_FILES_MAX, SCALE_OF };
 
 /** The version of this vocabulary. A form says which one it was written in (`v`). */
 export const FORMS_VOCABULARY_VERSION = 1;
@@ -30,8 +33,6 @@ export const FORM_QUESTIONS_MAX = 60;
 export const FORM_SECTIONS_MAX = 12;
 export const FORM_CHOICES_MIN = 2;
 export const FORM_CHOICES_MAX = 30;
-/** The most files one file question takes when it takes several. */
-export const FORM_FILES_MAX = 5;
 
 /** The eleven kinds of question (comp E4.3). */
 export const FORM_QUESTION_KINDS = ['short', 'long', 'one', 'several', 'date', 'number', 'score', 'stars', 'file', 'tick', 'hidden'] as const;
@@ -290,8 +291,6 @@ const TESTS_OF: Readonly<Record<(typeof SHOW_IF_KINDS)[number], readonly ('is' |
   number: ['is', 'atLeast', 'atMost'],
 };
 
-/** The values a question of a scale holds: 0–10 for a score, 1–5 for stars. */
-export const SCALE_OF = { score: { min: 0, max: 10 }, stars: { min: 1, max: 5 } } as const;
 
 /** Every text of the definition, with its path, to hold against the form's languages. */
 function textsOf(d: DefinitionShape): { words: Words; path: Path }[] {

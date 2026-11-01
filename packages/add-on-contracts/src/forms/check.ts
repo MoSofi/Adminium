@@ -20,11 +20,15 @@
  * Every text is NFC-normalised, and every control character is taken out
  * (a long answer keeps its line breaks).
  *
+ * Its own entry too (`@adminium/add-on-contracts/forms/check`), which
+ * reaches no schema: a stranger's page checks answers with it and carries
+ * none of the schemas' weight.
+ *
  * Pure: no I/O.
  */
-import { FORM_FILES_MAX, SCALE_OF, type FormQuestion, type ShowIf } from './definition.js';
+import type { FormQuestion, ShowIf } from './definition.js';
 import type { Form } from './parse.js';
-import { keepsNames } from './settings.js';
+import { FORM_FILES_MAX, keepsNames, SCALE_OF } from './scales.js';
 
 /** What an answer to one question is, once checked. */
 export type FormAnswerValue = string | string[] | number | true;

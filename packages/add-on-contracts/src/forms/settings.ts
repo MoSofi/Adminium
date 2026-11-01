@@ -74,7 +74,4 @@ export const formSettingsSchema = z
 export type FormSettings = z.infer<typeof formSettingsSchema>;
 export type FormSettingsInput = z.input<typeof formSettingsSchema>;
 
-/** Whether a survey keeps who answered: a named one that links answers to names. Every form does. */
-export function keepsNames(settings: Pick<FormSettings, 'survey'>): boolean {
-  return settings.survey === undefined || (settings.survey.mode === 'named' && settings.survey.linkNames);
-}
+export { keepsNames } from './scales.js';
