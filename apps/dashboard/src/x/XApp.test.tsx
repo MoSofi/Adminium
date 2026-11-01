@@ -390,10 +390,14 @@ describe('in a website’s frame', () => {
     const posted: { message: unknown; origin: string }[] = [];
     const parent = { postMessage: (message: unknown, origin: string) => posted.push({ message, origin }) };
     vi.spyOn(window, 'parent', 'get').mockReturnValue(parent as unknown as Window);
+    // A page with a height from the start: nothing of it goes anywhere before a listed website says hello.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 640 } as DOMRect);
     await show('/x/forms/showroom-visit?frame=1');
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByRole('banner')).toBeNull();
     expect(screen.queryByRole('contentinfo')).toBeNull();
+    // Typed into before any hello: the page changes, and still nothing of it goes anywhere.
+    await userEvent.setup().type(screen.getByLabelText(/Your name/), 'M');
     // Ready, with nothing in it, to any parent.
     expect(posted).toEqual([{ message: { type: READY }, origin: '*' }]);
     // A hello from another website, and one from another window, are not taken.

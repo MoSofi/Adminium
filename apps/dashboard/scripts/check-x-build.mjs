@@ -26,7 +26,7 @@ const dist = join(root, 'dist');
 
 /**
  * The page's first load, gzipped: a ratchet like the dashboard's entry
- * budget. Measured 104,345 bytes on 2026-11-01 (React, the page's words
+ * budget. Measured 104,326 bytes on 2026-11-01 (React, the page's words
  * loader and English, the form's check without its schemas, the styles),
  * plus 2 KiB of minifier headroom. It may only go down.
  */

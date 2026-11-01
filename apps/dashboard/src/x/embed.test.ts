@@ -119,7 +119,9 @@ describe('the website loader', () => {
 
   it('adds no name to the page but adminium, whose consent is kept and does nothing yet; loaded twice, it runs once', () => {
     run();
+    const first = (window as unknown as { adminium: { forms: unknown } }).adminium.forms;
     run();
+    expect((window as unknown as { adminium: { forms: unknown } }).adminium.forms).toBe(first);
     expect(frames()).toHaveLength(2);
     const added = Object.keys(window).filter((name) => !globalsBefore.has(name));
     expect(added).toEqual(['adminium']);
