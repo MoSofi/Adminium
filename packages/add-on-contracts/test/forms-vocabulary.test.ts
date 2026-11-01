@@ -299,6 +299,7 @@ describe('a form\'s definition', () => {
   it('refuses picks, bounds, file kinds and roles that do not fit', () => {
     expect(refusals(changed((d) => (q(d, 'qextras')['max'] = 4)))).toEqual(['several-picks@definition.questions.4.max']);
     expect(refusals(changed((d) => Object.assign(q(d, 'qextras'), { min: 3, max: 2 })))).toEqual(['several-picks@definition.questions.4.max']);
+    expect(refusals(changed((d) => (delete q(d, 'qextras')['max'], (q(d, 'qextras')['min'] = 4))))).toEqual(['several-picks@definition.questions.4.min']);
     expect(refusals(changed((d) => Object.assign(q(d, 'qsize'), { min: 10, max: 5 })))).toEqual(['number-bounds@definition.questions.5.min']);
     expect(refusals(changed((d) => (q(d, 'qplan')['kinds'] = ['pdf', 'pdf'])))).toEqual(['file-kinds-duplicate@definition.questions.10.kinds']);
     expect(refusals(changed((d) => (q(d, 'qplan')['maxMb'] = 11)))).toEqual(['too_big@definition.questions.10.maxMb']);

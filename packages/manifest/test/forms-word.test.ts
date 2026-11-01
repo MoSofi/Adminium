@@ -145,8 +145,9 @@ describe('an add-on\'s forms', () => {
     const bare = () =>
       changed((d) => {
         delete d['roles'];
-        (d['requiredSchema'] as Doc)['prefixed'] = false;
+        delete (d['requiredSchema'] as Doc)['prefixed'];
       });
+    expect(issuesOf(bare())).toEqual([]);
     const result = validateManifest(bare());
     expect(result.ok && installsLikeAnApp(result.manifest)).toBe(true);
     expect(issuesOf(changed((d) => (columnOf(d, 'answers', 'values')['type'] = 'text'), bare)).join('\n')).toContain('"answers.values" is read and written by Adminium as json');
