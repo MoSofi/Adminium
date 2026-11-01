@@ -657,7 +657,10 @@ export default {
       "stepSignIn": "Personální plochy vyžadují nové přihlášení: cookies relace patří jedinému hostovi, takže přiřazený host vás nejdřív pošle na svou vlastní přihlašovací stránku.",
       "subtitle": "Nasměrujte DNS domény na svůj proxy server, předávejte hlavičku Host do Adminia a připojte ji zde — tento host pak obsluhuje plochu místo tohoto dashboardu. Certifikáty zůstávají na vašem proxy serveru.",
       "surfaceLabel": "Plocha",
-      "title": "Domény"
+      "title": "Domény",
+      "pages": "Formuláře a stránky",
+      "homeLabel": "Úvodní stránka",
+      "homeNone": "Zatím žádný zveřejněný formulář"
     },
     "emptyBody": "Nasměrujte ADMINIUM_SURFACES_DIR na adresář sestavených ploch — složka pro každou aplikaci a stranu, každá se svým index.html — a restartujte. Poté se obsluhují pod /apps/ a objeví se zde.",
     "emptyTitle": "Žádné aplikační plochy se neobsluhují",
@@ -4395,6 +4398,57 @@ export default {
       "heading": "Soukromí a veřejné stránky",
       "body": "Vaše zásady ochrany osobních údajů, údaje jedné osoby a jak dlouho se co uchovává.",
       "cta": "Otevřít soukromí"
+    },
+    "websites": {
+      "tab": "Vaše weby",
+      "listHeading": "Weby, které smějí zobrazovat vaše formuláře a chat",
+      "addedBy": "Přidal(a) {name} · {date}",
+      "addedOn": "Přidáno {date}",
+      "remove": "Odebrat",
+      "removeLabel": "Odebrat {url}",
+      "removed": "{url} odebrán",
+      "removeFailed": "{url} se nepodařilo odebrat. Zkuste to znovu.",
+      "none": "Zatím žádné. Formulář se na jiném webu zobrazí, až když je ten web na tomto seznamu.",
+      "addLabel": "Přidat web",
+      "addHelp": "Jeden web na řádek, začínající https://.",
+      "add": "Přidat",
+      "added": "Přidáno",
+      "addFailed": "Weby se nepodařilo přidat. Zkuste to znovu.",
+      "line": {
+        "onePerLine": "Jeden web na řádek, bez *",
+        "https": "Použijte https://",
+        "address": "Nejde o adresu webu",
+        "path": "Jen adresa, bez cesty",
+        "self": "To je adresa tohoto serveru",
+        "listed": "Už je na seznamu",
+        "ok": "Připraveno k přidání"
+      },
+      "tooMany": "Seznam pojme nejvýš {max} webů. Nejdřív jeden odeberte.",
+      "note": "Web ze seznamu může zobrazit vaše formuláře a chat v rámečku. K vašim datům nikdy přístup nemá.",
+      "embedHeading": "Dejte to na svůj web",
+      "copy": "Kopírovat",
+      "copied": "Zkopírováno",
+      "copyLabel": "Kopírovat řádek zavaděče",
+      "embedLine": "Pak přidejte formulář nebo chat tam, kde ho chcete mít. Každý formulář má svůj řádek na kartě Sdílet.",
+      "loadFailed": "Weby se nepodařilo načíst. Zkuste to znovu.",
+      "reach": {
+        "heading": "Dostanou se návštěvníci na vaše veřejné stránky?",
+        "checked": "Zkontrolováno {when}",
+        "ok": "Návštěvníci se dostanou na {origin}",
+        "badge": {
+          "reachable": "Dostupný",
+          "proxy": "Nastavení proxy",
+          "noAddress": "Žádná adresa"
+        },
+        "proxy": "Tento server je za proxy, která skrývá adresy návštěvníků, takže limity formulářů nemohou fungovat. Nastavte {setting}.",
+        "ask": "Požádejte toho, kdo tento server spravuje, ať to nastaví a server restartuje.",
+        "noAddress": "Tento server nemá veřejnou adresu https. Formuláře, chat a odkazy pro odhlášení ji potřebují.",
+        "address": "Veřejná adresa tohoto serveru:",
+        "notSet": "(nenastaveno)",
+        "setIt": "Nastavit",
+        "checkAgain": "Zkontrolovat znovu",
+        "loadFailed": "Nepodařilo se ověřit, zda se návštěvníci dostanou na tento server. Zkuste to znovu."
+      }
     }
   },
   "marketingMail": {

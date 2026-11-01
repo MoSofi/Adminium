@@ -657,7 +657,10 @@ export default {
       "stepSignIn": "员工界面会要求你重新登录：会话 Cookie 只属于一个主机，因此映射的主机会先把你带到它自己的登录页。",
       "subtitle": "将域名的 DNS 指向你的代理，把 Host 标头透传给 Adminium，然后在此附加——该主机随后将提供此界面而非本仪表盘。证书保留在你的代理上。",
       "surfaceLabel": "界面",
-      "title": "域名"
+      "title": "域名",
+      "pages": "表单和页面",
+      "homeLabel": "首页",
+      "homeNone": "还没有已发布的表单"
     },
     "emptyBody": "将 ADMINIUM_SURFACES_DIR 指向存放已构建界面的目录——每个应用和端各一个文件夹，各含其 index.html——然后重启。之后它们将在 /apps/ 下提供，并显示在这里。",
     "emptyTitle": "当前没有提供任何应用界面",
@@ -4395,6 +4398,57 @@ export default {
       "heading": "隐私与公开页面",
       "body": "你的隐私声明、某个人的数据，以及各类内容保留多久。",
       "cta": "打开隐私"
+    },
+    "websites": {
+      "tab": "您的网站",
+      "listHeading": "可以显示您的表单和聊天的网站",
+      "addedBy": "由 {name} 添加 · {date}",
+      "addedOn": "添加于 {date}",
+      "remove": "移除",
+      "removeLabel": "移除 {url}",
+      "removed": "已移除 {url}",
+      "removeFailed": "未能移除 {url}。请重试。",
+      "none": "暂无。只有当某个网站在此列表中时，表单才会显示在该网站上。",
+      "addLabel": "添加网站",
+      "addHelp": "每行一个网站，以 https:// 开头。",
+      "add": "添加",
+      "added": "已添加",
+      "addFailed": "未能添加这些网站。请重试。",
+      "line": {
+        "onePerLine": "每行一个网站，不要用 *",
+        "https": "请使用 https://",
+        "address": "不是网站地址",
+        "path": "只要地址，不要路径",
+        "self": "这是本服务器自己的地址",
+        "listed": "已在列表中",
+        "ok": "可以添加"
+      },
+      "tooMany": "列表最多容纳 {max} 个网站。请先移除一个。",
+      "note": "列表中的网站可以在框架中显示您的表单和聊天，但永远无法访问您的数据。",
+      "embedHeading": "放到您的网站上",
+      "copy": "复制",
+      "copied": "已复制",
+      "copyLabel": "复制加载代码行",
+      "embedLine": "然后在您想要的位置添加表单或聊天。每个表单的“分享”标签页中都有它自己的代码行。",
+      "loadFailed": "未能加载网站。请重试。",
+      "reach": {
+        "heading": "访客能访问您的公开页面吗？",
+        "checked": "检查于 {when}",
+        "ok": "访客可以访问 {origin}",
+        "badge": {
+          "reachable": "可访问",
+          "proxy": "代理设置",
+          "noAddress": "没有地址"
+        },
+        "proxy": "本服务器位于一个隐藏访客地址的代理之后，因此表单的限制无法生效。请设置 {setting}。",
+        "ask": "请让运行此服务器的人进行设置并重启。",
+        "noAddress": "本服务器没有公开的 https 地址。表单、聊天和退订链接都需要它。",
+        "address": "本服务器的公开地址：",
+        "notSet": "（未设置）",
+        "setIt": "去设置",
+        "checkAgain": "重新检查",
+        "loadFailed": "无法检查访客能否访问此服务器。请重试。"
+      }
     }
   },
   "marketingMail": {

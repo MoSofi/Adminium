@@ -647,7 +647,10 @@
       "stepSignIn": "Bei Mitarbeiter-Oberflächen müssen Sie sich erneut anmelden: Sitzungs-Cookies gehören zu genau einem Host, deshalb führt ein zugeordneter Host Sie zuerst auf seine eigene Anmeldeseite.",
       "subtitle": "Richten Sie das DNS einer Domain auf Ihren Proxy, reichen Sie den Host-Header an Adminium durch und hängen Sie sie hier an — dieser Host liefert dann die Oberfläche statt dieses Dashboards. Zertifikate bleiben auf Ihrem Proxy.",
       "surfaceLabel": "Oberfläche",
-      "title": "Domains"
+      "title": "Domains",
+      "pages": "Formulare und Seiten",
+      "homeLabel": "Startseite",
+      "homeNone": "Noch kein veröffentlichtes Formular"
     },
     "emptyBody": "Setzen Sie ADMINIUM_SURFACES_DIR auf ein Verzeichnis gebauter Oberflächen — ein Ordner je App und Seite, jeweils mit index.html — und starten Sie neu. Sie werden dann unter /apps/ ausgeliefert und erscheinen hier.",
     "emptyTitle": "Es werden keine App-Oberflächen ausgeliefert",
@@ -4385,6 +4388,57 @@
       "heading": "Datenschutz & öffentliche Seiten",
       "body": "Ihr Datenschutzhinweis, die Daten einer Person und wie lange etwas aufbewahrt wird.",
       "cta": "Datenschutz öffnen"
+    },
+    "websites": {
+      "tab": "Ihre Websites",
+      "listHeading": "Websites, die Ihre Formulare und den Chat zeigen dürfen",
+      "addedBy": "Hinzugefügt von {name} · {date}",
+      "addedOn": "Hinzugefügt am {date}",
+      "remove": "Entfernen",
+      "removeLabel": "{url} entfernen",
+      "removed": "{url} entfernt",
+      "removeFailed": "{url} wurde nicht entfernt. Versuchen Sie es erneut.",
+      "none": "Noch keine. Ein Formular erscheint auf einer anderen Website erst, wenn diese Website auf dieser Liste steht.",
+      "addLabel": "Website hinzufügen",
+      "addHelp": "Eine Website pro Zeile, beginnend mit https://.",
+      "add": "Hinzufügen",
+      "added": "Hinzugefügt",
+      "addFailed": "Die Websites wurden nicht hinzugefügt. Versuchen Sie es erneut.",
+      "line": {
+        "onePerLine": "Eine Website pro Zeile, kein *",
+        "https": "Verwenden Sie https://",
+        "address": "Keine Website-Adresse",
+        "path": "Nur die Adresse, kein Pfad",
+        "self": "Das ist die Adresse dieses Servers",
+        "listed": "Steht schon auf der Liste",
+        "ok": "Bereit zum Hinzufügen"
+      },
+      "tooMany": "Die Liste fasst höchstens {max} Websites. Entfernen Sie zuerst eine.",
+      "note": "Eine aufgeführte Website kann Ihre Formulare und den Chat in einem Rahmen zeigen. Auf Ihre Daten hat sie nie Zugriff.",
+      "embedHeading": "Auf Ihre Website setzen",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copyLabel": "Die Ladezeile kopieren",
+      "embedLine": "Fügen Sie dann ein Formular oder den Chat dort ein, wo Sie ihn haben möchten. Jedes Formular hat im Tab „Teilen“ seine eigene Zeile.",
+      "loadFailed": "Die Websites konnten nicht geladen werden. Versuchen Sie es erneut.",
+      "reach": {
+        "heading": "Können Besucher Ihre öffentlichen Seiten erreichen?",
+        "checked": "Geprüft {when}",
+        "ok": "Besucher können {origin} erreichen",
+        "badge": {
+          "reachable": "Erreichbar",
+          "proxy": "Proxy-Einstellung",
+          "noAddress": "Keine Adresse"
+        },
+        "proxy": "Dieser Server steht hinter einem Proxy, der die Adressen der Besucher verbirgt, daher können Limits für Formulare nicht greifen. Setzen Sie {setting}.",
+        "ask": "Bitten Sie die Person, die diesen Server betreibt, es zu setzen und ihn neu zu starten.",
+        "noAddress": "Dieser Server hat keine öffentliche https-Adresse. Formulare, Chat und Abmeldelinks brauchen eine.",
+        "address": "Öffentliche Adresse dieses Servers:",
+        "notSet": "(nicht gesetzt)",
+        "setIt": "Festlegen",
+        "checkAgain": "Erneut prüfen",
+        "loadFailed": "Ob Besucher diesen Server erreichen, konnte nicht geprüft werden. Versuchen Sie es erneut."
+      }
     }
   },
   "marketingMail": {

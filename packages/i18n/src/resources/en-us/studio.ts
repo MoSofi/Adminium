@@ -657,7 +657,10 @@ export default {
       "stepSignIn": "Staff surfaces ask you to sign in again: session cookies belong to one host, so a mapped host sends you to its own login page first.",
       "subtitle": "Point a domain’s DNS at your proxy, pass the Host header through to Adminium, and attach it here — that host then serves the surface instead of this dashboard. Certificates stay on your proxy.",
       "surfaceLabel": "Surface",
-      "title": "Domains"
+      "title": "Domains",
+      "pages": "Forms and pages",
+      "homeLabel": "Home page",
+      "homeNone": "No live form yet"
     },
     "emptyBody": "Point ADMINIUM_SURFACES_DIR at a directory of built surfaces — one folder per app and side, each with its index.html — and restart. They are then served under /apps/ and appear here.",
     "emptyTitle": "No app surfaces are being served",
@@ -4395,6 +4398,57 @@ export default {
       "heading": "Privacy & public pages",
       "body": "Your privacy notice, one person’s data, and how long things are kept.",
       "cta": "Open privacy"
+    },
+    "websites": {
+      "tab": "Your websites",
+      "listHeading": "Websites that may show your forms and chat",
+      "addedBy": "Added by {name} · {date}",
+      "addedOn": "Added {date}",
+      "remove": "Remove",
+      "removeLabel": "Remove {url}",
+      "removed": "Removed {url}",
+      "removeFailed": "{url} was not removed. Try again.",
+      "none": "None yet. A form shows on another website only once that website is on this list.",
+      "addLabel": "Add a website",
+      "addHelp": "One website per line, starting with https://.",
+      "add": "Add",
+      "added": "Added",
+      "addFailed": "The websites were not added. Try again.",
+      "line": {
+        "onePerLine": "One website per line, no *",
+        "https": "Use https://",
+        "address": "Not a website address",
+        "path": "Just the address, no path",
+        "self": "That's this server's own address",
+        "listed": "Already on the list",
+        "ok": "Ready to add"
+      },
+      "tooMany": "The list holds at most {max} websites. Remove one first.",
+      "note": "A listed website can show your forms and chat in a frame. It never gets access to your data.",
+      "embedHeading": "Put it on your website",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyLabel": "Copy the loader line",
+      "embedLine": "Then add a form or the chat where you want it. Each form's Share tab has its own line.",
+      "loadFailed": "The websites could not be loaded. Try again.",
+      "reach": {
+        "heading": "Can visitors reach your public pages?",
+        "checked": "Checked {when}",
+        "ok": "Visitors can reach {origin}",
+        "badge": {
+          "reachable": "Reachable",
+          "proxy": "Proxy setting",
+          "noAddress": "No address"
+        },
+        "proxy": "This server is behind a proxy that hides visitors' addresses, so limits on forms can't work. Set {setting}.",
+        "ask": "Ask whoever runs this server to set it and restart.",
+        "noAddress": "This server has no public https address. Forms, chat and unsubscribe links need one.",
+        "address": "This server's public address:",
+        "notSet": "(not set)",
+        "setIt": "Set it",
+        "checkAgain": "Check again",
+        "loadFailed": "Whether visitors can reach this server could not be checked. Try again."
+      }
     }
   },
   "marketingMail": {

@@ -657,7 +657,10 @@ export default {
       "stepSignIn": "Les surfaces personnel demandent une nouvelle connexion : les cookies de session appartiennent à un seul hôte, donc un hôte attribué vous envoie d’abord vers sa propre page de connexion.",
       "subtitle": "Pointez le DNS d’un domaine vers votre proxy, transmettez l’en-tête Host à Adminium, puis attachez-le ici — cet hôte sert alors la surface au lieu de ce tableau de bord. Les certificats restent sur votre proxy.",
       "surfaceLabel": "Surface",
-      "title": "Domaines"
+      "title": "Domaines",
+      "pages": "Formulaires et pages",
+      "homeLabel": "Page d’accueil",
+      "homeNone": "Aucun formulaire en ligne pour l’instant"
     },
     "emptyBody": "Pointez ADMINIUM_SURFACES_DIR vers un répertoire de surfaces compilées — un dossier par app et par côté, chacun avec son index.html — puis redémarrez. Elles sont alors servies sous /apps/ et apparaissent ici.",
     "emptyTitle": "Aucune surface d’app n’est servie",
@@ -4395,6 +4398,57 @@ export default {
       "heading": "Confidentialité et pages publiques",
       "body": "Votre avis de confidentialité, les données d’une personne et la durée de conservation.",
       "cta": "Ouvrir la confidentialité"
+    },
+    "websites": {
+      "tab": "Vos sites web",
+      "listHeading": "Sites web qui peuvent afficher vos formulaires et le chat",
+      "addedBy": "Ajouté par {name} · {date}",
+      "addedOn": "Ajouté le {date}",
+      "remove": "Retirer",
+      "removeLabel": "Retirer {url}",
+      "removed": "{url} retiré",
+      "removeFailed": "{url} n’a pas été retiré. Réessayez.",
+      "none": "Aucun pour l’instant. Un formulaire ne s’affiche sur un autre site qu’une fois ce site sur cette liste.",
+      "addLabel": "Ajouter un site web",
+      "addHelp": "Un site web par ligne, commençant par https://.",
+      "add": "Ajouter",
+      "added": "Ajouté",
+      "addFailed": "Les sites web n’ont pas été ajoutés. Réessayez.",
+      "line": {
+        "onePerLine": "Un site web par ligne, sans *",
+        "https": "Utilisez https://",
+        "address": "Ce n’est pas une adresse de site web",
+        "path": "L’adresse seule, sans chemin",
+        "self": "C’est l’adresse de ce serveur",
+        "listed": "Déjà dans la liste",
+        "ok": "Prêt à ajouter"
+      },
+      "tooMany": "La liste contient au plus {max} sites web. Retirez-en un d’abord.",
+      "note": "Un site de la liste peut afficher vos formulaires et le chat dans un cadre. Il n’a jamais accès à vos données.",
+      "embedHeading": "Mettez-le sur votre site web",
+      "copy": "Copier",
+      "copied": "Copié",
+      "copyLabel": "Copier la ligne de chargement",
+      "embedLine": "Ajoutez ensuite un formulaire ou le chat là où vous le voulez. Chaque formulaire a sa propre ligne dans son onglet Partager.",
+      "loadFailed": "Les sites web n’ont pas pu être chargés. Réessayez.",
+      "reach": {
+        "heading": "Les visiteurs peuvent-ils atteindre vos pages publiques ?",
+        "checked": "Vérifié {when}",
+        "ok": "Les visiteurs peuvent atteindre {origin}",
+        "badge": {
+          "reachable": "Accessible",
+          "proxy": "Réglage du proxy",
+          "noAddress": "Aucune adresse"
+        },
+        "proxy": "Ce serveur est derrière un proxy qui masque l’adresse des visiteurs : les limites des formulaires ne peuvent pas fonctionner. Réglez {setting}.",
+        "ask": "Demandez à la personne qui gère ce serveur de le régler et de le redémarrer.",
+        "noAddress": "Ce serveur n’a pas d’adresse https publique. Les formulaires, le chat et les liens de désinscription en ont besoin.",
+        "address": "Adresse publique de ce serveur :",
+        "notSet": "(non définie)",
+        "setIt": "La définir",
+        "checkAgain": "Vérifier à nouveau",
+        "loadFailed": "Impossible de vérifier si les visiteurs peuvent atteindre ce serveur. Réessayez."
+      }
     }
   },
   "marketingMail": {

@@ -657,7 +657,10 @@ export default {
       "stepSignIn": "員工介面會要求你重新登入：工作階段 Cookie 只屬於一個主機，因此對應的主機會先帶你到它自己的登入頁。",
       "subtitle": "將網域的 DNS 指向你的代理伺服器，把 Host 標頭透傳給 Adminium，然後在此附加——該主機隨後會提供此介面而非本儀表板。憑證保留在你的代理伺服器上。",
       "surfaceLabel": "介面",
-      "title": "網域"
+      "title": "網域",
+      "pages": "表單和頁面",
+      "homeLabel": "首頁",
+      "homeNone": "還沒有已發布的表單"
     },
     "emptyBody": "將 ADMINIUM_SURFACES_DIR 指向存放已建置介面的目錄——每個應用程式和端各一個資料夾，各含其 index.html——然後重新啟動。之後它們會在 /apps/ 下提供，並顯示在這裡。",
     "emptyTitle": "目前沒有提供任何應用介面",
@@ -4395,6 +4398,57 @@ export default {
       "heading": "隱私與公開頁面",
       "body": "你的隱私聲明、某個人的資料，以及各類內容保留多久。",
       "cta": "開啟隱私"
+    },
+    "websites": {
+      "tab": "您的網站",
+      "listHeading": "可以顯示您的表單和聊天的網站",
+      "addedBy": "由 {name} 新增 · {date}",
+      "addedOn": "新增於 {date}",
+      "remove": "移除",
+      "removeLabel": "移除 {url}",
+      "removed": "已移除 {url}",
+      "removeFailed": "未能移除 {url}。請再試一次。",
+      "none": "目前沒有。只有當某個網站在此清單中時，表單才會顯示在該網站上。",
+      "addLabel": "新增網站",
+      "addHelp": "每行一個網站，以 https:// 開頭。",
+      "add": "新增",
+      "added": "已新增",
+      "addFailed": "未能新增這些網站。請再試一次。",
+      "line": {
+        "onePerLine": "每行一個網站，不要用 *",
+        "https": "請使用 https://",
+        "address": "不是網站位址",
+        "path": "只要位址，不要路徑",
+        "self": "這是本伺服器自己的位址",
+        "listed": "已在清單中",
+        "ok": "可以新增"
+      },
+      "tooMany": "清單最多容納 {max} 個網站。請先移除一個。",
+      "note": "清單中的網站可以在框架中顯示您的表單和聊天，但永遠無法存取您的資料。",
+      "embedHeading": "放到您的網站上",
+      "copy": "複製",
+      "copied": "已複製",
+      "copyLabel": "複製載入程式碼行",
+      "embedLine": "然後在您想要的位置加入表單或聊天。每個表單的「分享」分頁中都有它自己的程式碼行。",
+      "loadFailed": "未能載入網站。請再試一次。",
+      "reach": {
+        "heading": "訪客能連到您的公開頁面嗎？",
+        "checked": "檢查於 {when}",
+        "ok": "訪客可以連到 {origin}",
+        "badge": {
+          "reachable": "可連線",
+          "proxy": "代理設定",
+          "noAddress": "沒有位址"
+        },
+        "proxy": "本伺服器位於一個隱藏訪客位址的代理之後，因此表單的限制無法生效。請設定 {setting}。",
+        "ask": "請讓執行此伺服器的人進行設定並重新啟動。",
+        "noAddress": "本伺服器沒有公開的 https 位址。表單、聊天和取消訂閱連結都需要它。",
+        "address": "本伺服器的公開位址：",
+        "notSet": "（未設定）",
+        "setIt": "前往設定",
+        "checkAgain": "重新檢查",
+        "loadFailed": "無法檢查訪客能否連到此伺服器。請再試一次。"
+      }
     }
   },
   "marketingMail": {

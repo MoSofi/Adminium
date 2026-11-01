@@ -657,7 +657,10 @@ export default {
       "stepSignIn": "Personaleflader beder dig logge ind igen: sessionscookies hører til én vært, så en tilknyttet vært sender dig først til sin egen loginside.",
       "subtitle": "Peg et domænes DNS på din proxy, send Host-headeren videre til Adminium, og tilknyt det her — værten serverer så fladen i stedet for dette dashboard. Certifikater bliver på din proxy.",
       "surfaceLabel": "Flade",
-      "title": "Domæner"
+      "title": "Domæner",
+      "pages": "Formularer og sider",
+      "homeLabel": "Startside",
+      "homeNone": "Ingen offentliggjort formular endnu"
     },
     "emptyBody": "Peg ADMINIUM_SURFACES_DIR på en mappe med byggede flader — én mappe pr. app og side, hver med sin index.html — og genstart. De serveres derefter under /apps/ og vises her.",
     "emptyTitle": "Der serveres ingen app-flader",
@@ -4395,6 +4398,57 @@ export default {
       "heading": "Privatliv & offentlige sider",
       "body": "Din privatlivserklæring, én persons data, og hvor længe ting gemmes.",
       "cta": "Åbn privatliv"
+    },
+    "websites": {
+      "tab": "Dine websites",
+      "listHeading": "Websites, der må vise dine formularer og chatten",
+      "addedBy": "Tilføjet af {name} · {date}",
+      "addedOn": "Tilføjet {date}",
+      "remove": "Fjern",
+      "removeLabel": "Fjern {url}",
+      "removed": "{url} fjernet",
+      "removeFailed": "{url} blev ikke fjernet. Prøv igen.",
+      "none": "Ingen endnu. En formular vises først på et andet website, når det website står på denne liste.",
+      "addLabel": "Tilføj et website",
+      "addHelp": "Ét website pr. linje, der starter med https://.",
+      "add": "Tilføj",
+      "added": "Tilføjet",
+      "addFailed": "Websitesne blev ikke tilføjet. Prøv igen.",
+      "line": {
+        "onePerLine": "Ét website pr. linje, ingen *",
+        "https": "Brug https://",
+        "address": "Ikke en websiteadresse",
+        "path": "Kun adressen, ingen sti",
+        "self": "Det er denne servers egen adresse",
+        "listed": "Står allerede på listen",
+        "ok": "Klar til at blive tilføjet"
+      },
+      "tooMany": "Listen rummer højst {max} websites. Fjern et først.",
+      "note": "Et website på listen kan vise dine formularer og chatten i en ramme. Det får aldrig adgang til dine data.",
+      "embedHeading": "Sæt det på dit website",
+      "copy": "Kopiér",
+      "copied": "Kopieret",
+      "copyLabel": "Kopiér indlæserlinjen",
+      "embedLine": "Tilføj derefter en formular eller chatten, hvor du vil have den. Hver formular har sin egen linje under fanen Del.",
+      "loadFailed": "Websitesne kunne ikke indlæses. Prøv igen.",
+      "reach": {
+        "heading": "Kan besøgende nå dine offentlige sider?",
+        "checked": "Tjekket {when}",
+        "ok": "Besøgende kan nå {origin}",
+        "badge": {
+          "reachable": "Kan nås",
+          "proxy": "Proxyindstilling",
+          "noAddress": "Ingen adresse"
+        },
+        "proxy": "Denne server står bag en proxy, der skjuler de besøgendes adresser, så grænser for formularer kan ikke virke. Sæt {setting}.",
+        "ask": "Bed den, der driver serveren, om at sætte det og genstarte den.",
+        "noAddress": "Denne server har ingen offentlig https-adresse. Formularer, chat og afmeldingslinks skal bruge en.",
+        "address": "Denne servers offentlige adresse:",
+        "notSet": "(ikke angivet)",
+        "setIt": "Angiv den",
+        "checkAgain": "Tjek igen",
+        "loadFailed": "Det kunne ikke tjekkes, om besøgende kan nå denne server. Prøv igen."
+      }
     }
   },
   "marketingMail": {
