@@ -318,3 +318,6 @@ export {
 } from './steps.js';
 
 export { ADD_ON_COLUMN_NOTE_MAX, ADD_ON_QUESTIONS_MAX, ADD_ON_TABLE_NOTE_MAX, addOnAssistantSchema, type AddOnAssistant } from './assistant-block.js';
+
+/** The forms vocabulary, also at its own subpath `@adminium/add-on-contracts/forms` (see `forms/index.ts`). */
+export * from './forms/index.js';
