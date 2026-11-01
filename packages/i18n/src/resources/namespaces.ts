@@ -35,6 +35,7 @@ export const NAMESPACES = [
   'pay',
   'payments',
   'mailDoor',
+  'x',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -204,6 +205,13 @@ export const DEFERRED_NAMESPACES = [
    * dashboard screen reads a `mailDoor:` key.
    */
   'mailDoor',
+  /*
+   * The pages a stranger sees at `/x/` (a form, a survey, their endings):
+   * their own small bundle under `/x/assets/`, which loads this one
+   * namespace before its first render, and the server's words for a browser
+   * with no script. No dashboard screen reads an `x:` key.
+   */
+  'x',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

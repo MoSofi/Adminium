@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/cs-CZ/x.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "language": {
+    "menu": "Jazyk",
+    "button": "Jazyk: {name}"
+  },
+  "footer": {
+    "questions": "Máte otázky? Napište na",
+    "privacyNotice": "Zásady ochrany osobních údajů"
+  },
+  "required": "Povinné",
+  "optional": "Nepovinné",
+  "send": "Odeslat",
+  "sendAnswers": "Odeslat odpovědi",
+  "sending": "Odesílá se…",
+  "keeps": "{business} si ponechá, co pošlete, aby vám mohl odpovědět.",
+  "summary": "Zkontrolujte odpovědi označené níže.",
+  "proofFailed": "Ověření, že jste člověk, neprošlo. Zkuste to znovu.",
+  "honeypot": "Toto pole nechte prázdné",
+  "anonymous": "Vaše odpovědi nejsou spojeny s vaším jménem.",
+  "error": {
+    "required": "Odpovězte na tuto otázku.",
+    "name": "Zadejte své jméno",
+    "tooLong": "Nejvýše {max, plural, one {# znak} few {# znaky} many {# znaku} other {# znaků}}.",
+    "email": "Zadejte e-mailovou adresu, např. name@company.com",
+    "phone": "Zadejte telefonní číslo se 6 až 15 číslicemi.",
+    "choice": "Vyberte jednu z možností.",
+    "tooFew": "Vyberte alespoň {min}.",
+    "tooMany": "Vyberte nejvýše {max}.",
+    "date": "Zadejte den.",
+    "fromToday": "Vyberte den od dneška",
+    "fromTomorrow": "Vyberte den od zítřka",
+    "number": "Zadejte číslo.",
+    "whole": "Zadejte celé číslo.",
+    "tooSmall": "Zadejte {min} nebo více.",
+    "tooLarge": "Zadejte {max} nebo méně.",
+    "score": "Vyberte hodnocení od 0 do 10.",
+    "stars": "Vyberte 1 až 5 hvězd.",
+    "file": "Tento soubor nelze přijmout.",
+    "tick": "Zaškrtněte políčko, nebo ho nechte prázdné.",
+    "answer": "Něco v odpovědích nebylo přijato. Zkontrolujte je a odešlete znovu."
+  },
+  "file": {
+    "chooseOne": "Vybrat soubor",
+    "chooseMany": "Vybrat soubory",
+    "hint": "{kinds}, do {mb} MB",
+    "kind": {
+      "pdf": "PDF",
+      "jpg": "JPG",
+      "png": "PNG",
+      "text": "prostý text"
+    }
+  },
+  "score": {
+    "low": "Nepravděpodobně",
+    "high": "Velmi pravděpodobně",
+    "ends": "0 znamená nepravděpodobně, 10 velmi pravděpodobně."
+  },
+  "stars": {
+    "of": "{n} z 5",
+    "star": "{n, plural, one {# hvězda} few {# hvězdy} many {# hvězdy} other {# hvězd}}"
+  },
+  "ending": {
+    "thanksName": "Děkujeme, {name}.",
+    "thanks": "Děkujeme.",
+    "confirmNewsletter": "Ještě jeden krok k newsletteru: otevřete svůj e-mail a stiskněte „Potvrdit“.",
+    "confirmSurveys": "Ještě jeden krok k dotazníkům: otevřete svůj e-mail a stiskněte „Potvrdit“.",
+    "surveyThanksName": "Děkujeme, {name}.",
+    "surveyHelps": "Vaše odpovědi nám pomáhají.",
+    "already": "Na tento dotazník jste už odpověděli. Děkujeme.",
+    "dead": "Tento odkaz nefunguje.",
+    "write": "Napište na {email}.",
+    "closed": "Tento formulář je uzavřený.",
+    "tooMany": "Odsud bylo odesláno příliš mnoho formulářů. Zkuste to znovu {when}, nebo napište na {email}.",
+    "tooManyPlain": "Odsud bylo odesláno příliš mnoho formulářů. Zkuste to znovu {when}.",
+    "unavailable": "Tato stránka není dostupná.",
+    "noScript": "Tento formulář potřebuje JavaScript.",
+    "noScriptWrite": "Můžete také napsat na {email}.",
+    "offline": "Tuto stránku se nepodařilo načíst.",
+    "offlineBody": "Zkontrolujte připojení a zkuste to znovu.",
+    "retry": "Zkusit znovu",
+    "continue": "Pokračovat"
+  }
+} as const;

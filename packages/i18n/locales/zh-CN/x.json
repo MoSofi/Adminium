@@ -1,0 +1,83 @@
+{
+  "language": {
+    "menu": "语言",
+    "button": "语言：{name}"
+  },
+  "footer": {
+    "questions": "有疑问？请写信至",
+    "privacyNotice": "隐私声明"
+  },
+  "required": "必填",
+  "optional": "选填",
+  "send": "发送",
+  "sendAnswers": "提交回答",
+  "sending": "正在发送…",
+  "keeps": "{business} 会保留您发送的内容，以便回复您。",
+  "summary": "请检查下方标出的回答。",
+  "proofFailed": "未能确认您是真人。请重试。",
+  "honeypot": "此栏请留空",
+  "anonymous": "您的回答不会与您的姓名关联。",
+  "error": {
+    "required": "请回答此问题。",
+    "name": "请输入您的姓名",
+    "tooLong": "最多 {max} 个字符。",
+    "email": "请输入邮箱地址，例如 name@company.com",
+    "phone": "请输入 6 到 15 位数字的电话号码。",
+    "choice": "请选择其中一项。",
+    "tooFew": "请至少选择 {min} 项。",
+    "tooMany": "请最多选择 {max} 项。",
+    "date": "请输入日期。",
+    "fromToday": "请选择今天或之后的日期",
+    "fromTomorrow": "请选择明天或之后的日期",
+    "number": "请输入数字。",
+    "whole": "请输入整数。",
+    "tooSmall": "请输入 {min} 或更大的数。",
+    "tooLarge": "请输入 {max} 或更小的数。",
+    "score": "请选择 0 到 10 的分数。",
+    "stars": "请选择 1 到 5 颗星。",
+    "file": "无法接收此文件。",
+    "tick": "请勾选此框，或留空。",
+    "answer": "部分回答未被接收。请检查后重新发送。"
+  },
+  "file": {
+    "chooseOne": "选择文件",
+    "chooseMany": "选择文件",
+    "hint": "{kinds}，最大 {mb} MB",
+    "kind": {
+      "pdf": "PDF",
+      "jpg": "JPG",
+      "png": "PNG",
+      "text": "纯文本"
+    }
+  },
+  "score": {
+    "low": "不太可能",
+    "high": "非常可能",
+    "ends": "0 表示不太可能，10 表示非常可能。"
+  },
+  "stars": {
+    "of": "{n} / 5",
+    "star": "{n} 星"
+  },
+  "ending": {
+    "thanksName": "谢谢，{name}。",
+    "thanks": "谢谢。",
+    "confirmNewsletter": "新闻通讯还差一步：请查看您的邮件并点击“确认”。",
+    "confirmSurveys": "调查还差一步：请查看您的邮件并点击“确认”。",
+    "surveyThanksName": "谢谢您，{name}。",
+    "surveyHelps": "您的回答对我们很有帮助。",
+    "already": "您已回答过此调查。谢谢。",
+    "dead": "此链接无效。",
+    "write": "请写信至 {email}。",
+    "closed": "此表单已关闭。",
+    "tooMany": "此处发送次数过多。请{when}再试，或写信至 {email}。",
+    "tooManyPlain": "此处发送次数过多。请{when}再试。",
+    "unavailable": "此页面不可用。",
+    "noScript": "此表单需要 JavaScript。",
+    "noScriptWrite": "您也可以写信至 {email}。",
+    "offline": "无法打开此页面。",
+    "offlineBody": "请检查网络连接后重试。",
+    "retry": "重试",
+    "continue": "继续"
+  }
+}

@@ -45022,5 +45022,265 @@
   "ui.widgets.tables.trueLabel": {
     "srcHash": "5ffe533b830f",
     "status": "mt"
+  },
+  "x.anonymous": {
+    "status": "mt",
+    "srcHash": "ee410e432d9e"
+  },
+  "x.ending.already": {
+    "status": "mt",
+    "srcHash": "81e45b749c67"
+  },
+  "x.ending.closed": {
+    "status": "mt",
+    "srcHash": "4f3e24dcced2"
+  },
+  "x.ending.confirmNewsletter": {
+    "status": "mt",
+    "srcHash": "a253ddc1dd8e"
+  },
+  "x.ending.confirmSurveys": {
+    "status": "mt",
+    "srcHash": "11d946be49b2"
+  },
+  "x.ending.continue": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "x.ending.dead": {
+    "status": "mt",
+    "srcHash": "63fe2f41f016"
+  },
+  "x.ending.noScript": {
+    "status": "mt",
+    "srcHash": "6c7ad2bed61b"
+  },
+  "x.ending.noScriptWrite": {
+    "status": "mt",
+    "srcHash": "52abcde55663"
+  },
+  "x.ending.offline": {
+    "status": "mt",
+    "srcHash": "c4dac8b561a4"
+  },
+  "x.ending.offlineBody": {
+    "status": "mt",
+    "srcHash": "563862b7d73e"
+  },
+  "x.ending.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "x.ending.surveyHelps": {
+    "status": "mt",
+    "srcHash": "c25199fef7a2"
+  },
+  "x.ending.surveyThanksName": {
+    "status": "mt",
+    "srcHash": "51500a980524"
+  },
+  "x.ending.thanks": {
+    "status": "mt",
+    "srcHash": "174534c6b388"
+  },
+  "x.ending.thanksName": {
+    "status": "mt",
+    "srcHash": "706fd2d732de"
+  },
+  "x.ending.tooMany": {
+    "status": "mt",
+    "srcHash": "2b84e4242602"
+  },
+  "x.ending.tooManyPlain": {
+    "status": "mt",
+    "srcHash": "b7b7e61c0baf"
+  },
+  "x.ending.unavailable": {
+    "status": "mt",
+    "srcHash": "5ca41e5bae2a"
+  },
+  "x.ending.write": {
+    "status": "mt",
+    "srcHash": "91490306c807"
+  },
+  "x.error.answer": {
+    "status": "mt",
+    "srcHash": "039d41f36600"
+  },
+  "x.error.choice": {
+    "status": "mt",
+    "srcHash": "7a7ab425b4c0"
+  },
+  "x.error.date": {
+    "status": "mt",
+    "srcHash": "f5781c36979b"
+  },
+  "x.error.email": {
+    "status": "mt",
+    "srcHash": "273611a3deec"
+  },
+  "x.error.file": {
+    "status": "mt",
+    "srcHash": "4d6c14e81ebb"
+  },
+  "x.error.fromToday": {
+    "status": "mt",
+    "srcHash": "9f60dd3d5571"
+  },
+  "x.error.fromTomorrow": {
+    "status": "mt",
+    "srcHash": "0f918d6869c7"
+  },
+  "x.error.name": {
+    "status": "mt",
+    "srcHash": "54f2dd99686e"
+  },
+  "x.error.number": {
+    "status": "mt",
+    "srcHash": "12f3402c3e2e"
+  },
+  "x.error.phone": {
+    "status": "mt",
+    "srcHash": "dbc740b6c977"
+  },
+  "x.error.required": {
+    "status": "mt",
+    "srcHash": "2074225eafe0"
+  },
+  "x.error.score": {
+    "status": "mt",
+    "srcHash": "eff9d7117416"
+  },
+  "x.error.stars": {
+    "status": "mt",
+    "srcHash": "fe43cbf79196"
+  },
+  "x.error.tick": {
+    "status": "mt",
+    "srcHash": "150e8d36d763"
+  },
+  "x.error.tooFew": {
+    "status": "mt",
+    "srcHash": "43ff68131ee4"
+  },
+  "x.error.tooLarge": {
+    "status": "mt",
+    "srcHash": "7fbd6d4fe1bd"
+  },
+  "x.error.tooLong": {
+    "status": "mt",
+    "srcHash": "acd39717bf53"
+  },
+  "x.error.tooMany": {
+    "status": "mt",
+    "srcHash": "918512cf40ac"
+  },
+  "x.error.tooSmall": {
+    "status": "mt",
+    "srcHash": "05e5fde4a0ee"
+  },
+  "x.error.whole": {
+    "status": "mt",
+    "srcHash": "6fdbb0d01ea1"
+  },
+  "x.file.chooseMany": {
+    "status": "mt",
+    "srcHash": "5910acf0395e"
+  },
+  "x.file.chooseOne": {
+    "status": "mt",
+    "srcHash": "74b1d89d8525"
+  },
+  "x.file.hint": {
+    "status": "mt",
+    "srcHash": "c216f18bc9fa"
+  },
+  "x.file.kind.jpg": {
+    "status": "src",
+    "srcHash": "45c9d1159907"
+  },
+  "x.file.kind.pdf": {
+    "status": "src",
+    "srcHash": "d613d88cb2d8"
+  },
+  "x.file.kind.png": {
+    "status": "src",
+    "srcHash": "70fe60b7dfe0"
+  },
+  "x.file.kind.text": {
+    "status": "mt",
+    "srcHash": "9f9443b8f3d8"
+  },
+  "x.footer.privacyNotice": {
+    "status": "mt",
+    "srcHash": "ec7c829b3908"
+  },
+  "x.footer.questions": {
+    "status": "mt",
+    "srcHash": "330603f0cdba"
+  },
+  "x.honeypot": {
+    "status": "mt",
+    "srcHash": "5826b136ec5c"
+  },
+  "x.keeps": {
+    "status": "mt",
+    "srcHash": "29a09adde53d"
+  },
+  "x.language.button": {
+    "status": "mt",
+    "srcHash": "eaebc1bf76a7"
+  },
+  "x.language.menu": {
+    "status": "mt",
+    "srcHash": "89b86ab0e66f"
+  },
+  "x.optional": {
+    "status": "mt",
+    "srcHash": "0c6c4102d4df"
+  },
+  "x.proofFailed": {
+    "status": "mt",
+    "srcHash": "478a244b13c1"
+  },
+  "x.required": {
+    "status": "mt",
+    "srcHash": "eed6bfb41051"
+  },
+  "x.score.ends": {
+    "status": "mt",
+    "srcHash": "5ebd4c0c60be"
+  },
+  "x.score.high": {
+    "status": "mt",
+    "srcHash": "84d865930af3"
+  },
+  "x.score.low": {
+    "status": "mt",
+    "srcHash": "f04668420fdf"
+  },
+  "x.send": {
+    "status": "mt",
+    "srcHash": "9bc2575c3930"
+  },
+  "x.sendAnswers": {
+    "status": "mt",
+    "srcHash": "bd68e17a681b"
+  },
+  "x.sending": {
+    "status": "mt",
+    "srcHash": "cf765512cc6d"
+  },
+  "x.stars.of": {
+    "status": "mt",
+    "srcHash": "f4d566da4cd4"
+  },
+  "x.stars.star": {
+    "status": "mt",
+    "srcHash": "8e736da9f8bf"
+  },
+  "x.summary": {
+    "status": "mt",
+    "srcHash": "5531748dfc06"
   }
 }

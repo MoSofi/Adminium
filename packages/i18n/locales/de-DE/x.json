@@ -1,0 +1,83 @@
+{
+  "language": {
+    "menu": "Sprache",
+    "button": "Sprache: {name}"
+  },
+  "footer": {
+    "questions": "Fragen? Schreiben Sie an",
+    "privacyNotice": "Datenschutzhinweis"
+  },
+  "required": "Pflichtfeld",
+  "optional": "Optional",
+  "send": "Senden",
+  "sendAnswers": "Antworten senden",
+  "sending": "Wird gesendet…",
+  "keeps": "{business} speichert, was Sie senden, um Ihnen zu antworten.",
+  "summary": "Bitte prüfen Sie die unten markierten Angaben.",
+  "proofFailed": "Die Prüfung, ob Sie ein Mensch sind, ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  "honeypot": "Dieses Feld leer lassen",
+  "anonymous": "Ihre Antworten sind nicht mit Ihrem Namen verknüpft.",
+  "error": {
+    "required": "Bitte beantworten Sie diese Frage.",
+    "name": "Geben Sie Ihren Namen ein",
+    "tooLong": "Höchstens {max, plural, one {# Zeichen} other {# Zeichen}}.",
+    "email": "Geben Sie eine E-Mail-Adresse wie name@company.com ein",
+    "phone": "Geben Sie eine Telefonnummer mit 6 bis 15 Ziffern ein.",
+    "choice": "Wählen Sie eine der Möglichkeiten.",
+    "tooFew": "Wählen Sie mindestens {min}.",
+    "tooMany": "Wählen Sie höchstens {max}.",
+    "date": "Geben Sie einen Tag ein.",
+    "fromToday": "Wählen Sie einen Tag ab heute",
+    "fromTomorrow": "Wählen Sie einen Tag ab morgen",
+    "number": "Geben Sie eine Zahl ein.",
+    "whole": "Geben Sie eine ganze Zahl ein.",
+    "tooSmall": "Geben Sie {min} oder mehr ein.",
+    "tooLarge": "Geben Sie {max} oder weniger ein.",
+    "score": "Wählen Sie einen Wert von 0 bis 10.",
+    "stars": "Wählen Sie 1 bis 5 Sterne.",
+    "file": "Diese Datei kann nicht angenommen werden.",
+    "tick": "Setzen Sie das Häkchen oder lassen Sie es leer.",
+    "answer": "Etwas in den Antworten wurde nicht angenommen. Prüfen Sie sie und senden Sie erneut."
+  },
+  "file": {
+    "chooseOne": "Datei auswählen",
+    "chooseMany": "Dateien auswählen",
+    "hint": "{kinds}, bis {mb} MB",
+    "kind": {
+      "pdf": "PDF",
+      "jpg": "JPG",
+      "png": "PNG",
+      "text": "Text"
+    }
+  },
+  "score": {
+    "low": "Unwahrscheinlich",
+    "high": "Sehr wahrscheinlich",
+    "ends": "0 heißt unwahrscheinlich, 10 heißt sehr wahrscheinlich."
+  },
+  "stars": {
+    "of": "{n} von 5",
+    "star": "{n, plural, one {# Stern} other {# Sterne}}"
+  },
+  "ending": {
+    "thanksName": "Danke, {name}.",
+    "thanks": "Danke.",
+    "confirmNewsletter": "Noch ein Schritt für den Newsletter: Öffnen Sie Ihre E-Mail und tippen Sie auf „Bestätigen“.",
+    "confirmSurveys": "Noch ein Schritt für die Umfragen: Öffnen Sie Ihre E-Mail und tippen Sie auf „Bestätigen“.",
+    "surveyThanksName": "Danke, {name}.",
+    "surveyHelps": "Ihre Antworten helfen uns.",
+    "already": "Sie haben diese Umfrage bereits beantwortet. Danke.",
+    "dead": "Dieser Link funktioniert nicht.",
+    "write": "Schreiben Sie an {email}.",
+    "closed": "Dieses Formular ist geschlossen.",
+    "tooMany": "Zu viele Sendungen von hier. Bitte versuchen Sie es {when} erneut oder schreiben Sie an {email}.",
+    "tooManyPlain": "Zu viele Sendungen von hier. Bitte versuchen Sie es {when} erneut.",
+    "unavailable": "Diese Seite ist nicht verfügbar.",
+    "noScript": "Dieses Formular braucht JavaScript.",
+    "noScriptWrite": "Sie können auch an {email} schreiben.",
+    "offline": "Diese Seite war nicht erreichbar.",
+    "offlineBody": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "retry": "Erneut versuchen",
+    "continue": "Weiter"
+  }
+}
