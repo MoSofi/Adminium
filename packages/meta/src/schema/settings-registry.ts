@@ -409,6 +409,19 @@ export const SETTINGS_REGISTRY = {
     {},
     'Hosts of an uninstalled app: they answer 503, never the dashboard, until mapped again',
   ),
+  /*
+   * Hosts that serve the add-on pages a stranger sees (`/x/…`: forms today),
+   * each with its home page, where `/` sends a visitor. Kept apart from
+   * `surfaces.domains` so everything that reads an app's hosts there reads
+   * exactly what it always did. A host is in one map or the other, never
+   * both (the domains editor saves both at once and refuses a host twice).
+   * Not portable, for the reason `surfaces.domains` is not.
+   */
+  'surfaces.pageHosts': def<Record<string, { home: string }>>(
+    z.record(z.string().min(1).max(255), z.object({ home: z.string().min(4).max(200).regex(/^\/x\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/, 'must be a page address under /x/') })),
+    {},
+    'Hosts that serve the add-on pages (/x/), each with its home page',
+  ),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
   'email.smtp': def<z.infer<typeof smtpSchema>>(smtpSchema, null, 'SMTP transport; email features degrade gracefully when unset', { secret: true, portable: true }),
   // ── email documents ───────────────────────────────────────────────────────
@@ -799,6 +812,28 @@ export const SETTINGS_REGISTRY = {
     null,
     'Where replies to marketing mail go (its Reply-To)',
     P,
+  ),
+  // ── "Your websites": the sites that may show a form in a frame ────────────
+  //
+  // Each an origin (`https://shop.example`: lower case, no path, no default
+  // port), with who listed it and when. It feeds the `frame-ancestors` of a
+  // form drawn for a frame and the origins the frame answers the website
+  // loader from, and nothing else: never the public API's origins, never the
+  // credentialed CORS list. At most fifty. Not portable: it names staff by
+  // their ids on this install, and another install's websites are its own.
+  'publicPages.websites': def<{ origin: string; addedBy: string | null; addedAt: number }[]>(
+    z
+      .array(
+        z.object({
+          origin: z.string().max(255).refine((value) => value.startsWith('https://') && isHttpOrigin(value), 'must be an https origin with no path, such as https://shop.example'),
+          addedBy: z.string().min(1).max(64).nullable(),
+          addedAt: z.number().int().nonnegative(),
+        }),
+      )
+      .max(50)
+      .refine((list) => new Set(list.map((site) => site.origin)).size === list.length, { message: 'each website once' }),
+    [],
+    'Websites that may show a form in a frame (Privacy → Your websites)',
   ),
 } as const;
 
