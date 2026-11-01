@@ -99,9 +99,16 @@ function ReachProblem({ reach, checking, onCheckAgain }: { reach: Reach; checkin
         </p>
         <p className="flex flex-wrap items-center gap-2 text-[12.5px] text-fg-muted">
           {t('studio:privacy.websites.reach.address', "This server's public address:")}{' '}
-          <span dir="ltr" className="font-mono text-fg" data-testid="privacy-reach-address">
-            {reach.origin ?? t('studio:privacy.websites.reach.notSet', '(not set)')}
-          </span>
+          {/* Both in mono, as the comp; an address reads left to right, "(not set)" in the page's own direction. */}
+          {reach.origin === null ? (
+            <span className="font-mono text-fg" data-testid="privacy-reach-address">
+              {t('studio:privacy.websites.reach.notSet', '(not set)')}
+            </span>
+          ) : (
+            <span dir="ltr" className="font-mono text-fg" data-testid="privacy-reach-address">
+              {reach.origin}
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {canSet ? (
