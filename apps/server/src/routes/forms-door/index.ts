@@ -48,14 +48,13 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
-import { storedPublicOrigin } from '../../email/door-reach.js';
 import type { FormsCatalog, LiveForm } from '../../forms/catalog.js';
+import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
 import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
 import { loadOverrideMap } from '../../i18n/server-i18n.js';
 import { bcp47 } from '../../i18n/bcp47.js';
 import type { FileStore } from '../../files/store.js';
-import { reachability } from '../../payments/reachability.js';
 import { negotiateLocale, X_PREFIX } from '../../plugins/surfaces.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
@@ -126,11 +125,6 @@ function originOf(request: FastifyRequest): string {
   return `${request.protocol}://${request.host}`;
 }
 
-/** Whether the request came through a proxy: it carries the headers one adds. */
-function forwardedOf(request: FastifyRequest): boolean {
-  return request.headers['x-forwarded-for'] !== undefined || request.headers['forwarded'] !== undefined;
-}
-
 function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -147,8 +141,7 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
   const key = proofKey(deps.secret);
 
   async function reachable(request: FastifyRequest): Promise<boolean> {
-    const origin = await storedPublicOrigin(meta);
-    return reachability({ networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded: forwardedOf(request), publicOrigin: origin }).state === 'reachable';
+    return (await formsReach(meta, deps, request)).state === 'reachable';
   }
 
   /** The form a request names, as strangers may be served it now; never live while the outside cannot reach the server. */

@@ -2,10 +2,12 @@
 /**
  * The privacy routes' bodies and replies (`routes/privacy/index.ts`).
  */
+import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
 import { KEPT_BY_LAW_REASONS } from '@adminium/manifest';
 import { PRIVACY_EXPORT_STATUSES } from '@adminium/meta';
 import { z } from 'zod';
 
+import { REACHABILITY_STATES } from '../../payments/reachability.js';
 import { SOURCE_KINDS } from '../../privacy/sources.js';
 
 /** An address as typed into the search; checked as an address by the route. */
@@ -135,3 +137,35 @@ export const privacyExportCreateReply = z.object({ data: exportView.extend({ job
 export const privacyExportReply = z.object({ data: exportView });
 export const privacyExportListReply = z.object({ data: z.array(exportView) });
 export const privacyExportParams = z.object({ id: z.string().min(1).max(64) });
+
+// ── "Your websites" and the reach card ───────────────────────────────────────
+
+/** One listed website, with the name of who listed it (null once they are gone). */
+const websiteView = z.object({
+  origin: z.string(),
+  addedBy: z.object({ id: z.string(), name: z.string() }).nullable(),
+  addedAt: z.number(),
+});
+
+export const websitesReply = z.object({
+  data: z.object({
+    websites: z.array(websiteView),
+    /** The most the list holds. */
+    max: z.number(),
+  }),
+});
+
+/** Several lines at once, all or none. A line too long for any address is refused by its check, not here. */
+export const websitesAddBody = z.object({ lines: z.array(z.string().max(2_000)).min(1).max(WEBSITES_MAX) });
+
+export const websiteRemoveBody = z.object({ origin: z.string().min(1).max(300) });
+
+export const reachReply = z.object({
+  data: z.object({
+    state: z.enum(REACHABILITY_STATES),
+    /** This server's public address, as the answer read it; null when none is set. */
+    origin: z.string().nullable(),
+    /** When the facts were read (ms). */
+    checkedAt: z.number(),
+  }),
+});

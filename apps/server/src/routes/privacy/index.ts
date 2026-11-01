@@ -17,6 +17,10 @@
  *   GET  /privacy/exports/:id/download   its file, for the person who asked alone
  *   POST /privacy/erase/preview          what an erasure would do: what goes and what stays, with counts
  *   POST /privacy/erase                  erase the person in place, confirmed by the address typed again
+ *   GET  /privacy/reach                  "Can visitors reach your public pages?": the forms door's own answer
+ *   GET  /privacy/websites               the websites that may show a form in a frame ("Your websites")
+ *   POST /privacy/websites               add several, every line checked, all or none
+ *   POST /privacy/websites/remove        take one off the list
  *
  * ─── Who may ───────────────────────────────────────────────────────────────
  * Everything about a person, and the notice, under the privacy action
@@ -33,6 +37,13 @@
  * address keys cannot be read (`ADMINIUM_SECRET` changed), a search answers
  * 503 rather than "nothing found", and an erasure touches nothing.
  *
+ * ─── Your websites ─────────────────────────────────────────────────────────
+ * Under the privacy action, as the rest of the page. A listed website feeds
+ * the frame rule of a form drawn for a frame and the loader's origin check,
+ * and nothing else: never the public API's origins, never the credentialed
+ * CORS list (`forms/websites.ts`). A refused add answers each line's code;
+ * the page words them. Each add and remove is audited with the origins.
+ *
  * ─── Erasing ────────────────────────────────────────────────────────────────
  * Under the same action, by a signed-in person, and never through the staff
  * write path: the erasure writes as the system (`privacy/erase.ts`), past
@@ -40,9 +51,10 @@
  * a second time (the house's type-to-confirm), and its one audit entry keeps
  * the counts and the keyed hash, never the address.
  */
+import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { filesRepo, isHttpsPageUrl, privacyExportsRepo, settingsRepo, type EnqueueJobInput, type MetaDb, type PrivacyExport } from '@adminium/meta';
+import { filesRepo, isHttpsPageUrl, privacyExportsRepo, settingsRepo, usersRepo, type EnqueueJobInput, type MetaDb, type PrivacyExport } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
 import { AddressKeysLockedError, type ConsentService } from '../../consent/index.js';
@@ -51,6 +63,8 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import type { RecordWriteEvent } from '../../crud/after-record-write.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
+import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
+import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
@@ -75,6 +89,10 @@ import {
   privacyNoticeBody,
   privacyNoticeReply,
   publicNoticeReply,
+  reachReply,
+  websiteRemoveBody,
+  websitesAddBody,
+  websitesReply,
   whatStaysReply,
 } from './schema.js';
 
@@ -87,6 +105,8 @@ export interface PrivacyRoutesDeps {
   enqueue: (input: EnqueueJobInput) => Promise<{ id: string }>;
   /** An erased person's rows told to the public door's address watch: their sessions end, their sign-in links are taken back. */
   signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
+  /** What the reach card's answer reads (the forms door's own facts). */
+  reach: FormsReachFacts;
 }
 
 /** The signed-in person asking: never an API key. */
@@ -141,6 +161,24 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     return { data: { ...notice, ready: notice.businessName !== null && notice.noticeUrl !== null, shownName: await businessName(meta) } };
   }
 
+  /** The list as the page shows it: each website with the name of who listed it. */
+  async function websitesView(websites: readonly ListedWebsite[]) {
+    const users = usersRepo(meta);
+    const names = new Map<string, string | null>();
+    for (const site of websites) {
+      if (site.addedBy !== null && !names.has(site.addedBy)) names.set(site.addedBy, (await users.findById(site.addedBy))?.name ?? null);
+    }
+    return {
+      data: {
+        websites: websites.map((site) => {
+          const name = site.addedBy === null ? null : (names.get(site.addedBy) ?? null);
+          return { origin: site.origin, addedBy: site.addedBy === null || name === null ? null : { id: site.addedBy, name }, addedAt: site.addedAt };
+        }),
+        max: WEBSITES_MAX,
+      },
+    };
+  }
+
   /** One of this person's own downloads, or 404 (somebody else's reads as none at all). */
   async function ownExport(request: FastifyRequest, id: string): Promise<PrivacyExport> {
     const userId = personOf(request);
@@ -177,6 +215,47 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       const notice = await privacyNoticeOf(meta);
       return { data: { businessName: await businessName(meta), noticeUrl: notice.noticeUrl } };
     });
+
+    // ── "Can visitors reach your public pages?" ─────────────────────────────
+    // The forms door's own answer for this request, so the card never says reachable while the door refuses.
+    app.get('/privacy/reach', { preHandler: privacy, schema: { response: { 200: reachReply } } }, async (request) => {
+      const answer = await formsReach(meta, deps.reach, request);
+      return { data: { state: answer.state, origin: answer.origin, checkedAt: app.rbac.now() } };
+    });
+
+    // ── "Your websites" ─────────────────────────────────────────────────────
+    app.get('/privacy/websites', { preHandler: privacy, schema: { response: { 200: websitesReply } } }, async () => websitesView(await readWebsites(meta)));
+
+    app.post(
+      '/privacy/websites',
+      { preHandler: privacy, config: { audit: audited('rbac') }, schema: { body: websitesAddBody, response: { 200: websitesReply } } },
+      async (request) => {
+        const userId = personOf(request);
+        const result = await addWebsites(meta, request.body.lines, { userId, at: app.rbac.now() });
+        if (!result.ok) {
+          // Each line's code, in order; nothing was added. The page words them.
+          throw new ValidationFailedError('Some lines are not websites that can be listed.', {
+            lines: result.lines.map((line) => ({ line: line.line, code: line.code, origin: line.origin })),
+            tooMany: result.tooMany,
+            max: WEBSITES_MAX,
+          });
+        }
+        await app.rbac.audit(request, { category: 'settings', action: 'privacy.websites.add', changes: { after: { origins: result.added } } });
+        return websitesView(result.websites);
+      },
+    );
+
+    app.post(
+      '/privacy/websites/remove',
+      { preHandler: privacy, config: { audit: audited('rbac') }, schema: { body: websiteRemoveBody, response: { 200: websitesReply } } },
+      async (request) => {
+        const userId = personOf(request);
+        const result = await removeWebsite(meta, request.body.origin, { userId, at: app.rbac.now() });
+        if (!result.removed) throw new NotFoundError('That website is not on the list.');
+        await app.rbac.audit(request, { category: 'settings', action: 'privacy.websites.remove', changes: { before: { origin: request.body.origin } } });
+        return websitesView(result.websites);
+      },
+    );
 
     // ── the sender's postal address (the marketing mail settings) ───────────
     app.get('/privacy/postal-address', { preHandler: app.rbac.require(PERMISSIONS.settingsManage), schema: { response: { 200: postalAddressReply } } }, async () => ({
