@@ -6,11 +6,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { PROOF_DIFFICULTY, PROOF_TTL_MS, checkProof, issueChallenge, leadingZeroBits, proofKey, proofWork, solveProof } from '../src/public-api/proof.js';
+import { PROOF_DIFFICULTY, PROOF_PURPOSES, PROOF_TTL_MS, checkProof, issueChallenge, leadingZeroBits, proofKey, proofWork, solveProof, type ProofPurpose } from '../src/public-api/proof.js';
 
 const key = proofKey('a-test-secret-that-is-long-enough-for-hkdf');
 const now = Date.UTC(2026, 6, 28, 9, 0);
-const expect0 = { keyId: 'pbk_1', purpose: 'write' as const, now };
+const expect0: { keyId: string; purpose: ProofPurpose; now: number } = { keyId: 'pbk_1', purpose: 'write', now };
 
 function solved(overrides: Partial<typeof expect0> = {}) {
   const challenge = issueChallenge(key, overrides.keyId ?? 'pbk_1', overrides.purpose ?? 'write', now);
@@ -56,6 +56,22 @@ describe('a proof', () => {
     while (proofWork(salt, other.toString(36)) < PROOF_DIFFICULTY) other += 1;
     const second = checkProof(key, `${id}.${other.toString(36)}`, expect0);
     expect(second.ok && first.ok && second.spendId === first.spendId).toBe(true);
+  });
+
+  it('made for a form sends that form alone, and is never a write\'s, nor a write\'s a form\'s', () => {
+    expect(PROOF_PURPOSES).toContain('form');
+    // A form's proof is bound to the form's id, as a pay proof is to its link's.
+    const form = solved({ keyId: 'frm_showroom', purpose: 'form' });
+    expect(checkProof(key, form.header, { keyId: 'frm_showroom', purpose: 'form', now }).ok).toBe(true);
+    expect(checkProof(key, form.header, { keyId: 'frm_other', purpose: 'form', now }).ok).toBe(false);
+    expect(checkProof(key, form.header, { keyId: 'frm_showroom', purpose: 'write', now }).ok).toBe(false);
+    expect(checkProof(key, form.header, { keyId: 'frm_showroom', purpose: 'pay', now }).ok).toBe(false);
+    const write = solved({ keyId: 'frm_showroom', purpose: 'write' });
+    expect(checkProof(key, write.header, { keyId: 'frm_showroom', purpose: 'form', now }).ok).toBe(false);
+    // Spent apart: the same salt under two purposes is two rows.
+    const asForm = checkProof(key, form.header, { keyId: 'frm_showroom', purpose: 'form', now });
+    const asWrite = checkProof(key, write.header, { keyId: 'frm_showroom', purpose: 'write', now });
+    expect(asForm.ok && asWrite.ok && asForm.spendId !== asWrite.spendId).toBe(true);
   });
 
   it('counts leading zero bits', () => {

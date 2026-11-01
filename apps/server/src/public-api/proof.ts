@@ -24,8 +24,12 @@
  */
 import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto';
 
-/** `pay`: pressing Pay on a pay link; the key a pay proof is bound to is the link's id. */
-export const PROOF_PURPOSES = ['write', 'claim', 'pay'] as const;
+/**
+ * `pay`: pressing Pay on a pay link; the key a pay proof is bound to is the
+ * link's id. `form`: sending a form; the key a form proof is bound to is the
+ * form's id, so a proof made for one form sends no other.
+ */
+export const PROOF_PURPOSES = ['write', 'claim', 'pay', 'form'] as const;
 export type ProofPurpose = (typeof PROOF_PURPOSES)[number];
 
 /** Leading zero bits a proof needs: about a second on a low-end phone. */
