@@ -34,6 +34,10 @@
       "types": "./dist/forms/check.d.ts",
       "default": "./dist/forms/check.js"
     },
+    "./forms/websites": {
+      "types": "./dist/forms/websites.d.ts",
+      "default": "./dist/forms/websites.js"
+    },
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"

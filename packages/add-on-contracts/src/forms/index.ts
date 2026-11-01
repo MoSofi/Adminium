@@ -92,3 +92,16 @@ export {
 } from './check.js';
 
 export { recommendScoreOf, summarise, type FormSummary, type QuestionSummary } from './summary.js';
+
+export {
+  WEBSITES_MAX,
+  WEBSITE_LINE_CODES,
+  WEBSITE_LINE_MAX,
+  WEBSITE_ORIGIN_MAX,
+  checkWebsiteLine,
+  checkWebsiteLines,
+  isWebsiteOrigin,
+  type WebsiteCheckContext,
+  type WebsiteLine,
+  type WebsiteLineCode,
+} from './websites.js';
