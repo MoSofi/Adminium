@@ -180,6 +180,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.consent',
   // More rules than a manifest could ship before (twenty-four).
   'automations.more',
+  // An add-on's forms: the tables that hold its forms, answers, invitations and files.
+  'addOn.forms',
+  // A table an app opens to forms, through an entry under the reserved key `forms`.
+  'publicAccess.forms',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -345,6 +349,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'publicAccess.consent': '0.3.38',
   // More rules than a manifest could ship before (twenty-four, now thirty-two).
   'automations.more': '0.3.38',
+  // An add-on's forms, which the engine draws and takes answers for, and a table an app opens to them.
+  'addOn.forms': '0.3.40',
+  'publicAccess.forms': '0.3.40',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -370,6 +377,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['lookUp'] !== undefined) out.push({ word: 'addOn.lookUp', path: 'addOn.lookUp' });
     if (block['steps'] !== undefined) out.push({ word: 'addOn.steps', path: 'addOn.steps' });
     if (block['assistant'] !== undefined) out.push({ word: 'addOn.assistant', path: 'addOn.assistant' });
+    if (block['forms'] !== undefined) out.push({ word: 'addOn.forms', path: 'addOn.forms' });
     // An amount Adminium decides for a ledger's action (what a card may pay).
     list(block['ledgers']).forEach((ledger, l) => {
       for (const [name, action] of Object.entries(isDoc(ledger) && isDoc(ledger['actions']) ? ledger['actions'] : {})) {
@@ -654,6 +662,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['words'] !== undefined) out.push({ word: 'availability.words', path: `publicAccess.${String(e)}.words` });
     if (isDoc(entry) && entry['requiresWhen'] !== undefined) out.push({ word: 'publicAccess.requiresWhen', path: `publicAccess.${String(e)}.requiresWhen` });
     if (isDoc(entry) && entry['consent'] !== undefined) out.push({ word: 'publicAccess.consent', path: `publicAccess.${String(e)}.consent` });
+    if (isDoc(entry) && entry['key'] === 'forms') out.push({ word: 'publicAccess.forms', path: `publicAccess.${String(e)}.key` });
   });
   return out;
 }

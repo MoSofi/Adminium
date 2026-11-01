@@ -50,6 +50,24 @@ export const SELF_UNLOCK_MIN_LENGTH = 10;
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
 
+/**
+ * The reserved key name of the entries that open a table to FORMS: an answer
+ * to a form may become a new row of the table, through this entry's
+ * `writable` columns, `defaults` and `anonymous` limits. No browser key of
+ * this name is ever made, and the public API never serves such an entry: it
+ * is read by the forms door alone, so opening a table to forms does not open
+ * it to the public API.
+ */
+export const FORMS_KEY = 'forms';
+
+/**
+ * What a forms entry may say. A form only ever creates a row (it never reads
+ * one back, changes one or signs anyone in), so every word about reading,
+ * claims, sessions, children, files and the entry's own confirmation mail is
+ * left out: forms send their own.
+ */
+export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writableValues', 'defaults', 'requires', 'agrees', 'anonymous', 'requireSetting', 'module'] as const;
+
 /** The longest a plain-text value may be unless its column says longer: a name. */
 export const PLAIN_TEXT_MAX = 80;
 /** The most digits a plain-text column may take in all: "table 12", "2 without onions", never a phone number. */
@@ -761,6 +779,9 @@ export const publicKeysSchema = z
   .record(keyNameSchema, publicKeySchema)
   .refine((keys) => !(CUSTOMER_KEY in keys) || Object.keys(keys[CUSTOMER_KEY] ?? {}).every((field) => field === 'peak'), {
     message: '"customer" is the app\'s own key: only its peak is said here',
+  })
+  .refine((keys) => !(FORMS_KEY in keys), {
+    message: '"forms" is the name of the entries forms write through, and no browser key: name the key otherwise',
   });
 export type PublicKey = z.infer<typeof publicKeySchema>;
 
@@ -877,6 +898,48 @@ export function resendAddressOf(outbox: ResendOutbox, kind: string, table: strin
   if (fallback !== undefined && find(outbox.table, fallback.via)?.references === table && find(table, fallback.email) !== undefined) columns.push(fallback.email);
   if (columns.length === 0) return null;
   return { columns, ...(person === undefined ? {} : { person }) };
+}
+
+/** Whether anyone at all may read rows through an entry: no claim, no session, no person, no parent row it is read with. */
+function readByAnyone(entry: PublicAccess): boolean {
+  return (
+    entry.methods.includes('GET') &&
+    entry.kind !== 'availability' &&
+    entry.claim === undefined &&
+    entry.claimedBy === undefined &&
+    entry.identity === undefined &&
+    entry.visibleWith === undefined &&
+    entry.level === undefined
+  );
+}
+
+/**
+ * A forms entry's own rules: it creates (POST) and nothing else, under the
+ * anonymous limits every stranger's create has, with the columns a form may
+ * fill named; one per table; and no entry on any key lets anyone read the
+ * rows strangers add through it.
+ */
+function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly PublicAccess[]): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const at = (...rest: (string | number)[]) => ['publicAccess', i, ...rest];
+  const allowed: readonly string[] = FORMS_ENTRY_WORDS;
+  for (const word of Object.keys(entry)) {
+    if (!allowed.includes(word)) out.push({ path: at(word), message: `a forms entry only lets a form add a row: "${word}" is not said on it` });
+  }
+  if (entry.methods.length !== 1 || entry.methods[0] !== 'POST') out.push({ path: at('methods'), message: 'a forms entry adds a row and does nothing else: its methods are ["POST"]' });
+  if (entry.anonymous === undefined) out.push({ path: at('anonymous'), message: 'a form is sent by strangers: a forms entry says its anonymous limits' });
+  if ((entry.writable ?? []).length === 0) out.push({ path: at('writable'), message: 'a forms entry names the columns a form may fill (writable)' });
+  if (entries.findIndex((other) => other.key === FORMS_KEY && other.table === entry.table) !== i) {
+    out.push({ path: at('table'), message: `"${entry.table}" is opened to forms by another entry already: one forms entry per table` });
+  }
+  const reader = entries.findIndex((other) => other !== entry && other.table === entry.table && readByAnyone(other));
+  if (reader !== -1) {
+    out.push({
+      path: at('table'),
+      message: `strangers add rows to "${entry.table}" through forms, and entry ${String(reader)} lets anyone read its rows: everyone could read what people typed into a form`,
+    });
+  }
+  return out;
 }
 
 /** Everything in `publicAccess` and `publicKeys` that names something undeclared, or breaks a rule. */
@@ -1002,9 +1065,10 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
     const column = (ref: string) => index.column(entry.table, ref);
     const key = entry.key ?? CUSTOMER_KEY;
-    if (key !== CUSTOMER_KEY && ctx.publicKeys?.[key] === undefined) {
+    if (key !== CUSTOMER_KEY && key !== FORMS_KEY && ctx.publicKeys?.[key] === undefined) {
       out.push({ path: at('key'), message: `"${key}" is not one of the app's publicKeys` });
     }
+    if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries));
 
     for (const list of ['select', 'writable'] as const) {
       for (const ref of entry[list] ?? []) {
@@ -1014,8 +1078,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     // An entry anyone may call (no claim, no parent, no session asked) shows no personal data: the install refuses it too.
     const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
     const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
-    // An availability entry shows no row, whatever it names.
-    if (anyone && entry.kind !== 'availability') {
+    // An availability entry shows no row, whatever it names; nor does a forms entry, which answers nobody with the row.
+    if (anyone && entry.kind !== 'availability' && key !== FORMS_KEY) {
       // No select shows every column but a code Adminium makes and a secret, as the install reads it.
       const shown =
         entry.select ??

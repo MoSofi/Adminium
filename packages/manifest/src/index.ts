@@ -60,6 +60,10 @@ export {
   MAX_SEED_ROWS,
   installsLikeAnApp,
   ledgersOf,
+  formsOf,
+  formsEntriesOf,
+  decidedColumnsOf,
+  type FormsEntry,
   addOnRoleTableHold,
   adjusterOf,
   lookUpOf,
@@ -233,7 +237,20 @@ export {
   type OutboxProducer,
 } from './outbox.js';
 
-export { SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
+export { FORMS_ENTRY_WORDS, FORMS_KEY, SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
+export {
+  ANSWER_INVITATION_COLUMN,
+  FORMS_CATEGORY,
+  FORMS_COLUMNS,
+  FORMS_PARTS,
+  addOnFormsSchema,
+  formsBlockIssues,
+  type AddOnForms,
+  type FormsAddOnShape,
+  type FormsColumn,
+  type FormsPart,
+  type FormsTableShape,
+} from './forms.js';
 export { CUSTOMER_KEY, claimKind, claimSchema, codeSchemaOf, codeWhereSchema, hiddenFromStaff, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type CodeSchema, type PersonOwnLink, type PublicKey } from './public-access.js';
 export { resendAddressOf, type ResendAddress, type ResendColumns, type ResendOutbox } from './public-access.js';
 export { PLAIN_TEXT_DIGITS_MOST, PLAIN_TEXT_LONGEST, PLAIN_TEXT_MAX, plainTextMax, plainTextRef, type PlainTextColumnRef } from './public-access.js';
