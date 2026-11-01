@@ -121864,6 +121864,338 @@
         }
       }
     },
+    "/api/v1/privacy/reach": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "network-off",
+                            "desktop",
+                            "not-set",
+                            "this-computer",
+                            "private-network",
+                            "dot-local",
+                            "not-https",
+                            "proxy-hidden",
+                            "reachable"
+                          ]
+                        },
+                        "origin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "origin",
+                        "checkedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/websites": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "websites": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "origin": {
+                                "type": "string"
+                              },
+                              "addedBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addedAt": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "origin",
+                              "addedBy",
+                              "addedAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "websites",
+                        "max"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 2000
+                    }
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "websites": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "origin": {
+                                "type": "string"
+                              },
+                              "addedBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addedAt": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "origin",
+                              "addedBy",
+                              "addedAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "websites",
+                        "max"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/websites/remove": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "origin"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "websites": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "origin": {
+                                "type": "string"
+                              },
+                              "addedBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addedAt": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "origin",
+                              "addedBy",
+                              "addedAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "websites",
+                        "max"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/privacy/postal-address": {
       "get": {
         "responses": {
@@ -125613,7 +125945,8 @@
                 "desktop",
                 "pay",
                 "payments",
-                "mailDoor"
+                "mailDoor",
+                "x"
               ]
             },
             "in": "path",
@@ -125753,7 +126086,8 @@
                 "desktop",
                 "pay",
                 "payments",
-                "mailDoor"
+                "mailDoor",
+                "x"
               ]
             },
             "in": "query",
@@ -125952,7 +126286,8 @@
                       "desktop",
                       "pay",
                       "payments",
-                      "mailDoor"
+                      "mailDoor",
+                      "x"
                     ]
                   },
                   "key": {
@@ -126099,7 +126434,8 @@
                 "desktop",
                 "pay",
                 "payments",
-                "mailDoor"
+                "mailDoor",
+                "x"
               ]
             },
             "in": "query",
@@ -126250,7 +126586,8 @@
                             "desktop",
                             "pay",
                             "payments",
-                            "mailDoor"
+                            "mailDoor",
+                            "x"
                           ]
                         },
                         "key": {
@@ -130909,31 +131246,56 @@
                         "type": "string"
                       },
                       "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "appKey": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 64
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "pages"
+                                ]
+                              },
+                              "home": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "home"
+                            ],
+                            "additionalProperties": false
                           },
-                          "side": {
-                            "type": "string",
-                            "enum": [
-                              "staff",
-                              "customer"
-                            ]
-                          },
-                          "instance": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 32
+                          {
+                            "type": "object",
+                            "properties": {
+                              "appKey": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              "side": {
+                                "type": "string",
+                                "enum": [
+                                  "staff",
+                                  "customer"
+                                ]
+                              },
+                              "instance": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 32
+                              }
+                            },
+                            "required": [
+                              "appKey",
+                              "side"
+                            ],
+                            "additionalProperties": false
                           }
-                        },
-                        "required": [
-                          "appKey",
-                          "side"
-                        ],
-                        "additionalProperties": false
+                        ]
                       }
                     },
                     "instances": {
@@ -130960,12 +131322,19 @@
                           "additionalProperties": false
                         }
                       }
+                    },
+                    "pageHomes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
                     "surfaces",
                     "domains",
-                    "instances"
+                    "instances",
+                    "pageHomes"
                   ],
                   "additionalProperties": false
                 }
@@ -131292,29 +131661,54 @@
                       "maxLength": 255
                     },
                     "additionalProperties": {
-                      "type": "object",
-                      "properties": {
-                        "appKey": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 64
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "pages"
+                              ]
+                            },
+                            "home": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "home"
+                          ],
+                          "additionalProperties": false
                         },
-                        "side": {
-                          "type": "string",
-                          "enum": [
-                            "staff",
-                            "customer"
+                        {
+                          "type": "object",
+                          "properties": {
+                            "appKey": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            },
+                            "side": {
+                              "type": "string",
+                              "enum": [
+                                "staff",
+                                "customer"
+                              ]
+                            },
+                            "instance": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 32
+                            }
+                          },
+                          "required": [
+                            "appKey",
+                            "side"
                           ]
-                        },
-                        "instance": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 32
                         }
-                      },
-                      "required": [
-                        "appKey",
-                        "side"
                       ]
                     }
                   }
@@ -131340,31 +131734,56 @@
                         "type": "string"
                       },
                       "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "appKey": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 64
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "pages"
+                                ]
+                              },
+                              "home": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "home"
+                            ],
+                            "additionalProperties": false
                           },
-                          "side": {
-                            "type": "string",
-                            "enum": [
-                              "staff",
-                              "customer"
-                            ]
-                          },
-                          "instance": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 32
+                          {
+                            "type": "object",
+                            "properties": {
+                              "appKey": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              "side": {
+                                "type": "string",
+                                "enum": [
+                                  "staff",
+                                  "customer"
+                                ]
+                              },
+                              "instance": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 32
+                              }
+                            },
+                            "required": [
+                              "appKey",
+                              "side"
+                            ],
+                            "additionalProperties": false
                           }
-                        },
-                        "required": [
-                          "appKey",
-                          "side"
-                        ],
-                        "additionalProperties": false
+                        ]
                       }
                     }
                   },
