@@ -3,16 +3,19 @@
  * `/studio/privacy` — Privacy & public pages (comp `Privacy And Public
  * Pages.dc.html`, boards 2, 4a/4b, 7a-7d and 8).
  *
- * This release's three tabs, each with its own address (`?tab=`):
+ * This release's four tabs, each with its own address (`?tab=`):
  *
  *  - Privacy notice: the business's name and its privacy notice's address
  *    (https only, checked as typed and again by the server on save).
+ *  - Your websites: the sites that may show a form in a frame, and the
+ *    loader line to put on them (`WebsitesTab.tsx`).
  *  - A person's data: find everything kept about one address, download it,
  *    erase it (`PersonDataTab.tsx`).
  *  - How long we keep things: the two rows this release has, both fixed.
  *
- * "Your websites" and "Visitor counting" come with the public forms and the
- * chat; they are not drawn, not even switched off.
+ * The first two open on "Can visitors reach your public pages?"
+ * (`PublicReach.tsx`). "Visitor counting" comes with visitor counting; it is
+ * not drawn, not even switched off.
  *
  * Only a holder of `privacy.manage` reaches this page (the Super Admin,
  * unless granted on purpose): the route's guard says so, and so does every
@@ -31,6 +34,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putPrivacyNotice } from './privacyApi.js';
 import { noticeUrlError } from './privacyWords.js';
+import { PublicReach } from './PublicReach.js';
 
 // The person tab (find, download, erase and its dialog) loads when it is first opened.
 const PersonDataTabLazy = lazy(async () => {
@@ -38,7 +42,13 @@ const PersonDataTabLazy = lazy(async () => {
   return { default: mod.PersonDataTab };
 });
 
-const PRIVACY_TABS = ['notice', 'person', 'keeping'] as const;
+// The websites tab (the list, its checks and the loader line) loads when it is first opened, too.
+const WebsitesTabLazy = lazy(async () => {
+  const mod = await import('./WebsitesTab.js');
+  return { default: mod.WebsitesTab };
+});
+
+const PRIVACY_TABS = ['notice', 'websites', 'person', 'keeping'] as const;
 type PrivacyTab = (typeof PRIVACY_TABS)[number];
 
 function tabOf(value: unknown): PrivacyTab {
@@ -63,6 +73,9 @@ export function PrivacyPage(): ReactNode {
             <TabsTrigger value="notice" className={TAB}>
               {t('studio:privacy.tab.notice', 'Privacy notice')}
             </TabsTrigger>
+            <TabsTrigger value="websites" className={TAB}>
+              {t('studio:privacy.websites.tab', 'Your websites')}
+            </TabsTrigger>
             <TabsTrigger value="person" className={TAB}>
               {t('studio:privacy.tab.person', 'A person’s data')}
             </TabsTrigger>
@@ -72,6 +85,17 @@ export function PrivacyPage(): ReactNode {
           </TabsList>
           <TabsContent value="notice" className="pt-3.5">
             <NoticeTab />
+          </TabsContent>
+          <TabsContent value="websites" className="pt-3.5">
+            <Suspense
+              fallback={
+                <div className="flex justify-center p-10">
+                  <Spinner size="md" />
+                </div>
+              }
+            >
+              <WebsitesTabLazy />
+            </Suspense>
           </TabsContent>
           <TabsContent value="person" className="pt-3.5">
             <Suspense
@@ -97,9 +121,18 @@ export function PrivacyPage(): ReactNode {
 
 function NoticeTab(): ReactNode {
   const notice = useQuery(privacyNoticeQuery());
-  if (notice.isError) return <Alert tone="danger" title={t('studio:privacy.notice.loadFailed', 'The privacy settings could not be loaded. Try again.')} />;
-  if (notice.data === undefined) return <Skeleton className="h-[220px] w-full" />;
-  return <NoticeForm name={notice.data.businessName ?? ''} url={notice.data.noticeUrl ?? ''} />;
+  return (
+    <div className="flex flex-col gap-3.5">
+      <PublicReach />
+      {notice.isError ? (
+        <Alert tone="danger" title={t('studio:privacy.notice.loadFailed', 'The privacy settings could not be loaded. Try again.')} />
+      ) : notice.data === undefined ? (
+        <Skeleton className="h-[220px] w-full" />
+      ) : (
+        <NoticeForm name={notice.data.businessName ?? ''} url={notice.data.noticeUrl ?? ''} />
+      )}
+    </div>
+  );
 }
 
 function NoticeForm({ name: savedName, url: savedUrl }: { name: string; url: string }): ReactNode {

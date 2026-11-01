@@ -5,7 +5,14 @@
  *  - who gets in: the Super Admin (`privacy.manage`); the built-in Admin, a
  *    marketer holding `settings.manage` and a rep get the house's no-access
  *    state and no request for anyone's data;
- *  - the three tabs, each with its own address, and nothing else;
+ *  - the four tabs, each with its own address, and nothing else;
+ *  - the reach card first on "Privacy notice" and "Your websites": one line
+ *    while reachable, else the state's card ("Check again" reads again; "Set
+ *    it" only for someone who may change the address);
+ *  - Your websites: the list with who added each, every line of the add box
+ *    checked as typed (the comp's sample shows its four refusals, "Add" off),
+ *    a save that sends the lines and shows the server's own refusals, a
+ *    removal, and the loader line on the public address to copy;
  *  - Privacy notice: the empty state, `http://` refused in the field (Save
  *    off) and on save (the server's 422 shown), an https address saved;
  *  - A person's data: find → the result card grouped with its counts;
@@ -26,7 +33,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { ErasePreview, PersonFound, PrivacyExport, PrivacyNotice } from './privacyApi.js';
+import type { ErasePreview, ListedWebsite, PersonFound, PrivacyExport, PrivacyNotice, PublicReach } from './privacyApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -54,6 +61,13 @@ let exportsList: PrivacyExport[];
 let eraseReply: { status: number; body: unknown };
 /** The erase preview never answers (the dialog stays on its loading state). */
 let previewHangs = false;
+let reach: PublicReach;
+let websites: ListedWebsite[];
+/** What the next add answers instead of adding (the server found the list changed). */
+let addRefusal: { lines: { line: string; code: string; origin: string | null }[]; tooMany: boolean } | null = null;
+
+const TESSA = { id: 'usr_tessa', name: 'Tessa Marlow' };
+const JULY_2 = Date.UTC(2026, 6, 2, 12);
 
 const FOUND: PersonFound = {
   address: MARTA,
@@ -114,6 +128,18 @@ function stub(): Call[] {
         exportsList = [made, ...exportsList];
         return ok({ data: { ...made, jobId: 'job_1' } }, 202);
       }
+      if (url === '/api/v1/privacy/reach') return ok({ data: reach });
+      if (url === '/api/v1/privacy/websites' && method === 'GET') return ok({ data: { websites, max: 50 } });
+      if (url === '/api/v1/privacy/websites' && method === 'POST') {
+        if (addRefusal !== null) return ok({ error: { code: 'VALIDATION_FAILED', message: 'Some lines are not websites that can be listed.', details: { ...addRefusal, max: 50 } } }, 422);
+        const lines = (body as { lines: string[] }).lines;
+        websites = [...websites, ...lines.map((line) => ({ origin: new URL(line).origin, addedBy: TESSA, addedAt: JULY_2 }))];
+        return ok({ data: { websites, max: 50 } });
+      }
+      if (url === '/api/v1/privacy/websites/remove') {
+        websites = websites.filter((site) => site.origin !== (body as { origin: string }).origin);
+        return ok({ data: { websites, max: 50 } });
+      }
       if (url === '/api/v1/privacy/erase/preview') return previewHangs ? new Promise(() => undefined) : ok({ data: PREVIEW });
       if (url === '/api/v1/privacy/erase') return ok(eraseReply.body, eraseReply.status);
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: `no route: ${method} ${url}` } }));
@@ -155,7 +181,12 @@ afterEach(() => {
   exportsList = [];
   eraseReply = { status: 200, body: { data: { counts: { 'people-crm-contacts': 1, consent: 4 }, left: [], filesFailed: 0 } } };
   previewHangs = false;
+  reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+  websites = [];
+  addRefusal = null;
 });
+reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+websites = [];
 notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' };
 exportsList = [];
 eraseReply = { status: 200, body: { data: { counts: {}, left: [], filesFailed: 0 } } };
@@ -192,12 +223,24 @@ describe('who opens the privacy page', () => {
     expect(screen.queryByRole('button', { name: 'Open the audit log' })).toBeNull();
   });
 
-  it('the Super Admin gets exactly the three tabs, each with its own address', async () => {
+  it('a rep asking for the websites tab gets the no-access state and asks for no list', async () => {
+    roles = ['rep'];
+    systemActions = ['settings.manage'];
+    const { calls } = await renderAt('/studio/privacy?tab=websites');
+    expect(await screen.findByText('You don’t have access')).toBeDefined();
+    expect(screen.queryByRole('tab', { name: 'Your websites' })).toBeNull();
+    expect(calls.some((call) => call.url.startsWith('/api/v1/privacy'))).toBe(false);
+  });
+
+  it('the Super Admin gets exactly the four tabs, each with its own address', async () => {
     asSuperAdmin();
     const { router } = await renderAt('/studio/privacy');
     const tabs = await screen.findAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Privacy notice', 'A person’s data', 'How long we keep things']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Privacy notice', 'Your websites', 'A person’s data', 'How long we keep things']);
     expect(screen.getByRole('tab', { name: 'Privacy notice' }).getAttribute('aria-selected')).toBe('true');
+    await userEvent.click(screen.getByRole('tab', { name: 'Your websites' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'websites' }));
+    expect(await screen.findByText('Websites that may show your forms and chat')).toBeDefined();
     await userEvent.click(screen.getByRole('tab', { name: 'How long we keep things' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'keeping' }));
     expect(await screen.findByText('Kept until the person is erased')).toBeDefined();
@@ -360,5 +403,161 @@ describe('how long we keep things', () => {
     expect(rows[0]!.textContent).toContain('Kept, because it proves what a person agreed to or asked');
     expect(rows[1]!.textContent).toContain('Kept for good');
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+  });
+});
+
+describe('can visitors reach the public pages', () => {
+  it('says so in one line while they can, on the notice tab and the websites tab', async () => {
+    asSuperAdmin();
+    await renderAt('/studio/privacy');
+    const strip = await screen.findByTestId('privacy-reach');
+    expect(strip.getAttribute('data-state')).toBe('reachable');
+    expect(strip.textContent).toBe('Visitors can reach https://crm.meridian.exampleReachable');
+    expect(screen.getByRole('region', { name: 'Can visitors reach your public pages?' })).toBe(strip);
+    cleanup();
+    await renderAt('/studio/privacy?tab=websites');
+    expect((await screen.findByTestId('privacy-reach')).getAttribute('data-state')).toBe('reachable');
+  });
+
+  it('names the proxy setting, and "Check again" reads the facts again', async () => {
+    asSuperAdmin();
+    reach = { state: 'proxy-hidden', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+    const { calls } = await renderAt('/studio/privacy');
+    const card = await screen.findByTestId('privacy-reach');
+    expect(card.getAttribute('data-state')).toBe('proxy-hidden');
+    expect(within(card).getByText('Proxy setting')).toBeDefined();
+    expect(within(card).getByTestId('privacy-reach-problem').textContent).toBe("This server is behind a proxy that hides visitors' addresses, so limits on forms can't work. Set ADMINIUM_TRUST_PROXY=on.");
+    expect(within(card).getByText('Ask whoever runs this server to set it and restart.')).toBeDefined();
+    expect(within(card).queryByTestId('privacy-reach-set')).toBeNull();
+    const before = calls.filter((call) => call.url === '/api/v1/privacy/reach').length;
+    reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+    await userEvent.click(within(card).getByRole('button', { name: 'Check again' }));
+    await waitFor(() => expect(screen.getByTestId('privacy-reach').getAttribute('data-state')).toBe('reachable'));
+    expect(calls.filter((call) => call.url === '/api/v1/privacy/reach').length).toBe(before + 1);
+  });
+
+  it('with no public https address, shows the address seen and "Set it" to the Senders card', async () => {
+    asSuperAdmin();
+    reach = { state: 'not-set', origin: null, checkedAt: Date.now() };
+    await renderAt('/studio/privacy?tab=websites');
+    const card = await screen.findByTestId('privacy-reach');
+    expect(within(card).getByText('No address')).toBeDefined();
+    expect(within(card).getByTestId('privacy-reach-problem').textContent).toBe('This server has no public https address. Forms, chat and unsubscribe links need one.');
+    expect(within(card).getByTestId('privacy-reach-address').textContent).toBe('(not set)');
+    expect(within(card).getByRole('link', { name: 'Set it' }).getAttribute('href')).toBe('/studio/settings#email-link-origin');
+  });
+
+  it('shows the plain http address it saw, and no "Set it" to someone who may not change it', async () => {
+    roles = ['dpo'];
+    systemActions = ['privacy.manage'];
+    reach = { state: 'not-https', origin: 'http://crm.meridian.example', checkedAt: Date.now() };
+    await renderAt('/studio/privacy');
+    const card = await screen.findByTestId('privacy-reach');
+    expect(within(card).getByTestId('privacy-reach-address').textContent).toBe('http://crm.meridian.example');
+    expect(within(card).queryByRole('link', { name: 'Set it' })).toBeNull();
+    expect(within(card).getByRole('button', { name: 'Check again' })).toBeDefined();
+  });
+
+  it('words the network-off and desktop states as Payments does', async () => {
+    asSuperAdmin();
+    reach = { state: 'desktop', origin: null, checkedAt: Date.now() };
+    await renderAt('/studio/privacy');
+    const card = await screen.findByTestId('privacy-reach');
+    expect(within(card).getByTestId('privacy-reach-problem').textContent).toBe('This server runs on this computer only. Customers cannot reach it.');
+    expect(within(card).getByText('This computer only')).toBeDefined();
+  });
+});
+
+describe('your websites', () => {
+  const field = () => screen.getByTestId('privacy-websites-field') as HTMLTextAreaElement;
+  const add = () => screen.getByTestId('privacy-websites-add') as HTMLButtonElement;
+  const checks = () => within(screen.getByTestId('privacy-websites-checks')).queryAllByRole('listitem').map((item) => item.textContent);
+
+  it('lists each website with who added it and when', async () => {
+    asSuperAdmin();
+    websites = [
+      { origin: 'https://www.meridian.example', addedBy: TESSA, addedAt: JULY_2 },
+      { origin: 'https://shop.meridian.example', addedBy: null, addedAt: JULY_2 },
+    ];
+    await renderAt('/studio/privacy?tab=websites');
+    const list = await screen.findByTestId('privacy-websites-list');
+    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'https://www.meridian.exampleAdded by Tessa Marlow · Jul 2Remove',
+      'https://shop.meridian.exampleAdded Jul 2Remove',
+    ]);
+    expect(within(list).getByRole('button', { name: 'Remove https://www.meridian.example' })).toBeDefined();
+  });
+
+  it('checks every line as typed: the comp’s sample shows its four refusals and "Add" stays off', async () => {
+    asSuperAdmin();
+    websites = [{ origin: 'https://www.meridian.example', addedBy: TESSA, addedAt: JULY_2 }];
+    const { calls } = await renderAt('/studio/privacy?tab=websites');
+    await screen.findByTestId('privacy-websites-list');
+    expect(add().disabled).toBe(true);
+    await userEvent.type(field(), 'http://events.meridian.example{enter}https://*.meridian.example{enter}https://crm.meridian.example{enter}https://WWW.meridian.example/{enter}https://events.meridian.example/forms');
+    expect(checks()).toEqual([
+      'http://events.meridian.example · Use https://',
+      'https://*.meridian.example · One website per line, no *',
+      'https://crm.meridian.example · That\'s this server\'s own address',
+      'https://WWW.meridian.example/ · Already on the list',
+      'https://events.meridian.example/forms · Just the address, no path',
+    ]);
+    expect(field().getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByTestId('privacy-websites-checks').getAttribute('aria-live')).toBe('polite');
+    expect(field().getAttribute('dir')).toBe('ltr');
+    expect(add().disabled).toBe(true);
+    await userEvent.click(add());
+    expect(calls.some((call) => call.method === 'POST' && call.url === '/api/v1/privacy/websites')).toBe(false);
+  });
+
+  it('adds every good line at once, and the list shows them', async () => {
+    asSuperAdmin();
+    const { calls } = await renderAt('/studio/privacy?tab=websites');
+    expect(await screen.findByTestId('privacy-websites-none')).toBeDefined();
+    await userEvent.type(field(), 'https://events.meridian.example{enter}{enter}  https://Shop.meridian.example/  ');
+    expect(checks()).toEqual(['https://events.meridian.example · Ready to add', 'https://Shop.meridian.example/ · Ready to add']);
+    expect(field().getAttribute('aria-invalid')).toBeNull();
+    await userEvent.click(add());
+    await waitFor(() => expect(calls.some((call) => call.method === 'POST' && call.url === '/api/v1/privacy/websites')).toBe(true));
+    expect(calls.find((call) => call.method === 'POST' && call.url === '/api/v1/privacy/websites')!.body).toEqual({ lines: ['https://events.meridian.example', 'https://Shop.meridian.example/'] });
+    const list = await screen.findByTestId('privacy-websites-list');
+    expect(within(list).getAllByRole('listitem').map((item) => item.textContent?.split('Added')[0])).toEqual(['https://events.meridian.example', 'https://shop.meridian.example']);
+    expect(field().value).toBe('');
+  });
+
+  it('shows the server’s own refusal on each line when the list changed meanwhile', async () => {
+    asSuperAdmin();
+    addRefusal = { lines: [{ line: 'https://events.meridian.example', code: 'listed', origin: 'https://events.meridian.example' }], tooMany: false };
+    await renderAt('/studio/privacy?tab=websites');
+    await screen.findByTestId('privacy-websites-none');
+    await userEvent.type(field(), 'https://events.meridian.example');
+    await userEvent.click(add());
+    await waitFor(() => expect(checks()).toEqual(['https://events.meridian.example · Already on the list']));
+    expect(add().disabled).toBe(true);
+    // Changing the lines checks them again here.
+    await userEvent.type(field(), 'x');
+    expect(checks()).toEqual(['https://events.meridian.examplex · Ready to add']);
+  });
+
+  it('removes a website at once and says so', async () => {
+    asSuperAdmin();
+    websites = [{ origin: 'https://www.meridian.example', addedBy: TESSA, addedAt: JULY_2 }];
+    const { calls } = await renderAt('/studio/privacy?tab=websites');
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove https://www.meridian.example' }));
+    await waitFor(() => expect(calls.some((call) => call.url === '/api/v1/privacy/websites/remove')).toBe(true));
+    expect(calls.find((call) => call.url === '/api/v1/privacy/websites/remove')!.body).toEqual({ origin: 'https://www.meridian.example' });
+    expect(await screen.findByText('Removed https://www.meridian.example')).toBeDefined();
+    expect(await screen.findByTestId('privacy-websites-none')).toBeDefined();
+  });
+
+  it('gives the loader line on the public address, to copy', async () => {
+    asSuperAdmin();
+    await renderAt('/studio/privacy?tab=websites');
+    const embed = await screen.findByTestId('privacy-embed');
+    expect(within(embed).getByTestId('privacy-embed-line').textContent).toBe('<script src="https://crm.meridian.example/x/embed.js" async></script>');
+    expect(within(embed).getByTestId('privacy-embed-line').getAttribute('dir')).toBe('ltr');
+    const copy = within(embed).getByRole('button', { name: 'Copy the loader line' });
+    expect(copy.textContent).toBe('Copy');
+    expect(within(embed).getByText('Then add a form or the chat where you want it. Each form\'s Share tab has its own line.')).toBeDefined();
   });
 });

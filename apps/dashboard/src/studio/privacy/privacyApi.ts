@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The privacy page's API client: the privacy notice, one person's data by
- * their address (find, download, what an erasure does, erase), and how long
- * things are kept. Mirrors `apps/server/src/routes/privacy/schema.ts`
+ * their address (find, download, what an erasure does, erase), how long
+ * things are kept, whether visitors can reach the public pages, and the
+ * websites that may show a form in a frame. Mirrors `apps/server/src/routes/privacy/schema.ts`
  * (copied-mirror convention: change both together).
  *
  * The address a person is found by goes in a request BODY, never a URL or a
@@ -12,6 +13,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { api } from '../../app/api.js';
+import type { ReachabilityState } from '../payments/paymentsApi.js';
 
 // --- the privacy notice ---------------------------------------------------------
 
@@ -208,4 +210,55 @@ export function keepingQuery() {
     queryKey: ['privacy', 'keeping'] as const,
     queryFn: async () => (await api.get<{ data: { rows: KeepingRow[] } }>('/api/v1/privacy/keeping')).data.rows,
   });
+}
+
+// --- "Can visitors reach your public pages?" ------------------------------------
+
+export interface PublicReach {
+  state: ReachabilityState;
+  /** This server's public address, as the answer read it; null when none is set. */
+  origin: string | null;
+  /** When the facts were read (ms). */
+  checkedAt: number;
+}
+
+export const PRIVACY_REACH_QUERY_KEY = ['privacy', 'reach'] as const;
+
+export function reachQuery() {
+  return queryOptions({
+    queryKey: PRIVACY_REACH_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: PublicReach }>('/api/v1/privacy/reach')).data,
+  });
+}
+
+// --- "Your websites" -------------------------------------------------------------
+
+export interface ListedWebsite {
+  origin: string;
+  /** Who listed it; null once they are no longer known. */
+  addedBy: { id: string; name: string } | null;
+  addedAt: number;
+}
+
+export interface WebsitesList {
+  websites: ListedWebsite[];
+  max: number;
+}
+
+export const PRIVACY_WEBSITES_QUERY_KEY = ['privacy', 'websites'] as const;
+
+export function websitesQuery() {
+  return queryOptions({
+    queryKey: PRIVACY_WEBSITES_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: WebsitesList }>('/api/v1/privacy/websites')).data,
+  });
+}
+
+/** Several at once, all or none: a 422 names each line's code (`details.lines`). */
+export async function addWebsites(lines: string[]): Promise<WebsitesList> {
+  return (await api.post<{ data: WebsitesList }>('/api/v1/privacy/websites', { lines })).data;
+}
+
+export async function removeWebsite(origin: string): Promise<WebsitesList> {
+  return (await api.post<{ data: WebsitesList }>('/api/v1/privacy/websites/remove', { origin })).data;
 }
