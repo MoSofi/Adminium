@@ -292,6 +292,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.consent',
   // Up to thirty-two rules in one manifest: each is installed as the first twenty-four are.
   'automations.more',
+  // An add-on's forms block, stored with its manifest and read by the forms door; a table an app opens to forms, which the
+  // public API never serves (no key of that name is made, and the install plans no endpoint for it: apps/manifest-public.ts).
+  'addOn.forms',
+  'publicAccess.forms',
 ];
 
 export interface UnbuiltWord {

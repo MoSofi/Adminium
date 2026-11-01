@@ -27,7 +27,7 @@ import type { FastifyRequest } from 'fastify';
 import { publicConsentSchema, validateManifest, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 
-import { publicEntryRefs } from '../apps/manifest-public.js';
+import { publicEntryRefs, servedPublicEntries } from '../apps/manifest-public.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { PublicConsentTick } from '../crud/write-context.js';
 import type { ResolvedKey } from './resolve.js';
@@ -65,7 +65,7 @@ export function createConsentTicks(meta: MetaDb, now: () => number = Date.now): 
     if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
     const checked = validateManifest(row.document, { allowLocalPublisher: true });
     if (!checked.ok || checked.manifest.kind !== 'app') return null;
-    const entries = checked.manifest.publicAccess ?? [];
+    const entries = servedPublicEntries(checked.manifest.publicAccess ?? []);
     if (!entries.some((entry) => entry.consent !== undefined)) return null;
     const names = await appTablesRepo(meta).realNames(connectionId, appKey);
     const refs = publicEntryRefs(entries, names);

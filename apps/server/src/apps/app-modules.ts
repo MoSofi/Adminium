@@ -15,7 +15,7 @@ import { columnsLeftOut, modulesLeftOut, tablesLeftOut, withoutModules, type Man
 import type { AppModules } from '@adminium/meta';
 
 import type { AppAddOnRow } from './add-ons.js';
-import { planPublicEndpoints } from './manifest-public.js';
+import { planPublicEndpoints, servedPublicEntries } from './manifest-public.js';
 
 /**
  * The add-ons that are there for the app once this install has run: the ones
@@ -73,7 +73,7 @@ export function modulesFor(manifest: Manifest, prior: AppModules | null, picks?:
     if (value !== undefined) on[def.id] = value;
   }
   // Its public entries by the ref each is served under, in the manifest's order.
-  const entries = manifest.publicAccess ?? [];
+  const entries = servedPublicEntries(manifest.publicAccess ?? []);
   const planned = entries.some((entry) => entry.module !== undefined) ? planPublicEndpoints(manifest, names, null, { tablesMadeLater: true }) : [];
   const doors = Object.fromEntries(planned.length === entries.length ? entries.flatMap((entry, index) => (entry.module === undefined ? [] : [[planned[index]!.ref, entry.module] as const])) : []);
   const leftOut = LEFT_OUT.get(manifest);

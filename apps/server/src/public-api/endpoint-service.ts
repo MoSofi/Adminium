@@ -31,6 +31,7 @@
  * store it and the loser must read the winner's row.
  */
 
+import { FORMS_KEY } from '@adminium/manifest';
 import {
   newId,
   overridesRepo,
@@ -621,6 +622,8 @@ export function createEndpointService(deps: EndpointServiceDeps) {
    * no longer what the sheet showed.
    */
   async function createKey(input: CreateKeyInput): Promise<{ key: PublicKey; document: PublicScopeDocument }> {
+    // `forms` names the entries forms write through, which the public API never serves: no key is ever made under it.
+    if (input.purpose === FORMS_KEY) throw new KeyCreateRefused([{ code: 'KEY_PURPOSE_RESERVED', message: `"${FORMS_KEY}" is the name of the entries forms write through, and no key is made under it` }]);
     const { connectionId } = input;
     const kind: PublicKeyKind = input.kind ?? 'browser';
     await state.ensure(now());
