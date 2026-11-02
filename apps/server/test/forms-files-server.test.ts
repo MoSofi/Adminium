@@ -25,6 +25,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import { permissionsRepo, publicUploadsRepo, rolesRepo, settingsRepo, snapshotsRepo, usersRepo } from '@adminium/meta';
 
 import { formsAddOn } from '../../../packages/manifest/test/forms-fixture.js';
+import { recordDeciderTrust } from '../src/add-ons/decider-trust.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import type { LiveForm } from '../src/forms/catalog.js';
 import type { FormsFiles } from '../src/forms/files.js';
@@ -107,6 +108,8 @@ describe.each(LEGS)('a form’s files on the real server — %s', (dialect, avai
     await h.stageAddOn(formsAddOn(), { bundled: true });
     const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'forms', version: '1.0.0', attachTo: ['dashboard'] } });
     expect(added.statusCode, added.body).toBe(200);
+    // Vouched for as a bundled package is: its bytes recorded as trusted (a package nobody vouches for serves no form).
+    await recordDeciderTrust(h.meta, { key: 'forms', version: '1.0.0', integrity: (await h.addOnStore.verifyTree('forms', '1.0.0')).integrity });
     const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
     const idOf = async (ref: string) => {
       const record = await h.meta.db.selectFrom('adminium_app_tables').select(['tableName']).where('appKey', '=', 'forms').where('ref', '=', ref).executeTakeFirstOrThrow();
