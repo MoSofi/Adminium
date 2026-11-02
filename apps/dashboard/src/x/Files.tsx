@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A file question on a stranger's page (comp M3 §7, "Drawings of your
+ * A file question on a stranger's page ("Drawings of your
  * space"): "Choose a file" (or "Choose files"), each file picked a row with
  * its name and size and a Remove button, a refused row with a danger border
  * and its reason under it.
  *
+ * Loaded only when a form has a file question: the page's first load carries
+ * none of it.
+ *
  * Each file is sent the moment it is picked, with a human check of its own
- * (`postFile`); the answer then names the files taken by the ids the door
+ * (`postFile`: `POST /x/forms/api/<slug>/files?q=…&name=…`, the body the
+ * file); the answer then names the files taken by the ids the door
  * gave. What the page checks first (the size, the name's ending) only spares
  * a stranger a wasted upload: the door judges the bytes again, and the
  * answer door again what the answer names.
@@ -20,8 +24,42 @@ import { useT } from '@adminium/i18n/react';
 import { CircleAlert, FileText, LoaderCircle, Paperclip, X } from 'lucide-react';
 import type { FormFileKind, FormQuestionOf } from '@adminium/add-on-contracts/forms';
 
-import { fetchChallenge, postFile, type XFileRefusal } from './api.js';
+import { fetchChallenge } from './api.js';
 import { solve } from '../pay/proof.js';
+
+/** Why a file was not taken: the file door's codes, a check that did not pass, or no answer at all. */
+export type XFileRefusal = 'too-big' | 'kind' | 'quota' | 'cap' | 'proof' | 'failed';
+
+export type XFileReply = { state: 'taken'; id: string; name: string; size: number } | { state: 'refused'; code: XFileRefusal };
+
+const FILE_CODES = new Set(['too-big', 'kind', 'quota', 'cap']);
+
+/** Sends one file for a file question with a solved check; the body is the file itself. */
+export async function postFile(slug: string, question: string, file: Blob & { name: string }, proof: string): Promise<XFileReply> {
+  const search = new URLSearchParams({ q: question, name: file.name });
+  let response: Response;
+  try {
+    response = await fetch(`/x/forms/api/${encodeURIComponent(slug)}/files?${search.toString()}`, {
+      method: 'POST',
+      credentials: 'omit',
+      // Always bytes: the door judges what they are, never what the browser says.
+      headers: { accept: 'application/json', 'content-type': 'application/octet-stream', 'x-adminium-proof': proof },
+      body: file,
+    });
+  } catch {
+    return { state: 'refused', code: 'failed' };
+  }
+  if (response.status === 403) return { state: 'refused', code: 'proof' };
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await response.json()) as Record<string, unknown>;
+  } catch {
+    // No body: the status alone says it.
+  }
+  if (response.ok && typeof body['id'] === 'string') return { state: 'taken', id: body['id'], name: String(body['name'] ?? file.name), size: Number(body['size'] ?? file.size) };
+  const code = typeof body['code'] === 'string' && FILE_CODES.has(body['code']) ? (body['code'] as XFileRefusal) : 'failed';
+  return { state: 'refused', code };
+}
 
 /** One file picked for a question: on its way, taken (with the door's id), or refused (with why). */
 export interface FileRow {

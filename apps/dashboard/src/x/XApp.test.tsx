@@ -161,8 +161,9 @@ describe('a file question', () => {
     const user = userEvent.setup({ applyAccept: false });
     await show('/x/forms/showroom-visit');
     await screen.findByRole('heading', { level: 1 });
+    const choose = await screen.findByRole('button', { name: /Drawings of your space.*Choose files/ });
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
-    return { user, input, choose: screen.getByRole('button', { name: /Drawings of your space.*Choose files/ }) };
+    return { user, input, choose };
   }
 
   it('sends each file as it is picked, with a check of its own, and lists it with its size; refuses one too large before sending it', async () => {
@@ -231,9 +232,9 @@ describe('a file question', () => {
     const user = userEvent.setup({ applyAccept: false });
     await show('/x/forms/showroom-visit');
     await screen.findByRole('heading', { level: 1 });
+    expect(await screen.findByRole('button', { name: /Drawings of your space.*Choose a file/ })).toBeTruthy();
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     expect(input.multiple).toBe(false);
-    expect(screen.getByRole('button', { name: /Drawings of your space.*Choose a file/ })).toBeTruthy();
     await user.upload(input, fileOf('a.txt', 10, 'text/plain'));
     await screen.findByText('a.txt');
     await user.upload(input, fileOf('b.txt', 10, 'text/plain'));
@@ -261,7 +262,8 @@ describe('a form a stranger fills', () => {
     expect(note.getAttribute('aria-describedby')).toBe(screen.getByText('A line or two is plenty.').id);
     expect(screen.getByRole('checkbox', { name: "Send me Meridian's newsletter." })).toHaveProperty('checked', false);
     // The file control is drawn, named with its question, and described by its hint.
-    const choose = screen.getByRole('button', { name: /Drawings of your space.*Choose files/ });
+    // Loaded when the form has a file question.
+    const choose = await screen.findByRole('button', { name: /Drawings of your space.*Choose files/ });
     expect(choose).toHaveProperty('disabled', false);
     expect(screen.getByText('PDF, JPG, or PNG, up to 10 MB')).toBeTruthy();
     expect(document.getElementById(choose.getAttribute('aria-describedby')!.split(' ')[0]!)!.textContent).toBe('PDF, JPG, or PNG, up to 10 MB');

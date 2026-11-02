@@ -8,13 +8,16 @@
  * the stars are radio groups; the score's chips and the stars move with the
  * arrow keys (flipped right to left), Home and End, with one tab stop.
  */
-import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useT } from '@adminium/i18n/react';
 import { CircleAlert, Star } from 'lucide-react';
 import type { FormQuestion, FormQuestionOf } from '@adminium/add-on-contracts/forms';
 
 import type { Held } from './answers.js';
-import { FileField, type FileRow } from './Files.js';
+import type { FileRow } from './Files.js';
+
+/** The file control, loaded when a form has a file question: the page's first load carries none of it. */
+const FileField = lazy(() => import('./Files.js').then((files) => ({ default: files.FileField })));
 
 export interface QuestionProps {
   question: FormQuestion;
@@ -365,16 +368,18 @@ export function Question(props: QuestionProps): ReactNode {
           <p id={hintId} className="x-hint">
             {t('x:file.hint', '{kinds}, up to {mb} MB', { kinds: list, mb: question.maxMb })}
           </p>
-          <FileField
-            question={question}
-            rows={props.files?.rows ?? []}
-            tag={tag}
-            kinds={list}
-            labelId={labelId}
-            describedBy={[hintId, describedBy].filter(Boolean).join(' ')}
-            onPick={(files) => props.files?.onPick(files)}
-            onRemove={(key) => props.files?.onRemove(key)}
-          />
+          <Suspense fallback={null}>
+            <FileField
+              question={question}
+              rows={props.files?.rows ?? []}
+              tag={tag}
+              kinds={list}
+              labelId={labelId}
+              describedBy={[hintId, describedBy].filter(Boolean).join(' ')}
+              onPick={(files) => props.files?.onPick(files)}
+              onRemove={(key) => props.files?.onRemove(key)}
+            />
+          </Suspense>
           {problem}
         </div>
       );

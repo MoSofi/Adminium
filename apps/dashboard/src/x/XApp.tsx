@@ -29,7 +29,7 @@ import type { FormDefinition, FormQuestion, FormQuestionOf, FormTickPurpose } fr
 
 import { answerValues, checkBeforeSend, formOf, hiddenQuery, shownQuestions, WHOLE_ANSWER, type Held } from './answers.js';
 import { fetchChallenge, fetchForm, postAnswer, type XBusiness, type XPage } from './api.js';
-import { FILES_MAX, refusalBeforeSending, sendFile, type FileRow } from './Files.js';
+import type { FileRow } from './Files.js';
 import { linkToParent, type FrameLink } from './frame.js';
 import { solve } from '../pay/proof.js';
 import { controlId, Question, textOf } from './Questions.js';
@@ -277,9 +277,11 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   }
 
   /** Files picked for a question: refused at once when too large or of no kind it takes, else each sent now. */
-  function pickFiles(question: FormQuestionOf<'file'>, files: File[]): void {
+  async function pickFiles(question: FormQuestionOf<'file'>, files: File[]): Promise<void> {
     if (route.kind !== 'form') return;
     const slug = route.slug;
+    // Loaded with the file control itself, never in the page's first load.
+    const { FILES_MAX, refusalBeforeSending, sendFile } = await import('./Files.js');
     const many = question.many === true;
     let room = many ? FILES_MAX - (rowsRef.current[question.id] ?? []).filter((row) => row.state !== 'refused').length : 1;
     const fresh: FileRow[] = [];
@@ -574,7 +576,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
                 onChange={(value) => change(question.id, value)}
                 files={
                   question.kind === 'file'
-                    ? { rows: fileRows[question.id] ?? [], onPick: (files) => pickFiles(question, files), onRemove: (key) => removeFile(question.id, key) }
+                    ? { rows: fileRows[question.id] ?? [], onPick: (files) => void pickFiles(question, files), onRemove: (key) => removeFile(question.id, key) }
                     : undefined
                 }
               />
