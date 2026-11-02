@@ -11762,8 +11762,43 @@
                             "type": "string",
                             "enum": [
                               "posting",
-                              "adjust"
+                              "adjust",
+                              "forms"
                             ]
+                          },
+                          "app": {
+                            "type": "string"
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "link": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "label",
+                                "kind",
+                                "required",
+                                "link"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -11797,6 +11832,238 @@
                     "hosts",
                     "has",
                     "currency"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/forms/{id}/summary": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number"
+                        },
+                        "byLanguage": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "enum": [
+                              "en-US",
+                              "de-DE",
+                              "fr-FR",
+                              "cs-CZ",
+                              "da-DK",
+                              "ar-EG",
+                              "zh-CN",
+                              "zh-TW"
+                            ]
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "recommendScore": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "questions": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "answered": {
+                                    "type": "number"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "one",
+                                      "several"
+                                    ]
+                                  },
+                                  "choices": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "type": "number"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "answered",
+                                  "kind",
+                                  "choices"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "answered": {
+                                    "type": "number"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "score"
+                                    ]
+                                  },
+                                  "counts": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "promoters": {
+                                    "type": "number"
+                                  },
+                                  "passives": {
+                                    "type": "number"
+                                  },
+                                  "detractors": {
+                                    "type": "number"
+                                  },
+                                  "recommendScore": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "answered",
+                                  "kind",
+                                  "counts",
+                                  "promoters",
+                                  "passives",
+                                  "detractors",
+                                  "recommendScore"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "answered": {
+                                    "type": "number"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "stars"
+                                    ]
+                                  },
+                                  "counts": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "average": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "answered",
+                                  "kind",
+                                  "counts",
+                                  "average"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "answered": {
+                                    "type": "number"
+                                  },
+                                  "kind": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "answered",
+                                  "kind"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "invited": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "answered": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "byLanguage",
+                        "recommendScore",
+                        "questions",
+                        "invited",
+                        "answered"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }
@@ -122386,7 +122653,9 @@
                                   "payment-events",
                                   "automation-runs",
                                   "notifications",
-                                  "files"
+                                  "files",
+                                  "form-answers",
+                                  "form-invitations"
                                 ]
                               },
                               "group": {
@@ -122651,6 +122920,12 @@
                                     ]
                                   },
                                   {
+                                    "type": "string",
+                                    "enum": [
+                                      "until-removed"
+                                    ]
+                                  },
+                                  {
                                     "type": "number"
                                   }
                                 ]
@@ -122660,6 +122935,22 @@
                                 "items": {
                                   "type": "number"
                                 }
+                              },
+                              "addOn": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "name"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -123036,7 +123327,9 @@
                                   "outbox",
                                   "consent",
                                   "campaign-mail",
-                                  "files"
+                                  "files",
+                                  "form-answers",
+                                  "form-invitations"
                                 ]
                               },
                               "count": {
