@@ -180,7 +180,7 @@ export interface MarketingMail {
 
 /**
  * Why a service mail sent for a consent purpose (a survey invitation) is not
- * sent: the person's latest answer for that purpose is "no" (CR6). The
+ * sent: the person's latest answer for that purpose is "no". The
  * do-not-email list never stops service mail; this does.
  */
 export function saidNoSentence(purpose: ConsentPurpose): string {

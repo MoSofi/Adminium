@@ -1475,7 +1475,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const manifest = (await appFacts(box.row.manifestId)).manifest ?? {};
     const mailClass = mailClassOf(manifest, { outboxKind: kind });
     // The consent purpose the kind is sent for (`outbox.purposes`): a marketing kind is judged for it instead of the
-    // newsletter; a service kind that names one skips a person whose latest answer for it is "no" (CR6: a survey
+    // newsletter; a service kind that names one skips a person whose latest answer for it is "no" (a survey
     // invitation sent as service mail never reaches a person who said no to surveys). The list stops marketing only.
     const purpose = mailPurposeOf(manifest, kind);
     // A kind that prints a survey's link is about an invitation, whose person the consent log knows by their row too.
