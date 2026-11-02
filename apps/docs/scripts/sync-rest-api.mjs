@@ -103,6 +103,7 @@ const DESCRIPTIONS = {
     'test sends of the on-screen document, and export/import of a bundle',
   events: 'Server-sent events — the fallback when a WebSocket cannot be established',
   exports: 'Queued exports of a whole result set, and their downloads',
+  forms: 'Files strangers sent with a form answer, downloaded by staff who read that add-on\'s answers',
   geo:
     'Places and routes, for anybody signed in. Towns found by name from a list that ships ' +
     'with the server (no other site is asked, with maps on or off), one town by its id, the ' +
