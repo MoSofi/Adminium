@@ -955,5 +955,26 @@ export default {
       "not-aligned": "{source}：营销邮件被跳过：发件人的域名没有已发布的签名密钥（DKIM）。",
       "no-public-address": "{source}：营销邮件被跳过：此服务器没有公共地址，退订链接将无法使用。"
     }
+  },
+  "signUpConfirm": {
+    "name": "订阅确认",
+    "subject": "请确认您在 {business} 的订阅",
+    "preheader": "只需一次点击即可完成订阅。",
+    "heading": "请确认您的订阅",
+    "greetingPlain": "您好，",
+    "greeting": "{name}，您好：",
+    "newsletter": "按“确认”即可收到 {business} 的新闻通讯。",
+    "surveys": "按“确认”即可收到 {business} 的调查。",
+    "action": "确认",
+    "notice": "链接 {days} 天内有效。如果这不是您申请的，请忽略此邮件：只要您不按“确认”，就不会有任何变化。"
+  },
+  "forms": {
+    "answerTitle": "新回复：{form}",
+    "limitTitle": "表单已达到上限",
+    "limitForm": "{form} 已收到一小时内可接收的回复数量（{n}）。",
+    "limitAddress": "同一网络地址向 {form} 发送的回复已达到一小时内的上限。",
+    "limitEmail": "同一电子邮件地址在 {form} 中填写的次数已达到一天的上限。",
+    "limitEntry": "{form} 写入的表已收到其应用允许的访客新行数上限。",
+    "limitBody": "将于 {time} 重新开放。请在表单的“限制”中提高上限或使用更严格的验证。"
   }
 } as const;

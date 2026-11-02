@@ -38,5 +38,22 @@ export default {
   },
   "unavailable": {
     "title": "This page isn’t available."
+  },
+  "confirm": {
+    "titleNewsletter": "Confirm your sign-up to {business}’s newsletter",
+    "titleSurveys": "Confirm your sign-up to {business}’s surveys",
+    "for": "For {address}",
+    "button": "Confirm",
+    "note": "Nothing happens until you press Confirm. You can unsubscribe from any e-mail we send.",
+    "done": "You’re signed up. Thank you.",
+    "doneNewsletter": "You’ll get {business}’s newsletter.",
+    "doneSurveys": "You’ll get {business}’s surveys.",
+    "leave": "Every e-mail has a link to unsubscribe.",
+    "already": "You’ve already confirmed. Thank you.",
+    "tooOld": "This link is too old.",
+    "tooOldWebsite": "Sign up again on {website} and we’ll send a new one.",
+    "tooOldAgain": "Sign up again on {business}’s website and we’ll send a new one.",
+    "deadWrite": "Write to {email} if you meant to sign up.",
+    "deadAsk": "Write to {business} if you meant to sign up."
   }
 } as const;

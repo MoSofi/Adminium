@@ -184,6 +184,9 @@ export default {
       "askBody": "{name} 已為 {app} 啟用，但目前沒有任何內容向公眾開放。允許後，以下內容將加入 {app} 的公開金鑰：{refs}。",
       "askLater": "暫時不要",
       "askConfirm": "允許"
+    },
+    "forms": {
+      "notVouched": "此套件已儲存，可以安裝，但 Adminium 不知道它的製作者：其表單不會向訪客開放。請從目錄安裝以使用這些表單。"
     }
   },
   "capability": {

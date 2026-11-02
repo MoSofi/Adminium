@@ -38,5 +38,22 @@ export default {
   },
   "unavailable": {
     "title": "Tato stránka není dostupná."
+  },
+  "confirm": {
+    "titleNewsletter": "Potvrďte přihlášení k newsletteru {business}",
+    "titleSurveys": "Potvrďte přihlášení k průzkumům {business}",
+    "for": "Pro {address}",
+    "button": "Potvrdit",
+    "note": "Dokud nestisknete Potvrdit, nic se nestane. Z každého e-mailu, který pošleme, se můžete odhlásit.",
+    "done": "Jste přihlášeni. Děkujeme.",
+    "doneNewsletter": "Budete dostávat newsletter {business}.",
+    "doneSurveys": "Budete dostávat průzkumy {business}.",
+    "leave": "Každý e-mail obsahuje odkaz na odhlášení.",
+    "already": "Už jste potvrdili. Děkujeme.",
+    "tooOld": "Tento odkaz je příliš starý.",
+    "tooOldWebsite": "Přihlaste se znovu na {website} a pošleme vám nový.",
+    "tooOldAgain": "Přihlaste se znovu na webu {business} a pošleme vám nový.",
+    "deadWrite": "Pokud jste se chtěli přihlásit, napište na {email}.",
+    "deadAsk": "Pokud jste se chtěli přihlásit, napište {business}."
   }
 } as const;

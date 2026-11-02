@@ -945,5 +945,26 @@
       "not-aligned": "{source}：行銷郵件被略過：寄件者的網域沒有已發布的簽署金鑰（DKIM）。",
       "no-public-address": "{source}：行銷郵件被略過：此伺服器沒有公開位址，取消訂閱連結將無法運作。"
     }
+  },
+  "signUpConfirm": {
+    "name": "訂閱確認",
+    "subject": "請確認您在 {business} 的訂閱",
+    "preheader": "只需一次點擊即可完成訂閱。",
+    "heading": "請確認您的訂閱",
+    "greetingPlain": "您好，",
+    "greeting": "{name}，您好：",
+    "newsletter": "按「確認」即可收到 {business} 的電子報。",
+    "surveys": "按「確認」即可收到 {business} 的問卷調查。",
+    "action": "確認",
+    "notice": "連結 {days} 天內有效。如果這不是您申請的，請忽略此郵件：只要您不按「確認」，就不會有任何變化。"
+  },
+  "forms": {
+    "answerTitle": "新回覆：{form}",
+    "limitTitle": "表單已達到上限",
+    "limitForm": "{form} 已收到一小時內可接收的回覆數量（{n}）。",
+    "limitAddress": "同一網路位址向 {form} 傳送的回覆已達到一小時內的上限。",
+    "limitEmail": "同一電子郵件地址在 {form} 中填寫的次數已達到一天的上限。",
+    "limitEntry": "{form} 寫入的資料表已收到其應用程式允許的訪客新列數上限。",
+    "limitBody": "將於 {time} 重新開放。請在表單的「限制」中提高上限或使用更嚴格的驗證。"
   }
 }

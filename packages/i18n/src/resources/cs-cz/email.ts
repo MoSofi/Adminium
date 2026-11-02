@@ -955,5 +955,26 @@ export default {
       "not-aligned": "{source}: marketingové e-maily se přeskakují: doména odesílatele nemá zveřejněný podpisový klíč (DKIM).",
       "no-public-address": "{source}: marketingové e-maily se přeskakují: tento server nemá veřejnou adresu, takže odkazy pro odhlášení by nefungovaly."
     }
+  },
+  "signUpConfirm": {
+    "name": "Potvrzení přihlášení",
+    "subject": "Potvrďte přihlášení u {business}",
+    "preheader": "Jedno kliknutí a jste přihlášeni.",
+    "heading": "Potvrďte prosím své přihlášení",
+    "greetingPlain": "Dobrý den,",
+    "greeting": "Dobrý den, {name},",
+    "newsletter": "Stiskněte Potvrdit a budete dostávat newsletter {business}.",
+    "surveys": "Stiskněte Potvrdit a budete dostávat průzkumy {business}.",
+    "action": "Potvrdit",
+    "notice": "Odkaz platí {days} dní. Pokud jste o to nežádali, tento e-mail ignorujte: bez stisknutí Potvrdit se nic nestane."
+  },
+  "forms": {
+    "answerTitle": "Nová odpověď: {form}",
+    "limitTitle": "Formulář dosáhl svého limitu",
+    "limitForm": "{form} přijal tolik odpovědí, kolik za hodinu přijímá ({n}).",
+    "limitAddress": "Jedna síťová adresa poslala do {form} tolik odpovědí, kolik jedna adresa smí za hodinu.",
+    "limitEmail": "Jedna e-mailová adresa byla ve {form} zadána tolikrát, kolikrát smí být za den.",
+    "limitEntry": "Tabulka, do které {form} zapisuje, přijala tolik nových řádků od návštěvníků, kolik její aplikace dovoluje.",
+    "limitBody": "Znovu se otevře v {time}. Zvyšte limit nebo použijte přísnější kontrolu v Limitech formuláře."
   }
 } as const;

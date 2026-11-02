@@ -955,5 +955,26 @@ export default {
       "not-aligned": "{source}: marketing mail is skipped: the sender’s domain has no published signing key (DKIM).",
       "no-public-address": "{source}: marketing mail is skipped: this server has no public address, so unsubscribe links would not work."
     }
+  },
+  "signUpConfirm": {
+    "name": "Sign-up confirmation",
+    "subject": "Confirm your sign-up to {business}",
+    "preheader": "One click and you’re signed up.",
+    "heading": "Please confirm your sign-up",
+    "greetingPlain": "Hello,",
+    "greeting": "Hello {name},",
+    "newsletter": "Press Confirm to get {business}’s newsletter.",
+    "surveys": "Press Confirm to get {business}’s surveys.",
+    "action": "Confirm",
+    "notice": "The link works for {days} days. If you didn’t ask for this, ignore this e-mail: nothing happens unless you press Confirm."
+  },
+  "forms": {
+    "answerTitle": "New answer: {form}",
+    "limitTitle": "A form hit its limit",
+    "limitForm": "{form} took as many answers as it takes in an hour ({n}).",
+    "limitAddress": "One network address sent {form} as many answers as one address may in an hour.",
+    "limitEmail": "One e-mail address was given on {form} as many times as it may be in a day.",
+    "limitEntry": "The table {form} adds to took as many new rows from strangers as its app allows.",
+    "limitBody": "It opens again at {time}. Raise the limit or use a harder check in the form’s Limits."
   }
 } as const;

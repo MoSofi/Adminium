@@ -28,5 +28,22 @@
   },
   "unavailable": {
     "title": "此页面不可用。"
+  },
+  "confirm": {
+    "titleNewsletter": "确认订阅 {business} 的新闻通讯",
+    "titleSurveys": "确认参与 {business} 的调查",
+    "for": "适用于 {address}",
+    "button": "确认",
+    "note": "在您按下“确认”之前，什么都不会发生。我们发送的每封电子邮件都可以退订。",
+    "done": "您已订阅。谢谢。",
+    "doneNewsletter": "您将收到 {business} 的新闻通讯。",
+    "doneSurveys": "您将收到 {business} 的调查。",
+    "leave": "每封电子邮件都有退订链接。",
+    "already": "您已确认过。谢谢。",
+    "tooOld": "此链接已过期。",
+    "tooOldWebsite": "请在 {website} 重新订阅，我们会发送新的链接。",
+    "tooOldAgain": "请在 {business} 的网站重新订阅，我们会发送新的链接。",
+    "deadWrite": "如果您想订阅，请写信至 {email}。",
+    "deadAsk": "如果您想订阅，请联系 {business}。"
   }
 }

@@ -28,5 +28,22 @@
   },
   "unavailable": {
     "title": "此頁面無法使用。"
+  },
+  "confirm": {
+    "titleNewsletter": "確認訂閱 {business} 的電子報",
+    "titleSurveys": "確認參與 {business} 的問卷調查",
+    "for": "適用於 {address}",
+    "button": "確認",
+    "note": "在您按下「確認」之前，什麼都不會發生。我們寄出的每封電子郵件都可以取消訂閱。",
+    "done": "您已訂閱。謝謝。",
+    "doneNewsletter": "您將收到 {business} 的電子報。",
+    "doneSurveys": "您將收到 {business} 的問卷調查。",
+    "leave": "每封電子郵件都有取消訂閱的連結。",
+    "already": "您已確認過。謝謝。",
+    "tooOld": "此連結已過期。",
+    "tooOldWebsite": "請在 {website} 重新訂閱，我們會寄出新的連結。",
+    "tooOldAgain": "請在 {business} 的網站重新訂閱，我們會寄出新的連結。",
+    "deadWrite": "如果您想訂閱，請寫信至 {email}。",
+    "deadAsk": "如果您想訂閱，請聯絡 {business}。"
   }
 }
