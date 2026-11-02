@@ -69,7 +69,7 @@ export default {
     "kind": "不接受此类文件。请使用 {kinds}。",
     "quota": "目前无法接收文件。请稍后再试。",
     "cap": "今天从此处发送的文件过多。请明天再试。",
-    "count": "最多可添加 {max} 个文件。",
+    "count": "最多可添加 {max, plural, other {# 个文件}}。",
     "failed": "无法发送此文件。请重试。"
   },
   "score": {
