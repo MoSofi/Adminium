@@ -43,6 +43,8 @@ const ALLOWED: Record<string, string> = {
     "a consent-log event mirrored into the declared yes/no column and its strict stamps, as the system: a save would drop the stamps it is given and keep naming whoever ticked the box last, so the door writes the column, its who (the event's staff member, or nobody) and its when (the event's time) in one statement and audits it itself",
   'privacy/erase-rows.ts':
     "a person erased in place under the privacy action: their own fields, their declared copies and their outbox mail emptied by key, one transaction a database, as the system — a save would run under a role's reach and stop half-way, drop the strict stamps it empties, fire the rules (which would mail and copy the name back into history), follow copies into sent and locked rows, and log the name in its before-image; the erasure audits itself with counts and a keyed hash",
+  'forms/files.ts':
+    "a form answer's files in the forms add-on's own files table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): written with the answer they belong to and removed with it, as a ledger's receipts are — no rule, hook or live frame is owed for rows no person writes",
 };
 
 /** Kysely's write builders, unless their table is one of Adminium's own. */
