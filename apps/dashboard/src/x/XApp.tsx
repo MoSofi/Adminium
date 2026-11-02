@@ -14,9 +14,14 @@
  * never decides), the summary over Send and focus to the first question to
  * fix, a trap field no person sees, and Send solving the human check first.
  *
+ * A NAMED SURVEY is drawn for its invitation's link (`?t=`), which every call
+ * carries: greeted by the invitee's first name once sent, with what it is
+ * about under its title, when the server says so.
+ *
  * THE ENDINGS. Sent (and the "check your e-mail" step when the visitor ticked
  * a sign-up that asks for one), closed, too many sends (the wait the server
- * gives), "not available", and a link that does not work. A state change is
+ * gives), "not available", a survey answered already, and a link that does
+ * not work. A state change is
  * read out in one polite region; after the visitor's own press removes the
  * control they used, focus goes to the new card's heading. Nothing moves
  * focus on load.
@@ -124,6 +129,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const link = useRef<FrameLink | null>(null);
 
   const form = page?.state === 'live' ? page.form : null;
+  const invitation = page?.state === 'live' ? page.invitation : undefined;
+  const about = invitation?.about ?? null;
   const definition: FormDefinition | null = form?.definition ?? null;
   const vocabularyForm = useMemo(() => (definition === null ? null : formOf(definition)), [definition]);
   const business: XBusiness = page?.business ?? { name: '', legalName: null, email: null, privacyNotice: null, hasLogo: false };
@@ -136,13 +143,9 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       return;
     }
     try {
-      const next = await fetchForm(route.slug, { lang, frame });
+      const next = await fetchForm(route.slug, { lang, frame, token: route.token });
       setPage(next);
-      if (next.state === 'closed') setEnding({ kind: 'closed' });
-      else if (next.state === 'unavailable') setEnding({ kind: 'unavailable' });
-      // A named survey's link is the survey door's: until it answers for one, the link does not work here.
-      else if (route.token !== null) setEnding({ kind: 'dead' });
-      else setEnding(null);
+      setEnding(next.state === 'live' ? null : { kind: next.state });
       if (ACCENTS.has(next.accent)) document.documentElement.dataset['accent'] = next.accent;
       // The engine's words follow the language the form is drawn in.
       if (next.state === 'live' && next.form.language !== tag) await chooseWords(languageOfTag(next.form.language));
@@ -305,7 +308,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     updateRows(question.id, (rows) => [...(many ? rows : []), ...fresh]);
     if (toSend.length === 0) setLive(t('x:files.refused', '{file} was not added.', { file: fresh[0]?.name ?? '' }));
     for (const [row, file] of toSend) {
-      const job = sendFile(slug, question.id, file).then((reply) => {
+      const job = sendFile(slug, question.id, file, route.token).then((reply) => {
         updateRows(question.id, (rows) => rows.map((one) => (one.key !== row.key ? one : reply.state === 'taken' ? { ...one, state: 'taken', id: reply.id, size: reply.size } : { ...one, state: 'refused', code: reply.code })));
         setLive(reply.state === 'taken' ? t('x:files.added', '{file} added.', { file: row.name }) : t('x:files.refused', '{file} was not added.', { file: row.name }));
       });
@@ -373,11 +376,11 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     setLive(t('x:sending', 'Sending…'));
     try {
       const parent = frame ? (link.current?.parentOrigin() ?? null) : null;
-      const answer = { language: form.language, values: answerValues(vocabularyForm, now), query, website: trap, ...(parent === null ? {} : { from: parent }) };
+      const answer = { language: form.language, values: answerValues(vocabularyForm, now), query, website: trap, ...(parent === null ? {} : { from: parent }), ...(route.token === null ? {} : { t: route.token }) };
       let reply: Awaited<ReturnType<typeof postAnswer>> = { state: 'proof' };
       // One silent retry: a challenge can expire while a slow phone solves it.
       for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
-        const challenge = await fetchChallenge(route.slug);
+        const challenge = await fetchChallenge(route.slug, route.token);
         reply = await postAnswer(route.slug, answer, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`);
       }
       if (reply.state === 'proof') {
@@ -404,7 +407,9 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
         const nameQuestion = definition!.questions.find((question) => question.kind === 'short' && question.role === 'name');
         const tick = definition!.questions.find((question): question is Extract<FormQuestion, { kind: 'tick' }> => question.kind === 'tick' && question.confirm && values[question.id] === true);
         moveFocus.current = 'heading';
-        setEnding({ kind: 'sent', name: form.anonymous || nameQuestion === undefined ? null : firstName(values[nameQuestion.id]), confirm: tick?.purpose ?? null });
+        // A named survey greets the person it was sent to; anything else, the name typed (never on an anonymous survey).
+        const name = invitation?.firstName ?? (form.anonymous || nameQuestion === undefined ? null : firstName(values[nameQuestion.id]));
+        setEnding({ kind: 'sent', name, confirm: tick?.purpose ?? null });
         return;
       }
       moveFocus.current = 'heading';
@@ -556,7 +561,12 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       <form className="x-card x-form" noValidate onSubmit={(event) => void send(event)} lang={formLanguage}>
         <div className="x-title">
           <h1 className="x-h1">{textOf(definition.title, formLanguage)}</h1>
-          {definition.intro === undefined ? null : <p className="x-intro">{textOf(definition.intro, formLanguage)}</p>}
+          {/* What a named survey is about, from its invitation; otherwise the form's own intro. */}
+          {about !== null ? (
+            <p className="x-intro">{t('x:surveyAbout', 'About {record}.', { record: about })}</p>
+          ) : definition.intro === undefined ? null : (
+            <p className="x-intro">{textOf(definition.intro, formLanguage)}</p>
+          )}
         </div>
         {form.anonymous ? (
           <p className="x-note">

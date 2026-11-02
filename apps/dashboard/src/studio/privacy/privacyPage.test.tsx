@@ -81,6 +81,7 @@ const FOUND: PersonFound = {
     { id: 'campaign-mail', kind: 'campaign-mail', group: 'held', connectionId: null, table: null, app: null, ref: null, label: null, keptByLaw: null, count: 3, keys: ['x', 'y', 'z'] },
     { id: 'form-answers-forms', kind: 'form-answers', group: 'gave', connectionId: 'con_1', table: 'forms_answers', app: 'forms', ref: 'answers', label: 'Answers', keptByLaw: null, count: 2, keys: ['a1', 'a2'] },
     { id: 'form-invitations-forms', kind: 'form-invitations', group: 'held', connectionId: 'con_1', table: 'forms_invitations', app: 'forms', ref: 'invitations', label: null, keptByLaw: null, count: 1, keys: ['i1'] },
+    { id: 'form-files-forms', kind: 'form-files', group: 'gave', connectionId: 'con_1', table: 'forms_answer_files', app: 'forms', ref: 'answer_files', label: null, keptByLaw: null, count: 2, keys: ['f1', 'f2'] },
   ],
 };
 
@@ -93,6 +94,7 @@ const PREVIEW: ErasePreview = {
     { kind: 'campaign-mail', count: 3 },
     { kind: 'form-answers', count: 2, connectionId: 'con_1', table: 'forms_answers', app: 'forms', label: 'Answers' },
     { kind: 'form-invitations', count: 1, connectionId: 'con_1', table: 'forms_invitations', app: 'forms', label: 'Invitations' },
+    { kind: 'form-files', count: 2, connectionId: 'con_1', table: 'forms_answer_files', app: 'forms', label: 'Answer files' },
   ],
   stays: [
     { kind: 'app-rows', reason: 'tax', count: 2, keptDays: null, forever: false, connectionId: 'con_1', table: 'invoices', app: 'sales-crm', label: 'Invoices' },
@@ -322,7 +324,7 @@ describe('a person’s data', () => {
     expect(within(card).getByText('What they agreed to or asked')).toBeDefined();
     expect(within(card).getByText('What the business keeps about them')).toBeDefined();
     const rows = within(card).getAllByTestId('privacy-source').map((row) => row.textContent);
-    expect(rows).toEqual(['Contacts — sales-crm1 row', 'Answers — forms2 answers', 'Consent history4 entries', 'Do-not-email listyesOpen', 'Campaign e-mails3', 'Survey invitations1 invitation']);
+    expect(rows).toEqual(['Contacts — sales-crm1 row', 'Answers — forms2 answers', 'Files sent with form answers2 files', 'Consent history4 entries', 'Do-not-email listyesOpen', 'Campaign e-mails3', 'Survey invitations1 invitation']);
     expect(calls.find((call) => call.url === '/api/v1/privacy/find')!.body).toEqual({ address: MARTA });
   });
 
@@ -351,7 +353,7 @@ describe('a person’s data', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Erase everything about this person?' })).toBeDefined();
     await within(dialog).findByTestId('erase-goes');
-    expect(within(dialog).getByTestId('erase-goes').textContent).toBe('What goes1 row in Contacts, 4 consent entries, 3 campaign e-mails, 2 form answers in Answers, 1 survey invitation in Invitations, kept without their address');
+    expect(within(dialog).getByTestId('erase-goes').textContent).toBe('What goes1 row in Contacts, 4 consent entries, 3 campaign e-mails, 2 form answers in Answers, 1 survey invitation in Invitations, kept without their address, 2 files sent with form answers in Answer files');
     const stays = within(dialog).getByTestId('erase-stays').textContent ?? '';
     expect(stays).toContain('2 rows in Invoices, because tax law needs them.');
     expect(stays).toContain('Data exports staff made of a table may hold them, until each one expires. Kept for 30 days.');

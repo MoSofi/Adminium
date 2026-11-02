@@ -70,7 +70,8 @@ export type SourceKind =
   | 'notifications'
   | 'files'
   | 'form-answers'
-  | 'form-invitations';
+  | 'form-invitations'
+  | 'form-files';
 
 export type KeptByLawReason = 'tax' | 'health' | 'contract' | 'safety';
 
@@ -125,7 +126,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files';
 
 export interface GoesItem {
   kind: GoesKind;

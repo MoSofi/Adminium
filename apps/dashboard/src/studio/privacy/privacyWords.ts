@@ -46,6 +46,8 @@ export function goesWords(item: GoesItem): string {
       return t('studio:privacy.erase.goes.files', '{count, plural, one {# file} other {# files}}', { count });
     case 'form-answers':
       return t('studio:privacy.erase.goes.answers', '{count, plural, one {# form answer} other {# form answers}} in {label}', { count, label });
+    case 'form-files':
+      return t('studio:privacy.erase.goes.answerFiles', '{count, plural, one {# file} other {# files}} sent with form answers in {label}', { count, label });
     case 'form-invitations':
       return t('studio:privacy.erase.goes.invitations', '{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address', { count, label });
   }

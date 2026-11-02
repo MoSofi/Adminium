@@ -384,11 +384,57 @@ describe('a form a stranger fills', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('a survey link with a token says it does not work until the survey door takes one', async () => {
-    pages['fit-out'] = live(SURVEY);
+  it('a survey link answered already, or one that does not work, says so in a neutral card', async () => {
+    pages['fit-out'] = { state: 'already', business: BUSINESS, accent: 'teal' };
+    await show('/x/forms/fit-out?t=abcdef');
+    expect(await screen.findByRole('heading', { level: 1, name: 'You’ve already answered this survey. Thank you.' })).toBeTruthy();
+    cleanup();
+    pages['fit-out'] = { state: 'dead', business: BUSINESS, accent: 'teal' };
     await show('/x/forms/fit-out?t=abcdef');
     expect(await screen.findByRole('heading', { level: 1, name: 'This link doesn’t work.' })).toBeTruthy();
     expect(screen.getByText('Write to hello@meridian.example.')).toBeTruthy();
+    // Focus is never moved on load.
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+describe('a named survey', () => {
+  const TOKEN = 'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT01';
+
+  it('carries its link’s token on every call; says what it is about, and thanks the invitee by name', async () => {
+    pages['fit-out'] = live(SURVEY, { invitation: { firstName: 'Marta', about: 'Records-room fit-out at Cobalt Legal' } });
+    const user = userEvent.setup();
+    await show(`/x/forms/fit-out?t=${TOKEN}`);
+    expect(await screen.findByText('About Records-room fit-out at Cobalt Legal.')).toBeTruthy();
+    expect(calls[0]!.url).toContain(`t=${TOKEN}`);
+    await user.click(within(screen.getByRole('radiogroup', { name: /recommend/ })).getAllByRole('radio')[9]!);
+    await user.click(screen.getByRole('button', { name: 'Send answers' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Thank you, Marta.' })).toBeTruthy();
+    expect(calls.find((call) => call.url.includes('/challenge'))!.url).toBe(`/x/forms/api/fit-out/challenge?t=${TOKEN}`);
+    expect((calls.find((call) => call.url.endsWith('/answers'))!.body as { t?: string }).t).toBe(TOKEN);
+  });
+
+  it('a file picked on it goes to the file door with the token, its check too', async () => {
+    const withPhoto = { ...SURVEY, questions: [...SURVEY.questions, { id: 'qphoto', kind: 'file', maxMb: 5, kinds: ['png'], label: { 'en-US': 'A photo of the room' } }] } as FormDefinition;
+    pages['fit-out'] = live(withPhoto, { invitation: { firstName: 'Marta', about: null } });
+    const user = userEvent.setup({ applyAccept: false });
+    await show(`/x/forms/fit-out?t=${TOKEN}`);
+    await screen.findByRole('radiogroup', { name: /recommend/ });
+    await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, [fileOf('room.png', 300, 'image/png')]);
+    await waitFor(() => expect(calls.some((call) => call.url.includes('/files'))).toBe(true));
+    const posted = calls.find((call) => call.url.includes('/files'))!;
+    expect(new URL(posted.url, 'https://forms.example').searchParams.get('t')).toBe(TOKEN);
+    expect(calls.filter((call) => call.url.includes('/challenge')).every((call) => call.url.endsWith(`?t=${TOKEN}`))).toBe(true);
+  });
+
+  it('a send the door says was answered already ends on that card', async () => {
+    pages['fit-out'] = live(SURVEY, { invitation: { firstName: 'Marta', about: null } });
+    answerReply = { status: 409, body: { state: 'already' } };
+    const user = userEvent.setup();
+    await show(`/x/forms/fit-out?t=${TOKEN}`);
+    await user.click(within(await screen.findByRole('radiogroup', { name: /recommend/ })).getAllByRole('radio')[3]!);
+    await user.click(screen.getByRole('button', { name: 'Send answers' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'You’ve already answered this survey. Thank you.' })).toBeTruthy();
   });
 });
 

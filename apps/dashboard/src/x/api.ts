@@ -4,7 +4,9 @@
  * Never a cookie: a form answers nobody's session.
  *
  * WHAT IS ASKED.
- *   GET  /x/forms/api/<slug>?lang=…[&frame=1]   the form, in one of its languages, and who the business is
+ *   GET  /x/forms/api/<slug>?lang=…[&frame=1][&t=…]   the form, in one of its languages, and who the business is;
+ *                                               a named survey only with its invitation's token (`t`, which each
+ *                                               call below carries too), answered `already` or `dead` otherwise
  *   GET  /x/forms/api/<slug>/challenge          the human check, solved when Send is pressed
  *   POST /x/forms/api/<slug>/answers            the answer, with the solved check in `x-adminium-proof`
  *   POST /x/forms/api/<slug>/files?q=…&name=…   one file for a file question, as the body, with a check of its own
@@ -14,7 +16,8 @@
  *   400 `{ state: 'refused', errors: { <question id or *>: <code> } }`   the codes of the forms vocabulary
  *   403                                         the human check did not pass (asked once more, silently)
  *   429 `{ state: 'too-many', retryAfter: <seconds>, window: 'hour' | 'day' }` (or a Retry-After header)
- *   `{ state: 'closed' | 'already' | 'dead' | 'unavailable' }`    with any status
+ *   `{ state: 'closed' | 'already' | 'dead' | 'unavailable' }`    with any status: a named survey's invitation
+ *                                               answered already (409), its link not working (410)
  */
 import type { FormDefinition, FormLanguage } from '@adminium/add-on-contracts/forms';
 
@@ -34,9 +37,15 @@ export interface XForm {
   anonymous: boolean;
 }
 
+/** A named survey's invitation, as the page may say it: whom it greets, and what the survey is about. */
+export interface XInvitation {
+  firstName: string | null;
+  about: string | null;
+}
+
 export type XPage =
-  | { state: 'live'; business: XBusiness; accent: string; form: XForm; today: string; frameOrigins?: string[] }
-  | { state: 'closed' | 'unavailable'; business: XBusiness; accent: string };
+  | { state: 'live'; business: XBusiness; accent: string; form: XForm; today: string; frameOrigins?: string[]; invitation?: XInvitation }
+  | { state: 'closed' | 'unavailable' | 'already' | 'dead'; business: XBusiness; accent: string };
 
 export interface XChallenge {
   id: string;
@@ -61,6 +70,8 @@ export interface XAnswer {
   website: string;
   /** In a frame, the website it sits on (a listed one's origin), which the answer keeps as where it was sent from. */
   from?: string;
+  /** A named survey's token, from its link. */
+  t?: string;
 }
 
 const HEADERS = { accept: 'application/json' };
@@ -74,18 +85,19 @@ export class XApiError extends Error {
 const base = (slug: string): string => `/x/forms/api/${encodeURIComponent(slug)}`;
 
 /** The form as a stranger is shown it; a page that is not there is an answer too (404). */
-export async function fetchForm(slug: string, opts: { lang: string | null; frame: boolean }): Promise<XPage> {
+export async function fetchForm(slug: string, opts: { lang: string | null; frame: boolean; token: string | null }): Promise<XPage> {
   const query = new URLSearchParams();
   if (opts.lang !== null) query.set('lang', opts.lang);
   if (opts.frame) query.set('frame', '1');
+  if (opts.token !== null) query.set('t', opts.token);
   const search = query.toString();
   const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: 'omit', headers: HEADERS });
   if (!response.ok && response.status !== 404) throw new XApiError(response.status);
   return (await response.json()) as XPage;
 }
 
-export async function fetchChallenge(slug: string): Promise<XChallenge> {
-  const response = await fetch(`${base(slug)}/challenge`, { credentials: 'omit', headers: HEADERS });
+export async function fetchChallenge(slug: string, token: string | null): Promise<XChallenge> {
+  const response = await fetch(`${base(slug)}/challenge${token === null ? '' : `?t=${encodeURIComponent(token)}`}`, { credentials: 'omit', headers: HEADERS });
   if (!response.ok) throw new XApiError(response.status);
   return (await response.json()) as XChallenge;
 }
