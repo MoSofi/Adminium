@@ -465,13 +465,30 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
   }
 
   /** The same question of a package already in the store: what a plan and an install say of it, so the upload is not the only place that does. */
-  async function codeWillNotRun(key: string, version: string): Promise<{ codeWillNotRun?: true }> {
+  async function codeWillNotRun(key: string, version: string): Promise<{ codeWillNotRun?: true; formsWillNotServe?: true }> {
     try {
-      return (await shipsDeciderUntrusted({ key, version, tree: await deps.store.verifyTree(key, version) })) ? { codeWillNotRun: true } : {};
+      const tree = await deps.store.verifyTree(key, version);
+      return { ...((await shipsDeciderUntrusted({ key, version, tree })) ? { codeWillNotRun: true as const } : {}), ...((await formsUnvouched({ key, version, tree })) ? { formsWillNotServe: true as const } : {}) };
     } catch {
       // A tree that does not verify is the install's own refusal, not this note's.
       return {};
     }
+  }
+
+  /**
+   * A package that declares forms, from a source nobody vouches for: it
+   * installs, and its forms answer "not available" to every stranger
+   * (`forms/vouched.ts`), so the person is told now.
+   */
+  async function formsUnvouched(staged: { key: string; version: string; tree: { integrity: string } }): Promise<boolean> {
+    let forms: unknown;
+    try {
+      forms = (JSON.parse((await deps.store.readFile(staged.key, staged.version, 'manifest.json')).toString('utf8')) as { addOn?: { forms?: unknown } }).addOn?.forms;
+    } catch {
+      return false;
+    }
+    if (forms === undefined || forms === null) return false;
+    return !deciderTrusted({ key: staged.key, version: staged.version, integrity: staged.tree.integrity }, await trustSources(deps.meta));
   }
 
   function actorOf(request: FastifyRequest): Actor {

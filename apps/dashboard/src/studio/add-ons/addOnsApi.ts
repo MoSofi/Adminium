@@ -210,6 +210,8 @@ export interface InstallCheck {
   publicAccess?: PublicAccessCheck;
   /** Nobody vouches for the package: it installs, and its code that decides while a record is saved does not run. */
   codeWillNotRun?: true;
+  /** Nobody vouches for the package: it installs, and no stranger is served its forms. */
+  formsWillNotServe?: true;
 }
 
 /** A database an add-on's tables may go in, as the server lists them when there is a choice. */
