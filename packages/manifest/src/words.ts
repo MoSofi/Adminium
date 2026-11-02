@@ -184,6 +184,9 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'addOn.forms',
   // A table an app opens to forms, through an entry under the reserved key `forms`.
   'publicAccess.forms',
+  // An outbox kind's consent purpose, and the kinds whose template prints a survey's link.
+  'outbox.purposes',
+  'outbox.surveyLinks',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -352,6 +355,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // An add-on's forms, which the engine draws and takes answers for, and a table an app opens to them.
   'addOn.forms': '0.3.40',
   'publicAccess.forms': '0.3.40',
+  // An outbox kind sent for a consent purpose (a survey invitation skips a "no" to surveys, even as service mail), and a
+  // kind whose template prints a survey's link, filled when it goes.
+  'outbox.purposes': '0.3.40',
+  'outbox.surveyLinks': '0.3.40',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -551,6 +558,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   const outbox = isDoc(document['outbox']) ? document['outbox'] : {};
   if (isDoc(outbox['pages']) && outbox['pages']['app'] !== undefined) out.push({ word: 'outbox.pages.app', path: 'outbox.pages.app' });
   if (outbox['classes'] !== undefined) out.push({ word: 'outbox.classes', path: 'outbox.classes' });
+  if (outbox['purposes'] !== undefined) out.push({ word: 'outbox.purposes', path: 'outbox.purposes' });
+  if (outbox['surveyLinks'] !== undefined) out.push({ word: 'outbox.surveyLinks', path: 'outbox.surveyLinks' });
   list(outbox['producers']).forEach((producer, p) => {
     if (isDoc(producer) && producer['replyTo'] !== undefined) out.push({ word: 'outbox.replyTo', path: `outbox.producers.${String(p)}.replyTo` });
     // A message about a row that was removed.
