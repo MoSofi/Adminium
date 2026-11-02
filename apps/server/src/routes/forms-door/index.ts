@@ -7,7 +7,7 @@
  *   GET  /x/forms/:slug                    the form's page (the `x` bundle); `?frame=1` draws it for a website's frame
  *   GET  /x/forms/api/:slug                what a stranger is shown of the form, in one of its languages
  *   GET  /x/forms/api/:slug/challenge      the human check, bound to the form (solved when Send is pressed)
- *   POST /x/forms/api/:slug/answers        kept for the answer door: 404 until it is built
+ *   POST /x/forms/api/:slug/answers        a stranger's answer (`forms/answer.ts`)
  *   POST /x/forms/api/:slug/files          kept for the file door: 404 until it is built
  *   GET  /x/api/logo                       the business's logo (the pay page's)
  *   GET  /x/assets/*                       the bundle's own hashed files, and nothing else
@@ -48,7 +48,8 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
-import type { FormsCatalog, LiveForm } from '../../forms/catalog.js';
+import { answerBodySchema, formProofKeyId, HARDER_DIFFICULTY, type AnswerDoor } from '../../forms/answer.js';
+import type { FormsCatalog } from '../../forms/catalog.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
 import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
@@ -68,19 +69,18 @@ export interface FormsDoorDeps {
   storage: Pick<FileStore, 'read'>;
   /** The websites that may frame a form ("Your websites"). */
   websites: ListedWebsites;
+  /** What takes an answer; absent, every answer is "not available". */
+  answers?: AnswerDoor | undefined;
   networkFeatures: boolean;
   desktop: boolean;
   trustProxy: boolean;
   now?: () => number;
 }
 
-/** A form's harder human check: four more zero bits, about sixteen times the work. */
-export const HARDER_DIFFICULTY = PROOF_DIFFICULTY + 4;
+export { formProofKeyId, HARDER_DIFFICULTY };
 
-/** The key a form's human check is bound to: the add-on that holds it and the form's own row. */
-export function formProofKeyId(live: Pick<LiveForm, 'addOn' | 'id'>): string {
-  return `form:${live.addOn}:${live.id}`;
-}
+/** The largest answer taken: sixty questions, the longest of them a few thousand characters. */
+const ANSWER_BODY_LIMIT = 256 * 1024;
 
 /** How long a browser may keep the loader: a change reaches the owner's site within minutes. */
 export const EMBED_MAX_AGE_SECONDS = 300;
@@ -254,21 +254,25 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       return issueChallenge(key, live === null ? 'form:none' : formProofKeyId(live), 'form', now(), live?.form.settings.limits.harder === true ? HARDER_DIFFICULTY : PROOF_DIFFICULTY);
     });
 
-    // Kept for the answer door and the file door: nothing is taken here yet, and nothing is written.
-    for (const part of ['answers', 'files'] as const) {
-      app.post(
-        `/x/forms/api/:slug/${part}`,
-        {
-          config: {
-            rateLimitBucket: 'forms-door',
-            csrf: 'origin',
-            audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
-          },
-          schema: { hide: true, params: slugParams },
-        },
-        async (_request, reply) => unavailable(reply),
-      );
-    }
+    const posted = {
+      rateLimitBucket: 'forms-door' as const,
+      csrf: 'origin' as const,
+      audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
+    };
+
+    // A stranger's answer: taken by the answer door, all or nothing.
+    app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams } }, async (request, reply) => {
+      const found = await lookUp(request, request.params.slug);
+      if (found.state === 'unavailable' || deps.answers === undefined) return unavailable(reply);
+      if (found.state === 'closed') return { state: 'closed' };
+      const parsed = answerBodySchema.safeParse(request.body);
+      const answered = await deps.answers.takeAnswer(request, found.live, parsed.success ? parsed.data : null);
+      if (answered.status === 404) return unavailable(reply);
+      return reply.status(answered.status).send(answered.body);
+    });
+
+    // Kept for the file door: nothing is taken here yet, and nothing is written.
+    app.post('/x/forms/api/:slug/files', { config: posted, schema: { hide: true, params: slugParams } }, async (_request, reply) => unavailable(reply));
 
     app.get('/x/api/logo', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true } }, async (request, reply) => {
       if (!(await reachable(request))) return reply.status(404).send();

@@ -86,8 +86,10 @@ function firstName(value: Held): string | null {
 }
 
 /** A wait in seconds, said as the page's language says "in an hour". */
-function waitWords(seconds: number | null, tag: string): string {
+function waitWords(seconds: number | null, tag: string, day = false): string {
   const rtf = new Intl.RelativeTimeFormat(tag, { numeric: 'auto' });
+  // A day's cap opens again tomorrow, whatever the hours.
+  if (day) return rtf.format(1, 'day');
   const s = seconds === null || seconds <= 0 ? 3600 : seconds;
   return s >= 3600 ? rtf.format(Math.ceil(s / 3600), 'hour') : rtf.format(Math.max(1, Math.ceil(s / 60)), 'minute');
 }
@@ -104,6 +106,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const [checked, setChecked] = useState(false);
   const [sending, setSending] = useState(false);
   const [tooMany, setTooMany] = useState<number | null | undefined>(undefined);
+  const [tooManyDay, setTooManyDay] = useState(false);
   const [ending, setEnding] = useState<Ending | null>(null);
   const [live, setLive] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -291,7 +294,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     setSending(true);
     setLive(t('x:sending', 'Sending…'));
     try {
-      const answer = { language: form.language, values: answerValues(vocabularyForm, values), query, website: trap };
+      const parent = frame ? (link.current?.parentOrigin() ?? null) : null;
+      const answer = { language: form.language, values: answerValues(vocabularyForm, values), query, website: trap, ...(parent === null ? {} : { from: parent }) };
       let reply: Awaited<ReturnType<typeof postAnswer>> = { state: 'proof' };
       // One silent retry: a challenge can expire while a slow phone solves it.
       for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
@@ -310,6 +314,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
         return;
       }
       if (reply.state === 'too-many') {
+        setTooManyDay(reply.day === true);
         setTooMany(reply.retryAfter);
         return;
       }
@@ -510,8 +515,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
             <Icon of={TriangleAlert} size={16} />
             <span>
               {business.email === null
-                ? t('x:ending.tooManyPlain', 'Too many sends from here. Please try again {when}.', { when: waitWords(tooMany, tag) })
-                : t('x:ending.tooMany', 'Too many sends from here. Please try again {when}, or write to {email}.', { when: waitWords(tooMany, tag), email: business.email })}
+                ? t('x:ending.tooManyPlain', 'Too many sends from here. Please try again {when}.', { when: waitWords(tooMany, tag, tooManyDay) })
+                : t('x:ending.tooMany', 'Too many sends from here. Please try again {when}, or write to {email}.', { when: waitWords(tooMany, tag, tooManyDay), email: business.email })}
             </span>
           </p>
         )}
