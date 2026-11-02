@@ -445,6 +445,17 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect(dead.body).toContain('This link doesn’t work.');
   });
 
+  it.skipIf(!available)('two presses at the same moment confirm once', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    expect((await send('keep-only', { qname: 'Tess', qemail: 'tess@twice.example', qnews: true })).statusCode).toBe(200);
+    const [mail] = (await mails()).filter((one) => one.templateKey === 'sign-up-confirm');
+    const token = /\/m\/c\/([A-Za-z0-9_~-]+)/.exec(mail!.html)![1]!;
+    const press = () => composed.app.inject({ method: 'POST', url: `/m/c/${token}`, headers: { host: HOST, 'content-type': 'application/x-www-form-urlencoded' }, payload: 'act=confirm' });
+    const [one, two] = await Promise.all([press(), press()]);
+    expect([one.body.includes('You’re signed up.'), two.body.includes('You’re signed up.')].filter(Boolean)).toHaveLength(1);
+    expect((await consent.history({ address: 'tess@twice.example' })).filter((event) => event.state === 'yes')).toHaveLength(1);
+  });
+
   it.skipIf(!available)('a link 31 days old is too old, with the business’s website', async () => {
     const sent = await send('keep-only', { qname: 'Olga', qemail: 'olga@old.example', qnews: true });
     expect(sent.statusCode).toBe(200);

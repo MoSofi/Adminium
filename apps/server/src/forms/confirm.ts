@@ -144,8 +144,11 @@ export function createFormsConfirm(deps: FormsConfirmDeps) {
   /** The button's POST: see the header. Answers what the page shows next. */
   async function confirm(token: string): Promise<{ state: 'done'; purpose: 'newsletter' | 'surveys'; language: string | null } | { state: 'already' | 'too-old' | 'dead' }> {
     const found = await stateOf(token);
-    if (found.state.state !== 'waiting') return { state: found.state.state };
+    // A sign-up confirmed already goes on to the update too: the update alone decides, so two presses at one moment confirm once.
+    if (found.state.state !== 'waiting' && found.state.state !== 'already') return { state: found.state.state };
     const waiting = found.waiting!;
+    const address = text(waiting.row['email'])!;
+    const purpose = found.claim!.purpose;
     const at = now();
     // Once: the row turns confirmed only from pending, so a second press at the same moment does nothing.
     const { db } = await deps.data(waiting.connectionId);
@@ -156,13 +159,12 @@ export function createFormsConfirm(deps: FormsConfirmDeps) {
       .where(db.dynamic.ref('confirm'), '=', 'pending')
       .executeTakeFirst();
     if (Number(moved.numUpdatedRows) !== 1) return { state: 'already' };
-    const address = found.state.address;
     const version = waiting.row['consent_version'];
     await deps.consent.record({
       state: 'yes',
       person: await personOf(waiting),
       address,
-      purpose: found.state.purpose,
+      purpose,
       source: 'form',
       detail: 'confirmed',
       wording: { text: text(waiting.row['consent_wording']) ?? '', version: version === null || version === undefined ? '' : String(version) },
@@ -174,7 +176,7 @@ export function createFormsConfirm(deps: FormsConfirmDeps) {
     // A confirmed sign-up lifts the address's do-not-email entry; the log keeps the objection and this yes.
     const entry = await deps.consent.stop.entryFor(address);
     if (entry !== null) await deps.consent.stop.remove(entry.id);
-    return { state: 'done', purpose: found.state.purpose, language: found.state.language };
+    return { state: 'done', purpose, language: text(waiting.row['language']) };
   }
 
   /**
