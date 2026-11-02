@@ -49,7 +49,7 @@ import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { answerBodySchema, formProofKeyId, HARDER_DIFFICULTY, type AnswerDoor } from '../../forms/answer.js';
-import type { FormsCatalog, LiveForm } from '../../forms/catalog.js';
+import type { FormsCatalog } from '../../forms/catalog.js';
 import type { PublicUploads } from '../../public-uploads/store.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
@@ -259,23 +259,26 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     });
 
     const posted = {
-    // Kept for the answer door (and the file door, on a server with no upload store): nothing is taken here yet, and nothing is written.
-    for (const part of deps.uploads === undefined ? (['answers', 'files'] as const) : (['answers'] as const)) {
-      app.post(
-        `/x/forms/api/:slug/${part}`,
-        {
-          config: {
-            rateLimitBucket: 'forms-door',
-            csrf: 'origin',
-            audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
-          },
-          schema: { hide: true, params: slugParams },
-        },
-        async (_request, reply) => unavailable(reply),
-      );
-    }
+      rateLimitBucket: 'forms-door' as const,
+      csrf: 'origin' as const,
+      audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
+    };
 
-    if (deps.uploads !== undefined) {
+    // A stranger's answer: taken by the answer door, all or nothing.
+    app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams } }, async (request, reply) => {
+      const found = await lookUp(request, request.params.slug);
+      if (found.state === 'unavailable' || deps.answers === undefined) return unavailable(reply);
+      if (found.state === 'closed') return { state: 'closed' };
+      const parsed = answerBodySchema.safeParse(request.body);
+      const answered = await deps.answers.takeAnswer(request, found.live, parsed.success ? parsed.data : null);
+      if (answered.status === 404) return unavailable(reply);
+      return reply.status(answered.status).send(answered.body);
+    });
+
+    // Kept for the file door on a server with no upload store: nothing is taken here, and nothing is written.
+    if (deps.uploads === undefined) {
+      app.post('/x/forms/api/:slug/files', { config: posted, schema: { hide: true, params: slugParams } }, async (_request, reply) => unavailable(reply));
+    } else {
       await app.register(
         formsFileRoutes({
           meta,
