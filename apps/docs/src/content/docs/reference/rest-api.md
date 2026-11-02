@@ -138,7 +138,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/payments/*` | 40 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
-| `/api/v1/privacy/*` | 14 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
+| `/api/v1/privacy/*` | 18 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 9 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 32 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
@@ -785,6 +785,10 @@ GET /api/v1/permissions/catalog
 GET /api/v1/privacy/notice
 PUT /api/v1/privacy/notice
 GET /api/v1/privacy/notice/public
+GET /api/v1/privacy/reach
+GET /api/v1/privacy/websites
+POST /api/v1/privacy/websites
+POST /api/v1/privacy/websites/remove
 GET /api/v1/privacy/postal-address
 PUT /api/v1/privacy/postal-address
 POST /api/v1/privacy/find
