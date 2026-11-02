@@ -53,7 +53,11 @@ for (const [dialect, available] of ENGINES) {
      * server runs in: the calendar day here, not UTC's (the two differ for an hour or two around midnight, and a count
      * taken from UTC's day was then one short).
      */
-    const daysAgo = (n: number): string => new Date(Date.now() - n * 86_400_000).toLocaleDateString('en-CA');
+    const daysAgo = (n: number): string => {
+      // Calendar days, not 24-hour steps: across a change of clocks a step of hours lands on the next day late at night.
+      const today = new Date();
+      return new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() - n)).toISOString().slice(0, 10);
+    };
 
     beforeAll(async () => {
       w = await world(dialect);

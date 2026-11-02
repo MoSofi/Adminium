@@ -449,7 +449,10 @@ for (const [dialect, available] of ENGINES) {
 
       it('answers a rep her own cards, each with its stage’s name, her own name and no colleague’s, and the days the server counted', async () => {
         // The calendar day where the server runs (this world sets no zone of its own), at noon: not UTC's day, which is another for an hour or two around midnight.
-        const ago = (days: number): string => `${new Date(Date.now() - days * 86_400_000).toLocaleDateString('en-CA')} 12:00:00${dialect === 'postgres' ? '+00' : ''}`;
+        // Calendar days, not 24-hour steps: across a change of clocks a step of hours lands on the next day late at night.
+        const today = new Date();
+        const ago = (days: number): string =>
+          `${new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() - days)).toISOString().slice(0, 10)} 12:00:00${dialect === 'postgres' ? '+00' : ''}`;
         await s.run(`UPDATE crm_deals SET entered_at = '${ago(20)}' WHERE id = 1`);
         await s.run(`UPDATE crm_deals SET entered_at = '${ago(2)}' WHERE id = 3`);
         const hers = await cards('dana');
