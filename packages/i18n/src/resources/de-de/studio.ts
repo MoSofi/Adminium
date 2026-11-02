@@ -4294,7 +4294,9 @@ export default {
         "automationRuns": "Regelläufe",
         "notifications": "Benachrichtigungen an Mitarbeitende",
         "files": "Dateien an ihren Zeilen",
-        "appRows": "Zeilen in einer App"
+        "appRows": "Zeilen in einer App",
+        "answers": "Formularantworten",
+        "invitations": "Umfrageeinladungen"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
@@ -4320,7 +4322,9 @@ export default {
       "open": "Öffnen",
       "download": "Alles herunterladen",
       "downloadSub": "Eine .zip-Datei mit JSON- und CSV-Dateien.",
-      "erase": "Löschen…"
+      "erase": "Löschen…",
+      "answers": "{count, plural, one {# Antwort} other {# Antworten}}",
+      "invitations": "{count, plural, one {# Einladung} other {# Einladungen}}"
     },
     "erase": {
       "goes": {
@@ -4329,7 +4333,9 @@ export default {
         "outbox": "{count, plural, one {# E-Mail} other {# E-Mails}} in {label}",
         "consent": "{count, plural, one {# Einwilligungseintrag} other {# Einwilligungseinträge}}",
         "campaignMail": "{count, plural, one {# Kampagnen-E-Mail} other {# Kampagnen-E-Mails}}",
-        "files": "{count, plural, one {# Datei} other {# Dateien}}"
+        "files": "{count, plural, one {# Datei} other {# Dateien}}",
+        "answers": "{count, plural, one {# Formularantwort} other {# Formularantworten}} in {label}",
+        "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt"
       },
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",
@@ -4380,7 +4386,11 @@ export default {
       "heading": "Wie lange wir etwas aufbewahren",
       "sub": "Danach wird jeder Eintrag gelöscht.",
       "what": "Was",
-      "keptFor": "Aufbewahrt für"
+      "keptFor": "Aufbewahrt für",
+      "answers": "Formularantworten — {addOn}",
+      "answersMonths": "{count, plural, one {# Monat aufbewahrt} other {# Monate aufbewahrt}}",
+      "answersUntilRemoved": "Aufbewahrt, bis jemand sie entfernt",
+      "answersWhy": "Festgelegt in den Einstellungen von {addOn}. Ältere Antworten werden jede Nacht gelöscht."
     },
     "downloads": {
       "processing": "Wird erstellt…",

@@ -23,7 +23,7 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Lock, TriangleAlert } from 'lucide-react';
+import { Clock, Lock, TriangleAlert } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Alert, Button, Card, FormField, Input, Skeleton, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 
@@ -32,7 +32,7 @@ import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
-import { PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putPrivacyNotice } from './privacyApi.js';
+import { PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putPrivacyNotice, type KeepingRow } from './privacyApi.js';
 import { noticeUrlError } from './privacyWords.js';
 import { PublicReach } from './PublicReach.js';
 
@@ -240,12 +240,25 @@ const KEEPING_WORDS: Record<string, () => { what: string; kept: string; why: str
   }),
 };
 
+/** A forms add-on's answers: how long its own settings keep them, worded for its row. */
+function answersWords(row: KeepingRow): { what: string; kept: string; why: string } {
+  const addOn = row.addOn?.name ?? '';
+  return {
+    what: t('studio:privacy.keeping.answers', 'Form answers — {addOn}', { addOn }),
+    kept:
+      typeof row.keptFor === 'number'
+        ? t('studio:privacy.keeping.answersMonths', '{count, plural, one {Kept for # month} other {Kept for # months}}', { count: row.keptFor })
+        : t('studio:privacy.keeping.answersUntilRemoved', 'Kept until someone removes them'),
+    why: t('studio:privacy.keeping.answersWhy', 'Set in {addOn}’s settings. Older answers are deleted each night.', { addOn }),
+  };
+}
+
 function KeepingTab(): ReactNode {
   const keeping = useQuery(keepingQuery());
   if (keeping.isError) return <Alert tone="danger" title={t('studio:privacy.keeping.loadFailed', 'How long things are kept could not be loaded. Try again.')} />;
   if (keeping.data === undefined) return <Skeleton className="h-[180px] w-full" />;
   // Only the rows this screen knows how to word: a later server's new row waits for a later screen.
-  const rows = keeping.data.filter((row) => KEEPING_WORDS[row.key] !== undefined);
+  const rows = keeping.data.filter((row) => KEEPING_WORDS[row.key] !== undefined || row.key === 'form-answers');
   const cell = 'border-b border-border px-[var(--card-pad)] py-[var(--row-py,13px)] text-start align-top';
   return (
     <Card padded={false} className="overflow-hidden">
@@ -266,15 +279,16 @@ function KeepingTab(): ReactNode {
         </thead>
         <tbody>
           {rows.map((row) => {
-            const words = KEEPING_WORDS[row.key]!();
+            const answers = row.key === 'form-answers';
+            const words = answers ? answersWords(row) : KEEPING_WORDS[row.key]!();
             return (
-              <tr key={row.key}>
+              <tr key={answers ? `${row.key}:${row.addOn?.key ?? ''}` : row.key}>
                 <th scope="row" className={`${cell} font-semibold`}>
                   {words.what}
                 </th>
                 <td className={cell}>
                   <div className="flex items-center gap-[7px] font-semibold">
-                    <Lock aria-hidden className="size-[13px] shrink-0 text-fg-subtle" />
+                    {answers ? <Clock aria-hidden className="size-[13px] shrink-0 text-fg-subtle" /> : <Lock aria-hidden className="size-[13px] shrink-0 text-fg-subtle" />}
                     {words.kept}
                   </div>
                   <div className="mt-0.5 text-caption text-fg-subtle">{words.why}</div>

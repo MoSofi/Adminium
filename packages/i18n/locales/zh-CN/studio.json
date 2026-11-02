@@ -4284,7 +4284,9 @@
         "automationRuns": "规则运行",
         "notifications": "发给员工的通知",
         "files": "其行上的文件",
-        "appRows": "应用中的行"
+        "appRows": "应用中的行",
+        "answers": "表单回答",
+        "invitations": "调查邀请"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 行}}",
@@ -4310,7 +4312,9 @@
       "open": "打开",
       "download": "全部下载",
       "downloadSub": "包含 JSON 和 CSV 文件的 .zip。",
-      "erase": "删除…"
+      "erase": "删除…",
+      "answers": "{count, plural, other {# 条回答}}",
+      "invitations": "{count, plural, other {# 份邀请}}"
     },
     "erase": {
       "goes": {
@@ -4319,7 +4323,9 @@
         "outbox": "{label} 中的 {count, plural, other {# 封邮件}}",
         "consent": "{count, plural, other {# 条同意记录}}",
         "campaignMail": "{count, plural, other {# 封活动邮件}}",
-        "files": "{count, plural, other {# 个文件}}"
+        "files": "{count, plural, other {# 个文件}}",
+        "answers": "{label} 中的 {count, plural, other {# 条表单回答}}",
+        "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4370,7 +4376,11 @@
       "heading": "保留期限",
       "sub": "到期后，每一项都会被删除。",
       "what": "内容",
-      "keptFor": "保留时长"
+      "keptFor": "保留时长",
+      "answers": "表单回答 — {addOn}",
+      "answersMonths": "{count, plural, other {保留 # 个月}}",
+      "answersUntilRemoved": "保留到有人删除为止",
+      "answersWhy": "在 {addOn} 的设置中设定。较早的回答每晚删除。"
     },
     "downloads": {
       "processing": "正在生成…",

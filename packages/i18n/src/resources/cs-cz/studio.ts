@@ -4294,7 +4294,9 @@ export default {
         "automationRuns": "Běhy pravidel",
         "notifications": "Oznámení pro tým",
         "files": "Soubory u jejich řádků",
-        "appRows": "Řádky v aplikaci"
+        "appRows": "Řádky v aplikaci",
+        "answers": "Odpovědi z formulářů",
+        "invitations": "Pozvánky do průzkumů"
       },
       "onList": "ano",
       "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
@@ -4320,7 +4322,9 @@ export default {
       "open": "Otevřít",
       "download": "Stáhnout vše",
       "downloadSub": "Soubor .zip se soubory JSON a CSV.",
-      "erase": "Vymazat…"
+      "erase": "Vymazat…",
+      "answers": "{count, plural, one {# odpověď} few {# odpovědi} many {# odpovědi} other {# odpovědí}}",
+      "invitations": "{count, plural, one {# pozvánka} few {# pozvánky} many {# pozvánky} other {# pozvánek}}"
     },
     "erase": {
       "goes": {
@@ -4329,7 +4333,9 @@ export default {
         "outbox": "{count, plural, one {# e-mail} few {# e-maily} many {# e-mailu} other {# e-mailů}} v {label}",
         "consent": "{count, plural, one {# záznam souhlasu} few {# záznamy souhlasu} many {# záznamu souhlasu} other {# záznamů souhlasu}}",
         "campaignMail": "{count, plural, one {# e-mail kampaně} few {# e-maily kampaní} many {# e-mailu kampaní} other {# e-mailů kampaní}}",
-        "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}"
+        "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
+        "answers": "{count, plural, one {# odpověď z formuláře} few {# odpovědi z formulářů} many {# odpovědi z formulářů} other {# odpovědí z formulářů}} v {label}",
+        "invitations": "{count, plural, one {# pozvánka do průzkumu} few {# pozvánky do průzkumu} many {# pozvánky do průzkumu} other {# pozvánek do průzkumu}} v {label}, uchováno bez adresy"
       },
       "stays": {
         "forGood": "Uchováno natrvalo.",
@@ -4380,7 +4386,11 @@ export default {
       "heading": "Jak dlouho co uchováváme",
       "sub": "Potom se každá položka vymaže.",
       "what": "Co",
-      "keptFor": "Uchováno"
+      "keptFor": "Uchováno",
+      "answers": "Odpovědi z formulářů — {addOn}",
+      "answersMonths": "{count, plural, one {Uchováno # měsíc} few {Uchováno # měsíce} many {Uchováno # měsíce} other {Uchováno # měsíců}}",
+      "answersUntilRemoved": "Uchováno, dokud je někdo neodstraní",
+      "answersWhy": "Nastaveno v nastavení doplňku {addOn}. Starší odpovědi se mažou každou noc."
     },
     "downloads": {
       "processing": "Připravuje se…",

@@ -4284,7 +4284,9 @@
         "automationRuns": "規則執行",
         "notifications": "發給員工的通知",
         "files": "其列上的檔案",
-        "appRows": "應用程式中的列"
+        "appRows": "應用程式中的列",
+        "answers": "表單回覆",
+        "invitations": "問卷邀請"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 列}}",
@@ -4310,7 +4312,9 @@
       "open": "開啟",
       "download": "全部下載",
       "downloadSub": "包含 JSON 和 CSV 檔案的 .zip。",
-      "erase": "刪除…"
+      "erase": "刪除…",
+      "answers": "{count, plural, other {# 筆回覆}}",
+      "invitations": "{count, plural, other {# 份邀請}}"
     },
     "erase": {
       "goes": {
@@ -4319,7 +4323,9 @@
         "outbox": "{label} 中的 {count, plural, other {# 封郵件}}",
         "consent": "{count, plural, other {# 筆同意記錄}}",
         "campaignMail": "{count, plural, other {# 封活動郵件}}",
-        "files": "{count, plural, other {# 個檔案}}"
+        "files": "{count, plural, other {# 個檔案}}",
+        "answers": "{label} 中的 {count, plural, other {# 筆表單回覆}}",
+        "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4370,7 +4376,11 @@
       "heading": "保留期限",
       "sub": "到期後，每一項都會被刪除。",
       "what": "內容",
-      "keptFor": "保留時長"
+      "keptFor": "保留時長",
+      "answers": "表單回覆 — {addOn}",
+      "answersMonths": "{count, plural, other {保留 # 個月}}",
+      "answersUntilRemoved": "保留到有人刪除為止",
+      "answersWhy": "在 {addOn} 的設定中設定。較舊的回覆每晚刪除。"
     },
     "downloads": {
       "processing": "正在產生…",
