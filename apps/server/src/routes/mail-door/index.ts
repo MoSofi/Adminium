@@ -10,8 +10,9 @@
  *                               8058's one-click (`List-Unsubscribe=One-Click`, posted to the
  *                               same link the mail's header names): withdraws the purpose
  *   GET  /m/l/<token>           a counted click link: to the web address it signs, and nowhere else
- *   GET  /m/…                   anything else (`/m/c/` is kept for the sign-up confirm page):
- *                               "This page isn't available"
+ *   GET  /m/c/<token>           the sign-up confirm page: the address and one button, never acts on its own
+ *   POST /m/c/<token>           the page's form: confirms the sign-up (`forms/confirm.ts`)
+ *   GET  /m/…                   anything else: "This page isn't available"
  *
  * ─── THE RULES IT KEEPS ────────────────────────────────────────────────────
  * - Every request asks first whether the outside can reach this server
@@ -100,8 +101,9 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
     });
 
     /** Draws a page in the reader's language and sends it, with its own policy, uncached. */
-    async function send(request: FastifyRequest, reply: FastifyReply, view: MailDoorView, status: number, claim: UnsubscribeClaim | null): Promise<FastifyReply> {
-      const locale = await door.language(request, claim);
+    async function send(request: FastifyRequest, reply: FastifyReply, view: MailDoorView, status: number, claim: UnsubscribeClaim | null, language: string | null = null): Promise<FastifyReply> {
+      // A sign-up's page opens in the language the form was answered in (`de-DE` → `de_DE`).
+      const locale = await door.language(request, claim ?? (language === null ? null : ({ language: language.replace('-', '_') } as UnsubscribeClaim)));
       const { t, lang } = await door.translator(locale);
       const path = request.url.split('?')[0] ?? request.url;
       const { html, policy } = renderMailDoorPage({ view, business: await door.business(), lang, accent: await door.accent(), path, t });
@@ -224,7 +226,68 @@ export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
         }),
     );
 
-    // Everything else under the door, the sign-up confirm page's `/m/c/` among it: not here (yet).
+    // ── The sign-up confirm page ────────────────────────────────────────────
+    /** The business's website, for a link too old: the privacy notice's origin, else none. */
+    async function websiteOf(): Promise<string | null> {
+      const notice = (await door.business()).privacyNotice;
+      if (notice === null) return null;
+      try {
+        return new URL(notice).origin;
+      } catch {
+        return null;
+      }
+    }
+
+    /** The confirm page's own address, with its language kept, for the form to post to. */
+    function confirmActionOf(request: FastifyRequest, token: string): string {
+      const lang = (request.query as { lang?: unknown } | undefined)?.lang;
+      return `${MAIL_DOOR_PREFIX}/c/${token}${typeof lang === 'string' && /^[a-z]{2}-[A-Z]{2}$/.test(lang) ? `?lang=${lang}` : ''}`;
+    }
+
+    /** What a confirm link shows, as it stands (the GET, and a POST with nothing left to do). */
+    async function confirmPage(request: FastifyRequest, reply: FastifyReply, token: string): Promise<FastifyReply> {
+      const found = await deps.confirm!.stateOf(token);
+      const state = found.state;
+      if (state.state === 'dead') return send(request, reply, { kind: 'confirmDead' }, 404, null);
+      if (state.state === 'too-old') return send(request, reply, { kind: 'confirmTooOld', website: await websiteOf() }, 200, null);
+      if (state.state === 'already') return send(request, reply, { kind: 'confirmedAlready' }, 200, null);
+      return send(request, reply, { kind: 'confirm', address: state.address, purpose: state.purpose, action: confirmActionOf(request, token) }, 200, null, state.language);
+    }
+
+    // A GET changes nothing: a link scanner opening the mail confirms nobody.
+    app.get(
+      '/m/c/*',
+      { config: { rateLimitBucket: 'mail-door-page' }, schema: { hide: true, params: tokenParams } },
+      async (request, reply) =>
+        guarded(request, reply, async () => {
+          if (!(await door.reachable()) || deps.confirm === undefined) return unavailable(request, reply);
+          return confirmPage(request, reply, tokenOf(request.params));
+        }),
+    );
+
+    app.post(
+      '/m/c/*',
+      {
+        config: {
+          rateLimitBucket: 'mail-door-act',
+          csrf: 'exempt',
+          audit: auditExempt('a stranger confirming a sign-up through a mail’s link: the consent log row is the record'),
+        },
+        schema: { hide: true, params: tokenParams },
+      },
+      async (request, reply) =>
+        guarded(request, reply, async () => {
+          if (!(await door.reachable()) || deps.confirm === undefined) return unavailable(request, reply);
+          const token = tokenOf(request.params);
+          // Only the page's own button confirms.
+          if (formOf(request.body)['act'] !== 'confirm') return confirmPage(request, reply, token);
+          const done = await deps.confirm.confirm(token);
+          if (done.state !== 'done') return confirmPage(request, reply, token);
+          return send(request, reply, { kind: 'confirmed', purpose: done.purpose }, 200, null, done.language);
+        }),
+    );
+
+    // Everything else under the door: not here.
     app.get(
       '/m/*',
       {

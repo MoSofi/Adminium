@@ -111,8 +111,13 @@ describe('the mail door on the real server', () => {
     }
   });
 
-  it('never falls through to the dashboard: /m/c/ and the rest say "not available", other verbs a plain 404', async () => {
-    for (const url of ['/m/c/abc', '/m/', '/m/nope/deeper']) {
+  it('never falls through to the dashboard: the rest say "not available", a confirm link that is none "doesn’t work", other verbs a plain 404', async () => {
+    // The sign-up confirm page: a link this install did not make.
+    const made = await composed.app.inject({ method: 'GET', url: '/m/c/abc', headers: NAVIGATE });
+    expect(made.statusCode).toBe(404);
+    expect(made.body).toContain('This link doesn’t work.');
+    expect(made.body).not.toContain('data-app=');
+    for (const url of ['/m/', '/m/nope/deeper']) {
       const res = await composed.app.inject({ method: 'GET', url, headers: NAVIGATE });
       expect(res.statusCode, url).toBe(404);
       expect(res.body, url).toContain('This page isn’t available.');
@@ -120,7 +125,7 @@ describe('the mail door on the real server', () => {
     }
     for (const req of [
       { method: 'GET' as const, url: '/m' },
-      { method: 'POST' as const, url: '/m/c/abc' },
+      { method: 'PUT' as const, url: '/m/c/abc' },
       { method: 'DELETE' as const, url: `/m/u/${token}` },
     ]) {
       const res = await composed.app.inject({ ...req, headers: NAVIGATE });
@@ -135,7 +140,7 @@ describe('the mail door on the real server', () => {
     expect(page.body).toContain('marta@cobaltlegal.example');
     expect(page.body).not.toContain('clients-customer');
     const reserved = await composed.app.inject({ method: 'GET', url: '/m/c/abc', headers: { host: CUSTOMER_HOST, ...NAVIGATE } });
-    expect(reserved.body).toContain('This page isn’t available.');
+    expect(reserved.body).toContain('This link doesn’t work.');
     // The app's own pages are still the app's.
     expect((await composed.app.inject({ method: 'GET', url: '/mine', headers: { host: CUSTOMER_HOST, ...NAVIGATE } })).body).toContain('clients-customer');
 

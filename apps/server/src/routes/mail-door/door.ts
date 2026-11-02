@@ -37,6 +37,7 @@ import { emailRunsRepo, emailSendsRepo, isHttpsPageUrl, paymentSettingsRepo, set
 import type { FastifyRequest } from 'fastify';
 
 import type { ConsentService } from '../../consent/index.js';
+import type { FormsConfirm } from '../../forms/confirm.js';
 import { readClickLinkWith, type ClickClaim } from '../../email/click-link.js';
 import { mailDoorReach, storedPublicOrigin } from '../../email/door-reach.js';
 import { mailLinkKeys } from '../../email/link-keys.js';
@@ -64,6 +65,8 @@ export interface MailDoorDeps {
    * says it.
    */
   mirror?: ((event: ConsentEvent, address: string) => Promise<unknown>) | undefined;
+  /** The sign-up confirm page's work (`forms/confirm.ts`); absent, `/m/c/` is "not available". */
+  confirm?: FormsConfirm | undefined;
 }
 
 /** Which button, and how it came. */

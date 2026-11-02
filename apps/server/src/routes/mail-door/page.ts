@@ -92,6 +92,13 @@ export type MailDoorView =
       action: string;
     }
   | { kind: 'done'; which: 'newsletter' | 'surveys' | 'all' }
+  /** A sign-up waiting for its click: the address it confirms, and the one button. */
+  | { kind: 'confirm'; address: string; purpose: 'newsletter' | 'surveys'; action: string }
+  | { kind: 'confirmed'; purpose: 'newsletter' | 'surveys' }
+  | { kind: 'confirmedAlready' }
+  /** Past its days, or the sign-up is no longer there: the business's website to go to, when one is known. */
+  | { kind: 'confirmTooOld'; website: string | null }
+  | { kind: 'confirmDead' }
   | { kind: 'already' }
   | { kind: 'dead' }
   | { kind: 'unavailable' };
@@ -127,6 +134,8 @@ const ICONS = {
   link2Off: '<path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><line x1="8" x2="12" y1="12" y2="12"/><line x1="2" x2="22" y1="2" y2="22"/>',
   searchX: '<path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  mailCheck: '<path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="m16 19 2 2 4-4"/>',
+  hourglass: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
 } as const;
 
 function icon(name: keyof typeof ICONS, size: number): string {
@@ -149,8 +158,8 @@ function withSlot(t: Translate, key: string, fallback: string, args: Record<stri
 function styleOf(accent: string): string {
   const [light, dark] = ACCENTS[accent] ?? ACCENTS['indigo']!;
   return `
-:root{color-scheme:light;--page:#f6f6f8;--surface:#fff;--surface-3:#f1f1f4;--border:#ececef;--border-strong:#e2e2e8;--text:#191920;--muted:#4a4a54;--subtle:#5a5a65;--pos:#0b7d59;--pos-bg:#e6f5ee;--accent:${light};--on-accent:#fff;--shadow:0 1px 2px rgba(20,20,35,.04),0 1px 3px rgba(20,20,35,.05);--menu-shadow:0 1px 2px rgba(20,20,35,.04),0 12px 28px rgba(20,20,35,.12)}
-@media (prefers-color-scheme:dark){:root{color-scheme:dark;--page:#0a0a0d;--surface:#141419;--surface-3:#24242c;--border:rgba(255,255,255,.07);--border-strong:rgba(255,255,255,.13);--text:#f4f4f6;--muted:#b7b7c3;--subtle:#a1a1ad;--pos:#3ecf8e;--pos-bg:rgba(62,207,142,.14);--accent:${dark};--on-accent:#0f0f14;--shadow:0 1px 2px rgba(0,0,0,.4)}}
+:root{color-scheme:light;--page:#f6f6f8;--surface:#fff;--surface-3:#f1f1f4;--border:#ececef;--border-strong:#e2e2e8;--text:#191920;--muted:#4a4a54;--subtle:#5a5a65;--pos:#0b7d59;--pos-bg:#e6f5ee;--warn:#8a5a00;--warn-bg:#fdf3dc;--accent:${light};--on-accent:#fff;--shadow:0 1px 2px rgba(20,20,35,.04),0 1px 3px rgba(20,20,35,.05);--menu-shadow:0 1px 2px rgba(20,20,35,.04),0 12px 28px rgba(20,20,35,.12)}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--page:#0a0a0d;--surface:#141419;--surface-3:#24242c;--border:rgba(255,255,255,.07);--border-strong:rgba(255,255,255,.13);--text:#f4f4f6;--muted:#b7b7c3;--subtle:#a1a1ad;--pos:#3ecf8e;--pos-bg:rgba(62,207,142,.14);--warn:#f5b84a;--warn-bg:rgba(245,184,74,.14);--accent:${dark};--on-accent:#0f0f14;--shadow:0 1px 2px rgba(0,0,0,.4)}}
 *{box-sizing:border-box}
 body{margin:0;min-block-size:100vh;display:flex;flex-direction:column;background:var(--page);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;font-size:13px;line-height:1.5}
 [lang^="ar"] body{font-family:"IBM Plex Sans Arabic","Noto Sans Arabic","Segoe UI",Tahoma,sans-serif}
@@ -190,6 +199,9 @@ button{font:inherit;font-size:14px;font-weight:700;inline-size:100%;min-block-si
 .row{display:flex;align-items:flex-start;gap:12px}
 .tile{inline-size:36px;block-size:36px;border-radius:10px;background:var(--surface-3);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .positive .tile{background:var(--pos-bg);color:var(--pos)}
+.warning .tile{background:var(--warn-bg);color:var(--warn)}
+.for{margin:0;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.note{margin:0;font-size:12px;line-height:1.5;color:var(--muted);text-wrap:pretty}
 .words{display:flex;flex-direction:column;gap:6px;min-inline-size:0;padding-block-start:7px}
 h1.status-title{margin:0;font-size:14px;font-weight:700;line-height:1.4;text-wrap:pretty}
 .para{margin:0;font-size:13px;line-height:1.5;color:var(--muted);text-wrap:pretty}
@@ -239,7 +251,7 @@ function mailLink(email: string, withIcon: boolean): string {
   return `<a href="mailto:${escapeHtml(email)}">${withIcon ? icon('mail', 16) : ''}<bdi dir="ltr">${escapeHtml(email)}</bdi></a>`;
 }
 
-function statusCard(tone: 'positive' | 'neutral', iconName: keyof typeof ICONS, title: string, paras: string[], small: string | null, contact: string | null): string {
+function statusCard(tone: 'positive' | 'neutral' | 'warning', iconName: keyof typeof ICONS, title: string, paras: string[], small: string | null, contact: string | null): string {
   return `<section class="card status ${tone}"><div class="row"><span class="tile">${icon(iconName, 18)}</span><div class="words"><h1 class="status-title">${escapeHtml(title)}</h1>${paras.map((p) => `<p class="para">${p}</p>`).join('')}${small === null ? '' : `<p class="small">${escapeHtml(small)}</p>`}</div></div>${contact === null ? '' : `<div class="contact">${mailLink(contact, true)}</div>`}</section>`;
 }
 
@@ -293,6 +305,43 @@ function mainOf(input: MailDoorPageInput): string {
           ? escapeHtml(t('mailDoor:unsubscribe.deadAsk', 'Write to {business} and they’ll take you off the list.', named))
           : withSlot(t, 'mailDoor:unsubscribe.deadWrite', 'Write to {email} and we’ll take you off the list.', named, 'email', mailLink(business.email, false));
       return statusCard('neutral', 'link2Off', title, [para], null, null);
+    }
+    case 'confirm': {
+      const addressMarkup = `<bdi dir="ltr" class="mono">${escapeHtml(view.address)}</bdi>`;
+      const title =
+        view.purpose === 'newsletter'
+          ? t('mailDoor:confirm.titleNewsletter', 'Confirm your sign-up to {business}’s newsletter', named)
+          : t('mailDoor:confirm.titleSurveys', 'Confirm your sign-up to {business}’s surveys', named);
+      const forLine = withSlot(t, 'mailDoor:confirm.for', 'For {address}', {}, 'address', addressMarkup);
+      const note = t('mailDoor:confirm.note', 'Nothing happens until you press Confirm. You can unsubscribe from any e-mail we send.');
+      return (
+        `<section class="card"><div class="row"><span class="tile">${icon('mailCheck', 18)}</span></div><h1 class="title">${escapeHtml(title)}</h1><p class="for">${forLine}</p>` +
+        `<form method="post" action="${escapeHtml(view.action)}"><div class="buttons"><button type="submit" name="act" value="confirm" class="primary">${escapeHtml(t('mailDoor:confirm.button', 'Confirm'))}</button></div></form>` +
+        `<p class="note">${escapeHtml(note)}</p></section>`
+      );
+    }
+    case 'confirmed': {
+      const line =
+        view.purpose === 'newsletter'
+          ? t('mailDoor:confirm.doneNewsletter', 'You’ll get {business}’s newsletter.', named)
+          : t('mailDoor:confirm.doneSurveys', 'You’ll get {business}’s surveys.', named);
+      return statusCard('positive', 'circleCheck', t('mailDoor:confirm.done', 'You’re signed up. Thank you.'), [escapeHtml(line)], t('mailDoor:confirm.leave', 'Every e-mail has a link to unsubscribe.'), null);
+    }
+    case 'confirmedAlready':
+      return statusCard('neutral', 'circleCheck', t('mailDoor:confirm.already', 'You’ve already confirmed. Thank you.'), [], null, null);
+    case 'confirmTooOld': {
+      const para =
+        view.website === null
+          ? escapeHtml(t('mailDoor:confirm.tooOldAgain', 'Sign up again on {business}’s website and we’ll send a new one.', named))
+          : withSlot(t, 'mailDoor:confirm.tooOldWebsite', 'Sign up again on {website} and we’ll send a new one.', {}, 'website', `<a href="${escapeHtml(view.website)}" rel="noopener noreferrer"><bdi dir="ltr">${escapeHtml(view.website.replace(/^https:\/\//, ''))}</bdi></a>`);
+      return statusCard('warning', 'hourglass', t('mailDoor:confirm.tooOld', 'This link is too old.'), [para], null, null);
+    }
+    case 'confirmDead': {
+      const para =
+        business.email === null
+          ? escapeHtml(t('mailDoor:confirm.deadAsk', 'Write to {business} if you meant to sign up.', named))
+          : withSlot(t, 'mailDoor:confirm.deadWrite', 'Write to {email} if you meant to sign up.', named, 'email', mailLink(business.email, false));
+      return statusCard('neutral', 'link2Off', t('mailDoor:unsubscribe.dead', 'This link doesn’t work.'), [para], null, null);
     }
     case 'unavailable': {
       const title = t('mailDoor:unavailable.title', 'This page isn’t available.');
