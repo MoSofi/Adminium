@@ -3774,6 +3774,17 @@ mail goes, and only then:
 The link is `{public address}/x/forms/<slug>?t=<token>`. Only an add-on that declares forms with
 invitations may say `surveyLinks`. Needs the floor `0.3.40`.
 
+Opening the link spends nothing (a mail scanner opens every link it is sent): the page greets the
+invitee by first name, where the survey links answers to names, and says what the survey is about,
+by the name of the record the invitation names (`record_table`, `record_key`). The answer sent with
+the token spends it, once: a second send is told the survey was answered already; an unknown token,
+or one past its days, does not work; a named survey with no token is not there. The answer keeps
+`invitation_id` and the invitee's address and name, or none of the three while "Link answers to
+names" is off. A named survey whose answer becomes a row fills that table's link columns that the
+app's `forms` entry opens and that point at the invitation's record (the job a feedback row is
+about), from the invitation and never from a question; when such a column is unique and the record
+has its row already, the answer is "already answered" and nothing is written.
+
 Mail to staff has no class and is never stopped: a rule's e-mail to [the person on the
 row](#the-person-on-the-row) (`staff`) or to [the people listed on the row](#the-people-listed-on-the-row)
 (`listed`), a [summary](#a-summary-for-each-person) and a notice. `class` on such a step is refused.
