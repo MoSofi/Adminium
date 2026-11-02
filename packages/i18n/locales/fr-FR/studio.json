@@ -650,7 +650,9 @@
       "title": "Domaines",
       "pages": "Formulaires et pages",
       "homeLabel": "Page d’accueil",
-      "homeNone": "Aucun formulaire en ligne pour l’instant"
+      "homeNone": "Aucun formulaire en ligne pour l’instant",
+      "homeMissing": "Publiez d’abord un formulaire : cet hôte a besoin d’un formulaire en ligne comme page d’accueil.",
+      "invalidHome": "La page d’accueil de {host} doit être la page d’un formulaire en ligne sous /x/."
     },
     "emptyBody": "Pointez ADMINIUM_SURFACES_DIR vers un répertoire de surfaces compilées — un dossier par app et par côté, chacun avec son index.html — puis redémarrez. Elles sont alors servies sous /apps/ et apparaissent ici.",
     "emptyTitle": "Aucune surface d’app n’est servie",

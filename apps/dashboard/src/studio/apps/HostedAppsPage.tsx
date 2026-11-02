@@ -733,6 +733,10 @@ function DomainsCard({
   const [nextKey, setNextKey] = useState(initialRows.length);
 
   const first = surfaces[0];
+  // A host for the add-on pages saves only with a home page: while a row has none (no form is
+  // live yet) Save stays off, and that row's own caption says why.
+  const homeless = rows.filter((row) => row.kind === 'pages' && row.home === '');
+  const homeCaption = (key: number): string => `hosted-domain-home-${String(key)}-caption`;
 
   const patch = (key: number, change: Partial<DomainRow>): void => {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)));
@@ -776,7 +780,12 @@ function DomainsCard({
           >
             <ul className="list-disc ps-5">
               {issues.map((issue, index) => (
-                <li key={index}>{issue.message}</li>
+                <li key={index}>
+                  {/* The server's own words are English: the codes this screen can cause are worded here. */}
+                  {issue.code === 'invalid_home'
+                    ? t('studio:hostedApps.domains.invalidHome', 'The home page of {host} must be a live form’s page under /x/.', { host: issue.path })
+                    : issue.message}
+                </li>
               ))}
             </ul>
           </Alert>
@@ -886,6 +895,12 @@ function DomainsCard({
                   <FormField
                     label={t('studio:hostedApps.domains.homeLabel', 'Home page')}
                     className="w-64"
+                    controlId={`hosted-domain-home-${String(row.key)}`}
+                    error={
+                      row.home === ''
+                        ? t('studio:hostedApps.domains.homeMissing', 'Publish a form first: this host needs a live form as its home page.')
+                        : undefined
+                    }
                   >
                     <Select
                       value={row.home}
@@ -964,7 +979,8 @@ function DomainsCard({
             {t('studio:hostedApps.domains.add', 'Attach a domain')}
           </Button>
           <Button
-            disabled={busy}
+            disabled={busy || homeless.length > 0}
+            {...(homeless.length > 0 ? { 'aria-describedby': homeless.map((row) => homeCaption(row.key)).join(' ') } : {})}
             onClick={() => {
               void onSave(rows).then((ok) => {
                 if (ok) setRows((current) => current.filter((row) => row.host.trim() !== ''));

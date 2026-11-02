@@ -660,7 +660,9 @@ export default {
       "title": "Domains",
       "pages": "Forms and pages",
       "homeLabel": "Home page",
-      "homeNone": "No live form yet"
+      "homeNone": "No live form yet",
+      "homeMissing": "Publish a form first: this host needs a live form as its home page.",
+      "invalidHome": "The home page of {host} must be a live form’s page under /x/."
     },
     "emptyBody": "Point ADMINIUM_SURFACES_DIR at a directory of built surfaces — one folder per app and side, each with its index.html — and restart. They are then served under /apps/ and appear here.",
     "emptyTitle": "No app surfaces are being served",

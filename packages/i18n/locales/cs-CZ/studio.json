@@ -650,7 +650,9 @@
       "title": "Domény",
       "pages": "Formuláře a stránky",
       "homeLabel": "Úvodní stránka",
-      "homeNone": "Zatím žádný zveřejněný formulář"
+      "homeNone": "Zatím žádný zveřejněný formulář",
+      "homeMissing": "Nejdřív zveřejněte formulář: tento host potřebuje jako úvodní stránku zveřejněný formulář.",
+      "invalidHome": "Úvodní stránka hostu {host} musí být stránka zveřejněného formuláře pod /x/."
     },
     "emptyBody": "Nasměrujte ADMINIUM_SURFACES_DIR na adresář sestavených ploch — složka pro každou aplikaci a stranu, každá se svým index.html — a restartujte. Poté se obsluhují pod /apps/ a objeví se zde.",
     "emptyTitle": "Žádné aplikační plochy se neobsluhují",

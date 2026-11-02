@@ -27591,6 +27591,10 @@
     "status": "mt",
     "srcHash": "9521dba25709"
   },
+  "studio.hostedApps.domains.homeMissing": {
+    "status": "mt",
+    "srcHash": "4232574a0449"
+  },
   "studio.hostedApps.domains.homeNone": {
     "status": "mt",
     "srcHash": "da1f6bd38c42"
@@ -27606,6 +27610,10 @@
   "studio.hostedApps.domains.instanceOwn": {
     "status": "mt",
     "srcHash": "ede42f897363"
+  },
+  "studio.hostedApps.domains.invalidHome": {
+    "status": "mt",
+    "srcHash": "e8610772cdb0"
   },
   "studio.hostedApps.domains.issuesTitle": {
     "status": "mt",

@@ -660,7 +660,9 @@ export default {
       "title": "域名",
       "pages": "表单和页面",
       "homeLabel": "首页",
-      "homeNone": "还没有已发布的表单"
+      "homeNone": "还没有已发布的表单",
+      "homeMissing": "请先发布一个表单：此主机需要一个已发布的表单作为首页。",
+      "invalidHome": "{host} 的首页必须是 /x/ 下某个已发布表单的页面。"
     },
     "emptyBody": "将 ADMINIUM_SURFACES_DIR 指向存放已构建界面的目录——每个应用和端各一个文件夹，各含其 index.html——然后重启。之后它们将在 /apps/ 下提供，并显示在这里。",
     "emptyTitle": "当前没有提供任何应用界面",

@@ -155,6 +155,11 @@ function stubFetch(options: StubOptions = {}) {
                       '"admin.example.test" is the host you are using to reach Studio — mapping it would take this dashboard away from you.',
                     code: 'request_host',
                   },
+                  {
+                    path: 'go.example.com',
+                    message: 'The home page of "go.example.com" must be a page address under /x/, such as /x/forms/newsletter.',
+                    code: 'invalid_home',
+                  },
                 ],
               },
             },
@@ -357,6 +362,9 @@ describe('HostedAppsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save domains' }));
     expect(await screen.findByText(/is not a valid hostname/)).toBeTruthy();
     expect(screen.getByText(/mapping it would take this dashboard away/)).toBeTruthy();
+    // A home page refused is worded here, in the page's own language, not in the server's English.
+    expect(screen.getByText('The home page of go.example.com must be a live form’s page under /x/.')).toBeTruthy();
+    expect(screen.queryByText(/must be a page address under \/x\//)).toBeNull();
   });
 
   it('offers a connection picker only once there is a choice, and saves it', async () => {
@@ -494,6 +502,35 @@ describe('HostedAppsPage', () => {
         'go.example.com': { kind: 'pages', home: '/x/forms/newsletter' },
       },
     });
+  });
+
+  it('keeps Save off while a host of the add-on pages has no home page, saying why on that row', async () => {
+    const { calls } = await renderPage({ reply: makeReply({ pageHomes: [] }) });
+    await screen.findByRole('heading', { name: 'Domains' });
+    const save = screen.getByRole('button', { name: 'Save domains' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Attach a domain' }));
+    const hosts = screen.getAllByLabelText(/^Host/);
+    await userEvent.type(hosts[hosts.length - 1] as HTMLInputElement, 'go.example.com');
+    const pickers = screen.getAllByLabelText(/^Surface/);
+    await userEvent.selectOptions(pickers[pickers.length - 1] as HTMLSelectElement, 'pages');
+
+    const home = screen.getByLabelText(/^Home page/) as HTMLSelectElement;
+    expect(home.value).toBe('');
+    const reason = screen.getByText('Publish a form first: this host needs a live form as its home page.');
+    // The reason is the home picker's own caption, and the one Save names as its description.
+    expect(home.getAttribute('aria-describedby')).toBe(reason.id);
+    expect(home.getAttribute('aria-invalid')).toBe('true');
+    expect(save.disabled).toBe(true);
+    expect(save.getAttribute('aria-describedby')).toBe(reason.id);
+    await userEvent.click(save);
+    expect(calls.some((c) => c.method === 'PUT' && c.url === '/api/v1/surfaces/domains')).toBe(false);
+
+    // Back to an app's side: the row needs no home, and Save comes back.
+    await userEvent.selectOptions(pickers[pickers.length - 1] as HTMLSelectElement, 'clients/staff');
+    expect(screen.queryByText('Publish a form first: this host needs a live form as its home page.')).toBeNull();
+    expect(save.disabled).toBe(false);
+    expect(save.getAttribute('aria-describedby')).toBeNull();
   });
 
   it('offers the domains card with no app surface when a form is live, and keeps a saved home no longer live', async () => {

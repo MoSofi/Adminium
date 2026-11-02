@@ -650,7 +650,9 @@
       "title": "Domains",
       "pages": "Formulare und Seiten",
       "homeLabel": "Startseite",
-      "homeNone": "Noch kein veröffentlichtes Formular"
+      "homeNone": "Noch kein veröffentlichtes Formular",
+      "homeMissing": "Veröffentlichen Sie zuerst ein Formular: Dieser Host braucht ein veröffentlichtes Formular als Startseite.",
+      "invalidHome": "Die Startseite von {host} muss die Seite eines veröffentlichten Formulars unter /x/ sein."
     },
     "emptyBody": "Setzen Sie ADMINIUM_SURFACES_DIR auf ein Verzeichnis gebauter Oberflächen — ein Ordner je App und Seite, jeweils mit index.html — und starten Sie neu. Sie werden dann unter /apps/ ausgeliefert und erscheinen hier.",
     "emptyTitle": "Es werden keine App-Oberflächen ausgeliefert",

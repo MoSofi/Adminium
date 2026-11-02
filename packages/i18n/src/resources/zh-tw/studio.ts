@@ -660,7 +660,9 @@ export default {
       "title": "網域",
       "pages": "表單和頁面",
       "homeLabel": "首頁",
-      "homeNone": "還沒有已發布的表單"
+      "homeNone": "還沒有已發布的表單",
+      "homeMissing": "請先發布一個表單：此主機需要一個已發布的表單作為首頁。",
+      "invalidHome": "{host} 的首頁必須是 /x/ 下某個已發布表單的頁面。"
     },
     "emptyBody": "將 ADMINIUM_SURFACES_DIR 指向存放已建置介面的目錄——每個應用程式和端各一個資料夾，各含其 index.html——然後重新啟動。之後它們會在 /apps/ 下提供，並顯示在這裡。",
     "emptyTitle": "目前沒有提供任何應用介面",
