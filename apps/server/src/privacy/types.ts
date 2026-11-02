@@ -21,6 +21,9 @@ export const SOURCE_KINDS = [
   'automation-runs',
   'notifications',
   'files',
+  // A forms add-on's answers given by the address, and the survey invitations sent to it.
+  'form-answers',
+  'form-invitations',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
@@ -50,5 +53,11 @@ export interface FoundSource {
   keys: string[];
   /** The rows as the download writes them (never sent by the find route). */
   rows: Record<string, unknown>[];
+  /**
+   * The rows as the download's CSV file writes them, when they differ from
+   * the JSON's: a form's answers with each question a column of its own,
+   * under its label. Absent: the CSV writes {@link rows}.
+   */
+  csvRows?: Record<string, unknown>[];
 }
 

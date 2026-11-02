@@ -13,6 +13,9 @@
  *   - the consent log (by the address and by each of their rows) and the
  *     do-not-email list, through the consent door (never by reading their
  *     address columns: those hold keyed hashes);
+ *   - every installed forms add-on's answers given by the address (a
+ *     sign-up still waiting for its confirmation included) and the survey
+ *     invitations sent to it (`form-answers.ts`);
  *   - what Adminium keeps itself (`meta-sources.ts`).
  *
  * It reads as the privacy action, not as a role: no table limit, no row
@@ -21,8 +24,9 @@
  * A private table is not read: its rows are the people's they belong to.
  * Secret columns (a password's hash, a key) are never read out.
  *
- * Only the sources this release has are searched: no form answers, chats,
- * uploaded files of strangers or page visits exist yet.
+ * Only the sources this release has are searched: no chats or page visits
+ * exist yet, and a stranger's files are searched with the answers they came
+ * with once the strangers' file store exists.
  *
  * The address is compared as `normaliseAddress` spells it, trimmed and in
  * lower case on both sides; nothing else is folded.
@@ -42,6 +46,7 @@ import { peopleTablesOf } from '../people/tables-of.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { theirCopyRows } from './copy-rows.js';
+import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
 import type { FoundSource } from './types.js';
 import { plainRow, plainValue } from './values.js';
@@ -352,6 +357,15 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
       keys: [stopped.id],
       rows: [plainRow({ address: stopped.address, reason: stopped.reason, origin: stopped.origin, addedAt: new Date(stopped.addedAt), addedBy: stopped.addedBy?.label ?? null })],
     });
+  }
+
+  // ── the forms add-ons: their answers, and the invitations sent to them ───
+  const forms = await formSources(await findFormRows(deps, address, ROWS_MAX));
+  sources.push(...forms);
+  if (person === null) {
+    // Nobody's row names them: the name an answer of theirs gave, when one did.
+    const named = forms.filter((one) => one.kind === 'form-answers').flatMap((one) => one.rows).map((row) => row['name']).find((name): name is string => typeof name === 'string' && name.trim() !== '');
+    if (named !== undefined) person = { name: named.trim(), company: null };
   }
 
   // ── what Adminium keeps itself ────────────────────────────────────────────
