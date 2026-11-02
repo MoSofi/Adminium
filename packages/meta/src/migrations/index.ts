@@ -94,6 +94,7 @@ import { up as up0069 } from './0069_email_run_track_clicks.js';
 import { up as up0070 } from './0070_privacy_exports.js';
 import { up as up0071 } from './0071_pictures_made.js';
 import { up as up0072 } from './0072_desktop_setup_words.js';
+import { up as up0074 } from './0074_public_uploads.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -175,4 +176,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0070_privacy_exports', up: up0070 },
   { name: '0071_pictures_made', up: up0071 },
   { name: '0072_desktop_setup_words', up: up0072 },
+  { name: '0074_public_uploads', up: up0074 },
 ];

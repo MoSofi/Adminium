@@ -2693,6 +2693,17 @@ export const fileKindSchema = z.enum([
    * the loss discovered only by the redeploy it existed to survive.
    */
   'package',
+  /*
+   * A file a stranger uploaded (a form's file question): 0074's
+   * `adminium_public_uploads` says what it is for and whose it became.
+   *
+   * NOT `upload`, for both of the reasons a package copy is not: the files
+   * routes serve `upload` to anyone who reads its record or holds
+   * `files.manage`, and the daily sweep bins an unattached upload after a
+   * day. A stranger's file is opened only through its owner's grant, and its
+   * own sweep removes it two hours after it came unless a write took it.
+   */
+  'stranger',
 ]);
 
 // --- storage destinations --------------------------------------
