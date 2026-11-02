@@ -21,7 +21,8 @@
  *    / What stays / Left, keeps "Erase for good" off until the address is
  *    typed again (any case), sends it as `confirm`, and ends on "Erased";
  *    a 409 never repeats the address; the address never rides a URL;
- *  - How long we keep things: the two fixed rows in their words.
+ *  - How long we keep things: the two fixed rows in their words, and a row
+ *    per forms add-on saying how long its own setting keeps the answers.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -78,6 +79,8 @@ const FOUND: PersonFound = {
     { id: 'consent', kind: 'consent', group: 'agreed', connectionId: null, table: null, app: null, ref: null, label: null, keptByLaw: null, count: 4, keys: ['a', 'b', 'c', 'd'] },
     { id: 'stop-list', kind: 'stop-list', group: 'agreed', connectionId: null, table: null, app: null, ref: null, label: null, keptByLaw: null, count: 1, keys: ['s'] },
     { id: 'campaign-mail', kind: 'campaign-mail', group: 'held', connectionId: null, table: null, app: null, ref: null, label: null, keptByLaw: null, count: 3, keys: ['x', 'y', 'z'] },
+    { id: 'form-answers-forms', kind: 'form-answers', group: 'gave', connectionId: 'con_1', table: 'forms_answers', app: 'forms', ref: 'answers', label: 'Answers', keptByLaw: null, count: 2, keys: ['a1', 'a2'] },
+    { id: 'form-invitations-forms', kind: 'form-invitations', group: 'held', connectionId: 'con_1', table: 'forms_invitations', app: 'forms', ref: 'invitations', label: null, keptByLaw: null, count: 1, keys: ['i1'] },
   ],
 };
 
@@ -88,6 +91,8 @@ const PREVIEW: ErasePreview = {
     { kind: 'people', count: 1, connectionId: 'con_1', table: 'contacts', app: 'sales-crm', label: 'Contacts' },
     { kind: 'consent', count: 4 },
     { kind: 'campaign-mail', count: 3 },
+    { kind: 'form-answers', count: 2, connectionId: 'con_1', table: 'forms_answers', app: 'forms', label: 'Answers' },
+    { kind: 'form-invitations', count: 1, connectionId: 'con_1', table: 'forms_invitations', app: 'forms', label: 'Invitations' },
   ],
   stays: [
     { kind: 'app-rows', reason: 'tax', count: 2, keptDays: null, forever: false, connectionId: 'con_1', table: 'invoices', app: 'sales-crm', label: 'Invoices' },
@@ -116,7 +121,18 @@ function stub(): Call[] {
         return ok({ data: notice });
       }
       if (url === '/api/v1/privacy/keeping') {
-        return ok({ data: { rows: [{ key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] }, { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] }] } });
+        return ok({
+          data: {
+            rows: [
+              { key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] },
+              { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] },
+              { key: 'form-answers', fixed: true, keptFor: 24, options: [], addOn: { key: 'forms', name: 'Forms & surveys' } },
+              { key: 'form-answers', fixed: true, keptFor: 'until-removed', options: [], addOn: { key: 'polls', name: 'Polls' } },
+              // A row a later server adds, which this screen cannot word: left out.
+              { key: 'chat-transcripts', fixed: false, keptFor: 12, options: [6, 12] },
+            ],
+          },
+        });
       }
       if (url === '/api/v1/privacy/find') {
         const address = (body as { address: string }).address.toLowerCase();
@@ -306,7 +322,7 @@ describe('a person’s data', () => {
     expect(within(card).getByText('What they agreed to or asked')).toBeDefined();
     expect(within(card).getByText('What the business keeps about them')).toBeDefined();
     const rows = within(card).getAllByTestId('privacy-source').map((row) => row.textContent);
-    expect(rows).toEqual(['Contacts — sales-crm1 row', 'Consent history4 entries', 'Do-not-email listyesOpen', 'Campaign e-mails3']);
+    expect(rows).toEqual(['Contacts — sales-crm1 row', 'Answers — forms2 answers', 'Consent history4 entries', 'Do-not-email listyesOpen', 'Campaign e-mails3', 'Survey invitations1 invitation']);
     expect(calls.find((call) => call.url === '/api/v1/privacy/find')!.body).toEqual({ address: MARTA });
   });
 
@@ -335,7 +351,7 @@ describe('a person’s data', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Erase everything about this person?' })).toBeDefined();
     await within(dialog).findByTestId('erase-goes');
-    expect(within(dialog).getByTestId('erase-goes').textContent).toBe('What goes1 row in Contacts, 4 consent entries, 3 campaign e-mails');
+    expect(within(dialog).getByTestId('erase-goes').textContent).toBe('What goes1 row in Contacts, 4 consent entries, 3 campaign e-mails, 2 form answers in Answers, 1 survey invitation in Invitations, kept without their address');
     const stays = within(dialog).getByTestId('erase-stays').textContent ?? '';
     expect(stays).toContain('2 rows in Invoices, because tax law needs them.');
     expect(stays).toContain('Data exports staff made of a table may hold them, until each one expires. Kept for 30 days.');
@@ -393,15 +409,19 @@ describe('a person’s data', () => {
 });
 
 describe('how long we keep things', () => {
-  it('shows the two fixed rows in their words, with no Save', async () => {
+  it('shows the two fixed rows and each forms add-on\'s answers in their words, with no Save', async () => {
     asSuperAdmin();
     await renderAt('/studio/privacy?tab=keeping');
     const table = await screen.findByTestId('privacy-keeping');
     const rows = within(table).getAllByRole('row').slice(1);
-    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['Consent history', 'Do-not-email list']);
+    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['Consent history', 'Do-not-email list', 'Form answers — Forms & surveys', 'Form answers — Polls']);
     expect(rows[0]!.textContent).toContain('Kept until the person is erased');
     expect(rows[0]!.textContent).toContain('Kept, because it proves what a person agreed to or asked');
     expect(rows[1]!.textContent).toContain('Kept for good');
+    // The add-on's own setting, said where it is changed.
+    expect(rows[2]!.textContent).toContain('Kept for 24 months');
+    expect(rows[2]!.textContent).toContain('Set in Forms & surveys’s settings. Older answers are deleted each night.');
+    expect(rows[3]!.textContent).toContain('Kept until someone removes them');
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
   });
 });

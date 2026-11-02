@@ -3552,6 +3552,8 @@ there for the same kind and source is what stops a second send.
 | `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
 | `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
+| `purposes` | no | Each kind's consent purpose, `newsletter` or `surveys`; see [A kind's purpose](#a-kinds-purpose). Needs Adminium 0.3.40. |
+| `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](#a-surveys-link). Needs Adminium 0.3.40. |
 | `producers` | no | Up to 24 rules that queue rows by themselves. See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
@@ -3735,6 +3737,42 @@ kind whose every producer writes to the house's own address (`recipient: { "sett
 staff: it needs no class, and one it says is taken. A manifest with an
 older floor says no class, and all its mail is read as service, as it was sent before. A class
 needs the floor `0.3.38`.
+
+### A kind's purpose
+
+A kind may say the consent purpose it is sent for, in `purposes` beside `classes`:
+
+```json
+"classes":  { "invite-marketing": "marketing", "invite-service": "service" },
+"purposes": { "invite-marketing": "surveys",   "invite-service": "surveys" }
+```
+
+A **marketing** kind with a purpose is judged by the person's latest answer for that purpose in the
+consent log, not the newsletter's. A **service** kind with a purpose is still sent to an address on
+the do-not-email list (service mail is never stopped by it), but is skipped for a person whose
+latest answer for that purpose is "no", by their address or by their row: a survey invitation sent
+as service mail never reaches someone who said no to surveys. Both are asked again right before
+the mail is handed to the mail server. A kind with no purpose is judged as before. Needs the floor
+`0.3.40`.
+
+### A survey's link
+
+A forms add-on that keeps invitations (`addOn.forms.invitations`) names the kinds whose template
+prints `{{survey_link}}` in `surveyLinks`. Every producer of such a kind reads the invitations table
+itself (no `via`), so the message's link names the invitation. Adminium fills the link when the
+mail goes, and only then:
+
+- a **named** survey's link carries a new one-use token; the invitation keeps only its SHA-256
+  (`token_hash`) and when it stops (`expires_at`, the invitation's `invited_at` plus the survey's
+  "stop taking answers N days after each invitation"). The token is in the sealed mail and nowhere
+  else; a mail sent again makes a new token and the old link stops working;
+- an **anonymous** survey's link is its open address, with no token, and nothing is written;
+- the mail is not sent, and its row says why, when the invitation was answered already, when its
+  days are over, when the survey is not live, when the mail would go to another address than the
+  invitation's, and while the server has no public address (`system.publicOrigin`).
+
+The link is `{public address}/x/forms/<slug>?t=<token>`. Only an add-on that declares forms with
+invitations may say `surveyLinks`. Needs the floor `0.3.40`.
 
 Mail to staff has no class and is never stopped: a rule's e-mail to [the person on the
 row](#the-person-on-the-row) (`staff`) or to [the people listed on the row](#the-people-listed-on-the-row)
