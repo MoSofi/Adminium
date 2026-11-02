@@ -95,6 +95,10 @@ import {
 } from './add-ons/runtime.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createFormsCatalog } from './forms/catalog.js';
+import { createFormsFiles } from './forms/files.js';
+import { createPublicUploads } from './public-uploads/store.js';
+import { tellUploadsRefused } from './public-uploads/notices.js';
+import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
@@ -474,6 +478,10 @@ export const RETENTION_GC_SCHEDULE_NAME = 'retention-gc';
 /** Daily: a person's downloaded data whose time is up is deleted (`privacy/export.ts`), after the meta sweep. */
 export const PRIVACY_EXPORTS_SWEEP_NAME = 'privacy-exports-sweep';
 export const PRIVACY_EXPORTS_SWEEP_CRON = '30 3 * * *';
+
+/** Every quarter hour: a stranger's unattached file is kept two hours, and gone within a quarter after. */
+export const PUBLIC_UPLOADS_SWEEP_NAME = 'public-uploads-sweep';
+export const PUBLIC_UPLOADS_SWEEP_CRON = '*/15 * * * *';
 
 /** Minute flush of the public API's request counts. */
 export const PUBLIC_STATS_FLUSH_NAME = 'public-request-stats-flush';
@@ -1100,6 +1108,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const addOnInstalls = keepAddOnInstalls(meta, async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
   // The forms add-ons' published forms, as strangers are served them (the forms door) and as the host editor lists them.
   const formsCatalog = createFormsCatalog({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId) });
+  /*
+   * Files strangers send (a form's file question): taken by the forms door,
+   * attached by the answer that names them, removed with it. The owner is
+   * told, once an hour, when the store is full or one address sent its day's.
+   */
+  const publicUploads = createPublicUploads({
+    meta,
+    storage,
+    secret: env.ADMINIUM_SECRET,
+    tell: (trip, values, at) => tellUploadsRefused({ meta, hub: { publish: (channel, event, payload) => app.realtime.publish(channel, event, payload as never) } }, trip, values, at),
+    log: app.log,
+  });
+  const formsFiles = createFormsFiles({ uploads: publicUploads, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId), log: app.log });
+  app.decorate('formsFiles', formsFiles);
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
     refresh: () => addOnInstalls.fresh(),
@@ -1145,7 +1167,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // What the connection's role may write, whichever door the write came through.
     rights: async (connectionId, tableId) => privilegesOf(await manager.tablePrivilegesById(connectionId), tableId),
     // A message never stops the row it is about from being removed, where the app writes to people about removals.
-    releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId),
+    // …and an answer's files never stop the answer: they lose the link and go after it (`forms/files.ts`).
+    releases: async (connectionId, tableId) => [...(await outboxProducers.releasing(connectionId, tableId)), ...(await formsFiles.releasing(connectionId, tableId))],
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
@@ -1180,7 +1203,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   outboxesChanged = () => {
     outboxProducers.reset();
   };
-  app.decorate('outbox', outboxProducers);
+  // The data routes' own deletes (a bulk delete, a child row, an undo) let go of an answer's files the same way.
+  app.decorate('outbox', { ...outboxProducers, releasing: async (connectionId: string, tableId: string) => [...(await outboxProducers.releasing(connectionId, tableId)), ...(await formsFiles.releasing(connectionId, tableId))] });
   // An app's settings switches, shared by the public routes that ask them and every write that changes them.
   const publicSwitches = createSwitches(async (connectionId) => (await manager.data(connectionId)).db);
   app.decorate('publicSwitches', publicSwitches);
@@ -1610,6 +1634,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const consentMirror = peopleConsent;
   // A person's data downloaded for them ("Download everything"): written by a job, deleted once its time is up.
   registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET });
+  // Files strangers sent that no answer took: gone once their two hours are up.
+  jobs.scheduler.registerSchedule(PUBLIC_UPLOADS_SWEEP_NAME, PUBLIC_UPLOADS_SWEEP_CRON, async () => {
+    const { swept, dropped } = await publicUploads.sweep();
+    if (swept > 0 || dropped > 0) app.log.info({ swept, dropped }, 'public uploads sweep');
+  });
   jobs.scheduler.registerSchedule(PRIVACY_EXPORTS_SWEEP_NAME, PRIVACY_EXPORTS_SWEEP_CRON, async () => {
     const swept = await sweepPrivacyExports(meta, storage);
     if (swept > 0) app.log.info({ swept }, 'privacy downloads sweep');
@@ -2322,6 +2351,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       // The host editor's home picker lists the live forms' addresses.
       await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs() }));
+      // A file a stranger sent with a form, opened by staff who read its answer.
+      await api.register(formsFilesRoutes({ uploads: publicUploads, storage, forms: formsFiles, reachesRecord: fileRecordCheck(meta, manager) }));
       // Installing an app. Registered on the same
       // terms as the surfaces admin above: with nothing installed the list is
       // empty, which is a different thing from a namespace that 404s.
@@ -3091,6 +3122,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       secret: env.ADMINIUM_SECRET,
       storage,
       websites: listedWebsitesOf(meta),
+      uploads: publicUploads,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
