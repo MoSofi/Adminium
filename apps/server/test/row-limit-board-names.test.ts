@@ -184,9 +184,16 @@ for (const [dialect, available] of ENGINES) {
           // No date: no figure, never a zero.
           [9, null, null],
         ]);
-        // A day still to come counts none.
-        const ahead = json<Listed>(await cards('lena', { daysSince: ['until:close_on'], select: ['id', 'close_on', 'owner_id', 'company_id'] })).result.rows;
-        expect(new Set(ahead.map((row) => row['until']))).toEqual(new Set([0]));
+        // A day still to come counts none. The world's own close days are fixed dates that pass, so each deal is moved
+        // to a day after today for this check, and put back after it.
+        const deals = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        for (const key of deals) await w.run(`UPDATE deals SET close_on = '${daysAgo(-key)}' WHERE id = ${String(key)}`);
+        try {
+          const ahead = json<Listed>(await cards('lena', { daysSince: ['until:close_on'], select: ['id', 'close_on', 'owner_id', 'company_id'] })).result.rows;
+          expect(new Set(ahead.map((row) => row['until']))).toEqual(new Set([0]));
+        } finally {
+          for (const key of deals) await w.run(`UPDATE deals SET close_on = '2026-11-0${String(key)}' WHERE id = ${String(key)}`);
+        }
       });
 
       it('give a name looked up through a link only to whoever reads that table', async () => {
