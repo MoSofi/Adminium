@@ -41,6 +41,9 @@ const check = process.argv.includes('--check');
  */
 const DESCRIPTIONS = {
   about: 'Build version, edition, and the update check',
+  forms:
+    'Whether mail a stranger causes through a form (a sign-up’s confirmation, staff notices by ' +
+    'e-mail) goes now, and why not: no public address, or no mail server. For anybody signed in',
   documents:
     'Documents drawn from your own records — the register of what was issued, the bytes ' +
     'behind each one, and the mappings that say which columns make which document. A ' +
