@@ -195,6 +195,8 @@ export const DETAILS_DELETED_TEMPLATE_KEY = 'details-deleted';
 /** A pay link to a shop's customer, and the receipt for a payment the pay page took (`payments/emails.ts`). */
 export const PAYMENT_LINK_TEMPLATE_KEY = 'payment-link';
 export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
+/** A stranger's sign-up on a form, waiting for its click (`forms/mail.ts`). */
+export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
 
 /**
  * Inline last resort for the `notification` key, used ONLY when no row exists
