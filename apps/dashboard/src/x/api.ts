@@ -12,7 +12,7 @@
  *   200 `{ state: 'sent' }`                     taken; the page shows the form's ending
  *   400 `{ state: 'refused', errors: { <question id or *>: <code> } }`   the codes of the forms vocabulary
  *   403                                         the human check did not pass (asked once more, silently)
- *   429 `{ state: 'too-many', retryAfter: <seconds> }` (or a Retry-After header)
+ *   429 `{ state: 'too-many', retryAfter: <seconds>, window: 'hour' | 'day' }` (or a Retry-After header)
  *   `{ state: 'closed' | 'already' | 'dead' | 'unavailable' }`    with any status
  */
 import type { FormDefinition, FormLanguage } from '@adminium/add-on-contracts/forms';
@@ -48,7 +48,8 @@ export type XSendReply =
   | { state: 'sent' }
   | { state: 'refused'; errors: Record<string, string> }
   | { state: 'proof' }
-  | { state: 'too-many'; retryAfter: number | null }
+  /** `day`: an address's daily cap, which opens again tomorrow; an hour's cap otherwise. */
+  | { state: 'too-many'; retryAfter: number | null; day?: boolean }
   | { state: 'closed' | 'already' | 'dead' | 'unavailable' };
 
 /** What the page sends: the answers to the questions shown, the address's hidden values, and the trap field. */
@@ -57,6 +58,8 @@ export interface XAnswer {
   values: Record<string, unknown>;
   query: Record<string, string>;
   website: string;
+  /** In a frame, the website it sits on (a listed one's origin), which the answer keeps as where it was sent from. */
+  from?: string;
 }
 
 const HEADERS = { accept: 'application/json' };
@@ -107,7 +110,7 @@ export async function postAnswer(slug: string, answer: XAnswer, proof: string): 
   if (response.status === 429 || state === 'too-many') {
     const header = Number(response.headers.get('retry-after'));
     const given = typeof body['retryAfter'] === 'number' ? body['retryAfter'] : Number.isFinite(header) && header > 0 ? header : null;
-    return { state: 'too-many', retryAfter: given };
+    return { state: 'too-many', retryAfter: given, ...(body['window'] === 'day' ? { day: true } : {}) };
   }
   if (state === 'refused') {
     const errors = typeof body['errors'] === 'object' && body['errors'] !== null ? (body['errors'] as Record<string, string>) : {};

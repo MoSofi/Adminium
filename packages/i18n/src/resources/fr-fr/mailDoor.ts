@@ -38,5 +38,22 @@ export default {
   },
   "unavailable": {
     "title": "Cette page n’est pas disponible."
+  },
+  "confirm": {
+    "titleNewsletter": "Confirmez votre inscription à la newsletter de {business}",
+    "titleSurveys": "Confirmez votre inscription aux enquêtes de {business}",
+    "for": "Pour {address}",
+    "button": "Confirmer",
+    "note": "Rien ne se passe tant que vous n’appuyez pas sur Confirmer. Vous pourrez vous désabonner depuis chaque e-mail que nous envoyons.",
+    "done": "Vous êtes inscrit. Merci.",
+    "doneNewsletter": "Vous recevrez la newsletter de {business}.",
+    "doneSurveys": "Vous recevrez les enquêtes de {business}.",
+    "leave": "Chaque e-mail contient un lien pour vous désabonner.",
+    "already": "Vous avez déjà confirmé. Merci.",
+    "tooOld": "Ce lien est trop ancien.",
+    "tooOldWebsite": "Inscrivez-vous de nouveau sur {website} et nous vous en enverrons un nouveau.",
+    "tooOldAgain": "Inscrivez-vous de nouveau sur le site de {business} et nous vous en enverrons un nouveau.",
+    "deadWrite": "Écrivez à {email} si vous vouliez vous inscrire.",
+    "deadAsk": "Écrivez à {business} si vous vouliez vous inscrire."
   }
 } as const;

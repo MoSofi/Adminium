@@ -165,6 +165,8 @@ export const ID_PREFIXES = {
   ercn: 'adminium_email_run_contents',
   // wave 0070 — a person's data, downloaded.
   pex: 'adminium_privacy_exports',
+  // wave 0073 — what a stranger's answer to a form is counted by.
+  fmk: 'adminium_form_marks',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

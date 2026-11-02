@@ -955,5 +955,26 @@ export default {
       "not-aligned": "{source}: Werbe-E-Mails werden übersprungen: Die Domain des Absenders hat keinen veröffentlichten Signaturschlüssel (DKIM).",
       "no-public-address": "{source}: Werbe-E-Mails werden übersprungen: Dieser Server hat keine öffentliche Adresse, daher würden Abmeldelinks nicht funktionieren."
     }
+  },
+  "signUpConfirm": {
+    "name": "Anmeldebestätigung",
+    "subject": "Bitte bestätigen Sie Ihre Anmeldung bei {business}",
+    "preheader": "Ein Klick, und Sie sind angemeldet.",
+    "heading": "Bitte bestätigen Sie Ihre Anmeldung",
+    "greetingPlain": "Hallo,",
+    "greeting": "Hallo {name},",
+    "newsletter": "Drücken Sie auf Bestätigen, um den Newsletter von {business} zu erhalten.",
+    "surveys": "Drücken Sie auf Bestätigen, um die Umfragen von {business} zu erhalten.",
+    "action": "Bestätigen",
+    "notice": "Der Link gilt {days} Tage. Wenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail: Ohne Ihren Klick auf Bestätigen geschieht nichts."
+  },
+  "forms": {
+    "answerTitle": "Neue Antwort: {form}",
+    "limitTitle": "Ein Formular hat sein Limit erreicht",
+    "limitForm": "{form} hat so viele Antworten erhalten, wie es in einer Stunde annimmt ({n}).",
+    "limitAddress": "Eine Netzwerkadresse hat {form} so viele Antworten gesendet, wie eine Adresse in einer Stunde darf.",
+    "limitEmail": "Eine E-Mail-Adresse wurde in {form} so oft angegeben, wie es an einem Tag erlaubt ist.",
+    "limitEntry": "Die Tabelle, in die {form} schreibt, hat so viele neue Zeilen von Besuchern erhalten, wie ihre App erlaubt.",
+    "limitBody": "Es öffnet wieder um {time}. Erhöhen Sie das Limit oder nutzen Sie eine strengere Prüfung unter „Limits“ des Formulars."
   }
 } as const;

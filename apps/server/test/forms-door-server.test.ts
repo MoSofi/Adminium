@@ -33,6 +33,7 @@ import { formDefinitionSchema } from '@adminium/add-on-contracts/forms';
 import { paymentSettingsRepo, settingsRepo } from '@adminium/meta';
 
 import { formsAddOn } from '../../../packages/manifest/test/forms-fixture.js';
+import { recordDeciderTrust } from '../src/add-ons/decider-trust.js';
 import { discoverSurfaces } from '../src/cli/surfaces-root.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { addWebsites, forgetListedWebsites, removeWebsite } from '../src/forms/websites.js';
@@ -76,6 +77,8 @@ describe.each(LEGS)('the forms door on the real server — %s', (dialect, availa
     await h.stageAddOn(formsAddOn(), { bundled: true });
     const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'forms', version: '1.0.0', attachTo: ['dashboard'] } });
     expect(added.statusCode, added.body).toBe(200);
+    // Vouched for as a bundled package is: its bytes recorded as trusted (a package nobody vouches for serves no form).
+    await recordDeciderTrust(h.meta, { key: 'forms', version: '1.0.0', integrity: (await h.addOnStore.verifyTree('forms', '1.0.0')).integrity });
     const record = await h.meta.db.selectFrom('adminium_app_tables').select(['tableName']).where('appKey', '=', 'forms').where('ref', '=', 'forms').executeTakeFirstOrThrow();
     formsTable = record.tableName;
 

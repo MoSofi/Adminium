@@ -249,6 +249,15 @@ function ConsentDialog({
                   {untrustedInWords()}
                 </p>
               )}
+              {check?.formsWillNotServe === true && (
+                <p role="note" data-part="add-on-plan-forms-untrusted" className="flex items-start gap-2 text-sm text-fg">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
+                  {t(
+                    'studio:addOns.forms.notVouched',
+                    'The package is stored and can be installed, but Adminium does not know who made it: its forms will not open for visitors. Install it from the catalogue to use them.',
+                  )}
+                </p>
+              )}
               {plan.installable && <PublicAccessChoice access={check?.publicAccess} allowed={allowPublic} onAllowed={setAllowPublic} busy={busy} />}
             </>
           )}

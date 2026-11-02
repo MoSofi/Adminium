@@ -471,6 +471,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/privacy/erase/preview': rows('system', 'A person\'s rows by their address, read whole under the privacy action, past every role\'s table and row limits, to count what an erasure takes; answers counts only.'),
   'POST /api/v1/privacy/erase': rows('system', 'A person erased in place under the privacy action, as the system: every row of theirs on every people table, their declared copies and their outbox mail, past every role\'s table and row limits (a role\'s reach would stop it half-way).'),
   'GET /api/v1/privacy/reach': noRows('Whether visitors can reach the public pages: settings and the request, no source row.'),
+  'GET /api/v1/forms/mail': noRows('Whether mail a stranger causes through a form goes: two settings, no source row.'),
   'GET /api/v1/privacy/websites': noRows('The websites that may show a form in a frame: a setting, no source row.'),
   'POST /api/v1/privacy/websites': noRows('Adds to the websites that may show a form in a frame: a setting, no source row.'),
   'POST /api/v1/privacy/websites/remove': noRows('Takes a website off that list: a setting, no source row.'),

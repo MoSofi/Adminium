@@ -184,6 +184,9 @@ export default {
       "askBody": "{name} je pro {app} zapnutý a nic z něj zatím není veřejně otevřeno. Povolením se na veřejný klíč aplikace {app} přidá: {refs}.",
       "askLater": "Teď ne",
       "askConfirm": "Povolit"
+    },
+    "forms": {
+      "notVouched": "Balíček je uložen a lze ho nainstalovat, ale Adminium neví, kdo ho vytvořil: jeho formuláře se návštěvníkům neotevřou. Chcete-li je používat, nainstalujte ho z katalogu."
     }
   },
   "capability": {

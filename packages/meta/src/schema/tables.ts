@@ -1911,6 +1911,15 @@ export interface AdminiumPrivacyExportsTable {
   expiresAt: Ts | null;
 }
 
+/** What a stranger's answer to a form is counted by (0073). */
+export interface AdminiumFormMarksTable {
+  id: Id;
+  /** A keyed hash or an id: never an address in clear. */
+  subject: string;
+  purpose: string;
+  createdAt: Ts;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -1999,6 +2008,7 @@ export interface MetaDB {
   adminium_email_sends: AdminiumEmailSendsTable;
   adminium_email_send_counters: AdminiumEmailSendCountersTable;
   adminium_privacy_exports: AdminiumPrivacyExportsTable;
+  adminium_form_marks: AdminiumFormMarksTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -2088,4 +2098,5 @@ export const META_TABLE_NAMES = [
   'adminium_email_sends',
   'adminium_email_send_counters',
   'adminium_privacy_exports',
+  'adminium_form_marks',
 ] as const satisfies readonly (keyof MetaDB)[];

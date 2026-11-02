@@ -945,5 +945,26 @@
       "not-aligned": "{source} : les e-mails marketing sont ignorés : le domaine de l’expéditeur n’a pas de clé de signature publiée (DKIM).",
       "no-public-address": "{source} : les e-mails marketing sont ignorés : ce serveur n’a pas d’adresse publique, les liens de désabonnement ne fonctionneraient donc pas."
     }
+  },
+  "signUpConfirm": {
+    "name": "Confirmation d’inscription",
+    "subject": "Confirmez votre inscription auprès de {business}",
+    "preheader": "Un clic et vous êtes inscrit.",
+    "heading": "Merci de confirmer votre inscription",
+    "greetingPlain": "Bonjour,",
+    "greeting": "Bonjour {name},",
+    "newsletter": "Appuyez sur Confirmer pour recevoir la newsletter de {business}.",
+    "surveys": "Appuyez sur Confirmer pour recevoir les enquêtes de {business}.",
+    "action": "Confirmer",
+    "notice": "Le lien fonctionne pendant {days} jours. Si vous ne l’avez pas demandé, ignorez cet e-mail : rien ne se passe sans votre clic sur Confirmer."
+  },
+  "forms": {
+    "answerTitle": "Nouvelle réponse : {form}",
+    "limitTitle": "Un formulaire a atteint sa limite",
+    "limitForm": "{form} a reçu autant de réponses qu’il en accepte en une heure ({n}).",
+    "limitAddress": "Une adresse réseau a envoyé à {form} autant de réponses qu’une adresse le peut en une heure.",
+    "limitEmail": "Une adresse e-mail a été donnée dans {form} autant de fois qu’il est permis en une journée.",
+    "limitEntry": "La table qu’alimente {form} a reçu autant de nouvelles lignes de visiteurs que son app l’autorise.",
+    "limitBody": "Il rouvre à {time}. Augmentez la limite ou utilisez une vérification plus stricte dans les Limites du formulaire."
   }
 }

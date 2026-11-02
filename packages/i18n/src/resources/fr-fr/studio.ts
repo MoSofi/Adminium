@@ -184,6 +184,9 @@ export default {
       "askBody": "{name} est activé pour {app}, et rien n’en est encore ouvert au public. En l’autorisant, ceci est ajouté à la clé publique de {app} : {refs}.",
       "askLater": "Pas maintenant",
       "askConfirm": "Autoriser"
+    },
+    "forms": {
+      "notVouched": "Le paquet est enregistré et peut être installé, mais Adminium ne sait pas qui l’a créé : ses formulaires ne s’ouvriront pas pour les visiteurs. Installez-le depuis le catalogue pour les utiliser."
     }
   },
   "capability": {

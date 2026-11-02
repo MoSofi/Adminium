@@ -123573,6 +123573,55 @@
         }
       }
     },
+    "/api/v1/forms/mail": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sends": {
+                          "type": "boolean"
+                        },
+                        "blocked": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "no-public-origin",
+                                "no-mail-server"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "sends",
+                        "blocked"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/email/marketing": {
       "get": {
         "responses": {
@@ -142768,6 +142817,12 @@
                         true
                       ]
                     },
+                    "formsWillNotServe": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "connectionId": {
                       "type": [
                         "string",
@@ -143134,6 +143189,12 @@
                       "enum": [
                         true
                       ]
+                    },
+                    "formsWillNotServe": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [
@@ -143485,6 +143546,12 @@
                       "additionalProperties": false
                     },
                     "codeWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "formsWillNotServe": {
                       "type": "boolean",
                       "enum": [
                         true

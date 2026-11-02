@@ -38,5 +38,22 @@ export default {
   },
   "unavailable": {
     "title": "Denne side er ikke tilgængelig."
+  },
+  "confirm": {
+    "titleNewsletter": "Bekræft din tilmelding til {business}s nyhedsbrev",
+    "titleSurveys": "Bekræft din tilmelding til {business}s undersøgelser",
+    "for": "For {address}",
+    "button": "Bekræft",
+    "note": "Der sker intet, før du trykker på Bekræft. Du kan afmelde dig fra hver e-mail, vi sender.",
+    "done": "Du er tilmeldt. Tak.",
+    "doneNewsletter": "Du får {business}s nyhedsbrev.",
+    "doneSurveys": "Du får {business}s undersøgelser.",
+    "leave": "Hver e-mail har et link til at afmelde dig.",
+    "already": "Du har allerede bekræftet. Tak.",
+    "tooOld": "Dette link er for gammelt.",
+    "tooOldWebsite": "Tilmeld dig igen på {website}, så sender vi et nyt.",
+    "tooOldAgain": "Tilmeld dig igen på {business}s hjemmeside, så sender vi et nyt.",
+    "deadWrite": "Skriv til {email}, hvis du ville tilmelde dig.",
+    "deadAsk": "Skriv til {business}, hvis du ville tilmelde dig."
   }
 } as const;

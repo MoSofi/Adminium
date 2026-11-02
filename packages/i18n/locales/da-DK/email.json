@@ -945,5 +945,26 @@
       "not-aligned": "{source}: markedsføringsmails springes over: afsenderens domæne har ingen offentliggjort signeringsnøgle (DKIM).",
       "no-public-address": "{source}: markedsføringsmails springes over: denne server har ingen offentlig adresse, så afmeldingslinks ville ikke virke."
     }
+  },
+  "signUpConfirm": {
+    "name": "Bekræftelse af tilmelding",
+    "subject": "Bekræft din tilmelding hos {business}",
+    "preheader": "Ét klik, så er du tilmeldt.",
+    "heading": "Bekræft venligst din tilmelding",
+    "greetingPlain": "Hej,",
+    "greeting": "Hej {name},",
+    "newsletter": "Tryk på Bekræft for at få {business}s nyhedsbrev.",
+    "surveys": "Tryk på Bekræft for at få {business}s undersøgelser.",
+    "action": "Bekræft",
+    "notice": "Linket virker i {days} dage. Hvis du ikke har bedt om det, så se bort fra denne e-mail: Der sker intet, medmindre du trykker på Bekræft."
+  },
+  "forms": {
+    "answerTitle": "Nyt svar: {form}",
+    "limitTitle": "En formular har nået sin grænse",
+    "limitForm": "{form} har fået så mange svar, som den tager imod på en time ({n}).",
+    "limitAddress": "Én netværksadresse har sendt {form} så mange svar, som én adresse må på en time.",
+    "limitEmail": "Én e-mailadresse er angivet i {form} så mange gange, som den må på en dag.",
+    "limitEntry": "Tabellen, som {form} skriver i, har fået så mange nye rækker fra besøgende, som dens app tillader.",
+    "limitBody": "Den åbner igen kl. {time}. Hæv grænsen eller brug et sværere tjek under formularens Grænser."
   }
 }

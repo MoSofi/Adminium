@@ -91,7 +91,7 @@ all in there; the sections below are the map, not the territory.
 
 ## Route groups
 
-Forty-eight namespaces. Counts are operations, not paths.
+Forty-nine namespaces. Counts are operations, not paths.
 
 <!-- BEGIN GENERATED: groups -->
 
@@ -122,6 +122,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 12 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
+| `/api/v1/forms/*` | 1 | Whether mail a stranger causes through a form (a sign-up’s confirmation, staff notices by e-mail) goes now, and why not: no public address, or no mail server. For anybody signed in |
 | `/api/v1/geo/*` | 4 | Places and routes, for anybody signed in. Towns found by name from a list that ships with the server (no other site is asked, with maps on or off), one town by its id, the towns of up to 200 addresses at once, and the legs between 2 to 50 stops: straight-line estimates unless routes along roads are switched on in Settings → Maps |
 | `/api/v1/healthz` | 1 | Liveness |
 | `/api/v1/i18n/*` | 13 | Runtime translations — locales, keys, bundles, import/export, format errors |
@@ -558,6 +559,12 @@ GET /api/v1/files/{id}/content
 POST /api/v1/files/{id}/attach
 POST /api/v1/files/{id}/detach
 POST /api/v1/files/{id}/restore
+```
+
+### `/forms`
+
+```http
+GET /api/v1/forms/mail
 ```
 
 ### `/geo`

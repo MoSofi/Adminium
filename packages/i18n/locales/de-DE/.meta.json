@@ -17411,6 +17411,34 @@
     "status": "mt",
     "srcHash": "947ef2398606"
   },
+  "email.forms.answerTitle": {
+    "status": "mt",
+    "srcHash": "cf41edd0d369"
+  },
+  "email.forms.limitAddress": {
+    "status": "mt",
+    "srcHash": "a8a0db475af2"
+  },
+  "email.forms.limitBody": {
+    "status": "mt",
+    "srcHash": "38e82a31616b"
+  },
+  "email.forms.limitEmail": {
+    "status": "mt",
+    "srcHash": "314d0ff6adb8"
+  },
+  "email.forms.limitEntry": {
+    "status": "mt",
+    "srcHash": "d9da6f215982"
+  },
+  "email.forms.limitForm": {
+    "status": "mt",
+    "srcHash": "29a2e214428f"
+  },
+  "email.forms.limitTitle": {
+    "status": "mt",
+    "srcHash": "7ad18d61f74b"
+  },
   "email.group.emails": {
     "status": "mt",
     "srcHash": "2db069244beb"
@@ -18326,6 +18354,46 @@
   "email.signInLink.subject": {
     "status": "mt",
     "srcHash": "04d97454d77b"
+  },
+  "email.signUpConfirm.action": {
+    "status": "mt",
+    "srcHash": "04a212215ef9"
+  },
+  "email.signUpConfirm.greeting": {
+    "status": "mt",
+    "srcHash": "e22cc4fa8916"
+  },
+  "email.signUpConfirm.greetingPlain": {
+    "status": "mt",
+    "srcHash": "65611e9520e7"
+  },
+  "email.signUpConfirm.heading": {
+    "status": "mt",
+    "srcHash": "3397ffeb07f8"
+  },
+  "email.signUpConfirm.name": {
+    "status": "mt",
+    "srcHash": "768d842a33df"
+  },
+  "email.signUpConfirm.newsletter": {
+    "status": "mt",
+    "srcHash": "aa323439feaf"
+  },
+  "email.signUpConfirm.notice": {
+    "status": "mt",
+    "srcHash": "dccbb3ff95fb"
+  },
+  "email.signUpConfirm.preheader": {
+    "status": "mt",
+    "srcHash": "41155ac2a6ff"
+  },
+  "email.signUpConfirm.subject": {
+    "status": "mt",
+    "srcHash": "7c2fe58c1727"
+  },
+  "email.signUpConfirm.surveys": {
+    "status": "mt",
+    "srcHash": "5cf068d156c1"
   },
   "email.starters.digest.boxLabel": {
     "status": "mt",
@@ -19734,6 +19802,66 @@
   "generated.widget.loading": {
     "srcHash": "27644ba48600",
     "status": "mt"
+  },
+  "mailDoor.confirm.already": {
+    "status": "mt",
+    "srcHash": "9d9da89f66d9"
+  },
+  "mailDoor.confirm.button": {
+    "status": "mt",
+    "srcHash": "04a212215ef9"
+  },
+  "mailDoor.confirm.deadAsk": {
+    "status": "mt",
+    "srcHash": "81f249a72dcd"
+  },
+  "mailDoor.confirm.deadWrite": {
+    "status": "mt",
+    "srcHash": "3722f75e399a"
+  },
+  "mailDoor.confirm.done": {
+    "status": "mt",
+    "srcHash": "f200b08570c4"
+  },
+  "mailDoor.confirm.doneNewsletter": {
+    "status": "mt",
+    "srcHash": "e7ef5334ac47"
+  },
+  "mailDoor.confirm.doneSurveys": {
+    "status": "mt",
+    "srcHash": "b660755cacc6"
+  },
+  "mailDoor.confirm.for": {
+    "status": "mt",
+    "srcHash": "b7a3aae6f95f"
+  },
+  "mailDoor.confirm.leave": {
+    "status": "mt",
+    "srcHash": "9b5227e82d57"
+  },
+  "mailDoor.confirm.note": {
+    "status": "mt",
+    "srcHash": "22b4d578fc61"
+  },
+  "mailDoor.confirm.titleNewsletter": {
+    "status": "mt",
+    "srcHash": "b203aec8644d"
+  },
+  "mailDoor.confirm.titleSurveys": {
+    "status": "mt",
+    "srcHash": "4b36228424fa"
+  },
+  "mailDoor.confirm.tooOld": {
+    "status": "mt",
+    "srcHash": "8aa4a76ce69c"
+  },
+  "mailDoor.confirm.tooOldAgain": {
+    "status": "mt",
+    "srcHash": "51ba0c2cc45d"
+  },
+  "mailDoor.confirm.tooOldWebsite": {
+    "status": "mt",
+    "srcHash": "384fe42ffda0"
   },
   "mailDoor.language": {
     "status": "mt",
@@ -23478,6 +23606,10 @@
   "studio.addOns.error": {
     "status": "mt",
     "srcHash": "8d886c0ba6f2"
+  },
+  "studio.addOns.forms.notVouched": {
+    "status": "mt",
+    "srcHash": "0d019d6e7e05"
   },
   "studio.addOns.incomplete.body": {
     "status": "mt",

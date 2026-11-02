@@ -145,6 +145,12 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * payment is written down, to the record's customer address.
    */
   'payment-receipt',
+  /*
+   * A stranger who ticked a form's agreement and must confirm it: one button
+   * to the confirm page. Service mail, with the owner's own words once they
+   * reword it here; the only word the stranger typed is their first name.
+   */
+  'sign-up-confirm',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -194,6 +200,13 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
   'payment-link': ['shop', 'number', 'amount', 'payUrl', 'expiresOn', 'dueLine', 'contactLine'],
   // `balanceLine` says what is still due after this payment, or nothing.
   'payment-receipt': ['shop', 'number', 'amount', 'paidOn', 'method', 'balanceLine', 'contactLine'],
+  /*
+   * `business` is the business's own name (`privacy/business.ts`). `greeting`
+   * and `purposeLine` are whole sentences filled per send (`signUpConfirmLines`):
+   * the greeting holds the first name only when it passed the name rule, else
+   * none. `postal` is the sender's postal address, else the business's name.
+   */
+  'sign-up-confirm': ['business', 'greeting', 'purposeLine', 'link', 'days', 'postal'],
 };
 
 /**
@@ -241,6 +254,10 @@ const VAR = {
   paidOn: '{{paidOn}}',
   method: '{{method}}',
   balanceLine: '{{balanceLine}}',
+  greeting: '{{greeting}}',
+  purposeLine: '{{purposeLine}}',
+  days: '{{days}}',
+  postal: '{{postal}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -782,6 +799,53 @@ function paymentReceiptTemplate(t: Translate): BuiltinEmailTemplate {
  * Every built-in, rendered through one recipient-locale translator. Exported
  * for the seed and for tests that need the exact bytes without a database.
  */
+/**
+ * The two sentences a sign-up confirmation fills per send, in the stranger's
+ * language: the greeting (with the first name, when one passed the name rule)
+ * and what the click confirms.
+ */
+export function signUpConfirmLines(t: Translate, input: { firstName: string | null; purpose: 'newsletter' | 'surveys'; business: string }): { greeting: string; purposeLine: string } {
+  const greeting =
+    input.firstName === null
+      ? t('email:signUpConfirm.greetingPlain', { defaultValue: 'Hello,' })
+      : t('email:signUpConfirm.greeting', { name: input.firstName, defaultValue: 'Hello {name},' });
+  const purposeLine =
+    input.purpose === 'newsletter'
+      ? t('email:signUpConfirm.newsletter', { business: input.business, defaultValue: 'Press Confirm to get {business}’s newsletter.' })
+      : t('email:signUpConfirm.surveys', { business: input.business, defaultValue: 'Press Confirm to get {business}’s surveys.' });
+  return { greeting, purposeLine };
+}
+
+/**
+ * A sign-up waiting for its click: the stranger ticked a form's agreement,
+ * and nothing counts as a yes until they press Confirm on the page this
+ * mail's button opens. Service mail: no unsubscribe line, the postal address
+ * in the footer.
+ */
+function signUpConfirmTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'sign-up-confirm',
+    name: t('email:signUpConfirm.name', { defaultValue: 'Sign-up confirmation' }),
+    subject: t('email:signUpConfirm.subject', { business: VAR.business, defaultValue: 'Confirm your sign-up to {business}' }),
+    preheader: t('email:signUpConfirm.preheader', { defaultValue: 'One click and you’re signed up.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:signUpConfirm.heading', { defaultValue: 'Please confirm your sign-up' })),
+      paragraph('greeting', VAR.greeting),
+      paragraph('purpose', VAR.purposeLine),
+      button(t('email:signUpConfirm.action', { defaultValue: 'Confirm' }), VAR.link),
+      paragraph(
+        'notice',
+        t('email:signUpConfirm.notice', {
+          days: VAR.days,
+          defaultValue: 'The link works for {days} days. If you didn’t ask for this, ignore this e-mail: nothing happens unless you press Confirm.',
+        }),
+      ),
+    ],
+    footer: VAR.postal,
+  };
+}
+
 export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
   return [
     passwordResetTemplate(t),
@@ -795,6 +859,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     detailsDeletedTemplate(t),
     paymentLinkTemplate(t),
     paymentReceiptTemplate(t),
+    signUpConfirmTemplate(t),
   ];
 }
 

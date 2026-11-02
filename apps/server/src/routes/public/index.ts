@@ -76,10 +76,9 @@ import { timedRefusal } from '../../public-api/timed-refusals.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
 import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals.js';
-import type { PostedOutcome } from '../../crud/ledger-write.js';
-import type { EffectWritten } from '../../crud/states.js';
 import { askedFor, prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
+import { createPublicRow } from '../../public-api/create-row.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
 import { addressesOf, hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim, type TokenGrant } from '../../public-api/token-claim.js';
 import { addOnSettingsParams, addOnSettingsReply, publicAddOnSettings } from '../../public-api/add-on-settings.js';
@@ -3126,31 +3125,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if ((await openRowsFull(found, ok.session)) === true) {
           return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
         }
-        // A create nobody signed in for: a name that is only a name, and so
-        // many a day per phone number or address and an hour per key.
-        const caps = found.resource.anonymous;
-        let release: (() => Promise<void>) | null = null;
-        let releaseAllButVisitor: (() => Promise<void>) | null = null;
-        // A name that is only a name, signed in or not.
-        const unplain = caps === null ? null : notPlain(caps, values);
-        if (unplain !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column: unplain });
-        if (caps !== null && (ok.session === null || found.resource.claim === null)) {
-          const charge = await chargeAnonymous(challenges, {
-            caps,
-            key: capSecret,
-            keyId: ok.key.keyId,
-            connectionId: ok.key.connectionId,
-            table: found.table.id,
-            ref: request.params.ref,
-            values,
-            now: Date.now(),
-            ip: request.ip,
-          });
-          if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
-          release = charge.release;
-          releaseAllButVisitor = charge.releaseAllButVisitor ?? charge.release;
-        }
-
         const target: WriteTarget = {
           connectionId: ok.key.connectionId,
           view: found.view,
@@ -3160,174 +3134,110 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // The venue's clock is the key's scope's, as for every public date.
           timezone: ok.key.scope.timezone,
         };
-        const announceCreate = async (row: Row): Promise<void> => {
-          const createdPk = Object.fromEntries(found.table.primaryKey.map((c) => [c, row[c]]));
-          const createdRef: RecordRef = {
-            connectionId: ok.key.connectionId,
-            table: found.table.id,
-            pk: createdPk,
-            label: pkLabel(found.table, createdPk),
-          };
-          await auditWrite(
-            request,
-            ok,
-            'public.record.create',
-            { ref: request.params.ref, table: found.resource.table },
-            createdRef,
-          );
-          await touchKey(ok.key.keyId);
-          /*
-           * The UNPROJECTED row, deliberately. What comes back to the
-           * anonymous caller is narrowed to `expose`, because a create must
-           * not return more than a read of the same row would — but the
-           * stream's subscribers are signed-in staff holding a table-read
-           * grant, and narrowing THEIR frame to a customer scope's `expose`
-           * would hand the dashboard a half-row it would have to refetch to
-           * complete. The publisher masks it for PII and secrets on the way
-           * out, which is the check that applies here.
-           */
-          invalidateWidgetData(app, ok.key.connectionId, found.table.id);
-          publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
-            connectionId: ok.key.connectionId,
-            table: found.table,
-            action: 'create',
-            pk: createdPk,
-            row,
-          });
-          /*
-           * The sign-ups a rule most needs to see. A public create never
-           * reached `routes/data`, so before this a "when a record is
-           * created in users" rule was blind to exactly the rows 28's public
-           * surface and 33's live-chat make. No undo window: nobody can take
-           * an anonymous caller's write back.
-           */
-          await emitRecordEvent(app, {
-            connectionId: ok.key.connectionId,
-            table: found.table,
-            action: 'create',
-            entity: createdRef,
-            before: null,
-            after: row,
-            origin: 'public',
-          });
-        };
-        let inserted: Row;
         const context = await publicWriteContext(request, ok, { table: found.table.id, claim: found.resource.claim });
-        /** The parent the new row moved (`moveOnCreate`), heard of once the write has committed. */
-        const moved: EffectWritten[] = [];
+        /*
+         * The row, made as every stranger's row is (`public-api/create-row.ts`):
+         * a name that is only a name, so many a day per phone number or address
+         * and an hour per key for a create nobody signed in for, the write, and
+         * everyone who must hear of it.
+         */
+        let made: Awaited<ReturnType<typeof createPublicRow>>;
         try {
-          const create = (on: WriteTarget, told: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) => {
-            // The row's own announcement, then what it handed to a ledger.
-            const announce = async (row: Row, written: Row, posted?: readonly PostedOutcome[]): Promise<void> => {
-              moved.push(...effectsOf(written));
-              await told(row);
-              await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: posted, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
-            };
-            return writes.create({
-              target: on,
-              values,
-              context,
-              ...(recheck === undefined ? {} : { recheck }),
-              /*
-               * A constraint violation is not spelled out. `routes/data` maps
-               * unique/FK failures to friendly shapes naming the constraint and
-               * the columns — exactly the detail that tells an anonymous caller
-               * which values already exist, which is a membership oracle. A
-               * value refused for itself, in a column this entry writes, is
-               * named (`refuseWriteThrough`).
-               */
-              mapError: refuseWriteThrough(found.resource, 'create', found.table),
-              announce,
-            });
-          };
-          /*
-           * Text no engine keeps alike is refused before a child's references
-           * are looked up with it — the write service refuses it too, but only
-           * once the lookup below has sent it to the database.
-           */
-          const unstorable = unstorableText(values, found.table.columns);
-          if (unstorable !== null) refuseWriteThrough(found.resource, 'create', found.table)(new ValidationFailedError('Some values were refused.', { fields: unstorable }));
-          if (parentOf(found.resource) === null) {
-            inserted = await create(target, announceCreate);
-          } else {
-            /*
-             * A child's create: every reference it makes is checked on the
-             * write's own transaction — before the INSERT, and again after any
-             * before hook changed the values — and the write joins it. Heard
-             * of only once it has committed.
-             */
-            const supplied = new Set(Object.keys(request.body.values));
-            const allowed = (db: Kysely<SourceDatabase>, row: Row) =>
-              referencesAllowed({ db, dialect: found.dialect, view: found.view, scope: ok.key.scope, session: ok.session, resource: found.resource, table: found.table, values: row, supplied });
-            let made = null as Row | null;
-            /*
-             * A child on a table with a limit (a parking space by the night):
-             * made as a create of one row, so the limit's named locks are taken
-             * before its transaction opens (MySQL holds none inside another's)
-             * and the row is judged under them — its references checked, and
-             * its agreements and window judged, inside that transaction.
-             */
-            const limited = found.table.table.capacity !== undefined || found.table.table.capacityRules !== undefined || found.table.table.booking !== undefined;
-            if (limited) {
-              const outcome = await writes.createTree({
-                root: { name: request.params.ref, target, values, at: [], children: [], lists: [] },
-                context,
-                mode: 'save',
-                checks: async (db, _node, row) => {
-                  if (!(await allowed(db, row))) throw new PublicWriteRefused();
-                },
-                inside: async (db, row) => {
-                  await judgeEntryAgrees(db, found.view, found.table, found.resource, row);
-                  await judgeCreateWindows({ db, view: found.view, table: found.table, writableWhen: found.resource.writableWhen, row, zone: ok.key.scope.timezone });
-                },
-                announce: async (row) => {
-                  made = row.record;
-                },
-                mapError: (error) => {
-                  if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof HookRejectedError) throw error;
-                  return refuseWriteThrough(found.resource, 'create', found.table)(error);
-                },
-              });
-              inserted = outcome.root;
-              moved.push(...(outcome.effects ?? []));
-              if (made !== null) await announceCreate(made);
-              await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: outcome.postings, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
-            } else {
-            // The write service's own transaction: it holds a series without gaps before it opens.
-            inserted = await writes.transaction(target, [values], async (tdb) => {
-              if (!(await allowed(tdb, values))) throw new PublicWriteRefused();
-              const row = await create(
-                { ...target, db: tdb },
-                async (row) => {
-                  made = row;
-                },
-                async (changed) => {
-                  if (!(await allowed(tdb, changed))) throw new PublicWriteRefused();
-                },
-              );
-              // What the entry agrees its row must be, on the row as written, before anything commits.
-              await judgeEntryAgrees(tdb, found.view, found.table, found.resource, row);
-              // Inside the window its entry reads from the parent it names (an extra added until check-in time).
-              try {
-                await judgeCreateWindows({ db: tdb, view: found.view, table: found.table, writableWhen: found.resource.writableWhen, row, zone: ok.key.scope.timezone });
-              } catch (error) {
-                refuseWrite(error);
-              }
-              return row;
-            });
-            if (made !== null) await announceCreate(made);
-            }
-          }
+          made = await createPublicRow({
+            app,
+            writes,
+            challenges,
+            capKey: capSecret,
+            target,
+            values,
+            context,
+            caps: found.resource.anonymous,
+            charge: found.resource.anonymous !== null && (ok.session === null || found.resource.claim === null) ? { keyId: ok.key.keyId, ref: request.params.ref, ip: request.ip } : null,
+            mapError: refuseWriteThrough(found.resource, 'create', found.table),
+            recorded: async (_row, createdRef) => {
+              await auditWrite(request, ok, 'public.record.create', { ref: request.params.ref, table: found.resource.table }, createdRef);
+              await touchKey(ok.key.keyId);
+            },
+            // A full slot refused at the limit keeps the visitor's own hour counted: one visitor cannot knock on it uncounted.
+            keepsVisitor: (error) => error instanceof PublicSlotRefused && error.code !== 'PUBLIC_SLOT_BUSY',
+            refused: (error) => {
+              if (guessing) spendMiss(request, ok, error);
+            },
+            ...(parentOf(found.resource) === null
+              ? {}
+              : {
+                  run: async ({ create, announce, moved }) => {
+                    /*
+                     * A child's create: every reference it makes is checked on the
+                     * write's own transaction — before the INSERT, and again after any
+                     * before hook changed the values — and the write joins it. Heard
+                     * of only once it has committed.
+                     */
+                    const supplied = new Set(Object.keys(request.body.values));
+                    const allowed = (db: Kysely<SourceDatabase>, row: Row) =>
+                      referencesAllowed({ db, dialect: found.dialect, view: found.view, scope: ok.key.scope, session: ok.session, resource: found.resource, table: found.table, values: row, supplied });
+                    let child = null as Row | null;
+                    /*
+                     * A child on a table with a limit (a parking space by the night):
+                     * made as a create of one row, so the limit's named locks are taken
+                     * before its transaction opens (MySQL holds none inside another's)
+                     * and the row is judged under them — its references checked, and
+                     * its agreements and window judged, inside that transaction.
+                     */
+                    const limited = found.table.table.capacity !== undefined || found.table.table.capacityRules !== undefined || found.table.table.booking !== undefined;
+                    if (limited) {
+                      const outcome = await writes.createTree({
+                        root: { name: request.params.ref, target, values, at: [], children: [], lists: [] },
+                        context,
+                        mode: 'save',
+                        checks: async (db, _node, row) => {
+                          if (!(await allowed(db, row))) throw new PublicWriteRefused();
+                        },
+                        inside: async (db, row) => {
+                          await judgeEntryAgrees(db, found.view, found.table, found.resource, row);
+                          await judgeCreateWindows({ db, view: found.view, table: found.table, writableWhen: found.resource.writableWhen, row, zone: ok.key.scope.timezone });
+                        },
+                        announce: async (row) => {
+                          child = row.record;
+                        },
+                        mapError: (error) => {
+                          if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof HookRejectedError) throw error;
+                          return refuseWriteThrough(found.resource, 'create', found.table)(error);
+                        },
+                      });
+                      moved.push(...(outcome.effects ?? []));
+                      if (child !== null) await announce(child);
+                      await tellPostings(app, { connectionId: ok.key.connectionId, view: found.view, postings: outcome.postings, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
+                      return outcome.root;
+                    }
+                    // The write service's own transaction: it holds a series without gaps before it opens.
+                    const row = await writes.transaction(target, [values], async (tdb) => {
+                      if (!(await allowed(tdb, values))) throw new PublicWriteRefused();
+                      const written = await create(
+                        { ...target, db: tdb },
+                        async (one) => {
+                          child = one;
+                        },
+                        async (changed) => {
+                          if (!(await allowed(tdb, changed))) throw new PublicWriteRefused();
+                        },
+                      );
+                      // What the entry agrees its row must be, on the row as written, before anything commits.
+                      await judgeEntryAgrees(tdb, found.view, found.table, found.resource, written);
+                      // Inside the window its entry reads from the parent it names (an extra added until check-in time).
+                      try {
+                        await judgeCreateWindows({ db: tdb, view: found.view, table: found.table, writableWhen: found.resource.writableWhen, row: written, zone: ok.key.scope.timezone });
+                      } catch (error) {
+                        refuseWrite(error);
+                      }
+                      return written;
+                    });
+                    if (child !== null) await announce(child);
+                    return row;
+                  },
+                }),
+          });
         } catch (error) {
-          if (guessing) spendMiss(request, ok, error);
-          /*
-           * Nothing was made: what the caps counted for it goes back — but for
-           * the entry's own hour per visitor when the write reached a limit
-           * and was refused (a full slot), as on a create with rows below it,
-           * so one visitor cannot knock on a full slot without being counted.
-           */
-          if (error instanceof PublicSlotRefused && error.code !== 'PUBLIC_SLOT_BUSY') await releaseAllButVisitor?.();
-          else await release?.();
           if (error instanceof PublicWriteRefused) {
             logRefused(request, request.params.ref, error, [found.table]);
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
@@ -3340,7 +3250,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
-        await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects: moved, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
+        if (!made.ok && made.why === 'plain-text') return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column: made.column });
+        if (!made.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
+        const inserted = made.row;
 
         // The guest's confirmation, when the endpoint sends one. Queued, never
         // awaited on SMTP, and never a reason to fail the booking just made.

@@ -28,5 +28,22 @@
   },
   "unavailable": {
     "title": "Diese Seite ist nicht verfügbar."
+  },
+  "confirm": {
+    "titleNewsletter": "Anmeldung zum Newsletter von {business} bestätigen",
+    "titleSurveys": "Anmeldung zu den Umfragen von {business} bestätigen",
+    "for": "Für {address}",
+    "button": "Bestätigen",
+    "note": "Erst wenn Sie auf Bestätigen drücken, geschieht etwas. Jede E-Mail von uns können Sie abbestellen.",
+    "done": "Sie sind angemeldet. Vielen Dank.",
+    "doneNewsletter": "Sie erhalten den Newsletter von {business}.",
+    "doneSurveys": "Sie erhalten die Umfragen von {business}.",
+    "leave": "Jede E-Mail enthält einen Link zum Abmelden.",
+    "already": "Sie haben bereits bestätigt. Vielen Dank.",
+    "tooOld": "Dieser Link ist zu alt.",
+    "tooOldWebsite": "Melden Sie sich auf {website} erneut an, dann senden wir einen neuen.",
+    "tooOldAgain": "Melden Sie sich auf der Website von {business} erneut an, dann senden wir einen neuen.",
+    "deadWrite": "Schreiben Sie an {email}, wenn Sie sich anmelden wollten.",
+    "deadAsk": "Schreiben Sie an {business}, wenn Sie sich anmelden wollten."
   }
 }
