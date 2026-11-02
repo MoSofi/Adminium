@@ -41,6 +41,12 @@ const ALLOWED: Record<string, string> = {
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service (and what a sample fills in a row already there, `@fillEmpty`, is written and emptied again as that list says)",
   'consent/apply-column.ts':
     "a consent-log event mirrored into the declared yes/no column and its strict stamps, as the system: a save would drop the stamps it is given and keep naming whoever ticked the box last, so the door writes the column, its who (the event's staff member, or nobody) and its when (the event's time) in one statement and audits it itself",
+  'forms/answers.ts':
+    "a stranger's form answers deleted by the engine (a person's erasure, the keeping sweep) through the one function every engine deletion of answers goes through, as the system: answers are Adminium's own record, written by Adminium alone, and no role, rule or hook of the add-on has a say in their removal",
+  'outbox/survey-link.ts':
+    "a named survey's invitation keeps the hash of the token its mail carries and when it stops, written as the system once the message is claimed and only while the invitation is unanswered: Adminium's own record of a link it made, never a person's save",
+  'privacy/form-answers.ts':
+    "the survey invitations sent to an erased person lose the address and the name, by key, as the system, under the privacy action, for the reasons the erasure of their own rows gives (privacy/erase-rows.ts)",
   'privacy/erase-rows.ts':
     "a person erased in place under the privacy action: their own fields, their declared copies and their outbox mail emptied by key, one transaction a database, as the system — a save would run under a role's reach and stop half-way, drop the strict stamps it empties, fire the rules (which would mail and copy the name back into history), follow copies into sent and locked rows, and log the name in its before-image; the erasure audits itself with counts and a keyed hash",
 };
