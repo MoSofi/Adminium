@@ -29,6 +29,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/add-ons/:key/connect/oauth/complete': noRows('An add-on\'s package, its files, its settings and its connection to an outside service: no source row.'),
   'POST /api/v1/add-ons/:key/connect/oauth/start': noRows('An add-on\'s package, its files, its settings and its connection to an outside service: no source row.'),
   'POST /api/v1/add-ons/:key/documents/render': rows(['visible', 'whole'], 'The head record as the requester, before anything is minted; the body is read whole or the render refused, never in part; a private table is refused.'),
+  'GET /api/v1/add-ons/:key/forms/:id/summary': rows('whole', 'Counts every answer of the form under the answers table\'s read grant, or is refused to a reader held to some of them; no row is read out.'),
   'GET /api/v1/add-ons/:key/kit': noRows('An add-on\'s package, its files, its settings and its connection to an outside service: no source row.'),
   'POST /api/v1/add-ons/:key/look-up': rows(['list', 'sub'], 'The record found and its history rows under their tables\' tests.'),
   'GET /api/v1/add-ons/:key/pages/:ref/bundle': noRows('An add-on\'s package, its files, its settings and its connection to an outside service: no source row.'),

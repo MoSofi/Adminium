@@ -68,7 +68,7 @@ import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '..
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
-import { keepingRows } from '../../privacy/keeping.js';
+import { formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import { whatStays } from '../../privacy/what-stays.js';
@@ -288,7 +288,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
             address: found.address,
             found: found.sources.length > 0,
             person: found.person,
-            sources: found.sources.map(({ rows: _rows, ...view }) => view),
+            sources: found.sources.map(({ rows: _rows, csvRows: _csv, ...view }) => view),
           },
         };
       },
@@ -307,7 +307,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     );
 
     app.get('/privacy/keeping', { preHandler: privacy, schema: { response: { 200: keepingReply } } }, async () => ({
-      data: { rows: await keepingRows((key) => settings.get(key)) },
+      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager }))] },
     }));
 
     // ── "Download everything" ───────────────────────────────────────────────

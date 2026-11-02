@@ -34,7 +34,7 @@ import { emailRunsRepo, emailSendsRepo, filesRepo, type MetaDb } from '@adminium
 
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
-import { createMarketingMail, marketingSkipSentence, type MarketingMail } from '../email/marketing.js';
+import { createMarketingMail, marketingSkipSentence, saidNoSentence, type MarketingMail } from '../email/marketing.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
 import { campaignMessageId, campaignSendOfReport } from '../email/message-id.js';
 import type { PermanentRefusal } from '../email/refused.js';
@@ -124,6 +124,17 @@ const envelopeSchema = z.object({
     .object({
       purpose: z.enum(['newsletter', 'surveys']),
       basis: z.enum(['consent', 'existing-customers']),
+      person: z.object({ connectionId: z.string().min(1).max(64), table: z.string().min(1).max(200), key: z.string().min(1).max(500) }).nullable(),
+    })
+    .optional(),
+  /**
+   * A service mail sent for a consent purpose (a survey invitation): asked
+   * again at the hand-over, so a "no" for that purpose given since it was
+   * queued stops it. An older server drops it and sends.
+   */
+  objection: z
+    .object({
+      purpose: z.enum(['newsletter', 'surveys']),
       person: z.object({ connectionId: z.string().min(1).max(64), table: z.string().min(1).max(200), key: z.string().min(1).max(500) }).nullable(),
     })
     .optional(),
@@ -316,6 +327,15 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
       if (stopped !== null) {
         ctx.progress(100, { step: 'skipped' });
         return { templateKey: payload.templateKey, locale: payload.locale, skipped: stopped };
+      }
+    }
+    // A service mail sent for a purpose (a survey invitation) asks the person's answer for it once more: never the list.
+    if (envelope.mailClass === 'service' && envelope.objection !== undefined) {
+      const standing = await marketing.consent.stateFor({ person: envelope.objection.person, address: envelope.to.trim().toLowerCase() }, envelope.objection.purpose);
+      if (standing.state === 'no') {
+        if (payload.report !== undefined && deps.onGiveUp !== undefined) await deps.onGiveUp(payload.report, new Error(saidNoSentence(envelope.objection.purpose))).catch(() => undefined);
+        ctx.progress(100, { step: 'skipped' });
+        return { templateKey: payload.templateKey, locale: payload.locale, skipped: 'said-no' };
       }
     }
     // Bytes are read HERE, never at enqueue: the queue row carries

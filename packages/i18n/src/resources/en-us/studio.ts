@@ -4296,7 +4296,9 @@ export default {
         "automationRuns": "Rule runs",
         "notifications": "Notifications to staff",
         "files": "Files on their rows",
-        "appRows": "Rows in an app"
+        "appRows": "Rows in an app",
+        "answers": "Form answers",
+        "invitations": "Survey invitations"
       },
       "onList": "yes",
       "rows": "{count, plural, one {# row} other {# rows}}",
@@ -4322,7 +4324,9 @@ export default {
       "open": "Open",
       "download": "Download everything",
       "downloadSub": "A .zip of JSON and CSV files.",
-      "erase": "Erase…"
+      "erase": "Erase…",
+      "answers": "{count, plural, one {# answer} other {# answers}}",
+      "invitations": "{count, plural, one {# invitation} other {# invitations}}"
     },
     "erase": {
       "goes": {
@@ -4331,7 +4335,9 @@ export default {
         "outbox": "{count, plural, one {# e-mail} other {# e-mails}} in {label}",
         "consent": "{count, plural, one {# consent entry} other {# consent entries}}",
         "campaignMail": "{count, plural, one {# campaign e-mail} other {# campaign e-mails}}",
-        "files": "{count, plural, one {# file} other {# files}}"
+        "files": "{count, plural, one {# file} other {# files}}",
+        "answers": "{count, plural, one {# form answer} other {# form answers}} in {label}",
+        "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address"
       },
       "stays": {
         "forGood": "Kept for good.",
@@ -4382,7 +4388,11 @@ export default {
       "heading": "How long we keep things",
       "sub": "After this, each item is erased.",
       "what": "What",
-      "keptFor": "Kept for"
+      "keptFor": "Kept for",
+      "answers": "Form answers — {addOn}",
+      "answersMonths": "{count, plural, one {Kept for # month} other {Kept for # months}}",
+      "answersUntilRemoved": "Kept until someone removes them",
+      "answersWhy": "Set in {addOn}’s settings. Older answers are deleted each night."
     },
     "downloads": {
       "processing": "Being made…",

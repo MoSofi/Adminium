@@ -296,6 +296,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // public API never serves (no key of that name is made, and the install plans no endpoint for it: apps/manifest-public.ts).
   'addOn.forms',
   'publicAccess.forms',
+  // A kind's consent purpose and a survey's link: read by the outbox sender (outbox/sender.ts `prepare`, outbox/survey-link.ts).
+  'outbox.purposes',
+  'outbox.surveyLinks',
 ];
 
 export interface UnbuiltWord {

@@ -33,6 +33,8 @@ It looks in:
   recipient): by the address, or by the link back to one of the person's rows;
 - the app's **outbox**: mail to the address, or to one of their rows;
 - the **consent history** and the **do-not-email list**;
+- every forms add-on's **answers** given by the address (a sign-up still
+  waiting for its confirmation too) and the **survey invitations** sent to it;
 - what Adminium keeps itself: campaign mail sent to them and its failures,
   rendered documents, invoices, payments, the payment services' messages, the
   rules' run history, staff notifications, and files attached to their rows.
@@ -49,6 +51,10 @@ still hold the permission. It is deleted after `retention.exportsDays` (30 days 
 
 A copy of a person on another table is downloaded as the columns that hold
 them (and the row's key), not the rest of the row.
+
+Form answers are downloaded whole as JSON, and as CSV with each question a
+column of its own under its label in the language the answer was given in (a
+choice by its label). An invitation is downloaded without its token's code.
 
 ## What stays
 
@@ -107,6 +113,9 @@ follows another row is never moved.
   left whole, and "What stays" counts their rows on it.
 - **Their mail** in each app's outbox loses its address; a message still
   waiting is skipped.
+- **Their form answers** are deleted, a waiting sign-up's too; the **survey
+  invitations** sent to them lose the address and the name and are kept, so a
+  survey's invited and answered counts stay whole.
 - **Their consent history** is deleted. **The do-not-email list** keeps their
   address as a code alone (added if they were not on it), so they are never
   e-mailed again; a link in mail sent before only ever says they are
@@ -125,10 +134,17 @@ what is left and finishes.
 
 ## How long we keep things
 
-`GET /api/v1/privacy/keeping` lists the keeping table. This release has two
-fixed rows, neither of which can be shortened: the **consent history** is kept
-until the person is erased (it proves what they agreed to or asked), and the
-**do-not-email list** is kept for good (once the person is erased, as a code).
+`GET /api/v1/privacy/keeping` lists the keeping table. Two rows are fixed and
+cannot be shortened: the **consent history** is kept until the person is erased
+(it proves what they agreed to or asked), and the **do-not-email list** is kept
+for good (once the person is erased, as a code).
+
+Each forms add-on adds a row for its **form answers** (`key: "form-answers"`,
+with the add-on's key and name). How long is the add-on's own setting, a whole
+number of months in its settings table's `answers_months` column, changed in
+the add-on's settings; empty keeps them until someone removes them. Every night
+Adminium deletes the answers submitted longer ago than that: the add-on runs no
+timer of its own.
 
 ## The privacy notice and the postal address
 

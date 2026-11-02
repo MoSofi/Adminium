@@ -62,7 +62,7 @@ export function personZip(found: PersonFound, at: number): Uint8Array {
   for (const source of found.sources) {
     if (source.rows.length === 0) continue;
     files[`${source.id}.json`] = strToU8(JSON.stringify(source.rows, null, 2));
-    files[`${source.id}.csv`] = strToU8(sourceCsv(source.rows));
+    files[`${source.id}.csv`] = strToU8(sourceCsv(source.csvRows ?? source.rows));
   }
   return zipSync(files, { mtime: new Date(at) });
 }

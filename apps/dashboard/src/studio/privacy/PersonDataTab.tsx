@@ -25,12 +25,14 @@ import {
   Banknote,
   Bell,
   CircleCheckBig,
+  ClipboardList,
   Contact,
   Copy,
   CreditCard,
   Download,
   FileText,
   Mail,
+  MailCheck,
   MailWarning,
   MailX,
   Paperclip,
@@ -68,6 +70,8 @@ const ICONS: Record<SourceKind, LucideIcon> = {
   'automation-runs': Workflow,
   notifications: Bell,
   files: Paperclip,
+  'form-answers': ClipboardList,
+  'form-invitations': MailCheck,
 };
 
 /** What a source is called: an app table's own label (and its app), else Adminium's store by its kind. */
@@ -99,6 +103,10 @@ function sourceLabel(source: Pick<FoundSource, 'kind' | 'label' | 'app'>): strin
       return t('studio:privacy.person.kind.notifications', 'Notifications to staff');
     case 'files':
       return t('studio:privacy.person.kind.files', 'Files on their rows');
+    case 'form-answers':
+      return t('studio:privacy.person.kind.answers', 'Form answers');
+    case 'form-invitations':
+      return t('studio:privacy.person.kind.invitations', 'Survey invitations');
     case 'people':
     case 'copy':
     case 'outbox':
@@ -115,7 +123,11 @@ function countOf(source: FoundSource): { pre: string; n: string; post: string } 
       ? t('studio:privacy.person.rows', '{count, plural, one {# row} other {# rows}}', { count: source.count })
       : source.kind === 'consent'
         ? t('studio:privacy.person.entries', '{count, plural, one {# entry} other {# entries}}', { count: source.count })
-        : new Intl.NumberFormat(locale()).format(source.count);
+        : source.kind === 'form-answers'
+          ? t('studio:privacy.person.answers', '{count, plural, one {# answer} other {# answers}}', { count: source.count })
+          : source.kind === 'form-invitations'
+            ? t('studio:privacy.person.invitations', '{count, plural, one {# invitation} other {# invitations}}', { count: source.count })
+            : new Intl.NumberFormat(locale()).format(source.count);
   // The number in mono (the comp's `n`), the words around it as they are.
   const digits = new Intl.NumberFormat(locale()).format(source.count);
   const at = words.indexOf(digits);

@@ -454,6 +454,8 @@ export const ADD_ON_DATA_EXPORTS = [
   'useWords',
   'useDocument',
   'useExport',
+  'useFormSummary',
+  'useFormTables',
 ] as const;
 export type AddOnDataExport = (typeof ADD_ON_DATA_EXPORTS)[number];
 

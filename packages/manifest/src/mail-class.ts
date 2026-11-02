@@ -33,9 +33,9 @@ import type { ManifestAction, ManifestAutomation } from './automations.js';
 import type { Outbox } from './outbox.js';
 import { compareSemver } from './semver.js';
 
-import type { MailClass } from './mail-classes.js';
+import type { MailClass, MailPurpose } from './mail-classes.js';
 
-export { MAIL_CLASSES, type MailClass } from './mail-classes.js';
+export { MAIL_CLASSES, MAIL_PURPOSES, type MailClass, type MailPurpose } from './mail-classes.js';
 
 /** What `mailClassOf` answers: a class, or `staff` for mail to staff that has none. */
 export type MailClassAnswer = MailClass | 'staff';
@@ -45,7 +45,7 @@ export const MAIL_CLASS_FLOOR = '0.3.38';
 
 /** What `mailClassOf` reads of a manifest. */
 export interface MailClassManifest {
-  outbox?: Pick<Outbox, 'kinds' | 'classes' | 'producers'> | undefined;
+  outbox?: Pick<Outbox, 'kinds' | 'classes' | 'producers' | 'purposes' | 'surveyLinks'> | undefined;
 }
 
 /** Whether a kind goes only to the house: it has producers, and each sends to an address a setting holds. */
@@ -67,6 +67,20 @@ export function mailClassOf(manifest: MailClassManifest, of: { outboxKind: strin
     return of.step.class ?? 'service';
   }
   return manifest.outbox?.classes?.[of.outboxKind] ?? (sentToTheHouse(manifest.outbox, of.outboxKind) ? 'staff' : 'service');
+}
+
+/**
+ * The consent purpose an outbox kind is sent for (`outbox.purposes`), or
+ * null when it names none: a marketing kind is then judged for the
+ * newsletter, and a service kind by nothing but its class.
+ */
+export function mailPurposeOf(manifest: MailClassManifest, outboxKind: string): MailPurpose | null {
+  return manifest.outbox?.purposes?.[outboxKind] ?? null;
+}
+
+/** Whether an outbox kind's template may print a survey's link (`outbox.surveyLinks`). */
+export function printsSurveyLink(manifest: MailClassManifest, outboxKind: string): boolean {
+  return (manifest.outbox?.surveyLinks ?? []).includes(outboxKind);
 }
 
 /** Every e-mail step of a rule, with the path it is written at. */

@@ -91,6 +91,8 @@ read or a write the role does not grant is refused the same way.
 | `useWords(id)` | Asks the add-on's [stock words](/reference/manifest/#stock-words) about up to 60 rows. |
 | `useDocument()` | Draws a document for a row and opens it, or prints it. |
 | `useExport()` | Starts an export of a table's rows and downloads it. |
+| `useFormSummary(formId)` | A forms add-on: the form's results, counted by Adminium over every answer (per choice, per score, per star, the recommend score, answers per language, and how many were invited and answered), under the reader's read grant on the answers. No row reaches the page. From Adminium 0.3.40. |
+| `useFormTables()` | A forms add-on: the tables an app opens to forms (its `publicAccess` entry under the key `forms`), each with its app's name and the columns an answer may fill, the link columns marked (filled only from a named survey's invitation). A page lists them and reads none of their rows. From Adminium 0.3.40. |
 
 The parts are `Card`, `Grid`, `Stack`, `Sheet` (with `SheetHeader`, `SheetBody`, `SheetFooter`),
 `StickyBar`, `Divider`, `Skeleton`, `DataTable`, `Stat`, `KeyValueList`, `StatusPill`,

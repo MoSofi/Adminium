@@ -243,6 +243,7 @@ import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
 import { addOnRoutes } from './routes/add-ons/index.js';
 import { addOnKitRoutes } from './routes/add-ons/kit.js';
+import { formSummaryRoutes } from './routes/add-ons/form-summary.js';
 import { addOnCodesRoutes } from './routes/add-ons/codes.js';
 import { addOnLookUpRoutes } from './routes/add-ons/look-up.js';
 import { wordsRoutes } from './routes/words/index.js';
@@ -314,6 +315,7 @@ import { mailDoorRoutes } from './routes/mail-door/index.js';
 import { privacyRoutes } from './routes/privacy/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
+import { sweepFormAnswers } from './forms/answers.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
@@ -474,6 +476,10 @@ export const RETENTION_GC_SCHEDULE_NAME = 'retention-gc';
 /** Daily: a person's downloaded data whose time is up is deleted (`privacy/export.ts`), after the meta sweep. */
 export const PRIVACY_EXPORTS_SWEEP_NAME = 'privacy-exports-sweep';
 export const PRIVACY_EXPORTS_SWEEP_CRON = '30 3 * * *';
+
+/** Daily: a forms add-on's answers older than its keeping time are deleted with their files (`forms/answers.ts`). */
+export const FORM_ANSWERS_SWEEP_NAME = 'form-answers-sweep';
+export const FORM_ANSWERS_SWEEP_CRON = '45 3 * * *';
 
 /** Minute flush of the public API's request counts. */
 export const PUBLIC_STATS_FLUSH_NAME = 'public-request-stats-flush';
@@ -1614,6 +1620,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const swept = await sweepPrivacyExports(meta, storage);
     if (swept > 0) app.log.info({ swept }, 'privacy downloads sweep');
   });
+  // A forms add-on's answers past the time its settings keep them: deleted by the engine, the add-on runs no timer.
+  jobs.scheduler.registerSchedule(FORM_ANSWERS_SWEEP_NAME, FORM_ANSWERS_SWEEP_CRON, async () => {
+    const swept = await sweepFormAnswers({ meta, manager });
+    if (Object.keys(swept).length > 0) app.log.info({ swept }, 'form answers sweep');
+  });
   // A recorded live payment emails its receipt once, to the record's customer.
   registerPaymentsRecordHandler(jobs.registry, {
     meta,
@@ -2024,6 +2035,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(wordsRoutes({ manager, meta, ledgers }));
       // What an add-on's own page may read and write: its tables, the reader's grants on each, the tables that hand it rows.
       await api.register(addOnKitRoutes({ meta }));
+      // A forms add-on's results, counted over every answer, under its read grant on the answers.
+      await api.register(formSummaryRoutes({ meta, manager }));
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );

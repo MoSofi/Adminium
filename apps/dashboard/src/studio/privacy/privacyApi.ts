@@ -68,7 +68,9 @@ export type SourceKind =
   | 'payment-events'
   | 'automation-runs'
   | 'notifications'
-  | 'files';
+  | 'files'
+  | 'form-answers'
+  | 'form-invitations';
 
 export type KeptByLawReason = 'tax' | 'health' | 'contract' | 'safety';
 
@@ -123,7 +125,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -201,8 +203,10 @@ export function exportDownloadHref(id: string): string {
 export interface KeepingRow {
   key: string;
   fixed: boolean;
-  keptFor: 'forever' | 'until-erased' | number;
+  keptFor: 'forever' | 'until-erased' | 'until-removed' | number;
   options: number[];
+  /** A row an add-on keeps (its form answers): the add-on, whose own settings say how long. */
+  addOn?: { key: string; name: string };
 }
 
 export function keepingQuery() {

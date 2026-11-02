@@ -4296,7 +4296,9 @@ export default {
         "automationRuns": "Exécutions de règles",
         "notifications": "Notifications à l’équipe",
         "files": "Fichiers sur ses lignes",
-        "appRows": "Lignes dans une app"
+        "appRows": "Lignes dans une app",
+        "answers": "Réponses aux formulaires",
+        "invitations": "Invitations aux enquêtes"
       },
       "onList": "oui",
       "rows": "{count, plural, one {# ligne} other {# lignes}}",
@@ -4322,7 +4324,9 @@ export default {
       "open": "Ouvrir",
       "download": "Tout télécharger",
       "downloadSub": "Un .zip de fichiers JSON et CSV.",
-      "erase": "Effacer…"
+      "erase": "Effacer…",
+      "answers": "{count, plural, one {# réponse} other {# réponses}}",
+      "invitations": "{count, plural, one {# invitation} other {# invitations}}"
     },
     "erase": {
       "goes": {
@@ -4331,7 +4335,9 @@ export default {
         "outbox": "{count, plural, one {# e-mail} other {# e-mails}} dans {label}",
         "consent": "{count, plural, one {# entrée de consentement} other {# entrées de consentement}}",
         "campaignMail": "{count, plural, one {# e-mail de campagne} other {# e-mails de campagne}}",
-        "files": "{count, plural, one {# fichier} other {# fichiers}}"
+        "files": "{count, plural, one {# fichier} other {# fichiers}}",
+        "answers": "{count, plural, one {# réponse à un formulaire} other {# réponses à des formulaires}} dans {label}",
+        "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse"
       },
       "stays": {
         "forGood": "Conservé pour toujours.",
@@ -4382,7 +4388,11 @@ export default {
       "heading": "Durée de conservation",
       "sub": "Ensuite, chaque élément est effacé.",
       "what": "Quoi",
-      "keptFor": "Conservé"
+      "keptFor": "Conservé",
+      "answers": "Réponses aux formulaires — {addOn}",
+      "answersMonths": "{count, plural, one {Conservées # mois} other {Conservées # mois}}",
+      "answersUntilRemoved": "Conservées jusqu’à ce que quelqu’un les supprime",
+      "answersWhy": "Réglé dans les paramètres de {addOn}. Les réponses plus anciennes sont supprimées chaque nuit."
     },
     "downloads": {
       "processing": "En préparation…",

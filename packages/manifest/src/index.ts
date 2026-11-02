@@ -139,7 +139,20 @@ export {
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
 export { occupiesSchema, type OccupiesRule } from './occupies.js';
 export { REMOVAL_REASON_MAX, auditOnlyColumns, columnHistorySchema, removalIssues, removalSchema, type RemovalRule } from './removal.js';
-export { MAIL_CLASSES, MAIL_CLASS_FLOOR, mailClassFloorIssues, mailClassOf, sentToTheHouse, type MailClass, type MailClassAnswer, type MailClassManifest } from './mail-class.js';
+export {
+  MAIL_CLASSES,
+  MAIL_CLASS_FLOOR,
+  MAIL_PURPOSES,
+  mailClassFloorIssues,
+  mailClassOf,
+  mailPurposeOf,
+  printsSurveyLink,
+  sentToTheHouse,
+  type MailClass,
+  type MailClassAnswer,
+  type MailClassManifest,
+  type MailPurpose,
+} from './mail-class.js';
 export {
   CONSENT_PURPOSES,
   COPY_HOLDS,
@@ -227,6 +240,7 @@ export {
   OUTBOX_HELD,
   OUTBOX_SKIP_REASONS,
   OUTBOX_STATUSES,
+  SURVEY_LINK_VARIABLE,
   emailTemplateSchema,
   emailRowsDataSchema,
   outboxProducerSchema,

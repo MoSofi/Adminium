@@ -12,6 +12,8 @@
  * without importing the shim, which reads the host at module load.
  */
 
+import type { FormSummary } from '../forms/summary.js';
+
 /** A value as a row holds it: decimals and money are text, so no figure is rounded on the way. */
 export type DataValue = string | number | boolean | null;
 export type DataRow = Readonly<Record<string, DataValue>>;
@@ -220,6 +222,53 @@ export interface UseExportResult {
   error: DataError | null;
 }
 
+/**
+ * A form's results, counted by the engine over every answer (a forms add-on's
+ * pages): what a survey's results page shows, with no row read. `invited` and
+ * `answered` count its invitations; null when the add-on keeps none.
+ */
+export interface FormSummaryAnswer extends FormSummary {
+  invited: number | null;
+  answered: number | null;
+}
+
+export interface UseFormSummaryResult {
+  /** Null until it is in, and for no form. */
+  summary: FormSummaryAnswer | null;
+  loading: boolean;
+  error: DataError | null;
+  refetch: () => void;
+}
+
+/** A column of a table a form may become a row of. */
+export interface FormTableColumn {
+  name: string;
+  label: string;
+  /** Its kind (`text`, `integer`, `enum`, `date`, …). */
+  kind: string;
+  /** The row must have it. */
+  required: boolean;
+  /** A link to another row: filled only from a named survey's invitation, never from a question. */
+  link: boolean;
+}
+
+/** A table an app opens to forms (its `publicAccess` entry under the key `forms`): what a form's answer may become a row of. */
+export interface FormTable {
+  /** The id "becomes" names it by. */
+  id: string;
+  tableRef: string;
+  label: string;
+  /** The name of the app that opens it. */
+  app: string;
+  /** The columns an answer may fill. */
+  columns: readonly FormTableColumn[];
+}
+
+export interface UseFormTablesResult {
+  /** Every table a form of this add-on may become a row of; empty when no app opens one. Absent from a host older than 0.3.40. */
+  tables: readonly FormTable[];
+}
+
 /** The data kit's hooks, by name. */
 export interface AddOnDataHooks {
   useRecords: (table: string, options?: UseRecordsOptions) => UseRecordsResult;
@@ -233,6 +282,10 @@ export interface AddOnDataHooks {
   useWords: (wordsId: string) => UseWordsResult;
   useDocument: () => UseDocumentResult;
   useExport: () => UseExportResult;
+  /** A form's results, counted over every answer (a forms add-on, from Adminium 0.3.40). */
+  useFormSummary: (formId: string | number | null) => UseFormSummaryResult;
+  /** The tables a form may become a row of (a forms add-on, from Adminium 0.3.40). */
+  useFormTables: () => UseFormTablesResult;
 }
 
 /**

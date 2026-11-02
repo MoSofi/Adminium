@@ -60,5 +60,7 @@ export const useLookUp = data['useLookUp'] as never;
 export const useWords = data['useWords'] as never;
 export const useDocument = data['useDocument'] as never;
 export const useExport = data['useExport'] as never;
+export const useFormSummary = data['useFormSummary'] as never;
+export const useFormTables = data['useFormTables'] as never;
 
 export default data;

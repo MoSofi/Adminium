@@ -34183,6 +34183,10 @@
     "status": "mt",
     "srcHash": "367bdcf462e3"
   },
+  "studio.privacy.erase.goes.answers": {
+    "status": "mt",
+    "srcHash": "6de4458d3c54"
+  },
   "studio.privacy.erase.goes.campaignMail": {
     "status": "mt",
     "srcHash": "958bcd5a9eca"
@@ -34198,6 +34202,10 @@
   "studio.privacy.erase.goes.files": {
     "status": "mt",
     "srcHash": "8a657041aa6b"
+  },
+  "studio.privacy.erase.goes.invitations": {
+    "status": "mt",
+    "srcHash": "0d89298149f1"
   },
   "studio.privacy.erase.goes.outbox": {
     "status": "mt",
@@ -34323,6 +34331,22 @@
     "status": "mt",
     "srcHash": "aa1564673517"
   },
+  "studio.privacy.keeping.answers": {
+    "status": "mt",
+    "srcHash": "ae47beb23e53"
+  },
+  "studio.privacy.keeping.answersMonths": {
+    "status": "mt",
+    "srcHash": "f26edd2c0b59"
+  },
+  "studio.privacy.keeping.answersUntilRemoved": {
+    "status": "mt",
+    "srcHash": "09f8de058624"
+  },
+  "studio.privacy.keeping.answersWhy": {
+    "status": "mt",
+    "srcHash": "f092cb0ce512"
+  },
   "studio.privacy.keeping.consentHistory": {
     "status": "mt",
     "srcHash": "9f998ba2b5f8"
@@ -34411,6 +34435,10 @@
     "status": "mt",
     "srcHash": "f5b371e12110"
   },
+  "studio.privacy.person.answers": {
+    "status": "mt",
+    "srcHash": "c7cebab057e5"
+  },
   "studio.privacy.person.audit": {
     "status": "mt",
     "srcHash": "a35e162cd1ac"
@@ -34475,6 +34503,14 @@
     "status": "src",
     "srcHash": "d742aed12715"
   },
+  "studio.privacy.person.invitations": {
+    "status": "mt",
+    "srcHash": "2e0142eb4e2e"
+  },
+  "studio.privacy.person.kind.answers": {
+    "status": "mt",
+    "srcHash": "a3c9b6a76c43"
+  },
   "studio.privacy.person.kind.appRows": {
     "status": "mt",
     "srcHash": "bf3e96b904ec"
@@ -34502,6 +34538,10 @@
   "studio.privacy.person.kind.files": {
     "status": "mt",
     "srcHash": "8381cf35cdbb"
+  },
+  "studio.privacy.person.kind.invitations": {
+    "status": "mt",
+    "srcHash": "f49caea43dd7"
   },
   "studio.privacy.person.kind.invoices": {
     "status": "mt",

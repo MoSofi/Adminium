@@ -23,8 +23,10 @@
  *     lose the fields the erasure empties, and any text that still holds the
  *     address is nulled (the entries stay: who changed what, and when);
  *  6. their rows in the apps' databases are emptied (`erase-rows.ts`), in
- *     one transaction per database; an entry written about one of those rows
- *     while the erasure ran is emptied too;
+ *     one transaction per database; their form answers are deleted (with
+ *     their files) and the survey invitations sent to them lose the address
+ *     and the name (`form-answers.ts`); an entry written about one of those
+ *     rows while the erasure ran is emptied too;
  *  7. one audit entry of its own says what was done: counts, and the keyed
  *     hash of the address. Never the address, never the name.
  *
@@ -46,6 +48,7 @@ import type { FileStore } from '../files/store.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { blankCampaignSends, campaignSendIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
+import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import { personHash, personHashes } from './export.js';
 import { findPerson, searchAddress } from './sources.js';
 import { whatStays, type StaysItem } from './what-stays.js';
@@ -66,7 +69,7 @@ export interface EraseDeps {
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -160,6 +163,12 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string): Promi
       goes.push({ kind: source.kind, count: source.rows.length, connectionId: source.connectionId, table: source.table.id, app: source.app, label: source.label });
     }
   }
+  for (const one of await findFormRows(deps, address)) {
+    if (one.answers.length > 0 && one.addOn.answers !== null) goes.push({ kind: 'form-answers', count: one.answers.length, connectionId: one.connectionId, table: one.addOn.answers.id, app: one.addOn.key, label: one.addOn.answers.table.label ?? one.addOn.answers.name });
+    if (one.invitations.length > 0 && one.addOn.invitations !== null) {
+      goes.push({ kind: 'form-invitations', count: one.invitations.length, connectionId: one.connectionId, table: one.addOn.invitations.id, app: one.addOn.key, label: one.addOn.invitations.table.label ?? one.addOn.invitations.name });
+    }
+  }
   const consent = await consentIds(deps.consent, address, people);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
   const sends = (await campaignSendIds(deps.meta, address, people)).length;
@@ -180,7 +189,9 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<
   // The keys first: while they cannot be read, nothing is touched (the caller answers 503).
   const hash = await personHash(meta, deps.secret, address);
   const hashes = await personHashes(meta, deps.secret, address);
-  const rows = await findPersonRows({ meta, manager: deps.manager, erasedName: await erasedNameOf(meta), now }, address);
+  const erasedName = await erasedNameOf(meta);
+  const rows = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address);
+  const forms = await findFormRows(deps, address);
   const people = peopleRefs(rows);
   const counts: Record<string, number> = {};
 
@@ -236,7 +247,7 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<
   filesFailed += files.failed;
 
   // 5. The audit log and the removed-row history.
-  const targets = rows.databases.flatMap((database) => database.sources.map(imageTarget));
+  const targets = [...rows.databases.flatMap((database) => database.sources.map(imageTarget)), ...formImageTargets(forms)];
   const removed = await scrubRemovedRows(meta, targets, copyLinks(rows));
   let audit = await scrubAuditImages(meta, [...targets, ...removed.copies]);
   const swept = await sweepAddress(meta, address);
@@ -244,6 +255,7 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<
 
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));
+  Object.assign(counts, await eraseFormRows(forms, erasedName));
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);
   counts['audit'] = audit + swept.audit;

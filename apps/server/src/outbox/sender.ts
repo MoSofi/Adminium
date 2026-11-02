@@ -137,6 +137,9 @@ import {
   requiredPlaceholderNames,
   showWhenNames,
   mailClassOf,
+  mailPurposeOf,
+  printsSurveyLink,
+  SURVEY_LINK_VARIABLE,
   type AppManifest,
   type OutboxProducer,
 } from '@adminium/manifest';
@@ -165,6 +168,7 @@ import {
   DEFAULT_MARKETING_PURPOSE,
   marketingRefusalSentence,
   marketingSkipSentence,
+  saidNoSentence,
   type MarketingMail,
 } from '../email/marketing.js';
 import { existingCustomer, recipientPerson } from './marketing.js';
@@ -182,6 +186,7 @@ import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
 import { staffReplyTo } from './staff-reply-to.js';
+import { invitationOf, invitationPerson, keepSurveyToken, SURVEY_LINK_SKIPS, surveyLinkFor, type SurveyLink } from './survey-link.js';
 import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
@@ -304,6 +309,8 @@ interface Prepared {
   email: Omit<EnqueueEmailInput, 'report' | 'dedupeKey'>;
   recordTo?: string;
   language?: string;
+  /** What a named survey's invitation keeps of the link the email carries: written once the message is claimed. */
+  survey?: NonNullable<SurveyLink['keep']>;
 }
 
 type AnyUpdateQuery = Parameters<NonNullable<UpdateRecordInput['refine']>>[0];
@@ -1465,17 +1472,32 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // Marketing or service (the app's `outbox.classes`; an app built for an older Adminium says neither, and its mail is
     // service). Marketing mail skips the do-not-email list and those with no basis, and is refused while the sender is not
     // ready: recorded as skipped, never tried again in a loop, and the people who manage e-mail are told once.
-    const mailClass = mailClassOf((await appFacts(box.row.manifestId)).manifest ?? {}, { outboxKind: kind });
+    const manifest = (await appFacts(box.row.manifestId)).manifest ?? {};
+    const mailClass = mailClassOf(manifest, { outboxKind: kind });
+    // The consent purpose the kind is sent for (`outbox.purposes`): a marketing kind is judged for it instead of the
+    // newsletter; a service kind that names one skips a person whose latest answer for it is "no" (a survey
+    // invitation sent as service mail never reaches a person who said no to surveys). The list stops marketing only.
+    const purpose = mailPurposeOf(manifest, kind);
+    // A kind that prints a survey's link is about an invitation, whose person the consent log knows by their row too.
+    const survey = printsSurveyLink(manifest, kind) ? await invitationOf(ctx, producer, row) : null;
+    const surveyPerson = survey === null ? null : invitationPerson(box.connectionId, survey.row);
     let marketingBasis: 'consent' | 'existing-customers' | null = null;
     let marketingPerson: { connectionId: string; table: string; key: string } | null = null;
+    let objection: { purpose: NonNullable<typeof purpose>; person: { connectionId: string; table: string; key: string } | null } | undefined;
+    if (mailClass === 'service' && purpose !== null) {
+      const person = surveyPerson ?? (await recipientPerson(ctx, box, row, found, addressed))?.ref ?? null;
+      const standing = await marketing().consent.stateFor({ person, address: found.trim() }, purpose);
+      if (standing.state === 'no') return { status: 'skipped', error: sentence(saidNoSentence(purpose)) };
+      objection = { purpose, person };
+    }
     if (mailClass === 'marketing') {
       const person = await recipientPerson(ctx, box, row, found, addressed);
-      marketingPerson = person?.ref ?? null;
+      marketingPerson = person?.ref ?? surveyPerson;
       const kit = marketing();
       const verdict = await kit.verdict({
         address: found.trim(),
-        person: person?.ref ?? null,
-        purpose: DEFAULT_MARKETING_PURPOSE,
+        person: marketingPerson,
+        purpose: purpose ?? DEFAULT_MARKETING_PURPOSE,
         existingCustomer: person === null ? false : await existingCustomer(deps.meta, kit, ctx.view, person),
       });
       if ('skip' in verdict) return { status: 'skipped', error: sentence(marketingSkipSentence(verdict.skip)) };
@@ -1519,6 +1541,15 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       vars['signInLink'] = minted.link;
       to = minted.to;
     }
+    // A survey's link, made now and only for a kind that prints one (`survey-link.ts`); never a column's value of that name.
+    delete vars[SURVEY_LINK_VARIABLE];
+    let surveyKeep: SurveyLink['keep'] = null;
+    if (printsSurveyLink(manifest, kind) && reads.has(SURVEY_LINK_VARIABLE)) {
+      const made = await surveyLinkFor({ meta: deps.meta, db: ctx.db, view: ctx.view, now: ctx.now }, survey, to);
+      if ('skip' in made) return { status: 'skipped', error: sentence(made.skip) };
+      vars[SURVEY_LINK_VARIABLE] = made.link;
+      surveyKeep = made.keep;
+    }
     // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
     // First, the blocks whose own condition is not met leave: nothing below asks for what only they print.
     const shown = withConditionsSettled(withoutUnmetBlocks(template, vars, withheld), vars, withheld);
@@ -1561,7 +1592,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         ? undefined
         : await marketing().carry({
             to,
-            purpose: marketingBasis === 'existing-customers' ? null : DEFAULT_MARKETING_PURPOSE,
+            purpose: marketingBasis === 'existing-customers' ? null : (purpose ?? DEFAULT_MARKETING_PURPOSE),
             locale: template.locale,
             business: vars['appName'],
             replyTo,
@@ -1585,8 +1616,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         ...(mailClass === 'staff' ? {} : { mailClass }),
         ...(carry === undefined ? {} : { marketing: carry }),
         // What it was judged on, sealed with it: the hand-over asks the same again (`jobs/email-send.ts`).
-        ...(marketingBasis === null ? {} : { standing: { purpose: DEFAULT_MARKETING_PURPOSE, basis: marketingBasis, person: marketingPerson } }),
+        ...(marketingBasis === null ? {} : { standing: { purpose: purpose ?? DEFAULT_MARKETING_PURPOSE, basis: marketingBasis, person: marketingPerson } }),
+        // A service mail's purpose, likewise asked again at the hand-over.
+        ...(objection === undefined ? {} : { objection }),
       },
+      ...(surveyKeep === null ? {} : { survey: surveyKeep }),
       ...(written === to ? {} : { recordTo: to }),
       ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),
     };
@@ -1763,6 +1797,15 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         if (ready.language !== undefined && cols.language !== undefined) claim[cols.language] = ready.language;
         const claimed = await settle(box, target, pk, claim, unchanged(row));
         if (claimed === null) continue;
+        // A named survey's invitation keeps the hash of the link's token, now that the message is this sender's: while
+        // it is still unanswered, else the message does not go.
+        if (ready.survey !== undefined && !(await keepSurveyToken(target, ready.survey))) {
+          const values: Row = { [cols.status]: 'skipped' };
+          if (cols.error !== undefined) values[cols.error] = sentence(SURVEY_LINK_SKIPS.answered);
+          if (cols.sentAt !== undefined) values[cols.sentAt] = null;
+          settled.push((await settle(box, target, pk, values, sentAtWindow)) ?? claimed);
+          continue;
+        }
         // The document the email carries, drawn (or the one already drawn) now:
         // an email that should carry one never goes without it.
         const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];

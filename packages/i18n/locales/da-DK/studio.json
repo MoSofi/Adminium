@@ -4286,7 +4286,9 @@
         "automationRuns": "Regelkørsler",
         "notifications": "Notifikationer til personalet",
         "files": "Filer på deres rækker",
-        "appRows": "Rækker i en app"
+        "appRows": "Rækker i en app",
+        "answers": "Formularsvar",
+        "invitations": "Invitationer til undersøgelser"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# række} other {# rækker}}",
@@ -4312,7 +4314,9 @@
       "open": "Åbn",
       "download": "Download alt",
       "downloadSub": "En .zip med JSON- og CSV-filer.",
-      "erase": "Slet…"
+      "erase": "Slet…",
+      "answers": "{count, plural, one {# svar} other {# svar}}",
+      "invitations": "{count, plural, one {# invitation} other {# invitationer}}"
     },
     "erase": {
       "goes": {
@@ -4321,7 +4325,9 @@
         "outbox": "{count, plural, one {# e-mail} other {# e-mails}} i {label}",
         "consent": "{count, plural, one {# samtykkepost} other {# samtykkeposter}}",
         "campaignMail": "{count, plural, one {# kampagne-e-mail} other {# kampagne-e-mails}}",
-        "files": "{count, plural, one {# fil} other {# filer}}"
+        "files": "{count, plural, one {# fil} other {# filer}}",
+        "answers": "{count, plural, one {# formularsvar} other {# formularsvar}} i {label}",
+        "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen"
       },
       "stays": {
         "forGood": "Gemmes for altid.",
@@ -4372,7 +4378,11 @@
       "heading": "Hvor længe vi gemmer ting",
       "sub": "Derefter slettes hver post.",
       "what": "Hvad",
-      "keptFor": "Gemmes i"
+      "keptFor": "Gemmes i",
+      "answers": "Formularsvar — {addOn}",
+      "answersMonths": "{count, plural, one {Gemmes i # måned} other {Gemmes i # måneder}}",
+      "answersUntilRemoved": "Gemmes, indtil nogen fjerner dem",
+      "answersWhy": "Indstilles under indstillingerne for {addOn}. Ældre svar slettes hver nat."
     },
     "downloads": {
       "processing": "Bliver lavet…",

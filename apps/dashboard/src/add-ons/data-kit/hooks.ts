@@ -19,6 +19,7 @@ import type {
   DataRow,
   DataValue,
   EachResult,
+  FormSummaryAnswer,
   LookUpAnswer,
   OnceValue,
   OpenDocumentOptions,
@@ -27,6 +28,8 @@ import type {
   PostingSaid,
   UseDocumentResult,
   UseExportResult,
+  UseFormSummaryResult,
+  UseFormTablesResult,
   UseLookUpResult,
   UseReadResult,
   UseRecordResult,
@@ -360,7 +363,7 @@ export function useAccess(): UseAccessResult {
       ready: true,
       canRead: (table, columns) => {
         const at = own(table);
-        if (at === undefined) return kit.reply.hosts.some((host) => host.tableRef === table);
+        if (at === undefined) return kit.reply.hosts.some((host) => host.tableRef === table && host.via !== 'forms');
         return at.can.read && (columns ?? []).every((column) => !at.unreadable.includes(column));
       },
       canCreate: (table) => own(table)?.can.create === true,
@@ -523,4 +526,41 @@ export function useExport(): UseExportResult {
     window.open(`/api/v1/exports/${encodeURIComponent(id)}/download`, '_blank', 'noopener');
   }, []);
   return { start, download, running: running > 0, error };
+}
+
+/**
+ * A form's results, counted by the engine over every answer
+ * (`GET /add-ons/:key/forms/:id/summary`), as the reader may read the
+ * answers: a refusal is the page's to show; `refetch` reads it again (after
+ * the page deletes answers, say).
+ */
+export function useFormSummary(formId: string | number | null): UseFormSummaryResult {
+  const kit = useKit();
+  const id = formId === null ? null : keyText(formId);
+  const result = useQuery({
+    queryKey: ['add-on-form-summary', kit.addOnKey, id] as const,
+    enabled: id !== null,
+    queryFn: () => api.get<{ data: FormSummaryAnswer }>(`/api/v1/add-ons/${encodeURIComponent(kit.addOnKey)}/forms/${encodeURIComponent(id ?? '')}/summary`),
+  });
+  const { refetch } = result;
+  const again = useCallback(() => void refetch(), [refetch]);
+  return {
+    summary: result.data?.data ?? null,
+    loading: id !== null && result.isPending,
+    error: result.error === null ? null : dataError(result.error),
+    refetch: again,
+  };
+}
+
+/** The tables the add-on's forms may become a row of: the kit's `via: 'forms'` hosts (read only). */
+export function useFormTables(): UseFormTablesResult {
+  const kit = useKit();
+  return useMemo<UseFormTablesResult>(
+    () => ({
+      tables: kit.reply.hosts
+        .filter((host) => host.via === 'forms')
+        .map((host) => ({ id: host.id, tableRef: host.tableRef, label: host.label, app: host.app ?? '', columns: host.columns ?? [] })),
+    }),
+    [kit],
+  );
 }
