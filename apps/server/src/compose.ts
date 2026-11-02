@@ -44,6 +44,7 @@ import {
   DAY_MS,
   destinationsRepo,
   exportsRepo,
+  formMarksRepo,
   HOUR_MS,
   filesRepo,
   jobsRepo,
@@ -94,7 +95,11 @@ import {
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
+import { createAnswerDoor } from './forms/answer.js';
 import { createFormsCatalog } from './forms/catalog.js';
+import { createFormsConfirm } from './forms/confirm.js';
+import { createFormsScopes } from './forms/scope.js';
+import { formsPackageVouched } from './forms/vouched.js';
 import { listedWebsitesOf } from './forms/websites.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
@@ -312,6 +317,7 @@ import { consentRoutes, emailColumnOf } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { mailDoorRoutes } from './routes/mail-door/index.js';
 import { privacyRoutes } from './routes/privacy/index.js';
+import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
@@ -473,6 +479,9 @@ export const RETENTION_GC_SCHEDULE_NAME = 'retention-gc';
 
 /** Daily: a person's downloaded data whose time is up is deleted (`privacy/export.ts`), after the meta sweep. */
 export const PRIVACY_EXPORTS_SWEEP_NAME = 'privacy-exports-sweep';
+/** Sign-ups left waiting past their link's days, and the forms' old counts. */
+export const FORMS_SWEEP_NAME = 'forms-sweep';
+export const FORMS_SWEEP_CRON = '40 3 * * *';
 export const PRIVACY_EXPORTS_SWEEP_CRON = '30 3 * * *';
 
 /** Minute flush of the public API's request counts. */
@@ -1099,7 +1108,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const addOnInstalls = keepAddOnInstalls(meta, async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
   // The forms add-ons' published forms, as strangers are served them (the forms door) and as the host editor lists them.
-  const formsCatalog = createFormsCatalog({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId) });
+  /*
+   * A package that declares forms serves them only when vouched for, by the
+   * same sources the deciding code needs (a bundled pin, the catalogue's
+   * bytes, a developer's key outside production): a hand-uploaded package
+   * serves nothing. Its tree is hashed once a minute at most.
+   */
+  const vouchedForms = new Map<string, { at: number; vouched: boolean }>();
+  const formsCatalog = createFormsCatalog({
+    meta,
+    installs: () => addOnInstalls.fresh(),
+    data: (connectionId) => manager.data(connectionId),
+    vouched: async (pkg) => {
+      const id = `${pkg.key}@${pkg.version}`;
+      const kept = vouchedForms.get(id);
+      if (kept !== undefined && Date.now() - kept.at < 60_000) return kept.vouched;
+      const vouched = await formsPackageVouched(addOnStore, meta, pkg);
+      vouchedForms.set(id, { at: Date.now(), vouched });
+      return vouched;
+    },
+  });
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
     refresh: () => addOnInstalls.fresh(),
@@ -2251,6 +2279,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
         }),
       );
+      // Whether mail a stranger causes through a form goes, for the forms builder to say why not.
+      await api.register(formsStaffRoutes({ meta, secret: env.ADMINIUM_SECRET }));
       // The marketing mail settings: each sender's DKIM key and DNS checks, the reply address, the bounce card's notice addresses.
       await api.register(
         mailSettingsRoutes({
@@ -3076,8 +3106,38 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // click links. Always registered, like the pay page: a marketing mail's
   // links must work whether or not the public API is open; every route asks
   // first whether the outside can reach this server.
+  /*
+   * A form's answer, and a sign-up's confirmation: the engine takes both for
+   * a stranger. The forms scope is the tables the apps open to forms
+   * (`forms/scope.ts`), read again whenever anything installed moves.
+   */
+  const formsData = async (connectionId: string) => manager.data(connectionId);
+  const formsViews = (connectionId: string) => publicViews.viewFor(connectionId);
+  const formsScopes = createFormsScopes({ meta, tablesOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined)?.tables ?? null });
+  const formsWebsites = listedWebsitesOf(meta);
+  const formsConfirm = createFormsConfirm({ meta, secret: env.ADMINIUM_SECRET, consent, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews });
+  const answerDoor = createAnswerDoor({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    data: formsData,
+    viewFor: formsViews,
+    installs: () => addOnInstalls.fresh(),
+    scopes: formsScopes,
+    writes: recordWrites,
+    consent,
+    switches: publicSwitches,
+    websites: formsWebsites,
+    hub: () => (app.hasDecorator('realtime') ? app.realtime : undefined),
+  });
+  // A sign-up waiting for its click lets go after thirty days; the forms' counts older than any cap reads go too.
+  jobs.scheduler.registerSchedule(FORMS_SWEEP_NAME, FORMS_SWEEP_CRON, async () => {
+    const expired = await formsConfirm.expirePending();
+    const pruned = await formMarksRepo(meta).prune(Date.now() - 2 * DAY_MS);
+    if (expired > 0 || pruned > 0) app.log.info({ expired, pruned }, 'forms sweep');
+  });
+
   await app.register(
-    mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }),
+    mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, confirm: formsConfirm }),
   );
 
   // The pages a stranger sees (`/x/`): forms, drawn by the engine from the
@@ -3090,7 +3150,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       catalog: formsCatalog,
       secret: env.ADMINIUM_SECRET,
       storage,
-      websites: listedWebsitesOf(meta),
+      websites: formsWebsites,
+      answers: answerDoor,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
