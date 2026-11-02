@@ -205,6 +205,10 @@ describe.each(LEGS)('a form’s files on the real server — %s', (dialect, avai
     expect(stranger.statusCode).toBe(401);
     // …and the same for a file that is not there: a stranger learns nothing.
     expect((await composed.app.inject({ method: 'GET', url: `/api/v1/forms/files/${'y'.repeat(32)}` })).statusCode).toBe(401);
+    // The staff files routes never serve a stranger's file, whoever asks.
+    const fileId = (await publicUploadsRepo(h.meta).findById(id))!.fileId!;
+    expect((await composed.app.inject({ method: 'GET', url: `/api/v1/files/${fileId}/content`, headers: { cookie: owner } })).statusCode).toBe(404);
+    expect((await composed.app.inject({ method: 'GET', url: `/api/v1/files/${fileId}`, headers: { cookie: owner } })).statusCode).toBe(404);
     // Picked, never sent: nobody's to open.
     const loose = await upload('showroom-visit');
     expect((await composed.app.inject({ method: 'GET', url: `/api/v1/forms/files/${loose}`, headers: { cookie: owner } })).statusCode).toBe(404);
