@@ -252,7 +252,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
         const userId = personOf(request);
         const result = await removeWebsite(meta, request.body.origin, { userId, at: app.rbac.now() });
         if (!result.removed) throw new NotFoundError('That website is not on the list.');
-        await app.rbac.audit(request, { category: 'settings', action: 'privacy.websites.remove', changes: { before: { origin: request.body.origin } } });
+        await app.rbac.audit(request, { category: 'settings', action: 'privacy.websites.remove', changes: { before: { origin: result.origin } } });
         return websitesView(result.websites);
       },
     );

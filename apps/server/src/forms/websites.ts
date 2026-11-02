@@ -18,9 +18,15 @@
  * cache per meta store, shared by every reader, and dropped by a save on this
  * server, so the Privacy page's change takes effect at once here and within
  * that time on any other server process. No restart, ever.
+ *
+ * An add or a remove reads the whole list and writes it back, so each runs in
+ * one transaction that first locks the list's settings row (`FOR UPDATE` on
+ * Postgres and MySQL; SQLite's writes already queue on its one connection).
+ * Two staff members adding at the same moment then both keep their websites:
+ * the second waits, reads the list with the first one's in it, and adds to it.
  */
-import { checkWebsiteLines, WEBSITES_MAX, type WebsiteLine } from '@adminium/add-on-contracts/forms/websites';
-import { settingsRepo, type MetaDb } from '@adminium/meta';
+import { checkWebsiteLine, checkWebsiteLines, WEBSITES_MAX, type WebsiteLine } from '@adminium/add-on-contracts/forms/websites';
+import { readJsonFrom, settingsRepo, SETTINGS_REGISTRY, type MetaDb } from '@adminium/meta';
 
 import { normalizePublicOrigin } from '../security/public-origin.js';
 
@@ -73,6 +79,44 @@ async function selfOrigin(meta: MetaDb): Promise<string | null> {
   return typeof stored === 'string' ? normalizePublicOrigin(stored) : null;
 }
 
+const WEBSITES_KEY = 'publicPages.websites';
+
+/**
+ * Run a change to the list in one transaction, holding the list's settings
+ * row locked from the read to the write, so a change made meanwhile by
+ * another request is never written over. `change` answers the new list
+ * (null to write nothing) and what to return.
+ */
+async function changeWebsites<T>(
+  meta: MetaDb,
+  by: { userId: string | null; at: number },
+  change: (before: ListedWebsite[]) => Promise<{ websites: ListedWebsite[] | null; answer: T }>,
+): Promise<T> {
+  // A lock needs a row: the first change of an install writes the empty list first. Two
+  // first changes race to insert it; the loser's insert fails on the key and it goes on.
+  const exists = async () => (await meta.db.selectFrom('adminium_settings').select('key').where('key', '=', WEBSITES_KEY).executeTakeFirst()) !== undefined;
+  if (!(await exists())) {
+    try {
+      await meta.db.insertInto('adminium_settings').values({ key: WEBSITES_KEY, value: JSON.stringify([]), updatedAt: by.at, updatedBy: by.userId }).execute();
+    } catch (error) {
+      if (!(await exists())) throw error;
+    }
+  }
+  const answer = await meta.db.transaction().execute(async (trx) => {
+    const tmeta: MetaDb = { db: trx, dialect: meta.dialect };
+    // The locking read itself carries the value: on MySQL a plain read after it would see the
+    // transaction's first snapshot, not the list another change has just committed.
+    const read = trx.selectFrom('adminium_settings').select('value').where('key', '=', WEBSITES_KEY);
+    const row = await (meta.dialect === 'sqlite' ? read : read.forUpdate()).executeTakeFirst();
+    const before = row === undefined ? [] : SETTINGS_REGISTRY[WEBSITES_KEY].schema.parse(readJsonFrom(meta, row.value)).map((site) => ({ ...site }));
+    const next = await change(before);
+    if (next.websites !== null) await settingsRepo(tmeta).set(WEBSITES_KEY, next.websites, { updatedBy: by.userId, at: by.at });
+    return next.answer;
+  });
+  forgetListedWebsites(meta);
+  return answer;
+}
+
 /** What an add answers: the list after it, or each line with what is wrong with it (nothing was added). */
 export type AddWebsites =
   | { ok: true; added: string[]; websites: ListedWebsite[] }
@@ -84,23 +128,47 @@ export type AddWebsites =
  * listed), and the list may not grow past fifty.
  */
 export async function addWebsites(meta: MetaDb, lines: readonly string[], by: { userId: string | null; at: number }): Promise<AddWebsites> {
-  const before = await readWebsites(meta);
-  const checked = checkWebsiteLines(lines, { self: await selfOrigin(meta), listed: before.map((site) => site.origin) });
-  const tooMany = before.length + checked.length > WEBSITES_MAX;
-  if (lines.length === 0 || tooMany || checked.some((line) => line.code !== 'ok')) return { ok: false, lines: checked, tooMany };
-  const added = checked.map((line) => line.origin!);
-  const websites = [...before, ...added.map((origin) => ({ origin, addedBy: by.userId, addedAt: by.at }))];
-  await settingsRepo(meta).set('publicPages.websites', websites, { updatedBy: by.userId, at: by.at });
-  forgetListedWebsites(meta);
-  return { ok: true, added, websites };
+  const self = await selfOrigin(meta);
+  return changeWebsites<AddWebsites>(meta, by, async (before) => {
+    const checked = checkWebsiteLines(lines, { self, listed: before.map((site) => site.origin) });
+    const tooMany = before.length + checked.length > WEBSITES_MAX;
+    if (lines.length === 0 || tooMany || checked.some((line) => line.code !== 'ok')) return { websites: null, answer: { ok: false, lines: checked, tooMany } };
+    const added = checked.map((line) => line.origin!);
+    const websites = [...before, ...added.map((origin) => ({ origin, addedBy: by.userId, addedAt: by.at }))];
+    return { websites, answer: { ok: true, added, websites } };
+  });
 }
 
-/** Take one website off the list; false when it was not on it. */
-export async function removeWebsite(meta: MetaDb, origin: string, by: { userId: string | null; at: number }): Promise<{ removed: boolean; websites: ListedWebsite[] }> {
-  const before = await readWebsites(meta);
-  const websites = before.filter((site) => site.origin !== origin);
-  if (websites.length === before.length) return { removed: false, websites: before };
-  await settingsRepo(meta).set('publicPages.websites', websites, { updatedBy: by.userId, at: by.at });
-  forgetListedWebsites(meta);
-  return { removed: true, websites };
+/**
+ * The origin a remove names, reduced the way an add reduces a line
+ * (`https://Shop.example/` is `https://shop.example`); as given when it does
+ * not read as a website on its own.
+ */
+function originToRemove(origin: string): string {
+  const read = checkWebsiteLine(origin, { self: null, listed: [] });
+  return read.code === 'ok' && read.origin !== null ? read.origin : origin.trim();
+}
+
+/** What a remove answers: whether it was listed, the origin it named once reduced, and the list after. */
+export interface RemoveWebsite {
+  removed: boolean;
+  origin: string;
+  websites: ListedWebsite[];
+}
+
+/** Take one website off the list; false when it was not on it. `origin` is the one taken off. */
+export async function removeWebsite(
+  meta: MetaDb,
+  origin: string,
+  by: { userId: string | null; at: number },
+): Promise<RemoveWebsite> {
+  const target = originToRemove(origin);
+  // Nothing is listed until the list's row exists: no need to make it only to find nothing.
+  const listed = await readWebsites(meta);
+  if (listed.every((site) => site.origin !== target)) return { removed: false, origin: target, websites: listed };
+  return changeWebsites<RemoveWebsite>(meta, by, async (before) => {
+    const websites = before.filter((site) => site.origin !== target);
+    if (websites.length === before.length) return { websites: null, answer: { removed: false, origin: target, websites: before } };
+    return { websites, answer: { removed: true, origin: target, websites } };
+  });
 }

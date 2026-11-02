@@ -8,7 +8,10 @@
  *    the JSON back parsed, SQLite as text);
  *  - an add is all or none: one refused line adds nothing, and the list
  *    never grows past fifty;
- *  - a removal takes one website off; an unlisted one is said to be unlisted;
+ *  - a removal takes one website off, named however an add would take it
+ *    (`https://Shop.example/`); an unlisted one is said to be unlisted;
+ *  - adds made at the same moment all keep their websites, from the very
+ *    first one of an install and on a list already there;
  *  - the forms door's read is kept a few seconds, and a save on this server
  *    drops it at once: no restart.
  */
@@ -97,7 +100,41 @@ describe.each(META_ENGINES)('"Your websites" in the meta store — $name', (engi
     await settingsRepo(handle.meta).set('publicPages.websites', [], { updatedBy: null });
   });
 
+  it.skipIf(!engine.available)('takes a website off however it is written, reduced as an add reduces it', async () => {
+    const by = { userId: owner, at: 1_793_000_000_700 };
+    await settingsRepo(handle.meta).set('publicPages.websites', [{ origin: 'https://shop.example', addedBy: null, addedAt: 1 }], { updatedBy: null });
+    const removed = await removeWebsite(handle.meta, '  https://Shop.example/ ', by);
+    expect([removed.removed, removed.origin]).toEqual([true, 'https://shop.example']);
+    expect(await readWebsites(handle.meta)).toEqual([]);
+    await settingsRepo(handle.meta).set('publicPages.websites', [{ origin: 'https://shop.example', addedBy: null, addedAt: 1 }], { updatedBy: null });
+    expect((await removeWebsite(handle.meta, 'HTTPS://SHOP.EXAMPLE:443', by)).removed).toBe(true);
+    await settingsRepo(handle.meta).set('publicPages.websites', [], { updatedBy: null });
+  });
+
+  it.skipIf(!engine.available)('keeps every website of adds made at the same moment, from an install’s first add and on a list already kept', async () => {
+    const settings = settingsRepo(handle.meta);
+    const at = (n: number) => ({ userId: owner, at: 1_793_000_001_000 + n });
+    // No list kept yet: the first adds of an install race to make the row too.
+    await settings.unset('publicPages.websites');
+    const first = Array.from({ length: 6 }, (_, n) => `https://first-${String(n)}.example`);
+    const firstAnswers = await Promise.all(first.map((site, n) => addWebsites(handle.meta, [site], at(n))));
+    expect(firstAnswers.map((answer) => answer.ok)).toEqual(first.map(() => true));
+    expect((await readWebsites(handle.meta)).map((site) => site.origin).sort()).toEqual([...first].sort());
+
+    // A list already kept, and a remove racing the adds: each change is kept.
+    const more = Array.from({ length: 6 }, (_, n) => `https://more-${String(n)}.example`);
+    await Promise.all([...more.map((site, n) => addWebsites(handle.meta, [site], at(10 + n))), removeWebsite(handle.meta, first[0]!, at(20))]);
+    expect((await readWebsites(handle.meta)).map((site) => site.origin).sort()).toEqual([...first.slice(1), ...more].sort());
+
+    // The same website added twice at once is listed once: the second is told it is already there.
+    const twice = await Promise.all([addWebsites(handle.meta, ['https://twice.example'], at(30)), addWebsites(handle.meta, ['https://twice.example'], at(31))]);
+    expect(twice.map((answer) => (answer.ok ? 'ok' : answer.lines[0]!.code)).sort()).toEqual(['listed', 'ok']);
+    expect((await readWebsites(handle.meta)).filter((site) => site.origin === 'https://twice.example')).toHaveLength(1);
+    await settings.set('publicPages.websites', [], { updatedBy: null });
+  });
+
   it.skipIf(!engine.available)('the forms door’s read is kept a few seconds; a save here drops it at once', async () => {
+    await settingsRepo(handle.meta).set('publicPages.websites', [], { updatedBy: null });
     forgetListedWebsites(handle.meta);
     let clock = 1_000_000;
     const listed = listedWebsitesOf(handle.meta, () => clock);
