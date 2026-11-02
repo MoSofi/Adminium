@@ -696,6 +696,28 @@ describe('PUT /api/v1/surfaces/domains', () => {
     expect(await settings.get('surfaces.pageHosts')).toEqual({});
   });
 
+  it('offers only the live forms’ addresses a save would take as a home, so every offered home saves', async () => {
+    const { app, fixture } = await build(async () => [
+      { addOn: 'forms', slug: 'newsletter' },
+      { addOn: 'forms', slug: 'Spring Sale' },
+      { addOn: 'forms', slug: 'a//b' },
+      { addOn: 'forms', slug: '../admin' },
+      { addOn: 'forms', slug: 'back\\slash' },
+      { addOn: 'forms', slug: 'news%2Fletter' },
+      { addOn: 'forms', slug: 'line\r\nbreak' },
+      { addOn: 'forms', slug: 'api' },
+      { addOn: 'forms', slug: 'Caps' },
+    ]);
+    const list = await app.inject({ method: 'GET', url: '/api/v1/surfaces', headers: asUser(fixture.admin) });
+    expect(list.statusCode, list.body).toBe(200);
+    const homes = list.json().pageHomes as string[];
+    expect(homes).toEqual(['/x/forms/newsletter']);
+    for (const home of homes) {
+      const res = await put(app, fixture.admin, { 'go.meridian.example': { kind: 'pages', home } });
+      expect(res.statusCode, res.body).toBe(200);
+    }
+  });
+
   it('refuses a home page outside /x/ or on the pages’ own files, and a host given to both an app and the pages', async () => {
     const { app, fixture } = await build();
     const res = await put(app, fixture.admin, {

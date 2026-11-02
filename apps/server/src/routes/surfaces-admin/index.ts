@@ -40,6 +40,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { resolveLabel } from '../../cli/surfaces-root.js';
 import {
+  pagesHomeIssueFor,
   validateDomainEntries,
   validateInstanceEntries,
   validatePageHostEntries,
@@ -156,7 +157,10 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
           if (list.length > 0) instances[surface.appKey] = list;
         }
         // Each live form's address, once, in order: a stranger's page a host's `/` may send to.
-        const pageHomes = [...new Set((deps.liveForms === undefined ? [] : await deps.liveForms().catch(() => [])).map((form) => `/x/forms/${form.slug}`))].sort();
+        // A slug is the add-on's free text, so only an address the save would take is offered:
+        // the same rule a saved home passes, which keeps the redirect to a plain `/x/` path.
+        const liveForms = deps.liveForms === undefined ? [] : await deps.liveForms().catch(() => []);
+        const pageHomes = [...new Set(liveForms.map((form) => `/x/forms/${form.slug}`))].filter((home) => pagesHomeIssueFor(home) === null).sort();
         return { surfaces, domains: editorMap(current), instances, pageHomes };
       },
     );
