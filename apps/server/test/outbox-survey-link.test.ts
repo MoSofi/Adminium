@@ -36,7 +36,7 @@ import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
 import { createOutboxProducers } from '../src/outbox/producers.js';
 import { createOutboxSender, type OutboxSender } from '../src/outbox/sender.js';
-import { instantOf } from '../src/outbox/survey-link.js';
+import { instantOf, keepSurveyToken, surveyLinkFor } from '../src/outbox/survey-link.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
@@ -165,6 +165,23 @@ describe.each(LEGS)('a survey invitation, mailed — %s', (dialect, available) =
     expect((await queued()).length).toBe(before);
     expect(await invitationRow('inv_done')).toMatchObject({ token_hash: null });
     expect(await invitationRow('inv_late')).toMatchObject({ token_hash: null });
+  });
+
+  it.skipIf(!available)('each guard of an answered invitation holds alone: no link is made for one, and none is kept on one answered meanwhile', async () => {
+    await invitation('inv_guard', { email: 'gus@harbour.dev' });
+    const view = (await views.viewFor(h.connectionId))!;
+    const { db, dialect } = await h.manager.data(h.connectionId);
+    const table = view.table(names['invitations']!).id;
+    const read = async () => ({ table, row: (await h.rows(`SELECT * FROM ${names['invitations']!} WHERE id = 'inv_guard'`))[0]! });
+    // Unanswered: a link, and its hash kept.
+    const made = await surveyLinkFor({ meta: h.meta, db, view, now: NOW }, await read(), 'gus@harbour.dev');
+    if ('skip' in made || made.keep === null) throw new Error('no link was made');
+    // Answered between the link being made and the message being claimed: nothing is kept, and the sender is told.
+    await h.rows(`UPDATE ${names['invitations']!} SET answered_at = '2026-11-02 11:00:00' WHERE id = 'inv_guard'`);
+    expect(await keepSurveyToken({ db, view, dialect }, made.keep)).toBe(false);
+    expect(await invitationRow('inv_guard')).toMatchObject({ token_hash: null });
+    // Answered already: no link is made at all.
+    expect(await surveyLinkFor({ meta: h.meta, db, view, now: NOW }, await read(), 'gus@harbour.dev')).toEqual({ skip: 'Not sent: the survey was answered already' });
   });
 
   it.skipIf(!available)('with no public address, nothing is sent and the row says why', async () => {
