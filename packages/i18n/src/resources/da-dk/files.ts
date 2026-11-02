@@ -116,5 +116,17 @@ export default {
     "done": "Færdig",
     "failed": "Mislykkedes",
     "cancelled": "Annulleret"
+  },
+  "publicUploads": {
+    "notice": {
+      "quota": {
+        "title": "Filer fra dine formularer bliver afvist",
+        "body": "De uploadede filer fylder den plads, der er sat af til dem ({gb} GB). Slet svar, du ikke længere har brug for, eller hæv grænsen under Indstillinger."
+      },
+      "cap": {
+        "title": "En besøgende har sendt for mange filer",
+        "body": "En netværksadresse har sendt {n} filer på en dag, det højeste tilladte. Dens næste filer afvises indtil i morgen."
+      }
+    }
   }
 } as const;

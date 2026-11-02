@@ -50,6 +50,18 @@
       "text": "Text"
     }
   },
+  "files": {
+    "remove": "{file} entfernen",
+    "added": "{file} hinzugefügt.",
+    "removed": "{file} entfernt.",
+    "refused": "{file} wurde nicht hinzugefügt.",
+    "tooBig": "Diese Datei ist {size} groß. Das Limit ist {mb} MB.",
+    "kind": "Dieser Dateityp wird nicht angenommen. Verwenden Sie {kinds}.",
+    "quota": "Dateien können gerade nicht angenommen werden. Bitte versuchen Sie es später erneut.",
+    "cap": "Heute wurden von hier zu viele Dateien gesendet. Bitte versuchen Sie es morgen erneut.",
+    "count": "Sie können bis zu {max, plural, one {# Datei} other {# Dateien}} hinzufügen.",
+    "failed": "Diese Datei konnte nicht gesendet werden. Bitte versuchen Sie es erneut."
+  },
   "score": {
     "low": "Unwahrscheinlich",
     "high": "Sehr wahrscheinlich",

@@ -50,6 +50,18 @@
       "text": "纯文本"
     }
   },
+  "files": {
+    "remove": "移除 {file}",
+    "added": "已添加 {file}。",
+    "removed": "已移除 {file}。",
+    "refused": "未添加 {file}。",
+    "tooBig": "此文件大小为 {size}。上限为 {mb} MB。",
+    "kind": "不接受此类文件。请使用 {kinds}。",
+    "quota": "目前无法接收文件。请稍后再试。",
+    "cap": "今天从此处发送的文件过多。请明天再试。",
+    "count": "最多可添加 {max} 个文件。",
+    "failed": "无法发送此文件。请重试。"
+  },
   "score": {
     "low": "不太可能",
     "high": "非常可能",

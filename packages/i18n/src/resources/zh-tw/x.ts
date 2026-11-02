@@ -60,6 +60,18 @@ export default {
       "text": "純文字"
     }
   },
+  "files": {
+    "remove": "移除 {file}",
+    "added": "已新增 {file}。",
+    "removed": "已移除 {file}。",
+    "refused": "未新增 {file}。",
+    "tooBig": "此檔案大小為 {size}。上限為 {mb} MB。",
+    "kind": "不接受此類檔案。請使用 {kinds}。",
+    "quota": "目前無法接收檔案。請稍後再試。",
+    "cap": "今天從此處傳送的檔案過多。請明天再試。",
+    "count": "最多可新增 {max} 個檔案。",
+    "failed": "無法傳送此檔案。請重試。"
+  },
   "score": {
     "low": "不太可能",
     "high": "非常可能",

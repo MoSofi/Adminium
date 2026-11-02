@@ -19559,6 +19559,22 @@
     "status": "mt",
     "srcHash": "215e90a2a1e9"
   },
+  "files.publicUploads.notice.cap.body": {
+    "status": "mt",
+    "srcHash": "fb3cc63ddd6b"
+  },
+  "files.publicUploads.notice.cap.title": {
+    "status": "mt",
+    "srcHash": "1a8a7c137224"
+  },
+  "files.publicUploads.notice.quota.body": {
+    "status": "mt",
+    "srcHash": "5ce303e317f1"
+  },
+  "files.publicUploads.notice.quota.title": {
+    "status": "mt",
+    "srcHash": "c017d89d0d99"
+  },
   "files.rail.byConnection": {
     "status": "mt",
     "srcHash": "3736a4f05a36"
@@ -45394,6 +45410,46 @@
   "x.file.kind.text": {
     "status": "mt",
     "srcHash": "9f9443b8f3d8"
+  },
+  "x.files.added": {
+    "status": "mt",
+    "srcHash": "9db704c706b5"
+  },
+  "x.files.cap": {
+    "status": "mt",
+    "srcHash": "f49f67a27f2b"
+  },
+  "x.files.count": {
+    "status": "mt",
+    "srcHash": "a11a0df12334"
+  },
+  "x.files.failed": {
+    "status": "mt",
+    "srcHash": "76f81cba21eb"
+  },
+  "x.files.kind": {
+    "status": "mt",
+    "srcHash": "9b0f453d0c73"
+  },
+  "x.files.quota": {
+    "status": "mt",
+    "srcHash": "2102b6360d6a"
+  },
+  "x.files.refused": {
+    "status": "mt",
+    "srcHash": "8118f016d793"
+  },
+  "x.files.remove": {
+    "status": "mt",
+    "srcHash": "f0834f2b5fd7"
+  },
+  "x.files.removed": {
+    "status": "mt",
+    "srcHash": "11b3df7360bd"
+  },
+  "x.files.tooBig": {
+    "status": "mt",
+    "srcHash": "2bf84ceba14b"
   },
   "x.footer.privacyNotice": {
     "status": "mt",

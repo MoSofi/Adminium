@@ -116,5 +116,17 @@ export default {
     "done": "Done",
     "failed": "Failed",
     "cancelled": "Cancelled"
+  },
+  "publicUploads": {
+    "notice": {
+      "quota": {
+        "title": "Files from your forms are being refused",
+        "body": "The files strangers uploaded fill the space set for them ({gb} GB). Delete answers you no longer need, or raise the limit in Settings."
+      },
+      "cap": {
+        "title": "One visitor sent too many files",
+        "body": "A network address sent {n} files in a day, the most allowed. Its next files are refused until tomorrow."
+      }
+    }
   }
 } as const;

@@ -50,6 +50,18 @@
       "text": "ren tekst"
     }
   },
+  "files": {
+    "remove": "Fjern {file}",
+    "added": "{file} er tilføjet.",
+    "removed": "{file} er fjernet.",
+    "refused": "{file} blev ikke tilføjet.",
+    "tooBig": "Denne fil fylder {size}. Grænsen er {mb} MB.",
+    "kind": "Denne filtype modtages ikke. Brug {kinds}.",
+    "quota": "Filer kan ikke modtages lige nu. Prøv igen senere.",
+    "cap": "For mange filer herfra i dag. Prøv igen i morgen.",
+    "count": "Du kan tilføje op til {max, plural, one {# fil} other {# filer}}.",
+    "failed": "Filen kunne ikke sendes. Prøv igen."
+  },
   "score": {
     "low": "Ikke sandsynligt",
     "high": "Meget sandsynligt",
