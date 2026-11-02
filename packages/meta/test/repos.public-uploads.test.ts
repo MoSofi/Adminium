@@ -80,6 +80,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.findById(late)).toMatchObject({ name: null, fileId: null, removedAt: 8_000_000 });
       expect(await repo.keptBytes()).toBe(102);
       expect(await repo.countFrom(FORM_A.addressKey, 0)).toBe(2);
+      expect(await repo.countFrom(FORM_A.addressKey, 1_000)).toBe(2);
       expect(await repo.countFrom(FORM_A.addressKey, 2_000)).toBe(1);
       expect((await repo.boundTo('form', 'forms/frm_a')).map((u) => u.id)).toEqual([kept, uid(3)]);
 

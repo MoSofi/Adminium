@@ -39,12 +39,16 @@ async function owners(meta: MetaDb): Promise<string[]> {
   return out.sort();
 }
 
-const WORDS: Readonly<Record<UploadTrip, { title: string; body: string }>> = {
+const WORDS: Readonly<Record<UploadTrip, { titleKey: string; bodyKey: string; title: string; body: string }>> = {
   quota: {
+    titleKey: 'files:publicUploads.notice.quota.title',
+    bodyKey: 'files:publicUploads.notice.quota.body',
     title: 'Files from your forms are being refused',
     body: 'The files strangers uploaded fill the space set for them ({gb} GB). Delete answers you no longer need, or raise the limit in Settings.',
   },
   cap: {
+    titleKey: 'files:publicUploads.notice.cap.title',
+    bodyKey: 'files:publicUploads.notice.cap.body',
     title: 'One visitor sent too many files',
     body: 'A network address sent {n} files in a day, the most allowed. Its next files are refused until tomorrow.',
   },
@@ -85,9 +89,8 @@ export async function tellUploadsRefused(
         {
           userId,
           kind: UPLOAD_NOTICE_KIND,
-          // i18n-dynamic-key: the two notices' words sit under `files:publicUploads.notice.<trip>`, with the English beside them.
-          title: i18n.t(`files:publicUploads.notice.${trip}.title`, { defaultValue: words.title, ...shown }),
-          body: i18n.t(`files:publicUploads.notice.${trip}.body`, { defaultValue: words.body, ...shown }),
+          title: i18n.t(words.titleKey, { defaultValue: words.title, ...shown }),
+          body: i18n.t(words.bodyKey, { defaultValue: words.body, ...shown }),
           actionUrl: '/settings',
         },
         { at, ...(deps.hub === undefined ? {} : { hub: deps.hub }) },

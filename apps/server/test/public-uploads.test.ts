@@ -43,7 +43,7 @@ const OWNER = { connectionId: 'conn_1', table: 'forms_answers', key: 'ans_1' };
 
 async function readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const parts: Buffer[] = [];
-  for await (const chunk of stream) parts.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+  for await (const chunk of stream) parts.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as unknown as Uint8Array));
   return Buffer.concat(parts);
 }
 
@@ -116,6 +116,8 @@ for (const engine of META_ENGINES) {
         expect(kept.includes(Buffer.from('GPSLatitude'))).toBe(false);
         expect(kept.equals(picture.clean)).toBe(true);
         expect(taken.upload.size).toBe(picture.clean.length);
+        // The kind is what the bytes are, among the question's: never only the first it takes.
+        expect(taken.upload.kind).toBe(name.endsWith('.jpg') ? 'jpg' : 'png');
       }
     });
 
