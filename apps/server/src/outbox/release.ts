@@ -46,7 +46,12 @@ export interface ReleasedLink {
   key: string;
   /** The link column that names the row. */
   link: string;
-  status: string;
+  /**
+   * The message's status column: a message not gone yet is skipped. Absent
+   * for a table whose rows only lose the link (a form answer's files, which
+   * go after the answer: `forms/files.ts`).
+   */
+  status?: string | undefined;
   /** Where a skip says why: the reason column, else the error column, else nowhere. */
   skipReason?: string | undefined;
   error?: string | undefined;
@@ -94,23 +99,24 @@ export async function releaseLinks(db: Db, links: readonly ReleasedLink[], id: u
   const out: Released[] = [];
   if (id === null || id === undefined) return out;
   for (const link of links) {
-    const where = link.skipReason ?? link.error;
+    const status = link.status;
+    const where = status === undefined ? undefined : (link.skipReason ?? link.error);
     const rows = (await db
       .selectFrom(link.outbox as never)
-      .select([link.key, link.status, ...(where === undefined ? [] : [where])] as never)
+      .select([link.key, ...(status === undefined ? [] : [status]), ...(where === undefined ? [] : [where])] as never)
       .where(link.link as never, '=', id as never)
       .execute()) as Row[];
     if (rows.length === 0) continue;
-    const waiting = rows.filter((row) => row[link.status] === 'queued' || row[link.status] === 'held').map((row) => row[link.key]);
-    if (waiting.length > 0) {
+    const waiting = status === undefined ? [] : rows.filter((row) => row[status] === 'queued' || row[status] === 'held').map((row) => row[link.key]);
+    if (status !== undefined && waiting.length > 0) {
       await db
         .updateTable(link.outbox as never)
-        .set({ [link.status]: 'skipped', ...(link.skipReason !== undefined ? { [link.skipReason]: REMOVED_SKIP } : link.error !== undefined ? { [link.error]: skipSentence(REMOVED_SKIP) } : {}) } as never)
+        .set({ [status]: 'skipped', ...(link.skipReason !== undefined ? { [link.skipReason]: REMOVED_SKIP } : link.error !== undefined ? { [link.error]: skipSentence(REMOVED_SKIP) } : {}) } as never)
         .where(link.key as never, 'in', waiting as never)
         .execute();
     }
     await db.updateTable(link.outbox as never).set({ [link.link]: null } as never).where(link.link as never, '=', id as never).execute();
-    out.push({ link, id, rows: rows.map((row) => ({ key: row[link.key], status: row[link.status], reason: where === undefined ? null : row[where] })) });
+    out.push({ link, id, rows: rows.map((row) => ({ key: row[link.key], status: status === undefined ? null : row[status], reason: where === undefined ? null : row[where] })) });
   }
   return out;
 }
@@ -118,11 +124,11 @@ export async function releaseLinks(db: Db, links: readonly ReleasedLink[], id: u
 /** Put back what a release changed: the row did not go after all. */
 export async function restoreLinks(db: Db, released: readonly Released[]): Promise<void> {
   for (const { link, id, rows } of released) {
-    const where = link.skipReason ?? link.error;
+    const where = link.status === undefined ? undefined : (link.skipReason ?? link.error);
     for (const row of rows) {
       await db
         .updateTable(link.outbox as never)
-        .set({ [link.link]: id, [link.status]: row.status, ...(where === undefined ? {} : { [where]: row.reason }) } as never)
+        .set({ [link.link]: id, ...(link.status === undefined ? {} : { [link.status]: row.status }), ...(where === undefined ? {} : { [where]: row.reason }) } as never)
         .where(link.key as never, '=', row.key as never)
         .execute();
     }

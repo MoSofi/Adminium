@@ -106665,7 +106665,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -106789,7 +106790,8 @@
                 "schema",
                 "archive",
                 "document",
-                "package"
+                "package",
+                "stranger"
               ]
             },
             "in": "query",
@@ -106978,7 +106980,8 @@
                               "schema",
                               "archive",
                               "document",
-                              "package"
+                              "package",
+                              "stranger"
                             ]
                           },
                           "destinationId": {
@@ -107166,7 +107169,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -107383,7 +107387,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -107550,7 +107555,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -107697,7 +107703,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -107866,7 +107873,8 @@
                                   "schema",
                                   "archive",
                                   "document",
-                                  "package"
+                                  "package",
+                                  "stranger"
                                 ]
                               },
                               "destinationId": {
@@ -108080,7 +108088,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -108229,7 +108238,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -108378,7 +108388,8 @@
                             "schema",
                             "archive",
                             "document",
-                            "package"
+                            "package",
+                            "stranger"
                           ]
                         },
                         "destinationId": {
@@ -132136,6 +132147,31 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/files/{id}": {
+      "get": {
+        "summary": "Download a file a stranger sent with a form answer",
+        "tags": [
+          "forms"
+        ],
+        "description": "The file an answer of a forms add-on took, as an attachment. Needs read on that add-on’s answers table, and a row limit that reaches the answer.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,64}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

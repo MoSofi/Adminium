@@ -564,6 +564,10 @@ export const SETTINGS_REGISTRY = {
   // tab was closed. 24 hours is long enough that a form left open over lunch
   // still saves, and short enough that the litter does not accumulate.
   'files.unattachedHours': def(z.number().int().min(1).max(720), 24, 'Hours an unattached upload is kept before it is moved to trash', P),
+  // Files strangers upload (a form's file question): all of them together, attached or not, and how many one
+  // network address may send in a day. Past either, an upload is refused and the owner is told (once an hour).
+  'publicUploads.quotaBytes': def(z.number().int().min(1_048_576).max(1_099_511_627_776), 2_147_483_648, 'Most bytes of files strangers uploaded, kept at once', P),
+  'publicUploads.perAddressDaily': def(z.number().int().min(1).max(10_000), 30, 'Most files one network address may upload in a day', P),
   'retention.filesTrashDays': def(z.number().int().min(1).max(365), 30, 'Days a trashed file is kept before its bytes are deleted', P),
   /*
    * NULL BY DEFAULT — kept forever. Every other retention key here has a

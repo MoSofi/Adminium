@@ -610,6 +610,80 @@ html:has(.x-page[data-frame]) #x-root {
   padding-inline: 14px;
 }
 
+/* A file picked for a file question: one row each, a refused one bordered in danger with its reason under it. */
+.x-file {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.x-file-row {
+  min-height: 52px;
+  padding-block: 4px;
+  padding-inline: 12px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.x-file-row[data-bad] {
+  border-color: var(--danger);
+}
+
+.x-file-icon {
+  color: var(--fg-subtle);
+}
+
+.x-file-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.x-file-name,
+.x-file-size {
+  font-family: "JetBrains Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+  text-align: start;
+}
+
+.x-file-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.x-file-size {
+  font-size: 11.5px;
+  color: var(--fg-subtle);
+}
+
+.x-file-remove {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.x-file-remove:hover {
+  background: var(--surface-3);
+}
+
+.x-file-input {
+  display: none;
+}
+
 .x-button-secondary:disabled {
   cursor: not-allowed;
   color: var(--fg-muted);

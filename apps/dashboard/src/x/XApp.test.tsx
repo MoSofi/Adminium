@@ -95,6 +95,8 @@ interface Call {
 
 let pages: Record<string, XPage | (() => XPage)>;
 let answerReply: { status: number; body: unknown; headers?: Record<string, string> };
+/** What the file door answers, by the file's name; a promise holds a reply back until the test lets it go. */
+let fileReplies: Record<string, { status: number; body: unknown } | Promise<{ status: number; body: unknown }>>;
 let calls: Call[];
 
 function stubFetch(): void {
@@ -107,6 +109,11 @@ function stubFetch(): void {
       const path = url.split('?')[0]!;
       if (path.endsWith('/challenge')) return new Response(JSON.stringify({ id: 'eyJ2IjoxfQ~sig', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 }), { status: 200 });
       if (path.endsWith('/answers') && method === 'POST') return new Response(JSON.stringify(answerReply.body), { status: answerReply.status, headers: answerReply.headers ?? {} });
+      if (path.endsWith('/files') && method === 'POST') {
+        const name = new URL(url, 'https://forms.example').searchParams.get('name') ?? '';
+        const reply = await (fileReplies[name] ?? { status: 200, body: { id: `up-${name.replace(/\W/g, '')}-0000000000000000`, name, size: (init.body as Blob).size, kind: 'pdf' } });
+        return new Response(JSON.stringify(reply.body), { status: reply.status });
+      }
       const slug = path.split('/').pop()!;
       const found = pages[slug];
       const page = typeof found === 'function' ? found() : found;
@@ -134,6 +141,7 @@ beforeEach(() => {
   pages = {};
   calls = [];
   answerReply = { status: 200, body: { state: 'sent' } };
+  fileReplies = {};
   stubFetch();
 });
 
@@ -143,6 +151,96 @@ afterEach(() => {
   document.documentElement.removeAttribute('dir');
   document.documentElement.removeAttribute('lang');
   delete document.documentElement.dataset['accent'];
+});
+
+const fileOf = (name: string, bytes: number, type = 'application/pdf') => new File([new Uint8Array(bytes)], name, { type });
+
+describe('a file question', () => {
+  async function ready() {
+    pages['showroom-visit'] = live(SHOWROOM);
+    const user = userEvent.setup({ applyAccept: false });
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    const choose = await screen.findByRole('button', { name: /Drawings of your space.*Choose files/ });
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    return { user, input, choose };
+  }
+
+  it('sends each file as it is picked, with a check of its own, and lists it with its size; refuses one too large before sending it', async () => {
+    const { user, input } = await ready();
+    expect(input.multiple).toBe(true);
+    expect(input.accept).toBe('.pdf,application/pdf,.jpg,.jpeg,image/jpeg,.png,image/png');
+    await user.upload(input, [fileOf('Records room layout.pdf', 2_200_000), fileOf('scan.pdf', 14 * 1024 * 1024 + 1)]);
+    await screen.findByText('Records room layout.pdf');
+    await waitFor(() => expect(screen.getByText('2.1 MB')).toBeTruthy());
+    const posted = calls.filter((call) => call.url.includes('/files'));
+    // Only the one that fits went to the door: as bytes, with its own check, naming its question and its name.
+    expect(posted).toHaveLength(1);
+    expect(posted[0]!.url).toBe('/x/forms/api/showroom-visit/files?q=qfiles&name=Records+room+layout.pdf');
+    expect(posted[0]!.headers['content-type']).toBe('application/octet-stream');
+    expect(posted[0]!.headers['x-adminium-proof']).toMatch(/^eyJ2IjoxfQ~sig\.[0-9a-z]+$/);
+    // The one too large: a row marked, its reason under it, the remove button described by it.
+    const remove = screen.getByRole('button', { name: 'Remove scan.pdf' });
+    const why = document.getElementById(remove.getAttribute('aria-describedby')!)!;
+    expect(why.textContent).toBe('This file is 14 MB. The limit is 10 MB.');
+    expect(remove.closest('.x-file-row')!.hasAttribute('data-bad')).toBe(true);
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Records room layout.pdf added.'));
+  });
+
+  it('says why the door refused a file, and lets it be removed, focus back on the button', async () => {
+    const { user, input, choose } = await ready();
+    fileReplies['site.png'] = { status: 415, body: { code: 'kind' } };
+    fileReplies['plan.pdf'] = { status: 429, body: { code: 'cap' } };
+    await user.upload(input, [fileOf('site.png', 300, 'image/png'), fileOf('plan.pdf', 300)]);
+    expect(await screen.findByText('This file type isn’t accepted. Use PDF, JPG, or PNG.')).toBeTruthy();
+    expect(await screen.findByText('Too many files from here today. Try again tomorrow.')).toBeTruthy();
+    // A name ending none of the kinds have: refused before it is sent.
+    await user.upload(input, [fileOf('IMG_0001.heic', 300, 'image/heic')]);
+    expect(screen.getAllByText('This file type isn’t accepted. Use PDF, JPG, or PNG.')).toHaveLength(2);
+    expect(calls.filter((call) => call.url.includes('/files'))).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Remove site.png' }));
+    expect(screen.queryByText('site.png')).toBeNull();
+    expect(document.activeElement).toBe(choose);
+    expect(screen.getByRole('status').textContent).toBe('site.png removed.');
+  });
+
+  it('sends the answer naming the files taken, after waiting for one still on its way', async () => {
+    const { user, input } = await ready();
+    let letGo!: (reply: { status: number; body: unknown }) => void;
+    fileReplies['late.pdf'] = new Promise((resolve) => (letGo = resolve));
+    fileReplies['refused.pdf'] = { status: 507, body: { code: 'quota' } };
+    await user.upload(input, [fileOf('first.pdf', 100), fileOf('refused.pdf', 100), fileOf('late.pdf', 100)]);
+    await screen.findByText('Files can’t be taken right now. Try again later.');
+    await user.type(screen.getByLabelText(/Your name/), 'Marta Kovac');
+    await user.type(screen.getByLabelText(/Work e-mail/), 'marta@cobaltlegal.example');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    // Nothing is sent while a file is on its way.
+    expect(calls.some((call) => call.url.endsWith('/answers'))).toBe(false);
+    letGo({ status: 200, body: { id: 'up-late-00000000000000000', name: 'late.pdf', size: 100, kind: 'pdf' } });
+    const sent = await waitFor(() => {
+      const found = calls.find((call) => call.url.endsWith('/answers'));
+      if (found === undefined) throw new Error('not sent yet');
+      return found;
+    });
+    expect((sent.body as { values: Record<string, unknown> }).values['qfiles']).toEqual(['up-firstpdf-0000000000000000', 'up-late-00000000000000000']);
+    await screen.findByRole('heading', { level: 1, name: 'Thanks, Marta.' });
+  });
+
+  it('takes one file where the question takes one: a new pick takes the place of the old', async () => {
+    const one: FormDefinition = { ...SHOWROOM, questions: SHOWROOM.questions.map((q) => (q.kind === 'file' ? { ...q, many: false, kinds: ['text'] } : q)) };
+    pages['showroom-visit'] = live(one);
+    const user = userEvent.setup({ applyAccept: false });
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    expect(await screen.findByRole('button', { name: /Drawings of your space.*Choose a file/ })).toBeTruthy();
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(input.multiple).toBe(false);
+    await user.upload(input, fileOf('a.txt', 10, 'text/plain'));
+    await screen.findByText('a.txt');
+    await user.upload(input, fileOf('b.txt', 10, 'text/plain'));
+    await screen.findByText('b.txt');
+    expect(screen.queryByText('a.txt')).toBeNull();
+  });
 });
 
 describe('a form a stranger fills', () => {
@@ -163,10 +261,12 @@ describe('a form a stranger fills', () => {
     const note = screen.getByLabelText(/Anything else/);
     expect(note.getAttribute('aria-describedby')).toBe(screen.getByText('A line or two is plenty.').id);
     expect(screen.getByRole('checkbox', { name: "Send me Meridian's newsletter." })).toHaveProperty('checked', false);
-    // The file control is drawn, named with its question, and takes nothing until the file door is open.
-    const choose = screen.getByRole('button', { name: /Drawings of your space.*Choose files/ });
-    expect(choose).toHaveProperty('disabled', true);
+    // The file control is drawn, named with its question, and described by its hint.
+    // Loaded when the form has a file question.
+    const choose = await screen.findByRole('button', { name: /Drawings of your space.*Choose files/ });
+    expect(choose).toHaveProperty('disabled', false);
     expect(screen.getByText('PDF, JPG, or PNG, up to 10 MB')).toBeTruthy();
+    expect(document.getElementById(choose.getAttribute('aria-describedby')!.split(' ')[0]!)!.textContent).toBe('PDF, JPG, or PNG, up to 10 MB');
     expect(screen.getByRole('heading', { level: 2, name: 'Your space' })).toBeTruthy();
     expect(screen.queryByText('Source')).toBeNull();
     // Required and Optional beside each label; the tick has neither.

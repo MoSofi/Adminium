@@ -146,6 +146,8 @@ declare module 'fastify' {
     widgetDataCache: WidgetDataCache;
     /** The file reconciler the data routes hold, for the writes made outside them (compose). */
     fileReconciler: FileReconciler;
+    /** A form answer's files go with the answer, a form's with the form (`forms/files.ts`); decorated by compose. Never throws. */
+    formsFiles: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
   }
 }
 
@@ -229,6 +231,8 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
   if (app.hasDecorator('outbox')) await app.outbox.onRecordEvent(event);
   // A person's sign-in address changed by the desk: their sessions and links end. Never throws.
   if (app.hasDecorator('publicIdentities')) await app.publicIdentities.onRecordEvent(event);
+  // A form's answer removed, by any door: the files a stranger sent with it go too. Never throws.
+  if (event.action === 'delete' && app.hasDecorator('formsFiles')) await app.formsFiles.onRecordEvent(event);
   if (!app.hasDecorator('automations')) return;
   await app.automations.onRecordEvent(event);
 }

@@ -106,5 +106,17 @@
     "done": "Terminé",
     "failed": "Échec",
     "cancelled": "Annulé"
+  },
+  "publicUploads": {
+    "notice": {
+      "quota": {
+        "title": "Les fichiers de vos formulaires sont refusés",
+        "body": "Les fichiers envoyés remplissent l’espace prévu pour eux ({gb} Go). Supprimez les réponses dont vous n’avez plus besoin, ou augmentez la limite dans les Réglages."
+      },
+      "cap": {
+        "title": "Un visiteur a envoyé trop de fichiers",
+        "body": "Une adresse réseau a envoyé {n} fichiers en un jour, le maximum autorisé. Ses prochains fichiers sont refusés jusqu’à demain."
+      }
+    }
   }
 }

@@ -7,6 +7,7 @@
  *   GET  /x/forms/api/<slug>?lang=…[&frame=1]   the form, in one of its languages, and who the business is
  *   GET  /x/forms/api/<slug>/challenge          the human check, solved when Send is pressed
  *   POST /x/forms/api/<slug>/answers            the answer, with the solved check in `x-adminium-proof`
+ *   POST /x/forms/api/<slug>/files?q=…&name=…   one file for a file question, as the body, with a check of its own
  *
  * THE ANSWER'S REPLY, as the page reads it (the answer door says these):
  *   200 `{ state: 'sent' }`                     taken; the page shows the form's ending
@@ -121,3 +122,4 @@ export async function postAnswer(slug: string, answer: XAnswer, proof: string): 
   if (response.status === 404 || state === 'unavailable') return { state: 'unavailable' };
   throw new XApiError(response.status);
 }
+

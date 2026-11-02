@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The page a stranger sees for a form (`/x/forms/<slug>`) through axe: the
- * form, its marks after Send, a survey, every ending, Arabic, a phone's width
+ * form, its files picked (one refused), its marks after Send, a survey, every ending, Arabic, a phone's width
  * and dark — in the BUILT bundle (`apps/dashboard/dist/x/`), with its real
  * stylesheet, which contrast needs.
  *
@@ -131,6 +131,7 @@ async function serve(page: Page, pretend: Pretend): Promise<void> {
     }
     if (path.endsWith('/challenge')) return route.fulfill({ status: 200, json: { id: 'eyJ2IjoxfQ~sig', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 } });
     if (path.endsWith('/answers')) return route.fulfill({ status: pretend.answer.status, json: pretend.answer.body });
+    if (path.endsWith('/files')) return route.fulfill({ status: 200, json: { id: 'up-records-room-layout-0000', name: url.searchParams.get('name'), size: 2_200_000, kind: 'pdf' } });
     if (path.startsWith('/x/forms/api/')) {
       const slug = path.slice('/x/forms/api/'.length);
       const lang = url.searchParams.get('lang');
@@ -194,6 +195,21 @@ test.describe('a stranger’s form page, through axe', () => {
           states += 1;
           await shot('form');
 
+          // Files picked: one taken, one refused before it was sent (a HEIC photo), each a row, the refusal under its row.
+          await page.locator('input[type="file"]').setInputFiles([
+            { name: 'records-room-layout.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n') },
+            { name: 'site-photo.heic', mimeType: 'image/heic', buffer: Buffer.from('heic') },
+          ]);
+          await expect(page.locator('.x-file-row')).toHaveCount(2);
+          await expect(page.locator('.x-file-row[data-bad]')).toHaveCount(1);
+          await expect(page.locator('.x-file .x-spin')).toHaveCount(0);
+          await sweep(page, `${at}: the form's files`, failures);
+          states += 1;
+          await shot('form-files');
+          // Removed: its row goes, and focus is back on the button.
+          await page.getByRole('button', { name: /site-photo\.heic/ }).click();
+          await expect(page.locator('.x-file-row')).toHaveCount(1);
+
           // Seating ticked: its question shows. Then Send with nothing: the marks and the summary.
           await page.getByRole('checkbox').nth(2).check();
           await page.getByRole('button', { name: lang === 'ar-EG' ? 'إرسال' : 'Send', exact: true }).click();
@@ -254,7 +270,7 @@ test.describe('a stranger’s form page, through axe', () => {
         }
       }
     }
-    expect(states).toBe(2 * 2 * 2 * 10);
+    expect(states).toBe(2 * 2 * 2 * 11);
     expect(failures.join('\n\n')).toBe('');
   });
 

@@ -50,6 +50,18 @@
       "text": "plain text"
     }
   },
+  "files": {
+    "remove": "Remove {file}",
+    "added": "{file} added.",
+    "removed": "{file} removed.",
+    "refused": "{file} was not added.",
+    "tooBig": "This file is {size}. The limit is {mb} MB.",
+    "kind": "This file type isn’t accepted. Use {kinds}.",
+    "quota": "Files can’t be taken right now. Try again later.",
+    "cap": "Too many files from here today. Try again tomorrow.",
+    "count": "You can add up to {max, plural, one {# file} other {# files}}.",
+    "failed": "This file could not be sent. Try again."
+  },
   "score": {
     "low": "Not likely",
     "high": "Very likely",

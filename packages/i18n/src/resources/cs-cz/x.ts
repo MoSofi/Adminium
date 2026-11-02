@@ -60,6 +60,18 @@ export default {
       "text": "prostý text"
     }
   },
+  "files": {
+    "remove": "Odebrat {file}",
+    "added": "Soubor {file} byl přidán.",
+    "removed": "Soubor {file} byl odebrán.",
+    "refused": "Soubor {file} nebyl přidán.",
+    "tooBig": "Tento soubor má {size}. Limit je {mb} MB.",
+    "kind": "Tento typ souboru není přijímán. Použijte {kinds}.",
+    "quota": "Soubory teď nelze přijmout. Zkuste to znovu později.",
+    "cap": "Odsud bylo dnes odesláno příliš mnoho souborů. Zkuste to znovu zítra.",
+    "count": "Můžete přidat nejvýše {max, plural, one {# soubor} few {# soubory} other {# souborů}}.",
+    "failed": "Tento soubor se nepodařilo odeslat. Zkuste to znovu."
+  },
   "score": {
     "low": "Nepravděpodobně",
     "high": "Velmi pravděpodobně",

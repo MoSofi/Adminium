@@ -293,6 +293,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/files/:id/restore': rows('visible', 'The record a file hangs on as its changer; being the uploader does not skip it.'),
   'POST /api/v1/files/resolve': rows('visible', 'As reading the files it names.'),
   'GET /api/v1/files/usage': noRows('Sizes of stored bytes by kind; no record is read.'),
+  // --- /forms
+  'GET /api/v1/forms/files/:id': rows('visible', 'A file a stranger sent with a form answer is read through that answer, under the answers table\'s read and its row limit.'),
   // --- /healthz
   'GET /api/v1/healthz': noRows('Says the server is alive; reads nothing.'),
   // --- /i18n

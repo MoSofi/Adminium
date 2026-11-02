@@ -116,5 +116,17 @@ export default {
     "done": "Fertig",
     "failed": "Fehlgeschlagen",
     "cancelled": "Abgebrochen"
+  },
+  "publicUploads": {
+    "notice": {
+      "quota": {
+        "title": "Dateien aus Ihren Formularen werden abgelehnt",
+        "body": "Die hochgeladenen Dateien füllen den dafür vorgesehenen Platz ({gb} GB). Löschen Sie Antworten, die Sie nicht mehr brauchen, oder erhöhen Sie das Limit in den Einstellungen."
+      },
+      "cap": {
+        "title": "Ein Besucher hat zu viele Dateien gesendet",
+        "body": "Eine Netzwerkadresse hat an einem Tag {n} Dateien gesendet, so viele wie erlaubt. Ihre nächsten Dateien werden bis morgen abgelehnt."
+      }
+    }
   }
 } as const;

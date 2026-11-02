@@ -106,5 +106,17 @@
     "done": "Hotovo",
     "failed": "Selhalo",
     "cancelled": "Zrušeno"
+  },
+  "publicUploads": {
+    "notice": {
+      "quota": {
+        "title": "Soubory z vašich formulářů jsou odmítány",
+        "body": "Nahrané soubory zaplnily místo, které je pro ně vyhrazeno ({gb} GB). Smažte odpovědi, které už nepotřebujete, nebo zvyšte limit v Nastavení."
+      },
+      "cap": {
+        "title": "Jeden návštěvník poslal příliš mnoho souborů",
+        "body": "Jedna síťová adresa poslala za den {n} souborů, nejvíc, kolik je dovoleno. Její další soubory budou do zítřka odmítnuty."
+      }
+    }
   }
 }

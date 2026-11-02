@@ -1920,6 +1920,26 @@ export interface AdminiumFormMarksTable {
   createdAt: Ts;
 }
 
+/** Wave 0074 — a file a stranger uploaded: what it was taken for, from where (a keyed hash), and whose it became. */
+export interface AdminiumPublicUploadsTable {
+  id: string;
+  bindingKind: string;
+  bindingKey: string;
+  addressKey: string;
+  /** NULL once the sweep took an unattached file away. */
+  name: string | null;
+  size: number;
+  kind: string;
+  fileId: Id | null;
+  createdAt: Ts;
+  expiresAt: Ts | null;
+  attachedAt: Ts | null;
+  ownerConnectionId: Id | null;
+  ownerTable: string | null;
+  ownerKey: string | null;
+  removedAt: Ts | null;
+}
+
 /** The full meta-store database — every adminium_* table (BRIEF). */
 export interface MetaDB {
   adminium_migrations: AdminiumMigrationsTable;
@@ -2009,6 +2029,7 @@ export interface MetaDB {
   adminium_email_send_counters: AdminiumEmailSendCountersTable;
   adminium_privacy_exports: AdminiumPrivacyExportsTable;
   adminium_form_marks: AdminiumFormMarksTable;
+  adminium_public_uploads: AdminiumPublicUploadsTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -2099,4 +2120,5 @@ export const META_TABLE_NAMES = [
   'adminium_email_send_counters',
   'adminium_privacy_exports',
   'adminium_form_marks',
+  'adminium_public_uploads',
 ] as const satisfies readonly (keyof MetaDB)[];

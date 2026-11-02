@@ -65,3 +65,4 @@ export * from './email-dkim-keys.js';
 export * from './email-sends.js';
 export * from './privacy-exports.js';
 export * from './form-marks.js';
+export * from './public-uploads.js';

@@ -60,6 +60,18 @@ export default {
       "text": "texte brut"
     }
   },
+  "files": {
+    "remove": "Retirer {file}",
+    "added": "{file} ajouté.",
+    "removed": "{file} retiré.",
+    "refused": "{file} n’a pas été ajouté.",
+    "tooBig": "Ce fichier fait {size}. La limite est de {mb} Mo.",
+    "kind": "Ce type de fichier n’est pas accepté. Utilisez {kinds}.",
+    "quota": "Les fichiers ne peuvent pas être acceptés pour le moment. Réessayez plus tard.",
+    "cap": "Trop de fichiers envoyés depuis cet appareil aujourd’hui. Réessayez demain.",
+    "count": "Vous pouvez ajouter jusqu’à {max, plural, one {# fichier} other {# fichiers}}.",
+    "failed": "Ce fichier n’a pas pu être envoyé. Réessayez."
+  },
   "score": {
     "low": "Peu probable",
     "high": "Très probable",

@@ -25,10 +25,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, 
 import { switchLocale } from '@adminium/i18n/page';
 import { useI18n, useT } from '@adminium/i18n/react';
 import { Ban, Check, ChevronDown, CircleCheck, EyeOff, Globe, Link2Off, LoaderCircle, Mail, RotateCcw, SearchX, TriangleAlert, type LucideIcon } from 'lucide-react';
-import type { FormDefinition, FormQuestion, FormTickPurpose } from '@adminium/add-on-contracts/forms';
+import type { FormDefinition, FormQuestion, FormQuestionOf, FormTickPurpose } from '@adminium/add-on-contracts/forms';
 
 import { answerValues, checkBeforeSend, formOf, hiddenQuery, shownQuestions, WHOLE_ANSWER, type Held } from './answers.js';
 import { fetchChallenge, fetchForm, postAnswer, type XBusiness, type XPage } from './api.js';
+import type { FileRow } from './Files.js';
 import { linkToParent, type FrameLink } from './frame.js';
 import { solve } from '../pay/proof.js';
 import { controlId, Question, textOf } from './Questions.js';
@@ -101,6 +102,11 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const [page, setPage] = useState<XPage | null>(null);
   const [language, setLanguage] = useState<XLanguage>(() => languageOfTag(document.documentElement.lang || 'en-US'));
   const [values, setValues] = useState<Record<string, Held>>({});
+  // Each file question's rows, kept in a ref as well: a Send waits for the files on their way, then reads them.
+  const [fileRows, setFileRows] = useState<Record<string, FileRow[]>>({});
+  const rowsRef = useRef<Record<string, FileRow[]>>({});
+  const sendingFiles = useRef(new Set<Promise<void>>());
+  const rowSeq = useRef(0);
   const [trap, setTrap] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
@@ -257,8 +263,72 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     }
   }
 
+  // ── Files ──────────────────────────────────────────────────────────────
+  /** The values with each file question's taken files, by the ids the file door gave. */
+  function withFiles(own: Record<string, Held>, rows: Record<string, FileRow[]>): Record<string, Held> {
+    const out = { ...own };
+    for (const [id, list] of Object.entries(rows)) {
+      const ids = list.flatMap((row) => (row.state === 'taken' && row.id !== undefined ? [row.id] : []));
+      out[id] = ids.length === 0 ? undefined : ids;
+    }
+    return out;
+  }
+
+  function updateRows(id: string, update: (rows: FileRow[]) => FileRow[]): void {
+    rowsRef.current = { ...rowsRef.current, [id]: update(rowsRef.current[id] ?? []) };
+    setFileRows(rowsRef.current);
+  }
+
+  /** Files picked for a question: refused at once when too large or of no kind it takes, else each sent now. */
+  async function pickFiles(question: FormQuestionOf<'file'>, files: File[]): Promise<void> {
+    if (route.kind !== 'form') return;
+    const slug = route.slug;
+    // Loaded with the file control itself, never in the page's first load.
+    const { FILES_MAX, refusalBeforeSending, sendFile } = await import('./Files.js');
+    const many = question.many === true;
+    let room = many ? FILES_MAX - (rowsRef.current[question.id] ?? []).filter((row) => row.state !== 'refused').length : 1;
+    const fresh: FileRow[] = [];
+    const toSend: [FileRow, File][] = [];
+    for (const file of many ? files : files.slice(0, 1)) {
+      rowSeq.current += 1;
+      const row: FileRow = { key: `f${String(rowSeq.current)}`, name: file.name, size: file.size, state: 'sending' };
+      const early = refusalBeforeSending(file, question);
+      if (early !== null || room <= 0) {
+        fresh.push({ ...row, state: 'refused', code: early ?? 'count' });
+        continue;
+      }
+      room -= 1;
+      fresh.push(row);
+      toSend.push([row, file]);
+    }
+    // A question that takes one file: the new pick takes the place of the old.
+    updateRows(question.id, (rows) => [...(many ? rows : []), ...fresh]);
+    if (toSend.length === 0) setLive(t('x:files.refused', '{file} was not added.', { file: fresh[0]?.name ?? '' }));
+    for (const [row, file] of toSend) {
+      const job = sendFile(slug, question.id, file).then((reply) => {
+        updateRows(question.id, (rows) => rows.map((one) => (one.key !== row.key ? one : reply.state === 'taken' ? { ...one, state: 'taken', id: reply.id, size: reply.size } : { ...one, state: 'refused', code: reply.code })));
+        setLive(reply.state === 'taken' ? t('x:files.added', '{file} added.', { file: row.name }) : t('x:files.refused', '{file} was not added.', { file: row.name }));
+      });
+      sendingFiles.current.add(job);
+      void job.finally(() => sendingFiles.current.delete(job));
+    }
+  }
+
+  function removeFile(id: string, key: string): void {
+    const row = (rowsRef.current[id] ?? []).find((one) => one.key === key);
+    updateRows(id, (rows) => rows.filter((one) => one.key !== key));
+    if (row !== undefined) setLive(t('x:files.removed', '{file} removed.', { file: row.name }));
+  }
+
+  const held = useMemo(() => withFiles(values, fileRows), [values, fileRows]);
+
+  // After a Send, a question's mark follows its files as they arrive or go.
+  useEffect(() => {
+    if (checked) setErrors(check(held));
+  }, [fileRows]);
+
   // ── Sending ────────────────────────────────────────────────────────────
-  const shown = vocabularyForm === null ? [] : shownQuestions(vocabularyForm, values);
+  const shown = vocabularyForm === null ? [] : shownQuestions(vocabularyForm, held);
   const query = definition === null ? {} : hiddenQuery(definition, route.kind === 'form' ? route.query : null);
 
   function check(next: Record<string, Held>): Record<string, string> {
@@ -270,7 +340,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     const next = { ...values, [id]: value };
     setValues(next);
     // After a Send, each answer's mark follows what is typed.
-    if (checked) setErrors(check(next));
+    if (checked) setErrors(check(withFiles(next, rowsRef.current)));
   }
 
   /** The first question to fix, in the order they are drawn. */
@@ -284,7 +354,15 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     if (sending || route.kind !== 'form' || vocabularyForm === null || form === null || page?.state !== 'live') return;
     setChecked(true);
     setTooMany(undefined);
-    const found = check(values);
+    // Files still on their way are waited for: the answer names the ones taken.
+    if (sendingFiles.current.size > 0) {
+      setSending(true);
+      setLive(t('x:sending', 'Sending…'));
+      await Promise.allSettled([...sendingFiles.current]);
+      setSending(false);
+    }
+    const now = withFiles(values, rowsRef.current);
+    const found = check(now);
     setErrors(found);
     if (Object.keys(found).length > 0) {
       moveFocus.current = firstWrong(found);
@@ -295,7 +373,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     setLive(t('x:sending', 'Sending…'));
     try {
       const parent = frame ? (link.current?.parentOrigin() ?? null) : null;
-      const answer = { language: form.language, values: answerValues(vocabularyForm, values), query, website: trap, ...(parent === null ? {} : { from: parent }) };
+      const answer = { language: form.language, values: answerValues(vocabularyForm, now), query, website: trap, ...(parent === null ? {} : { from: parent }) };
       let reply: Awaited<ReturnType<typeof postAnswer>> = { state: 'proof' };
       // One silent retry: a challenge can expire while a slow phone solves it.
       for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
@@ -501,6 +579,11 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
                 rtl={language.dir === 'rtl'}
                 today={page?.state === 'live' ? page.today : ''}
                 onChange={(value) => change(question.id, value)}
+                files={
+                  question.kind === 'file'
+                    ? { rows: fileRows[question.id] ?? [], onPick: (files) => void pickFiles(question, files), onRemove: (key) => removeFile(question.id, key) }
+                    : undefined
+                }
               />
             </div>
           );

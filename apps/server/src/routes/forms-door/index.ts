@@ -8,7 +8,7 @@
  *   GET  /x/forms/api/:slug                what a stranger is shown of the form, in one of its languages
  *   GET  /x/forms/api/:slug/challenge      the human check, bound to the form (solved when Send is pressed)
  *   POST /x/forms/api/:slug/answers        a stranger's answer (`forms/answer.ts`)
- *   POST /x/forms/api/:slug/files          kept for the file door: 404 until it is built
+ *   POST /x/forms/api/:slug/files          the file door: one file for a file question (`files.ts`)
  *   GET  /x/api/logo                       the business's logo (the pay page's)
  *   GET  /x/assets/*                       the bundle's own hashed files, and nothing else
  *   GET  /x/embed.js                       the website loader: draws a form in a frame on the owner's site
@@ -49,7 +49,8 @@ import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { answerBodySchema, formProofKeyId, HARDER_DIFFICULTY, type AnswerDoor } from '../../forms/answer.js';
-import type { FormsCatalog } from '../../forms/catalog.js';
+import type { FormsCatalog, LiveForm } from '../../forms/catalog.js';
+import type { PublicUploads } from '../../public-uploads/store.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
 import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
@@ -59,6 +60,7 @@ import type { FileStore } from '../../files/store.js';
 import { negotiateLocale, X_PREFIX } from '../../plugins/surfaces.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
+import { formsFileRoutes } from './files.js';
 
 export interface FormsDoorDeps {
   meta: MetaDb;
@@ -74,6 +76,8 @@ export interface FormsDoorDeps {
   networkFeatures: boolean;
   desktop: boolean;
   trustProxy: boolean;
+  /** The store strangers' files go to: the file door is open with it, and "not available" without. */
+  uploads?: PublicUploads | undefined;
   now?: () => number;
 }
 
@@ -255,24 +259,35 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     });
 
     const posted = {
-      rateLimitBucket: 'forms-door' as const,
-      csrf: 'origin' as const,
-      audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
-    };
+    // Kept for the answer door (and the file door, on a server with no upload store): nothing is taken here yet, and nothing is written.
+    for (const part of deps.uploads === undefined ? (['answers', 'files'] as const) : (['answers'] as const)) {
+      app.post(
+        `/x/forms/api/:slug/${part}`,
+        {
+          config: {
+            rateLimitBucket: 'forms-door',
+            csrf: 'origin',
+            audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
+          },
+          schema: { hide: true, params: slugParams },
+        },
+        async (_request, reply) => unavailable(reply),
+      );
+    }
 
-    // A stranger's answer: taken by the answer door, all or nothing.
-    app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams } }, async (request, reply) => {
-      const found = await lookUp(request, request.params.slug);
-      if (found.state === 'unavailable' || deps.answers === undefined) return unavailable(reply);
-      if (found.state === 'closed') return { state: 'closed' };
-      const parsed = answerBodySchema.safeParse(request.body);
-      const answered = await deps.answers.takeAnswer(request, found.live, parsed.success ? parsed.data : null);
-      if (answered.status === 404) return unavailable(reply);
-      return reply.status(answered.status).send(answered.body);
-    });
-
-    // Kept for the file door: nothing is taken here yet, and nothing is written.
-    app.post('/x/forms/api/:slug/files', { config: posted, schema: { hide: true, params: slugParams } }, async (_request, reply) => unavailable(reply));
+    if (deps.uploads !== undefined) {
+      await app.register(
+        formsFileRoutes({
+          meta,
+          uploads: deps.uploads,
+          key,
+          lookUp,
+          unavailable,
+          proofOf: (live) => ({ keyId: formProofKeyId(live), difficulty: live.form.settings.limits.harder === true ? HARDER_DIFFICULTY : PROOF_DIFFICULTY }),
+          now,
+        }),
+      );
+    }
 
     app.get('/x/api/logo', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true } }, async (request, reply) => {
       if (!(await reachable(request))) return reply.status(404).send();
