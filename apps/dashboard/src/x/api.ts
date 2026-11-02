@@ -7,6 +7,7 @@
  *   GET  /x/forms/api/<slug>?lang=…[&frame=1]   the form, in one of its languages, and who the business is
  *   GET  /x/forms/api/<slug>/challenge          the human check, solved when Send is pressed
  *   POST /x/forms/api/<slug>/answers            the answer, with the solved check in `x-adminium-proof`
+ *   POST /x/forms/api/<slug>/files?q=…&name=…   one file for a file question, as the body, with a check of its own
  *
  * THE ANSWER'S REPLY, as the page reads it (the answer door says these):
  *   200 `{ state: 'sent' }`                     taken; the page shows the form's ending
@@ -117,4 +118,38 @@ export async function postAnswer(slug: string, answer: XAnswer, proof: string): 
   if (state === 'closed' || state === 'already' || state === 'dead') return { state };
   if (response.status === 404 || state === 'unavailable') return { state: 'unavailable' };
   throw new XApiError(response.status);
+}
+
+/** Why a file was not taken: the file door's codes, a check that did not pass, or no answer at all. */
+export type XFileRefusal = 'too-big' | 'kind' | 'quota' | 'cap' | 'proof' | 'failed';
+
+export type XFileReply = { state: 'taken'; id: string; name: string; size: number } | { state: 'refused'; code: XFileRefusal };
+
+const FILE_CODES = new Set(['too-big', 'kind', 'quota', 'cap']);
+
+/** Sends one file for a file question with a solved check; the body is the file itself. */
+export async function postFile(slug: string, question: string, file: Blob & { name: string }, proof: string): Promise<XFileReply> {
+  const search = new URLSearchParams({ q: question, name: file.name });
+  let response: Response;
+  try {
+    response = await fetch(`${base(slug)}/files?${search.toString()}`, {
+      method: 'POST',
+      credentials: 'omit',
+      // Always bytes: the door judges what they are, never what the browser says.
+      headers: { ...HEADERS, 'content-type': 'application/octet-stream', 'x-adminium-proof': proof },
+      body: file,
+    });
+  } catch {
+    return { state: 'refused', code: 'failed' };
+  }
+  if (response.status === 403) return { state: 'refused', code: 'proof' };
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await response.json()) as Record<string, unknown>;
+  } catch {
+    // No body: the status alone says it.
+  }
+  if (response.ok && typeof body['id'] === 'string') return { state: 'taken', id: body['id'], name: String(body['name'] ?? file.name), size: Number(body['size'] ?? file.size) };
+  const code = typeof body['code'] === 'string' && FILE_CODES.has(body['code']) ? (body['code'] as XFileRefusal) : 'failed';
+  return { state: 'refused', code };
 }

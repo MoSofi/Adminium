@@ -10,7 +10,7 @@ import type { Form, FormDefinition, FormQuestion } from '@adminium/add-on-contra
 // The check alone, which reaches no schema: the page carries none of the schemas' weight.
 import { checkAnswer, visibleQuestions, WHOLE_ANSWER } from '@adminium/add-on-contracts/forms/check';
 
-/** One question's value as the page keeps it: text as typed, picks, a score, a tick. */
+/** One question's value as the page keeps it: text as typed, picks, a score, a tick, a file question's taken ids. */
 export type Held = string | string[] | number | boolean | undefined;
 export type HeldValues = Readonly<Record<string, Held>>;
 
@@ -50,8 +50,6 @@ function empty(value: Held): boolean {
 export function answerValues(form: Form, values: HeldValues): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const question of shownQuestions(form, values)) {
-    // A file is the file door's to take; until it is, nothing is sent for one.
-    if (question.kind === 'file') continue;
     const value = values[question.id];
     if (empty(value)) continue;
     out[question.id] = question.kind === 'number' && typeof value === 'string' ? value.trim() : value;

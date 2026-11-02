@@ -10,10 +10,11 @@
  */
 import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useT } from '@adminium/i18n/react';
-import { CircleAlert, Paperclip, Star } from 'lucide-react';
+import { CircleAlert, Star } from 'lucide-react';
 import type { FormQuestion, FormQuestionOf } from '@adminium/add-on-contracts/forms';
 
 import type { Held } from './answers.js';
+import { FileField, type FileRow } from './Files.js';
 
 export interface QuestionProps {
   question: FormQuestion;
@@ -26,6 +27,8 @@ export interface QuestionProps {
   /** The day a date question's earliest counts from (`yyyy-mm-dd`, the business's). */
   today: string;
   onChange: (value: Held) => void;
+  /** A file question's rows, and what picking and removing a file does (the page sends each file as it is picked). */
+  files?: { rows: readonly FileRow[]; onPick: (files: File[]) => void; onRemove: (key: string) => void } | undefined;
 }
 
 /** The owner's words for this question, in the page's one language. */
@@ -346,7 +349,6 @@ export function Question(props: QuestionProps): ReactNode {
       );
     }
     case 'file': {
-      const buttonId = `${base}-button`;
       const names: Readonly<Record<string, string>> = {
         pdf: t('x:file.kind.pdf', 'PDF'),
         jpg: t('x:file.kind.jpg', 'JPG'),
@@ -355,16 +357,24 @@ export function Question(props: QuestionProps): ReactNode {
       };
       const kinds = question.kinds.map((kind) => names[kind] ?? kind);
       const list = typeof Intl.ListFormat === 'function' ? new Intl.ListFormat(tag, { type: 'disjunction' }).format(kinds) : kinds.join(', ');
+      const hintId = `${base}-hint`;
       return (
         <div className="x-field" data-kind="file">
           {head('span')}
           {helpLine}
-          <p className="x-hint">{t('x:file.hint', '{kinds}, up to {mb} MB', { kinds: list, mb: question.maxMb })}</p>
-          {/* The file door draws, sends and lists the files; until it is open the button takes none. */}
-          <button id={buttonId} type="button" className="x-button-secondary x-choose" disabled aria-labelledby={`${labelId} ${buttonId}`} aria-describedby={describedBy}>
-            <Paperclip className="x-icon" size={16} strokeWidth={2} aria-hidden="true" />
-            <span>{question.many === true ? t('x:file.chooseMany', 'Choose files') : t('x:file.chooseOne', 'Choose a file')}</span>
-          </button>
+          <p id={hintId} className="x-hint">
+            {t('x:file.hint', '{kinds}, up to {mb} MB', { kinds: list, mb: question.maxMb })}
+          </p>
+          <FileField
+            question={question}
+            rows={props.files?.rows ?? []}
+            tag={tag}
+            kinds={list}
+            labelId={labelId}
+            describedBy={[hintId, describedBy].filter(Boolean).join(' ')}
+            onPick={(files) => props.files?.onPick(files)}
+            onRemove={(key) => props.files?.onRemove(key)}
+          />
           {problem}
         </div>
       );
