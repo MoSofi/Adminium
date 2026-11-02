@@ -178,6 +178,15 @@ export interface MarketingMail {
   tellRefused(input: { about: string; source: string; refusal: MarketingRefusal }): Promise<number>;
 }
 
+/**
+ * Why a service mail sent for a consent purpose (a survey invitation) is not
+ * sent: the person's latest answer for that purpose is "no" (CR6). The
+ * do-not-email list never stops service mail; this does.
+ */
+export function saidNoSentence(purpose: ConsentPurpose): string {
+  return purpose === 'surveys' ? 'Not sent: they said no to surveys' : 'Not sent: they said no to the newsletter';
+}
+
 /** The kind of the notice a refused marketing send tells the e-mail managers. */
 export const MARKETING_REFUSED_NOTICE_KIND = 'email.marketing-refused';
 

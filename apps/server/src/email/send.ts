@@ -118,6 +118,18 @@ export interface MarketingStanding {
   person: { connectionId: string; table: string; key: string } | null;
 }
 
+/**
+ * A service mail sent for a consent purpose (an app outbox kind's
+ * `outbox.purposes`: a survey invitation sent as service mail): the purpose
+ * and the person it is about. Sealed with it, so the hand-over asks again
+ * (`jobs/email-send.ts`): a "no" for that purpose given since it was queued
+ * stops it there. The do-not-email list never stops it (service mail).
+ */
+export interface ServiceObjection {
+  purpose: ConsentPurpose;
+  person: { connectionId: string; table: string; key: string } | null;
+}
+
 /** One plain address, and nothing a header could be split on or a list made of. */
 export const REPLY_TO = PLAIN_DOTTED;
 
@@ -312,6 +324,8 @@ export interface EnqueueEmailInput {
   marketing?: MarketingCarry | undefined;
   /** What a marketing mail was judged on, asked again at the hand-over. */
   standing?: MarketingStanding | undefined;
+  /** A service mail's consent purpose, asked again at the hand-over (service mail only). */
+  objection?: ServiceObjection | undefined;
 }
 
 /** The template with a person's wording in place of its own; unchanged where they wrote nothing. */
@@ -385,6 +399,8 @@ interface EmailEnvelope {
   headers?: Record<string, string> | undefined;
   /** A marketing mail's standing when queued, asked again at the hand-over. */
   standing?: MarketingStanding | undefined;
+  /** A service mail's consent purpose when queued, asked again at the hand-over. */
+  objection?: ServiceObjection | undefined;
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
@@ -572,6 +588,8 @@ export interface EnqueueRenderedEmailInput {
   headers?: Record<string, string> | undefined;
   /** What a marketing mail was judged on, asked again at the hand-over (marketing mail only). */
   standing?: MarketingStanding | undefined;
+  /** A service mail's consent purpose, asked again at the hand-over (service mail only). */
+  objection?: ServiceObjection | undefined;
 }
 
 /**
@@ -615,6 +633,7 @@ export async function enqueueRenderedEmail(
     ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
     ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
     ...(input.mailClass !== 'marketing' || input.standing === undefined ? {} : { standing: input.standing }),
+    ...(input.mailClass !== 'service' || input.objection === undefined ? {} : { objection: input.objection }),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
   const attachments = [...(input.attachments ?? [])];
@@ -727,6 +746,7 @@ export async function enqueueEmail(
       ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
       ...(input.marketing === undefined ? {} : { headers: input.marketing.headers }),
       ...(input.standing === undefined ? {} : { standing: input.standing }),
+      ...(input.objection === undefined ? {} : { objection: input.objection }),
     },
   );
 }

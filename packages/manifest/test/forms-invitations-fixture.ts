@@ -29,7 +29,7 @@ export function formsWithInvitations(): Doc {
     {
       ref: 'forms_settings',
       columns: [
-        { ref: 'id', type: 'id', role: 'pk' },
+        { ref: 'id', type: 'int', role: 'pk' },
         { ref: 'answers_months', type: 'int', nullable: true },
       ],
     },
