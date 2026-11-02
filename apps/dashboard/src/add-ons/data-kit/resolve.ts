@@ -22,7 +22,19 @@ export interface KitTable {
 export interface KitReply {
   connectionId: string;
   tables: Record<string, KitTable>;
-  hosts: { tableRef: string; id: string; label: string; via: 'posting' | 'adjust' }[];
+  /**
+   * The tables of the owner's database that hand rows to the add-on, and (for
+   * a forms add-on, `via: 'forms'`) the tables its forms may become a row of,
+   * which a page lists and never reads.
+   */
+  hosts: {
+    tableRef: string;
+    id: string;
+    label: string;
+    via: 'posting' | 'adjust' | 'forms';
+    app?: string;
+    columns?: { name: string; label: string; kind: string; required: boolean; link: boolean }[];
+  }[];
   has: Record<string, boolean>;
   /** Absent from a server older than this dashboard. */
   currency?: string | null;
@@ -62,7 +74,8 @@ export interface ResolvedKitTable {
 export function resolveTable(kit: Kit, table: string): ResolvedKitTable {
   const own = Object.prototype.hasOwnProperty.call(kit.reply.tables, table) ? kit.reply.tables[table] : undefined;
   if (own !== undefined) return { connectionId: kit.reply.connectionId, id: own.id, own };
-  const host = kit.reply.hosts.find((candidate) => candidate.tableRef === table);
+  // A table a form may become a row of is listed for the builder, never read from the add-on's page.
+  const host = kit.reply.hosts.find((candidate) => candidate.tableRef === table && candidate.via !== 'forms');
   if (host !== undefined) return { connectionId: kit.reply.connectionId, id: host.id, own: null };
   throw new Error(`"${table}" is not a table of ${kit.addOnKey}: name one of its own (${Object.keys(kit.reply.tables).join(', ') || 'none here yet'}).`);
 }

@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { jsonResponse } from '../test/fixtures.js';
 import { AddOnKeyContext } from './data-kit/context.js';
-import { EACH_CALL_MAX, listParams, useAccess, useDocument, useExport, useLookUp, useRead, useRecord, useRecords, useStateMove, useTreeWrite, useWords, useWrite } from './data-kit/hooks.js';
+import { EACH_CALL_MAX, listParams, useAccess, useDocument, useExport, useFormSummary, useFormTables, useLookUp, useRead, useRecord, useRecords, useStateMove, useTreeWrite, useWords, useWrite } from './data-kit/hooks.js';
 import type { KitReply } from './data-kit/resolve.js';
 
 const CONN = 'cnx_1';
@@ -213,9 +213,9 @@ describe('a table is a short name', () => {
 });
 
 /** The kit's read already in the cache: a hook that throws does so on its first render. */
-function Preloaded({ children }: { children: ReactNode }): ReactNode {
+function Preloaded({ children, kit = KIT }: { children: ReactNode; kit?: KitReply }): ReactNode {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(['add-on-kit', 'stock'], KIT);
+  client.setQueryData(['add-on-kit', 'stock'], kit);
   return (
     <QueryClientProvider client={client}>
       <AddOnKeyContext.Provider value="stock">{children}</AddOnKeyContext.Provider>
@@ -512,5 +512,46 @@ describe('a look-up, the words, a document, an export', () => {
       format: 'csv',
     });
     expect(opened).toHaveBeenCalledExactlyOnceWith('/api/v1/exports/exp_3/download', '_blank', 'noopener');
+  });
+});
+
+describe('a forms add-on', () => {
+  const FORMS_KIT: KitReply = {
+    ...KIT,
+    hosts: [
+      ...KIT.hosts,
+      {
+        tableRef: 'crm:enquiries',
+        id: 'public.crm_enquiries',
+        label: 'Enquiries',
+        via: 'forms',
+        app: 'Sales CRM',
+        columns: [{ name: 'name', label: 'Name', kind: 'text', required: true, link: false }],
+      },
+    ],
+  };
+
+  it('reads a form\'s results from the engine\'s count, never its rows', async () => {
+    const counted = { total: 3, byLanguage: { 'en-US': 3 }, recommendScore: 33, questions: {}, invited: 5, answered: 3 };
+    const calls = serve((call) => (call.path === '/api/v1/add-ons/stock/forms/frm_1/summary' ? jsonResponse(200, { data: counted }) : undefined), FORMS_KIT);
+    const summary = await use(() => useFormSummary('frm_1'));
+    await waitFor(() => expect(summary.result.current.summary).toEqual(counted));
+    expect(calls.map((call) => call.path)).toEqual(['/api/v1/add-ons/stock/forms/frm_1/summary']);
+    // No form, no read.
+    const none = await use(() => useFormSummary(null));
+    expect(none.result.current).toMatchObject({ summary: null, loading: false });
+  });
+
+  it('lists the tables a form may become a row of, and never reads one as a host', async () => {
+    serve(undefined, FORMS_KIT);
+    const tables = await use(() => useFormTables());
+    await waitFor(() => expect(tables.result.current.tables).toHaveLength(1));
+    expect(tables.result.current.tables[0]).toEqual({ id: 'public.crm_enquiries', tableRef: 'crm:enquiries', label: 'Enquiries', app: 'Sales CRM', columns: [{ name: 'name', label: 'Name', kind: 'text', required: true, link: false }] });
+    const access = await use(() => useAccess());
+    expect(access.result.current.canRead('crm:enquiries')).toBe(false);
+    expect(access.result.current.canRead('shop:dishes')).toBe(true);
+    const refused = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() => renderHook(() => useRecords('crm:enquiries'), { wrapper: ({ children }) => <Preloaded kit={FORMS_KIT}>{children}</Preloaded> })).toThrow('"crm:enquiries" is not a table of stock');
+    refused.mockRestore();
   });
 });
