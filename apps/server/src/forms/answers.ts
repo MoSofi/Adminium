@@ -4,11 +4,15 @@
  *
  * {@link deleteFormAnswers} is the one function every engine path that
  * deletes answers goes through: a person's erasure (`privacy/erase.ts`) and
- * the keeping sweep below. An answer's files go with it: the strangers' file
- * store is told first, here, so no path that deletes answers can leave their
- * files behind. The rows are deleted as the system, in batches, never through
- * a staff save (no role's reach, no rule fired: an answer is Adminium's own
- * record, written by Adminium alone).
+ * the keeping sweep below. An answer's files go with it, first: the
+ * strangers' file store removes their bytes and its rows (`files.ts`
+ * `removeAnswerFiles`, which never throws), then the add-on's own file rows
+ * that name the answers are deleted here whatever the store managed (their
+ * link to the answer has no delete action, so Postgres and MySQL would
+ * refuse the answers' delete while one is left). No path that deletes
+ * answers can leave their files behind. The rows are deleted as the
+ * system, in batches, never through a staff save (no role's reach, no rule
+ * fired: an answer is Adminium's own record, written by Adminium alone).
  *
  * THE KEEPING SWEEP ({@link sweepFormAnswers}). A forms add-on says how long
  * its answers are kept in its own settings table (`answers_months`: a whole
@@ -29,12 +33,20 @@ import { ANSWERS_MONTHS_COLUMN, formsAddOnsOn, storedFormsAddOns, type FormsAddO
 /** How many answers one statement deletes. */
 const BATCH = 200;
 
+/** What removes the strangers' files of some answers of one forms add-on (`FormsFiles.removeAnswerFiles`): never throws. */
+export type AnswerFilesRemover = (connectionId: string, addOn: string, answerKeys: readonly string[]) => Promise<number>;
+
 /** Where a forms add-on's answers are, and the files that hang off them. */
 export interface AnswersTarget {
   db: Kysely<SourceDatabase>;
   answers: ResolvedTable;
   /** The strangers' files of the answers; null when the add-on keeps none. */
   files: ResolvedTable | null;
+  /** The database and the add-on, as the file store names the answers' owner. */
+  connectionId: string;
+  addOn: string;
+  /** The file store's remover; absent, only the add-on's file rows go. */
+  removeFiles?: AnswerFilesRemover | undefined;
 }
 
 /** The answers' keys, in groups a statement takes. */
@@ -46,21 +58,30 @@ function batches<T>(items: readonly T[]): T[][] {
 
 /**
  * Deletes these answers (by their primary key's values) and everything that
- * goes with them. Answers how many answers were deleted.
+ * goes with them. Answers how many answers were deleted, and how many of
+ * their files the store removed.
  */
-export async function deleteFormAnswers(target: AnswersTarget, keys: readonly unknown[]): Promise<number> {
+export async function deleteFormAnswers(target: AnswersTarget, keys: readonly unknown[]): Promise<{ answers: number; files: number }> {
   const key = target.answers.primaryKey[0];
-  if (key === undefined || keys.length === 0) return 0;
+  if (key === undefined || keys.length === 0) return { answers: 0, files: 0 };
   let deleted = 0;
+  let files = 0;
   for (const group of batches(keys)) {
-    // The answers' files are removed here, before the rows that name them, once the strangers' file store exists.
+    // Their files first: the store's bytes and rows, then the add-on's rows that name these answers.
+    if (target.removeFiles !== undefined) files += await target.removeFiles(target.connectionId, target.addOn, group.map(String));
+    if (target.files !== null && target.files.columns.has('answer_id')) {
+      await target.db
+        .deleteFrom(target.files.id as never)
+        .where(sql.ref('answer_id'), 'in', group as never)
+        .execute();
+    }
     const result = await target.db
       .deleteFrom(target.answers.id as never)
       .where(sql.ref(key), 'in', group as never)
       .executeTakeFirst();
     deleted += Number(result.numDeletedRows);
   }
-  return deleted;
+  return { answers: deleted, files };
 }
 
 /** The instant `months` calendar months before `now` (the same day of the month, at the same time, in UTC). */
@@ -92,6 +113,8 @@ export interface FormAnswersSweepDeps {
   now?: (() => number) | undefined;
   /** The snapshot of a database; the stored one when absent. */
   viewFor?: ((connectionId: string) => Promise<SnapshotView | null>) | undefined;
+  /** The strangers' file store's remover: an old answer's files go with it. */
+  answerFiles?: AnswerFilesRemover | undefined;
 }
 
 /** Deletes the answers each forms add-on keeps no longer (see the header). Answers how many went, per add-on. */
@@ -131,7 +154,7 @@ export async function sweepFormAnswers(deps: FormAnswersSweepDeps): Promise<Reco
           .limit(BATCH * 5)
           .execute()) as { key: unknown }[];
         if (due.length === 0) break;
-        const deleted = await deleteFormAnswers({ db: handle.db, answers, files: addOn.files }, due.map((row) => row.key));
+        const { answers: deleted } = await deleteFormAnswers({ db: handle.db, answers, files: addOn.files, connectionId, addOn: addOn.key, removeFiles: deps.answerFiles }, due.map((row) => row.key));
         gone += deleted;
         if (deleted === 0 || due.length < BATCH * 5) break;
       }

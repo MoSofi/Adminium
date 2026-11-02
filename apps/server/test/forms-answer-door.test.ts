@@ -356,7 +356,8 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect(alerts.length).toBeGreaterThan(0);
     expect(new Set(alerts.map((one) => one.userId)).size).toBe(alerts.length);
     expect(alerts[0]!.title).toBe('A form hit its limit');
-    expect(alerts[0]!.actionUrl).toContain('/add-ons/forms/capped');
+    // The forms add-on's forms page, then the form: the first segment after the add-on is the page the dashboard opens.
+    expect(alerts[0]!.actionUrl).toBe('/add-ons/forms/forms/capped?settings=limits');
     expect(await answerRows('frm_cap')).toHaveLength(3);
   });
 
@@ -479,7 +480,7 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     const [notice] = await h.meta.db.selectFrom('adminium_notifications').select(['title', 'body', 'actionUrl']).where('userId', '=', repId).where('kind', '=', 'forms.answer').orderBy('createdAt', 'desc').execute();
     expect(notice!.title).toBe('New answer: Book a showroom visit');
     expect(notice!.body).toContain('Anything else?: <a href="https:​//evil.​example/pay">pay here</a>');
-    expect(notice!.actionUrl).toMatch(/^\/add-ons\/forms\/keep-only\/answers\?answer=/);
+    expect(notice!.actionUrl).toMatch(/^\/add-ons\/forms\/forms\/keep-only\/answers\?answer=/);
     const staffMail = (await mails()).find((mail) => mail.to === 'rita@meridian.example')!;
     expect(staffMail.html).toContain('&lt;a href=');
     expect(staffMail.html).not.toMatch(/<a [^>]*href="https:\/\/evil/);

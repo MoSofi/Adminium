@@ -122666,7 +122666,8 @@
                                   "notifications",
                                   "files",
                                   "form-answers",
-                                  "form-invitations"
+                                  "form-invitations",
+                                  "form-files"
                                 ]
                               },
                               "group": {
@@ -123340,7 +123341,8 @@
                                   "campaign-mail",
                                   "files",
                                   "form-answers",
-                                  "form-invitations"
+                                  "form-invitations",
+                                  "form-files"
                                 ]
                               },
                               "count": {

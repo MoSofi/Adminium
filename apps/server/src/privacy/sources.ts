@@ -14,8 +14,9 @@
  *     do-not-email list, through the consent door (never by reading their
  *     address columns: those hold keyed hashes);
  *   - every installed forms add-on's answers given by the address (a
- *     sign-up still waiting for its confirmation included) and the survey
- *     invitations sent to it (`form-answers.ts`);
+ *     sign-up still waiting for its confirmation included), the files those
+ *     answers came with, and the survey invitations sent to it
+ *     (`form-answers.ts`);
  *   - what Adminium keeps itself (`meta-sources.ts`).
  *
  * It reads as the privacy action, not as a role: no table limit, no row
@@ -25,8 +26,7 @@
  * Secret columns (a password's hash, a key) are never read out.
  *
  * Only the sources this release has are searched: no chats or page visits
- * exist yet, and a stranger's files are searched with the answers they came
- * with once the strangers' file store exists.
+ * exist yet.
  *
  * The address is compared as `normaliseAddress` spells it, trimmed and in
  * lower case on both sides; nothing else is folded.

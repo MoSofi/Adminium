@@ -25,6 +25,12 @@
  *   a form needs no public API.
  * - A form that is not live answers exactly as one that does not exist
  *   (`forms/catalog.ts`), save a closed one, which says it is closed.
+ * - A named survey is drawn only for its invitation's link (`?t=`, and the
+ *   same `t` on its challenge and its files): without one it is "not
+ *   available"; with one that is unknown or past its time "this link doesn't
+ *   work"; with one answered already "already answered". Opening it spends
+ *   nothing (a link scanner opens every link in a mail): only the answer
+ *   that is sent with it does (`forms/answer.ts`).
  * - A stranger is never shown what an answer becomes, who is told, or the
  *   form's hourly cap (`forms/view.ts`).
  * - Every answer carries the page's own content policy ({@link xContentPolicy}),
@@ -40,6 +46,7 @@ import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 
+import { keepsNames } from '@adminium/add-on-contracts/forms';
 import { localeFromTag, type LocaleId } from '@adminium/i18n';
 import { createServerI18n } from '@adminium/i18n/server';
 import { filesRepo, paymentSettingsRepo, type MetaDb } from '@adminium/meta';
@@ -49,7 +56,8 @@ import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { answerBodySchema, formProofKeyId, HARDER_DIFFICULTY, type AnswerDoor } from '../../forms/answer.js';
-import type { FormsCatalog } from '../../forms/catalog.js';
+import type { FormsCatalog, LiveForm } from '../../forms/catalog.js';
+import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from '../../forms/invitation.js';
 import type { PublicUploads } from '../../public-uploads/store.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
@@ -73,6 +81,8 @@ export interface FormsDoorDeps {
   websites: ListedWebsites;
   /** What takes an answer; absent, every answer is "not available". */
   answers?: AnswerDoor | undefined;
+  /** A named survey's invitations, found by the token its link carries; absent, no named survey is drawn. */
+  invitations?: SurveyInvitations | undefined;
   networkFeatures: boolean;
   desktop: boolean;
   trustProxy: boolean;
@@ -123,7 +133,13 @@ export function xContentPolicy(origin: string, framers: readonly string[] = []):
 const UNBUILT = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Form</title></head><body><p>This page isn’t available right now.</p></body></html>';
 
 const slugParams = z.object({ slug: z.string().min(1).max(120) });
-const pageQuery = z.object({ frame: z.string().max(8).optional(), lang: z.string().max(20).optional() }).passthrough();
+/** A named survey's token, as its link carries it: anything that is not one opens nothing (`forms/invitation.ts`). */
+const tokenField = z.string().max(2000).optional();
+const pageQuery = z.object({ frame: z.string().max(8).optional(), lang: z.string().max(20).optional(), t: tokenField }).passthrough();
+const challengeQuery = z.object({ t: tokenField }).passthrough();
+
+/** A form as the door may serve it, with the invitation a named survey's link opened. */
+export type DoorLookup = { state: 'live'; live: LiveForm; invitation: OpenInvitation | null } | { state: 'closed' } | { state: 'unavailable' } | { state: 'already' } | { state: 'dead' };
 
 function originOf(request: FastifyRequest): string {
   return `${request.protocol}://${request.host}`;
@@ -148,13 +164,24 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     return (await formsReach(meta, deps, request)).state === 'reachable';
   }
 
-  /** The form a request names, as strangers may be served it now; never live while the outside cannot reach the server. */
-  async function lookUp(request: FastifyRequest, slug: string) {
+  /** The form a request names as the catalog has it, a named survey included; never live while the outside cannot reach the server. */
+  async function findForm(request: FastifyRequest, slug: string) {
     if (!(await reachable(request))) return { state: 'unavailable' as const };
-    const found = await catalog.find(slug);
+    return catalog.find(slug);
+  }
+
+  /**
+   * The form a request names, as strangers may be served it now: a named
+   * survey only for its invitation's token, which is read and never spent.
+   */
+  async function lookUp(request: FastifyRequest, slug: string, token: string | undefined): Promise<DoorLookup> {
+    const found = await findForm(request, slug);
+    if (found.state !== 'live') return found;
+    if (!isNamedSurvey(found.live.form)) return { state: 'live', live: found.live, invitation: null };
     // A named survey is answered by invitation only: no open link draws it.
-    if (found.state === 'live' && found.live.form.settings.survey?.mode === 'named') return { state: 'unavailable' as const };
-    return found;
+    if (token === undefined || deps.invitations === undefined) return { state: 'unavailable' };
+    const invited = await deps.invitations.find(found.live, token, now());
+    return invited.state === 'open' ? { state: 'live', live: found.live, invitation: invited.invitation } : invited;
   }
 
   return async (app) => {
@@ -228,16 +255,17 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     }
 
     app.get('/x/forms/:slug', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: pageQuery } }, async (request, reply) => {
-      const found = await lookUp(request, request.params.slug);
-      return page(request, reply, found.state);
+      const found = await lookUp(request, request.params.slug, request.query.t);
+      // A survey answered already is a page the script draws its card on; a link that does not work is a page that is not there.
+      return page(request, reply, found.state === 'already' ? 'live' : found.state === 'dead' ? 'unavailable' : found.state);
     });
 
     app.get('/x/forms/api/:slug', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: pageQuery } }, async (request, reply) => {
-      const found = await lookUp(request, request.params.slug);
+      const found = await lookUp(request, request.params.slug, request.query.t);
       if (found.state === 'unavailable') return unavailable(reply);
       const shared = await strangerBusiness(meta);
-      if (found.state === 'closed') return { state: 'closed', ...shared };
-      const { live } = found;
+      if (found.state === 'closed' || found.state === 'already' || found.state === 'dead') return { state: found.state, ...shared };
+      const { live, invitation } = found;
       const language = formLanguageFor(live.form.definition, request.query.lang, request.headers['accept-language']);
       const frame = request.query.frame === '1';
       return {
@@ -247,13 +275,16 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
         today: await businessToday(meta, live.connectionId, now()),
         // Only a frame asks which websites it may answer: the loader's first message must come from one.
         ...(frame ? { frameOrigins: [...(await deps.websites())] } : {}),
+        // A named survey's invitation: whom it greets (only where answers keep names) and what it is about.
+        ...(invitation === null ? {} : { invitation: { firstName: keepsNames(live.form.settings) ? invitation.firstName : null, about: invitation.about } }),
       };
     });
 
-    app.get('/x/forms/api/:slug/challenge', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams } }, async (request, reply) => {
+    app.get('/x/forms/api/:slug/challenge', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: challengeQuery } }, async (request, reply) => {
       if (!(await reachable(request))) return unavailable(reply);
-      const found = await lookUp(request, request.params.slug);
-      const live = found.state === 'live' ? found.live : null;
+      const found = await findForm(request, request.params.slug);
+      // A named survey's check only for a send that carries a token: the answer door then says whether it opens anything.
+      const live = found.state === 'live' && (!isNamedSurvey(found.live.form) || request.query.t !== undefined) ? found.live : null;
       // An unknown form still gets a challenge: the answer must not tell which forms exist.
       return issueChallenge(key, live === null ? 'form:none' : formProofKeyId(live), 'form', now(), live?.form.settings.limits.harder === true ? HARDER_DIFFICULTY : PROOF_DIFFICULTY);
     });
@@ -264,9 +295,9 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       audit: auditExempt('a stranger sending a form: the answer row is the record; a stranger is not an actor the audit log names'),
     };
 
-    // A stranger's answer: taken by the answer door, all or nothing.
+    // A stranger's answer: taken by the answer door, all or nothing (a named survey's token is the door's to read, after the human check).
     app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams } }, async (request, reply) => {
-      const found = await lookUp(request, request.params.slug);
+      const found = await findForm(request, request.params.slug);
       if (found.state === 'unavailable' || deps.answers === undefined) return unavailable(reply);
       if (found.state === 'closed') return { state: 'closed' };
       const parsed = answerBodySchema.safeParse(request.body);

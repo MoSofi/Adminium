@@ -101,6 +101,7 @@ import { createFormsConfirm } from './forms/confirm.js';
 import { createFormsScopes } from './forms/scope.js';
 import { formsPackageVouched } from './forms/vouched.js';
 import { createFormsFiles } from './forms/files.js';
+import { createSurveyInvitations } from './forms/invitation.js';
 import { createPublicUploads } from './public-uploads/store.js';
 import { tellUploadsRefused } from './public-uploads/notices.js';
 import { formsFilesRoutes } from './routes/forms-files/index.js';
@@ -1679,7 +1680,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   // A forms add-on's answers past the time its settings keep them: deleted by the engine, the add-on runs no timer.
   jobs.scheduler.registerSchedule(FORM_ANSWERS_SWEEP_NAME, FORM_ANSWERS_SWEEP_CRON, async () => {
-    const swept = await sweepFormAnswers({ meta, manager });
+    const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'form answers sweep');
   });
   // A recorded live payment emails its receipt once, to the record's customer.
@@ -2319,6 +2320,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           signIns: (event) => app.publicIdentities.onRecordEvent(event),
           // The reach card reads the forms door's own facts.
           reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+          // An erasure takes their form answers' files out of the strangers' file store too.
+          answerFiles: formsFiles.removeAnswerFiles,
         }),
       );
       // Whether mail a stranger causes through a form goes, for the forms builder to say why not.
@@ -3160,6 +3163,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const formsScopes = createFormsScopes({ meta, tablesOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined)?.tables ?? null });
   const formsWebsites = listedWebsitesOf(meta);
   const formsConfirm = createFormsConfirm({ meta, secret: env.ADMINIUM_SECRET, consent, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews });
+  // A named survey's invitations: found by the token their links carry, spent by the answer.
+  const surveyInvitations = createSurveyInvitations({ installs: () => addOnInstalls.fresh(), viewFor: formsViews, data: formsData });
   const answerDoor = createAnswerDoor({
     meta,
     secret: env.ADMINIUM_SECRET,
@@ -3171,6 +3176,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     consent,
     switches: publicSwitches,
     websites: formsWebsites,
+    invitations: surveyInvitations,
+    // The files a file question names: attached in the answer's own transaction.
+    files: formsFiles,
     hub: () => (app.hasDecorator('realtime') ? app.realtime : undefined),
   });
   // A sign-up waiting for its click lets go after thirty days; the forms' counts older than any cap reads go too.
@@ -3196,6 +3204,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       storage,
       websites: formsWebsites,
       answers: answerDoor,
+      invitations: surveyInvitations,
       uploads: publicUploads,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',

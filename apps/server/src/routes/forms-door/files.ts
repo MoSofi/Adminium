@@ -7,7 +7,8 @@
  * do). What it takes it from the form, never from the request:
  *
  *  - the form must be live, and the outside able to reach this server (the
- *    door's own `lookUp`); a closed, draft or unknown form is "not available";
+ *    door's own `lookUp`); a closed, draft or unknown form is "not available",
+ *    and so is a named survey without its invitation's open token (`t`);
  *  - `q` must name a file question of the form: its kinds and its size cap
  *    (`maxMb`, at most 10) are what the file is judged by;
  *  - the form's own human check, one per upload (`x-adminium-proof`, purpose
@@ -36,7 +37,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
-import type { FormLookup, LiveForm } from '../../forms/catalog.js';
+import type { LiveForm } from '../../forms/catalog.js';
 import { FORM_UPLOAD_KIND, formUploadKey } from '../../forms/files.js';
 import { checkProof } from '../../public-api/proof.js';
 import type { PublicUploads, UploadRefusal } from '../../public-uploads/store.js';
@@ -54,7 +55,7 @@ export interface FormsFileRoutesDeps {
   /** The proof key (`proofKey(secret)`). */
   key: Buffer;
   /** The form a request names, as strangers may be served it now (the door's own). */
-  lookUp: (request: FastifyRequest, slug: string) => Promise<FormLookup | { state: 'unavailable' }>;
+  lookUp: (request: FastifyRequest, slug: string, token: string | undefined) => Promise<{ state: 'live'; live: LiveForm } | { state: 'closed' | 'unavailable' | 'already' | 'dead' }>;
   /** The door's one "not available" answer. */
   unavailable: (reply: FastifyReply) => Promise<FastifyReply>;
   /** The key a form's proof is bound to, and the least work it must carry. */
@@ -63,7 +64,7 @@ export interface FormsFileRoutesDeps {
 }
 
 const params = z.object({ slug: z.string().min(1).max(120) });
-const query = z.object({ q: z.string().min(1).max(40), name: z.string().max(1024).optional() });
+const query = z.object({ q: z.string().min(1).max(40), name: z.string().max(1024).optional(), t: z.string().max(2000).optional() });
 
 export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZod {
   const proofs = publicProofsRepo(deps.meta);
@@ -85,7 +86,7 @@ export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZo
         schema: { hide: true, params, querystring: query },
       },
       async (request, reply) => {
-        const found = await deps.lookUp(request, request.params.slug);
+        const found = await deps.lookUp(request, request.params.slug, request.query.t);
         if (found.state !== 'live') return deps.unavailable(reply);
         const { live } = found;
         const question = live.form.definition.questions.find((one): one is FormQuestionOf<'file'> => one.id === request.query.q && one.kind === 'file');

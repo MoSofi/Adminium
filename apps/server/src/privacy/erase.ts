@@ -49,6 +49,7 @@ import { translatorFor } from '../i18n/server-i18n.js';
 import { blankCampaignSends, campaignSendIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
+import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
 import { findPerson, searchAddress } from './sources.js';
 import { whatStays, type StaysItem } from './what-stays.js';
@@ -59,6 +60,8 @@ export interface EraseDeps {
   consent: ConsentService;
   storage: FileStore;
   secret: string;
+  /** The strangers' file store's remover: their form answers' files leave the store with the answers. */
+  answerFiles?: AnswerFilesRemover | undefined;
   /**
    * Told of each of their rows as if it were gone: the public door's address
    * watch ends the sessions it opened and takes back open sign-in links to
@@ -69,7 +72,7 @@ export interface EraseDeps {
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -165,6 +168,7 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string): Promi
   }
   for (const one of await findFormRows(deps, address)) {
     if (one.answers.length > 0 && one.addOn.answers !== null) goes.push({ kind: 'form-answers', count: one.answers.length, connectionId: one.connectionId, table: one.addOn.answers.id, app: one.addOn.key, label: one.addOn.answers.table.label ?? one.addOn.answers.name });
+    if (one.files.length > 0 && one.addOn.files !== null) goes.push({ kind: 'form-files', count: one.files.length, connectionId: one.connectionId, table: one.addOn.files.id, app: one.addOn.key, label: one.addOn.files.table.label ?? one.addOn.files.name });
     if (one.invitations.length > 0 && one.addOn.invitations !== null) {
       goes.push({ kind: 'form-invitations', count: one.invitations.length, connectionId: one.connectionId, table: one.addOn.invitations.id, app: one.addOn.key, label: one.addOn.invitations.table.label ?? one.addOn.invitations.name });
     }
@@ -255,7 +259,7 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<
 
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));
-  Object.assign(counts, await eraseFormRows(forms, erasedName));
+  Object.assign(counts, await eraseFormRows(forms, erasedName, deps.answerFiles));
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);
   counts['audit'] = audit + swept.audit;

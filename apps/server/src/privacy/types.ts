@@ -24,6 +24,8 @@ export const SOURCE_KINDS = [
   // A forms add-on's answers given by the address, and the survey invitations sent to it.
   'form-answers',
   'form-invitations',
+  // The files a form's answers came with (a file question).
+  'form-files',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 

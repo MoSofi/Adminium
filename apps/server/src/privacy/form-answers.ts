@@ -12,6 +12,10 @@
  *    language the answer was given in (a choice by its label too). An
  *    erasure deletes them, through the one function that deletes answers
  *    (`forms/answers.ts`), which takes their files with them.
+ *  - THEIR ANSWERS' FILES (a form's file question): listed and downloaded as
+ *    the files on a person's rows are, by name, size and kind (the download
+ *    holds no file's bytes), and erased with the answers, from the
+ *    strangers' file store too.
  *  - THE INVITATIONS sent to the address: listed and downloaded (never the
  *    token's hash); an erasure empties their `email` and `name` and keeps
  *    the row, so the survey's counts (invited, answered) stay whole.
@@ -29,7 +33,7 @@ import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { bindWriteValue } from '../crud/write-values.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
-import { deleteFormAnswers } from '../forms/answers.js';
+import { deleteFormAnswers, type AnswerFilesRemover } from '../forms/answers.js';
 import { jsonOf } from '../forms/catalog.js';
 import { formsAddOnsOn, storedFormsAddOns, type FormsAddOnTables } from '../forms/installed.js';
 import { rowKeyOf } from '../payments/payables.js';
@@ -46,6 +50,12 @@ const INVITATION_COLUMNS: readonly [string, ErasedRole][] = [
   ['name', 'name'],
 ];
 const INVITATION_HIDDEN = new Set(['token_hash']);
+/** The columns of an answer's file that are the person's: its name. */
+const FILE_COLUMNS = ['name'] as const;
+/** What the download says of an answer's file: never its handle in the store. */
+const FILE_SHOWN = ['answer_id', 'question', 'name', 'size', 'kind', 'uploaded_at'] as const;
+/** How many answers one read of their files names. */
+const FILES_BATCH = 200;
 
 /** One forms add-on's rows of one person. */
 export interface FormPersonRows {
@@ -55,11 +65,15 @@ export interface FormPersonRows {
   addOn: FormsAddOnTables;
   answers: Row[];
   invitations: Row[];
+  /** The add-on's file rows of their answers. */
+  files: Row[];
 }
 
 export interface FormRowsDeps {
   meta: MetaDb;
   manager: Pick<ConnectionManager, 'data'>;
+  /** The strangers' file store's remover: an erasure takes the answers' files from the store too. */
+  answerFiles?: AnswerFilesRemover | undefined;
 }
 
 const addressIs = (column: string, address: string) => sql<boolean>`lower(trim(${sql.ref(column)})) = ${address}`;
@@ -72,6 +86,24 @@ async function rowsOf(db: Kysely<SourceDatabase>, table: ResolvedTable, address:
     .where(addressIs('email', address));
   for (const column of table.primaryKey) query = query.orderBy(sql.ref(column) as never);
   return (await (limit === undefined ? query : query.limit(limit)).execute()) as Row[];
+}
+
+/** The add-on's file rows of these answers. */
+async function filesOf(db: Kysely<SourceDatabase>, addOn: FormsAddOnTables, answers: readonly Row[]): Promise<Row[]> {
+  const files = addOn.files;
+  const key = addOn.answers?.primaryKey[0];
+  if (files === null || key === undefined || !files.columns.has('answer_id') || answers.length === 0) return [];
+  const keys = answers.map((row) => row[key]);
+  const out: Row[] = [];
+  for (let at = 0; at < keys.length; at += FILES_BATCH) {
+    let query = db
+      .selectFrom(files.id as never)
+      .selectAll()
+      .where(sql.ref('answer_id'), 'in', keys.slice(at, at + FILES_BATCH) as never);
+    for (const column of files.primaryKey) query = query.orderBy(sql.ref(column) as never);
+    out.push(...((await query.execute()) as Row[]));
+  }
+  return out;
 }
 
 /** Every forms add-on's answers and invitations of one address (`limit`: the most of each a search keeps). */
@@ -89,7 +121,7 @@ export async function findFormRows(deps: FormRowsDeps, address: string, limit?: 
     for (const addOn of await formsAddOnsOn(deps.meta, connectionId, view, stored)) {
       const answers = addOn.answers === null ? [] : await rowsOf(db, addOn.answers, address, limit);
       const invitations = addOn.invitations === null ? [] : await rowsOf(db, addOn.invitations, address, limit);
-      if (answers.length > 0 || invitations.length > 0) out.push({ connectionId, db, dialect, addOn, answers, invitations });
+      if (answers.length > 0 || invitations.length > 0) out.push({ connectionId, db, dialect, addOn, answers, invitations, files: await filesOf(db, addOn, answers) });
     }
   }
   return out;
@@ -205,6 +237,23 @@ export async function formSources(found: readonly FormPersonRows[]): Promise<Fou
         rows: one.invitations.map((row) => Object.fromEntries(Object.entries(row).filter(([column]) => !INVITATION_HIDDEN.has(column)).map(([column, value]) => [column, plainValue(value)]))),
       });
     }
+    if (one.files.length > 0 && addOn.files !== null) {
+      const table = addOn.files;
+      out.push({
+        id: `form-files-${addOn.key}`,
+        kind: 'form-files',
+        group: 'gave',
+        connectionId: one.connectionId,
+        table: table.id,
+        app: addOn.key,
+        ref: addOn.block.files ?? 'files',
+        label: table.table.label ?? table.name,
+        keptByLaw: null,
+        count: one.files.length,
+        keys: one.files.map((row) => rowKeyOf(table, row)),
+        rows: one.files.map((row) => Object.fromEntries(FILE_SHOWN.filter((column) => column in row).map((column) => [column, plainValue(row[column])]))),
+      });
+    }
   }
   return out;
 }
@@ -216,6 +265,7 @@ export function formImageTargets(found: readonly FormPersonRows[]): ImageTarget[
     for (const [table, rows, columns] of [
       [one.addOn.answers, one.answers, ANSWER_COLUMNS as readonly string[]],
       [one.addOn.invitations, one.invitations, INVITATION_COLUMNS.map(([column]) => column)],
+      [one.addOn.files, one.files, FILE_COLUMNS as readonly string[]],
     ] as const) {
       if (table === null || rows.length === 0) continue;
       const own = columns.filter((column) => table.columns.has(column));
@@ -227,18 +277,22 @@ export function formImageTargets(found: readonly FormPersonRows[]): ImageTarget[
 }
 
 /**
- * Erases their answers and invitations (see the header): the answers go, the
- * invitations lose the address and the name. Answers the rows changed, per
- * source id (`form-answers-<add-on>`, `form-invitations-<add-on>`).
+ * Erases their answers and invitations (see the header): the answers go with
+ * their files (from the store too, with `removeFiles`), the invitations lose
+ * the address and the name. Answers the rows changed, per source id
+ * (`form-answers-<add-on>`, `form-files-<add-on>`, `form-invitations-<add-on>`).
  */
-export async function eraseFormRows(found: readonly FormPersonRows[], erasedName: string): Promise<Record<string, number>> {
+export async function eraseFormRows(found: readonly FormPersonRows[], erasedName: string, removeFiles?: AnswerFilesRemover): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const one of found) {
     const { addOn } = one;
     if (addOn.answers !== null && one.answers.length > 0) {
       const key = addOn.answers.primaryKey[0];
       if (key !== undefined) {
-        counts[`form-answers-${addOn.key}`] = await deleteFormAnswers({ db: one.db, answers: addOn.answers, files: addOn.files }, one.answers.map((row) => row[key]));
+        const gone = await deleteFormAnswers({ db: one.db, answers: addOn.answers, files: addOn.files, connectionId: one.connectionId, addOn: addOn.key, removeFiles }, one.answers.map((row) => row[key]));
+        counts[`form-answers-${addOn.key}`] = gone.answers;
+        // The add-on's file rows went with them (the store's rows and bytes too, when it was told).
+        if (one.files.length > 0) counts[`form-files-${addOn.key}`] = one.files.length;
       }
     }
     const invitations = addOn.invitations;

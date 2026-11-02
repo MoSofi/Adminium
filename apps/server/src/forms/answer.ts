@@ -7,6 +7,9 @@
  *     difficulty), spent once;
  *  2. the trap field: a filled one is answered exactly as a sent answer is,
  *     and nothing is written or counted, so a bot learns nothing;
+ *     a named survey's token (`t`) is read next (`invitation.ts`): none, an
+ *     unknown or an expired one → "this link doesn't work"; one answered
+ *     already → "already answered". An anonymous survey takes none;
  *  3. the caps (`caps.ts`): the network address's hour and the form's hour;
  *     the e-mail address's day once the answer names one. A tripped cap says
  *     how long to wait, and tells the owner (`mail.ts` `alertLimit`);
@@ -14,16 +17,26 @@
  *     business counts it and the page address's query for hidden fields;
  *  5. "becomes": when the form names a table, a new row there through the
  *     app's own entry under the key `forms` (`scope.ts`): only a table that
- *     entry opens, only its `writable` columns, never a link column (a
- *     stranger never names another row), with its `defaults`, plain-text
- *     rule and anonymous limits, as origin `public`, in the form's name. A
+ *     entry opens, only its `writable` columns, never a link column from a
+ *     question (a stranger never names another row); a named survey's
+ *     invitation alone fills the link columns the entry opens that point at
+ *     the record it names (the job a feedback row is about). With its
+ *     `defaults`, plain-text rule and anonymous limits, as origin `public`,
+ *     in the form's name. A
  *     create only: a row already there is never changed. Refused, nothing is
  *     written, and the stranger is told why by question;
  *  6. the answer row, in the forms add-on's answers table, written in the
  *     same transaction as the row it became (both are on the add-on's own
  *     database: a form reaches only the apps on it), so neither is ever kept
- *     without the other. The network address and the browser are kept only
- *     with an agreement ticked: the consent log needs them, nothing else does;
+ *     without the other. In that transaction too: the invitation is spent
+ *     (only while still unanswered: of two sends with one token one wins),
+ *     and the files the answer names are attached to it (`files.ts`; any
+ *     file refused refuses the whole answer, and a transaction that does not
+ *     stand lets them go again). The network address and the browser are
+ *     kept only with an agreement ticked: the consent log needs them, nothing
+ *     else does. A named survey's answer keeps its invitation and the
+ *     invitee's address and name; with "Link answers to names" off it keeps
+ *     none of the three;
  *  7. the agreement: confirmation asked → the answer waits for the click
  *     (`confirm = 'pending'`) and the confirmation mail goes; not asked → a
  *     yes in the consent log now, for the row the answer became when it is a
@@ -31,27 +44,19 @@
  *  8. staff are told (the form's "Tell", and on a survey only when its
  *     low-score rule holds).
  * Mail and notices come after the answer is kept, and never undo it.
- *
- * ─── What waits for a later piece ──────────────────────────────────────────
- * A file question's upload ids are checked for their shape here and kept in
- * the answer's values; tying the uploads to the answer is the file door's
- * (see `ANSWER_FILES_SEAM`). A named survey is answered by invitation only:
- * the door does not read a survey token yet, so a named survey stays "not
- * available" (`routes/forms-door/index.ts`), and `becomes` never fills a link
- * column (see `INVITATION_SEAM`).
  */
 import { createHash, randomUUID } from 'node:crypto';
 
-import { checkAnswer, type CheckedAnswer, type Form, type FormQuestion } from '@adminium/add-on-contracts/forms';
-import { formsOf } from '@adminium/manifest';
+import { checkAnswer, keepsNames, type CheckedAnswer, type Form, type FormQuestion } from '@adminium/add-on-contracts/forms';
+import { ANSWER_INVITATION_COLUMN, formsOf } from '@adminium/manifest';
 import { formMarksRepo, publicProofsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { ConsentService } from '../consent/index.js';
-import type { SnapshotView } from '../crud/identifiers.js';
+import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { insertRow, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -66,6 +71,8 @@ import type { Switches } from '../public-api/switches.js';
 import { prepareValues } from '../public-api/values.js';
 import { createFormCaps, type CapCharge, type FormCap } from './caps.js';
 import type { LiveForm } from './catalog.js';
+import type { FormsFiles, QuestionFiles } from './files.js';
+import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from './invitation.js';
 import { confirmKey, makeConfirmToken } from './confirm-token.js';
 import { alertLimit, formsMailBlocked, holdersOf, sendConfirmMail, tellStaff, toldBy } from './mail.js';
 import type { FormsScopes, FormsTable } from './scope.js';
@@ -87,22 +94,24 @@ const spentKeyOf = (live: Pick<LiveForm, 'addOn' | 'id'>): string => `frm${creat
 const USER_AGENT_MAX = 512;
 const IP_MAX = 64;
 
-/**
- * Where a later piece ties a file question's uploads to the answer: after
- * the answer row is written (its id known), inside the same transaction, the
- * file door's `attach(uploadIds, binding, owner)` is called with each file
- * question's ids from `checked.values`. Until then the ids are kept in the
- * answer's values alone.
- */
-export const ANSWER_FILES_SEAM = 'forms/answer.ts writeAnswer: after the answer row';
+/** The forms add-on's staff pages the engine links to, by page ref: its forms (answers, settings) and its surveys (results). */
+export const FORMS_PAGE = 'forms';
+export const SURVEYS_PAGE = 'surveys';
 
 /**
- * Where a later piece reads a named survey's token (`t` in the body): before
- * the caps, the invitation is found by the token's hash and spent on this
- * send; its record fills the link columns `becomes` names (the only way a
- * link column is ever filled), and the answer row's `invitation_id` is set.
+ * A staff link into the forms add-on's own pages: `/add-ons/<add-on>/<page
+ * ref>/…`. The dashboard opens the page the first segment after the add-on
+ * names (`AddOnPageHost`), and hands that page the rest. An answer opens on
+ * its form's answers, or on its survey's results; the limits on the form's
+ * settings.
  */
-export const INVITATION_SEAM = 'forms/answer.ts takeAnswer: before the caps';
+export function formsStaffLink(live: Pick<LiveForm, 'addOn' | 'slug' | 'form'>, to: 'answer' | 'limits', answerId?: string): string {
+  const base = `/add-ons/${encodeURIComponent(live.addOn)}`;
+  const slug = encodeURIComponent(live.slug);
+  if (to === 'limits') return `${base}/${FORMS_PAGE}/${slug}?settings=limits`;
+  const page = live.form.definition.kind === 'survey' ? `${SURVEYS_PAGE}/${slug}/results` : `${FORMS_PAGE}/${slug}/answers`;
+  return `${base}/${page}?answer=${encodeURIComponent(answerId ?? '')}`;
+}
 
 /** What the page sends (`apps/dashboard/src/x/api.ts`). */
 export const answerBodySchema = z.object({
@@ -113,6 +122,8 @@ export const answerBodySchema = z.object({
   website: z.string().max(2000).optional(),
   /** The website the form sat on, as a frame's page knows it (an origin). */
   from: z.string().max(2048).optional(),
+  /** A named survey's one-use token, from its invitation's link (`?t=`). */
+  t: z.string().max(2000).optional(),
 });
 export type AnswerBody = z.infer<typeof answerBodySchema>;
 
@@ -123,6 +134,10 @@ export type AnswerReply =
   | { status: 403; body: { state: 'proof' } }
   | { status: 404; body: { state: 'unavailable' } }
   | { status: 200; body: { state: 'closed' } }
+  /** A named survey's invitation answered already (or its record has its answer already). */
+  | { status: 409; body: { state: 'already' } }
+  /** A named survey's link that does not work: no token, an unknown one, or one past its time. */
+  | { status: 410; body: { state: 'dead' } }
   | { status: 429; body: { state: 'too-many'; retryAfter: number | null; window: 'hour' | 'day' } };
 
 export interface AnswerDoorDeps {
@@ -137,6 +152,10 @@ export interface AnswerDoorDeps {
   consent: ConsentService;
   switches: Pick<Switches, 'isOn'>;
   websites: ListedWebsites;
+  /** A named survey's invitations: found by token, spent by the answer. */
+  invitations: SurveyInvitations;
+  /** The strangers' files a file question names: attached to the answer in its transaction. */
+  files?: Pick<FormsFiles, 'attachToAnswer' | 'detachAnswer'> | undefined;
   hub?: () => NotificationPublisher | undefined;
   now?: () => number;
 }
@@ -146,6 +165,31 @@ class FormWriteRefused extends Error {
   constructor(readonly columns: readonly string[]) {
     super('That answer was refused.');
   }
+}
+
+/** A file the answer names could not be attached: the whole answer is refused, nothing kept. */
+class FilesRefused extends Error {
+  constructor() {
+    super('A file the answer names was refused.');
+  }
+}
+
+/** The invitation was answered by another send while this one was on its way. */
+class InvitationSpent extends Error {
+  constructor() {
+    super('The invitation was answered already.');
+  }
+}
+
+/** Each file question's upload ids, as the checked answer holds them. */
+function filesOf(form: Form, values: Readonly<Record<string, unknown>>): QuestionFiles[] {
+  const out: QuestionFiles[] = [];
+  for (const question of form.definition.questions) {
+    const ids = values[question.id];
+    if (question.kind !== 'file' || !Array.isArray(ids) || ids.length === 0) continue;
+    out.push({ question: question.id, ids: ids.filter((id): id is string => typeof id === 'string') });
+  }
+  return out;
 }
 
 /** The ending a sent answer shows: `sent-confirm` when a ticked agreement asks for the click, whatever the address. */
@@ -169,6 +213,11 @@ async function sentFromOf(request: FastifyRequest, body: AnswerBody, websites: L
   };
   for (const candidate of [origin(body.from), origin(request.headers['referer'])]) if (candidate !== null && listed.has(candidate)) return candidate;
   return null;
+}
+
+/** Whether a column allows one row per value: a unique column, or a one-column unique constraint on it. */
+function uniqueColumn(table: ResolvedTable, column: string): boolean {
+  return table.table.columns.some((one) => one.name === column && one.isUnique) || table.table.uniques.some((unique) => unique.columns.length === 1 && unique.columns[0] === column);
 }
 
 /** One question's answer as a column takes it: several picks as one text, the rest as they are. */
@@ -222,7 +271,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       fallback: () => (formsTable === null ? Promise.resolve([]) : holdersOf(meta, `table:${live.connectionId}:${formsTable}:update`)),
       form: { addOn: live.addOn, id: live.id, perHour: live.form.settings.limits.perHour, name: live.form.definition.title as Record<string, string> },
       cap,
-      actionUrl: `/add-ons/${encodeURIComponent(live.addOn)}/${encodeURIComponent(live.slug)}?settings=limits`,
+      actionUrl: formsStaffLink(live, 'limits'),
       reopensAt: at + retryAfter * 1000,
       mail: (await formsMailBlocked(meta, deps.secret)) === null,
       at,
@@ -270,7 +319,14 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     // 2. The trap: answered as sent, and nothing written or counted.
     if (typeof body.website === 'string' && body.website.trim() !== '') return { status: 200, body: endingOf(form, body.values) };
 
-    // (A named survey's token is read here, when the door takes one: INVITATION_SEAM.)
+    // A named survey's invitation, by the token its link carries: read here, spent with the answer.
+    let invitation: OpenInvitation | null = null;
+    if (isNamedSurvey(form)) {
+      const found = await deps.invitations.find(live, body.t, at);
+      if (found.state === 'already') return { status: 409, body: { state: 'already' } };
+      if (found.state === 'dead') return { status: 410, body: { state: 'dead' } };
+      invitation = found.invitation;
+    }
 
     // 3. The address's hour and the form's.
     const capped = { addOn: live.addOn, id: live.id, perHour: form.settings.limits.perHour };
@@ -315,14 +371,26 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     const pending = tick !== undefined && tick.confirm && checked.email !== null;
     const answerId = randomUUID();
     const sentFrom = await sentFromOf(request, body, deps.websites);
+    // A named survey that links answers to names keeps who it was sent to; one that does not keeps nobody.
+    const linked = invitation !== null && keepsNames(form.settings);
+    const invited = (column: 'email' | 'name'): string | null => {
+      const value = linked ? invitation!.row[column] : null;
+      return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+    };
+    const email = checked.email ?? invited('email')?.toLowerCase() ?? null;
+    const name = checked.name ?? invited('name');
+    const files = filesOf(form, checked.values);
+    /** What the answer's transaction did that outlives it: files attached in the store, and whether it committed. */
+    const progress = { attached: [] as string[], committed: false };
     const answerValues = (became: { table: string; key: string } | null): Row => ({
       [answers.pk]: answerId,
       form_id: live.id,
       submitted_at: new Date(at).toISOString(),
       language: body.language,
       values: checked.values,
-      email: checked.email,
-      name: checked.name,
+      email,
+      name,
+      ...(linked && answers.target.table.columns.has(ANSWER_INVITATION_COLUMN) ? { [ANSWER_INVITATION_COLUMN]: invitation!.id } : {}),
       became_table: became?.table ?? null,
       became_key: became?.key ?? null,
       confirm: pending ? 'pending' : 'none',
@@ -334,15 +402,40 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       user_agent: tick === undefined ? null : userAgent,
       sent_from: sentFrom,
     });
-    /** The answer row, written by Adminium alone, on `db` (a transaction's, beside the row it became). */
+    /**
+     * The answer row, written by Adminium alone, on `db` (a transaction's,
+     * beside the row it became): the invitation spent first, while still
+     * unanswered; then the row; then its files attached, inside the same
+     * transaction.
+     */
     const writeAnswer = async (db: Kysely<SourceDatabase>, became: { table: string; key: string } | null): Promise<void> => {
+      if (invitation !== null && !(await deps.invitations.spend(db, answers.target.dialect, invitation, at))) throw new InvitationSpent();
       const target = { ...answers.target, db };
       const context: WriteContext = { origin: 'public', hops: 0, actor: { kind: 'public', id: null, label: `Form: ${nameIn(form, body.language)}`.slice(0, 200) }, request: null };
       const verdict = await deps.writes.check('create', target, context, [answerValues(became)], { capacity: 'unchecked' });
       const good = verdict.rows[0];
       if (good === null || good === undefined) throw new Error(`the answers table refused an answer: ${JSON.stringify(verdict.issues[0] ?? {})}`);
       await insertRow(db, answers.target.dialect, answers.target.table, good);
-      // (A file question's uploads are tied to the answer here, when the file door is built: ANSWER_FILES_SEAM.)
+      if (files.length > 0) {
+        // Named before the attach: whatever happens from here on, a transaction that does not stand lets them go.
+        progress.attached = files.flatMap((one) => [...one.ids]);
+        // Every file taken for this form, from this address, unattached and in time: else nothing is attached.
+        const taken = deps.files === undefined ? null : await deps.files.attachToAnswer({ live, ip: request.ip, answerKey: answerId, files, on: { db, dialect: answers.target.dialect } });
+        if (taken === null) throw new FilesRefused();
+      }
+    };
+
+    /** An answer that did not stand: the counts go back, its files are let go, and the stranger is told what they can act on. */
+    const notKept = async (error: unknown): Promise<AnswerReply> => {
+      await giveBack();
+      if (progress.attached.length > 0 && !progress.committed) {
+        await deps.files?.detachAnswer(live, answerId, progress.attached).catch((failure: unknown) => {
+          request.log.warn({ err: failure, form: live.id }, 'forms door: an answer’s files could not be let go');
+        });
+      }
+      if (error instanceof FilesRefused) return { status: 400, body: { state: 'refused', errors: Object.fromEntries(files.map((one) => [one.question, 'file'])) } };
+      if (error instanceof InvitationSpent) return { status: 409, body: { state: 'already' } };
+      throw error;
     };
 
     // 5 + 6. What the answer becomes, and the answer, together.
@@ -350,23 +443,25 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     let became: { opened: FormsTable; view: SnapshotView; row: Row } | null = null;
     if (becomes === null) {
       try {
-        await writeAnswer(answers.target.db as Kysely<SourceDatabase>, null);
+        await deps.writes.transaction(answers.target, [], (tdb) => writeAnswer(tdb, null));
+        progress.committed = true;
       } catch (error) {
-        await giveBack();
-        throw error;
+        return notKept(error);
       }
     } else {
       let made: Awaited<ReturnType<typeof becomeRow>>;
       try {
-        made = await becomeRow(request, live, checked, writeAnswer, body.language, at);
+        made = await becomeRow(request, live, checked, writeAnswer, body.language, at, invitation, () => {
+          progress.committed = true;
+        });
       } catch (error) {
         // Nothing was kept: the form's and the address's counts go back.
-        await giveBack();
-        throw error;
+        return notKept(error);
       }
       if (made.state !== 'made') {
         await giveBack();
         if (made.state === 'limit') return tooMany(live, { ok: false, cap: 'entry', retryAfter: 3600, window: 'hour' }, at);
+        if (made.state === 'already') return { status: 409, body: { state: 'already' } };
         if (made.state === 'refused') return { status: 400, body: { state: 'refused', errors: made.errors } };
         if (made.state === 'closed') return { status: 200, body: { state: 'closed' } };
         return { status: 404, body: { state: 'unavailable' } };
@@ -398,7 +493,6 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     const lowEnough = tellWhen === undefined || (typeof checked.values[tellWhen.question] === 'number' && (checked.values[tellWhen.question] as number) <= tellWhen.atMost);
     if (form.settings.tell.length > 0 && lowEnough) {
       const people = await toldBy(meta, form.settings.tell);
-      const path = form.definition.kind === 'survey' ? `surveys/${encodeURIComponent(live.slug)}/results` : `${encodeURIComponent(live.slug)}/answers`;
       await tellStaff({
         meta,
         hub,
@@ -407,7 +501,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
         questions: form.definition.questions,
         values: checked.values,
         language: body.language,
-        actionUrl: `/add-ons/${encodeURIComponent(live.addOn)}/${path}?answer=${encodeURIComponent(answerId)}`,
+        actionUrl: formsStaffLink(live, 'answer', answerId),
         mail: (await formsMailBlocked(meta, deps.secret)) === null,
         at,
         logger: request.log,
@@ -421,6 +515,8 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     | { state: 'refused'; errors: Record<string, string> }
     | { state: 'limit' }
     | { state: 'closed' }
+    /** The record the invitation names has the one row its link column allows already (the job's feedback). */
+    | { state: 'already' }
     | { state: 'unavailable' };
 
   /**
@@ -428,6 +524,12 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
    * beside it in the same transaction. Anything the form's map cannot honour
    * (a table not opened to forms, a column the entry does not open, a link
    * column) is the form's fault, not the stranger's: "not available", logged.
+   *
+   * A named survey's invitation fills the link columns the entry opens that
+   * point at the record the invitation names (the job a feedback row is
+   * about), with that record's own key: never from a question, never from
+   * the body. When such a column allows one row per record and the record
+   * has its row already, the answer is "already answered", nothing written.
    */
   async function becomeRow(
     request: FastifyRequest,
@@ -436,6 +538,8 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     writeAnswer: (db: Kysely<SourceDatabase>, became: { table: string; key: string }) => Promise<void>,
     language: string,
     at: number,
+    invitation: OpenInvitation | null,
+    committed: () => void,
   ): Promise<Became> {
     const becomes = live.form.settings.becomes!;
     const broken = (why: string): Became => {
@@ -466,6 +570,18 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       // A link column is never filled from a question: a stranger never names another row.
       if (links.has(column)) return broken(`"${column}" links to another row`);
     }
+    // The link columns the invitation fills: those the entry opens, pointing at the record it names.
+    const fromInvitation: Row = {};
+    const record = invitation?.record ?? null;
+    if (record !== null) {
+      for (const relation of view.model.relations) {
+        if (relation.from.tableId !== table.id || relation.through !== null || relation.to.tableId !== record.table.id || relation.from.columns.length !== 1) continue;
+        const column = relation.from.columns[0]!;
+        const value = record.row[relation.to.columns[0] ?? ''];
+        if (!opened.resource.writable.has(column) || decided.has(column) || value === null || value === undefined) continue;
+        fromInvitation[column] = value;
+      }
+    }
     // The map's columns from the answer, and the fixed source; a question not answered fills nothing.
     const raw: Row = {};
     const fedBy = new Map<string, string>();
@@ -474,7 +590,19 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       if (checked.values[question] !== undefined) raw[column] = columnValue(checked.values[question]);
     }
     if (becomes.source !== undefined) raw[becomes.source.column] = becomes.source.value;
+    Object.assign(raw, fromInvitation);
     const { db, dialect } = await deps.data(opened.connectionId);
+    // One row per record (a job's one feedback): a record that has its row already is answered already.
+    for (const [column, value] of Object.entries(fromInvitation)) {
+      if (!uniqueColumn(table, column)) continue;
+      const taken = await db
+        .selectFrom(table.id as never)
+        .select(sql.ref(column).as('taken') as never)
+        .where(sql.ref(column), '=', value as never)
+        .limit(1)
+        .executeTakeFirst();
+      if (taken !== undefined) return { state: 'already' };
+    }
     // The entry's own rules: only its writable columns and values, then its defaults over whatever the answer said.
     const values = prepareValues(opened.resource, raw, null, 'create', dialect, table.columns);
     if (values === null) return broken('a value is not one the entry takes');
@@ -531,6 +659,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
             await writeAnswer(tdb, { table: installs.refOf(opened.connectionId, opened.tableId), key: key.slice(0, 200) });
             return one;
           });
+          committed();
           if (row !== null) await announce(row);
           return written;
         },

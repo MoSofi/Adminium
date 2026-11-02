@@ -67,6 +67,7 @@ import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
+import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
 import { formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
@@ -107,6 +108,8 @@ export interface PrivacyRoutesDeps {
   signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
   /** What the reach card's answer reads (the forms door's own facts). */
   reach: FormsReachFacts;
+  /** The strangers' file store's remover: an erasure takes their form answers' files from it. */
+  answerFiles?: AnswerFilesRemover | undefined;
 }
 
 /** The signed-in person asking: never an API key. */
@@ -130,7 +133,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
-  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns };
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles };
 
   /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
   async function unlocked<T>(work: () => Promise<T>): Promise<T> {
