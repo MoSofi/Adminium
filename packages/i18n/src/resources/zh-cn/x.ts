@@ -27,6 +27,7 @@ export default {
   "proofFailed": "未能确认您是真人。请重试。",
   "honeypot": "此栏请留空",
   "anonymous": "您的回答不会与您的姓名关联。",
+  "surveyAbout": "关于{record}。",
   "error": {
     "required": "请回答此问题。",
     "name": "请输入您的姓名",

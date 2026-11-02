@@ -4301,7 +4301,8 @@ export default {
         "files": "Dateien an ihren Zeilen",
         "appRows": "Zeilen in einer App",
         "answers": "Formularantworten",
-        "invitations": "Umfrageeinladungen"
+        "invitations": "Umfrageeinladungen",
+        "answerFiles": "Mit Formularantworten gesendete Dateien"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
@@ -4329,7 +4330,8 @@ export default {
       "downloadSub": "Eine .zip-Datei mit JSON- und CSV-Dateien.",
       "erase": "Löschen…",
       "answers": "{count, plural, one {# Antwort} other {# Antworten}}",
-      "invitations": "{count, plural, one {# Einladung} other {# Einladungen}}"
+      "invitations": "{count, plural, one {# Einladung} other {# Einladungen}}",
+      "files": "{count, plural, one {# Datei} other {# Dateien}}"
     },
     "erase": {
       "goes": {
@@ -4340,7 +4342,8 @@ export default {
         "campaignMail": "{count, plural, one {# Kampagnen-E-Mail} other {# Kampagnen-E-Mails}}",
         "files": "{count, plural, one {# Datei} other {# Dateien}}",
         "answers": "{count, plural, one {# Formularantwort} other {# Formularantworten}} in {label}",
-        "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt"
+        "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt",
+        "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}"
       },
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",

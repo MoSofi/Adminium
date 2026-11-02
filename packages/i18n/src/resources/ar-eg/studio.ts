@@ -4301,7 +4301,8 @@ export default {
         "files": "ملفات على صفوفه",
         "appRows": "صفوف في تطبيق",
         "answers": "إجابات النماذج",
-        "invitations": "دعوات الاستبيانات"
+        "invitations": "دعوات الاستبيانات",
+        "answerFiles": "ملفات أُرسلت مع إجابات النماذج"
       },
       "onList": "نعم",
       "rows": "{count, plural, zero {لا صفوف} one {صف واحد} two {صفّان} few {# صفوف} many {# صفًا} other {# صف}}",
@@ -4329,7 +4330,8 @@ export default {
       "downloadSub": "ملف ‎.zip يضم ملفات JSON وCSV.",
       "erase": "مسح…",
       "answers": "{count, plural, zero {لا إجابات} one {إجابة واحدة} two {إجابتان} few {# إجابات} many {# إجابة} other {# إجابة}}",
-      "invitations": "{count, plural, zero {لا دعوات} one {دعوة واحدة} two {دعوتان} few {# دعوات} many {# دعوة} other {# دعوة}}"
+      "invitations": "{count, plural, zero {لا دعوات} one {دعوة واحدة} two {دعوتان} few {# دعوات} many {# دعوة} other {# دعوة}}",
+      "files": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}"
     },
     "erase": {
       "goes": {
@@ -4340,7 +4342,8 @@ export default {
         "campaignMail": "{count, plural, zero {لا رسائل حملات} one {رسالة حملة واحدة} two {رسالتا حملة} few {# رسائل حملات} many {# رسالة حملة} other {# رسالة حملة}}",
         "files": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}",
         "answers": "{count, plural, zero {لا إجابات نماذج} one {إجابة نموذج واحدة} two {إجابتا نموذج} few {# إجابات نماذج} many {# إجابة نموذج} other {# إجابة نموذج}} في {label}",
-        "invitations": "{count, plural, zero {لا دعوات استبيان} one {دعوة استبيان واحدة} two {دعوتا استبيان} few {# دعوات استبيان} many {# دعوة استبيان} other {# دعوة استبيان}} في {label}، تُحفظ دون عنوانها"
+        "invitations": "{count, plural, zero {لا دعوات استبيان} one {دعوة استبيان واحدة} two {دعوتا استبيان} few {# دعوات استبيان} many {# دعوة استبيان} other {# دعوة استبيان}} في {label}، تُحفظ دون عنوانها",
+        "answerFiles": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}} أُرسلت مع إجابات النماذج في {label}"
       },
       "stays": {
         "forGood": "يُحتفظ به إلى الأبد.",

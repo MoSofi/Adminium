@@ -4301,7 +4301,8 @@ export default {
         "files": "Files on their rows",
         "appRows": "Rows in an app",
         "answers": "Form answers",
-        "invitations": "Survey invitations"
+        "invitations": "Survey invitations",
+        "answerFiles": "Files sent with form answers"
       },
       "onList": "yes",
       "rows": "{count, plural, one {# row} other {# rows}}",
@@ -4329,7 +4330,8 @@ export default {
       "downloadSub": "A .zip of JSON and CSV files.",
       "erase": "Erase…",
       "answers": "{count, plural, one {# answer} other {# answers}}",
-      "invitations": "{count, plural, one {# invitation} other {# invitations}}"
+      "invitations": "{count, plural, one {# invitation} other {# invitations}}",
+      "files": "{count, plural, one {# file} other {# files}}"
     },
     "erase": {
       "goes": {
@@ -4340,7 +4342,8 @@ export default {
         "campaignMail": "{count, plural, one {# campaign e-mail} other {# campaign e-mails}}",
         "files": "{count, plural, one {# file} other {# files}}",
         "answers": "{count, plural, one {# form answer} other {# form answers}} in {label}",
-        "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address"
+        "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address",
+        "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}"
       },
       "stays": {
         "forGood": "Kept for good.",

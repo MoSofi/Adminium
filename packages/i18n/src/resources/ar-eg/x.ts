@@ -27,6 +27,7 @@ export default {
   "proofFailed": "لم ينجح التحقق من أنك شخص. حاول مرة أخرى.",
   "honeypot": "اترك هذا الحقل فارغًا",
   "anonymous": "إجاباتك غير مرتبطة باسمك.",
+  "surveyAbout": "عن {record}.",
   "error": {
     "required": "أجب عن هذا السؤال.",
     "name": "أدخل اسمك",

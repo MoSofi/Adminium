@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3550 entries. */
+/** `namespace:key` — 3551 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2655,6 +2655,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:privacy.person.downloadFailed',
   'studio:privacy.person.downloadQueued',
   'studio:privacy.person.inApp',
+  'studio:privacy.person.kind.answerFiles',
   'studio:privacy.person.kind.answers',
   'studio:privacy.person.kind.appRows',
   'studio:privacy.person.kind.automationRuns',

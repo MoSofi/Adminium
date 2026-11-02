@@ -27,6 +27,7 @@ export default {
   "proofFailed": "Ověření, že jste člověk, neprošlo. Zkuste to znovu.",
   "honeypot": "Toto pole nechte prázdné",
   "anonymous": "Vaše odpovědi nejsou spojeny s vaším jménem.",
+  "surveyAbout": "Týká se: {record}.",
   "error": {
     "required": "Odpovězte na tuto otázku.",
     "name": "Zadejte své jméno",

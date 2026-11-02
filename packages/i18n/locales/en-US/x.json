@@ -17,6 +17,7 @@
   "proofFailed": "The check that you are a person did not pass. Try again.",
   "honeypot": "Leave this field empty",
   "anonymous": "Your answers are not linked to your name.",
+  "surveyAbout": "About {record}.",
   "error": {
     "required": "Answer this question.",
     "name": "Enter your name",

@@ -4291,7 +4291,8 @@
         "files": "其行上的文件",
         "appRows": "应用中的行",
         "answers": "表单回答",
-        "invitations": "调查邀请"
+        "invitations": "调查邀请",
+        "answerFiles": "随表单回答发送的文件"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 行}}",
@@ -4319,7 +4320,8 @@
       "downloadSub": "包含 JSON 和 CSV 文件的 .zip。",
       "erase": "删除…",
       "answers": "{count, plural, other {# 条回答}}",
-      "invitations": "{count, plural, other {# 份邀请}}"
+      "invitations": "{count, plural, other {# 份邀请}}",
+      "files": "{count, plural, other {# 个文件}}"
     },
     "erase": {
       "goes": {
@@ -4330,7 +4332,8 @@
         "campaignMail": "{count, plural, other {# 封活动邮件}}",
         "files": "{count, plural, other {# 个文件}}",
         "answers": "{label} 中的 {count, plural, other {# 条表单回答}}",
-        "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址"
+        "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址",
+        "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}"
       },
       "stays": {
         "forGood": "永久保留。",

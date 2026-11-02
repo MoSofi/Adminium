@@ -4301,7 +4301,8 @@ export default {
         "files": "Fichiers sur ses lignes",
         "appRows": "Lignes dans une app",
         "answers": "Réponses aux formulaires",
-        "invitations": "Invitations aux enquêtes"
+        "invitations": "Invitations aux enquêtes",
+        "answerFiles": "Fichiers envoyés avec les réponses aux formulaires"
       },
       "onList": "oui",
       "rows": "{count, plural, one {# ligne} other {# lignes}}",
@@ -4329,7 +4330,8 @@ export default {
       "downloadSub": "Un .zip de fichiers JSON et CSV.",
       "erase": "Effacer…",
       "answers": "{count, plural, one {# réponse} other {# réponses}}",
-      "invitations": "{count, plural, one {# invitation} other {# invitations}}"
+      "invitations": "{count, plural, one {# invitation} other {# invitations}}",
+      "files": "{count, plural, one {# fichier} other {# fichiers}}"
     },
     "erase": {
       "goes": {
@@ -4340,7 +4342,8 @@ export default {
         "campaignMail": "{count, plural, one {# e-mail de campagne} other {# e-mails de campagne}}",
         "files": "{count, plural, one {# fichier} other {# fichiers}}",
         "answers": "{count, plural, one {# réponse à un formulaire} other {# réponses à des formulaires}} dans {label}",
-        "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse"
+        "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse",
+        "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}"
       },
       "stays": {
         "forGood": "Conservé pour toujours.",

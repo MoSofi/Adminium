@@ -4301,7 +4301,8 @@ export default {
         "files": "Filer på deres rækker",
         "appRows": "Rækker i en app",
         "answers": "Formularsvar",
-        "invitations": "Invitationer til undersøgelser"
+        "invitations": "Invitationer til undersøgelser",
+        "answerFiles": "Filer sendt med formularsvar"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# række} other {# rækker}}",
@@ -4329,7 +4330,8 @@ export default {
       "downloadSub": "En .zip med JSON- og CSV-filer.",
       "erase": "Slet…",
       "answers": "{count, plural, one {# svar} other {# svar}}",
-      "invitations": "{count, plural, one {# invitation} other {# invitationer}}"
+      "invitations": "{count, plural, one {# invitation} other {# invitationer}}",
+      "files": "{count, plural, one {# fil} other {# filer}}"
     },
     "erase": {
       "goes": {
@@ -4340,7 +4342,8 @@ export default {
         "campaignMail": "{count, plural, one {# kampagne-e-mail} other {# kampagne-e-mails}}",
         "files": "{count, plural, one {# fil} other {# filer}}",
         "answers": "{count, plural, one {# formularsvar} other {# formularsvar}} i {label}",
-        "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen"
+        "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen",
+        "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}"
       },
       "stays": {
         "forGood": "Gemmes for altid.",

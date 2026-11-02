@@ -27,6 +27,7 @@ export default {
   "proofFailed": "La vérification que vous êtes une personne a échoué. Réessayez.",
   "honeypot": "Laissez ce champ vide",
   "anonymous": "Vos réponses ne sont pas liées à votre nom.",
+  "surveyAbout": "Concerne : {record}.",
   "error": {
     "required": "Répondez à cette question.",
     "name": "Saisissez votre nom",

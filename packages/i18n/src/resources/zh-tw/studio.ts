@@ -4301,7 +4301,8 @@ export default {
         "files": "其列上的檔案",
         "appRows": "應用程式中的列",
         "answers": "表單回覆",
-        "invitations": "問卷邀請"
+        "invitations": "問卷邀請",
+        "answerFiles": "隨表單回覆傳送的檔案"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 列}}",
@@ -4329,7 +4330,8 @@ export default {
       "downloadSub": "包含 JSON 和 CSV 檔案的 .zip。",
       "erase": "刪除…",
       "answers": "{count, plural, other {# 筆回覆}}",
-      "invitations": "{count, plural, other {# 份邀請}}"
+      "invitations": "{count, plural, other {# 份邀請}}",
+      "files": "{count, plural, other {# 個檔案}}"
     },
     "erase": {
       "goes": {
@@ -4340,7 +4342,8 @@ export default {
         "campaignMail": "{count, plural, other {# 封活動郵件}}",
         "files": "{count, plural, other {# 個檔案}}",
         "answers": "{label} 中的 {count, plural, other {# 筆表單回覆}}",
-        "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址"
+        "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址",
+        "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}"
       },
       "stays": {
         "forGood": "永久保留。",

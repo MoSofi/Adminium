@@ -17,6 +17,7 @@
   "proofFailed": "未能確認您是真人。請重試。",
   "honeypot": "此欄請留空",
   "anonymous": "您的回答不會與您的姓名連結。",
+  "surveyAbout": "關於{record}。",
   "error": {
     "required": "請回答此問題。",
     "name": "請輸入您的姓名",

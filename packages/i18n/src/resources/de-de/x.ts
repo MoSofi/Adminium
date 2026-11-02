@@ -27,6 +27,7 @@ export default {
   "proofFailed": "Die Prüfung, ob Sie ein Mensch sind, ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
   "honeypot": "Dieses Feld leer lassen",
   "anonymous": "Ihre Antworten sind nicht mit Ihrem Namen verknüpft.",
+  "surveyAbout": "Zu: {record}.",
   "error": {
     "required": "Bitte beantworten Sie diese Frage.",
     "name": "Geben Sie Ihren Namen ein",

@@ -34331,6 +34331,10 @@
     "status": "mt",
     "srcHash": "367bdcf462e3"
   },
+  "studio.privacy.erase.goes.answerFiles": {
+    "status": "mt",
+    "srcHash": "759dc5f08cf4"
+  },
   "studio.privacy.erase.goes.answers": {
     "status": "mt",
     "srcHash": "6de4458d3c54"
@@ -34623,6 +34627,10 @@
     "status": "mt",
     "srcHash": "270548372c86"
   },
+  "studio.privacy.person.files": {
+    "status": "mt",
+    "srcHash": "8a657041aa6b"
+  },
   "studio.privacy.person.filesFailed": {
     "status": "mt",
     "srcHash": "5ff8a35ba6c4"
@@ -34654,6 +34662,10 @@
   "studio.privacy.person.invitations": {
     "status": "mt",
     "srcHash": "2e0142eb4e2e"
+  },
+  "studio.privacy.person.kind.answerFiles": {
+    "status": "mt",
+    "srcHash": "57ced38f6011"
   },
   "studio.privacy.person.kind.answers": {
     "status": "mt",
@@ -45702,5 +45714,9 @@
   "x.summary": {
     "status": "mt",
     "srcHash": "5531748dfc06"
+  },
+  "x.surveyAbout": {
+    "status": "mt",
+    "srcHash": "4afff58abfb0"
   }
 }

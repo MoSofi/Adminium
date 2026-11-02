@@ -27,6 +27,7 @@ export default {
   "proofFailed": "Tjekket af, at du er et menneske, gik ikke igennem. Prøv igen.",
   "honeypot": "Lad dette felt være tomt",
   "anonymous": "Dine svar er ikke knyttet til dit navn.",
+  "surveyAbout": "Om {record}.",
   "error": {
     "required": "Besvar dette spørgsmål.",
     "name": "Skriv dit navn",

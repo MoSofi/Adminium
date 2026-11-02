@@ -4291,7 +4291,8 @@
         "files": "Soubory u jejich řádků",
         "appRows": "Řádky v aplikaci",
         "answers": "Odpovědi z formulářů",
-        "invitations": "Pozvánky do průzkumů"
+        "invitations": "Pozvánky do průzkumů",
+        "answerFiles": "Soubory odeslané s odpověďmi z formulářů"
       },
       "onList": "ano",
       "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
@@ -4319,7 +4320,8 @@
       "downloadSub": "Soubor .zip se soubory JSON a CSV.",
       "erase": "Vymazat…",
       "answers": "{count, plural, one {# odpověď} few {# odpovědi} many {# odpovědi} other {# odpovědí}}",
-      "invitations": "{count, plural, one {# pozvánka} few {# pozvánky} many {# pozvánky} other {# pozvánek}}"
+      "invitations": "{count, plural, one {# pozvánka} few {# pozvánky} many {# pozvánky} other {# pozvánek}}",
+      "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}"
     },
     "erase": {
       "goes": {
@@ -4330,7 +4332,8 @@
         "campaignMail": "{count, plural, one {# e-mail kampaně} few {# e-maily kampaní} many {# e-mailu kampaní} other {# e-mailů kampaní}}",
         "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
         "answers": "{count, plural, one {# odpověď z formuláře} few {# odpovědi z formulářů} many {# odpovědi z formulářů} other {# odpovědí z formulářů}} v {label}",
-        "invitations": "{count, plural, one {# pozvánka do průzkumu} few {# pozvánky do průzkumu} many {# pozvánky do průzkumu} other {# pozvánek do průzkumu}} v {label}, uchováno bez adresy"
+        "invitations": "{count, plural, one {# pozvánka do průzkumu} few {# pozvánky do průzkumu} many {# pozvánky do průzkumu} other {# pozvánek do průzkumu}} v {label}, uchováno bez adresy",
+        "answerFiles": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}} z odpovědí na formuláře v {label}"
       },
       "stays": {
         "forGood": "Uchováno natrvalo.",
