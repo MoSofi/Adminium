@@ -23,6 +23,8 @@
  * Every removal here is best effort and never throws: it runs after the
  * row's own write committed, and a file left behind is logged.
  */
+import { randomUUID } from 'node:crypto';
+
 import { formsOf, type AddOnManifest } from '@adminium/manifest';
 import type { PublicUpload, PublicUploadBinding } from '@adminium/meta';
 
@@ -49,14 +51,18 @@ export interface FormsTables {
   formsKey: string;
   answers: string;
   answersKey: string;
-  /** The add-on's files table and its key, when it names one. */
-  files: { table: string; key: string } | null;
+  /** The add-on's files table and its key, when it names one; `fill` when Adminium makes the key (an `id` or a `uuid`). */
+  files: { table: string; key: string; fill: boolean } | null;
 }
 
 /** The primary-key column of one of the add-on's own tables, by the manifest. */
 function primaryKeyOf(manifest: AddOnManifest, ref: string): string | null {
+  return primaryColumnOf(manifest, ref)?.ref ?? null;
+}
+
+function primaryColumnOf(manifest: AddOnManifest, ref: string): { ref: string; type: string } | null {
   const table = (manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
-  return table?.columns.find((column) => column.role === 'pk')?.ref ?? null;
+  return table?.columns.find((column) => column.role === 'pk') ?? null;
 }
 
 /** Every forms add-on installed on a connection, with its tables as they stand. */
@@ -72,8 +78,17 @@ export function formsTablesOn(installs: AddOnInstalls, connectionId: string): Fo
     const answersKey = primaryKeyOf(installed.manifest, block.answers);
     if (forms === null || answers === null || formsKey === null || answersKey === null) continue;
     const filesTable = block.files === undefined ? null : installs.tableOf(connectionId, key, block.files);
-    const filesKey = block.files === undefined ? null : primaryKeyOf(installed.manifest, block.files);
-    out.push({ connectionId, addOn: key, forms, formsKey, answers, answersKey, files: filesTable === null || filesKey === null ? null : { table: filesTable, key: filesKey } });
+    const filesKey = block.files === undefined ? null : primaryColumnOf(installed.manifest, block.files);
+    out.push({
+      connectionId,
+      addOn: key,
+      forms,
+      formsKey,
+      answers,
+      answersKey,
+      // A key the database counts is left to it; an `id` or a `uuid` key is made here, as a save makes one.
+      files: filesTable === null || filesKey === null ? null : { table: filesTable, key: filesKey.ref, fill: filesKey.type === 'id' || filesKey.type === 'uuid' },
+    });
   }
   return out;
 }
@@ -156,14 +171,15 @@ export function createFormsFiles(deps: FormsFilesDeps) {
     }
   }
 
+  /** The binding of a file taken for `live` from `ip`: what the upload route stores and the answer door attaches with. */
+  function bindingOf(live: Pick<LiveForm, 'addOn' | 'id'>, ip: string): PublicUploadBinding {
+    return deps.uploads.bindingOf(FORM_UPLOAD_KIND, formUploadKey(live), ip);
+  }
+
   return {
     removeAnswerFiles,
     removeFormFiles,
-
-    /** The binding of a file taken for `live` from `ip`: what the upload route stores and the answer door attaches with. */
-    bindingOf(live: Pick<LiveForm, 'addOn' | 'id'>, ip: string): PublicUploadBinding {
-      return deps.uploads.bindingOf(FORM_UPLOAD_KIND, formUploadKey(live), ip);
-    },
+    bindingOf,
 
     /**
      * Attach the files an answer names to it, and write them into the
@@ -179,7 +195,7 @@ export function createFormsFiles(deps: FormsFilesDeps) {
       const tables = await tablesOf(input.live.connectionId, input.live.addOn);
       if (tables === null) return null;
       const owner = { connectionId: tables.connectionId, table: tables.answers, key: input.answerKey };
-      const attached = await deps.uploads.attach(ids, this.bindingOf(input.live, input.ip), owner);
+      const attached = await deps.uploads.attach(ids, bindingOf(input.live, input.ip), owner);
       if (attached === null) return null;
       if (tables.files !== null) {
         const byId = new Map(attached.map((upload) => [upload.id, upload]));
@@ -188,7 +204,7 @@ export function createFormsFiles(deps: FormsFilesDeps) {
           for (const one of input.files) {
             for (const id of one.ids) {
               const upload = byId.get(id)!;
-              const row = { answer_id: input.answerKey, file_id: id, question: one.question, name: upload.name ?? 'file', size: upload.size, kind: upload.kind, uploaded_at: instantOn(on.dialect, upload.createdAt), expires_at: null };
+              const row = { ...(tables.files.fill ? { [tables.files.key]: randomUUID() } : {}), answer_id: input.answerKey, file_id: id, question: one.question, name: upload.name ?? 'file', size: upload.size, kind: upload.kind, uploaded_at: instantOn(on.dialect, upload.createdAt), expires_at: null };
               await on.db.insertInto(tables.files.table).values(row as never).execute();
             }
           }

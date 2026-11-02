@@ -54,6 +54,8 @@ export function formsFilesRoutes(deps: FormsFilesRoutesDeps): FastifyPluginAsync
         },
       },
       async (request, reply) => {
+        // Signed out: 401 before anything is looked up, so a stranger learns nothing of which files exist.
+        await app.rbac.resolve(request);
         const missing = () => new NotFoundError('File not found.');
         const opened = await deps.uploads.open(request.params.id);
         if (opened === null || opened.upload.owner === null) throw missing();
