@@ -51,6 +51,8 @@ const ALLOWED: Record<string, string> = {
     "the survey invitations sent to an erased person lose the address and the name, by key, as the system, under the privacy action, for the reasons the erasure of their own rows gives (privacy/erase-rows.ts)",
   'privacy/erase-rows.ts':
     "a person erased in place under the privacy action: their own fields, their declared copies and their outbox mail emptied by key, one transaction a database, as the system — a save would run under a role's reach and stop half-way, drop the strict stamps it empties, fire the rules (which would mail and copy the name back into history), follow copies into sent and locked rows, and log the name in its before-image; the erasure audits itself with counts and a keyed hash",
+  'forms/invitation.ts':
+    "a named survey's invitation marked answered by the answer sent with its token, in that answer's own transaction and only while still unanswered, so two sends with one token spend it once: Adminium's own record of a link it made, never a person's save",
   'forms/files.ts':
     "a form answer's files in the forms add-on's own files table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): written with the answer they belong to and removed with it, as a ledger's receipts are — no rule, hook or live frame is owed for rows no person writes",
 };
