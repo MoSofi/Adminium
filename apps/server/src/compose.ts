@@ -103,6 +103,7 @@ import { formsPackageVouched } from './forms/vouched.js';
 import { createFormsFiles } from './forms/files.js';
 import { createSurveyInvitations } from './forms/invitation.js';
 import { createPublicUploads } from './public-uploads/store.js';
+import { createColumnUploads } from './public-uploads/columns.js';
 import { tellUploadsRefused } from './public-uploads/notices.js';
 import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
@@ -1161,6 +1162,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     log: app.log,
   });
   const formsFiles = createFormsFiles({ uploads: publicUploads, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId), log: app.log });
+  // A guest's file for an app's file column: held for the public write that names it, then that row's own.
+  const columnUploads = createColumnUploads({ meta, data: (connectionId) => manager.data(connectionId), viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
   app.decorate('formsFiles', formsFiles);
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
@@ -1677,10 +1680,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const consentMirror = peopleConsent;
   // A person's data downloaded for them ("Download everything"): written by a job, deleted once its time is up.
   registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET });
-  // Files strangers sent that no answer took: gone once their two hours are up.
+  // Files strangers sent that no write took: gone once their time is up. First, a guest's file a write held and did
+  // not adopt (the process stopped between): made its row's own where the row names it, let go where none does.
   jobs.scheduler.registerSchedule(PUBLIC_UPLOADS_SWEEP_NAME, PUBLIC_UPLOADS_SWEEP_CRON, async () => {
+    const { adopted, released } = await columnUploads.recover();
     const { swept, dropped } = await publicUploads.sweep();
-    if (swept > 0 || dropped > 0) app.log.info({ swept, dropped }, 'public uploads sweep');
+    if (swept > 0 || dropped > 0 || adopted > 0 || released > 0) app.log.info({ swept, dropped, adopted, released }, 'public uploads sweep');
   });
   jobs.scheduler.registerSchedule(PRIVACY_EXPORTS_SWEEP_NAME, PRIVACY_EXPORTS_SWEEP_CRON, async () => {
     const swept = await sweepPrivacyExports(meta, storage);
@@ -3268,6 +3273,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         ledgers,
         // "Delete my details" withdraws a yes before it empties the column that held it.
         peopleConsent: consentMirror,
+        // A guest's file for an app's column, and the holds a write that names it makes.
+        uploads: { store: publicUploads, columns: columnUploads },
       }));
       },
       { prefix: API_PREFIX },

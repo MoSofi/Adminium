@@ -52,6 +52,9 @@ import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { registerPictures } from './pictures.js';
+import { registerUploads } from './uploads.js';
+import type { PublicUploads } from '../../public-uploads/store.js';
+import type { ColumnUploads, HeldUploads, UploadRow } from '../../public-uploads/columns.js';
 import { cardInputs, CODE_HEADER, GuessesSpent, guessRung, treeRung, writeRung, type WriteRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -308,6 +311,12 @@ export interface PublicRoutesDeps {
   views?: PublicViews | undefined;
   /** "Requests · 24h". Absent = nothing is counted. */
   stats?: RequestStats | undefined;
+  /**
+   * Guests' files for an app's file columns: the store that takes them
+   * (`POST /public/uploads`) and what holds and adopts them for the write that
+   * names them. Absent = no upload route, and a write names no guest's file.
+   */
+  uploads?: { store: PublicUploads; columns: ColumnUploads } | undefined;
 }
 
 /**
@@ -992,6 +1001,27 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     };
   };
   const consentTicks = createConsentTicks(meta);
+
+  /** What a write holds when it names no guest's upload, or the server takes none. */
+  const NO_UPLOADS: HeldUploads = { files: new Map(), any: false, release: async () => undefined, adopt: async () => undefined };
+  /**
+   * The guests' uploads a public write names, held for it before anything is
+   * written (`public-uploads/columns.ts`), each id swapped in the values for
+   * the file it is; the write's context then lets it name them. Null once
+   * refused (answered `400 PUBLIC_WRITE_REFUSED` on the column, and where in
+   * the tree). A quote holds nothing, and is judged alike.
+   */
+  const holdUploads = async (reply: FastifyReply, context: WriteContext, connectionId: string, rows: readonly UploadRow[], quote = false): Promise<HeldUploads | null> => {
+    const columns = deps.uploads?.columns;
+    if (columns === undefined || rows.every((row) => row.uploads.size === 0)) return NO_UPLOADS;
+    const result = await columns.hold(connectionId, rows, { peek: quote });
+    if (!result.ok) {
+      fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', { ...placeOf([...result.refused.at]), column: result.refused.column, reason: result.refused.reason });
+      return null;
+    }
+    if (result.held.any) context.held = result.held.files;
+    return result.held;
+  };
 
 
   /** What a reply says of a price that was asked: the reductions, named in the reader's language; nothing when none was asked. */
@@ -2940,6 +2970,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               const now = await heldToReplace({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: page === null ? undefined : { key: await replacing!.rowKey() } });
               return now.map((row) => ({ target: { ...target(table), db: trx }, pk: { [key]: row[key] }, row: letGo(holds, row, begun), before: row }));
             };
+      /*
+       * The guest's files its rows name (an order line's artwork): held for
+       * them now, every row's own once the whole write commits. A quote holds
+       * none and is judged alike. A refused one is the guest's own value: the
+       * charge is handed back.
+       */
+      const uploadRows: UploadRow[] = [{ table, uploads: new Set(resource.uploads ?? []), values }];
+      const collect = (nodes: readonly TreeNode[]): void => {
+        for (const node of nodes) {
+          uploadRows.push({ table: node.target.table, uploads: new Set(entryAt(node.at)?.uploads ?? []), values: node.values, at: node.at });
+          collect(node.children);
+        }
+      };
+      collect(level1);
+      const held = await holdUploads(reply, context, ok.key.connectionId, uploadRows, dry);
+      if (held === null) {
+        await release?.();
+        return reply;
+      }
       let rootRow: Row | null = null;
       let outcome: TreeOutcome;
       try {
@@ -3012,6 +3061,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
       } catch (error) {
+        // Nothing was made: the guest's files wait for the next try.
+        await held.release();
         // The page's session goes back to the hold it came from: that one was not let go after all — unless
         // another write with the same session has moved it on since (then it is that write's to keep).
         const took = carried as { subject: string } | null;
@@ -3034,6 +3085,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         throw error;
       }
 
+      // Made: each row's files are its own now. A retry made nothing new, and a quote nothing at all: their holds go.
+      if (outcome.replayed || dry) await held.release();
+      else await held.adopt(outcome.rows.map((row) => ({ table: row.node.target.table, record: row.record })));
       if (outcome.replayed) {
         guesses.forget(request);
         const shown = await asMade(outcome.rows, outcome.root);
@@ -3140,6 +3194,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           timezone: ok.key.scope.timezone,
         };
         const context = await publicWriteContext(request, ok, { table: found.table.id, claim: found.resource.claim });
+        // The guest's files the row names: held for it now, the row's own once it is made.
+        const held = await holdUploads(reply, context, ok.key.connectionId, [{ table: found.table, uploads: new Set(found.resource.uploads ?? []), values }]);
+        if (held === null) return reply;
         /*
          * The row, made as every stranger's row is (`public-api/create-row.ts`):
          * a name that is only a name, so many a day per phone number or address
@@ -3243,6 +3300,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 }),
           });
         } catch (error) {
+          // Nothing was made: the guest's files wait for the next try.
+          await held.release();
           if (error instanceof PublicWriteRefused) {
             logRefused(request, request.params.ref, error, [found.table]);
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
@@ -3255,9 +3314,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
+        if (!made.ok) await held.release();
         if (!made.ok && made.why === 'plain-text') return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column: made.column });
         if (!made.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
         const inserted = made.row;
+        // Made: the guest's files are the row's own now.
+        await held.adopt([{ table: found.table, record: inserted }]);
 
         // The guest's confirmation, when the endpoint sends one. Queued, never
         // awaited on SMTP, and never a reason to fail the booking just made.
@@ -3517,6 +3579,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           for (const [column, value] of Object.entries(pk)) peek = peek.where(found.db.dynamic.ref(column), '=', value as never);
           quotedFrom = ((await inScope(peek).executeTakeFirst()) as Row | undefined) ?? null;
         }
+        // The guest's files the change names: held for the row now, its own once the change is made. A quote holds none.
+        const held = await holdUploads(reply, context, ok.key.connectionId, [{ table: found.table, uploads: new Set(found.resource.uploads ?? []), values, key: updatedRef.label }], quote === 'dry');
+        if (held === null) {
+          await releaseLimits?.();
+          return reply;
+        }
         try {
           outcome = await writes.update({
             target,
@@ -3593,8 +3661,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
           });
         } catch (error) {
-          // Nothing was sent on: what the limits counted for it is handed back.
+          // Nothing was sent on: what the limits counted for it is handed back, and the guest's files wait again.
           await releaseLimits?.();
+          await held.release();
           if (guessing) spendMiss(request, ok, error);
           if (error instanceof PublicPriceChanged && error.missed) guesses.missed(request);
           if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
@@ -3616,6 +3685,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // row that only its time window refused: that is told when it opens.
         // A person made for the change, heard of once it is done (they are the friend's, and real, even when nothing changed).
         if (madePerson !== null) await announcePerson(request, ok, madePerson.table, madePerson.row, madePerson.ref);
+        // Changed: the guest's files are the row's own now. Nothing changed, or only a quote: they wait again.
+        if (outcome.count === 0 || quote === 'dry' || outcome.after === null || outcome.after === undefined) await held.release();
+        else await held.adopt([{ table: found.table, record: outcome.after }]);
         if (outcome.count === 0) {
           await releaseLimits?.();
           const early = await tooEarlyFor(found, pk, now, ok.key.scope.timezone);
@@ -4942,6 +5014,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         return reply.send(opened.stream as unknown as never);
       },
     );
+
+    /* ------------------------------------------------- a guest's file for a column */
+    // One file a guest uploads for an app's file column, for their next write to name (`uploads.ts`).
+    if (deps.uploads !== undefined) {
+      await registerUploads(app as unknown as FastifyInstance, {
+        meta,
+        uploads: deps.uploads.store,
+        proofKey: proofSecret,
+        gate: (request, reply) => gate(request, reply, 'public-write'),
+        resolve: async (request, reply, ok, ref) => {
+          // The entry as a create through it reaches it, or a change where it makes none.
+          const action = ok.key.scope.byRef.get(ref)?.actions.has('create') === true ? 'create' : 'update';
+          const found = await resolveResource(request, reply, ok, ref, action);
+          return found === null ? null : { resource: found.resource, table: found.table, view: found.view };
+        },
+        fail,
+        preflight,
+      });
+    }
 
     // Pictures anyone may see: an `<img>` sends no key or session (`pictures.ts`).
     registerPictures(app as unknown as FastifyInstance, { meta, manager, storage: deps.storage, isEnabled, limiter, resolver, crypto: addressCrypto, switches, viewFor, fail, preflight });

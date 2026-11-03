@@ -421,7 +421,7 @@ export const publicCodeReply = z.object({
 });
 
 /** `GET /public/challenge`: a proof of work for a write or a claim. */
-export const publicChallengeQuery = z.object({ purpose: z.enum(['write', 'claim']) }).strict();
+export const publicChallengeQuery = z.object({ purpose: z.enum(['write', 'claim', 'upload']) }).strict();
 
 export const publicChallengeReply = z.object({
   data: z.object({
@@ -547,6 +547,14 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_EMAIL_CHANGE_LIMIT',
   /** A proof of work is missing, wrong, expired or already used (403): ask for a challenge. */
   'PUBLIC_PROOF_REQUIRED',
+  /**
+   * A guest's file was not taken (`POST /public/uploads`), `params.reason`
+   * saying why: `too-big` (413), `kind` (415: not a kind the column takes, by
+   * its bytes), `cap` (429: this address sent its day's files or bytes),
+   * `quota` (507: the space kept for guests' files is full), `column` (400:
+   * the entry takes no upload into that column).
+   */
+  'PUBLIC_UPLOAD_REFUSED',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
   /**
    * The app that made this key at install is switched off (503), or its

@@ -13,10 +13,15 @@
  * So a write may name, beside what the row already held in that column:
  *
  *  - a file the WRITER uploaded — a signed-in person, through a person's own
- *    door (a save, a bulk edit, a record's button); a rule, an import, a
- *    public write and project code name none, and an app's sample data names
- *    only the pictures it added from its own bundle in the same pass, each
- *    row its own;
+ *    door (a save, a bulk edit, a record's button); a rule, an import and
+ *    project code name none, and an app's sample data names only the pictures
+ *    it added from its own bundle in the same pass, each row its own;
+ *  - on a PUBLIC write, only a guest's upload this very write holds for that
+ *    table and that column (`public-uploads/columns.ts`): a stranger's file,
+ *    taken for exactly this column (its kinds, its size), named by the guest
+ *    who holds its id, and no record's yet. The write adopts it once it
+ *    commits, as the row's own file. Every other file id is refused, so a
+ *    guest who knows a file's id still names nothing;
  *  - that no record holds yet, or that was uploaded for this very record
  *    and is in none of its other file columns;
  *  - of this database, alive, of a kind the column takes, no larger than it
@@ -91,6 +96,8 @@ export interface FileColumnWrite {
   stored: Row | null;
   /** The files the write itself made for its rows (`WriteContext.minted`): an import names these and no other. */
   minted?: ReadonlySet<string> | undefined;
+  /** The guests' uploads a public write holds (`WriteContext.held`): it names these, for their own table and column, and no other. */
+  held?: ReadonlyMap<string, { table: string; column: string }> | undefined;
 }
 
 export interface FileColumnJudge {
@@ -194,12 +201,33 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
           }
           continue;
         }
+        const others = new Set([...heldBy.entries()].filter(([name]) => name !== column.name).flatMap(([, ids]) => [...ids]));
+        const accept = new Set(mimesForKeys(rule.accept.filter((key): key is SniffTypeKey => (SNIFF_TYPE_KEYS as readonly string[]).includes(key))));
+        // A guest's upload, held by this public write for this table and column; nothing else a public write names.
+        if (write.origin === 'public' && write.held !== undefined && files !== null) {
+          for (const id of fresh) {
+            const hold = write.held.get(id);
+            const file = hold === undefined || hold.table !== write.table.id || hold.column !== column.name ? null : await files.findById(id);
+            // A stranger's file, alive, no record's yet but this one's: the store cleaned a picture as it took it (`clean`).
+            if (file === null || file.kind !== 'stranger' || file.deletedAt !== null || others.has(id) || (file.attachedAt !== null && !ofThisRecord(file))) {
+              refuse(column.name, { code: 'file-not-here' });
+              break;
+            }
+            if (!accept.has(file.mime)) {
+              refuse(column.name, { code: 'file-type' });
+              break;
+            }
+            if (file.sizeBytes > rule.maxBytes) {
+              refuse(column.name, { code: 'file-too-large', n: rule.maxBytes });
+              break;
+            }
+          }
+          continue;
+        }
         if (person === null || files === null) {
           refuse(column.name, { code: 'file-not-here' });
           continue;
         }
-        const others = new Set([...heldBy.entries()].filter(([name]) => name !== column.name).flatMap(([, ids]) => [...ids]));
-        const accept = new Set(mimesForKeys(rule.accept.filter((key): key is SniffTypeKey => (SNIFF_TYPE_KEYS as readonly string[]).includes(key))));
         for (const id of fresh) {
           const file = await files.findById(id);
           const free =
