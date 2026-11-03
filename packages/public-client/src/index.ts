@@ -519,6 +519,8 @@ export interface PublicRefConfig {
   unlock?: true;
   /** Image columns any visitor may see: `pictureUrl` builds each one's address. */
   pictures?: string[];
+  /** File columns of product assets (models, fonts, SVG pieces) any visitor's browser may load: `assetUrls` builds their addresses. */
+  assets?: string[];
 }
 
 export interface PublicConfig {
@@ -541,6 +543,8 @@ export interface PublicConfig {
   currency: string | null;
   /** Where this key's pictures are asked for (`pictureUrl` builds each one's address); absent when it shows none. */
   pictures?: string;
+  /** Where this key's product assets are asked for (`assetUrls` builds their addresses); absent when it serves none. Needs Adminium 0.3.43. */
+  assets?: string;
   claim: {
     /**
      * `email-link`: the person asks for a link by address (`requestLink`), and
@@ -1158,6 +1162,34 @@ export function pictureUrl(baseUrl: string, config: Pick<PublicConfig, 'pictures
   if (match === null) return null;
   const fileId = match[1] ?? value.trim();
   return `${withoutTrailingSlashes(baseUrl)}${config.pictures}/${encodeURIComponent(ref)}/${encodeURIComponent(String(rowId))}/${encodeURIComponent(column)}/${fileId}`;
+}
+
+/**
+ * The addresses of the product assets a column's value names — a model for a
+ * 3D viewer to `fetch`, a font for `@font-face`, the SVG pieces of a list —
+ * with no key and no session, in the value's order. Empty when the ref
+ * serves no assets in that column, or the value names no file Adminium keeps.
+ */
+export function assetUrls(baseUrl: string, config: Pick<PublicConfig, 'assets' | 'refs'>, ref: string, rowId: string | number, column: string, value: unknown): string[] {
+  if (config.assets === undefined || !(config.refs[ref]?.assets ?? []).includes(column)) return [];
+  let named: unknown = value;
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try {
+      named = JSON.parse(value) as unknown;
+    } catch {
+      return [];
+    }
+  }
+  const values = Array.isArray(named) ? named : [named];
+  const out: string[] = [];
+  for (const one of values) {
+    if (typeof one !== 'string') continue;
+    const match = PICTURE_FILE.exec(one.trim());
+    if (match === null) continue;
+    const fileId = match[1] ?? one.trim();
+    out.push(`${withoutTrailingSlashes(baseUrl)}${config.assets}/${encodeURIComponent(ref)}/${encodeURIComponent(String(rowId))}/${encodeURIComponent(column)}/${fileId}`);
+  }
+  return out;
 }
 
 export function linkFromFragment(hash: string): LinkFragment | null {
