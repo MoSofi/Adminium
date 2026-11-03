@@ -327,6 +327,7 @@ export {
   type RecordTab,
   type RecordTabTable,
 } from './record-tabs.js';
+export { RECORD_PANELS_MAX, recordPanelIssues, recordPanelSchema, recordPanelsSchema, type RecordPanel, type RecordPanelProps } from './record-panels.js';
 
 export {
   ADD_ON_STEP_INPUT_KINDS,

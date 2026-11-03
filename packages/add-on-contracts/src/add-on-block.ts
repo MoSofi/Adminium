@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 import { i18nMessageSchema, wordsByLanguageSchema } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
+import { recordPanelsSchema } from './record-panels.js';
 import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
 import { addOnAssistantSchema } from './assistant-block.js';
@@ -328,6 +329,8 @@ export const addOnBlockSchema = z
       .optional(),
     /** Tabs on other tables' record pages that list this add-on's rows for the record (see `record-tabs.ts`). */
     recordTabs: recordTabsSchema.optional(),
+    /** The add-on's own screens on the record pages of tables that link into one of its tables (see `record-panels.ts`). */
+    panels: recordPanelsSchema.optional(),
     /**
      * What a typed or scanned code may find: the tables that hold codes and
      * the columns an answer may carry. Typed loosely here: it names the
