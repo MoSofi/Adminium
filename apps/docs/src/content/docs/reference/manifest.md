@@ -3436,6 +3436,36 @@ uninstall preview lists them. Only a required add-on's settings may be read by t
 [Values from elsewhere](#values-from-elsewhere)); a role may be given any named add-on's settings
 (see [Roles](#roles)).
 
+### Binding an add-on to the app's rows
+
+An app binds an add-on from its own side: a column of the app's table links into a table the
+add-on keeps ([`addOnLink`](#column-rules)). The add-on never names a table of the app. An order
+line names the shopper's design it was made from, filled only from the design's secret code the
+shopper types (a [`lookup`](#typed-codes) into the add-on's table), never from a key the browser
+sends:
+
+```json
+{ "ref": "design_code", "type": "text", "maxLength": 40, "nullable": true },
+{ "ref": "design_id", "type": "int", "nullable": true,
+  "rules": { "addOnLink": { "addOn": "customiser", "table": "designs" },
+             "lookup": { "from": "design_code", "table": { "addOn": "customiser", "table": "designs" },
+                         "column": "code" } } }
+```
+
+A public entry lists `design_code` among a line's `writable` columns, never `design_id`: the link
+is Adminium's to fill, so a guest who sends another guest's design key is refused, a code that
+finds no design is refused `unknown` and counts as a guess against the visitor's code tries (see
+[Typed codes](#typed-codes)), and the right code, typed however a person types it, links the line.
+
+The line's table is then one that hands the add-on rows, as a [posting](#postings) or a
+[price rule](#a-price-an-add-on-lowers) makes it: the add-on's pages find it among their tables'
+hosts, and a [tab](#a-tab-on-another-tables-record) declared `"on": "linked"` shows on its records.
+
+Two apps may require the same add-on at the same range (`^1.0.0`): both install against one
+install of it, and an update of the add-on within the range is never blocked by either. The add-on
+keeps the rows of both; its [entries](#an-add-ons-entry-on-each-apps-key) hold each app's key to
+that app's rows.
+
 ## Documents
 
 `documents` lists document profiles the app ships for its own tables: which columns make a printed
@@ -4180,7 +4210,7 @@ consent log for the column it keeps in step. One entry per table, up to eight:
 | `language` | no | A `text` column of the table with the language the person is written to in. An app that keeps the language only on an order adds one, filled when the person is made (`identity.fill`); rows without one read the install's language. |
 | `firstName` | no | `{ "column" }`, a `text` column, or `"firstWordOfName"`: what a mail's `{{first_name}}` reads. |
 | `consent` | no | `{ "column", "purpose" }`: a `bool` column that mirrors one purpose of the consent log, `newsletter` or `surveys`. With none, the consent log alone holds consent. The two stay in step: a save that changes the column adds a row to the log in the same write (a staff member's tick in their name, a file brought in as an import, a rule or an API key as the system), and a change that starts in the log (an unsubscribe, "Record consent", a [public tick](#a-consent-tick)) writes the column and its stamps without a save, so no rule runs on it. "Delete my details" that empties the column first records the person's withdrawal. |
-| `copies` | no | Up to 32 columns on **other** tables that hold a copy of the person's address, name or phone number: `{ "table", "column", "holds": "email" \| "name" \| "phone", "via"? }`. `column` is `text`; `via`, when there is one, is that table's link (`fk`) back to this table. A copy is found and exported with the person and blanked when they are erased, except on a table [kept by law](#kept-by-law). A row is the person's when one of their copies on it links to them, holds their address, or holds one of their phone numbers (the phone columns of their own rows, a leading 0 or a country code aside); on a row theirs by a link or the address, every copy of theirs on it with no link goes too, and, when no copy links to somebody else, every column of the row marked `personal`. A row found by a phone number alone loses that number and nothing else, since a number may be shared. Needs Adminium 0.3.39 for a phone copy with no link, and for the personal columns. |
+| `copies` | no | Up to 32 columns on **other** tables that hold a copy of the person's address, name or phone number: `{ "table", "column", "holds": "email" \| "name" \| "phone", "via"? }`. `column` is `text`; `via`, when there is one, is that table's link (`fk`) back to this table. A copy is found and exported with the person and blanked when they are erased, except on a table [kept by law](#kept-by-law). A row is the person's when one of their copies on it links to them, holds their address, or holds one of their phone numbers (the phone columns of their own rows, a leading 0 or a country code aside); on a row theirs by a link or the address, every copy of theirs on it with no link goes too, and, when no copy links to somebody else, every column of the row marked `personal`. A row found by a phone number alone loses that number and nothing else, since a number may be shared. Needs Adminium 0.3.39 for a phone copy with no link, and for the personal columns. A copy may sit on a table of an add-on the app [requires](#add-ons): `{ "addOn", "table", "column", "holds", "via" }`, where `via` is the app's own link into that table as `"table.column"` (`"order_lines.design_id"`), on a table that reaches the person: this table, one of the entry's own copy tables, or a table with a link (`fk`) to one of those (a line to its order). The add-on's rows that the person's rows name through it are theirs: the copy is found, exported and blanked with them, and nothing else of such a row. Needs Adminium 0.3.43. |
 | `customer` | no | A `bool` or number column that says the person is a customer (a count of won deals): "existing customers" counts them. |
 | `optOutMark` | no | A `timestamptz` column that is a strict [stamp](#stamps) (`"strict": true`). Declaring it says the app's staff screens show the line "you can say no to our mail" where they take the address. Only a signed-in staff member's save on such a screen sets it (or a carry, below); never a public page, an import, a rule, an add-on, an API key or sample data. Only marked rows may be mailed as existing customers. The screen says it showed the line with `"optOut": { "shown": true }` beside the row's values (the [data API](/reference/rest-api/)'s create or change): the mark is set to now on a create, or on a change of the address, when the row has an address. The stamp's own `on` is never fired; write `{ "set": "now", "on": { "columns": ["email"] }, "strict": true }`. `{ "column", "carryFrom": { "table", "column" } }` also names the mark of the row a person is made from (a claimed enquiry's, itself a strict stamp on another table): the save that makes them sends `"optOut": { "from": "<that row's key>" }`, and the mark comes with them when that row's address is theirs. |
 | `carry` | no | Up to 4 things an app update carries over once: `{ "stopList": { "column" } }` puts the address of every row whose column holds a value on the do-not-email list (an old "unsubscribed" mark); `{ "consent": { "from", "via", "column", "latest" } }` writes each person's newest answer on a linked table (`via` links it to this table, `column` is its `bool`, `latest` a date, moment or number that orders the answers) into the `consent` column, as a yes with no record that the first send's review asks about (an answer with no `latest`, an order never confirmed, is none; a person the consent log already holds an answer from keeps it; a person with no address is left alone). It runs on the update that brings it. A carried column is declared in the same manifest: keep it one more release, and drop it in the next. A second update adds nothing. |
@@ -5662,6 +5692,60 @@ Adminium runs add-on code, and why only first-party add-ons are accepted, is exp
 
 A column may keep the name of a table (`"rules": { "tableRef": true }`): Adminium stores it so
 that renaming the table it names keeps the rows pointing at it.
+
+From Adminium 0.3.43, an add-on whose `compatibility.minAdminiumVersion` is 0.3.43 or later names
+only its own tables in a foreign key's `references`; an app binds it from the app's side (see
+[Binding an add-on to the app's rows](#binding-an-add-on-to-the-apps-rows)). An add-on with an
+older floor keeps pointing at a table of the database it is put on, as it always did.
+
+An add-on installed with plain table names before Adminium recorded its tables, then updated to a
+version under its own prefix, would leave its rows behind in the plain tables: that update is
+refused `409` `ADD_ON_BARE_TABLES`, naming the tables. Adminium never renames an add-on's tables
+or moves its rows. An add-on whose tables were recorded keeps their names across such an update.
+
+#### An add-on's entry on each app's key
+
+An add-on's entry with no `key` rides the `customer` key of every app it is attached to. On a table
+that keeps the rows of several apps, `appColumn` names the `text` column holding the key of the
+app a row is for:
+
+```json
+"publicAccess": [
+  { "table": "bases", "methods": ["GET"], "select": ["id", "name"], "appColumn": "app" },
+  { "table": "designs", "methods": ["POST"], "writable": ["base_id", "name_text"],
+    "select": ["id", "code"], "humanCheck": true, "appColumn": "app" }
+]
+```
+
+Through an app's key the entry reads only the rows whose column holds that app's key, a create
+writes that key there whatever the browser sends, and a change never moves it. The column is never
+`writable` and never a `default`, and the entry names no `key` and signs nobody in: a key no app
+made (the owner's own, the add-on's link key) serves nothing of it. Only an add-on says it. Needs
+Adminium 0.3.43.
+
+A table anyone may add to through an entry is never one anyone may read through another on the
+same key: ready-made designs a shop offers live in a table of their own, apart from the designs
+shoppers save.
+
+#### Rows that expire
+
+A table of the add-on's own may let its rows go some days after a moment of theirs:
+
+```json
+{ "ref": "designs", "expire": { "after": "updated_at", "days": 90,
+                                "unless": { "column": "state", "equals": "ordered" } } }
+```
+
+| Field | Rule |
+|---|---|
+| `after` | A `timestamptz` or `date` column of the table: the moment a row's age is counted from. |
+| `days` | 1–3650. |
+| `unless` | `{ "column", "equals" }`: a row whose column holds the value is kept, however old. An `enum` column's value is one of its values. |
+
+Once a day the server deletes each row whose `after` lies more than `days` days back, its files to
+the bin as any deleted row's. It keeps a row with no `after`, a row an app's table still names
+through its link into this table, and a row another row of the database still points at (tried
+again the next day). Only an add-on's table says it. Needs Adminium 0.3.43.
 
 ### What an app's role may hold of an add-on's table
 
