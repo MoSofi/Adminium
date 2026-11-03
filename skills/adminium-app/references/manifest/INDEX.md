@@ -69,11 +69,13 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 6904 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7313 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 3871 |
 | `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 6445 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
-| `references/manifest/emails--marketing-or-service.md` | Emails — Marketing or service | 3737 |
+| `references/manifest/emails--marketing-or-service.md` | Emails — Marketing or service | 1710 |
+| `references/manifest/emails--a-kind-s-purpose.md` | Emails — A kind's purpose | 1036 |
+| `references/manifest/emails--a-survey-s-link.md` | Emails — A survey's link | 4389 |
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7062 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 4763 |
@@ -88,7 +90,5 @@
 | `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 4601 |
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
-| `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
-| `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
 
 More: `references/manifest/INDEX-2.md`

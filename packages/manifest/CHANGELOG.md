@@ -1,5 +1,23 @@
 # @adminium/manifest
 
+## 0.3.40
+
+### Patch Changes
+
+- 0207233: Forms and surveys, made safer before they ship. A file's human check on a form whose id is a UUID is kept under its hashed key, so the upload no longer fails on Postgres and MySQL. A form's unconfirmed yes never replaces an earlier "no" to that purpose nor passes the do-not-email list: such an answer waits for its confirmation link instead (or, with no address to mail, writes nothing), and a confirmation asked with the address left blank writes no yes. A sign-up's confirm link carries a keyed hash of the address it was sent to and confirms nobody once the answer holds another. Staff never create, change or import a forms add-on's answers or their files, whatever their grants (they still read and delete them). Only staff who may read an answer in the add-on's answers table are told of it, and of a form's limit. A named survey's invitation reads only a record of a table a forms entry links to. A file is judged again by the question it is named under. An answer keeps the row it became whole or not at all, and an app whose forms entry's table would be stored longer than 64 characters (`<app>:<table>`) is refused. The request log no longer shows a survey's token or a mail link's token.
+- 6ba632d: An add-on can declare `addOn.forms`: which of its tables hold the forms, the answers, and (optionally) the survey invitations and the strangers' files. Each must have the columns Adminium reads and writes, by name and kind; the answers and files are written by Adminium alone (no role, app grant or step of the add-on writes them), no public entry of the add-on opens any of the four, and the add-on is filed under `marketing`. Both words need Adminium 0.3.40.
+  An app opens a table to forms with a `publicAccess` entry under the reserved key `forms` (`publicAccess.forms`): POST only, with anonymous limits and the columns a form may fill, one per table, and no entry on any key may let anyone read that table's rows. No browser key may be named `forms`, the install makes no endpoint and no key for such an entry, and the public API answers a request for that table as for a table nobody opened. `formsEntriesOf` hands the forms door each such table with its writable columns, defaults, decided columns, plain-text columns and limits.
+  The human check has a new purpose, `form`, bound to a form's id: a form's proof never passes as a write's, nor a write's as a form's.
+- d292f8a: An outbox kind may name a consent purpose (`outbox.purposes`: `newsletter` or `surveys`). A marketing kind is judged by the consent log's answer for that purpose instead of the newsletter's; a service kind that names one still reaches the do-not-email list but skips a person whose latest answer for it is "no", when it is queued and again at the hand-over. A forms add-on with invitations may name the kinds whose template prints `{{survey_link}}` (`outbox.surveyLinks`, every producer reading the invitations table): Adminium fills it when the mail goes, with a one-use token for a named survey (the invitation keeps only its SHA-256 and when it stops, `invited_at` plus the survey's days), the open link for an anonymous one, and skips the mail with the reason when the invitation is answered or past its days, the survey is not live, or the server has no public address. Both words need Adminium 0.3.40.
+  `GET /api/v1/add-ons/:key/forms/:id/summary` counts a form's answers (all of them, a page at a time) with the forms vocabulary's summary, plus how many were invited and answered, under the reader's grant on the answers table. The data kit offers it as `useFormSummary(formId)`, and `useFormTables()` lists the tables an app opens to forms (the kit's `via: 'forms'` hosts, with their writable columns and which are links); a page never reads those tables.
+  A person's data now searches, downloads and erases every forms add-on's answers given by the address (a waiting sign-up included; the CSV writes each question under its label) and lists the invitations sent to it; erasing deletes the answers and empties the invitations' address and name. "How long we keep things" shows each forms add-on's answers row, read from its settings table's `answers_months`, and a nightly sweep deletes older answers.
+- Updated dependencies [06d8ef7]
+- Updated dependencies [0b9768c]
+- Updated dependencies [d292f8a]
+- Updated dependencies [2ef212d]
+- Updated dependencies [5c1cc31]
+  - @adminium/add-on-contracts@0.3.40
+
 ## 0.3.39
 
 ### Patch Changes

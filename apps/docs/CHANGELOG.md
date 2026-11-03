@@ -1,5 +1,7 @@
 # @adminium/docs
 
+## 0.3.40
+
 ## 0.3.39
 
 ### Patch Changes

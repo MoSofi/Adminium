@@ -1,5 +1,22 @@
 # @adminium/desktop
 
+## 0.3.40
+
+### Patch Changes
+
+- 7b18ee9: The desktop first-run wizard's words no longer ride in every user's first load. Its 88 messages moved inside `common` from `desktop.setup.*` to the deferred `onboarding.desktopSetup.*` group, which loads with the wizard (the wizard waits for it before it draws, so it never flashes English). The entry chunk drops by about 1.6 KiB gz. Meta migration `0072_desktop_setup_words` re-files any rewording an admin saved under the old keys; the desktop app's cloud-sync warning names the new key.
+- Updated dependencies [0207233]
+- Updated dependencies [6ba632d]
+- Updated dependencies [d6b6056]
+- Updated dependencies [c2de5ee]
+- Updated dependencies [d292f8a]
+- Updated dependencies [5c1cc31]
+- Updated dependencies [4001570]
+  - @adminium/server@0.3.40
+  - @adminium/adapter-mysql@0.3.40
+  - @adminium/adapter-postgres@0.3.40
+  - @adminium/adapter-sqlite@0.3.40
+
 ## 0.3.39
 
 ### Patch Changes

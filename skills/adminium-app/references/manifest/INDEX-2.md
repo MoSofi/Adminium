@@ -4,6 +4,8 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
+| `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
 | `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1240 |
 | `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
 | `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |

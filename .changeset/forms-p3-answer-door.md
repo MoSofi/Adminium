@@ -1,8 +1,0 @@
----
-'@adminium/server': patch
-'@adminium/meta': patch
-'@adminium/i18n': patch
-'@adminium/dashboard': patch
----
-
-A stranger's answer to a live form is taken at `POST /x/forms/api/<slug>/answers`: the human check bound to the form, a trap field that answers "sent" and keeps nothing, the form's hourly cap, sixty answers an hour from one network address and five a day naming one e-mail address (a tripped cap says its real wait and tells the people the form tells, once an hour), and the forms vocabulary's own check. When the form names a table, the answer becomes a new row there only through the app's own `publicAccess` entry under the key `forms`: its writable columns, defaults, plain-text rule and limits apply, a link column is never filled from a question, and the row and the answer are written in one transaction. A ticked agreement either writes a yes to the consent log at once or waits for its click: a service mail (the new built-in `sign-up-confirm`, at most one a day to an address) links to `/m/c/<token>`, a page that changes nothing until its button is pressed, then writes the yes with `confirmed_at` and lifts the address from the do-not-email list; links last 30 days and a nightly sweep lets the rest go. Staff the form tells get a bell and an e-mail with the answers as plain text, web addresses never made links. No mail goes while the public address or the mail server is unset (`GET /api/v1/forms/mail` says which). A package that declares forms serves them only when Adminium vouches for its bytes, and the add-on's install check says so. The public API's create now runs through the same function. A new meta table, `adminium_form_marks` (0073), keeps what the caps count.

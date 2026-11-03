@@ -38,6 +38,8 @@
 | `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
 | `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](https://docs.adminium.dev/reference/manifest/#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
+| `purposes` | no | Each kind's consent purpose, `newsletter` or `surveys`; see [A kind's purpose](https://docs.adminium.dev/reference/manifest/#a-kinds-purpose). Needs Adminium 0.3.40. |
+| `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](https://docs.adminium.dev/reference/manifest/#a-surveys-link). Needs Adminium 0.3.40. |
 | `producers` | no | Up to 24 rules that queue rows by themselves. See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
