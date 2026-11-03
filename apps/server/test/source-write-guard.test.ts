@@ -43,6 +43,8 @@ const ALLOWED: Record<string, string> = {
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service (and what a sample fills in a row already there, `@fillEmpty`, is written and emptied again as that list says)",
   'consent/apply-column.ts':
     "a consent-log event mirrored into the declared yes/no column and its strict stamps, as the system: a save would drop the stamps it is given and keep naming whoever ticked the box last, so the door writes the column, its who (the event's staff member, or nobody) and its when (the event's time) in one statement and audits it itself",
+  'add-ons/expire.ts':
+    "an add-on's own rows past the time its table keeps them (`expire`), deleted once a day by the engine, by key, as the system: nobody saves the deletion, so no role's reach, rule or hook has a say, a row an app's link still names or another row points at is left, and its files go to the bin through the file reconciler as any deleted row's do",
   'forms/answers.ts':
     "a stranger's form answers deleted by the engine (a person's erasure, the keeping sweep) through the one function every engine deletion of answers goes through, as the system: answers are Adminium's own record, written by Adminium alone, and no role, rule or hook of the add-on has a say in their removal",
   'forms/answer.ts':
