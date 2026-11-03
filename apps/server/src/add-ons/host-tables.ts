@@ -11,7 +11,11 @@
  *  - the table a posting hands in as "the row asked about" — the posting's
  *    own table when it maps the row itself, the table a link column points at
  *    when it maps that column (of the row, or of the parent its `via` names);
- *  - a table carrying a price rule the add-on answers.
+ *  - a table carrying a price rule the add-on answers;
+ *  - a table with a link column into one of the add-on's own tables
+ *    (`addOnLink`): an app's order line naming the design it was made from.
+ *    The add-on is not asked anything by such a table; it is how an app
+ *    binds an add-on, so the add-on's pages and tabs find it the same way.
  *
  * Read from the effective model: an app's rule and an owner's count alike,
  * and a rule switched off still names its table.
@@ -24,7 +28,7 @@ import { outboundKey } from '../documents/compose.js';
 export interface HostTable {
   /** The table's id in its database's snapshot. */
   id: string;
-  via: 'posting' | 'adjust';
+  via: 'posting' | 'adjust' | 'link';
 }
 
 type Mapping = string | { row: true } | { parent: string } | { setting: string } | { value: unknown };
@@ -35,8 +39,12 @@ function inputsOf(manifest: AddOnManifest, ledger: string, action: string): Reco
   return ledgers.find((candidate) => candidate.id === ledger)?.actions?.[action]?.inputs ?? {};
 }
 
-/** How a table hands rows to the add-on: it carries the rule, is the row a rule asks about, is the row a rule's link names, or carries a price rule. */
-type Hands = 'carries' | 'row' | 'link' | 'adjust';
+/**
+ * How a table hands rows to the add-on: it carries the rule, is the row a
+ * rule asks about, is the row a rule's link names, carries a price rule, or
+ * links its rows to the add-on's own (`bound`).
+ */
+type Hands = 'carries' | 'row' | 'link' | 'adjust' | 'bound';
 
 /** Every table that hands the add-on rows, each way it does. */
 function handing(view: SnapshotView, addOnKey: string, manifest: AddOnManifest, add: (id: string | undefined, how: Hands) => void): void {
@@ -66,13 +74,15 @@ function handing(view: SnapshotView, addOnKey: string, manifest: AddOnManifest, 
       }
     }
     if ((table.table?.adjust as { by?: { addOn?: unknown } } | undefined)?.by?.addOn === addOnKey) add(table.id, 'adjust');
+    // A link into one of the add-on's tables, found here or not yet: the rule names the table either way.
+    if ((table.table?.columns ?? []).some((column) => column.addOnLink?.addOn === addOnKey)) add(table.id, 'bound');
   }
 }
 
 export function hostTablesOf(view: SnapshotView, addOnKey: string, manifest: AddOnManifest): HostTable[] {
   const out = new Map<string, HostTable>();
   handing(view, addOnKey, manifest, (id, how) => {
-    if (id !== undefined && !out.has(id)) out.set(id, { id, via: how === 'adjust' ? 'adjust' : 'posting' });
+    if (id !== undefined && !out.has(id)) out.set(id, { id, via: how === 'adjust' ? 'adjust' : how === 'bound' ? 'link' : 'posting' });
   });
   return [...out.values()];
 }
@@ -80,12 +90,13 @@ export function hostTablesOf(view: SnapshotView, addOnKey: string, manifest: Add
 /**
  * The tables whose ROWS the add-on keeps rows for: the row a rule asks about
  * (`row`), the row a rule's link column names (`link`), a table whose price
- * the add-on answers (`adjust`). A table that only carries a rule — an
- * order's lines, posting for the dish each names — is not one: the add-on's
- * rows belong to the dish.
+ * the add-on answers (`adjust`), a table whose rows link to the add-on's
+ * own (`bound`). A table that only carries a rule — an order's lines,
+ * posting for the dish each names — is not one: the add-on's rows belong to
+ * the dish.
  */
-export function handedInOf(view: SnapshotView, addOnKey: string, manifest: AddOnManifest): Map<string, Set<'row' | 'link' | 'adjust'>> {
-  const out = new Map<string, Set<'row' | 'link' | 'adjust'>>();
+export function handedInOf(view: SnapshotView, addOnKey: string, manifest: AddOnManifest): Map<string, Set<'row' | 'link' | 'adjust' | 'bound'>> {
+  const out = new Map<string, Set<'row' | 'link' | 'adjust' | 'bound'>>();
   handing(view, addOnKey, manifest, (id, how) => {
     if (id === undefined || how === 'carries') return;
     const ways = out.get(id) ?? new Set();

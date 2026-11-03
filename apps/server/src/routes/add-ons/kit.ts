@@ -90,7 +90,8 @@ export const addOnKitReply = z.object({
       tableRef: z.string(),
       id: z.string(),
       label: z.string(),
-      via: z.enum(['posting', 'adjust', 'forms']),
+      /** Posts into a ledger, carries a price rule, links its rows to the add-on's own (`link`), or is opened to its forms. */
+      via: z.enum(['posting', 'adjust', 'link', 'forms']),
       /** A table opened to forms: the name of the app that opens it. */
       app: z.string().optional(),
       /** A table opened to forms: the columns an answer may fill. */

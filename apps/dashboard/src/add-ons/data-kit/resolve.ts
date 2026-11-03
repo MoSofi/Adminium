@@ -23,15 +23,16 @@ export interface KitReply {
   connectionId: string;
   tables: Record<string, KitTable>;
   /**
-   * The tables of the owner's database that hand rows to the add-on, and (for
-   * a forms add-on, `via: 'forms'`) the tables its forms may become a row of,
-   * which a page lists and never reads.
+   * The tables of the owner's database that hand rows to the add-on (an
+   * app's table whose rows link to the add-on's own is `via: 'link'`), and
+   * (for a forms add-on, `via: 'forms'`) the tables its forms may become a row
+   * of, which a page lists and never reads.
    */
   hosts: {
     tableRef: string;
     id: string;
     label: string;
-    via: 'posting' | 'adjust' | 'forms';
+    via: 'posting' | 'adjust' | 'link' | 'forms';
     app?: string;
     columns?: { name: string; label: string; kind: string; required: boolean; link: boolean; values?: string[]; maxLength?: number }[];
     page?: string;
