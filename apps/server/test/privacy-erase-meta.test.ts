@@ -68,6 +68,21 @@ describe('what an erased field becomes', () => {
     expect(blankValue(facts({ nullable: true, generated: true }), 'name', 'sqlite', NAME)).toEqual({ left: true });
   });
 
+  it('JSON of theirs reads as an empty value of its kind where it may not be empty, on every engine, and null where it may', () => {
+    // SQLite keeps JSON as text, so its column reads as text: the copy says it holds JSON.
+    for (const logicalType of ['json', 'text']) {
+      expect(blankValue(facts({ logicalType }), 'json', 'sqlite', NAME, '{"line1":"Mum & Dad 1985"}')).toEqual({ value: '{}' });
+      expect(blankValue(facts({ logicalType }), 'json', 'postgres', NAME, { line1: 'Mum & Dad 1985' })).toEqual({ value: '{}' });
+      expect(blankValue(facts({ logicalType }), 'json', 'mysql', NAME, ['Mum', 'Dad'])).toEqual({ value: '[]' });
+      expect(blankValue(facts({ logicalType }), 'json', 'sqlite', NAME, '["Mum"]')).toEqual({ value: '[]' });
+      expect(blankValue(facts({ logicalType, nullable: true }), 'json', 'postgres', NAME, { line1: 'x' })).toEqual({ value: null });
+    }
+    expect(alreadyBlank('{}', facts({ logicalType: 'json' }), 'json', NAME)).toBe(true);
+    expect(alreadyBlank([], facts({ logicalType: 'json' }), 'json', NAME)).toBe(true);
+    expect(alreadyBlank({ line1: 'Mum & Dad 1985' }, facts({ logicalType: 'json' }), 'json', NAME)).toBe(false);
+    expect(alreadyBlank('{"line1":"Mum & Dad 1985"}', facts({ logicalType: 'text' }), 'json', NAME)).toBe(false);
+  });
+
   it('knows a field already empty', () => {
     expect(alreadyBlank(null, facts(), 'name', NAME)).toBe(true);
     expect(alreadyBlank(NAME, facts(), 'name', NAME)).toBe(true);

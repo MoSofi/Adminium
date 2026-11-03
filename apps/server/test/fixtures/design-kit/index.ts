@@ -130,16 +130,68 @@ function withPanel(manifest: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+/** The kit's own link key, and the refs of the entries a design is opened by: its own link, and its code. */
+export const DESIGN_LINK_KEY = 'design-kit-link';
+export const DESIGN_OWN_REF = 'design_kit_designs_claimed';
+export const DESIGN_BY_CODE_REF = 'design_kit_designs_unlocked';
+
+/**
+ * A shopper's design that comes back, added by `{ link: true }`: its words
+ * kept as JSON (`values`), the address its link is mailed to, and its own
+ * link (`link_token`). Saving it answers that link once, with a session on
+ * it; the link reads the design and changes it in place while it is a draft;
+ * and whoever a shop signed in (a guest who found their order) reads a design
+ * by its own code, the one the order's lines hold.
+ */
+function withLink(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] };
+  const tables = schema.tables.map((table) =>
+    table.ref === 'designs'
+      ? {
+          ...table,
+          columns: [
+            ...table.columns,
+            { ref: 'link_token', type: 'text', maxLength: 16, nullable: true, rules: { code: { length: 16, hiddenFromStaff: true } } },
+            { ref: 'values', type: 'json', nullable: true },
+            { ref: 'email', type: 'text', maxLength: 120, nullable: true },
+          ],
+        }
+      : table,
+  );
+  const entries = (manifest['publicAccess'] as Record<string, unknown>[]).map((entry) =>
+    entry['table'] === 'designs' && entry['key'] === undefined ? { ...entry, writable: ['base_id', 'name_text', 'values', 'email'], shareLink: 'link_token' } : entry,
+  );
+  return {
+    ...manifest,
+    requiredSchema: { ...schema, tables },
+    publicKeys: { [DESIGN_LINK_KEY]: {} },
+    publicAccess: [
+      ...entries,
+      {
+        table: 'designs',
+        key: DESIGN_LINK_KEY,
+        methods: ['GET', 'PATCH'],
+        select: ['id', 'base_id', 'name_text', 'values', 'state'],
+        writable: ['base_id', 'name_text', 'values'],
+        writableWhen: { state: ['draft'] },
+        claim: { by: 'token', column: 'link_token', own: true, address: 'email' },
+      },
+      { table: 'designs', methods: ['GET'], select: ['id', 'name_text', 'values', 'state'], appColumn: 'app', level: 'lookup', unlockBy: { header: true, column: 'code', self: true, length: 16 } },
+    ],
+  };
+}
+
 /** The kit's package files beside its manifest: its deciding file, and its panel's code. */
 export const DESIGN_KIT_FILES: Record<string, string> = {
   'dist/check.js': DESIGN_CHECK_SERVER,
   'dist/panel.js': 'export default function DesignPanel() { return null; }\n',
 };
 
-export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean } = {}): Record<string, unknown> {
+export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean; link?: boolean } = {}): Record<string, unknown> {
   let made = designKitBase(over);
   if (opts.checker === true) made = withChecker(made);
   if (opts.panel === true) made = withPanel(made);
+  if (opts.link === true) made = withLink(made);
   return made;
 }
 
@@ -218,10 +270,40 @@ function withCheck(manifest: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+/**
+ * A guest who finds their order again, added by `{ lookup: true }`: the order
+ * opens by its number and its code, and its lines are read with it, each
+ * with the code of the design it names. With it, the customer's words on a
+ * design (`values`, JSON) are a copy of them, found, exported and erased with
+ * them.
+ */
+function withLookup(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] };
+  const tables = schema.tables.map((table) =>
+    table.ref === 'orders' ? { ...table, columns: [...table.columns, { ref: 'link_code', type: 'text', maxLength: 12, nullable: true, rules: { code: { length: 12 } } }] } : table,
+  );
+  const people = (manifest['people'] as { copies: unknown[] }[]).map((entry) => ({
+    ...entry,
+    copies: [...entry.copies, { addOn: DESIGN_KIT, table: 'designs', column: 'values', holds: 'details', via: 'order_lines.design_id' }],
+  }));
+  return {
+    ...manifest,
+    requiredSchema: { ...schema, tables },
+    people,
+    publicAccess: [
+      ...(manifest['publicAccess'] as unknown[]),
+      { table: 'orders', methods: ['GET'], claim: { match: ['id', 'link_code'] }, select: ['id', 'name'] },
+      { table: 'order_lines', methods: ['GET'], select: ['id', 'qty', 'design_code'], visibleWith: { table: 'orders', via: 'order_id' } },
+    ],
+  };
+}
+
 /** A shop that sells products in orders whose lines may name a design of the kit by its code. */
-export function designShopManifest(key: 'printing' | 'maker', over: Record<string, unknown> = {}, opts: { check?: boolean } = {}): Record<string, unknown> {
-  const made = designShopBase(key, over);
-  return opts.check === true ? withCheck(made) : made;
+export function designShopManifest(key: 'printing' | 'maker', over: Record<string, unknown> = {}, opts: { check?: boolean; lookup?: boolean } = {}): Record<string, unknown> {
+  let made = designShopBase(key, over);
+  if (opts.check === true) made = withCheck(made);
+  if (opts.lookup === true) made = withLookup(made);
+  return made;
 }
 
 function designShopBase(key: 'printing' | 'maker', over: Record<string, unknown>): Record<string, unknown> {
