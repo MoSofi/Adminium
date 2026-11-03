@@ -1274,8 +1274,34 @@ export async function adoptAddOnTables(
   if (tables.length === 0) return installed.row.connectionId;
   const records = appTablesRepo(deps.meta);
   if (installed.row.connectionId !== null && (await records.forInstall(installed.row.connectionId, key)).length > 0) return installed.row.connectionId;
-  // An add-on that keeps its tables under its own prefix was recorded at its install; there is nothing to look for.
-  if (manifest.requiredSchema?.prefixed === true || deps.schemaTarget?.holders === undefined) return installed.row.connectionId;
+  if (deps.schemaTarget?.holders === undefined) return installed.row.connectionId;
+  if (manifest.requiredSchema?.prefixed === true) {
+    /*
+     * A version under its own prefix of an add-on whose earlier version kept
+     * plain names and was installed before tables were recorded: nothing says
+     * its rows are in those plain tables, so the update would make empty
+     * prefixed ones beside them and read those. Adminium moves no rows and
+     * renames no table of an add-on's, so such an update is refused, by the
+     * names of the tables it would leave behind.
+     */
+    const before = installed.document as { requiredSchema?: { prefixed?: unknown; tables?: { ref?: unknown }[] } } | null;
+    const bare = before?.requiredSchema?.prefixed === true ? [] : (before?.requiredSchema?.tables ?? []).map((table) => table.ref).filter((ref): ref is string => typeof ref === 'string');
+    if (bare.length > 0) {
+      const prefer = [...new Set([installed.row.connectionId, ...input.prefer].filter((id): id is string => id !== null))];
+      const holders = await deps.schemaTarget.holders(bare, prefer);
+      if (holders.length > 0) {
+        throw new AppError(
+          409,
+          'ADD_ON_BARE_TABLES',
+          `"${key}" keeps its rows in ${bare.join(', ')}, and version ${manifest.version} keeps its tables under its own prefix. ` +
+            'Adminium does not move rows or rename an add-on\'s tables, so this update would leave them behind: keep the version you have.',
+          { tables: bare, connections: holders },
+        );
+      }
+    }
+    // An add-on that keeps its tables under its own prefix was recorded at its install; there is nothing to look for.
+    return installed.row.connectionId;
+  }
 
   const prefer = [...new Set([installed.row.connectionId, ...input.prefer].filter((id): id is string => id !== null))];
   const holders = await deps.schemaTarget.holders(tables, prefer);

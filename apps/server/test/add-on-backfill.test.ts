@@ -37,6 +37,11 @@ const carrier = (version: string): Record<string, unknown> => ({
   addOn: { attaches: [{ app: '*', range: '*' }], connect: { kind: 'none' }, hostApi: 1 },
   requiredSchema: { tables: [{ ref: 'shipments', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'label', type: 'text', maxLength: 80, nullable: true }] }, { ref: 'shipment_events', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'shipment_id', type: 'fk', references: 'shipments' }] }] },
 });
+/** The same add-on at a version that keeps its tables under its own prefix (`carrier_shipments`). */
+const prefixedCarrier = (version: string): Record<string, unknown> => {
+  const doc = carrier(version);
+  return { ...doc, compatibility: { minAdminiumVersion: '0.3.18' }, requiredSchema: { ...(doc['requiredSchema'] as object), prefixed: true } };
+};
 const post = (harness: Harness, url: string, payload: Record<string, unknown> = {}) => harness.inject({ method: 'POST', url, payload });
 const db = async (harness: Harness, connectionId = harness.connectionId) => (await harness.manager.data(connectionId)).db as unknown as Kysely<unknown>;
 const row = async (harness: Harness) => (await manifestsRepo(harness.meta, CRYPTO).findByKey('carrier'))!.row;
@@ -125,5 +130,38 @@ describe.each(LEGS)('an add-on installed before its tables were recorded — %s'
     expect((await row(h)).connectionId).toBeNull();
     expect(await recorded(h)).toEqual([]);
     expect((await auditRepo(h.meta).list({ limit: 30 })).filter((entry) => entry.action === 'add-on.connection-recorded')).toEqual([]);
+  });
+
+  it.runIf(available)('updated to a version under its own prefix: refused by the names of its tables, and nothing moves', async () => {
+    h = await before();
+    await h.stageAddOn(prefixedCarrier('1.1.0'));
+    const names = (await h.tableNames()).sort();
+    const reply = await post(h, '/add-ons/carrier/update', { to: '1.1.0' });
+    expect(reply.statusCode, reply.body).toBe(409);
+    const error = reply.json().error as { code: string; message: string; details: { tables: string[] } };
+    expect(error.code).toBe('ADD_ON_BARE_TABLES');
+    expect(error.message).toContain('shipments');
+    expect(error.message).toContain('shipment_events');
+    expect(error.details.tables.sort()).toEqual(['shipment_events', 'shipments']);
+    // No empty table beside the old one, no version moved, nothing written down: the rows stay where they are read.
+    expect((await h.tableNames()).sort()).toEqual(names);
+    expect(await row(h)).toMatchObject({ version: '1.0.0', connectionId: null });
+    expect(await recorded(h)).toEqual([]);
+    expect((await h.rows('SELECT label FROM shipments')).map((shipment) => shipment['label'])).toEqual(['First']);
+  });
+
+  it.runIf(available)('installed after its tables were recorded, a version under its own prefix keeps the tables it has, rows and all', async () => {
+    h = await addOnHarness(dialect);
+    await h.stageAddOn(carrier('1.0.0'));
+    expect((await post(h, '/add-ons', { key: 'carrier', version: '1.0.0', attachTo: [] })).statusCode).toBe(200);
+    await sql`insert into shipments (id, label) values (1, 'First')`.execute(await db(h));
+    await h.stageAddOn(prefixedCarrier('1.1.0'));
+    const reply = await post(h, '/add-ons/carrier/update', { to: '1.1.0' });
+    expect(reply.statusCode, reply.body).toBe(200);
+    expect(await row(h)).toMatchObject({ version: '1.1.0' });
+    // The records name the tables it has: the rows are read where they are, and no prefixed twin was made.
+    expect((await recorded(h)).map((record) => `${record.ref}:${record.tableName}`).sort()).toEqual(['shipment_events:shipment_events', 'shipments:shipments']);
+    expect((await h.tableNames()).filter((name) => name.startsWith('carrier_'))).toEqual([]);
+    expect((await h.rows('SELECT label FROM shipments')).map((shipment) => shipment['label'])).toEqual(['First']);
   });
 });
