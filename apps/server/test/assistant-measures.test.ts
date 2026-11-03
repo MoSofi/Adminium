@@ -94,7 +94,8 @@ for (const [dialect, available] of legs) {
       expect(hidden.error, JSON.stringify(hidden.error)).toBeUndefined();
       // Empty for every room, and nothing of the sums in the reply.
       for (const row of rows(hidden)) expect(row.revenue ?? null).toBeNull();
-      expect(JSON.stringify(hidden)).not.toMatch(/900|600/);
+      // The sums as values only: the reply also names a table and ids made up at random, where the digits can turn up.
+      expect(JSON.stringify(hidden)).not.toMatch(/(?<![\w.-])(?:900|600)(?:\.\d+)?(?![\w.-])/);
       const ordered = await run(asDesk, { measures: [stays('revenue', 'sum', money)], sort: 'revenue.desc' });
       expect(ordered.error?.code).toBe('COLUMN_FORBIDDEN');
       expect(ordered.result).toBeUndefined();
