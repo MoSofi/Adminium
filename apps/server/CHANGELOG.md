@@ -1,5 +1,26 @@
 # @adminium/server
 
+## 0.3.42
+
+### Patch Changes
+
+- 0a214d7: The add-ons that come with Adminium are now version 1.0.15, and they include Forms & surveys: forms and surveys whose pages Adminium draws for strangers, with answers, results and survey invitations.
+- 599d1f5: A form's "becomes" may name its table by the stored name `<app>:<table>` as well as by this database's table id, so a sample file can ship a survey whose answers fill an app's table. The answer door finds the table either way.
+- d21c391: An app's service mail that names a consent purpose (a survey invitation, an asked-for brochure) now skips an address on the do-not-email list, as marketing mail does, when it is queued and again at the hand-over. A receipt or other service mail with no purpose still goes.
+- 170a7a3: A survey invitation sent as marketing mail is judged on the person it names (their own row's yes to surveys, and whether they count as an existing customer), not on the invitation row. A yes recorded by address still counts.
+- Updated dependencies [2b31457]
+- Updated dependencies [d21c391]
+  - @adminium/i18n@0.3.42
+  - @adminium/manifest@0.3.42
+  - @adminium/engine@0.3.42
+  - @adminium/llm@0.3.42
+  - @adminium/adapter-mysql@0.3.42
+  - @adminium/adapter-postgres@0.3.42
+  - @adminium/adapter-sqlite@0.3.42
+  - @adminium/schema-import@0.3.42
+  - @adminium/add-on-contracts@0.3.42
+  - @adminium/meta@0.3.42
+
 ## 0.3.41
 
 ### Patch Changes

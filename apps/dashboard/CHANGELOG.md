@@ -1,5 +1,20 @@
 # @adminium/dashboard
 
+## 0.3.42
+
+### Patch Changes
+
+- 3ead2e7: `/` never lands on a page kept off the rail (an add-on's settings page). A person who holds nothing but an add-on's roles, such as the forms manager, lands on the first add-on screen the rail lists instead.
+- 2b31457: A rule step's person pick names the person as "Jobs → Main contact" and "This record (Contacts)": the possessive read "The orders's customer_id" wherever a table is labelled in the plural or keeps its raw name.
+- Updated dependencies [2b31457]
+  - @adminium/i18n@0.3.42
+  - @adminium/charts@0.3.42
+  - @adminium/widgets@0.3.42
+  - @adminium/engine@0.3.42
+  - @adminium/add-on-contracts@0.3.42
+  - @adminium/tokens@0.3.42
+  - @adminium/ui@0.3.42
+
 ## 0.3.41
 
 ### Patch Changes
