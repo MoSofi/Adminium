@@ -621,11 +621,24 @@ export function slugForTable(
 /**
  * `/` redirect target: the first Workspace nav item, else the first item
  * anywhere; `null` when the nav is empty (zero connections → the
- * `empty-no-sources` home state until `/welcome` lands in Wave B).
+ * `empty-no-sources` home state until `/welcome` lands in Wave B). A page
+ * kept off the rail is never where somebody lands: it opens by its address
+ * (an add-on's settings page, reached from the add-on's own screen).
  */
 export function defaultPageSlug(nav: NavTree, appPages: readonly NavItem[] = []): string | null {
+  const onRail = (items: readonly NavItem[]) => items.filter((item) => item.offRail !== true);
   const workspace = nav.groups.find((group) => group.key === 'workspace');
   // An instance whose only pages are an app's opens on the app's first.
-  const first = workspace?.items[0] ?? flattenNav(nav)[0] ?? appPages[0];
+  const first = onRail(workspace?.items ?? [])[0] ?? onRail(flattenNav(nav))[0] ?? onRail(appPages)[0];
   return first?.slug ?? null;
+}
+
+/**
+ * `/` redirect target when no page with a slug is there to land on: the
+ * first add-on screen the rail lists (a person who holds only an add-on's
+ * roles, such as its manager). `null` when there is none.
+ */
+export function defaultAddOnPage(addOnNav: AddOnNav): { key: string; ref: string } | null {
+  const first = [...addOnNav.pages].filter((page) => page.unlisted !== true).sort((a, b) => a.order - b.order)[0];
+  return first === undefined ? null : { key: first.addOnKey, ref: first.ref };
 }

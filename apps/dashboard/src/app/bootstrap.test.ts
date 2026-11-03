@@ -12,6 +12,7 @@ import { ApiError } from './api.js';
 import {
   appPagesOf,
   bootstrapQuery,
+  defaultAddOnPage,
   defaultPageSlug,
   findNavItemBySlug,
   findPageBySlug,
@@ -171,6 +172,16 @@ describe('nav helpers', () => {
         ],
       }),
     ).toBe('exports');
+  });
+
+  it('never lands on a page kept off the rail; with only add-on screens, on the first of them', () => {
+    const settings = { pageId: 'p2', slug: 'forms-settings', labelKey: 'x', fallback: 'Forms settings', icon: 'settings', order: 21, offRail: true as const };
+    // An add-on's manager: the add-on's settings page is the only page with a slug, and it is off the rail.
+    expect(defaultPageSlug({ groups: [{ key: 'library', items: [settings] }] }, [settings])).toBeNull();
+    expect(defaultPageSlug({ groups: [{ key: 'library', items: [settings, { ...settings, pageId: 'p3', slug: 'exports', offRail: undefined }] }] })).toBe('exports');
+    const page = (ref: string, order: number, more: Record<string, unknown> = {}) => ({ addOnKey: 'forms', ref, labelKey: 'x', fallback: ref, icon: 'list', client: 'dist/pages/x.js', group: 'library', order, adminOnly: false, detail: true, ...more });
+    expect(defaultAddOnPage({ groups: [], pages: [page('later', 30), page('hidden', 1, { unlisted: true }), page('forms', 20)] })).toEqual({ key: 'forms', ref: 'forms' });
+    expect(defaultAddOnPage({ groups: [], pages: [] })).toBeNull();
   });
 });
 

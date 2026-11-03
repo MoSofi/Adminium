@@ -55,9 +55,11 @@ import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
 import { bootLocale } from '../i18n/setup.js';
 import { api, ApiError } from './api.js';
 import {
+  addOnNavOf,
   appPagesOf,
   assistantAllowed,
   bootstrapQuery,
+  defaultAddOnPage,
   defaultPageSlug,
   findPageBySlug,
   type BootstrapData,
@@ -508,6 +510,9 @@ const indexRoute = createRoute({
     // empty-no-sources home.
     const slug = defaultPageSlug(context.bootstrap.nav, appPagesOf(context.bootstrap));
     if (slug !== null) throw redirect({ to: '/p/$slug', params: { slug } });
+    // Nothing but an add-on's own screens: the first of them.
+    const addOnPage = defaultAddOnPage(addOnNavOf(context.bootstrap));
+    if (addOnPage !== null) throw redirect({ to: '/add-ons/$key/$', params: { key: addOnPage.key, _splat: addOnPage.ref } });
   },
   component: HomePage,
 });
