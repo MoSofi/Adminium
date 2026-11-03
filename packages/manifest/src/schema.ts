@@ -3671,6 +3671,36 @@ export interface RequiredTableShape {
 export const ADD_ON_INSTALL_FLOOR = '0.3.18';
 
 /**
+ * The version of Adminium from which an add-on names only its own tables in
+ * a foreign key's `references`. Before it, an add-on could point a foreign
+ * key at a table of the database it was put on (`products`), which the
+ * installer found there or made empty beside it; an app now binds an add-on
+ * from its own side instead (`rules.addOnLink` on the app's column, filled
+ * by a `lookup` where a guest types a code). A manifest declaring this floor
+ * or a later one is held to it; one declaring an older floor installs as it
+ * always did.
+ */
+export const HOST_REFERENCES_FLOOR = '0.3.43';
+
+/** A foreign key of an add-on at or above {@link HOST_REFERENCES_FLOOR} that names a table the add-on does not declare. */
+function hostReferenceIssues(m: { compatibility: { minAdminiumVersion: string }; requiredSchema?: { tables: readonly { ref: string; columns: readonly { ref: string; type: string; references?: string | undefined }[] }[] } | undefined }): { path: (string | number)[]; message: string }[] {
+  if (compareSemver(m.compatibility.minAdminiumVersion, HOST_REFERENCES_FLOOR) < 0) return [];
+  const tables = m.requiredSchema?.tables ?? [];
+  const own = new Set(tables.map((table) => table.ref));
+  const out: { path: (string | number)[]; message: string }[] = [];
+  tables.forEach((table, t) => {
+    table.columns.forEach((column, c) => {
+      if (column.type !== 'fk' || column.references === undefined || own.has(column.references)) return;
+      out.push({
+        path: ['requiredSchema', 'tables', t, 'columns', c, 'references'],
+        message: `"${column.references}" is not a table of this add-on: an add-on's foreign key names one of its own tables. An app binds the add-on from its side, with rules.addOnLink on its own column (and a lookup where a code is typed)`,
+      });
+    });
+  });
+  return out;
+}
+
+/**
  * The blocks an app and an add-on declare in the same words: what Adminium
  * makes at install beside the tables. Both branches spread it, so a block
  * added here is read the same way from either kind.
@@ -3810,6 +3840,8 @@ export const addOnManifestSchema = z
     // An add-on keeps no people of its own: a tick on its public entry has nobody to be kept for.
     for (const issue of publicConsentIssues(m, tableIndex(m.requiredSchema?.tables ?? []))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of addOnModuleIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    // From its floor on, an add-on's foreign keys name its own tables only; older manifests keep pointing at the database's.
+    for (const issue of hostReferenceIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     // Add-ons released before the floor keep the page refs they shipped with.
     if (m.pages !== undefined || compareSemver(m.compatibility.minAdminiumVersion, ADD_ON_INSTALL_FLOOR) >= 0) {
       for (const issue of addOnPageRefIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });

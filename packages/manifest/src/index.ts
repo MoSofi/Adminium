@@ -57,6 +57,7 @@ export {
   prefixFor,
   appReferenceIssues,
   ADD_ON_INSTALL_FLOOR,
+  HOST_REFERENCES_FLOOR,
   MAX_SEED_ROWS,
   installsLikeAnApp,
   ledgersOf,
