@@ -638,6 +638,8 @@ const BOOKING_REASONS: Readonly<Record<string, string>> = {
   CAPACITY_PAUSED: 'paused',
   CAPACITY_NOT_ON_SALE: 'not-on-sale',
   CAPACITY_TOO_MANY: 'too-many',
+  // A number past the top of its band (`column.band` with `over: refuse`): an order too heavy for any delivery band.
+  BAND_OUT_OF_RANGE: 'out-of-range',
 };
 
 /**

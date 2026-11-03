@@ -695,7 +695,7 @@ export function privateShapeIssues(
     states?: { timed?: unknown; effects?: readonly { via?: string }[] | undefined; children?: Readonly<Record<string, { moveOnCreate?: string | undefined }>> | undefined } | undefined;
     postings?: unknown;
     adjust?: unknown;
-    columns: readonly { ref: string; type?: string; references?: string | undefined; rules?: { rollup?: { from: string } | undefined; copy?: { via: string } | undefined; lookup?: { table: unknown } | undefined } | undefined }[];
+    columns: readonly { ref: string; type?: string; references?: string | undefined; rules?: { rollup?: { from: string } | undefined; copy?: { via: string } | undefined; lookup?: { table: unknown } | undefined; band?: { table: string } | undefined } | undefined }[];
   }[],
 ): ReferenceIssue[] {
   const held = new Set(tables.filter((table) => table.private === true).map((table) => table.ref));
@@ -731,6 +731,8 @@ export function privateShapeIssues(
       if (copied !== undefined && held.has(copied)) out.push({ path: at('columns', c, 'rules', 'copy', 'via'), message: said(copied, 'nothing is copied out of it') });
       const looked = rules?.lookup?.table;
       if (typeof looked === 'string' && held.has(looked)) out.push({ path: at('columns', c, 'rules', 'lookup', 'table'), message: said(looked, 'nothing is looked up in it') });
+      const banded = rules?.band?.table;
+      if (banded !== undefined && held.has(banded)) out.push({ path: at('columns', c, 'rules', 'band', 'table'), message: said(banded, 'no band is picked from it') });
     });
     (table.states?.effects ?? []).forEach((effect, e) => {
       const target = effect.via === undefined ? undefined : pointsAt(effect.via);

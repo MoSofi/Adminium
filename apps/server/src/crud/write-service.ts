@@ -127,6 +127,7 @@ import {
 } from './column-rules.js';
 import { inTransaction, withNamedLock } from './capacity-guard.js';
 import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
+import { bandsAfterFormulas, settleBands } from './band.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, fillLinksFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
@@ -925,10 +926,12 @@ async function formulaStatement(
 /**
  * SETTLE one parent row, in the one order that is right: the totals over its
  * child rows, then the formulas that read them (`tax` over `subtotal`,
- * `total` over both), then its balances — each a statement of its own, so
- * each reads what the one before it wrote, on every engine. `rollups` are the
- * totals to add up again (one parent's); `balances` the balances to work out
- * again afterwards.
+ * `total` over both), then the bands a total (or a formula over one) is
+ * placed in — an order's delivery band by its weight — with what is copied
+ * through them and the formulas over that, then its balances — each a
+ * statement of its own, so each reads what the one before it wrote, on every
+ * engine. `rollups` are the totals to add up again (one parent's);
+ * `balances` the balances to work out again afterwards.
  */
 export async function settleParent(
   db: Db,
@@ -949,6 +952,13 @@ export async function settleParent(
   const places = await placesOf(db, row, parentKey, [...rollups.map((r) => r.scale), ...balances.map((b) => b.scale)], currency);
   for (const rollup of rollups) await rollupStatement(db, dialect, rollup, parentKey, places(rollup.scale), read, overlay);
   await formulaStatement(db, dialect, row, formulas, parentKey, currency);
+  const bands = [...new Set(rollups.flatMap((rollup) => rollup.bands ?? []))];
+  const moved = await settleBands(db, dialect, row.table, row.keyColumn, bands, parentKey);
+  if (moved.length > 0) {
+    // What a band copied in moves the formulas over it (a delivery price into the total); never the band's own number.
+    const again = touchedFormulas(first.formulas, moved).filter((formula) => !bands.some((band) => band.value === formula.column));
+    await formulaStatement(db, dialect, row, again, parentKey, currency);
+  }
   await balanceStatement(db, dialect, row.table, row.keyColumn, balances, parentKey, places);
 }
 
@@ -2153,6 +2163,21 @@ function withoutStamped(rules: TableRules | null, values: Row, origin: WriteOrig
   return out;
 }
 
+/**
+ * The values without a band's link (`column.band`): Adminium picks it from
+ * the number it places, so what any writer sends for it — a form, a bulk
+ * edit, a rule, an add-on — is dropped. History keeps its own: an import and
+ * an undo bring the link as it was.
+ */
+function withoutBanded(rules: TableRules | null, values: Row, origin: WriteOrigin): Row {
+  const bands = rules?.bands ?? [];
+  if (bands.length === 0 || origin === 'import' || origin === 'undo') return values;
+  if (!bands.some((band) => Object.prototype.hasOwnProperty.call(values, band.column))) return values;
+  const out = { ...values };
+  for (const band of bands) delete out[band.column];
+  return out;
+}
+
 /** Two refusals as one: a column named twice keeps its first issue. */
 function mergeIssues(a: FieldIssues | null, b: FieldIssues | null): FieldIssues | null {
   if (a === null) return b;
@@ -2254,7 +2279,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (rules === null || action === 'delete') return values;
     const currency = currencyFor(target);
     const priced = await priceValues(rules, action, target.db, values, stored, { origin, currency, named });
-    return lastFours(rules, action, keyCustomers(rules, action, target, workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null)));
+    const worked = workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null);
+    // A band over a formula of the row is picked from the worked-out number, and the formulas over its copies worked out again.
+    const banded = action === 'create' || action === 'update' ? await bandsAfterFormulas(target.db, rules, action, worked, stored, currency) : worked;
+    return lastFours(rules, action, keyCustomers(rules, action, target, banded));
   };
 
   /**
@@ -2289,16 +2317,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       rules,
       withoutStamped(
         rules,
-        withoutReadOnly(
+        withoutBanded(
           rules,
-          fillRow(rules, action, values, {
-            dialect: target.dialect,
-            now,
-            actor: context.actor,
-            ...(target.rights == null || action === 'delete'
-              ? {}
-              : { granted: (column: string) => columnGranted(target.rights, column, action) }),
-          }),
+          withoutReadOnly(
+            rules,
+            fillRow(rules, action, values, {
+              dialect: target.dialect,
+              now,
+              actor: context.actor,
+              ...(target.rights == null || action === 'delete'
+                ? {}
+                : { granted: (column: string) => columnGranted(target.rights, column, action) }),
+            }),
+            context.origin,
+          ),
           context.origin,
         ),
         context.origin,

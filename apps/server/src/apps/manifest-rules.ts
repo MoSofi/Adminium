@@ -106,6 +106,7 @@ export type RuleOp =
   | 'column.label'
   | 'column.semanticType'
   | 'column.lookup'
+  | 'column.band'
   | 'column.announce'
   | 'column.tableRef'
   | 'column.addOnLink'
@@ -250,6 +251,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.secret !== undefined) out.push({ op: 'column.secret', value: { secret: rules.secret } });
   // The codes table is named under `table`, so the installer swaps in its real id.
   if (rules.lookup !== undefined) out.push({ op: 'column.lookup', value: { ...rules.lookup } });
+  // The band table is named under `table` too; its scope pairs name columns, which keep their names.
+  if (rules.band !== undefined) out.push({ op: 'column.band', value: { ...rules.band, ...(rules.band.scope === undefined ? {} : { scope: rules.band.scope.map((pair) => ({ ...pair })) }) } });
   // A link into an add-on's table keeps the add-on's key and the table's short name: found when the rule is read.
   if (rules.addOnLink !== undefined) out.push({ op: 'column.addOnLink', value: { ...rules.addOnLink } });
   if (rules.tableRef === true) out.push({ op: 'column.tableRef', value: { tableRef: true } });
@@ -914,7 +917,7 @@ export type ShapeGuarantee = 'numbers' | 'totals' | 'edits' | 'kept';
 
 export function guaranteeOf(op: string): ShapeGuarantee {
   if (op === 'column.sequence' || op === 'column.format') return 'numbers';
-  if (op === 'column.formula' || op === 'column.rollup' || op === 'column.scale' || op === 'column.perNight') return 'totals';
+  if (op === 'column.formula' || op === 'column.rollup' || op === 'column.scale' || op === 'column.perNight' || op === 'column.band') return 'totals';
   if (op === 'table.states') return 'edits';
   return 'kept';
 }

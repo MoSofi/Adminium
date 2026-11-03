@@ -52,6 +52,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.retryKey',
   'column.bounds',
   'column.lookup',
+  'column.band',
   'column.perNight',
   'column.announce',
   'column.tableRef',

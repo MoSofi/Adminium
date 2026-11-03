@@ -679,6 +679,28 @@ export const columnRulesSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * A foreign key filled with the band a number of this row falls in: of
+     * the rows of `table` (within `scope`) whose `min` is at most `value`,
+     * the one with the greatest `min` — a quantity's price break, an order's
+     * delivery band by its weight. None: the link is empty (a product with
+     * no breaks). Past the picked row's `max` (when it has one), `over`
+     * says what happens: `refuse` the write (the default), or leave the
+     * link `empty` (a parcel too heavy for any band, quoted by hand). Only
+     * Adminium writes the link. A `value` that is a total of child rows, or
+     * a formula, is picked again whenever the total settles.
+     */
+    band: z
+      .object({
+        table: refSchema,
+        min: refSchema,
+        max: refSchema.optional(),
+        value: refSchema,
+        scope: z.array(z.object({ column: refSchema, equals: refSchema }).strict()).min(1).max(2).optional(),
+        over: z.enum(['refuse', 'empty']).optional(),
+      })
+      .strict()
+      .optional(),
     rollup: z
       .object({
         /** The child table, its foreign key back to this row, and what to add up. */
@@ -2302,7 +2324,7 @@ export function appReferenceIssues(
       const rules = column.rules;
       if (rules === undefined) return;
       const here = (...rest: (string | number)[]) => at('columns', c, 'rules', ...rest);
-      const deciders = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter(
+      const deciders = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'band', 'perNight'] as const).filter(
         (name) => rules[name] !== undefined,
       );
       if (deciders.length > 0) decide(table.ref, column.ref);
@@ -2708,7 +2730,7 @@ export function appReferenceIssues(
             out.push({ path: [...path, 'filled'], message: `"${table.ref}.${watched.ref}" is never empty, so it is never first filled` });
           }
         });
-        const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default', 'lookup', 'band', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('stamp'), message: `a stamped column is not also decided by ${others.join(', ')}` });
         if (stamp.clearOnBack === true) out.push(...clearOnBackIssues(table, column, triggers, here('stamp', 'clearOnBack')));
       }
@@ -2719,12 +2741,13 @@ export function appReferenceIssues(
       if (rules.lookup !== undefined) {
         out.push(...codeLookupIssues(table, column, rules.lookup, here('lookup'), { index, tables, shareCodes: (ref) => shareCodeColumns(m.publicAccess ?? [], ref, index) }));
       }
+      if (rules.band !== undefined) out.push(...bandIssues(table, column, rules.band, here('band'), tables));
       if (rules.addOnLink !== undefined) {
         const link = rules.addOnLink;
         if (!['int', 'bigint', 'text'].includes(column.type) || column.nullable !== true || column.references !== undefined) {
           out.push({ path: here('addOnLink'), message: `a link into an add-on is a nullable int, bigint or text column with no "references": the add-on may not be there` });
         }
-        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'band', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('addOnLink'), message: `a link into an add-on is filled by a person, a lookup or the settings row, not by ${others.join(', ')}` });
         if (rules.default !== undefined) {
           /*
@@ -2822,7 +2845,7 @@ export function appReferenceIssues(
         }
         if (of === undefined) out.push({ path: here('customerKey', 'of'), message: `"${table.ref}" has no column "${rules.customerKey.of}"` });
         else if (of.type !== 'text' || of.ref === column.ref) out.push({ path: here('customerKey', 'of'), message: `"${table.ref}.${of.ref}" is not a text column holding an address` });
-        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'band', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('customerKey'), message: `a customer key is worked out from its address, not also decided by ${others.join(', ')}` });
         decide(table.ref, column.ref);
       }
@@ -2837,7 +2860,7 @@ export function appReferenceIssues(
           // A link's code is shown nowhere, not even in part: its last four would narrow the guess to a quarter of it.
           else if (linkCode(table.ref, of.ref)) out.push({ path: here('codeLast4', 'of'), message: `"${table.ref}.${of.ref}" is the code a shared link opens its row with, so no column keeps its last four` });
         }
-        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
+        const others = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'band', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('codeLast4'), message: `the last four of a code are copied from it, not also decided by ${others.join(', ')}` });
         decide(table.ref, column.ref);
       }
@@ -3263,7 +3286,7 @@ function slotPartyIssues(m: { requiredSchema: { tables: readonly RequiredTableSh
 }
 
 /** The rules through which Adminium decides a column: nobody else writes it. */
-const DECIDING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const;
+const DECIDING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'band'] as const;
 const decidedByRules = (rules: ColumnRules | undefined) => DECIDING_RULES.some((name) => rules?.[name] !== undefined);
 
 /**
@@ -3422,6 +3445,93 @@ function codeLookupIssues(
     }
   });
   return out;
+}
+
+/**
+ * A link filled with the band a number falls in: a nullable foreign key to
+ * the band table; its lower and upper bounds numbers of that table; the
+ * number placed one of this table's; each scope a pair of columns that hold
+ * the same thing on both sides. And no circle: the number may not read,
+ * through formulas, totals or copies, what is copied through the band link —
+ * the band would then decide itself.
+ */
+function bandIssues(
+  table: RequiredTableShape,
+  column: RequiredTableShape['columns'][number],
+  band: NonNullable<ColumnRules['band']>,
+  path: (string | number)[],
+  tables: ReadonlyMap<string, RequiredTableShape>,
+): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  if (column.type !== 'fk' || column.nullable !== true || column.references !== band.table) {
+    out.push({ path: [...path, 'table'], message: `a band fills this table's link to "${band.table}": the column is a nullable foreign key to it` });
+  }
+  const bands = tables.get(band.table);
+  if (bands === undefined) {
+    out.push({ path: [...path, 'table'], message: `"${band.table}" is not a table of this app` });
+  } else {
+    for (const side of ['min', 'max'] as const) {
+      const ref = band[side];
+      if (ref === undefined) continue;
+      const found = bands.columns.find((c) => c.ref === ref);
+      if (found === undefined) out.push({ path: [...path, side], message: `"${band.table}" has no column "${ref}"` });
+      else if (!NUMERIC_TYPES.includes(found.type)) out.push({ path: [...path, side], message: `"${band.table}.${ref}" is not a number, so no value is placed against it` });
+    }
+    if (band.max !== undefined && band.max === band.min) out.push({ path: [...path, 'max'], message: 'a band reads its lower and its upper bound from two different columns' });
+  }
+  const placed = table.columns.find((c) => c.ref === band.value);
+  if (placed === undefined) out.push({ path: [...path, 'value'], message: `"${table.ref}" has no column "${band.value}"` });
+  else if (!NUMERIC_TYPES.includes(placed.type)) out.push({ path: [...path, 'value'], message: `"${table.ref}.${band.value}" is not a number, so it falls in no band` });
+  (band.scope ?? []).forEach((scope, k) => {
+    const at = [...path, 'scope', k];
+    const theirs = bands?.columns.find((c) => c.ref === scope.column);
+    const ours = table.columns.find((c) => c.ref === scope.equals);
+    if (bands !== undefined && theirs === undefined) out.push({ path: [...at, 'column'], message: `"${band.table}" has no column "${scope.column}"` });
+    if (ours === undefined) out.push({ path: [...at, 'equals'], message: `"${table.ref}" has no column "${scope.equals}"` });
+    else if (ours.ref === column.ref) out.push({ path: [...at, 'equals'], message: 'a band is scoped by another column than its own link' });
+    if (theirs !== undefined && ours !== undefined && (theirs.type !== ours.type || theirs.references !== ours.references)) {
+      out.push({ path: at, message: `"${table.ref}.${ours.ref}" and "${band.table}.${theirs.ref}" hold different things` });
+    }
+  });
+  if (placed !== undefined && bandReadsItself(table.ref, column.ref, band.value, tables)) {
+    out.push({ path: [...path, 'value'], message: `"${table.ref}.${band.value}" reads what is copied through "${column.ref}", so the band would decide itself` });
+  }
+  return out;
+}
+
+/**
+ * Whether a band's number reads its own link: followed through the row's
+ * formulas, the totals it adds up from child rows, the copies it takes
+ * through a link and other bands, at most a few tables deep.
+ */
+function bandReadsItself(tableRef: string, link: string, value: string, tables: ReadonlyMap<string, RequiredTableShape>): boolean {
+  const seen = new Set<string>();
+  const reads = (t: string, c: string, depth: number): boolean => {
+    const key = `${t}.${c}`;
+    if (seen.has(key) || depth > 16) return false;
+    seen.add(key);
+    if (t === tableRef && c === link) return true;
+    const doc = tables.get(t);
+    const col = doc?.columns.find((x) => x.ref === c);
+    const rules = col?.rules;
+    if (doc === undefined || rules === undefined) return false;
+    const next: [string, string][] = [];
+    if (rules.formula !== undefined) for (const name of formulaColumns(rules.formula)) next.push([t, name]);
+    if (rules.rollup !== undefined) {
+      for (const name of [rules.rollup.sum, rules.rollup.times, rules.rollup.latest?.of]) if (name !== undefined) next.push([rules.rollup.from, name]);
+    }
+    if (rules.copy !== undefined) {
+      next.push([t, rules.copy.via]);
+      const via = doc.columns.find((x) => x.ref === rules.copy!.via)?.references;
+      if (via !== undefined) next.push([via, rules.copy.from]);
+    }
+    if (rules.band !== undefined) {
+      next.push([t, rules.band.value]);
+      for (const scope of rules.band.scope ?? []) next.push([t, scope.equals]);
+    }
+    return next.some(([nt, nc]) => reads(nt, nc, depth + 1));
+  };
+  return reads(tableRef, value, 0);
 }
 
 /** What `appReferenceIssues` reads of a table. */

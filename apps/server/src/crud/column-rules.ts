@@ -49,7 +49,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
+import type { Dialect, EnumDef, LogicalType, Relation } from '@adminium/engine';
 import { formulaColumns, weekdaysOf, type FormulaExpr, type Moment, type StateCondition } from '@adminium/manifest';
 
 import type {
@@ -77,6 +77,7 @@ import { holdsNul } from '../security/nul-bytes.js';
 import { PLAIN_TEXT_MAX } from '@adminium/manifest';
 import { linkFreeText, NAME_RULE, type PlainTextRule } from '../public-api/plain-text.js';
 import { codeLookupsOf, type CodeLookup } from './code-lookup.js';
+import type { ColumnBand } from './band.js';
 import { isNowType, renderNow } from './instants.js';
 import { clockOf } from './moments.js';
 import { booleanOf, sameValue } from './write-values.js';
@@ -437,8 +438,14 @@ export interface RollupInto {
   formulas: ColumnFormula[];
   /** The parent's own `currency` column, which a `currency` scale reads. */
   currencyColumn?: string;
-  /** The parent's formula columns that read this total, directly or through another formula. */
+  /**
+   * The parent's formula columns that read this total, directly or through
+   * another formula — or through a band it picks (`bands`): the link, what is
+   * copied through it, and the formulas over those.
+   */
   derived: string[];
+  /** The parent's bands whose number is this total, or a formula over it: picked again when it settles. */
+  bands: ColumnBand[];
   /** Whether a balance this total is part of may not go below zero. */
   capped: boolean;
   /**
@@ -500,6 +507,8 @@ export interface TableRules {
   codes?: ColumnCode[];
   /** Links filled from a code a person types (`crud/code-lookup.ts`): resolved first, before the copies. */
   codeLookups?: CodeLookup[];
+  /** Links filled with the band a number of the row falls in (`crud/band.ts`): only Adminium writes them. */
+  bands?: ColumnBand[];
   /** Values written when something happens (a check-in's time, who booked). */
   stamps?: ColumnStamp[];
   /** Parent totals kept in step when this table's rows change. */
@@ -789,27 +798,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     const fill = explicitFillFor(column) ?? implicitFillFor(column, target.view?.model?.dialect);
     if (fill !== null) fills.push(fill);
     if (column.fill?.kind === 'from' && column.fill.from !== undefined) defaultsFrom.push({ column: column.name, from: column.fill.from });
-    if (column.copy !== undefined) {
-      // Through a relation the snapshot still has; one it lost copies nothing.
-      const relation = target.view?.model?.relations.find(
-        (r) =>
-          r.through === null &&
-          r.from.tableId === target.table.id &&
-          r.from.columns.length === 1 &&
-          r.from.columns[0] === column.copy?.via,
-      );
-      if (relation !== undefined) {
-        copies.push({
-          column: column.name,
-          via: column.copy.via,
-          toTable: relation.to.tableId,
-          toColumn: relation.to.columns[0] as string,
-          from: column.copy.from,
-          mode: column.copy.mode ?? 'default',
-          ...(column.copy.follow === true ? { follow: true as const } : {}),
-        });
-      }
-    }
+    const copy = copyOf(target.table.id, column, target.view?.model?.relations);
+    if (copy !== null) copies.push(copy);
     if (column.sequence?.gapless === true) {
       const format = columns.find((other) => other.format?.from === column.name);
       gapless.push({
@@ -1029,8 +1019,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   // One guard a table: the booking of people, or the plain rule (`occupies`), run by the same lock and the same steps.
   const occupies = target.table.table?.occupies;
   const booking: TableBookingRule | PlainBooking | undefined = target.table.table?.booking ?? (occupies === undefined ? undefined : { plain: occupies });
-  // A copy through a link another copy fills runs after that copy.
-  orderCopies(copies);
+  const bands = self === undefined ? [] : bandsOf(self, target.view?.model);
+  // A copy through a link another copy fills runs after that copy; one through a band, after what the band reads.
+  orderCopies(copies, bands);
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
   const codeLookups = codeLookupsOf(target.view, target.table.table);
   const rules =
@@ -1046,6 +1037,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     seals.length === 0 &&
     normalizes.length === 0 &&
     codeLookups.length === 0 &&
+    bands.length === 0 &&
     bounds.length === 0 &&
     linkable.length === 0 &&
     changes.length === 0 &&
@@ -1093,6 +1085,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(seals.length === 0 ? {} : { seals }),
           ...(normalizes.length === 0 ? {} : { normalizes }),
           ...(codeLookups.length === 0 ? {} : { codeLookups }),
+          ...(bands.length === 0 ? {} : { bands }),
           ...(bounds.length === 0 ? {} : { bounds }),
           ...(linkable.length === 0 ? {} : { linkable }),
           ...(changes.length === 0 ? {} : { changes }),
@@ -1245,12 +1238,12 @@ const ROLLUPS = new WeakMap<object, Map<string, RollupInto[]>>();
  * The totals of every table of a model, by table id, each knowing the totals
  * one table higher that add up what it moves (`RollupInto.climbs`).
  */
-function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string, RollupInto[]> {
+function modelRollups(model: { tables: readonly EffectiveTable[]; relations?: readonly Relation[] }): Map<string, RollupInto[]> {
   const cached = ROLLUPS.get(model);
   if (cached !== undefined) return cached;
   const out = new Map<string, RollupInto[]>();
   for (const table of model.tables) {
-    const totals = rollupsOf(table, model.tables);
+    const totals = rollupsOf(table, model.tables, model);
     if (totals.length > 0) out.set(table.id, totals);
   }
   const all = [...out.values()].flat();
@@ -1268,7 +1261,7 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
 }
 
 /** A table's totals, as the writes to its child rows settle them; none for a table without a one-column key. */
-function rollupsOf(parent: EffectiveTable, tables?: readonly EffectiveTable[]): RollupInto[] {
+function rollupsOf(parent: EffectiveTable, tables?: readonly EffectiveTable[], model?: { relations?: readonly Relation[] }): RollupInto[] {
   if (parent.primaryKey?.length !== 1) return [];
   /** A child's one-column key: what settles "the newest" between two rows of the same moment. */
   const keyOf = (child: string): string | undefined => {
@@ -1277,11 +1270,12 @@ function rollupsOf(parent: EffectiveTable, tables?: readonly EffectiveTable[]): 
   };
   const balances = balancesOf(parent);
   const formulas = formulasOf(parent);
+  const bands = bandsOf(parent, model).filter((band) => band.when === 'settle');
   const currencyColumn = parent.columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const siblings: RollupInto[] = [];
   for (const column of parent.columns) {
     if (column.rollup !== undefined) {
-      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn, keyOf(column.rollup.from)));
+      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn, keyOf(column.rollup.from), bands));
     }
   }
   return siblings;
@@ -1314,7 +1308,13 @@ function rollupOf(
   formulas: ColumnFormula[],
   currencyColumn: string | undefined,
   childKey?: string,
+  bands: readonly ColumnBand[] = [],
 ): RollupInto {
+  const fromTotal = derivedFrom(formulas, column.name);
+  // A band whose number is this total, or a formula over it: its link, what is copied through it, and the formulas over those move too.
+  const picked = bands.filter((band) => band.value === column.name || fromTotal.includes(band.value));
+  const throughBands = picked.flatMap((band) => [band.column, ...band.copies.map((copy) => copy.column)]);
+  const derived = [...new Set([...fromTotal, ...throughBands, ...throughBands.flatMap((moved) => derivedFrom(formulas, moved))])];
   const out: RollupInto = {
     parent: parent.id,
     parentKey: parent.primaryKey[0] as string,
@@ -1334,7 +1334,8 @@ function rollupOf(
     climbs: [],
     formulas,
     ...(currencyColumn === undefined ? {} : { currencyColumn }),
-    derived: derivedFrom(formulas, column.name),
+    derived,
+    bands: picked,
   };
   out.capped = guardedBy(out).length > 0;
   return out;
@@ -1764,20 +1765,82 @@ export function checkRow(
   return issues;
 }
 
+/** A column's `copy`, compiled: through a relation the snapshot still has; one it lost copies nothing. */
+function copyOf(tableId: string, column: EffectiveColumn, relations: readonly Relation[] | undefined): ColumnCopy | null {
+  if (column.copy === undefined) return null;
+  const relation = relations?.find(
+    (r) => r.through === null && r.from.tableId === tableId && r.from.columns.length === 1 && r.from.columns[0] === column.copy?.via,
+  );
+  if (relation === undefined) return null;
+  return {
+    column: column.name,
+    via: column.copy.via,
+    toTable: relation.to.tableId,
+    toColumn: relation.to.columns[0] as string,
+    from: column.copy.from,
+    mode: column.copy.mode ?? 'default',
+    ...(column.copy.follow === true ? { follow: true as const } : {}),
+  };
+}
+
+/**
+ * A table's bands (`column.band`), compiled: each through a relation the
+ * snapshot still has to its band table (one it lost picks nothing), with the
+ * copies that read through it, and when it is picked — with the copies, after
+ * the row's formulas, or in its settle when its number is a total of child
+ * rows or a formula over one.
+ */
+export function bandsOf(table: Pick<EffectiveTable, 'id' | 'columns'>, model: { relations?: readonly Relation[] } | undefined): ColumnBand[] {
+  const ruled = table.columns.filter((column) => column.band !== undefined);
+  if (ruled.length === 0 || model?.relations === undefined) return [];
+  const formulas = formulasOf(table);
+  const totals = table.columns.filter((column) => column.rollup !== undefined).map((column) => column.name);
+  const overTotals = new Set([...totals, ...totals.flatMap((total) => derivedFrom(formulas, total))]);
+  const copies = table.columns.flatMap((column) => copyOf(table.id, column, model.relations) ?? []);
+  orderCopies(copies);
+  const out: ColumnBand[] = [];
+  for (const column of ruled) {
+    const rule = column.band!;
+    const relation = model.relations.find(
+      (r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
+    );
+    if (relation === undefined || relation.to.tableId !== rule.table) continue;
+    out.push({
+      column: column.name,
+      table: rule.table,
+      key: relation.to.columns[0] as string,
+      min: rule.min,
+      ...(rule.max === undefined ? {} : { max: rule.max }),
+      value: rule.value,
+      scope: rule.scope ?? [],
+      over: rule.over ?? 'refuse',
+      when: overTotals.has(rule.value) ? 'settle' : formulas.some((formula) => formula.column === rule.value) ? 'formula' : 'resolve',
+      copies: copies.filter((copy) => copy.via === column.name),
+    });
+  }
+  return out;
+}
+
 /**
  * Puts each copy after the copies that fill its link, in place (a ticket's
  * show copied from its type, then the show's doors through it). Otherwise
  * the manifest's order. Two copies each read through the other's column (a
  * loop the validator refuses) keep the order they reached first.
  */
-function orderCopies(copies: ColumnCopy[]): void {
-  if (!copies.some((copy) => copies.some((other) => other.column === copy.via))) return;
+function orderCopies(copies: ColumnCopy[], bands: readonly Pick<ColumnBand, 'column' | 'value' | 'scope'>[] = []): void {
+  /** The columns a copy's link is filled from: the link itself, or — for a band's link — the number and the scope it reads. */
+  const fedBy = (via: string): string[] => {
+    const band = bands.find((one) => one.column === via);
+    return band === undefined ? [via] : [via, band.value, ...band.scope.map((pair) => pair.equals)];
+  };
+  if (!copies.some((copy) => copies.some((other) => fedBy(copy.via).includes(other.column)))) return;
   const ordered: ColumnCopy[] = [];
   const placed = new Set<ColumnCopy>();
   const place = (copy: ColumnCopy, seen: Set<ColumnCopy>) => {
     if (placed.has(copy) || seen.has(copy)) return;
     seen.add(copy);
-    for (const filler of copies) if (filler.column === copy.via) place(filler, seen);
+    const feeds = fedBy(copy.via);
+    for (const filler of copies) if (feeds.includes(filler.column)) place(filler, seen);
     placed.add(copy);
     ordered.push(copy);
   };

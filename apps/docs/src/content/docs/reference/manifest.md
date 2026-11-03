@@ -400,6 +400,7 @@ change or delete is theirs from then on.
 | `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](#formulas). |
 | `normalize` | `"trim"`, `"email"` or `"code"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case, `code` compared as a code (upper case, spaces and dashes left out) when a person types one; see [Typed codes](#typed-codes). |
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
+| `band` | `{ "table", "min", "max"?, "value", "scope"?, "over"? }` | A foreign key filled with the band a number of the row falls in: a line's quantity among its product's price breaks, an order's weight among the delivery bands. See [Bands](#bands). |
 | `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
 | `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets a notice that names the table only (never the record) and has no link. The record is named only to somebody who can open it, by a column their role shows, and only when the writer can read it too. A mention in a row saved under another record's form tells the people a new row names; a change to such a row tells nobody. A text that already names somebody who has since left can still be edited. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.28`. |
@@ -1117,6 +1118,69 @@ the same way, and an unknown code refuses just that row. A table resolves at mos
 A code typed to **read** rows rather than write one (a presale code that shows its ticket type) is
 a public entry's [`unlockBy`](#codes-that-unlock-rows).
 
+#### Bands
+
+A `band` fills a foreign key with the row of a band table a number of this row falls in: a line's
+quantity picks its product's price break, an order's weight its delivery band. A `copy` then takes
+the band's multiplier or price through the link, and the formulas do the rest. The browser never
+names the band row; Adminium picks it.
+
+```json
+{ "ref": "break_id", "type": "fk", "references": "price_breaks", "nullable": true,
+  "rules": { "band": { "table": "price_breaks", "min": "min_qty", "value": "qty",
+                       "scope": [{ "column": "product_id", "equals": "product_id" }] } } },
+{ "ref": "multiplier", "type": "decimal", "scale": 4, "nullable": true,
+  "rules": { "copy": { "via": "break_id", "from": "multiplier", "mode": "always" } } },
+{ "ref": "line_total", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "formula": { "round": [{ "mul": ["unit_price", "qty", { "coalesce": ["multiplier", 1] }] }, 2] } } }
+```
+
+| Field | Rule |
+|---|---|
+| `table` | The band table. The rule's own column is a nullable foreign key to it. |
+| `min` | The band table's number column holding each band's lower bound, inclusive. |
+| `max` | Optional: the band table's number column holding its upper bound, inclusive. An empty `max` is a band open above. |
+| `value` | This row's number column placed among the bands: one a write sets (typed, defaulted, copied), a [formula](#formulas), or a [total](#totals-and-balances) of child rows. |
+| `scope` | 1–2 `{ "column", "equals" }`: only band rows whose `column` holds what this row's `equals` column holds (this product's breaks). The two columns hold the same thing (the same type, the same table linked). |
+| `over` | What happens to a number past the `max` of its band: `"refuse"` (the default) refuses the write, `"empty"` leaves the link empty. |
+
+**The pick.** Of the band rows within the scope whose `min` is at most the number, the one with the
+greatest `min`. Coasters with breaks at 1, 4, 8 and 12: a quantity of 3 picks the 1-row, 4 the
+4-row, 11 the 8-row, 12 the 12-row. No row at or below the number (a product with no breaks, a
+line with no product yet, an empty number) leaves the link empty, and what is copied through it
+is emptied too: `coalesce` in the formula says what that means ("multiplier 1"). The number is
+compared exactly, as a formula counts, on every engine.
+
+**Past the top.** A picked band with a `max` the number is past is over it. With `"over": "refuse"`
+the write is refused `422` `VALIDATION_FAILED` with the code `out-of-range` on the number's column
+(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "out-of-range"` and the column). With
+`"over": "empty"` the link is left empty: an order over the top delivery band goes through with no
+delivery price, for the shop to quote by hand.
+
+```json
+{ "ref": "weight", "type": "decimal", "scale": 3, "nullable": true,
+  "rules": { "rollup": { "from": "order_lines", "via": "order_id", "sum": "weight" } } },
+{ "ref": "delivery_band_id", "type": "fk", "references": "delivery_bands", "nullable": true,
+  "rules": { "band": { "table": "delivery_bands", "min": "min_kg", "max": "max_kg",
+                       "value": "weight", "over": "empty" } } },
+{ "ref": "delivery_price", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "copy": { "via": "delivery_band_id", "from": "price", "mode": "always" } } }
+```
+
+**When it is picked.** A band whose number the write sets is picked with the copies, before every
+copy that reads through it, so the copied price and the formulas after it see the band in the same
+write. One over a formula of the row is picked once the row's formulas are worked out, and the
+formulas over what it copies are worked out again. One over a total of child rows (or a formula
+over one) is picked whenever the total settles: a guest's order created with its lines, a line
+added, changed or removed by staff, an import. A quote (`dryRun`) picks it the same way, so it
+gives the figures the save stores.
+
+**Nobody else writes the link.** A value any writer sends for it, staff included, is dropped and the
+band picks it; an import and an undo keep the link they bring, as history. A public entry may not
+list it as writable. A band is the column's one filler (no `copy`, `default`, `lookup` or other rule
+beside it), and its number may not read, through formulas, totals or copies, what is copied through
+its own link: the band would decide itself.
+
 #### Codes that renew
 
 A ticket's code is the door's proof. When the ticket goes to somebody else, the old code must
@@ -1214,7 +1278,7 @@ file that carries a column they may not give a new row. A line that changes a st
 import that updates the rows it matches) fires the stamps a change by hand would, against the
 row as stored: moving a status stamps its moment once, and the same file brought in again
 stamps nothing. A stamped column takes
-no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup` or `perNight` as
+no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup`, `band` or `perNight` as
 well, and a stamp watches a column other than its own.
 
 A stamp that works out a moment again whenever what it reads changes: a stay may be cancelled

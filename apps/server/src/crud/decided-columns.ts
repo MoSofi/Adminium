@@ -9,10 +9,13 @@
  *
  *     FILL → RESOLVE → before hooks → CHECK → SEQUENCE → statement
  *
- *  - RESOLVE (`column.lookup`, `column.copy`, `column.code`), before the
- *    hooks, so a hook sees the values that will be written:
+ *  - RESOLVE (`column.lookup`, `column.band`, `column.copy`, `column.code`),
+ *    before the hooks, so a hook sees the values that will be written:
  *      · a code a person typed is found first (`crud/code-lookup.ts`), so a
  *        copy through the link it fills reads the row just found;
+ *      · a band whose number the write itself sets is picked just before the
+ *        first copy that reads through it (`crud/band.ts`), after the copies
+ *        that fill the number;
  *      · a copy reads the linked row's column through the write's own handle
  *        (the transaction, inside one). A value the writer sent wins in
  *        `default` mode and never in `always` mode. On an update it runs only
@@ -38,6 +41,7 @@ import { sql, type Kysely } from 'kysely';
 
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
+import { bandMoved, linkOf, pickBand, type ColumnBand } from './band.js';
 import { canonicalCode, clearedLinks, reservedStart, resolveLookups, type LookupOptions } from './code-lookup.js';
 import type { ColumnCode, ColumnSequence, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
@@ -221,7 +225,25 @@ export async function resolveRow(
   const cleared = new Set(clearedLinks(looked));
   let storedOnce: Promise<Row | null> | null = null;
   const storedRow = () => (storedOnce ??= lookups?.stored?.() ?? Promise.resolve(null));
+  // The bands whose number the write itself sets, each picked once: before the first copy through its link, or after the copies.
+  const pending = new Set((rules.bands ?? []).filter((band) => band.when === 'resolve'));
+  const pick = async (band: ColumnBand): Promise<void> => {
+    pending.delete(band);
+    const current = out ?? looked;
+    // History brings its own link (an import, an undo), as it does for a typed code's.
+    if ((lookups?.origin === 'import' || lookups?.origin === 'undo') && has(current, band.column)) return;
+    if (!bandMoved(band, action === 'create' ? 'create' : 'update', current)) return;
+    const row = action === 'create' ? current : { ...((await storedRow()) ?? {}), ...current };
+    const link = linkOf(band, await pickBand(target.db, band, row));
+    out ??= { ...looked };
+    out[band.column] = link;
+    // An empty band takes what was copied through it with it.
+    if (link === null || link === undefined) cleared.add(band.column);
+    else cleared.delete(band.column);
+  };
   for (const copy of rules.copies ?? []) {
+    const band = [...pending].find((one) => one.column === copy.via);
+    if (band !== undefined) await pick(band);
     // The values so far: a link an earlier copy filled (a ticket's show, from
     // its type) is read here like one the writer sent — the copies run in
     // that order (`column-rules.ts`).
@@ -266,6 +288,8 @@ export async function resolveRow(
     const read = ((out as Copying)[COPIED] = { ...((out as Copying)[COPIED] ?? {}) });
     read[copy.via] = { ...(read[copy.via] ?? {}), [copy.from]: copied };
   }
+  // A band nothing is copied through is picked all the same.
+  for (const band of [...pending]) await pick(band);
   if (action === 'create') {
     for (const code of rules.codes ?? []) {
       if (codeGiven(values, code.column, keepEmptyCodes)) continue;

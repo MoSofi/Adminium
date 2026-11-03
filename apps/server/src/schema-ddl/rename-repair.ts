@@ -144,6 +144,16 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       return same(rule['column']) ? { ...rule, column: to } : value;
     case 'column.copy':
       return same(rule['via']) ? { ...rule, via: to } : value;
+    case 'column.band': {
+      // The number placed and this side of each scope pair are this table's; the bounds are the band table's.
+      const scope = rule['scope'] as Record<string, unknown>[] | undefined;
+      const next = {
+        ...rule,
+        ...(same(rule['value']) ? { value: to } : {}),
+        ...(scope === undefined ? {} : { scope: scope.map((pair) => (same(pair['equals']) ? { ...pair, equals: to } : pair)) }),
+      };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
+    }
     case 'column.perNight': {
       // Its dates and its rate's link are this table's; the rate and the adjustments are other tables'.
       const rate = rule['rate'] as Record<string, unknown> | undefined;

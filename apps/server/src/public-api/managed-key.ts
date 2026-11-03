@@ -35,6 +35,7 @@ export const DECIDED_COLUMN_OPS: readonly string[] = [
   'column.formula',
   'column.format',
   'column.lookup',
+  'column.band',
   'column.perNight',
   'column.customerKey',
   'column.codeLast4',

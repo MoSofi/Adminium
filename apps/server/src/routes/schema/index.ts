@@ -355,6 +355,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.retryKey' ||
           item.op === 'column.bounds' ||
           item.op === 'column.lookup' ||
+          item.op === 'column.band' ||
           item.op === 'column.perNight' ||
           item.op === 'column.announce' ||
           item.op === 'column.tableRef' ||

@@ -99,6 +99,7 @@ function keyOrLink(column: EffectiveColumn): boolean {
     column.isPrimaryKey ||
     (column.references !== null && column.references !== undefined) ||
     column.lookup !== undefined ||
+    column.band !== undefined ||
     column.addOnLink !== undefined ||
     column.addOnLookup !== undefined ||
     column.tableRef === true

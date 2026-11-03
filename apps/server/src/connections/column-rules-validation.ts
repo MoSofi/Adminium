@@ -114,7 +114,7 @@ export interface RelatedRules {
 }
 
 /** The rules through which Adminium fills a column itself: nobody is asked for it. */
-const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup', 'column.perNight', 'column.customerKey', 'column.codeLast4']);
+const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup', 'column.band', 'column.perNight', 'column.customerKey', 'column.codeLast4']);
 
 /** Whether a rule saved beside this one has Adminium fill the column. */
 function filledByRule(related: RelatedRules | undefined, column: string): boolean {
@@ -176,6 +176,7 @@ export function columnRuleIssue(
     | 'column.retryKey'
     | 'column.bounds'
     | 'column.lookup'
+    | 'column.band'
     | 'column.perNight'
     | 'column.announce'
     | 'column.tableRef'
@@ -691,6 +692,32 @@ export function columnRuleIssue(
         if (!target.columns.some((c) => c.name === String(condition['column']))) return `${target.name} has no column ${JSON.stringify(condition['column'])}.`;
       }
       for (const scope of (value['scope'] ?? []) as Value[]) {
+        if (table?.columns.some((c) => c.name === String(scope['equals'])) !== true) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(scope['equals'])}.`;
+      }
+      return null;
+    }
+
+    case 'column.band': {
+      // A link filled with the band a number falls in: the link itself, the band's bounds, the number placed, the scope.
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const targetId = String(value['table']);
+      const relation = model.relations.find(
+        (r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
+      );
+      if (relation === undefined || relation.to.tableId !== targetId) return `${name} does not link this table to ${JSON.stringify(targetId)}, so no band can fill it.`;
+      if (!column.nullable) return `A row in no band leaves ${name} empty, so it must be a column that may be empty.`;
+      const target = model.tables.find((candidate) => candidate.id === targetId);
+      for (const side of ['min', 'max'] as const) {
+        if (value[side] === undefined) continue;
+        const bound = target?.columns.find((c) => c.name === String(value[side]));
+        if (target === undefined || bound === undefined) return `There is no column ${JSON.stringify(value[side])} in ${JSON.stringify(targetId)} to bound a band by.`;
+        if (!NUMERIC_TYPES.has(bound.logicalType)) return `A band is bounded by numbers; ${target.name}.${bound.name} is ${bound.logicalType}.`;
+      }
+      const placed = table?.columns.find((c) => c.name === String(value['value']));
+      if (placed === undefined) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(value['value'])} to place in a band.`;
+      if (!NUMERIC_TYPES.has(placed.logicalType)) return `A number is placed in a band; ${JSON.stringify(placed.name)} is ${placed.logicalType}.`;
+      for (const scope of (value['scope'] ?? []) as Value[]) {
+        if (target?.columns.some((c) => c.name === String(scope['column'])) !== true) return `${target?.name ?? JSON.stringify(targetId)} has no column ${JSON.stringify(scope['column'])}.`;
         if (table?.columns.some((c) => c.name === String(scope['equals'])) !== true) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(scope['equals'])}.`;
       }
       return null;

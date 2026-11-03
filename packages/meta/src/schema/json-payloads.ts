@@ -1279,6 +1279,25 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       .strict(),
   }),
   /**
+   * A foreign key filled with the band a number of the row falls in: of the
+   * rows of `table` (its id in the snapshot) whose `min` is at most the row's
+   * `value`, within `scope`, the one with the greatest `min`; past its `max`
+   * the write is refused or the link left empty (`over`).
+   */
+  z.object({
+    op: z.literal('column.band'),
+    value: z
+      .object({
+        table: ruleTable,
+        min: ruleColumn,
+        max: ruleColumn.optional(),
+        value: ruleColumn,
+        scope: z.array(z.object({ column: ruleColumn, equals: ruleColumn }).strict()).min(1).max(2).optional(),
+        over: z.enum(['refuse', 'empty']).optional(),
+      })
+      .strict(),
+  }),
+  /**
    * A date kept within dates: never later than today on the venue's calendar,
    * and never earlier than another date — of the same row, or (with `via`, a
    * foreign key of the row) of the row it points at.

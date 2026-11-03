@@ -115,6 +115,8 @@ export type RemapOverride =
   | { op: 'column.code'; tableName: string; columnName: string; value: { prefix?: string; length: number; renew?: Record<string, unknown> } }
   /** A link filled from a code a person types. Kept whole through a save; not edited here. */
   | { op: 'column.lookup'; tableName: string; columnName: string; value: Record<string, unknown> }
+  /** A link filled with the band a number of the row falls in. Kept whole through a save; not edited here. */
+  | { op: 'column.band'; tableName: string; columnName: string; value: Record<string, unknown> }
   /** A number with a prefix, written from a running number of the row. Kept whole through a save. */
   | { op: 'column.format'; tableName: string; columnName: string; value: Record<string, unknown> }
   /** A value worked out from the row's other columns. Kept whole through a save. */
@@ -218,6 +220,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.retryKey',
   'column.bounds',
   'column.lookup',
+  'column.band',
   // Kept by an app's install; a Studio save carries it back with its column.
   'column.perNight',
   'column.yesNo',

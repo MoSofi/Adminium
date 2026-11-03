@@ -112,6 +112,21 @@ export interface ColumnLookupRule {
   scope?: { column: string; equals: string; orEmpty?: true }[];
 }
 
+/**
+ * `column.band`: a foreign key filled with the band a number of the row falls
+ * in — of the rows of `table` within `scope` whose `min` is at most `value`,
+ * the one with the greatest `min` (`crud/band.ts`).
+ */
+export interface ColumnBandRule {
+  /** The band table's id in the snapshot. */
+  table: string;
+  min: string;
+  max?: string;
+  value: string;
+  scope?: { column: string; equals: string }[];
+  over?: 'refuse' | 'empty';
+}
+
 /** `column.rollup`: this column is the total of its child rows. */
 export interface ColumnRollupRule {
   /** The child table's id in the snapshot. */
@@ -600,6 +615,8 @@ export interface EffectiveColumn extends ColumnModel {
   retryKey?: true;
   /** `column.lookup`: filled from a code a person types. */
   lookup?: ColumnLookupRule;
+  /** `column.band`: filled with the band a number of the row falls in. */
+  band?: ColumnBandRule;
   /**
    * A `column.lookup` among the codes of an add-on's table, as it is stored
    * (`table` is `{addOn, table}`): carried, and acted on only once the add-on
@@ -1862,6 +1879,11 @@ export function applyOverrides(
         // Among an add-on's codes: carried as stored, and inert until that add-on's table is found.
         if (typeof value.table === 'string') column.lookup = value as unknown as ColumnLookupRule;
         else column.addOnLookup = value as unknown as NonNullable<EffectiveColumn['addOnLookup']>;
+        break;
+      }
+      case 'column.band': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.band = value as unknown as ColumnBandRule;
         break;
       }
       case 'llm.label': {

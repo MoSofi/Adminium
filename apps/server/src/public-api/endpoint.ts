@@ -776,6 +776,7 @@ function decidedByAdminium(column: EffectiveColumn): boolean {
     column.rollup !== undefined ||
     column.stamp !== undefined ||
     column.lookup !== undefined ||
+    column.band !== undefined ||
     column.perNight !== undefined ||
     column.customerKey !== undefined ||
     column.codeLast4 !== undefined
