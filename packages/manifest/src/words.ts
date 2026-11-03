@@ -27,6 +27,9 @@ type Doc = Readonly<Record<string, unknown>>;
 const isDoc = (value: unknown): value is Doc => typeof value === 'object' && value !== null && !Array.isArray(value);
 const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 
+/** The most a file column took before guests could upload into it: past this, a column needs the release that reads it. */
+export const FILE_COLUMN_EARLIER_MAX_BYTES = 25 * 1024 * 1024;
+
 /** The top-level blocks an add-on shares with an app since the install floor. */
 export const ADD_ON_INSTALL_BLOCKS = [
   'pages',
@@ -210,6 +213,12 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'addOn.checker',
   // A panel an add-on draws on the record pages of the tables that link into one of its own.
   'addOn.panels',
+  // A guest's file uploaded into a file column through a public entry: the entry's list, the column's rule for it; a
+  // column that takes TIFF, or files past the 25 MiB a column took before.
+  'publicAccess.uploads',
+  'file.upload',
+  'file.tiff',
+  'file.large',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -407,6 +416,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.check': '0.3.43',
   'addOn.checker': '0.3.43',
   'addOn.panels': '0.3.43',
+  // A guest's upload into an app's file column, TIFF, and file columns up to 100 MiB: read by the same release.
+  'publicAccess.uploads': '0.3.43',
+  'file.upload': '0.3.43',
+  'file.tiff': '0.3.43',
+  'file.large': '0.3.43',
 };
 
 /** Whether a formula, at any depth, rounds up or down (`ceil`, `floor`). */
@@ -550,6 +564,10 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
       if (isDoc(rules['linkable']) && rules['linkable']['same'] !== undefined) out.push({ word: 'linkable.same', path: `${here}.linkable.same` });
       if (rules['file'] !== undefined) out.push({ word: 'column.file', path: `${here}.file` });
+      const file = isDoc(rules['file']) ? rules['file'] : null;
+      if (file !== null && file['upload'] !== undefined) out.push({ word: 'file.upload', path: `${here}.file.upload` });
+      if (file !== null && list(file['accept']).includes('tiff')) out.push({ word: 'file.tiff', path: `${here}.file.accept` });
+      if (file !== null && typeof file['maxBytes'] === 'number' && file['maxBytes'] > FILE_COLUMN_EARLIER_MAX_BYTES) out.push({ word: 'file.large', path: `${here}.file.maxBytes` });
       if (rules['changes'] !== undefined) out.push({ word: 'column.changes', path: `${here}.changes` });
       if (rules['history'] !== undefined) out.push({ word: 'column.history', path: `${here}.history` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
@@ -761,6 +779,13 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['key'] === 'forms') out.push({ word: 'publicAccess.forms', path: `publicAccess.${String(e)}.key` });
     if (isDoc(entry) && entry['source'] !== undefined) out.push({ word: 'publicAccess.forms.source', path: `publicAccess.${String(e)}.source` });
     if (isDoc(entry) && entry['appColumn'] !== undefined) out.push({ word: 'publicAccess.appColumn', path: `publicAccess.${String(e)}.appColumn` });
+    // A guest's uploads, on the entry or on any level of its child rows.
+    const uploadsIn = (node: unknown, path: string): void => {
+      if (!isDoc(node)) return;
+      if (node['uploads'] !== undefined) out.push({ word: 'publicAccess.uploads', path: `${path}.uploads` });
+      for (const [name, child] of Object.entries(isDoc(node['children']) ? node['children'] : {})) uploadsIn(child, `${path}.children.${name}`);
+    };
+    uploadsIn(entry, `publicAccess.${String(e)}`);
   });
   return out;
 }

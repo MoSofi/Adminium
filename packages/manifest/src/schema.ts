@@ -277,7 +277,17 @@ export const COLUMN_SEMANTICS = [
  * by a column: SVG is a document that can carry script, and a HEIC picture is
  * one whose camera notes (the place, the device) cannot be taken out of it.
  */
-export const FILE_COLUMN_KINDS = ['png', 'jpeg', 'webp', 'gif', 'pdf', 'office', 'zip', 'csv', 'text', 'markdown', 'json', 'mp4', 'webm', 'mp3', 'wav', 'ogg'] as const;
+export const FILE_COLUMN_KINDS = ['png', 'jpeg', 'webp', 'gif', 'pdf', 'office', 'zip', 'csv', 'text', 'markdown', 'json', 'mp4', 'webm', 'mp3', 'wav', 'ogg', 'tiff'] as const;
+
+/**
+ * The kinds of file a guest may upload into a file column (`rules.file.upload`),
+ * by the words a form's file question uses, each with the column kind
+ * (`accept`) it is: pictures, PDF, plain text, and TIFF (a print shop's
+ * artwork, kept and handed back as a download, never drawn on a page). The
+ * column's `accept` names each kind its upload takes.
+ */
+export const FILE_UPLOAD_KINDS = { jpg: 'jpeg', png: 'png', pdf: 'pdf', text: 'text', tiff: 'tiff' } as const satisfies Readonly<Record<string, (typeof FILE_COLUMN_KINDS)[number]>>;
+export type FileUploadKind = keyof typeof FILE_UPLOAD_KINDS;
 
 /**
  * The kinds of file a PICTURE column takes: a text column with `semantic:
@@ -291,8 +301,12 @@ export function takesPicturesOnly(accept: readonly string[]): boolean {
   return accept.length > 0 && accept.every((kind) => (PICTURE_FILE_KINDS as readonly string[]).includes(kind));
 }
 
-/** The most a file column's `maxBytes` may say: 25 MiB. */
-export const FILE_COLUMN_MAX_BYTES = 25 * 1024 * 1024;
+/**
+ * The most a file column's `maxBytes` may say: 100 MiB (a print shop's
+ * artwork PDF). The install's own ceiling (`files.maxBytes`) still holds every
+ * upload, and the owner may set it lower.
+ */
+export const FILE_COLUMN_MAX_BYTES = 100 * 1024 * 1024;
 
 /**
  * The largest picture served to every visitor (an entry's `pictures`, through
@@ -944,6 +958,23 @@ export const columnRulesSchema = z
         accept: z.array(z.enum(FILE_COLUMN_KINDS)).min(1).max(FILE_COLUMN_KINDS.length),
         maxBytes: z.number().int().min(1024).max(FILE_COLUMN_MAX_BYTES),
         maxCount: z.number().int().min(1).max(FILE_COLUMN_MAX_COUNT).optional(),
+        /**
+         * What a GUEST may upload into the column, through a public entry that
+         * lists it in `uploads`: the kinds (pictures, PDF, plain text, TIFF;
+         * each one the column's `accept` names), the most bytes of one (at most
+         * the column's `maxBytes`) and, in a list, how many (at most the
+         * column's `maxCount`). The file is kept unattached for a day; the
+         * guest's next write through the entry names it, and it becomes the
+         * row's file as a staff upload is.
+         */
+        upload: z
+          .object({
+            kinds: z.array(z.enum(Object.keys(FILE_UPLOAD_KINDS) as [FileUploadKind, ...FileUploadKind[]])).min(1).max(Object.keys(FILE_UPLOAD_KINDS).length),
+            maxBytes: z.number().int().min(1024).max(FILE_COLUMN_MAX_BYTES),
+            maxCount: z.number().int().min(1).max(FILE_COLUMN_MAX_COUNT).optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),
@@ -2855,6 +2886,20 @@ export function appReferenceIssues(
           out.push({ path: here('file'), message: `a file is kept in a text column, a list of files in a json column, and "${table.ref}.${column.ref}" is ${column.type}` });
         }
         if (new Set(rules.file.accept).size !== rules.file.accept.length) out.push({ path: here('file', 'accept'), message: 'each kind of file is named once' });
+        // What a guest uploads is a file the column takes, no larger, and no more of them than it holds.
+        const upload = rules.file.upload;
+        if (upload !== undefined) {
+          if (new Set(upload.kinds).size !== upload.kinds.length) out.push({ path: here('file', 'upload', 'kinds'), message: 'each kind of file is named once' });
+          for (const kind of upload.kinds) {
+            const as = FILE_UPLOAD_KINDS[kind];
+            if (!(rules.file.accept as readonly string[]).includes(as)) out.push({ path: here('file', 'upload', 'kinds'), message: `a guest's "${kind}" file is one the column takes: add "${as}" to accept` });
+          }
+          if (upload.maxBytes > rules.file.maxBytes) out.push({ path: here('file', 'upload', 'maxBytes'), message: `a guest's file is no larger than the column takes (${String(rules.file.maxBytes)} bytes)` });
+          if (upload.maxCount !== undefined) {
+            if (rules.file.maxCount === undefined) out.push({ path: here('file', 'upload', 'maxCount'), message: 'the column holds one file, so a guest uploads one' });
+            else if (upload.maxCount > rules.file.maxCount) out.push({ path: here('file', 'upload', 'maxCount'), message: `a guest uploads no more files than the column holds (${String(rules.file.maxCount)})` });
+          }
+        }
         // An image column that holds files holds pictures.
         if ((column as { semantic?: string }).semantic === 'image' && !takesPicturesOnly(rules.file.accept)) {
           out.push({ path: here('file', 'accept'), message: `"${table.ref}.${column.ref}" is an image column, so its files are pictures: ${PICTURE_FILE_KINDS.join(', ')}` });

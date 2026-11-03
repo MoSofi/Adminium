@@ -439,6 +439,8 @@ const childEntryShape = {
   plainText: plainTextSchema.optional(),
   /** The most a column may add up to across the rows of one write (a dozen items to an order). */
   sumMax: sumMaxSchema.optional(),
+  /** File columns of the child a guest may upload into (`POST /public/uploads`), as on the entry itself. */
+  uploads: z.array(refSchema).min(1).max(8).optional(),
 };
 
 const childTablesSchema = <T extends z.ZodTypeAny>(entry: T) =>
@@ -571,6 +573,14 @@ export const publicAccessSchema = z
     visibleWith: z.object({ table: refSchema, via: refSchema }).strict().optional(),
     /** File columns a claimed person may download (the file the row names, never by its id). */
     files: z.array(refSchema).min(1).max(8).optional(),
+    /**
+     * File columns a guest may upload into (`POST /public/uploads`): each a
+     * `writable` file column whose rule says what a guest may send
+     * (`rules.file.upload`). The upload is kept for a day; the guest's next
+     * create or change through this entry names it in the column, and it
+     * becomes the row's own file.
+     */
+    uploads: z.array(refSchema).min(1).max(8).optional(),
     /** The kinds of document a claimed person may list and open for these rows. */
     documents: z.array(z.string().regex(/^[a-z][a-z0-9-]*$/, 'a document kind')).min(1).max(8).optional(),
     /**
@@ -1350,7 +1360,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (root === undefined) out.push({ path: at('visibleWith'), message: 'the entries it is visible with lead to no claimed person' });
     }
     for (const ref of entry.files ?? []) {
-      if (writable.has(ref)) out.push({ path: at('files'), message: `"${ref}" is offered for download, so a browser never writes it` });
+      // A guest's own upload is written by naming it, and only a file they uploaded for the column is taken there.
+      if (writable.has(ref) && !(entry.uploads ?? []).includes(ref)) out.push({ path: at('files'), message: `"${ref}" is offered for download, so a browser never writes it` });
       const found = column(ref);
       if (found === undefined) out.push({ path: at('files'), message: `"${entry.table}" has no column "${ref}"` });
       else if (found.type !== 'text') out.push({ path: at('files'), message: `"${entry.table}.${ref}" is not a text column holding a file` });
@@ -1594,6 +1605,10 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (entry.words === undefined) out.push(...availabilityShapeIssues(entry, ctx, at));
     if (entry.unlockBy !== undefined) out.push(...unlockIssues(entry, entry.unlockBy, entries, ctx, at));
     if (entry.pictures !== undefined) out.push(...pictureIssues(entry, entry.pictures, entries, ctx, at));
+    if (entry.uploads !== undefined) {
+      if (!entry.methods.includes('POST') && !entry.methods.includes('PATCH')) out.push({ path: at('uploads'), message: "a guest's upload is named by a create or a change, and this entry makes neither" });
+      out.push(...uploadIssues(ctx.index, entry.table, entry.uploads, entry.writable ?? [], at('uploads')));
+    }
   });
   out.push(...treeIssues(entries, ctx, identities, shareCodes));
   out.push(...personIssues(entries, ctx, identities));
@@ -1774,6 +1789,27 @@ function pictureIssues(
 }
 
 /**
+ * The file columns a guest may upload into, at one level of an entry: each a
+ * column of the table, written there, whose file rule says what a guest may
+ * send (`rules.file.upload`). Named once each.
+ */
+function uploadIssues(index: TableIndex, table: string, uploads: readonly string[], writable: readonly string[], path: Path): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  if (new Set(uploads).size !== uploads.length) out.push({ path, message: 'each column is named once' });
+  for (const ref of uploads) {
+    const found = ruledColumn(index, table, ref);
+    if (found === undefined) {
+      out.push({ path, message: `"${table}" has no column "${ref}"` });
+      continue;
+    }
+    if (found.rules?.file === undefined) out.push({ path, message: `"${table}.${ref}" holds no files: give it a file rule (rules.file)` });
+    else if (found.rules.file.upload === undefined) out.push({ path, message: `"${table}.${ref}" does not say what a guest may upload: give its file rule an upload (kinds, maxBytes)` });
+    if (!writable.includes(ref)) out.push({ path, message: `"${ref}" is filled by naming the upload, so it is writable` });
+  }
+  return out;
+}
+
+/**
  * Whether an entry reads a table's rows: a GET that is not an availability
  * answer (free or full per slot, never a row), so it can be a child's parent.
  */
@@ -1875,6 +1911,7 @@ interface RuledColumn extends ColumnShape {
         validation?: { min?: number | undefined; max?: number | undefined; format?: string | undefined; maxLength?: number | undefined } | undefined;
         normalize?: string | undefined;
         secret?: boolean | undefined;
+        file?: { upload?: unknown } | undefined;
       }
     | undefined;
 }
@@ -2177,6 +2214,7 @@ function treeIssues(
           }
         }
         out.push(...boundIssues(index, ctx, name, child.writable, here('writable')));
+        if (child.uploads !== undefined) out.push(...uploadIssues(index, name, child.uploads, child.writable, here('uploads')));
         (child.agrees ?? []).forEach((agree, a) => out.push(...agreeIssues(index, name, parent, agree, (...rest) => here('agrees', a, ...rest))));
         (child.counts ?? []).forEach((counts, c) => out.push(...countsIssues(index, name, parent, counts, (...rest) => here('counts', c, ...rest))));
         if (child.children !== undefined) {

@@ -22,6 +22,7 @@ export {
   PICTURE_FILE_KINDS,
   takesPicturesOnly,
   FILE_COLUMN_MAX_BYTES,
+  FILE_UPLOAD_KINDS,
   PUBLIC_PICTURE_MAX_BYTES,
   FILE_COLUMN_MAX_COUNT,
   COLUMN_ROLES,
@@ -90,6 +91,7 @@ export {
   sampleDataSchema,
   labelsSchema,
   type ColumnRules,
+  type FileUploadKind,
   type PublicAccess,
   type Manifest,
   type AppManifest,
@@ -473,7 +475,7 @@ export {
   type ComposeResult,
   type PartOrigin,
 } from './compose.js';
-export { ADD_ON_INSTALL_BLOCKS, INSTALL_FLOOR_WORD_NAMES, WORD_FLOORS, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
+export { ADD_ON_INSTALL_BLOCKS, FILE_COLUMN_EARLIER_MAX_BYTES, INSTALL_FLOOR_WORD_NAMES, WORD_FLOORS, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
 export {
   LEDGERS_MAX,
   LEDGER_ACTIONS_MAX,
