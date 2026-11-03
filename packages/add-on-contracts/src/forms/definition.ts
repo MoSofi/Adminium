@@ -87,6 +87,12 @@ export const FORM_DEFINITION_CODES = [
   'tick-required',
   /** Two ticks give consent for one purpose. */
   'tick-purpose-twice',
+  /**
+   * A tick that waits for the click in a confirmation mail, on a form that
+   * asks for no e-mail address (a short answer that checks for one): the
+   * mail has nowhere to go, so the yes could never be proved.
+   */
+  'tick-confirm-email',
   /** `recommend` marks a survey's score; a form has none. */
   'recommend-on-form',
   'recommend-twice',
@@ -361,6 +367,7 @@ function definitionIssues(d: DefinitionShape, report: Report): void {
   });
 
   // Each kind's own rules.
+  const asksEmail = d.questions.some((question) => question.kind === 'short' && question.check === 'email');
   const purposes = new Set<FormTickPurpose>();
   let recommends = 0;
   d.questions.forEach((question, q) => {
@@ -392,6 +399,7 @@ function definitionIssues(d: DefinitionShape, report: Report): void {
         if (purposes.has(question.purpose)) report('tick-purpose-twice', at('purpose'));
         purposes.add(question.purpose);
         if (d.kind === 'survey') report('survey-tick', at('kind'));
+        else if (question.confirm && !asksEmail) report('tick-confirm-email', at('confirm'));
         break;
       case 'hidden':
         if (question.required) report('hidden-required', at('required'));

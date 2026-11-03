@@ -283,6 +283,21 @@ describe('a form\'s definition', () => {
     expect(refusals(changed((d) => (q(d, 'qnews')['default'] = true)))).toEqual(['unrecognized_keys@definition.questions.11']);
   });
 
+  it('refuses a tick that waits for a confirmation on a form that asks for no e-mail address', () => {
+    // The full form asks for one (`qmail`); take its check away and keep the role off, and the mail has nowhere to go.
+    const noEmail = (confirm?: boolean) =>
+      changed((d) => {
+        const mail = q(d, 'qmail');
+        delete mail['check'];
+        delete mail['role'];
+        if (confirm !== undefined) q(d, 'qnews')['confirm'] = confirm;
+      });
+    expect(refusals(noEmail())).toEqual(['tick-confirm-email@definition.questions.11.confirm']);
+    expect(refusals(noEmail(true))).toEqual(['tick-confirm-email@definition.questions.11.confirm']);
+    // A yes that does not wait for the click needs no address.
+    expect(refusals(noEmail(false))).toEqual([]);
+  });
+
   it('takes `recommend` on one survey score only, never on a form', () => {
     expect(refusals(changed((d) => (q(d, 'qhappy')['recommend'] = true)))).toEqual(['recommend-on-form@definition.questions.8.recommend']);
     const twice = changed((d) => d.questions.push({ id: 'qnps2', kind: 'score', label: both('Again?'), recommend: true }), survey());
@@ -304,7 +319,8 @@ describe('a form\'s definition', () => {
     expect(refusals(changed((d) => (q(d, 'qplan')['kinds'] = ['pdf', 'pdf'])))).toEqual(['file-kinds-duplicate@definition.questions.10.kinds']);
     expect(refusals(changed((d) => (q(d, 'qplan')['maxMb'] = 11)))).toEqual(['too_big@definition.questions.10.maxMb']);
     expect(refusals(changed((d) => (q(d, 'qplan')['kinds'] = ['heic'])))[0]).toMatch(/^invalid_value@/);
-    expect(refusals(changed((d) => delete q(d, 'qmail')['check']))).toEqual(['role-email-check@definition.questions.1.role']);
+    // The form's only e-mail question no longer checks for one: its tick's confirmation has nowhere to go either.
+    expect(refusals(changed((d) => delete q(d, 'qmail')['check']))).toEqual(['role-email-check@definition.questions.1.role', 'tick-confirm-email@definition.questions.11.confirm']);
     expect(refusals(changed((d) => (q(d, 'qname')['maxLength'] = 501)))).toEqual(['too_big@definition.questions.0.maxLength']);
   });
 
