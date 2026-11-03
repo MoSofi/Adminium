@@ -10,14 +10,18 @@
  * for. A kit whose deciding code nobody vouches for is never asked, and a
  * line with a design is then refused; a line without one goes through.
  *
- * Through the public create with children, on every engine this run can
+ * Through the public create with children, and as the desk that changes a
+ * line (its design, the features it pays for), on every engine this run can
  * reach, through the real installer and the whole server.
  */
-import { filesRepo } from '@adminium/meta';
+import { parseDatabaseModel } from '@adminium/engine';
+import { filesRepo, permissionsRepo, rolesRepo, snapshotsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { solveProof } from '../src/public-api/proof.js';
+import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
+import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { DESIGN_KIT, DESIGN_KIT_FILES, designKitManifest, designShopManifest } from './fixtures/design-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
@@ -187,5 +191,47 @@ describe.each(LEGS)('a guest\'s design, checked inside the order — %s', (diale
     const plain = await create(order({}), untrusted);
     expect(plain.statusCode, plain.body).toBe(201);
     expect(await orders()).toBe(before + 1);
+  });
+
+  it.skipIf(!available)('a staff change asks again: a line\'s design moved, a feature paid for added, as the desk that makes them', async () => {
+    const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
+    const id = (name: string) => model.tables.find((table) => table.name === name)!.id;
+    const grants = [
+      ...['read', 'create', 'update'].map((action) => `table:${h.connectionId}:${id('printing_order_lines')}:${action}`),
+      ...['read', 'create', 'delete'].map((action) => `table:${h.connectionId}:${id('printing_line_features')}:${action}`),
+      `table:${h.connectionId}:${id('printing_orders')}:read`,
+    ];
+    const user = await usersRepo(h.meta).create({ email: 'desk@shop.test', name: 'desk', passwordHash: await adminPasswordHash() });
+    const role = await rolesRepo(h.meta).create({ slug: 'desk-own', name: 'Desk' });
+    for (const row of matrixRowsFromGrants(grants).rows) await permissionsRepo(h.meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
+    await rolesRepo(h.meta).assignToUser(user.id, role.id);
+    const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: fresh(), payload: { email: 'desk@shop.test', password: ADMIN_PASSWORD } });
+    expect(login.statusCode, login.body).toBe(200);
+    const cookie = sessionCookie(login.headers['set-cookie']);
+    const data = (method: 'POST' | 'PATCH' | 'DELETE', path: string, payload?: Doc) =>
+      served.composed.app.inject({ method, url: `/api/v1/data/${h.connectionId}/${path}`, headers: { cookie }, ...(payload === undefined ? {} : { payload }) });
+    await h.rows(`INSERT INTO printing_orders (id, name) VALUES (900, 'Desk order')`);
+    const made = await data('POST', id('printing_order_lines'), { values: { order_id: 900, product_id: 1, qty: 1 } });
+    expect(made.statusCode, made.body).toBe(201);
+    const line = String((made.json() as { data: { id: unknown } }).data.id);
+    const refusal = (res: Reply) => (res.json() as { error: { code: string; details?: Doc } }).error;
+    // A design whose words are too long for its part: refused, said to the desk by its reason and part.
+    const long = await data('PATCH', `${id('printing_order_lines')}/${line}`, { values: { design_code: 'AA00000000000002' } });
+    expect(long.statusCode, long.body).toBe(409);
+    expect(refusal(long)).toMatchObject({ code: 'CHECK_REFUSED', details: { column: 'design_id', reason: 'too-long', part: 'top' } });
+    // A design with a logo, on a line that pays for none.
+    const unpaid = await data('PATCH', `${id('printing_order_lines')}/${line}`, { values: { design_code: 'AA00000000000003' } });
+    expect(refusal(unpaid)).toMatchObject({ code: 'CHECK_REFUSED', details: { reason: 'feature-not-paid', feature: 'logo' } });
+    // The feature first, on a line with no design yet (not asked), then the design: it stands.
+    const feature = await data('POST', id('printing_line_features'), { values: { line_id: Number(line), feature: 'logo' } });
+    expect(feature.statusCode, feature.body).toBe(201);
+    const paid = await data('PATCH', `${id('printing_order_lines')}/${line}`, { values: { design_code: 'AA00000000000003' } });
+    expect(paid.statusCode, paid.body).toBe(200);
+    // The same feature paid twice is refused on the feature's own save.
+    const twice = await data('POST', id('printing_line_features'), { values: { line_id: Number(line), feature: 'logo' } });
+    expect(refusal(twice)).toMatchObject({ code: 'CHECK_REFUSED', details: { reason: 'feature-paid-twice', feature: 'logo' } });
+    // A removal never asks: taking a paid feature off is the desk's to do.
+    const gone = await data('DELETE', `${id('printing_line_features')}/${String((feature.json() as { data: { id: unknown } }).data.id)}`);
+    expect(gone.statusCode, gone.body).toBe(200);
   });
 });
