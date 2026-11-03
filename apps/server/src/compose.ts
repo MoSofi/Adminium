@@ -327,6 +327,7 @@ import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
 import { sweepFormAnswers } from './forms/answers.js';
+import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
 import { payPageRoutes } from './routes/pay/page.js';
@@ -1684,6 +1685,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   jobs.scheduler.registerSchedule(FORM_ANSWERS_SWEEP_NAME, FORM_ANSWERS_SWEEP_CRON, async () => {
     const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'form answers sweep');
+  });
+  // An add-on's own rows past the time its table keeps them (`expire`): let go by the engine, their files to the bin.
+  jobs.scheduler.registerSchedule(ADD_ON_EXPIRE_SWEEP_NAME, ADD_ON_EXPIRE_SWEEP_CRON, async () => {
+    const swept = await sweepExpiredRows({ meta, manager, files: fileReconciler, log: app.log });
+    if (Object.keys(swept).length > 0) app.log.info({ swept }, 'add-on expired rows sweep');
   });
   // A recorded live payment emails its receipt once, to the record's customer.
   registerPaymentsRecordHandler(jobs.registry, {
