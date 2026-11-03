@@ -4,13 +4,15 @@
  * link can ask for: `kind` picks the tray (the campaign-sent notice links
  * here with `kind=campaign`), `archived` opens archived mode, and
  * `open=<id>` goes straight to the editor — the shape
- * `email.campaign.sent`'s `actionUrl` uses.
+ * `email.campaign.sent`'s `actionUrl` uses. `kind=campaign&link=<https
+ * address>` opens "New campaign" at once, and the campaign starts with a
+ * text block holding the address (a form's "Send by e-mail").
  */
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect } from 'react';
 
 import { EmailManager } from './manager/Manager.js';
-import type { EmailTemplatesSearch } from './search.js';
+import { campaignLinkOf, type EmailTemplatesSearch } from './search.js';
 
 export function EmailTemplatesPage() {
   const search = useSearch({ strict: false }) as EmailTemplatesSearch;
@@ -27,6 +29,10 @@ export function EmailTemplatesPage() {
       initialTab={search.kind ?? 'template'}
       initialArchived={search.archived ?? false}
       app={search.app}
+      // Asked again here: a search read loosely also holds what another route left unvalidated.
+      startLink={search.kind === 'campaign' ? (campaignLinkOf(search.link) ?? undefined) : undefined}
+      // Used once: the address leaves the bar, so going back or reloading opens nothing again.
+      onStartLinkUsed={() => void navigate({ to: '/email-templates', search: (prev: Record<string, unknown>) => ({ ...prev, link: undefined }), replace: true })}
       onShowAll={() => void navigate({ to: '/email-templates', search: (prev: Record<string, unknown>) => ({ ...prev, app: undefined }) })}
     />
   );

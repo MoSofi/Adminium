@@ -67,6 +67,10 @@ export interface EmailManagerProps {
   app?: string | undefined;
   /** Leave that cut: show every document again. */
   onShowAll?: (() => void) | undefined;
+  /** An `https://` address a new campaign starts with: "New campaign" opens at once (a form's "Send by e-mail"). */
+  startLink?: string | undefined;
+  /** The address was used, or the dialog closed: it is not offered again. */
+  onStartLinkUsed?: (() => void) | undefined;
 }
 
 /** The comp's four empty-state copies (1392), plus archived mode's two. */
@@ -113,7 +117,7 @@ export function startDownload(url: string): void {
 
 type Confirm = { mode: DeleteModalMode; doc: EmailDocumentSummary };
 
-export function EmailManager({ initialTab = 'template', initialArchived = false, app, onShowAll }: EmailManagerProps) {
+export function EmailManager({ initialTab = 'template', initialArchived = false, app, startLink, onStartLinkUsed, onShowAll }: EmailManagerProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
@@ -129,7 +133,9 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
   const [prefs, updatePrefs] = useManagerPrefs();
   const [rename, setRenameState] = useState<{ id: string; value: string; original: string } | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
-  const [newOpen, setNewOpen] = useState(false);
+  // Opened with a link to start a campaign with: "New campaign" opens at once.
+  const [newOpen, setNewOpen] = useState(startLink !== undefined && initialTab === 'campaign');
+  const [link, setLink] = useState(startLink);
   const [importOpen, setImportOpen] = useState(false);
 
   const list = useQuery(emailDocumentsQuery({ kind: tab, archived, ...(app === undefined ? {} : { app }) }));
@@ -489,9 +495,20 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
       {newOpen ? (
         <NewDocumentModal
           kind={tab}
-          onClose={() => setNewOpen(false)}
+          link={tab === 'campaign' ? link : undefined}
+          onClose={() => {
+            setNewOpen(false);
+            if (link !== undefined) {
+              setLink(undefined);
+              onStartLinkUsed?.();
+            }
+          }}
           onCreated={(detail) => {
             setNewOpen(false);
+            if (link !== undefined) {
+              setLink(undefined);
+              onStartLinkUsed?.();
+            }
             void invalidate();
             openEditor(detail.id);
           }}
