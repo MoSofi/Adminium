@@ -33,6 +33,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/add-ons/:key/kit': noRows('An add-on\'s package, its files, its settings and its connection to an outside service: no source row.'),
   'POST /api/v1/add-ons/:key/look-up': rows(['list', 'sub'], 'The record found and its history rows under their tables\' tests.'),
   'GET /api/v1/add-ons/:key/pages/:ref/bundle': noRows('An add-on\'s package, its files, its settings and its connection to an outside service: no source row.'),
+  'GET /api/v1/add-ons/:key/panels/:id/bundle': rows('visible', 'A record panel\'s code is served only for a row the reader reaches: the row is read by its key with their row limits, and one out of reach answers as one not there.'),
   'GET /api/v1/add-ons/:key/plan': rows('system', 'An add-on is installed, updated and removed as the system, under the manifests grant.'),
   'GET /api/v1/add-ons/:key/sample-data': rows('system', 'Sample rows are added and removed by the system, under the manifests grant; a private table\'s sample rows are its people\'s like any other.'),
   'POST /api/v1/add-ons/:key/sample-data': rows('system', 'Sample rows are added and removed by the system, under the manifests grant; a private table\'s sample rows are its people\'s like any other.'),

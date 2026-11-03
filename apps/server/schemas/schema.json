@@ -61,6 +61,7 @@
               "table.states",
               "table.postings",
               "table.adjust",
+              "table.check",
               "table.switchedOff",
               "column.announce",
               "column.tableRef",
