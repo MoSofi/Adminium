@@ -178,6 +178,47 @@ The contracts package ships a conformance suite, `postingRowsConformance`, that 
 tests run over its case table: every answer inside `writes`, a give-back that nets to zero, two
 calls that agree.
 
+## Checking a design
+
+An add-on that keeps designs may answer the question an order line asks before it is ordered:
+does this design stand, and which priced features does it use? It declares
+[`addOn.checker`](/reference/manifest/#the-design-question) and provides the contract
+`design-check`, version 1, as one more method of the same kind of file: `module.exports = { check }`,
+pure, at most 250 ms, run only from a package this server can vouch for. An app asks it with a
+[`check`](/reference/manifest/#a-design-an-add-on-checks) rule on its order lines.
+
+`check(input)` is called once for the save's lines (and once for the dry run, the same way):
+
+- `mode`: `save` or `dry`;
+- `lines`: for each line that names a design, its `key`, the `design` row, the `rows` of each
+  declared read by its `id`, the feature codes the line pays for (`paid`, each once, sorted), and
+  the design's `files`: `{ column, kind, size }` for each file a file column of the design holds
+  (`kind` its type as stored, `size` in bytes; `""` and `0` for a file that is not there), never
+  its bytes;
+- `settings`: the add-on's settings row; `version`: its installed version.
+
+It answers `{ lines: [{ key, ok, used, refusals }] }`: one entry for each line and no other, the
+features the design `used`, and `refusals` (`{ part?, reason }`, from the closed list) exactly
+when `ok` is false. The answer is checked before it is read; a fault in it refuses the save.
+Adminium then holds each line to it: a refusal refuses the save, and the features used must be
+the features paid for, both ways. There are no fonts: a rule about how much text fits is
+arithmetic on the sizes the design declares (its most characters at its base size, scaled by the
+size chosen), the same arithmetic the browser runs.
+
+The contracts package ships `designCheckConformance` (in its testing entry, beside
+`priceAdjustConformance`) for an add-on's own tests to run over its case table — the answer's
+shape, every line answered once, a dry run answered as the save, the same answer twice — and
+`checkQuestion` to build a question the way Adminium puts one.
+
+## A panel on another table's record
+
+A page of the add-on's own code may also be drawn on another table's record page:
+[`addOn.panels`](/reference/manifest/#a-panel-on-another-tables-record) names the file, the
+add-on's table that the record links into, and the tab's title. The panel is handed the record and
+the key of the row it links to, and runs with the data kit of the add-on's own tables. It is
+shown only to a reader who reads the record, holds a grant on that table of the add-on's, and
+holds the panel's permission, which the add-on's roles grant as `page:@<id>:view`.
+
 ## What an app's roles may hold of its tables
 
 An app that names the add-on may give its own roles a hold on the add-on's tables: a hotel's
@@ -217,7 +258,8 @@ Three more things are declared, not coded:
   add-on and shown on the rules page under "From your add-ons", where the owner switches them or
   edits a copy.
 - **A tab on another table's record** ([`addOn.recordTabs`](/reference/manifest/#a-tab-on-another-tables-record)):
-  the add-on's rows for a dish, a product or an order, listed on that record's own page.
+  the add-on's rows for a dish, a product or an order, listed on that record's own page. Where the
+  add-on needs its own code there, it declares a [panel](#a-panel-on-another-tables-record).
 - **Stock words** ([`addOn.words`](/reference/manifest/#stock-words)): "in", "low" or "out" for
   each row a page asks about, answered by the ledger's code with nothing written. Answer each line
   by itself: a page asks about many rows at once, and one row's answer must not depend on the

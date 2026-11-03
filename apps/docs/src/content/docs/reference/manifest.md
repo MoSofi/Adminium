@@ -2227,6 +2227,48 @@ it behaves is in [Discounts, codes and refunds](/guides/apps/discounts-and-codes
 Every column Adminium writes here — a reduction, `proved`, `staff.by`, a code's links, a refund's
 amount and tax — is read-only to every writer and in no public entry's `writable`.
 
+### A design an add-on checks
+
+A table's `check` has an add-on that keeps designs (what a shopper typed, chose and uploaded on a
+ready-made design) say whether the design an order line names may be ordered as it is, and which
+priced features it uses, inside the save and the dry run. From Adminium 0.3.43.
+
+```json
+{ "ref": "order_lines", "columns": [ … ],
+  "check": { "by": { "addOn": "customiser" }, "design": "design_id",
+             "paid": { "table": "line_features", "via": "line_id", "feature": "feature" } } }
+```
+
+| Field | Rule |
+|---|---|
+| `by` | `{ "addOn" }`: the add-on that answers, named in `addOns.requires` or `addOns.suggests`. It must declare [`addOn.checker`](#the-design-question). |
+| `needs` | Optional. A feature of the app (`addOns.features[].id`): the rule runs only while it is on. |
+| `design` | The line's link to its design: a column of this table with `rules.addOnLink` into the add-on's designs table. A line whose link is empty is not asked. |
+| `paid` | Optional. Where the line keeps the features it pays for: a child `table`, its `via` (a foreign key to this table) and its `feature` column (text, enum, whole number or a link), one feature a row. Without it, the line pays for none. |
+
+Adminium reads the line, its design and what the add-on declared it reads, asks the add-on's code
+once for the save's lines, and refuses the save when:
+
+- the add-on says a design does not stand (a reason from its closed list: `too-long`,
+  `required-empty`, `font-not-allowed`, `size-out-of-range`, `colour-not-allowed`,
+  `choice-not-allowed`, `part-locked`, `file-missing`, `file-kind`, `design-unknown`,
+  `format-unknown`, each with the `part` it is about where it has one);
+- the features the design uses are not the features the line pays for, as sets: a feature used
+  and not paid for (`feature-not-paid`), one paid for and not used (`feature-not-used`), one paid
+  twice (`feature-paid-twice`), each with the `feature`;
+- a design's reads come to more than 400 rows (`design-too-large`), never asked on a part of them;
+- the add-on cannot be asked: not installed as it should be, switched off for the app, or its code
+  not loaded because nobody vouches for its package (`check-unavailable`); or its code threw, ran
+  past 250 ms or answered something that is not an answer to the question (`check-failed`).
+
+A staff save is refused `409 CHECK_REFUSED` with `details.column` (the design link), `reason`, and
+`part`, `feature` or `refusals` where there are some. A public create is refused
+`PUBLIC_WRITE_REFUSED` with the row (`child`, `index`), the column the guest typed the design's
+code into (the link's `lookup.from`, else the link itself), the `reason` and its `part` or
+`feature`: every reason is about the guest's own design. The question is asked again when a
+change moves a line's design link, or a paid feature's line or feature; a removal never asks it.
+The rule has no switch to turn it off: a design nobody checked is never ordered.
+
 ### Removed rows
 
 `removal`, on a table, says what a removal of one of its rows takes and keeps:
@@ -5670,6 +5712,8 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `hostApi` | with `pages` | The version of the host API its pages are built against: `1`, or `2` for a page that reads the [data kit](/guides/add-ons-with-tables/#the-data-kit). `2` needs `compatibility.minAdminiumVersion` `0.3.18` or later. |
 | `words` | no | 1–4 questions asked of a ledger with nothing written. See [Stock words](#stock-words). |
 | `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](#a-tab-on-another-tables-record). |
+| `checker` | no | What the add-on reads to say whether a design may be ordered. See [The design question](#the-design-question). |
+| `panels` | no | 1–6 of its own screens drawn on the record pages of tables that link into one of its tables. See [A panel on another table's record](#a-panel-on-another-tables-record). |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
 
 Contract ids and slot ids come from closed registries in the add-on contracts package. How
@@ -5888,6 +5932,35 @@ The codes and the vouchers are two tables. A discount code written with a reserv
 (`VALIDATION_FAILED`, the code column `reserved`), whichever way it is written; a code Adminium
 makes for that column never has one.
 
+### The design question
+
+An add-on that keeps designs declares `addOn.checker` and provides the contract `design-check`
+(`provides: [{ "contract": "design-check", "version": 1, "server": "dist/check.js" }]`). Adminium
+reads what the checker names, asks the add-on's code, and holds each line to the answer (see
+[A design an add-on checks](#a-design-an-add-on-checks)). From Adminium 0.3.43.
+
+```json
+"checker": {
+  "design": "designs",
+  "reads": [
+    { "id": "ready", "table": "ready_designs", "by": { "column": "id", "from": "design.ready_id" } },
+    { "id": "parts", "table": "ready_parts", "by": { "column": "ready_id", "from": "ready.id" } },
+    { "id": "base", "table": "bases", "by": { "column": "id", "from": "design.base_id" } },
+    { "id": "areas", "table": "base_areas", "by": { "column": "base_id", "from": "base.id" } }
+  ]
+}
+```
+
+| Field | Rule |
+|---|---|
+| `design` | The add-on's own table of designs: what a line's design link points at. |
+| `reads` | Up to 8 keyed reads of its own tables, in order: `{ "id", "table", "by": { "column", "from" } }`. `from` is `design.<column>` (of the line's design row) or `<id>.<column>` of an earlier read; a read takes the rows whose `column` holds one of those values. `design` is no read's id. |
+
+For each line, at most 400 rows in all are read; past that the line is refused by name. Every
+read is keyed: there is no read of a whole table. The add-on's settings row is handed in too. See
+[Checking a design](/guides/add-ons-with-tables/#checking-a-design) for the contract and its
+testing kit.
+
 ### Shapes
 
 A shape is what an app's tables are [built on](#tables-built-on-an-add-ons-shape): named parts, each
@@ -6078,6 +6151,43 @@ allows. A tab is drawn before any code of the add-on runs, so its words in the o
 sit beside each message, by tag: `labels` beside `label`, `empties` beside `empty`, and `labels`
 on each of its `actions` (`"labels": { "de-DE": "Bestand" }`). A reader whose language is not
 there reads the English. The rest of the tab's words are Adminium's.
+
+### A panel on another table's record
+
+`addOn.panels` draws one of the add-on's own screens, from its own bundle, in a tab of the record
+page of every table that links into one of its tables through a `rules.addOnLink` column: a
+design editor on an order line. From Adminium 0.3.43.
+
+```json
+"panels": [{
+  "id": "customiser-design", "on": "designs", "client": "dist/panels/design.js",
+  "title": { "key": "customiser.panel.design", "fallback": "Design" },
+  "titles": { "de-DE": "Entwurf" }, "order": 10
+}]
+```
+
+| Field | Rule |
+|---|---|
+| `id` | kebab-case, under the add-on's key (`<key>-…`), apart from its pages' refs: the panel's address and its permission, `page:<id>:view`. A role of the add-on grants it as it grants one of its pages: `page:@<id>:view`. |
+| `on` | One of the add-on's own tables. The panel shows on the record page of each table with a `rules.addOnLink` column into it. |
+| `client` | The file its route serves; its default export is the panel. A file of its own: never a page's or a slot fill's. |
+| `title`, `titles` | Its tab's name, and the name in the other languages, by tag: the tab is named before any of its code runs. |
+| `order` | 0–999: where its tab stands among the record's panels, lowest first. |
+
+A panel is shown, and its code served, only while the add-on is installed and — on an app's table
+— connected to that app and switched on, and only to a reader who reads the row, holds a grant on
+the `on` table, and holds the panel's permission. Its code is served by
+`GET /api/v1/add-ons/<key>/panels/<id>/bundle?connection=&table=&row=`, which asks all three
+again (the row with the reader's row limits: `404` for a row they do not reach, `403` for a
+missing grant or permission), pinned to the fingerprint the add-ons list gives for it, and never
+by the open bundle address. The add-ons list names a panel's file only to a reader who holds its
+permission.
+
+The panel's default export is handed `{ connectionId, table, row, linked }`: the record's table
+and key, and the key of the add-on's row it links to (`null` when the link is empty). It runs with
+the [data kit](/guides/add-ons-with-tables/#the-data-kit) of the add-on's own tables: it reads the
+tables that hand it rows as the kit's hosts, and writes only its own. A fill of the slot
+`record.editor.panel` is drawn as nothing, whether or not its file is there.
 
 ### An add-on that works with another
 
