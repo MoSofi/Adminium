@@ -803,6 +803,8 @@ An expression is a number, a column of the same row by its ref (`"qty"`), or one
 | `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
 | `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
 | `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
+| `{ "ceil": a }` or `{ "ceil": [a, places] }` | `a` rounded up (towards plus infinity), to the column's scale or to `places` (0–4): `ceil(-1.5)` is `-1`. |
+| `{ "floor": a }` or `{ "floor": [a, places] }` | `a` rounded down (towards minus infinity), to the column's scale or to `places` (0–4): `floor(-1.5)` is `-2`. |
 | `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
 | `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
 | `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](#hours-between-two-moments). |
@@ -833,6 +835,15 @@ How a formula is worked out:
   column with no `scale` rounds to 0 places when it is an `int` or `bigint`, and to 4 when it is a
   decimal. `round` inside a formula rounds that part early, where the arithmetic calls for it (a
   tax rounded before it is added).
+- **Up or down, when the arithmetic says so.** `ceil` and `floor` round a part up or down on the
+  exact value, so a value already at the scale stays as it is (`2.000` is `2`). A print job's sheets
+  are the quantity over the pieces a sheet holds, rounded up: 250 cards at 24 a sheet are 11 sheets,
+  240 are 10.
+
+  ```json
+  { "ref": "sheets", "type": "int", "nullable": true,
+    "rules": { "formula": { "ceil": { "div": ["qty", "per_sheet"] } } } }
+  ```
 - **Empty in, empty out.** An empty column makes the result empty unless `coalesce` says what to
   read instead: a draft line with no rate yet has no amount, rather than an amount of 0 that looks
   like a price.
