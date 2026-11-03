@@ -48,6 +48,8 @@ function lookupOf(definition: unknown, settings: unknown, id: string, slug: stri
 const FORMS: Record<string, FormLookup> = {
   'showroom-visit': lookupOf(SHOWROOM, SHOWROOM_SETTINGS, 'frm_1', 'showroom-visit'),
   'fit-out': lookupOf(FIT_OUT, ANONYMOUS, 'frm_2', 'fit-out'),
+  // A form whose row id is a UUID: its key (`form:forms:<uuid>`) is wider than a spent proof's key column.
+  'site-survey': lookupOf(SHOWROOM, SHOWROOM_SETTINGS, '7f3c2a10-5b4e-4d2a-9c1f-0a1b2c3d4e5f', 'site-survey'),
   'old-offer': { state: 'closed' },
 };
 
@@ -113,6 +115,14 @@ for (const engine of META_ENGINES) {
       expect(row).toMatchObject({ binding: { kind: 'form', key: 'forms/frm_1' }, attachedAt: null, owner: null });
       expect(reply.headers['x-content-type-options']).toBe('nosniff');
       expect(String(reply.headers['content-security-policy'])).toContain("frame-ancestors 'none'");
+    });
+
+    it('takes a file for a form whose id is a UUID, and spends its check once', async () => {
+      const check = await proof('site-survey');
+      const first = await send('site-survey', PDF, { name: 'plan.pdf', proof: check });
+      expect(first.statusCode, first.body).toBe(200);
+      const again = await send('site-survey', PDF, { name: 'plan.pdf', proof: check });
+      expect(again.statusCode).toBe(403);
     });
 
     it('takes the body as bytes whatever type the browser says', async () => {

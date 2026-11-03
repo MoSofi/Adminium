@@ -37,6 +37,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
+import { spentKeyOf } from '../../forms/answer.js';
 import type { LiveForm } from '../../forms/catalog.js';
 import { FORM_UPLOAD_KIND, formUploadKey } from '../../forms/files.js';
 import { checkProof } from '../../public-api/proof.js';
@@ -94,7 +95,7 @@ export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZo
 
         const asked = deps.proofOf(live);
         const proved = checkProof(deps.key, request.headers['x-adminium-proof'], { keyId: asked.keyId, purpose: 'form', now: deps.now(), difficulty: asked.difficulty });
-        if (!proved.ok || !(await proofs.spend({ id: proved.spendId, keyId: asked.keyId, purpose: 'form', expiresAt: proved.expiresAt }))) {
+        if (!proved.ok || !(await proofs.spend({ id: proved.spendId, keyId: spentKeyOf(live), purpose: 'form', expiresAt: proved.expiresAt }))) {
           return reply.status(403).send({ code: 'proof' });
         }
 

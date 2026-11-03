@@ -87,8 +87,8 @@ export function formProofKeyId(live: Pick<LiveForm, 'addOn' | 'id'>): string {
   return `form:${live.addOn}:${live.id}`;
 }
 
-/** The id a spent proof is kept under (an id's width): the form's key, hashed. */
-const spentKeyOf = (live: Pick<LiveForm, 'addOn' | 'id'>): string => `frm${createHash('sha256').update(formProofKeyId(live)).digest('hex').slice(0, 33)}`;
+/** The key a spent proof is kept under (`adminium_public_proofs.key_id` holds 36): the form's key, hashed. */
+export const spentKeyOf = (live: Pick<LiveForm, 'addOn' | 'id'>): string => `frm${createHash('sha256').update(formProofKeyId(live)).digest('hex').slice(0, 33)}`;
 
 /** The longest browser and network address kept on an answer (the answers table's widths). */
 const USER_AGENT_MAX = 512;
