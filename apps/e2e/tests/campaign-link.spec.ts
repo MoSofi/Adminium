@@ -59,17 +59,6 @@ async function openedCampaign(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split('/').pop()!;
 }
 
-/** Opens the address a form's "Send by e-mail" opens, and starts a blank campaign from it. */
-async function startFromLink(page: Page, made: string[]): Promise<string> {
-  await page.goto(`/email-templates?kind=campaign&link=${encodeURIComponent(LINK)}`);
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByTestId('email-new-grid')).toBeVisible();
-  await dialog.locator('[data-testid="email-starter"][data-starter=""]').click();
-  const id = await openedCampaign(page);
-  made.push(id);
-  return id;
-}
-
 test.describe('a campaign that starts with a form’s link', () => {
   test.describe.configure({ mode: 'serial' });
   const made: string[] = [];
