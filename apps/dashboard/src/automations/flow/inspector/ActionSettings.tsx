@@ -20,7 +20,7 @@
  * `connectionId` is a prop: see `RecordSettings`.
  */
 
-import { Button, ChipInput, Combobox, Input, SegmentedControl, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
+import { Button, ChipInput, Combobox, Input, RadioCard, RadioGroup, SegmentedControl, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
 import { AtSign, CircleAlert, Columns3, Info, Link2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
@@ -28,7 +28,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { getI18nInstance, t } from '../../../i18n/t.js';
 import { createCrudApi } from '../../../api/crud.js';
 import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
-import { addOnNameOf, columnOfInput, inLanguage, inputMode, stepOf, type StepAction } from '../../model/addOnSteps.js';
+import { addOnNameOf, columnOfInput, inLanguage, inputMode, pickableRows, stepOf, type StepAction } from '../../model/addOnSteps.js';
 import type { Action, DigestSection, MailClass, MailPurpose, WriteValue } from '../../model/graph.js';
 import { classPatch, classUnsaid, mailClassOf, purposeOf, recipientPatch } from '../../model/mailClass.js';
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
@@ -123,7 +123,7 @@ function AddOnStepSettings({ action, sources, table, connectionId, onChange }: A
         </p>
       )}
       {step.inputs.map((input) => (
-        <StepInputField key={input.key} input={input} value={action.inputs[input.key] ?? ''} table={table} connectionId={connectionId} onChange={(value) => set(input.key, value)} />
+        <StepInputField key={input.key} input={input} value={action.inputs[input.key] ?? ''} table={table} sources={sources} connectionId={connectionId} onChange={(value) => set(input.key, value)} />
       ))}
     </Card>
   );
@@ -148,10 +148,30 @@ function inputColumnOptions(table: SourceTable | null, kind: SourceStepInput['ki
   return out;
 }
 
-function StepInputField({ input, value, table, connectionId, onChange }: { input: SourceStepInput; value: string; table: SourceTable | null; connectionId: string | null; onChange: (value: string) => void }): ReactNode {
+function StepInputField({
+  input,
+  value,
+  table,
+  sources,
+  connectionId,
+  onChange,
+}: {
+  input: SourceStepInput;
+  value: string;
+  table: SourceTable | null;
+  sources: Sources | null;
+  connectionId: string | null;
+  onChange: (value: string) => void;
+}): ReactNode {
   const label = inLanguage(input.label);
   const title = input.required ? label : t('automations:addOn.optional', '{label} (optional)', { label });
   const testId = `add-on-input-${input.key}`;
+  // The add-on's own line under the field ("Only live surveys are listed.").
+  const help = input.help === undefined ? null : <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle" data-testid={`${testId}-help`}>{inLanguage(input.help)}</p>;
+  if (input.kind === 'choice' && (input.options ?? []).some((option) => option.help !== undefined)) {
+    // Each choice with its own line under it: cards, as the comp draws "Kind of mail".
+    return <ChoiceCards input={input} value={value} title={title} help={help} testId={testId} onChange={onChange} />;
+  }
   if (input.kind === 'choice') {
     return (
       <Field label={title}>
@@ -163,6 +183,15 @@ function StepInputField({ input, value, table, connectionId, onChange }: { input
             </option>
           ))}
         </Select>
+        {help}
+      </Field>
+    );
+  }
+  if (input.kind === 'person') {
+    return (
+      <Field label={title}>
+        <PersonSelect value={value} table={table} sources={sources} connectionId={connectionId} label={label} testId={testId} onChange={onChange} />
+        {help}
       </Field>
     );
   }
@@ -171,10 +200,85 @@ function StepInputField({ input, value, table, connectionId, onChange }: { input
       <div role="group" aria-label={title} className="block">
         <span className="mb-1.5 block text-[11.5px] font-bold">{title}</span>
         <RowPicker input={input} value={value} connectionId={connectionId} label={label} onChange={onChange} testId={testId} />
+        {help}
       </div>
     );
   }
-  return <ColumnOrTyped input={input} value={value} table={table} label={label} title={title} testId={testId} onChange={onChange} />;
+  return (
+    <div className="block">
+      <ColumnOrTyped input={input} value={value} table={table} label={label} title={title} testId={testId} onChange={onChange} />
+      {help}
+    </div>
+  );
+}
+
+/** A choice whose options each carry a line: one card per option, the radio dot leading, as the comp's "Kind of mail". */
+function ChoiceCards({ input, value, title, help, testId, onChange }: { input: SourceStepInput; value: string; title: string; help: ReactNode; testId: string; onChange: (value: string) => void }): ReactNode {
+  const id = useId();
+  return (
+    <div className="block">
+      <span id={id} className="mb-1.5 block text-[11.5px] font-bold">
+        {title}
+      </span>
+      <RadioGroup aria-labelledby={id} value={value} onValueChange={onChange} className="flex flex-col gap-2" data-testid={testId}>
+        {(input.options ?? []).map((option) => (
+          <RadioCard
+            key={option.value}
+            value={option.value}
+            hideIndicator
+            className="rounded-[10px] bg-surface-2 px-3 py-2.5 data-[state=checked]:border-[1.5px]"
+            icon={<span className="mt-0.5 block size-4 rounded-full border-[1.5px] border-border-strong bg-surface group-data-[state=checked]:border-[5px] group-data-[state=checked]:border-accent" />}
+            title={<span className="font-bold">{inLanguage(option.label)}</span>}
+            description={option.help === undefined ? undefined : inLanguage(option.help)}
+            data-testid={`${testId}-${option.value}`}
+          />
+        ))}
+      </RadioGroup>
+      {help}
+    </div>
+  );
+}
+
+/**
+ * Whose row a step's person is: the record itself, when its table holds
+ * people, or the person one link of it names ("the job's main contact").
+ * Kept in the rule as `@record` or `@link:<column>`; one hop, never two.
+ */
+export function personOptions(table: SourceTable | null, tables: readonly SourceTable[]): { value: string; label: string }[] {
+  if (table === null) return [];
+  const record = table.label;
+  const out: { value: string; label: string }[] = [];
+  if (table.people === true) out.push({ value: '@record', label: t('automations:addOn.personRecord', 'The {record} itself', { record }) });
+  for (const link of table.links ?? []) {
+    if (tables.find((candidate) => candidate.id === link.table)?.people !== true) continue;
+    const named = table.columns.find((column) => column.name === link.column)?.label ?? link.label;
+    out.push({ value: `@link:${link.column}`, label: t('automations:addOn.personLink', "The {record}'s {link}", { record, link: named }) });
+  }
+  return out;
+}
+
+function PersonSelect({ value, table, sources, connectionId, label, testId, onChange }: { value: string; table: SourceTable | null; sources: Sources | null; connectionId: string | null; label: string; testId: string; onChange: (value: string) => void }): ReactNode {
+  const tables = sources?.connections.find((connection) => connection.id === connectionId)?.tables ?? [];
+  const options = personOptions(table, tables);
+  // What the rule already names stays shown when this record no longer reaches it: the save says why.
+  if (value !== '' && !options.some((option) => option.value === value)) options.unshift({ value, label: value });
+  if (options.length === 0) {
+    return (
+      <p className="text-xs text-fg-muted" data-testid={`${testId}-none`}>
+        {t('automations:addOn.noPerson', 'Nobody is reached from this record: its table holds no people, and none of its links leads to a table of people.')}
+      </p>
+    );
+  }
+  return (
+    <Select value={value} aria-label={label} onChange={(event) => onChange(event.target.value)} data-testid={testId}>
+      <option value="">{t('automations:addOn.choose', 'Choose…')}</option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </Select>
+  );
 }
 
 /** One field, two ways to fill it: a column of the record, or what is typed. Which one is the person's choice, kept while the step is open. */
@@ -228,14 +332,22 @@ function ColumnOrTyped({ input, value, table, label, title, testId, onChange }: 
   );
 }
 
-/** A row of the add-on's own table, found by typing: what a `record` input is given is the row's key. */
+/**
+ * A row of the add-on's own table, found by typing: what a `record` input is
+ * given is the row's key, or the column the add-on names it by (a survey's
+ * slug). Only the rows the add-on lets it pick are listed (only live ones).
+ */
 function RowPicker({ input, value, connectionId, label, onChange, testId }: { input: SourceStepInput; value: string; connectionId: string | null; label: string; onChange: (value: string) => void; testId: string }): ReactNode {
   const table = input.table ?? null;
-  const key = input.tableKey ?? null;
+  const key = input.by ?? input.tableKey ?? null;
   const ready = connectionId !== null && table !== null && key !== null;
+  const where = input.where ?? [];
   const rows = useQuery({
-    queryKey: ['automations', 'add-on-rows', connectionId, table, key],
-    queryFn: () => createCrudApi(connectionId as string, table as string).lookup?.({ table: table as string, column: key as string }, '') ?? Promise.resolve([]),
+    queryKey: ['automations', 'add-on-rows', connectionId, table, key, where],
+    queryFn: () =>
+      where.length === 0
+        ? (createCrudApi(connectionId as string, table as string).lookup?.({ table: table as string, column: key as string, ...(input.tableLabel == null ? {} : { display: input.tableLabel }) }, '') ?? Promise.resolve([]))
+        : pickableRows(connectionId as string, table as string, key as string, input.tableLabel ?? null, where),
     enabled: ready,
     staleTime: 30_000,
   });

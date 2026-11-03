@@ -112,6 +112,8 @@ export interface SourceTable {
    */
   children: SourceChildTable[];
   pageSlug: string | null;
+  /** An app declares the table as people: a step's person may be one of its rows. Absent when it does not. */
+  people?: true | undefined;
 }
 
 /** One link of a table: the column that holds it, the table it points at, and that table's columns. */
@@ -145,12 +147,21 @@ export type EveryLanguage = Readonly<Record<string, string>>;
 export interface SourceStepInput {
   key: string;
   label: EveryLanguage;
-  kind: 'text' | 'email' | 'number' | 'choice' | 'record';
+  kind: 'text' | 'email' | 'number' | 'choice' | 'record' | 'person';
   required: boolean;
-  options?: { value: string; label: EveryLanguage }[] | undefined;
+  /** One line under the field, from the add-on. */
+  help?: EveryLanguage | undefined;
+  /** For `choice`: what may be chosen; with a `help` line on each, the choice is drawn as cards. */
+  options?: { value: string; label: EveryLanguage; help?: EveryLanguage | undefined }[] | undefined;
   /** For `record`: the table a row is picked from, and its key column. */
   table?: string | null | undefined;
   tableKey?: string | null | undefined;
+  /** For `record`: the column its rows are shown by. */
+  tableLabel?: string | null | undefined;
+  /** For `record`: the unique column a rule names the row by, in place of its key (a survey's slug). */
+  by?: string | undefined;
+  /** For `record`: what a row must hold to be listed (only live surveys). */
+  where?: { column: string; eq: string | number | boolean }[] | undefined;
 }
 
 /** A step an installed add-on gives to a rule on one database. */

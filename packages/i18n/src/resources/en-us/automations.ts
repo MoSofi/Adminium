@@ -483,7 +483,10 @@ export default {
     "typedNumber": "A typed number",
     "noRows": "The add-on’s table is not there to choose from.",
     "findRow": "Find one…",
-    "noRow": "Nothing matches."
+    "noRow": "Nothing matches.",
+    "personRecord": "The {record} itself",
+    "personLink": "The {record}'s {link}",
+    "noPerson": "Nobody is reached from this record: its table holds no people, and none of its links leads to a table of people."
   },
   "assistant": {
     "changed": "{name} changed this rule.",

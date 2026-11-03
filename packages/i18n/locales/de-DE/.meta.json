@@ -1883,6 +1883,10 @@
     "status": "mt",
     "srcHash": "782520ff4b0c"
   },
+  "automations.addOn.noPerson": {
+    "status": "mt",
+    "srcHash": "d33e6f2e8c53"
+  },
   "automations.addOn.noRight": {
     "status": "mt",
     "srcHash": "42a32b5fe39d"
@@ -1898,6 +1902,14 @@
   "automations.addOn.optional": {
     "status": "src",
     "srcHash": "67c70cfcd4bf"
+  },
+  "automations.addOn.personLink": {
+    "status": "mt",
+    "srcHash": "a69b526e4f79"
+  },
+  "automations.addOn.personRecord": {
+    "status": "mt",
+    "srcHash": "8cbc1c0286b4"
   },
   "automations.addOn.typedAddress": {
     "status": "mt",
@@ -45670,6 +45682,10 @@
   "x.optional": {
     "status": "src",
     "srcHash": "0c6c4102d4df"
+  },
+  "x.preview": {
+    "status": "mt",
+    "srcHash": "cb1e492a218e"
   },
   "x.proofFailed": {
     "status": "mt",

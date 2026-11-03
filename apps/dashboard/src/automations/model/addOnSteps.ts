@@ -8,6 +8,7 @@
  * draws a step's fields from the add-on's own description and knows at once
  * when the add-on is gone.
  */
+import { api } from '../../app/api.js';
 import { getI18nInstance } from '../../i18n/t.js';
 import type { EveryLanguage, SourceStep, SourceStepInput, Sources } from '../api.js';
 import type { StepDefinition } from './ops.js';
@@ -70,4 +71,31 @@ export function inputMode(input: SourceStepInput, value: string): 'column' | 'te
   if (value.trim() !== '') return 'text';
   // Nothing yet: an address and a name come from the record far more often than they are typed.
   return input.kind === 'email' || input.kind === 'text' ? 'column' : 'text';
+}
+
+/** A row a `record` input may pick: what the rule keeps (its key, or the column it is named by) and what it reads as. */
+export interface PickableRow {
+  value: string;
+  label: string;
+  detail?: string | undefined;
+}
+
+/**
+ * The rows a `record` input may pick when the add-on holds it to some values
+ * (only live surveys): the first fifty that meet every condition, read as
+ * the person editing the rule reads the table. The run asks the same of the
+ * row it is given.
+ */
+export async function pickableRows(connectionId: string, table: string, valueColumn: string, labelColumn: string | null, where: readonly { column: string; eq: string | number | boolean }[]): Promise<PickableRow[]> {
+  const search = new URLSearchParams();
+  search.set('select', [...new Set([valueColumn, ...(labelColumn === null ? [] : [labelColumn])])].join(','));
+  search.set('where', JSON.stringify({ and: where.map((condition) => ({ column: condition.column, op: 'eq', value: condition.eq })) }));
+  search.set('limit', '50');
+  const reply = await api.get<{ data: Record<string, unknown>[] }>(`/api/v1/data/${encodeURIComponent(connectionId)}/${encodeURIComponent(table)}?${search.toString()}`);
+  return reply.data.flatMap((row) => {
+    const value = row[valueColumn];
+    if (value === null || value === undefined || String(value) === '') return [];
+    const label = labelColumn === null ? null : row[labelColumn];
+    return [{ value: String(value), label: label === null || label === undefined || String(label) === '' ? String(value) : String(label) }];
+  });
 }

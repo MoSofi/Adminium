@@ -483,7 +483,10 @@ export default {
     "typedNumber": "رقم مكتوب",
     "noRows": "جدول الإضافة غير موجود للاختيار منه.",
     "findRow": "ابحث عن واحد…",
-    "noRow": "لا شيء مطابق."
+    "noRow": "لا شيء مطابق.",
+    "personRecord": "{record} نفسه",
+    "personLink": "{link} في {record}",
+    "noPerson": "لا يمكن الوصول إلى أي شخص من هذا السجل: جدوله لا يضم أشخاصًا، ولا يؤدي أي من روابطه إلى جدول أشخاص."
   },
   "assistant": {
     "changed": "{name} غيّر هذه القاعدة.",

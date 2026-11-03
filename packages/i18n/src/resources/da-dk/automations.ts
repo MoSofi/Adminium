@@ -483,7 +483,10 @@ export default {
     "typedNumber": "Et indtastet tal",
     "noRows": "Tilføjelsens tabel findes ikke at vælge fra.",
     "findRow": "Find en…",
-    "noRow": "Intet matcher."
+    "noRow": "Intet matcher.",
+    "personRecord": "Selve {record}",
+    "personLink": "{link} på {record}",
+    "noPerson": "Ingen kan nås fra denne post: dens tabel indeholder ingen personer, og ingen af dens links fører til en tabel med personer."
   },
   "assistant": {
     "changed": "{name} har ændret denne regel.",
