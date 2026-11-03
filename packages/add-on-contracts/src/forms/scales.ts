@@ -7,7 +7,6 @@
  *
  * Pure: no I/O, no import but types.
  */
-import type { FormSettings } from './settings.js';
 
 /** The most files one file question takes when it takes several. */
 export const FORM_FILES_MAX = 5;
@@ -16,6 +15,14 @@ export const FORM_FILES_MAX = 5;
 export const SCALE_OF = { score: { min: 0, max: 10 }, stars: { min: 1, max: 5 } } as const;
 
 /** Whether a survey keeps who answered: a named one that links answers to names. Every form does. */
-export function keepsNames(settings: Pick<FormSettings, 'survey'>): boolean {
+/**
+ * The part of a form's settings this reads, spelled out here rather than imported: the settings' schema builds on the
+ * definition, which takes these limits, so an import back would close a loop.
+ */
+export interface SurveyNaming {
+  survey?: { mode: 'named' | 'anonymous'; linkNames: boolean } | undefined;
+}
+
+export function keepsNames(settings: SurveyNaming): boolean {
   return settings.survey === undefined || (settings.survey.mode === 'named' && settings.survey.linkNames);
 }
