@@ -167,6 +167,7 @@
       "title": "Accès public",
       "through": "Vos clients peuvent y accéder par la clé publique d’une application à laquelle il est rattaché : {refs}.",
       "link": "Il crée sa propre clé de lien : la personne qui détient un lien ouvre cet enregistrement seulement, et ne peut que le lire.",
+      "ownLink": "Il crée sa propre clé de lien : quiconque détient le lien propre d’un enregistrement ouvre cet enregistrement, et peut en modifier une partie tant qu’il est dans un état que l’extension indique.",
       "allow": "Autoriser l’accès public",
       "allowHelp": "Sans cocher, rien n’est ouvert au public. Vous pourrez l’autoriser plus tard.",
       "cannot": "Seule une personne autorisée à gérer les clés d’API peut l’autoriser.",

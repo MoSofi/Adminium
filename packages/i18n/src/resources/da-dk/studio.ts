@@ -177,6 +177,7 @@ export default {
       "title": "Offentlig adgang",
       "through": "Dine kunder kan nå det gennem den offentlige nøgle til en app, det er knyttet til: {refs}.",
       "link": "Det opretter sin egen linknøgle: Den, der har et link, åbner netop den ene post og kan kun læse den.",
+      "ownLink": "Den laver sin egen linknøgle: Den, der har en posts eget link, åbner netop den post og må ændre noget af den, mens den er i en status, som tilføjelsen angiver.",
       "allow": "Tillad offentlig adgang",
       "allowHelp": "Uden flueben åbnes intet for offentligheden. Du kan tillade det senere.",
       "cannot": "Kun en person, der må administrere API-nøgler, kan tillade dette.",
