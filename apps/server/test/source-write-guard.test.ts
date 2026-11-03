@@ -43,6 +43,8 @@ const ALLOWED: Record<string, string> = {
     "a consent-log event mirrored into the declared yes/no column and its strict stamps, as the system: a save would drop the stamps it is given and keep naming whoever ticked the box last, so the door writes the column, its who (the event's staff member, or nobody) and its when (the event's time) in one statement and audits it itself",
   'forms/answers.ts':
     "a stranger's form answers deleted by the engine (a person's erasure, the keeping sweep) through the one function every engine deletion of answers goes through, as the system: answers are Adminium's own record, written by Adminium alone, and no role, rule or hook of the add-on has a say in their removal",
+  'forms/answer.ts':
+    "a stranger's own answer, which Adminium alone writes, turned from `none` to `pending` in one guarded statement just after it is kept, when its unconfirmed yes would replace an earlier no: the answer then waits for its confirmation link as one with confirmation asked does; no rule or hook watches a table nobody else writes",
   'forms/confirm.ts':
     "a forms add-on's answer row, which Adminium alone writes (no role, grant or step of the add-on does): a sign-up confirmed by its mail's link turns `confirmed` only from `pending`, in one guarded statement so two presses confirm once, and the sweep lets a sign-up still waiting after its link's days go (`expired`); no rule or hook watches a table nobody else writes, and the consent log is the record",
   'outbox/survey-link.ts':
