@@ -273,11 +273,38 @@ export const COLUMN_SEMANTICS = [
 /**
  * The kinds of file a file column may take (`rules.file.accept`), by the
  * names the server's content check gives them: what a file's bytes are, never
- * what its name or its sender says. Two of the server's kinds are never taken
- * by a column: SVG is a document that can carry script, and a HEIC picture is
- * one whose camera notes (the place, the device) cannot be taken out of it.
+ * what its name or its sender says. A HEIC picture is never taken by a column:
+ * its camera notes (the place, the device) cannot be taken out of it. An SVG
+ * is taken only as the server writes it again from its own tree, without
+ * anything that could run (`files/svg.ts`); a model (GLB, STL, 3MF) and a web
+ * font (WOFF2) only when their whole bytes are what they say (`files/models.ts`).
  */
-export const FILE_COLUMN_KINDS = ['png', 'jpeg', 'webp', 'gif', 'pdf', 'office', 'zip', 'csv', 'text', 'markdown', 'json', 'mp4', 'webm', 'mp3', 'wav', 'ogg'] as const;
+export const FILE_COLUMN_KINDS = ['png', 'jpeg', 'webp', 'gif', 'pdf', 'office', 'zip', 'csv', 'text', 'markdown', 'json', 'mp4', 'webm', 'mp3', 'wav', 'ogg', 'svg', 'glb', 'stl', '3mf', 'woff2'] as const;
+
+/**
+ * The kinds a file column's `accept` names that only a newer Adminium takes
+ * (`file.assetKinds` in `words.ts`): a cleaned SVG, a model, a web font.
+ */
+export const ASSET_FILE_KINDS = ['svg', 'glb', 'stl', '3mf', 'woff2'] as const satisfies readonly (typeof FILE_COLUMN_KINDS)[number][];
+
+/**
+ * The largest product asset served to every visitor (an entry's `assets`,
+ * through `GET /public/assets`), by its kind: a model 30 MiB, a font or an SVG
+ * piece 2 MiB. A column an entry shows as assets takes no larger file of that
+ * kind, so an asset staff could save is one visitors load.
+ */
+export const PUBLIC_ASSET_MAX_BYTES: Readonly<Record<(typeof ASSET_FILE_KINDS)[number], number>> = {
+  glb: 30 * 1024 * 1024,
+  stl: 30 * 1024 * 1024,
+  '3mf': 30 * 1024 * 1024,
+  woff2: 2 * 1024 * 1024,
+  svg: 2 * 1024 * 1024,
+};
+
+/** Whether a file rule takes product assets and nothing else. */
+export function takesAssetsOnly(accept: readonly string[]): boolean {
+  return accept.length > 0 && accept.every((kind) => (ASSET_FILE_KINDS as readonly string[]).includes(kind));
+}
 
 /**
  * The kinds of file a PICTURE column takes: a text column with `semantic:

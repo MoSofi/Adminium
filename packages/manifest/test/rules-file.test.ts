@@ -2,7 +2,7 @@
 /**
  * A column that holds files (`rules.file`), as the manifest check reads it:
  * one file's id in a text column, a list of them in a json column with how
- * many it may hold, the kinds it takes by name (never SVG, never HEIC), a
+ * many it may hold, the kinds it takes by name (never HEIC), a
  * size, no rule of Adminium's deciding the value as well, no public write of
  * it, and a manifest that uses it asks for the release that runs it.
  */
@@ -77,10 +77,9 @@ describe('a column that holds files', () => {
     expect(issuesOf(signOffs({ signature: { type: 'int', maxLength: undefined } })).join('\n')).toContain('a file is kept in a text column, a list of files in a json column, and "sign_offs.signature" is int');
   });
 
-  it('takes only the kinds the server reads by their bytes, never SVG or HEIC, each once', () => {
-    expect(FILE_COLUMN_KINDS).not.toContain('svg');
+  it('takes only the kinds the server reads by their bytes, never HEIC, each once', () => {
     expect(FILE_COLUMN_KINDS).not.toContain('heic');
-    for (const kind of ['svg', 'heic', 'exe', 'image/png']) {
+    for (const kind of ['heic', 'exe', 'image/png', 'gltf', 'obj']) {
       expect(issuesOf(signOffs({ signature: { rules: { file: { ...SIGNATURE, accept: [kind] } } } }))).not.toEqual([]);
     }
     expect(issuesOf(signOffs({ signature: { rules: { file: { ...SIGNATURE, accept: [] } } } }))).not.toEqual([]);

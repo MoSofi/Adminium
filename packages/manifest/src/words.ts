@@ -210,6 +210,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'addOn.checker',
   // A panel an add-on draws on the record pages of the tables that link into one of its own.
   'addOn.panels',
+  // A file column that takes a cleaned SVG, a model (GLB, STL, 3MF) or a web font (WOFF2); an entry's product assets,
+  // loaded by every visitor's browser.
+  'file.assetKinds',
+  'publicAccess.assets',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -407,7 +411,13 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.check': '0.3.43',
   'addOn.checker': '0.3.43',
   'addOn.panels': '0.3.43',
+  // A cleaned SVG, a model and a web font in a file column, and an entry's product assets: read by the same release.
+  'file.assetKinds': '0.3.43',
+  'publicAccess.assets': '0.3.43',
 };
+
+/** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
+const ASSET_KINDS: ReadonlySet<string> = new Set(['svg', 'glb', 'stl', '3mf', 'woff2']);
 
 /** Whether a formula, at any depth, rounds up or down (`ceil`, `floor`). */
 function roundsUpOrDown(node: unknown): boolean {
@@ -550,6 +560,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
       if (isDoc(rules['linkable']) && rules['linkable']['same'] !== undefined) out.push({ word: 'linkable.same', path: `${here}.linkable.same` });
       if (rules['file'] !== undefined) out.push({ word: 'column.file', path: `${here}.file` });
+      if (isDoc(rules['file']) && list(rules['file']['accept']).some((kind) => typeof kind === 'string' && ASSET_KINDS.has(kind))) out.push({ word: 'file.assetKinds', path: `${here}.file.accept` });
       if (rules['changes'] !== undefined) out.push({ word: 'column.changes', path: `${here}.changes` });
       if (rules['history'] !== undefined) out.push({ word: 'column.history', path: `${here}.history` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
@@ -761,6 +772,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['key'] === 'forms') out.push({ word: 'publicAccess.forms', path: `publicAccess.${String(e)}.key` });
     if (isDoc(entry) && entry['source'] !== undefined) out.push({ word: 'publicAccess.forms.source', path: `publicAccess.${String(e)}.source` });
     if (isDoc(entry) && entry['appColumn'] !== undefined) out.push({ word: 'publicAccess.appColumn', path: `publicAccess.${String(e)}.appColumn` });
+    if (isDoc(entry) && entry['assets'] !== undefined) out.push({ word: 'publicAccess.assets', path: `publicAccess.${String(e)}.assets` });
   });
   return out;
 }
