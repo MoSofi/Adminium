@@ -116,6 +116,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     stateActions: [],
     bulkActions: [],
     recordTabs: [],
+    recordPanels: [],
     columnFacts: {},
     formColumns: [],
     formRelations: [],

@@ -30,6 +30,7 @@ import {
   type FormColumnFactReply,
   type FormRelationFactReply,
   type BulkActionFact,
+  type RecordPanelFact,
   type RecordTabFact,
   type StateActionFact,
 } from '../api/pages.js';
@@ -153,6 +154,7 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       stateActions={result.stateActions}
       bulkActions={result.bulkActions}
       recordTabs={result.recordTabs}
+      recordPanels={result.recordPanels}
       columnFacts={result.columnFacts}
       formColumns={result.formColumns}
       formRelations={result.formRelations}
@@ -203,6 +205,7 @@ export function TemplateMount({
   stateActions,
   bulkActions,
   recordTabs,
+  recordPanels,
   columnFacts,
   formColumns,
   formRelations,
@@ -226,6 +229,7 @@ export function TemplateMount({
   stateActions?: readonly StateActionFact[] | undefined;
   bulkActions?: readonly BulkActionFact[] | undefined;
   recordTabs?: readonly RecordTabFact[] | undefined;
+  recordPanels?: readonly RecordPanelFact[] | undefined;
   columnFacts?: ColumnFacts | undefined;
   formColumns?: readonly FormColumnFactReply[] | undefined;
   formRelations?: readonly FormRelationFactReply[] | undefined;
@@ -364,6 +368,7 @@ export function TemplateMount({
             {...(stateActions === undefined ? {} : { stateActions })}
             {...(bulkActions === undefined ? {} : { bulkActions })}
             {...(recordTabs === undefined ? {} : { recordTabs })}
+            {...(recordPanels === undefined ? {} : { recordPanels })}
             {...(columnFacts === undefined ? {} : { columnFacts })}
             {...(formColumns === undefined ? {} : { formColumns })}
             {...(formRelations === undefined ? {} : { formRelations })}

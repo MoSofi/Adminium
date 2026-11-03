@@ -139,6 +139,18 @@ export interface RecordTabFact {
   can: { read: true; create: boolean; update: boolean; delete: boolean };
 }
 
+/** One of an add-on's own screens on a record page, as the server offers it to one reader (`GET /pages/:id` · `recordPanels`). */
+export interface RecordPanelFact {
+  addOn: string;
+  id: string;
+  /** The panel's words in the reader's language (English where the add-on wrote none), and its key in the add-on's own strings. */
+  title: string;
+  titleKey: string;
+  /** The page's table's link column into the add-on's table: the linked row's key is read from it. */
+  column: string;
+  order: number;
+}
+
 export type PageDocumentResult =
   | {
       status: 'ok';
@@ -170,6 +182,8 @@ export type PageDocumentResult =
       bulkActions: readonly BulkActionFact[];
       /** The tabs of add-ons' rows a record of the source table has, for this reader (`addOn.recordTabs`); empty when it has none. */
       recordTabs: readonly RecordTabFact[];
+      /** The add-ons' own screens a record of the source table has, for this reader (`addOn.panels`); empty when it has none. */
+      recordPanels: readonly RecordPanelFact[];
       /**
        * The source table as it stands right now — who fills each column and
        * which ones the create form has to ask for. Empty when the server did

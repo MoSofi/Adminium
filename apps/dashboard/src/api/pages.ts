@@ -22,6 +22,7 @@ import type {
   BulkActionFact,
   ColumnFactsReply,
   PageDocumentResult,
+  RecordPanelFact,
   RecordTabFact,
   StateActionFact,
 } from './pageFacts.js';
@@ -35,6 +36,7 @@ export type {
   FormColumnFactReply,
   FormRelationFactReply,
   PageDocumentResult,
+  RecordPanelFact,
   RecordTabFact,
   StateActionFact,
 } from './pageFacts.js';
@@ -91,6 +93,7 @@ export function pageQuery(pageId: string) {
         stateActions?: StateActionFact[];
         bulkActions?: BulkActionFact[];
         recordTabs?: RecordTabFact[];
+        recordPanels?: RecordPanelFact[];
         columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = (await reading).parsePageDocument(reply.data);
@@ -110,6 +113,7 @@ export function pageQuery(pageId: string) {
             stateActions: reply.stateActions ?? [],
             bulkActions: reply.bulkActions ?? [],
             recordTabs: reply.recordTabs ?? [],
+            recordPanels: reply.recordPanels ?? [],
             columnFacts: factsByColumn(reply.columnFacts),
             formColumns: reply.columnFacts?.columns ?? [],
             formRelations: reply.columnFacts?.relations ?? [],

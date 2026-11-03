@@ -67,7 +67,8 @@ export interface AddOnDto {
   /** `ref`: the one page this address serves the code of, when that page is kept behind its own permission. */
   /** What the add-on's pages are built against; 2 also needs the data kit. Absent from an older server: 1. */
   hostApi?: 1 | 2;
-  bundles: { path: string; url: string; integrity: string; ref?: string }[];
+  /** `ref`: the code of a page kept behind its permission; `panel`: the code of a record panel, served for one record. */
+  bundles: { path: string; url: string; integrity: string; ref?: string; panel?: string }[];
   /**
    * The installed apps that name it, and how — read before any click, so a
    * refusal or a feature that stops can be said first. Absent from an older

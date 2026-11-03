@@ -8,7 +8,7 @@ import type { PageEnvelope } from '@adminium/engine/config';
 import type { ColumnFacts, WidgetEvent } from '@adminium/widgets';
 
 import type { BoundCrudApi } from '../api/crud.js';
-import type { BulkActionFact, FormChildFactReply, FormColumnFactReply, FormRelationFactReply, RecordTabFact, StateActionFact } from '../api/pages.js';
+import type { BulkActionFact, FormChildFactReply, FormColumnFactReply, FormRelationFactReply, RecordPanelFact, RecordTabFact, StateActionFact } from '../api/pages.js';
 import type { DashboardData } from '../api/widgetData.js';
 
 /** Everything a template needs from the app — data adapters + event sinks. */
@@ -66,6 +66,8 @@ export interface PageTemplateProps {
   bulkActions?: readonly BulkActionFact[] | undefined;
   /** The tabs of add-ons' rows a record of the source table has, as the server offered them (`addOn.recordTabs`). */
   recordTabs?: readonly RecordTabFact[] | undefined;
+  /** The add-ons' own screens a record of the source table has, as the server offered them (`addOn.panels`). */
+  recordPanels?: readonly RecordPanelFact[] | undefined;
   /**
    * The source table as the server sees it right now (`columnFacts` on the
    * page reply): who fills each column and which ones the create form has to

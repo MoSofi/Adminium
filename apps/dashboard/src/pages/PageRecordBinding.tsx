@@ -92,6 +92,8 @@ import type { PageTemplateProps } from './template-types.js';
 
 // The tab of an add-on's rows is loaded when a record has one, never with the page.
 const LinkedRowsTab = lazy(() => import('../add-ons/LinkedRowsTab.js'));
+// An add-on's own screen on a record is loaded when the record has one, never with the page.
+const RecordPanelHost = lazy(() => import('../add-ons/RecordPanelHost.js'));
 // The Payment panel and its words load only on a record that takes payments.
 const PaymentPanel = lazy(() => import('../payments-panel/PaymentPanel.js'));
 // The e-mail consent panel and its words load only on a record of a table an app declares as people.
@@ -107,6 +109,7 @@ export function PageRecordBinding({
   canUnmask,
   stateActions,
   recordTabs,
+  recordPanels,
   columnFacts,
   formRelations,
   currency,
@@ -726,6 +729,20 @@ export function PageRecordBinding({
       ),
     }));
   }, [recordTabs, recordId, connectionId]);
+  // The add-ons' own screens this record has, as the server offered them to this reader: tabs beside the add-ons' rows.
+  const panelTabs = useMemo(() => {
+    const table = sourceTable ?? crud?.table;
+    if (recordId === undefined || connectionId === null || table === undefined || recordPanels === undefined) return [];
+    return recordPanels.map((panel) => ({
+      id: `${panel.addOn}-panel-${panel.id}`,
+      label: addOnWords(panel.addOn, panel.titleKey, panel.title),
+      content: (
+        <Suspense fallback={null}>
+          <RecordPanelHost panel={panel} connectionId={connectionId} table={table} recordId={String(recordId)} row={row} />
+        </Suspense>
+      ),
+    }));
+  }, [recordPanels, recordId, connectionId, sourceTable, crud, row]);
 
   /*
    * E-mail consent. ABSENT on a table no app declares as people: the server
@@ -836,7 +853,7 @@ export function PageRecordBinding({
         tabs={tabs}
         related={related}
         // An add-on's rows for this record (the stock links of a dish): a tab each, drawn by its own lazy part.
-        {...(hostTabs.length === 0 ? {} : { hostTabs })}
+        {...(hostTabs.length + panelTabs.length === 0 ? {} : { hostTabs: [...hostTabs, ...panelTabs] })}
         activity={activity}
         // Sidecar attachments. Absent ⇒ no panel, the same rule
         // `related` and `activity` follow — a page whose `config.attachments`
