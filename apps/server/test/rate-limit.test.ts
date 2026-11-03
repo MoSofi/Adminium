@@ -227,7 +227,7 @@ describe('security headers', () => {
     expect(csp).not.toContain('cartocdn');
     // WebSocket allowance is pinned to the SERVING host, not bare schemes — a
     // scheme source would let an XSS foothold open a socket to any origin.
-    expect(csp).toContain("connect-src 'self' ws://localhost:80 wss://localhost:80 https://tiles.openfreemap.org;");
+    expect(csp).toContain("connect-src 'self' blob: ws://localhost:80 wss://localhost:80 https://tiles.openfreemap.org;");
     expect(csp).not.toMatch(/connect-src[^;]*(?:^|\s)wss?:(?:\s|;|$)/);
     // http:// loopback LAN origins must keep working.
     expect(csp).not.toContain('upgrade-insecure-requests');

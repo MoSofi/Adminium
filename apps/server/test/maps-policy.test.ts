@@ -67,7 +67,7 @@ describe('the content security policy and the map server', () => {
     const policy = await policyOf();
     expect(naming(policy, DEFAULT)).toEqual(['img-src', 'connect-src']);
     expect(directives(policy).get('img-src')).toBe(`img-src 'self' data: blob: ${DEFAULT}`);
-    expect(directives(policy).get('connect-src')).toBe(`connect-src 'self' ws://localhost:80 wss://localhost:80 ${DEFAULT}`);
+    expect(directives(policy).get('connect-src')).toBe(`connect-src 'self' blob: ws://localhost:80 wss://localhost:80 ${DEFAULT}`);
     // The map draws in a worker made from a blob: that stays whatever the switch says.
     expect(directives(policy).get('worker-src')).toBe("worker-src 'self' blob:");
     expect(outside(policy)).toEqual([DEFAULT, DEFAULT]);
@@ -77,7 +77,7 @@ describe('the content security policy and the map server', () => {
     const policy = await policyOf({ ADMINIUM_MAP_SERVER: 'off' });
     expect(outside(policy)).toEqual([]);
     expect(directives(policy).get('img-src')).toBe("img-src 'self' data: blob:");
-    expect(directives(policy).get('connect-src')).toBe("connect-src 'self' ws://localhost:80 wss://localhost:80");
+    expect(directives(policy).get('connect-src')).toBe("connect-src 'self' blob: ws://localhost:80 wss://localhost:80");
     expect(directives(policy).get('worker-src')).toBe("worker-src 'self' blob:");
   });
 

