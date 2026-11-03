@@ -31,7 +31,8 @@ function addOn(key: string, requiredSchema?: unknown): AddOnManifest {
     license: 'AGPL-3.0-only',
     description: { key: `addon.${key}.line`, fallback: 'x' },
     categories: ['data'],
-    compatibility: { minAdminiumVersion: '1.0.0', requires: [] },
+    // Below the floor that holds an add-on's foreign keys to its own tables: these add-ons point at the host's.
+    compatibility: { minAdminiumVersion: '0.3.42', requires: [] },
     addOn: {
       attaches: [{ app: 'printing', range: '^1.0.0' }],
       provides: [],
