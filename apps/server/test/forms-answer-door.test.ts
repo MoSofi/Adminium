@@ -149,6 +149,28 @@ const SHOWROOM: FormDefinitionInput = {
   ending: { kind: 'words', words: en("We'll be in touch.") },
 };
 
+/** The showroom form with the newsletter's yes taken at once, no confirmation asked. */
+const QUICK: FormDefinitionInput = {
+  ...SHOWROOM,
+  questions: SHOWROOM.questions.map((question) => (question.kind === 'tick' ? { ...question, confirm: false } : question)),
+};
+
+/** The showroom form with its e-mail question optional: a confirmation asked may find no address to go to. */
+const BLANK_EMAIL: FormDefinitionInput = {
+  ...SHOWROOM,
+  questions: SHOWROOM.questions.map((question) => (question.id === 'qemail' ? { ...question, required: false } : question)),
+};
+
+/** A form that asks for an address as plain words (no e-mail check), with the yes taken at once. */
+const TYPED_ADDRESS: FormDefinitionInput = {
+  ...SHOWROOM,
+  questions: [
+    { id: 'qname', kind: 'short', role: 'name', required: true, label: en('Your name') },
+    { id: 'qaddr', kind: 'short', label: en('Where can we write to you?') },
+    { id: 'qnews', kind: 'tick', purpose: 'newsletter', wordingVersion: 3, wordingChangedAt: '2026-10-01', confirm: false, label: en("Send me Meridian's newsletter.") },
+  ],
+};
+
 describe.each(LEGS)('the answer door — %s', (dialect, available) => {
   let h: Harness;
   let composed: ComposedServer;
@@ -226,6 +248,9 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     await insertForm('frm_claim', 'names-claimed', { becomes: { table: enquiriesId, map: { qname: 'person', qnote: 'claimed_by_id' } } });
     await insertForm('frm_link', 'names-link', { becomes: { table: enquiriesId, map: { qname: 'person', qnote: 'contact_id' } } });
     await insertForm('frm_secret', 'names-secret', { becomes: { table: secretsId, map: { qname: 'note' } } });
+    await insertForm('frm_quick', 'quick', { limits: { perHour: 200, harder: false } }, QUICK);
+    await insertForm('frm_blank', 'blank-email', { becomes: { table: enquiriesId, map: { qname: 'person', qemail: 'email' } } }, BLANK_EMAIL);
+    await insertForm('frm_typed', 'typed-address', { becomes: { table: enquiriesId, map: { qname: 'person', qaddr: 'email' } } }, TYPED_ADDRESS);
 
     const settings = settingsRepo(h.meta);
     await settings.set('system.publicOrigin', ORIGIN, { updatedBy: null });
@@ -455,6 +480,71 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     const [one, two] = await Promise.all([press(), press()]);
     expect([one.body.includes('You’re signed up.'), two.body.includes('You’re signed up.')].filter(Boolean)).toHaveLength(1);
     expect((await consent.history({ address: 'tess@twice.example' })).filter((event) => event.state === 'yes')).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('a yes no link proved never replaces a no nor passes the stop list: the answer waits for the click; a fresh address has its yes at once', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    await consent.withdraw({ address: 'nora@said-no.example', purpose: 'newsletter', source: 'unsubscribe', detail: 'link-all' });
+    await consent.stop.add({ address: 'sam@stopped.example', reason: 'link' });
+
+    const links = new Map<string, string>();
+    for (const address of ['nora@said-no.example', 'sam@stopped.example']) {
+      const sent = await send('quick', { qname: 'Someone', qemail: address, qnews: true });
+      expect(sent.statusCode, sent.body).toBe(200);
+      // The stranger is told what the form says: whoever typed the address learns nothing of its standing.
+      expect(sent.json()).toEqual({ state: 'sent', ending: 'sent' });
+      expect((await consent.history({ address })).filter((event) => event.state === 'yes')).toHaveLength(0);
+      expect((await answerRows('frm_quick')).find((row) => row['email'] === address)!['confirm']).toBe('pending');
+      const confirmations = (await mails()).filter((mail) => mail.templateKey === 'sign-up-confirm');
+      expect(confirmations.map((mail) => mail.to)).toEqual([address]);
+      links.set(address, /\/m\/c\/([A-Za-z0-9_~-]+)/.exec(confirmations[0]!.html)![1]!);
+    }
+    expect((await consent.stateFor({ address: 'nora@said-no.example' }, 'newsletter')).state).toBe('no');
+    expect(await consent.stop.has('sam@stopped.example')).toBe(true);
+
+    // The click proves it: the yes is written then, and the stop list lifted.
+    for (const [address, token] of links) {
+      const done = await composed.app.inject({ method: 'POST', url: `/m/c/${token}`, headers: { host: HOST, 'content-type': 'application/x-www-form-urlencoded' }, payload: 'act=confirm' });
+      expect(done.body).toContain('You’re signed up.');
+      expect((await consent.stateFor({ address }, 'newsletter')).state).toBe('yes');
+    }
+    expect(await consent.stop.has('sam@stopped.example')).toBe(false);
+
+    const fresh = await send('quick', { qname: 'Fay', qemail: 'fay@fresh.example', qnews: true });
+    expect(fresh.statusCode, fresh.body).toBe(200);
+    expect((await consent.stateFor({ address: 'fay@fresh.example' }, 'newsletter')).state).toBe('yes');
+    expect((await answerRows('frm_quick')).find((row) => row['email'] === 'fay@fresh.example')!['confirm']).toBe('none');
+    expect((await mails()).filter((mail) => mail.templateKey === 'sign-up-confirm' && mail.to === 'fay@fresh.example')).toHaveLength(0);
+  });
+
+  it.skipIf(!available)('a confirmation asked with the address left blank writes no yes, not even for the row the answer became', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const sent = await send('blank-email', { qname: 'Bo Blank', qnews: true });
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect(sent.json()).toEqual({ state: 'sent', ending: 'sent-confirm' });
+    const answer = (await answerRows('frm_blank'))[0]!;
+    expect(answer).toMatchObject({ email: null, confirm: 'none', consent_purpose: 'newsletter' });
+    const person = { connectionId: h.connectionId, table: enquiriesId, key: String(answer['became_key']) };
+    expect(await consent.history({ person })).toEqual([]);
+    expect((await mails()).filter((mail) => mail.templateKey === 'sign-up-confirm')).toHaveLength(0);
+  });
+
+  it.skipIf(!available)('a no for the address the row it became holds stands, and with no checked address nothing is written', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    await consent.withdraw({ address: 'tom@typed.example', purpose: 'newsletter', source: 'unsubscribe', detail: 'link-all' });
+    const sent = await send('typed-address', { qname: 'Tom Typed', qaddr: 'Tom@Typed.example', qnews: true });
+    expect(sent.statusCode, sent.body).toBe(200);
+    const answer = (await answerRows('frm_typed'))[0]!;
+    expect(answer).toMatchObject({ email: null, confirm: 'none' });
+    const person = { connectionId: h.connectionId, table: enquiriesId, key: String(answer['became_key']) };
+    expect((await consent.history({ person })).filter((event) => event.state === 'yes')).toHaveLength(0);
+    expect((await consent.stateFor({ person, address: 'tom@typed.example' }, 'newsletter')).state).toBe('no');
+    expect((await mails()).filter((mail) => mail.templateKey === 'sign-up-confirm')).toHaveLength(0);
+    // A person nobody objected for: the yes, for the row it became.
+    const told = await send('typed-address', { qname: 'Una Typed', qaddr: 'una@typed.example', qnews: true });
+    expect(told.statusCode).toBe(200);
+    const una = (await answerRows('frm_typed')).find((row) => row['name'] === 'Una Typed')!;
+    expect((await consent.stateFor({ person: { connectionId: h.connectionId, table: enquiriesId, key: String(una['became_key']) } }, 'newsletter')).state).toBe('yes');
   });
 
   it.skipIf(!available)('a link 31 days old is too old, with the business’s website', async () => {

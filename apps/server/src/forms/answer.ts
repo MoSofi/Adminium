@@ -38,24 +38,29 @@
  *     invitee's address and name; with "Link answers to names" off it keeps
  *     none of the three;
  *  7. the agreement: confirmation asked → the answer waits for the click
- *     (`confirm = 'pending'`) and the confirmation mail goes; not asked → a
- *     yes in the consent log now, for the row the answer became when it is a
- *     person, else for the address. No tick, nothing about consent;
+ *     (`confirm = 'pending'`) and the confirmation mail goes (asked with no
+ *     address given: nothing is written); not asked → a yes in the consent
+ *     log now, for the row the answer became when it is a person, else for
+ *     the address. A yes no confirm link proved never replaces a "no" to the
+ *     purpose nor passes the do-not-email list: such an answer waits for the
+ *     click instead, or, with no address to mail, writes nothing. No tick,
+ *     nothing about consent;
  *  8. staff are told (the form's "Tell", and on a survey only when its
  *     low-score rule holds).
  * Mail and notices come after the answer is kept, and never undo it.
  */
 import { createHash, randomUUID } from 'node:crypto';
 
-import { checkAnswer, keepsNames, type CheckedAnswer, type Form, type FormQuestion } from '@adminium/add-on-contracts/forms';
+import { checkAnswer, keepsNames, type CheckedAnswer, type Form, type FormQuestion, type FormTickPurpose } from '@adminium/add-on-contracts/forms';
 import { ANSWER_INVITATION_COLUMN, formsOf } from '@adminium/manifest';
-import { formMarksRepo, publicProofsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { formMarksRepo, publicProofsRepo, settingsRepo, type ConsentPerson, type MetaDb } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { ConsentService } from '../consent/index.js';
+import { looksLikeAddress } from '../consent/service.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { insertRow, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
@@ -284,13 +289,32 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     return { status: 429, body: { state: 'too-many', retryAfter: charged.retryAfter, window: charged.window } };
   }
 
-  /** The person the row an answer became is, when its table is declared people; null otherwise. */
-  async function personOf(opened: FormsTable, view: SnapshotView, row: Row | null) {
+  /**
+   * The person the row an answer became is, when its table is declared
+   * people (with the address that row holds, when it holds one); null
+   * otherwise.
+   */
+  async function personOf(opened: FormsTable, view: SnapshotView, row: Row | null): Promise<{ person: ConsentPerson; address: string | null } | null> {
     if (row === null) return null;
     const declared = await peopleTablesOf(meta).of(opened.connectionId, view.model, opened.tableId);
     const table = view.table(opened.tableId);
     if (declared === null || declared.kind !== 'people' || table.primaryKey.length !== 1) return null;
-    return { connectionId: opened.connectionId, table: opened.tableId, key: String(row[table.primaryKey[0]!]) };
+    const held = declared.email === null ? null : row[declared.email];
+    const address = typeof held === 'string' && looksLikeAddress(held) ? held : null;
+    return { person: { connectionId: opened.connectionId, table: opened.tableId, key: String(row[table.primaryKey[0]!]) }, address };
+  }
+
+  /**
+   * Whether the person or any of the addresses has said no to the purpose
+   * (the log's latest word is "no"), or an address is on the do-not-email
+   * list. A yes no confirm link proved never replaces either.
+   */
+  async function objected(person: ConsentPerson | null, addresses: readonly string[], purpose: FormTickPurpose): Promise<boolean> {
+    for (const address of addresses.length === 0 ? [null] : addresses) {
+      if ((await deps.consent.stateFor({ person, address }, purpose)).state === 'no') return true;
+      if (address !== null && (await deps.consent.stop.entryFor(address)) !== null) return true;
+    }
+    return false;
   }
 
   /**
@@ -472,18 +496,45 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     // 7. The agreement.
     const hub = deps.hub?.();
     if (tick !== undefined && wording !== null) {
-      if (pending) {
+      /** The confirmation mail, to the address the answer keeps: the yes waits for its click. */
+      const askToConfirm = async (to: string) => {
         const install = String((await settingsRepo(meta).get('system.instanceId')) ?? '');
         const token = makeConfirmToken(confirmSecret, install, { addOn: live.addOn, form: live.id, answer: answerId, purpose: tick.purpose, issuedAt: at });
-        await sendConfirmMail({ meta, secret: deps.secret, caps, capKey: capSecret, to: checked.email!, language: body.language, name: checked.name, purpose: tick.purpose, token, at, logger: request.log }).catch((error: unknown) => {
+        await sendConfirmMail({ meta, secret: deps.secret, caps, capKey: capSecret, to, language: body.language, name: checked.name, purpose: tick.purpose, token, at, logger: request.log }).catch((error: unknown) => {
           request.log.warn({ err: error, form: live.id }, 'forms door: the confirmation mail could not be queued');
         });
+      };
+      if (pending) {
+        await askToConfirm(checked.email!);
+      } else if (tick.confirm) {
+        // A confirmation asked, and no address to send it to (the e-mail question left blank): nothing
+        // could prove the yes, so none is written, for the address or for the row the answer became.
       } else {
-        const person = became === null ? null : await personOf(became.opened, became.view, became.row);
+        const who = became === null ? null : await personOf(became.opened, became.view, became.row);
+        const person = who?.person ?? null;
+        const addresses = [...new Set([checked.email, who?.address?.trim().toLowerCase() ?? null].filter((one): one is string => one !== null))];
         if (person !== null || checked.email !== null) {
-          await deps.consent
-            .record({ state: 'yes', person, address: checked.email, purpose: tick.purpose, source: 'form', detail: nameIn(form, form.definition.defaultLanguage).slice(0, 255), wording: { text: wording, version: String(tick.wordingVersion) }, ip, userAgent, at })
-            .catch((error: unknown) => request.log.warn({ err: error, form: live.id }, 'forms door: the consent log did not take the yes'));
+          if (!(await objected(person, addresses, tick.purpose).catch(() => true))) {
+            await deps.consent
+              .record({ state: 'yes', person, address: checked.email, purpose: tick.purpose, source: 'form', detail: nameIn(form, form.definition.defaultLanguage).slice(0, 255), wording: { text: wording, version: String(tick.wordingVersion) }, ip, userAgent, at })
+              .catch((error: unknown) => request.log.warn({ err: error, form: live.id }, 'forms door: the consent log did not take the yes'));
+          } else if (checked.email !== null) {
+            // A "no" (or a do-not-email entry) stands until a confirm link proves the new yes: the answer
+            // waits for the click as one with confirmation asked does. Anyone could type the address, so
+            // the stranger is told nothing different (the form's own ending), and the mail goes as the
+            // confirmation mail does: once a day to an address at most.
+            const { db } = answers.target;
+            const moved = await db
+              .updateTable(answers.target.table.id as never)
+              .set({ confirm: 'pending' } as never)
+              .where(sql.ref(answers.pk), '=', answerId)
+              .where(sql.ref('confirm'), '=', 'none')
+              .executeTakeFirst();
+            if (Number(moved.numUpdatedRows) === 1) await askToConfirm(checked.email);
+          }
+          // Else a "no" stands and the answer names no address a confirmation could go to (only the
+          // row it became holds one, from an answer that was not checked as an address): nothing about
+          // consent is written, and the answer is kept as it is.
         }
       }
     }
