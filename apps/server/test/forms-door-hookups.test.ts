@@ -545,7 +545,7 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
 
   // ── Staff links ───────────────────────────────────────────────────────────
 
-  it.skipIf(!available)('every staff link opens a page of the forms add-on: the first segment after it is the page, then the form', async () => {
+  it.skipIf(!available)('every staff link opens the forms add-on\'s page, whose ref is its key: then the form, or surveys and the survey', async () => {
     const pageOf = (url: string) => {
       const [path = '', query = ''] = url.split('?');
       const [, root, addOn, page, ...rest] = path.split('/');
@@ -563,7 +563,10 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
     expect(survey.statusCode, survey.body).toBe(200);
     const surveyed = String((await answersOf('frm_fit')).at(-1)!['id']);
     const surveyLink = (await notices('forms.answer')).find((url) => url.includes(surveyed))!;
-    expect(pageOf(surveyLink)).toEqual({ root: 'add-ons', addOn: 'forms', page: 'surveys', rest: ['fit-out', 'results'], query: `answer=${surveyed}` });
+    expect(pageOf(surveyLink)).toEqual({ root: 'add-ons', addOn: 'forms', page: 'forms', rest: ['surveys', 'fit-out', 'results'], query: `answer=${surveyed}` });
+    // The very links the dashboard's page host is shown to open on the add-on's own page (`addOnPageHost.test.tsx`).
+    expect(surveyLink).toBe(`/add-ons/forms/forms/surveys/fit-out/results?answer=${surveyed}`);
+    expect(formLink).toBe(`/add-ons/forms/forms/showroom-visit/answers?answer=${answered}`);
 
     const ip = nextIp();
     expect((await send('capped', { qname: 'Bo Ek', qemail: 'bo@linden.example' }, { ip })).statusCode).toBe(200);

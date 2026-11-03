@@ -118,7 +118,7 @@ async function renderAt(path: string) {
   const router = createAppRouter(queryClient, {
     history: createMemoryHistory({ initialEntries: [path] }),
   });
-  render(
+  return render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
@@ -218,6 +218,25 @@ describe('mounting an add-on page', () => {
     restoreImporter = setAddOnModuleImporter(() => Promise.resolve({ default: () => <p>root</p> }));
     await renderAt('/add-ons/invoices/');
     expect(await screen.findByText('root')).toBeDefined();
+  });
+
+  it('opens every staff link the engine sends for a forms add-on on its one page, whose ref is its key', async () => {
+    // The links the server builds (`formsStaffLink`; `forms-door-hookups.test.ts` holds it to these): the page ref an add-on may always use, then the page's own path.
+    const forms = { ...PAGE, addOnKey: 'forms', ref: 'forms', labelKey: 'addon.forms.nav', fallback: 'Forms', client: 'dist/pages/forms.js' };
+    const bundle = { path: 'dist/pages/forms.js', url: '/api/v1/add-ons/forms/bundle/dist/pages/forms.js', integrity: 'sha256-Zm9ybXM=' };
+    for (const link of ['/add-ons/forms/forms/showroom-visit/answers?answer=ans_1', '/add-ons/forms/forms/surveys/fit-out/results?answer=ans_2', '/add-ons/forms/forms/capped?settings=limits']) {
+      stubFetch({ pages: [forms], addOns: [{ ...INSTALLED, key: 'forms', name: 'Forms', bundles: [bundle] }] });
+      restoreImporter = setAddOnModuleImporter(() => Promise.resolve({ default: () => <p>the forms page</p> }));
+      const { unmount } = await renderAt(link);
+      expect(await screen.findByText('the forms page'), link).toBeDefined();
+      expect(screen.queryByText('No such page')).toBeNull();
+      unmount();
+      restoreImporter();
+      forgetAddOnModules();
+      vi.unstubAllGlobals();
+      vi.stubGlobal('WebSocket', FakeWebSocket);
+    }
+    restoreImporter = null;
   });
 
   it('says the add-on is not installed rather than rendering nothing', async () => {

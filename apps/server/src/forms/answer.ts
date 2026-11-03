@@ -120,22 +120,24 @@ export function becameFor(table: ResolvedTable, became: { table: string; key: st
   return became;
 }
 
-/** The forms add-on's staff pages the engine links to, by page ref: its forms (answers, settings) and its surveys (results). */
-export const FORMS_PAGE = 'forms';
-export const SURVEYS_PAGE = 'surveys';
+/** Where in the forms add-on's one page a survey is: its forms open under the page by slug, its surveys under this word. */
+export const SURVEYS_PATH = 'surveys';
 
 /**
- * A staff link into the forms add-on's own pages: `/add-ons/<add-on>/<page
+ * A staff link into the forms add-on's own page: `/add-ons/<add-on>/<page
  * ref>/…`. The dashboard opens the page the first segment after the add-on
- * names (`AddOnPageHost`), and hands that page the rest. An answer opens on
- * its form's answers, or on its survey's results; the limits on the form's
- * settings.
+ * names (`AddOnPageHost`), and hands that page the rest. The page ref is the
+ * add-on's own key: the one ref a manifest may give any add-on's page (every
+ * other is `<key>-…`), so the link opens whatever the add-on is keyed. An
+ * answer opens on its form's answers (`<slug>/answers`), or on its survey's
+ * results (`surveys/<slug>/results`); the limits on the form's settings.
  */
 export function formsStaffLink(live: Pick<LiveForm, 'addOn' | 'slug' | 'form'>, to: 'answer' | 'limits', answerId?: string): string {
-  const base = `/add-ons/${encodeURIComponent(live.addOn)}`;
+  const key = encodeURIComponent(live.addOn);
+  const base = `/add-ons/${key}/${key}`;
   const slug = encodeURIComponent(live.slug);
-  if (to === 'limits') return `${base}/${FORMS_PAGE}/${slug}?settings=limits`;
-  const page = live.form.definition.kind === 'survey' ? `${SURVEYS_PAGE}/${slug}/results` : `${FORMS_PAGE}/${slug}/answers`;
+  if (to === 'limits') return `${base}/${slug}?settings=limits`;
+  const page = live.form.definition.kind === 'survey' ? `${SURVEYS_PATH}/${slug}/results` : `${slug}/answers`;
   return `${base}/${page}?answer=${encodeURIComponent(answerId ?? '')}`;
 }
 
