@@ -41,6 +41,7 @@ import {
   type ReferenceIssue,
   type TableIndex,
 } from './refs.js';
+import { FORMS_BECAME_TABLE_MAX } from './forms.js';
 import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
 import { conditionIssues, linkedConditionSchema, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
 
@@ -787,6 +788,8 @@ export type PublicKey = z.infer<typeof publicKeySchema>;
 
 interface PublicAccessContext {
   index: TableIndex;
+  /** The app's own key: a forms entry's table is stored on each answer by it (`<app>:<table>`). Absent: not checked. */
+  appKey?: string | undefined;
   /** Columns Adminium decides on a table: a browser may never write them. */
   decided: (table: string) => ReadonlySet<string>;
   /** The columns of a table a money figure Adminium works out reads (a formula, a total, a copy into one). */
@@ -919,9 +922,14 @@ function readByAnyone(entry: PublicAccess): boolean {
  * fill named; one per table; and no entry on any key lets anyone read the
  * rows strangers add through it.
  */
-function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly PublicAccess[]): ReferenceIssue[] {
+function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly PublicAccess[], appKey: string | undefined): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const at = (...rest: (string | number)[]) => ['publicAccess', i, ...rest];
+  // Each answer keeps the row it became by its table's stored name: it must fit an answers table, whole.
+  const stored = appKey === undefined ? 0 : appKey.length + 1 + entry.table.length;
+  if (stored > FORMS_BECAME_TABLE_MAX) {
+    out.push({ path: at('table'), message: `a form's answer names the row it became by "<app>:<table>", at most ${String(FORMS_BECAME_TABLE_MAX)} characters: "${appKey ?? ''}:${entry.table}" is ${String(stored)}` });
+  }
   const allowed: readonly string[] = FORMS_ENTRY_WORDS;
   for (const word of Object.keys(entry)) {
     if (!allowed.includes(word)) out.push({ path: at(word), message: `a forms entry only lets a form add a row: "${word}" is not said on it` });
@@ -1068,7 +1076,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (key !== CUSTOMER_KEY && key !== FORMS_KEY && ctx.publicKeys?.[key] === undefined) {
       out.push({ path: at('key'), message: `"${key}" is not one of the app's publicKeys` });
     }
-    if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries));
+    if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries, ctx.appKey));
 
     for (const list of ['select', 'writable'] as const) {
       for (const ref of entry[list] ?? []) {

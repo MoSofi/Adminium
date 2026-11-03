@@ -43,6 +43,13 @@ export type AddOnForms = z.infer<typeof addOnFormsSchema>;
 export type FormsPart = keyof AddOnForms;
 export const FORMS_PARTS = ['forms', 'answers', 'invitations', 'files'] as const satisfies readonly FormsPart[];
 
+/**
+ * The longest name of the table an answer became that every answers table
+ * holds (`became_table`: `<app>:<table ref>`). An app whose forms entry's
+ * table would be stored longer is refused, so no answer ever cuts one.
+ */
+export const FORMS_BECAME_TABLE_MAX = 64;
+
 /** The category a package that declares forms is filed under. */
 export const FORMS_CATEGORY = 'marketing';
 
@@ -92,7 +99,7 @@ export const FORMS_COLUMNS: Readonly<Record<FormsPart, Readonly<Record<string, F
     values: json(),
     email: text(320, true),
     name: text(200, true),
-    became_table: text(64, true),
+    became_table: text(FORMS_BECAME_TABLE_MAX, true),
     became_key: text(200, true),
     confirm: choice(['none', 'pending', 'confirmed', 'expired']),
     consent_purpose: text(20, true),

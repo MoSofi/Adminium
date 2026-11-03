@@ -2976,6 +2976,7 @@ export function appReferenceIssues(
   out.push(
     ...publicAccessIssues(m.publicAccess ?? [], {
       index,
+      appKey: m.key,
       decided: (table) => decided.get(table) ?? new Set(),
       answersAvailability: (table) => tables.get(table)?.capacity !== undefined || tables.get(table)?.booking !== undefined,
       addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),

@@ -262,6 +262,22 @@ describe('a table an app opens to forms', () => {
     expect(issuesOf(crm([formsEntry({ writable: ['name', 'code'] })])).join('\n')).toContain('"code" is decided by Adminium and cannot be written publicly');
   });
 
+  it('names its table, with the app\'s key, short enough for every answer to keep whole', () => {
+    // `<app>:<table>` at 64 characters fits; one more does not. An unprefixed app's table name is its ref.
+    const table = (length: number) => `t${'x'.repeat(length - 1)}`;
+    const app = (key: string, ref: string): Doc => {
+      const doc = crm([formsEntry({ table: ref, writable: ['note'], defaults: {}, anonymous: { perKeyHour: 200 } })]);
+      doc['key'] = key;
+      const schema = doc['requiredSchema'] as Doc;
+      delete schema['prefixed'];
+      schema['tables'] = [...(schema['tables'] as Doc[]), { ref, columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('note', 200)] }];
+      return doc;
+    };
+    const key = `crm-${'k'.repeat(16)}`;
+    expect(issuesOf(app(key, table(64 - key.length - 1)))).toEqual([]);
+    expect(issuesOf(app(key, table(64 - key.length))).join('\n')).toContain(`at most 64 characters: "${key}:${table(64 - key.length)}" is 65`);
+  });
+
   it('is one per table, and no entry lets anyone read the rows strangers add through it', () => {
     expect(issuesOf(crm([formsEntry(), formsEntry()])).join('\n')).toContain('"enquiries" is opened to forms by another entry already: one forms entry per table');
     expect(issuesOf(crm([formsEntry(), { table: 'enquiries', methods: ['GET'], select: ['id', 'state'] }])).join('\n')).toContain(

@@ -53,7 +53,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { checkAnswer, keepsNames, type CheckedAnswer, type Form, type FormQuestion, type FormTickPurpose } from '@adminium/add-on-contracts/forms';
-import { ANSWER_INVITATION_COLUMN, formsOf } from '@adminium/manifest';
+import { ANSWER_INVITATION_COLUMN, FORMS_BECAME_TABLE_MAX, formsOf } from '@adminium/manifest';
 import { formMarksRepo, publicProofsRepo, settingsRepo, type ConsentPerson, type MetaDb } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { sql, type Kysely } from 'kysely';
@@ -99,6 +99,26 @@ export const spentKeyOf = (live: Pick<LiveForm, 'addOn' | 'id'>): string => `frm
 /** The longest browser and network address kept on an answer (the answers table's widths). */
 const USER_AGENT_MAX = 512;
 const IP_MAX = 64;
+/** The least an answers table holds of the row an answer became: its table's stored name, and its key (the forms contract's widths). */
+const BECAME_KEY_MAX = 200;
+
+/** How many characters a text column holds: its own width when the database says one, else the contract's least. */
+function widthOf(table: ResolvedTable, column: string, least: number): number {
+  const width = table.table?.columns.find((one) => one.name === column)?.maxLength;
+  return typeof width === 'number' && width > 0 ? Math.max(width, least) : least;
+}
+
+/**
+ * The row an answer became, as its answers table can keep it: whole, or not
+ * at all. A name cut short could name another table or none; an app whose
+ * forms entry's table is stored longer than the contract's 64 is refused at
+ * install, so this is only ever a table wider names were never meant for.
+ */
+export function becameFor(table: ResolvedTable, became: { table: string; key: string } | null): { table: string; key: string } | null {
+  if (became === null) return null;
+  if (became.table.length > widthOf(table, 'became_table', FORMS_BECAME_TABLE_MAX) || became.key.length > widthOf(table, 'became_key', BECAME_KEY_MAX)) return null;
+  return became;
+}
 
 /** The forms add-on's staff pages the engine links to, by page ref: its forms (answers, settings) and its surveys (results). */
 export const FORMS_PAGE = 'forms';
@@ -411,7 +431,10 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     const files = filesOf(form, checked.values);
     /** What the answer's transaction did that outlives it: files attached in the store, and whether it committed. */
     const progress = { attached: [] as string[], committed: false };
-    const answerValues = (became: { table: string; key: string } | null): Row => ({
+    const answerValues = (row: { table: string; key: string } | null): Row => {
+      const became = becameFor(answers.target.table, row);
+      if (row !== null && became === null) request.log.warn({ form: live.id, table: row.table }, 'forms door: the row an answer became is named longer than its answers table holds; the answer keeps no link to it');
+      return {
       [answers.pk]: answerId,
       form_id: live.id,
       submitted_at: new Date(at).toISOString(),
@@ -430,7 +453,8 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       ip: tick === undefined ? null : ip,
       user_agent: tick === undefined ? null : userAgent,
       sent_from: sentFrom,
-    });
+      };
+    };
     /**
      * The answer row, written by Adminium alone, on `db` (a transaction's,
      * beside the row it became): the invitation spent first, while still
@@ -714,7 +738,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
               row = made;
             });
             const key = table.primaryKey.length === 1 ? String(one[table.primaryKey[0]!]) : JSON.stringify(table.primaryKey.map((column) => one[column]));
-            await writeAnswer(tdb, { table: installs.refOf(opened.connectionId, opened.tableId), key: key.slice(0, 200) });
+            await writeAnswer(tdb, { table: installs.refOf(opened.connectionId, opened.tableId), key });
             return one;
           });
           committed();

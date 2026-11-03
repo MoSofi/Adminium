@@ -9,6 +9,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { ResolvedTable } from '../src/crud/identifiers.js';
+import { becameFor } from '../src/forms/answer.js';
 import { formsResource } from '../src/forms/scope.js';
 import { createFormCaps, FORM_PER_ADDRESS_HOUR, FORM_PER_EMAIL_DAY } from '../src/forms/caps.js';
 import { confirmAddressHash, confirmAddressMatches, confirmKey, confirmLinkLive, CONFIRM_LINK_MS, makeConfirmToken, readConfirmToken } from '../src/forms/confirm-token.js';
@@ -86,6 +88,24 @@ describe('what a stranger’s words become in a mail', () => {
       'en-US',
     );
     expect(lines).toBe('Name: Ann\nSee: Booths, Seating\nNote: go to http:​//x.​example');
+  });
+});
+
+describe('the row an answer became, as its answers table keeps it', () => {
+  /** An answers table whose `became_table` is `width` wide (undefined: the database says no width). */
+  const answers = (width?: number): ResolvedTable =>
+    ({ id: 'forms_answers', table: { columns: [{ name: 'became_table', ...(width === undefined ? {} : { maxLength: width }) }, { name: 'became_key', maxLength: 200 }] } }) as unknown as ResolvedTable;
+
+  it('keeps a name that fits whole, and never a part of one that does not', () => {
+    const name = (length: number) => `crm:${'e'.repeat(length - 4)}`;
+    expect(becameFor(answers(64), { table: name(64), key: '7' })).toEqual({ table: name(64), key: '7' });
+    expect(becameFor(answers(64), { table: name(65), key: '7' })).toBeNull();
+    // No width said: the contract's 64; a wider column holds more.
+    expect(becameFor(answers(), { table: name(65), key: '7' })).toBeNull();
+    expect(becameFor(answers(120), { table: name(100), key: '7' })).toEqual({ table: name(100), key: '7' });
+    // A key past its column, whole or not at all too.
+    expect(becameFor(answers(64), { table: 'crm:enquiries', key: 'k'.repeat(201) })).toBeNull();
+    expect(becameFor(answers(64), null)).toBeNull();
   });
 });
 

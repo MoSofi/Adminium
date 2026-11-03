@@ -1,0 +1,6 @@
+---
+'@adminium/server': patch
+'@adminium/manifest': patch
+---
+
+Forms and surveys, made safer before they ship. A file's human check on a form whose id is a UUID is kept under its hashed key, so the upload no longer fails on Postgres and MySQL. A form's unconfirmed yes never replaces an earlier "no" to that purpose nor passes the do-not-email list: such an answer waits for its confirmation link instead (or, with no address to mail, writes nothing), and a confirmation asked with the address left blank writes no yes. A sign-up's confirm link carries a keyed hash of the address it was sent to and confirms nobody once the answer holds another. Staff never create, change or import a forms add-on's answers or their files, whatever their grants (they still read and delete them). Only staff who may read an answer in the add-on's answers table are told of it, and of a form's limit. A named survey's invitation reads only a record of a table a forms entry links to. A file is judged again by the question it is named under. An answer keeps the row it became whole or not at all, and an app whose forms entry's table would be stored longer than 64 characters (`<app>:<table>`) is refused. The request log no longer shows a survey's token or a mail link's token.
