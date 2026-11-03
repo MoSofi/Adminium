@@ -294,3 +294,45 @@ describe('a table an app opens to forms', () => {
     expect(issuesOf(doc).join('\n')).toContain('"forms" is neither');
   });
 });
+
+describe('the column a form\'s "Source" goes into', () => {
+  const sourced = (over: Doc = {}, floor = '0.3.41') => ({ ...crm([formsEntry({ source: 'source', ...over })]), compatibility: { minAdminiumVersion: floor } });
+
+  it('is one of the entry\'s writable text columns: it validates, the forms door is told it, and it needs 0.3.41', () => {
+    expect(issuesOf(sourced())).toEqual([]);
+    const result = validateManifest(sourced());
+    expect(result.ok && formsEntriesOf(result.manifest)[0]?.source).toBe('source');
+    expect(installFloorWords(sourced()).map((word) => word.word)).toContain('publicAccess.forms.source');
+    expect(issuesOf(sourced({}, '0.3.40')).join('\n')).toContain('"publicAccess.forms.source" is read by Adminium 0.3.41 and later');
+    // An entry that names none hands the door none.
+    const plain = validateManifest(crm());
+    expect(plain.ok && 'source' in (formsEntriesOf(plain.manifest)[0] ?? {})).toBe(false);
+  });
+
+  it('is a column a form may fill, holding words, never a link', () => {
+    expect(issuesOf(sourced({ writable: ['name', 'email'] })).join('\n')).toContain('publicAccess.0.source: a form\'s source goes into one of the columns a form may fill: put "source" in writable');
+    expect(issuesOf(sourced({ source: 'state', writable: ['name', 'state'] })).join('\n')).toContain('publicAccess.0.source: "state" holds enum: a form\'s source is words, so it goes into a text column');
+    const linked = sourced({ source: 'claimed_by_id', writable: ['name', 'claimed_by_id'] }) as Doc & { requiredSchema: { tables: Doc[] } };
+    const enquiries = linked.requiredSchema.tables[0] as Doc & { columns: Doc[] };
+    enquiries.columns = enquiries.columns.map((column) => (column['ref'] === 'claimed_by_id' ? { ref: 'claimed_by_id', type: 'fk', references: 'notes', nullable: true } : column));
+    expect(issuesOf(linked).join('\n')).toContain('publicAccess.0.source: "claimed_by_id" links to another row: a form\'s source is words, so it goes into a text column');
+  });
+
+  it('is said only on a forms entry', () => {
+    const doc = { ...crm([formsEntry(), { table: 'notes', methods: ['POST'], writable: ['body'], source: 'body' }]), compatibility: { minAdminiumVersion: '0.3.41' } };
+    expect(issuesOf(doc).join('\n')).toContain('publicAccess.1.source: a source is said only on a forms entry (key "forms")');
+  });
+});
+
+describe('how long a forms add-on keeps its answers', () => {
+  const settingsColumn = (doc: Doc) => columnOf(doc, 'forms_settings', 'answers_months');
+
+  it('is a whole number of months its settings table may leave empty', async () => {
+    const { formsWithInvitations } = await import('./forms-invitations-fixture.js');
+    expect(issuesOf(formsWithInvitations())).toEqual([]);
+    expect(issuesOf(changed((d) => (settingsColumn(d)['type'] = 'text'), formsWithInvitations)).join('\n')).toContain('"forms_settings.answers_months" is how many months answers are kept, a whole number: int, not text');
+    expect(issuesOf(changed((d) => delete settingsColumn(d)['nullable'], formsWithInvitations)).join('\n')).toContain('"forms_settings.answers_months" is empty while answers are kept until removed: make it nullable');
+    // A settings table without it: nothing to check.
+    expect(issuesOf(changed((d) => (tableOf(d, 'forms_settings').columns = tableOf(d, 'forms_settings').columns.filter((column) => column['ref'] !== 'answers_months')), formsWithInvitations))).toEqual([]);
+  });
+});

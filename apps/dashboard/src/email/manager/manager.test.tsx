@@ -308,6 +308,32 @@ describe('EmailManager — shell', () => {
   });
 });
 
+describe('EmailManager — a campaign started with a link', () => {
+  it('opens New campaign at once, and takes the link out of the address once it is used', async () => {
+    const link = 'https://forms.meridian.example/x/forms/showroom-visit';
+    const { router, user } = await renderPage({}, `/email-templates?kind=campaign&link=${encodeURIComponent(link)}`);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('New campaign')).toBeDefined();
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect((router.state.location.search as Record<string, unknown>)['link']).toBeUndefined();
+    });
+  });
+
+  it('opens nothing for a link that is not an https address', async () => {
+    await renderPage({}, '/email-templates?kind=campaign&link=javascript%3Aalert(1)');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens nothing beside the templates', async () => {
+    await renderPage({}, `/email-templates?kind=template&link=${encodeURIComponent('https://a.example/x')}`);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
 describe('EmailManager — gallery, list and groups', () => {
   const welcomeFamily = [
     doc({ id: 'et_en', locale: 'en_US' }),

@@ -48,8 +48,10 @@ import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '
 import { addressableTables, childTablesFor } from '../../connections/child-tables.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
-import type { EffectiveTable } from '../../connections/effective-schema.js';
+import type { EffectiveModel, EffectiveTable } from '../../connections/effective-schema.js';
+import { peopleTablesOf } from '../../people/tables-of.js';
 import { pkLabel } from '../../crud/records.js';
+import { labelColumnFor } from '../../crud/labels.js';
 import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { forgetSpellsIfChosenAnew, nextTickFor } from '../../automations/schedule.js';
@@ -57,7 +59,7 @@ import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import { liveTemplateKeySet, templateFamilies } from '../../automations/templates.js';
-import { findStep, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
+import { findStep, linkTargetOf, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
 import { firstIncompleteNode, holdsAddOnStep, isOwnTable, requiredGrants, resolveRule, ruleWarnings, type RuleSteps } from '../../automations/validate.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import { automationHashOf } from '../../apps/manifest-automations.js';
@@ -113,6 +115,27 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     return (addOn, step) => findStep(installs, connectionId, addOn, step);
   }
 
+  /** The columns of a table that name a row of a table of people, one hop (a link, or a column that copies one): a step's person. */
+  function personLinksOf(view: SnapshotView, table: ResolvedTable, people: ReadonlySet<string>): { personLinks?: { column: string; table: string }[] } {
+    if (people.size === 0) return {};
+    const out: { column: string; table: string }[] = [];
+    for (const column of table.columns.keys()) {
+      const target = linkTargetOf(view, table, column);
+      if (target !== null && people.has(target.tableId)) out.push({ column, table: target.tableId });
+    }
+    return out.length === 0 ? {} : { personLinks: out };
+  }
+
+  /** The column a table's rows are shown by in a picker, or null. */
+  function labelColumnOf(view: SnapshotView, tableId: string | null): string | null {
+    if (tableId === null) return null;
+    try {
+      return labelColumnFor(view, view.table(tableId));
+    } catch {
+      return null;
+    }
+  }
+
   /** The one column a table's rows are told apart by, or null when it has none or several. */
   function keyColumnOf(view: SnapshotView, tableId: string | null): string | null {
     if (tableId === null) return null;
@@ -122,6 +145,11 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     } catch {
       return null;
     }
+  }
+
+  /** The tables of a database an app declares as people (not companies), by id. */
+  async function peopleTableIds(connectionId: string, model: EffectiveModel): Promise<Set<string>> {
+    return new Set((await peopleTablesOf(meta).all(connectionId, model)).filter((table) => table.kind === 'people').map((table) => table.table));
   }
 
   /** The view a rule is checked in when a person saves it: their own read of the schema, column limits included. */
@@ -307,12 +335,15 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       connectionId: string | null;
     },
   ): Promise<void> {
+    const view = await authorViewFor(request, input.connectionId);
     resolveRule(input.trigger, input.graph, {
       // As its author reads the schema: a rule names no column their role is not shown, its own or one a link leads to.
-      view: await authorViewFor(request, input.connectionId),
+      view,
       templateKeys: await liveTemplateKeySet(meta),
       blockLoopback: deps.blockLoopback ?? process.env['NODE_ENV'] === 'production',
       steps: await stepsFor(input.connectionId),
+      // A step's person is a row of a table an app declares as people: the record's own, or one link away.
+      ...(view === null || input.connectionId === null ? {} : { peopleTables: await peopleTableIds(input.connectionId, view.model) }),
     });
   }
 
@@ -370,6 +401,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           // Resolved before the loop: every table's child edges are checked
           // against the same set (`child-tables.ts` says why).
           const offered = addressableTables(view.model);
+          // The tables an app declares as people: what a step's person may be read from.
+          const people = await peopleTableIds(connection.id, view.model);
           const tables = [];
           for (const table of view.model.tables) {
             // The view indexes neither a system table nor an excluded one, so
@@ -399,6 +432,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
               // The picker seed — only edges a mapping can store.
               children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,
+              ...(people.has(resolved.id) ? { people: true as const } : {}),
+              ...personLinksOf(view, resolved, people),
             });
           }
           const steps = [];
@@ -416,8 +451,12 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
                 label: input.label,
                 kind: input.kind,
                 required: input.required === true,
+                ...(input.help === undefined ? {} : { help: input.help }),
                 ...(input.options === undefined ? {} : { options: input.options }),
                 ...(input.table === undefined ? {} : { table: installed.inputTables[input.key] ?? null, tableKey: keyColumnOf(view, installed.inputTables[input.key] ?? null) }),
+                ...(input.table === undefined ? {} : { tableLabel: labelColumnOf(view, installed.inputTables[input.key] ?? null) }),
+                ...(input.by === undefined ? {} : { by: input.by }),
+                ...(input.where === undefined ? {} : { where: input.where }),
               })),
             });
           }

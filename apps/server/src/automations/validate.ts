@@ -40,7 +40,7 @@ import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
 import { isDateColumn } from './relative-time.js';
 import { isSlackWebhookUrl } from './actions/webhook.js';
-import { personalInputs, type StepAnswer } from './add-on-steps.js';
+import { linkTargetOf, personSource, personalInputs, type StepAnswer } from './add-on-steps.js';
 import { isAddressColumn, parseRelated, relatedTarget, relatedUses, type RelatedRef } from './related.js';
 
 /** Every node, branch children included, in walk order. */
@@ -148,6 +148,8 @@ export interface ResolveContext {
   blockLoopback: boolean;
   /** The steps installed add-ons give on the rule's database. Absent: a step of an add-on is judged by its keys alone. */
   steps?: RuleSteps | undefined;
+  /** The tables of the rule's database an app declares as people (ids). Absent: a step's person is judged by its spelling alone. */
+  peopleTables?: ReadonlySet<string> | undefined;
 }
 
 /**
@@ -494,6 +496,10 @@ function checkAction(
       }
       for (const input of step.inputs) {
         const given = (action.inputs[input.key] ?? '').trim();
+        if (input.kind === 'person') {
+          if (given !== '') personInput(given, input.label['en-US'], table, ctx, where);
+          continue;
+        }
         // With a placeholder in it, the value is this record's: the run judges it.
         if (given === '' || placeholdersIn(given).length > 0) continue;
         const label = input.label['en-US'];
@@ -509,6 +515,27 @@ function checkAction(
       }
       return;
     }
+  }
+}
+
+/**
+ * A step's person, as a rule keeps it: the record itself, whose table an app
+ * declares as people, or one link column of the record (or a column that
+ * copies one) that leads to such a table — one hop, never two. A link the snapshot does not hold, or a table
+ * nobody declares as people, is refused by name.
+ */
+function personInput(given: string, label: string, table: ResolvedTable, ctx: ResolveContext, where: string): void {
+  const how = personSource(given);
+  if (how === null) throw new ValidationFailedError(`${where}: ${label} is the record itself (@record) or one link of it (@link:<column>), and “${given.slice(0, 60)}” is neither.`, { reason: 'person' });
+  let reached = table.id;
+  if ('link' in how) {
+    readColumn(table, how.link, where);
+    const target = ctx.view === null ? null : linkTargetOf(ctx.view, table, how.link);
+    if (target === null) throw new ValidationFailedError(`${where}: ${label} reads ${how.link}, which links ${table.name} to no other table.`, { column: how.link, reason: 'person' });
+    reached = target.tableId;
+  }
+  if (ctx.peopleTables !== undefined && !ctx.peopleTables.has(reached)) {
+    throw new ValidationFailedError(`${where}: ${label} reads ${reached}, which no app declares as a table of people.`, { table: reached, reason: 'person' });
   }
 }
 

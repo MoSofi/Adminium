@@ -12,13 +12,13 @@
  * (uninstalled, dropped) is not found. A pure read of the meta store and
  * the snapshot: nothing is written.
  */
-import { formsOf, isAddOnManifest, validateManifest, type AddOnForms, type AddOnManifest } from '@adminium/manifest';
+import { FORMS_ANSWERS_MONTHS_COLUMN, formsOf, isAddOnManifest, validateManifest, type AddOnForms, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, type AppTableRecord, type MetaDb } from '@adminium/meta';
 
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 
 /** The column of a forms add-on's settings table that says how many months answers are kept (empty: kept until removed). */
-export const ANSWERS_MONTHS_COLUMN = 'answers_months';
+export const ANSWERS_MONTHS_COLUMN = FORMS_ANSWERS_MONTHS_COLUMN;
 
 /** The states in which an add-on still holds a table, and the statuses in which its tables are still there. */
 const HELD = new Set(['created', 'adopted', 'shared']);

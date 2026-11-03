@@ -4,7 +4,8 @@
  * page: always registered, on every host a customer one included, and gated
  * per request by whether the outside can reach this server.
  *
- *   GET  /x/forms/:slug                    the form's page (the `x` bundle); `?frame=1` draws it for a website's frame
+ *   GET  /x/forms/:slug                    the form's page (the `x` bundle); `?frame=1` draws it for a website's frame;
+ *                                          `?preview=1` its saved draft, for staff who may read the add-on's forms
  *   GET  /x/forms/api/:slug                what a stranger is shown of the form, in one of its languages
  *   GET  /x/forms/api/:slug/challenge      the human check, bound to the form (solved when Send is pressed)
  *   POST /x/forms/api/:slug/answers        a stranger's answer (`forms/answer.ts`)
@@ -41,6 +42,19 @@
  *   `X-Frame-Options` is taken off here: the policy's `frame-ancestors` says it.
  * - Nothing is cached but the hashed files (and the loader, for minutes), and
  *   no referrer leaves.
+ *
+ * ─── THE PREVIEW ───────────────────────────────────────────────────────────
+ * `?preview=1` on the page and on its read draws a form's saved DRAFT,
+ * whatever its state, for the forms builder's preview: only for a signed-in
+ * person (the dashboard's own session, on this host) who may read the
+ * add-on's forms table. Everyone else, and a draft with nothing to draw, gets
+ * exactly the "not available" a stranger gets for a draft. It is not held to
+ * whether the outside can reach the server (staff are on their own host). A
+ * half-made draft is read leniently (`forms/preview.ts`): a word missing in a
+ * language from the default one, a question that does not read left out and
+ * named. The preview may be framed by this host alone (the builder shows it
+ * in a frame), and nothing is sent from it: its human check, answer and file
+ * routes refuse a request that says it is a preview, and write nothing.
  */
 import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
@@ -61,6 +75,7 @@ import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from '../.
 import type { PublicUploads } from '../../public-uploads/store.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
+import { previewForm, type PreviewForm } from '../../forms/preview.js';
 import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
 import { loadOverrideMap } from '../../i18n/server-i18n.js';
 import { bcp47 } from '../../i18n/bcp47.js';
@@ -135,8 +150,13 @@ const UNBUILT = '<!doctype html><html lang="en"><head><meta charset="utf-8"><met
 const slugParams = z.object({ slug: z.string().min(1).max(120) });
 /** A named survey's token, as its link carries it: anything that is not one opens nothing (`forms/invitation.ts`). */
 const tokenField = z.string().max(2000).optional();
-const pageQuery = z.object({ frame: z.string().max(8).optional(), lang: z.string().max(20).optional(), t: tokenField }).passthrough();
-const challengeQuery = z.object({ t: tokenField }).passthrough();
+const pageQuery = z.object({ frame: z.string().max(8).optional(), lang: z.string().max(20).optional(), t: tokenField, preview: z.string().max(8).optional() }).passthrough();
+const challengeQuery = z.object({ t: tokenField, preview: z.string().max(8).optional() }).passthrough();
+
+/** Whether a request says it is a form's preview. */
+function asksPreview(request: FastifyRequest): boolean {
+  return (request.query as { preview?: unknown } | undefined)?.preview !== undefined;
+}
 
 /** A form as the door may serve it, with the invitation a named survey's link opened. */
 export type DoorLookup = { state: 'live'; live: LiveForm; invitation: OpenInvitation | null } | { state: 'closed' } | { state: 'unavailable' } | { state: 'already' } | { state: 'dead' };
@@ -184,6 +204,24 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     return invited.state === 'open' ? { state: 'live', live: found.live, invitation: invited.invitation } : invited;
   }
 
+  /** The requests answered with a preview: framed by this host alone. */
+  const previewing = new WeakSet<FastifyRequest>();
+
+  /**
+   * A form's draft for its preview: only for a signed-in person who may read
+   * the forms table that holds it; null for everyone else, and for a draft
+   * with nothing to draw (see the header).
+   */
+  async function previewOf(request: FastifyRequest, slug: string): Promise<(PreviewForm & { connectionId: string }) | null> {
+    if (request.user === null || request.user === undefined || request.session === null || request.session === undefined) return null;
+    const found = await catalog.draft(slug);
+    if (found === null || !(await request.can(`table:${found.connectionId}:${found.formsTable}:read`))) return null;
+    const drawn = previewForm(found.definition, found.settings);
+    if (drawn === null) return null;
+    previewing.add(request);
+    return { ...drawn, connectionId: found.connectionId };
+  }
+
   return async (app) => {
     async function xRoot(): Promise<string | null> {
       const spa = (app as unknown as { spaRoot: string | null }).spaRoot;
@@ -198,7 +236,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
 
     // Last word on the headers of everything this plugin answers.
     app.addHook('onSend', async (request, reply, payload) => {
-      const framers = framedPage(request) ? await deps.websites() : [];
+      // A preview is framed by the builder on this host, and by nobody else.
+      const framers = previewing.has(request) ? ["'self'"] : framedPage(request) ? await deps.websites() : [];
       void reply.header('content-security-policy', xContentPolicy(originOf(request), framers));
       void reply.header('referrer-policy', 'no-referrer');
       void reply.header('x-content-type-options', 'nosniff');
@@ -255,12 +294,27 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     }
 
     app.get('/x/forms/:slug', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: pageQuery } }, async (request, reply) => {
+      if (request.query.preview !== undefined) return page(request, reply, request.query.preview === '1' && (await previewOf(request, request.params.slug)) !== null ? 'live' : 'unavailable');
       const found = await lookUp(request, request.params.slug, request.query.t);
       // A survey answered already is a page the script draws its card on; a link that does not work is a page that is not there.
       return page(request, reply, found.state === 'already' ? 'live' : found.state === 'dead' ? 'unavailable' : found.state);
     });
 
     app.get('/x/forms/api/:slug', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: pageQuery } }, async (request, reply) => {
+      if (request.query.preview !== undefined) {
+        const draft = request.query.preview === '1' ? await previewOf(request, request.params.slug) : null;
+        if (draft === null) return unavailable(reply);
+        const language = formLanguageFor(draft.form.definition, request.query.lang, request.headers['accept-language']);
+        return {
+          state: 'live',
+          ...(await strangerBusiness(meta)),
+          form: strangerForm(draft.form, language),
+          today: await businessToday(meta, draft.connectionId, now()),
+          // The page sends nothing, and says so; the questions the draft could not draw are named for the builder.
+          preview: true,
+          skipped: draft.skipped,
+        };
+      }
       const found = await lookUp(request, request.params.slug, request.query.t);
       if (found.state === 'unavailable') return unavailable(reply);
       const shared = await strangerBusiness(meta);
@@ -281,7 +335,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     });
 
     app.get('/x/forms/api/:slug/challenge', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: challengeQuery } }, async (request, reply) => {
-      if (!(await reachable(request))) return unavailable(reply);
+      // A preview solves no check: nothing is sent from it.
+      if (request.query.preview !== undefined || !(await reachable(request))) return unavailable(reply);
       const found = await findForm(request, request.params.slug);
       // A named survey's check only for a send that carries a token: the answer door then says whether it opens anything.
       const live = found.state === 'live' && (!isNamedSurvey(found.live.form) || request.query.t !== undefined) ? found.live : null;
@@ -297,6 +352,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
 
     // A stranger's answer: taken by the answer door, all or nothing (a named survey's token is the door's to read, after the human check).
     app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams } }, async (request, reply) => {
+      // A preview's answer is never taken: refused before the form is even looked up, and nothing is written.
+      if (asksPreview(request)) return unavailable(reply);
       const found = await findForm(request, request.params.slug);
       if (found.state === 'unavailable' || deps.answers === undefined) return unavailable(reply);
       if (found.state === 'closed') return { state: 'closed' };

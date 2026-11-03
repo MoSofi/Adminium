@@ -63,7 +63,7 @@ export interface FormsFileRoutesDeps {
 }
 
 const params = z.object({ slug: z.string().min(1).max(120) });
-const query = z.object({ q: z.string().min(1).max(40), name: z.string().max(1024).optional(), t: z.string().max(2000).optional() });
+const query = z.object({ q: z.string().min(1).max(40), name: z.string().max(1024).optional(), t: z.string().max(2000).optional(), preview: z.string().max(8).optional() });
 
 export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZod {
   const proofs = publicProofsRepo(deps.meta);
@@ -85,6 +85,8 @@ export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZo
         schema: { hide: true, params, querystring: query },
       },
       async (request, reply) => {
+        // A preview takes nothing: its page sends no file, and a request that says it is one is refused before anything is read.
+        if (request.query.preview !== undefined) return deps.unavailable(reply);
         const found = await deps.lookUp(request, request.params.slug, request.query.t);
         if (found.state !== 'live') return deps.unavailable(reply);
         const { live } = found;

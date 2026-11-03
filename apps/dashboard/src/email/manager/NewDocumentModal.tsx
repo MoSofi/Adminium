@@ -19,6 +19,7 @@ import { t } from '../../i18n/t.js';
 import { emailIcon } from '../icons.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { emailApi, type EmailDocumentDetail, type EmailDocumentKind, type EmailStarterCard } from '../api.js';
+import { newBlockId } from '../model/ops.js';
 import { emailDocumentsQuery, emailStartersQuery } from '../queries.js';
 import { accentOf, categoryLabel } from './model.js';
 
@@ -26,6 +27,8 @@ export interface NewDocumentModalProps {
   kind: EmailDocumentKind;
   onClose: () => void;
   onCreated: (detail: EmailDocumentDetail) => void;
+  /** An `https://` address the new campaign starts with, in a text block after the rest (a form's "Send by e-mail"). */
+  link?: string | undefined;
 }
 
 const TILE = 'flex min-h-[196px] flex-col overflow-hidden rounded-[14px] border text-start transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60';
@@ -74,7 +77,22 @@ function StarterTile({ starter, disabled, onPick }: { starter: EmailStarterCard;
   );
 }
 
-export function NewDocumentModal({ kind, onClose, onCreated }: NewDocumentModalProps) {
+/**
+ * A new campaign with a text block holding `link` after whatever its start
+ * gave it: saved through the editor's own document save, so the editor opens
+ * on it as on any other.
+ */
+export async function withLink(created: EmailDocumentDetail, link: string): Promise<EmailDocumentDetail> {
+  const block = { id: newBlockId(), block: 'email.text', data: { paras: [link] }, style: {} };
+  return emailApi.save(created.id, {
+    name: created.name,
+    category: created.category,
+    enabled: created.enabled,
+    document: { ...created.document, blocks: [...created.document.blocks, block] as unknown as Record<string, unknown>[] },
+  });
+}
+
+export function NewDocumentModal({ kind, link, onClose, onCreated }: NewDocumentModalProps) {
   const toasts = useAppToasts();
   const starters = useQuery(emailStartersQuery());
   // D21: a campaign may start from one of the workspace's live templates.
@@ -90,12 +108,18 @@ export function NewDocumentModal({ kind, onClose, onCreated }: NewDocumentModalP
     });
   };
   const create = useMutation({
-    mutationFn: (starter: string | null) => emailApi.create({ kind, starter }),
+    mutationFn: async (starter: string | null) => {
+      const created = await emailApi.create({ kind, starter });
+      return link === undefined ? created : withLink(created, link);
+    },
     onSuccess: (created) => onCreated(created),
     onError: fail,
   });
   const fromTemplate = useMutation({
-    mutationFn: (templateId: string) => emailApi.fromTemplate(templateId),
+    mutationFn: async (templateId: string) => {
+      const created = await emailApi.fromTemplate(templateId);
+      return link === undefined ? created : withLink(created, link);
+    },
     onSuccess: (created) => onCreated(created),
     onError: fail,
   });

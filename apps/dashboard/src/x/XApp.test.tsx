@@ -571,3 +571,55 @@ describe('the business’s initial', () => {
     expect(monogram('  ')).toBe('');
   });
 });
+
+describe('the preview of a draft', () => {
+  it('reads its address: only `preview=1` is a preview', () => {
+    expect(routeOf('/x/forms/spring-draft', '?preview=1')).toMatchObject({ kind: 'form', slug: 'spring-draft', preview: true });
+    expect(routeOf('/x/forms/spring-draft', '?preview=yes')).not.toHaveProperty('preview');
+    expect(routeOf('/x/forms/spring-draft', '')).not.toHaveProperty('preview');
+  });
+
+  it('asks for the draft with the staff member\'s own session, and a stranger\'s page with none', async () => {
+    pages['spring-draft'] = live(SHOWROOM, { preview: true, skipped: [] } as never);
+    await show('/x/forms/spring-draft?preview=1');
+    await screen.findByRole('heading', { level: 1 });
+    const fetched = vi.mocked(fetch).mock.calls;
+    expect(String(fetched[0]![0])).toContain('/x/forms/api/spring-draft?');
+    expect(new URL(String(fetched[0]![0]), 'https://forms.example').searchParams.get('preview')).toBe('1');
+    expect(fetched[0]![1]?.credentials).toBe('same-origin');
+    cleanup();
+    calls = [];
+    vi.mocked(fetch).mockClear();
+    pages['showroom-visit'] = live(SHOWROOM);
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    expect(vi.mocked(fetch).mock.calls[0]![1]?.credentials).toBe('omit');
+    expect(new URL(String(vi.mocked(fetch).mock.calls[0]![0]), 'https://forms.example').searchParams.has('preview')).toBe(false);
+  });
+
+  it('draws the whole form with Send off and says nothing is sent; Send sends nothing, and a file is never uploaded', async () => {
+    pages['spring-draft'] = live(SHOWROOM, { preview: true, skipped: [] } as never);
+    const user = userEvent.setup({ applyAccept: false });
+    await show('/x/forms/spring-draft?preview=1');
+    await screen.findByRole('heading', { level: 1 });
+    const send = screen.getByRole('button', { name: 'Send' });
+    expect(send.getAttribute('aria-disabled')).toBe('true');
+    const note = document.getElementById(send.getAttribute('aria-describedby')!)!;
+    expect(note.textContent).toBe('Nothing is sent from here.');
+    await user.type(screen.getByLabelText(/Your name/), 'Marta');
+    await user.type(screen.getByLabelText(/Work e-mail/), 'marta@meridian.example');
+    await user.click(send);
+    await user.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, fileOf('plan.pdf', 2_000));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(calls.filter((call) => call.method === 'POST' || call.url.includes('/challenge'))).toEqual([]);
+    expect(screen.queryByText('plan.pdf')).toBeNull();
+  });
+
+  it('is said in every language of the page', async () => {
+    pages['spring-draft'] = live({ ...SURVEY, languages: ['ar-EG'], defaultLanguage: 'ar-EG', title: { 'ar-EG': 'كيف كان؟' }, questions: [{ ...SURVEY.questions[0]!, label: { 'ar-EG': 'قيّم' } }], ending: { kind: 'words', words: { 'ar-EG': 'شكرًا' } } } as FormDefinition, { preview: true, skipped: [] } as never);
+    await show('/x/forms/spring-draft?preview=1', 'ar-EG');
+    expect(await screen.findByText('لا يُرسَل أي شيء من هنا.')).toBeDefined();
+  });
+});

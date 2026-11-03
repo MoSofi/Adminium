@@ -473,7 +473,10 @@
     "typedNumber": "手動輸入的數字",
     "noRows": "附加元件的資料表不存在，無可選擇。",
     "findRow": "尋找…",
-    "noRow": "沒有相符項目。"
+    "noRow": "沒有相符項目。",
+    "personRecord": "{record}本身",
+    "personLink": "{record}的{link}",
+    "noPerson": "從此記錄無法聯絡到任何人：它的表格中沒有人員，它的連結也都不指向人員表格。"
   },
   "assistant": {
     "changed": "{name} 修改了此規則。",

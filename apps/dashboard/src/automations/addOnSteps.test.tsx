@@ -185,3 +185,100 @@ describe('the step\'s fields', () => {
     expect(screen.queryByTestId('add-on-input-to')).toBeNull();
   });
 });
+
+describe('a step about a person, a survey named by its slug, and a choice with lines', () => {
+  const JOBS: SourceTable = {
+    ...ORDERS,
+    id: 'main.crm_jobs',
+    label: 'Job',
+    columns: [column('id'), { ...column('contact_id'), label: 'Main contact' }, { ...column('company_id'), label: 'Company' }, column('title')],
+    links: [
+      { column: 'contact_id', table: 'main.crm_contacts', label: 'Contacts', columns: [column('email', true)] },
+      { column: 'company_id', table: 'main.crm_companies', label: 'Companies', columns: [column('name')] },
+    ],
+  } as unknown as SourceTable;
+  const CONTACTS = { ...ORDERS, id: 'main.crm_contacts', label: 'Contact', links: [], people: true } as unknown as SourceTable;
+  const COMPANIES = { ...ORDERS, id: 'main.crm_companies', label: 'Company', links: [] } as unknown as SourceTable;
+  const SURVEY: SourceStep = {
+    addOn: 'forms',
+    addOnName: 'Forms & surveys',
+    key: 'send-survey',
+    name: words('Send a survey'),
+    does: words('Invites a person to answer one of your surveys'),
+    table: 'main.forms_invitations',
+    canCreate: true,
+    inputs: [
+      { key: 'survey', label: words('Survey'), kind: 'record', required: true, table: 'main.forms_forms', tableKey: 'id', tableLabel: 'title', by: 'slug', where: [{ column: 'state', eq: 'live' }, { column: 'kind', eq: 'survey' }], help: words('Only live surveys are listed.') },
+      { key: 'to', label: words('To'), kind: 'person', required: true },
+      { key: 'class', label: words('Kind of mail'), kind: 'choice', required: true, options: [{ value: 'marketing', label: words('Marketing mail'), help: words('Only to people who agreed.') }, { value: 'service', label: words('Service mail'), help: words('About work you did for them.') }] },
+    ],
+  };
+  const from: Sources = { connections: [{ id: 'cnx_1', name: 'Juniper', dialect: 'sqlite', timezone: 'UTC', tables: [JOBS, CONTACTS, COMPANIES], steps: [SURVEY] }], templates: [], roles: [] };
+  const survey = (inputs: Record<string, string> = {}): StepAction => ({ kind: 'add-on.step', addOn: 'forms', step: 'send-survey', addOnName: 'Forms & surveys', inputs });
+  let asked: string[] = [];
+  const settings = (current: StepAction, table: SourceTable = JOBS) => {
+    asked = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: unknown) => {
+        asked.push(String(input));
+        return Promise.resolve(new Response(JSON.stringify({ data: [{ slug: 'fit-out', title: 'How did your fit-out go?' }] }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }),
+    );
+    const onChange = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ActionSettings action={current} sources={from} table={table} connectionId="cnx_1" onChange={onChange} />
+      </QueryClientProvider>,
+    );
+    return onChange;
+  };
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('offers the people one link of the record names, and only them: never the record itself or a company', async () => {
+    const onChange = settings(survey());
+    const to = screen.getByTestId('add-on-input-to') as HTMLSelectElement;
+    expect([...to.options].map((option) => [option.value, option.textContent])).toEqual([
+      ['', 'Choose…'],
+      ['@link:contact_id', "The Job's Main contact"],
+    ]);
+    await userEvent.setup().selectOptions(to, '@link:contact_id');
+    expect(onChange).toHaveBeenLastCalledWith({ inputs: { to: '@link:contact_id' } });
+  });
+
+  it('offers what the server says names a person, a column that copies a link among them', () => {
+    const copied = { ...JOBS, columns: [...JOBS.columns, { ...column('deal_contact'), label: 'Deal contact' }], personLinks: [{ column: 'contact_id', table: 'main.crm_contacts' }, { column: 'deal_contact', table: 'main.crm_contacts' }] } as unknown as SourceTable;
+    settings(survey(), copied);
+    expect([...(screen.getByTestId('add-on-input-to') as HTMLSelectElement).options].map((option) => option.textContent)).toEqual(['Choose…', "The Job's Main contact", "The Job's Deal contact"]);
+  });
+
+  it('offers the record itself on a table of people, and says when nobody is reached', () => {
+    settings(survey(), CONTACTS);
+    expect([...(screen.getByTestId('add-on-input-to') as HTMLSelectElement).options].map((option) => option.value)).toEqual(['', '@record']);
+    cleanup();
+    settings(survey(), COMPANIES);
+    expect(screen.getByTestId('add-on-input-to-none').textContent).toContain('Nobody is reached from this record');
+  });
+
+  it('draws a choice with lines as cards, one radio each, and keeps what is picked', async () => {
+    const onChange = settings(survey({ class: 'marketing' }));
+    const group = screen.getByRole('radiogroup', { name: 'Kind of mail' });
+    const cards = within(group).getAllByRole('radio');
+    expect(cards.map((card) => card.textContent)).toEqual(['Marketing mailOnly to people who agreed.', 'Service mailAbout work you did for them.']);
+    expect(cards[0]!.getAttribute('aria-checked')).toBe('true');
+    await userEvent.setup().click(cards[1]!);
+    expect(onChange).toHaveBeenLastCalledWith({ inputs: { class: 'service' } });
+  });
+
+  it('lists only the rows the add-on lets it pick, by the column it names them by, with its line under the field', async () => {
+    settings(survey());
+    expect(screen.getByTestId('add-on-input-survey-help').textContent).toBe('Only live surveys are listed.');
+    await vi.waitFor(() => expect(asked).toHaveLength(1));
+    const url = new URL(asked[0]!, 'http://test');
+    expect(url.pathname).toBe('/api/v1/data/cnx_1/main.forms_forms');
+    expect(url.searchParams.get('select')).toBe('slug,title');
+    expect(JSON.parse(url.searchParams.get('where')!)).toEqual({ and: [{ column: 'state', op: 'eq', value: 'live' }, { column: 'kind', op: 'eq', value: 'survey' }] });
+  });
+});

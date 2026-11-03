@@ -93,6 +93,11 @@ function stubFetch(templates: EmailDocumentSummary[] = []) {
         const input = body as { kind: EmailDocumentKind; starter: string | null };
         return Promise.resolve(jsonResponse(201, detail({ id: 'et_new', kind: input.kind, starter: input.starter })));
       }
+      const saved = /^\/api\/v1\/email-templates\/([^/]+)$/.exec(url);
+      if (saved !== null && method === 'PUT') {
+        const put = body as { document: EmailDocumentDetail['document'] };
+        return Promise.resolve(jsonResponse(200, { ...detail({ id: saved[1]!, kind: 'campaign' }), document: put.document }));
+      }
       const from = /^\/api\/v1\/email-templates\/([^/]+)\/from-template$/.exec(url);
       if (from !== null && method === 'POST') {
         return Promise.resolve(jsonResponse(201, detail({ id: 'ec_new', kind: 'campaign', key: 'welcome-2' })));
@@ -103,14 +108,14 @@ function stubFetch(templates: EmailDocumentSummary[] = []) {
   return calls;
 }
 
-function renderModal(kind: EmailDocumentKind, templates: EmailDocumentSummary[] = []) {
+function renderModal(kind: EmailDocumentKind, templates: EmailDocumentSummary[] = [], link?: string) {
   const calls = stubFetch(templates);
   const onCreated = vi.fn();
   const onClose = vi.fn();
   render(
     <QueryClientProvider client={createQueryClient()}>
       <AppToastProvider>
-        <NewDocumentModal kind={kind} onClose={onClose} onCreated={onCreated} />
+        <NewDocumentModal kind={kind} link={link} onClose={onClose} onCreated={onCreated} />
       </AppToastProvider>
     </QueryClientProvider>,
   );
@@ -188,5 +193,35 @@ describe('NewDocumentModal', () => {
       expect(onCreated).toHaveBeenCalledTimes(2);
     });
     expect((onCreated.mock.calls[1]?.[0] as EmailDocumentDetail).kind).toBe('campaign');
+  });
+
+  it('a campaign started with a link holds it in a text block after what its start gave, saved as the editor saves', async () => {
+    const link = 'https://forms.meridian.example/x/forms/showroom-visit';
+    const { calls, onCreated, user } = renderModal('campaign', [summary()], link);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByText('Blank email'));
+    await waitFor(() => {
+      expect(onCreated).toHaveBeenCalledTimes(1);
+    });
+    const put = calls.find((c) => c.method === 'PUT');
+    expect(put?.url).toBe('/api/v1/email-templates/et_new');
+    const blocks = (put?.body as { document: { blocks: { block: string; data: unknown }[] } }).document.blocks;
+    expect(blocks.map((block) => [block.block, block.data])).toEqual([['email.text', { paras: [link] }]]);
+    expect((onCreated.mock.calls[0]?.[0] as EmailDocumentDetail).document.blocks).toHaveLength(1);
+    // From a template too.
+    await user.click(await within(dialog).findByTestId('email-from-template'));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/v1/email-templates/et_new', '/api/v1/email-templates/ec_new']);
+    });
+  });
+
+  it('a campaign started with no link is saved once, as it always was', async () => {
+    const { calls, onCreated, user } = renderModal('campaign', []);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByText('Blank email'));
+    await waitFor(() => {
+      expect(onCreated).toHaveBeenCalledTimes(1);
+    });
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
   });
 });

@@ -43,7 +43,9 @@ const DESCRIPTIONS = {
   about: 'Build version, edition, and the update check',
   forms:
     'Whether mail a stranger causes through a form (a sign-up’s confirmation, staff notices by ' +
-    'e-mail) goes now, and why not: no public address, or no mail server, for anybody signed in; and the ' +
+    'e-mail) goes now, and why not: no public address, or no mail server, for anybody signed in; what a ' +
+    'forms builder shows (that answer, whether strangers can reach the pages, the privacy notice, the public ' +
+    'address, the listed websites and the roles by name), for staff who read a forms add-on’s forms; and the ' +
     'files strangers sent with a form answer, downloaded by staff who read that add-on’s answers',
   documents:
     'Documents drawn from your own records — the register of what was issued, the bytes ' +

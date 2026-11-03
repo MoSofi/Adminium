@@ -483,7 +483,10 @@ export default {
     "typedNumber": "Zadané číslo",
     "noRows": "Tabulka doplňku tu není, není z čeho vybírat.",
     "findRow": "Najít…",
-    "noRow": "Nic neodpovídá."
+    "noRow": "Nic neodpovídá.",
+    "personRecord": "Samotný záznam {record}",
+    "personLink": "{link} záznamu {record}",
+    "noPerson": "Z tohoto záznamu se nedostanete k nikomu: jeho tabulka neobsahuje osoby a žádný z jeho odkazů nevede do tabulky osob."
   },
   "assistant": {
     "changed": "{name} změnil toto pravidlo.",

@@ -5,6 +5,7 @@
  *
  * WHAT IS ASKED.
  *   GET  /x/forms/api/<slug>?lang=…[&frame=1][&t=…]   the form, in one of its languages, and who the business is;
+ *                                               `&preview=1`: its draft, for staff (with their session; sends nothing)
  *                                               a named survey only with its invitation's token (`t`, which each
  *                                               call below carries too), answered `already` or `dead` otherwise
  *   GET  /x/forms/api/<slug>/challenge          the human check, solved when Send is pressed
@@ -84,14 +85,19 @@ export class XApiError extends Error {
 
 const base = (slug: string): string => `/x/forms/api/${encodeURIComponent(slug)}`;
 
-/** The form as a stranger is shown it; a page that is not there is an answer too (404). */
-export async function fetchForm(slug: string, opts: { lang: string | null; frame: boolean; token: string | null }): Promise<XPage> {
+/**
+ * The form as a stranger is shown it; a page that is not there is an answer
+ * too (404). A preview is the builder's look at the draft: the one read that
+ * carries the staff member's own session, on this host.
+ */
+export async function fetchForm(slug: string, opts: { lang: string | null; frame: boolean; token: string | null; preview?: boolean | undefined }): Promise<XPage> {
   const query = new URLSearchParams();
   if (opts.lang !== null) query.set('lang', opts.lang);
   if (opts.frame) query.set('frame', '1');
   if (opts.token !== null) query.set('t', opts.token);
+  if (opts.preview === true) query.set('preview', '1');
   const search = query.toString();
-  const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: 'omit', headers: HEADERS });
+  const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: opts.preview === true ? 'same-origin' : 'omit', headers: HEADERS });
   if (!response.ok && response.status !== 404) throw new XApiError(response.status);
   return (await response.json()) as XPage;
 }

@@ -473,7 +473,10 @@
     "typedNumber": "Eine eingegebene Zahl",
     "noRows": "Die Tabelle des Add-ons ist nicht vorhanden, es gibt nichts auszuwählen.",
     "findRow": "Suchen…",
-    "noRow": "Keine Treffer."
+    "noRow": "Keine Treffer.",
+    "personRecord": "{record} selbst",
+    "personLink": "{link} von {record}",
+    "noPerson": "Von diesem Datensatz aus wird niemand erreicht: Seine Tabelle enthält keine Personen, und keine seiner Verknüpfungen führt zu einer Tabelle mit Personen."
   },
   "assistant": {
     "changed": "{name} hat diese Regel geändert.",

@@ -473,7 +473,10 @@
     "typedNumber": "Un nombre saisi",
     "noRows": "La table du module n’est pas là : rien à choisir.",
     "findRow": "Rechercher…",
-    "noRow": "Aucun résultat."
+    "noRow": "Aucun résultat.",
+    "personRecord": "{record} lui-même",
+    "personLink": "{link} de {record}",
+    "noPerson": "Personne n’est joignable depuis cet enregistrement : sa table ne contient pas de personnes, et aucun de ses liens ne mène à une table de personnes."
   },
   "assistant": {
     "changed": "{name} a modifié cette règle.",

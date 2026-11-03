@@ -526,7 +526,12 @@ describe('a forms add-on', () => {
         label: 'Enquiries',
         via: 'forms',
         app: 'Sales CRM',
-        columns: [{ name: 'name', label: 'Name', kind: 'text', required: true, link: false }],
+        columns: [
+          { name: 'name', label: 'Name', kind: 'text', required: true, link: false, maxLength: 80 },
+          { name: 'brochure', label: 'Brochure', kind: 'enum', required: false, link: false, values: ['yes', 'no'] },
+        ],
+        page: 'enquiries',
+        sourceColumn: 'from_form',
       },
     ],
   };
@@ -546,7 +551,19 @@ describe('a forms add-on', () => {
     serve(undefined, FORMS_KIT);
     const tables = await use(() => useFormTables());
     await waitFor(() => expect(tables.result.current.tables).toHaveLength(1));
-    expect(tables.result.current.tables[0]).toEqual({ id: 'public.crm_enquiries', tableRef: 'crm:enquiries', label: 'Enquiries', app: 'Sales CRM', columns: [{ name: 'name', label: 'Name', kind: 'text', required: true, link: false }] });
+    // An enum's values, a text's longest, the page a row it became opens on, and the column a form's "Source" goes into, as the kit gave them.
+    expect(tables.result.current.tables[0]).toEqual({
+      id: 'public.crm_enquiries',
+      tableRef: 'crm:enquiries',
+      label: 'Enquiries',
+      app: 'Sales CRM',
+      columns: [
+        { name: 'name', label: 'Name', kind: 'text', required: true, link: false, maxLength: 80 },
+        { name: 'brochure', label: 'Brochure', kind: 'enum', required: false, link: false, values: ['yes', 'no'] },
+      ],
+      page: 'enquiries',
+      sourceColumn: 'from_form',
+    });
     const access = await use(() => useAccess());
     expect(access.result.current.canRead('crm:enquiries')).toBe(false);
     expect(access.result.current.canRead('shop:dishes')).toBe(true);

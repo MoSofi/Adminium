@@ -483,7 +483,10 @@ export default {
     "typedNumber": "手动输入的数字",
     "noRows": "附加组件的表不存在，无可选择。",
     "findRow": "查找…",
-    "noRow": "没有匹配项。"
+    "noRow": "没有匹配项。",
+    "personRecord": "{record}本身",
+    "personLink": "{record}的{link}",
+    "noPerson": "从此记录无法联系到任何人：它的表中没有人员，它的链接也都不指向人员表。"
   },
   "assistant": {
     "changed": "{name} 修改了此规则。",

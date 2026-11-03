@@ -22,6 +22,7 @@ export default {
   "send": "Send",
   "sendAnswers": "Send svar",
   "sending": "Sender…",
+  "preview": "Intet sendes herfra.",
   "keeps": "{business} gemmer det, du sender, for at kunne svare dig.",
   "summary": "Tjek svarene, der er markeret nedenfor.",
   "proofFailed": "Tjekket af, at du er et menneske, gik ikke igennem. Prøv igen.",

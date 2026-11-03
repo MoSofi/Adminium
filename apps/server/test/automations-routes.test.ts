@@ -549,7 +549,8 @@ describe('42 — the automations routes', () => {
       expect(steps[0]!['inputs']).toEqual([
         { key: 'to', label: words('Send to'), kind: 'email', required: true },
         { key: 'name', label: words('Name'), kind: 'text', required: false },
-        { key: 'like', label: words('Like'), kind: 'record', required: false, table: 'main.users', tableKey: 'id' },
+        // A record input's rows are listed by the table's own label column.
+        { key: 'like', label: words('Like'), kind: 'record', required: false, table: 'main.users', tableKey: 'id', tableLabel: expect.any(String) },
       ]);
       // The editor reads users and may not add one: the step is shown as not theirs to use.
       const asEditor = (await get('/automations/sources', asUser(t.users.editor))).json().connections[0].steps as Record<string, unknown>[];

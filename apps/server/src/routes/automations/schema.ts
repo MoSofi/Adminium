@@ -171,6 +171,10 @@ const sourceTableSchema = z.object({
   ),
   /** The record page a notification would link to, when one exists. */
   pageSlug: z.string().nullable(),
+  /** An app declares the table as people: a step's person may be its rows, or the rows a link of another table names. */
+  people: z.literal(true).optional(),
+  /** The columns that name a row of a table of people, one hop (a link, or a column that copies one): what a step's person may be. */
+  personLinks: z.array(z.object({ column: z.string(), table: z.string() })).optional(),
 });
 
 /** A text in each of the product's languages, as an add-on's manifest carries it; the screen picks its own. */
@@ -191,13 +195,22 @@ const sourceStepSchema = z.object({
     z.object({
       key: z.string(),
       label: everyLanguage,
-      kind: z.enum(['text', 'email', 'number', 'choice', 'record']),
+      kind: z.enum(['text', 'email', 'number', 'choice', 'record', 'person']),
       required: z.boolean(),
-      options: z.array(z.object({ value: z.string(), label: everyLanguage })).optional(),
+      /** One line under the field, from the add-on. */
+      help: everyLanguage.optional(),
+      /** For `choice`: what may be chosen, each with a line under it when the add-on gives one (drawn as cards). */
+      options: z.array(z.object({ value: z.string(), label: everyLanguage, help: everyLanguage.optional() })).optional(),
       /** For `record`: the table a row is picked from; null while it is not there. */
       table: z.string().nullable().optional(),
       /** For `record`: that table's key column, which is what the step is given. */
       tableKey: z.string().nullable().optional(),
+      /** For `record`: the column its rows are shown by in the picker; null when it has none. */
+      tableLabel: z.string().nullable().optional(),
+      /** For `record`: the unique column the rule names the row by, in place of its key (a survey's slug). */
+      by: z.string().optional(),
+      /** For `record`: what a row must hold to be listed and picked (only live surveys). */
+      where: z.array(z.object({ column: z.string(), eq: z.union([z.string(), z.number(), z.boolean()]) })).optional(),
     }),
   ),
 });

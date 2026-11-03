@@ -67,7 +67,7 @@ export const FORMS_KEY = 'forms';
  * claims, sessions, children, files and the entry's own confirmation mail is
  * left out: forms send their own.
  */
-export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writableValues', 'defaults', 'requires', 'agrees', 'anonymous', 'requireSetting', 'module'] as const;
+export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writableValues', 'defaults', 'requires', 'agrees', 'anonymous', 'requireSetting', 'module', 'source'] as const;
 
 /** The longest a plain-text value may be unless its column says longer: a name. */
 export const PLAIN_TEXT_MAX = 80;
@@ -671,6 +671,13 @@ export const publicAccessSchema = z
       .optional(),
     /** Which browser key serves the entry: `customer`, or one of `publicKeys`. */
     key: keyNameSchema.optional(),
+    /**
+     * A forms entry only: the one `writable` text column a form's fixed
+     * "Source" value goes into (an enquiry's "From form": the form's name, or
+     * what the owner words it). The builder shows that row on this column;
+     * the answer door writes it as the form's settings say, like any other.
+     */
+    source: refSchema.optional(),
     /** The part of the app the entry belongs to: closed while it is off (see `modules.ts`). */
     module: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a module id is kebab-case').optional(),
     /**
@@ -922,7 +929,7 @@ function readByAnyone(entry: PublicAccess): boolean {
  * fill named; one per table; and no entry on any key lets anyone read the
  * rows strangers add through it.
  */
-function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly PublicAccess[], appKey: string | undefined): ReferenceIssue[] {
+function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly PublicAccess[], appKey: string | undefined, index: TableIndex): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const at = (...rest: (string | number)[]) => ['publicAccess', i, ...rest];
   // Each answer keeps the row it became by its table's stored name: it must fit an answers table, whole.
@@ -937,6 +944,16 @@ function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly Publ
   if (entry.methods.length !== 1 || entry.methods[0] !== 'POST') out.push({ path: at('methods'), message: 'a forms entry adds a row and does nothing else: its methods are ["POST"]' });
   if (entry.anonymous === undefined) out.push({ path: at('anonymous'), message: 'a form is sent by strangers: a forms entry says its anonymous limits' });
   if ((entry.writable ?? []).length === 0) out.push({ path: at('writable'), message: 'a forms entry names the columns a form may fill (writable)' });
+  if (entry.source !== undefined) {
+    const named = index.column(entry.table, entry.source);
+    if (!(entry.writable ?? []).includes(entry.source)) {
+      out.push({ path: at('source'), message: `a form's source goes into one of the columns a form may fill: put "${entry.source}" in writable` });
+    } else if (named !== undefined && (named.type === 'fk' || named.references !== undefined)) {
+      out.push({ path: at('source'), message: `"${entry.source}" links to another row: a form's source is words, so it goes into a text column` });
+    } else if (named !== undefined && named.type !== 'text') {
+      out.push({ path: at('source'), message: `"${entry.source}" holds ${named.type}: a form's source is words, so it goes into a text column` });
+    }
+  }
   if (entries.findIndex((other) => other.key === FORMS_KEY && other.table === entry.table) !== i) {
     out.push({ path: at('table'), message: `"${entry.table}" is opened to forms by another entry already: one forms entry per table` });
   }
@@ -1076,7 +1093,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (key !== CUSTOMER_KEY && key !== FORMS_KEY && ctx.publicKeys?.[key] === undefined) {
       out.push({ path: at('key'), message: `"${key}" is not one of the app's publicKeys` });
     }
-    if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries, ctx.appKey));
+    if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries, ctx.appKey, index));
+    else if (entry.source !== undefined) out.push({ path: at('source'), message: 'a source is said only on a forms entry (key "forms"): the column a form\'s fixed "Source" value goes into' });
 
     for (const list of ['select', 'writable'] as const) {
       for (const ref of entry[list] ?? []) {

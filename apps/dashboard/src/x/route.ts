@@ -3,11 +3,12 @@
  * Which page this is, from its address: a form (`/x/forms/<slug>`), drawn
  * for a website's frame with `?frame=1`; anything else is "not available".
  *
- * Of the query, only `frame`, `lang`, a survey's `t` and the form's own
- * hidden values are ever read; the rest is ignored.
+ * Of the query, only `frame`, `lang`, a survey's `t`, `preview` (the
+ * builder's look at a draft, which sends nothing) and the form's own hidden
+ * values are ever read; the rest is ignored.
  */
 export type XRoute =
-  | { kind: 'form'; slug: string; frame: boolean; lang: string | null; token: string | null; query: URLSearchParams }
+  | { kind: 'form'; slug: string; frame: boolean; lang: string | null; token: string | null; query: URLSearchParams; preview?: true }
   | { kind: 'none'; frame: boolean; lang: string | null };
 
 export function routeOf(path: string, search: string): XRoute {
@@ -22,5 +23,5 @@ export function routeOf(path: string, search: string): XRoute {
     slug = undefined;
   }
   if (slug === undefined || slug === 'api') return { kind: 'none', frame, lang };
-  return { kind: 'form', slug, frame, lang, token: query.get('t'), query };
+  return { kind: 'form', slug, frame, lang, token: query.get('t'), query, ...(query.get('preview') === '1' ? { preview: true as const } : {}) };
 }

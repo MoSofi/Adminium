@@ -250,6 +250,10 @@ export interface FormTableColumn {
   required: boolean;
   /** A link to another row: filled only from a named survey's invitation, never from a question. */
   link: boolean;
+  /** An enum's values, in order: what a choice question's ids must be to fill it (from Adminium 0.3.41). */
+  values?: readonly string[];
+  /** The longest text the column holds (from Adminium 0.3.41). */
+  maxLength?: number;
 }
 
 /** A table an app opens to forms (its `publicAccess` entry under the key `forms`): what a form's answer may become a row of. */
@@ -262,6 +266,10 @@ export interface FormTable {
   app: string;
   /** The columns an answer may fill. */
   columns: readonly FormTableColumn[];
+  /** The slug of a generated page of the table the reader may open: a row it became is at `/p/<page>/r/<key>` (from Adminium 0.3.41). */
+  page?: string;
+  /** The column a form's fixed "Source" value goes into, as the app names it (from Adminium 0.3.41). */
+  sourceColumn?: string;
 }
 
 export interface UseFormTablesResult {
