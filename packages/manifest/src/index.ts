@@ -172,9 +172,13 @@ export {
   type People,
   type PeopleCarry,
   type PeopleCopy,
+  type PeopleAddOnCopy,
+  isAddOnCopy,
+  LINK_PATH,
   type PeopleEntry,
   type PublicConsent,
 } from './people.js';
+export { EXPIRE_DAYS_MAX, EXPIRE_DAYS_MIN, expireIssues, expireSchema, type Expire } from './expire.js';
 export {
   MODULE_DEFAULTS,
   modulesSchema,

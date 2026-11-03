@@ -196,6 +196,11 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'step.recordWhere',
   'step.help',
   'step.recordTokens',
+  // An add-on's entry held to the rows of the app whose key serves it; a copy of a person on an add-on's table; an add-on's
+  // own rows let go some days after a moment of theirs.
+  'publicAccess.appColumn',
+  'people.addOnCopies',
+  'table.expire',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -379,6 +384,12 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'step.help': '0.3.41',
   // The rule record's stored table name and its key, as an add-on's record tab and a survey's invitation keep them.
   'step.recordTokens': '0.3.41',
+  // An add-on's entry on each app's key held to that app's rows, a person's copy kept on an add-on's table, and an add-on's
+  // rows that expire. The release that reads them is the one that holds an add-on's foreign keys to its own tables
+  // (`HOST_REFERENCES_FLOOR` in `schema.ts`, moved with it at the release).
+  'publicAccess.appColumn': '0.3.43',
+  'people.addOnCopies': '0.3.43',
+  'table.expire': '0.3.43',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -450,6 +461,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (document['navLinks'] !== undefined) out.push({ word: 'navLinks', path: 'navLinks' });
     // The app's people tables.
     if (document['people'] !== undefined) out.push({ word: 'people', path: 'people' });
+    list(document['people']).forEach((entry, e) => {
+      list(isDoc(entry) ? entry['copies'] : undefined).forEach((copy, c) => {
+        if (isDoc(copy) && copy['addOn'] !== undefined) out.push({ word: 'people.addOnCopies', path: `people.${String(e)}.copies.${String(c)}.addOn` });
+      });
+    });
   }
 
   list(schema['tables']).forEach((table, t) => {
@@ -475,6 +491,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
     if (table['removal'] !== undefined) out.push({ word: 'table.removal', path: `${at}.removal` });
     if (table['keep'] !== undefined) out.push({ word: 'table.keep', path: `${at}.keep` });
+    if (table['expire'] !== undefined) out.push({ word: 'table.expire', path: `${at}.expire` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     list(isDoc(table['states']) ? table['states']['actions'] : undefined).forEach((action, a) => {
       if (isDoc(action) && action['handOver'] !== undefined) out.push({ word: 'states.handOver', path: `${at}.states.actions.${String(a)}.handOver` });
@@ -711,6 +728,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['consent'] !== undefined) out.push({ word: 'publicAccess.consent', path: `publicAccess.${String(e)}.consent` });
     if (isDoc(entry) && entry['key'] === 'forms') out.push({ word: 'publicAccess.forms', path: `publicAccess.${String(e)}.key` });
     if (isDoc(entry) && entry['source'] !== undefined) out.push({ word: 'publicAccess.forms.source', path: `publicAccess.${String(e)}.source` });
+    if (isDoc(entry) && entry['appColumn'] !== undefined) out.push({ word: 'publicAccess.appColumn', path: `publicAccess.${String(e)}.appColumn` });
   });
   return out;
 }

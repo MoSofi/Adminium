@@ -33,7 +33,12 @@
  *  - `copies`: columns on OTHER tables that hold this person's address, name or phone
  *    (a quote's recipient, a signer), each with the link back to the person
  *    when there is one. Found and exported with the person, and blanked when
- *    they are erased (but not on a table the law keeps);
+ *    they are erased (but not on a table the law keeps). A copy may sit on a
+ *    table of an add-on the app requires (`addOn`): its `via` is then the
+ *    app's own link into that table (`order_lines.design_id`), on a table of
+ *    the app that reaches the person (the people table itself, one of the
+ *    entry's copy tables, or a table linking to one of those): the rows the
+ *    person's own rows name through it are theirs;
  *  - `customer`: a yes/no or number column that says the person is a customer
  *    (a count of won deals), for "existing customers";
  *  - `optOutMark`: the moment the app's own screen showed the person the line
@@ -131,16 +136,37 @@ const carrySchema = z.union([
 ]);
 export type PeopleCarry = z.infer<typeof carrySchema>;
 
+/** An app's link column, as `table.column`. */
+export const LINK_PATH = /^([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)$/;
+
+/**
+ * A copy of a person on another table. On a table of the app's own, `via`
+ * is a link column of that table back to the person, when it has one. On a
+ * table of an add-on the app requires (`addOn`), `via` is the app's own link
+ * into that table, as `table.column`, and is always said.
+ */
 const copySchema = z
   .object({
+    /** The add-on whose table holds the copy; absent, the table is the app's. */
+    addOn: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'an add-on key').optional(),
     table: refSchema,
     column: refSchema,
     holds: z.enum(COPY_HOLDS),
-    /** A link column of the copy's table back to the person, when it has one. */
-    via: refSchema.optional(),
+    via: z.string().min(1).max(129).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((copy, ctx) => {
+    if (copy.addOn === undefined) {
+      if (copy.via !== undefined && !refSchema.safeParse(copy.via).success) ctx.addIssue({ code: 'custom', path: ['via'], message: 'a link column of the copy\'s table, back to the person' });
+    } else if (copy.via === undefined || !LINK_PATH.test(copy.via)) {
+      ctx.addIssue({ code: 'custom', path: ['via'], message: 'a copy on an add-on\'s table is reached through the app\'s link into it, as "table.column" (order_lines.design_id)' });
+    }
+  });
 export type PeopleCopy = z.infer<typeof copySchema>;
+export type PeopleAddOnCopy = PeopleCopy & { addOn: string; via: string };
+
+/** Whether a copy sits on a table of an add-on. */
+export const isAddOnCopy = (copy: PeopleCopy): copy is PeopleAddOnCopy => copy.addOn !== undefined;
 
 export const peopleEntrySchema = z
   .object({
@@ -178,7 +204,7 @@ interface PeopleColumn {
   ref: string;
   type: string;
   references?: string | undefined;
-  rules?: { stamp?: { strict?: true | undefined } | undefined } | undefined;
+  rules?: { stamp?: { strict?: true | undefined } | undefined; addOnLink?: { addOn: string; table: string } | undefined } | undefined;
 }
 
 const NUMBERS = ['int', 'bigint', 'decimal', 'money', 'float'];
@@ -193,7 +219,8 @@ export function peopleIssues<C extends PeopleColumn>(
     people?: People | undefined;
     outbox?: { recipient: { table: string; email: string } } | undefined;
     publicAccess?: readonly { table: string; claim?: unknown }[] | undefined;
-    requiredSchema: { tables: readonly { ref: string; keyField?: string | undefined }[] };
+    requiredSchema: { tables: readonly { ref: string; keyField?: string | undefined; columns?: readonly C[] }[] };
+    addOns?: { requires?: readonly { key: string }[] | undefined } | undefined;
   },
   index: TableIndex<C>,
 ): ReferenceIssue[] {
@@ -275,8 +302,39 @@ export function peopleIssues<C extends PeopleColumn>(
     });
 
     const seen = new Set<string>();
+    /** The tables of the app that reach the person: their own, and each copy table of the entry's own. */
+    const reaching = new Set([entry.table, ...(entry.copies ?? []).filter((copy) => !isAddOnCopy(copy)).map((copy) => copy.table)]);
     (entry.copies ?? []).forEach((copy, c) => {
       const here = (...rest: (string | number)[]) => at('copies', c, ...rest);
+      if (isAddOnCopy(copy)) {
+        const id = `${copy.addOn}:${copy.table}.${copy.column}`;
+        if (seen.has(id)) out.push({ path: here('column'), message: `"${copy.table}.${copy.column}" of "${copy.addOn}" is listed twice` });
+        seen.add(id);
+        if (!(m.addOns?.requires ?? []).some((required) => required.key === copy.addOn)) {
+          out.push({ path: here('addOn'), message: `a copy on "${copy.addOn}"'s table is kept only of an add-on the app requires (addOns.requires)` });
+        }
+        // What the add-on's table holds is the add-on's to declare: only the app's side of the link is checked here.
+        const path = LINK_PATH.exec(copy.via);
+        // A path that is no `table.column` is the schema's to refuse.
+        if (path === null) return;
+        const [, lineTable, linkColumn] = path;
+        if (index.table(lineTable!) === undefined) {
+          out.push({ path: here('via'), message: `"${lineTable!}" is not a table of this app` });
+          return;
+        }
+        const link = index.column(lineTable!, linkColumn!);
+        const bound = link?.rules?.addOnLink;
+        if (link === undefined) out.push({ path: here('via'), message: `"${lineTable!}" has no column "${linkColumn!}"` });
+        else if (bound === undefined || bound.addOn !== copy.addOn || bound.table !== copy.table) {
+          out.push({ path: here('via'), message: `"${copy.via}" is not a link into "${copy.addOn}"'s table "${copy.table}" (rules.addOnLink)` });
+        }
+        // The line reaches the person as the app's own copies do: it is one of their tables, or links to one.
+        const lineColumns = m.requiredSchema.tables.find((table) => table.ref === lineTable)?.columns ?? [];
+        if (!reaching.has(lineTable!) && !lineColumns.some((column) => column.type === 'fk' && column.references !== undefined && reaching.has(column.references))) {
+          out.push({ path: here('via'), message: `"${lineTable!}" does not reach the person: it is not "${entry.table}" or one of this entry's copy tables, and links to none of them` });
+        }
+        return;
+      }
       if (copy.table === entry.table) {
         out.push({ path: here('table'), message: `a copy is kept on another table: "${entry.table}.${copy.column}" is the person's own column` });
         return;

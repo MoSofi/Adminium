@@ -60,6 +60,7 @@ import { stepsIssues, type StepTableShape } from './steps.js';
 import { WORD_FLOORS, installFloorWords } from './words.js';
 import { mailClassFloorIssues } from './mail-class.js';
 import { keepSchema, peopleIssues, peopleSchema, publicConsentIssues } from './people.js';
+import { expireIssues, expireSchema } from './expire.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
@@ -1174,6 +1175,8 @@ export const requiredTableSchema = z
     removal: removalSchema.optional(),
     /** The law makes the business keep its rows (`{law: 'tax'}`): an erasure leaves them, and says why (see `people.ts`). */
     keep: keepSchema.optional(),
+    /** An add-on's own rows let go some days after a moment of theirs, unless a column holds a value (see `expire.ts`). */
+    expire: expireSchema.optional(),
   })
   .strict()
   .refine(
@@ -1203,6 +1206,7 @@ export const requiredTableSchema = z
   .superRefine((t, ctx) => {
     for (const issue of uniqueSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of indexSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of expireIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
   });
 
 /**
@@ -3682,6 +3686,22 @@ export const ADD_ON_INSTALL_FLOOR = '0.3.18';
  */
 export const HOST_REFERENCES_FLOOR = '0.3.43';
 
+/**
+ * The words only an add-on says of its own tables: rows that expire, and an
+ * entry held to the app whose key serves it. An app's rows are its owner's to
+ * keep, and its entries serve its own key only.
+ */
+function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined }[] | undefined }): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  m.requiredSchema.tables.forEach((table, t) => {
+    if (table.expire !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'expire'], message: "only an add-on's own table expires: an app's rows are its owner's to keep" });
+  });
+  (m.publicAccess ?? []).forEach((entry, e) => {
+    if (entry.appColumn !== undefined) out.push({ path: ['publicAccess', e, 'appColumn'], message: "an app's entry serves its own key and its own rows: appColumn is said by an add-on's entry" });
+  });
+  return out;
+}
+
 /** A foreign key of an add-on at or above {@link HOST_REFERENCES_FLOOR} that names a table the add-on does not declare. */
 function hostReferenceIssues(m: { compatibility: { minAdminiumVersion: string }; requiredSchema?: { tables: readonly { ref: string; columns: readonly { ref: string; type: string; references?: string | undefined }[] }[] } | undefined }): { path: (string | number)[]; message: string }[] {
   if (compareSemver(m.compatibility.minAdminiumVersion, HOST_REFERENCES_FLOOR) < 0) return [];
@@ -3774,6 +3794,7 @@ export const appManifestSchema = z
     for (const issue of mailClassFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of peopleIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of publicConsentIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of addOnOnlyWordIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of appReferenceIssues(m)) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }

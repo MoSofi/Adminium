@@ -553,6 +553,14 @@ export const publicAccessSchema = z
      * unticked writes nothing: it takes back no earlier yes.
      */
     consent: publicConsentSchema.optional(),
+    /**
+     * On an add-on's entry, which rides the key of every app it is attached
+     * to: a text column of the table that holds the key of the app a row is
+     * for (`app`). Through an app's key the entry reads only the rows whose
+     * column holds that app's key, a create writes that key there (the
+     * browser cannot choose it), and a change never moves it.
+     */
+    appColumn: refSchema.optional(),
     /** On a signed-in person's rows: "Make a new link" for a row's own link. */
     newLink: newLinkSchema.optional(),
     /**
@@ -967,11 +975,36 @@ function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly Publ
   return out;
 }
 
+/**
+ * An entry held to the app whose key serves it (`appColumn`): a text column
+ * of its table, never one a browser writes or a value the entry sets, and
+ * only on an entry that rides each app's own key (no key of the add-on's,
+ * no sign-in of its own).
+ */
+function appColumnIssues(entries: readonly PublicAccess[], index: TableIndex): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  entries.forEach((entry, i) => {
+    const column = entry.appColumn;
+    if (column === undefined) return;
+    const at = ['publicAccess', i, 'appColumn'];
+    const found = index.column(entry.table, column);
+    if (found === undefined) out.push({ path: at, message: `"${entry.table}" has no column "${column}"` });
+    else if (found.type !== 'text') out.push({ path: at, message: `"${entry.table}.${column}" is not a text column, so it cannot hold an app's key` });
+    if ((entry.writable ?? []).includes(column) || Object.prototype.hasOwnProperty.call(entry.defaults ?? {}, column)) {
+      out.push({ path: at, message: `"${column}" holds the app whose key serves the entry: Adminium writes it, so it is neither writable nor a default` });
+    }
+    if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at, message: `an entry on "${String(entry.key)}" is served by no app's key, so it has no app to be held to` });
+    if (entry.claim !== undefined || entry.identity !== undefined) out.push({ path: at, message: 'a sign-in entry is the key\'s own, and is held to no app' });
+  });
+  return out;
+}
+
 /** Everything in `publicAccess` and `publicKeys` that names something undeclared, or breaks a rule. */
 export function publicAccessIssues(entries: readonly PublicAccess[], ctx: PublicAccessContext): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const { index } = ctx;
   const has = index.has;
+  out.push(...appColumnIssues(entries, index));
 
   for (const [name, key] of Object.entries(ctx.publicKeys ?? {})) {
     const at = ['publicKeys', name];
