@@ -129,6 +129,12 @@ describe("an add-on's entry held to the app whose key serves it (appColumn)", ()
     expect(WORD_FLOORS['publicAccess.appColumn']).toBe(HOST_REFERENCES_FLOOR);
     const old = { ...heldKit(), compatibility: { minAdminiumVersion: '0.3.40' } };
     expect(issues(old).map((issue) => issue.path)).toEqual(expect.arrayContaining(['publicAccess.0.appColumn']));
+    const app = shop(COPY, {
+      requiredSchema: { prefixed: true, tables: [{ ref: 'bases', columns: [pk, { ref: 'app', type: 'text', maxLength: 32, nullable: true }] }] },
+      people: undefined,
+      publicAccess: [{ table: 'bases', methods: ['GET'], select: ['id'], appColumn: 'app' }],
+    });
+    expect(appIssues(app)).toContainEqual({ path: 'publicAccess.0.appColumn', message: "an app's entry serves its own key and its own rows: appColumn is said by an add-on's entry" });
   });
 });
 

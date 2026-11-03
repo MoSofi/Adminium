@@ -20,7 +20,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { publicEndpointsRepo } from '@adminium/meta';
 import { validateManifest } from '@adminium/manifest';
 
-import { deriveScopeDocument, endpointMap } from '../src/public-api/derive.js';
+import { deriveScopeDocument, endpointMap, keyApp } from '../src/public-api/derive.js';
 import { solveProof } from '../src/public-api/proof.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { BASES_REF, DESIGN_KIT, DESIGNS_REF, READY_REF, designKitManifest, designShopManifest } from './fixtures/design-kit/index.js';
@@ -160,6 +160,11 @@ describe.each(LEGS)('a shopper\'s design on two shops sharing one add-on — %s'
     const none = deriveScopeDocument({ kind: 'browser', access }, map, null);
     expect(none.document.resources).toEqual([]);
     expect(none.suspended).toEqual([{ endpointId: loose.id, ref: DESIGNS_REF, methods: ['POST', 'PATCH'] }]);
+    // Whose a key is: an app's own customer key only; the add-on's link key, an app's other key and the owner's are no app's.
+    expect(keyApp({ managedBy: 'printing', purpose: 'customer' })).toBe('printing');
+    expect(keyApp({ managedBy: DESIGN_KIT, purpose: 'design-links' })).toBeNull();
+    expect(keyApp({ managedBy: 'printing', purpose: 'kiosk' })).toBeNull();
+    expect(keyApp({ managedBy: null, purpose: 'customer' })).toBeNull();
   });
 
   it.skipIf(!available)('a shop that lets a line write its design link outright is refused before it installs', () => {
