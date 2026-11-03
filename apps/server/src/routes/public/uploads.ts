@@ -114,11 +114,15 @@ export function uploadTargetOf(found: Found, path: string): { table: ResolvedTab
   }
 }
 
-/** Whether a guest is excused the proof: signed in to the entry (its claim, or a parent it is reached through), or a key no visitor holds. */
+/**
+ * Whether a guest is excused the proof: signed in to the entry (the person's
+ * own row, the entry's claim, or a parent it is reached through), or a key no
+ * visitor holds.
+ */
 function proofExcused(key: ResolvedKey, resource: CompiledResource, session: PublicSessionContext | null): boolean {
   if (!hasVisitorReach(key.kind) || key.requiresStaff !== null) return true;
   if (session === null) return false;
-  return (resource.claim?.ref !== undefined && session.grant.ref === resource.claim.ref) || parentOf(resource) !== null;
+  return session.grant.ref === resource.ref || (resource.claim?.ref !== undefined && session.grant.ref === resource.claim.ref) || parentOf(resource) !== null;
 }
 
 export async function registerUploads(app: FastifyInstance, deps: UploadRouteDeps): Promise<void> {

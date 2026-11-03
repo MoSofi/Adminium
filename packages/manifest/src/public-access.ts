@@ -1189,8 +1189,9 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     for (const ref of writable) {
       if (decided.has(ref)) out.push({ path: at('writable'), message: `"${ref}" is decided by Adminium and cannot be written publicly` });
     }
-    // A file column names a file a signed-in staff member uploaded: a browser's key uploads nothing, so it names none.
-    for (const [list, refs] of [['writable', [...writable]], ['defaults', Object.keys(entry.defaults ?? {})]] as const) {
+    // A file column names a file a signed-in staff member uploaded: a browser's key uploads nothing, so it names none —
+    // but a guest's own upload, in a column the entry lets them upload into (`uploads`).
+    for (const [list, refs] of [['writable', [...writable].filter((ref) => !(entry.uploads ?? []).includes(ref))], ['defaults', Object.keys(entry.defaults ?? {})]] as const) {
       for (const ref of refs) {
         const found = ctx.index.column(entry.table, ref) as { rules?: { file?: unknown } } | undefined;
         if (found?.rules?.file !== undefined) out.push({ path: at(list), message: `"${entry.table}.${ref}" holds files a signed-in person uploads, so a public write never sets it` });
