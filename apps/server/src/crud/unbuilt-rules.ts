@@ -324,6 +324,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.check',
   'addOn.checker',
   'addOn.panels',
+  // A shopper's draft changed through its own link while it is in a state; a design read by its code by whoever the app
+  // signed in; a person's details kept as JSON, found, exported and erased with them.
+  'publicAccess.ownLink',
+  'publicAccess.sessionRead',
+  'people.copyDetails',
 ];
 
 export interface UnbuiltWord {

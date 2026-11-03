@@ -466,8 +466,8 @@ const resourceSchema = z
       })
       .strict()
       .optional(),
-    /** The new row's own link, answered once by its create. */
-    shareLink: z.object({ column: columnSchema, key: z.string().min(1).max(64) }).strict().optional(),
+    /** The new row's own link, answered once by its create: opened through the key of `key` (an add-on's own when `addOn` names it). */
+    shareLink: z.object({ column: columnSchema, key: z.string().min(1).max(64), addOn: z.string().min(1).max(80).optional() }).strict().optional(),
     /** Read only by the holder of a live session. */
     sessionOnly: z.literal(true).optional(),
     /** On the identity: what "delete my details" empties, and the time it stamps. */
@@ -742,7 +742,7 @@ export interface CompiledResource {
   expect?: string | null | undefined;
   clientKey?: string | null | undefined;
   findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>>; on?: { column: string; to: string } | undefined } | null | undefined;
-  shareLink?: { column: string; key: string } | null | undefined;
+  shareLink?: { column: string; key: string; addOn?: string | undefined } | null | undefined;
   sessionOnly?: boolean | undefined;
   forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
   /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */

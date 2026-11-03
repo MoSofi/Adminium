@@ -273,7 +273,7 @@ export const addOnPublicPlan = z.object({
   endpoints: z.array(z.unknown()),
   /** By app: the entries its key would gain (`adds`) and the ones it holds already (`held`). */
   byApp: z.record(z.string(), z.object({ adds: z.array(z.string()), held: z.array(z.string()) })),
-  /** The add-on's one key of its own: a link that opens one row and only reads. */
+  /** The add-on's one key of its own: a link that opens one row, and changes it only as the row's own link. */
   linkKey: z.string().optional(),
   /** Whether the person asking may allow it (`system:apikeys:manage`). */
   canGrant: z.boolean(),

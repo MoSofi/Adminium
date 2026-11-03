@@ -368,7 +368,10 @@ function definitionOf(
             ...(entry.identity.on === undefined || declared?.states === undefined ? {} : { on: { column: declared.states.column, to: entry.identity.on.to } }),
           },
         }),
-    ...(entry.shareLink === undefined ? {} : { share_link: { column: entry.shareLink, key: person?.shareKey ?? 'customer' } }),
+    // An add-on's own link is opened through its link key, not the app's: the endpoint says whose.
+    ...(entry.shareLink === undefined
+      ? {}
+      : { share_link: { column: entry.shareLink, key: person?.shareKey ?? 'customer', ...(manifest.kind === 'add-on' && person?.shareKey !== undefined && person.shareKey !== CUSTOMER_KEY_PURPOSE ? { add_on: manifest.key } : {}) } }),
     ...(sessionOnly(entry) ? { session_only: true } : {}),
     ...(entry.forget === undefined
       ? {}
