@@ -120,6 +120,14 @@ export interface WriteContext {
    */
   minted?: ReadonlySet<string> | undefined;
   /**
+   * The guests' uploads this very public write holds for its rows, by the
+   * file each became, with the table (by id) and the column it was uploaded
+   * for (`public-uploads/columns.ts`). A public write may name these, there
+   * and nowhere else. Set by the public routes from the holds they made;
+   * never from anything a writer sent.
+   */
+  held?: ReadonlyMap<string, { table: string; column: string }> | undefined;
+  /**
    * A signed-in staff member's save from a screen that showed the line "you
    * can say no to our mail" where it took the address (`routes/data`, from
    * the save's `optOut`): `shown`, and the mark of the row the person is made

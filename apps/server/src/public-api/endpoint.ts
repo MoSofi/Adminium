@@ -220,6 +220,8 @@ const childShape = {
   agrees: z.array(endpointAgreeSchema).min(1).max(8).optional(),
   counts: z.array(endpointCountsSchema).min(1).max(2).optional(),
   plain_text: plainTextListSchema(columnSchema).optional(),
+  /** File columns of the child a guest may upload into (`POST /public/uploads`). */
+  uploads: z.array(columnSchema).min(1).max(8).optional(),
   /** The most `column` may add up to across one write: a number, or a column of a one-row table (its real id). */
   sum_max: z
     .object({ column: columnSchema, max: z.union([z.number().int().min(1), z.object({ table: z.string().min(1).max(256), column: columnSchema }).strict()]) })
@@ -333,6 +335,8 @@ export const publicEndpointDefinitionSchema = z
     requires_when: requiresWhenSchema(columnSchema).optional(),
     /** File columns a signed-in person may download, through the row that names the file. */
     files: z.array(columnSchema).min(1).max(8).optional(),
+    /** File columns a guest may upload into (`POST /public/uploads`): writable, each with an upload rule of its own. */
+    uploads: z.array(columnSchema).min(1).max(8).optional(),
     /**
      * The state a row must be in for an update to touch it — part of the
      * UPDATE, never of a read: a finished visit still lists, and cannot be
@@ -596,6 +600,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.requires !== undefined) out['requires'] = [...def.requires];
   if (def.requires_when !== undefined) out['requires_when'] = structuredClone(def.requires_when);
   if (def.files !== undefined) out['files'] = [...def.files];
+  if (def.uploads !== undefined) out['uploads'] = [...def.uploads];
   if (def.writable_when !== undefined) out['writable_when'] = { ...def.writable_when };
   if (def.level !== undefined) out['level'] = def.level;
   if (def.human_check !== undefined) out['human_check'] = def.human_check;
@@ -705,11 +710,24 @@ function orderedChildren(children: Readonly<Record<string, z.infer<typeof grandc
             })),
           }),
       ...(c.plain_text === undefined ? {} : { plain_text: copyPlainText(c.plain_text) }),
+      ...(c.uploads === undefined ? {} : { uploads: [...c.uploads] }),
       ...(c.sum_max === undefined ? {} : { sum_max: { column: c.sum_max.column, max: typeof c.sum_max.max === 'number' ? c.sum_max.max : { ...c.sum_max.max } } }),
       ...(c.children === undefined ? {} : { children: orderedChildren(c.children) }),
     };
   }
   return out;
+}
+
+/**
+ * The file columns a guest may upload into, at one level: each a column the
+ * write may write, holding files, whose rule says what a guest may send.
+ */
+function uploadIssues(table: ResolvedTable, uploads: readonly string[], writable: readonly string[], source: string, push: (code: string, message: string, column?: string) => void): void {
+  for (const column of uploads) {
+    const found = table.columns.get(column);
+    if (found?.file?.upload === undefined) push('ENDPOINT_UPLOADS', `"${column}" of ${source} is no file column a guest may upload into (rules.file.upload)`, column);
+    if (!writable.includes(column)) push('ENDPOINT_UPLOADS', `"${column}" of ${source} is filled by naming the upload, so it is writable`, column);
+  }
 }
 
 /** The canonical stored and displayed text of a definition. */
@@ -965,6 +983,7 @@ export function definitionToResource(
   if (writes && def.requires !== undefined) resource.requires = [...def.requires];
   if (writes && def.requires_when !== undefined) resource.requiresWhen = structuredClone(def.requires_when);
   if (def.files !== undefined) resource.files = [...def.files];
+  if (writes && def.uploads !== undefined) resource.uploads = [...def.uploads];
   if (def.writable_when !== undefined) resource.writableWhen = { ...def.writable_when };
   if (def.level !== undefined) resource.level = def.level;
   if (def.human_check !== undefined) resource.humanCheck = true;
@@ -1058,6 +1077,7 @@ function childResources(children: Readonly<Record<string, EndpointChild>>): Reco
       ...(c.agrees === undefined ? {} : { agrees: c.agrees.map((agree) => structuredClone(agree)) }),
       ...(c.counts === undefined ? {} : { counts: c.counts.map((counts) => structuredClone(counts)) }),
       ...(c.plain_text === undefined ? {} : { plainText: copyPlainText(c.plain_text) }),
+      ...(c.uploads === undefined ? {} : { uploads: [...c.uploads] }),
       ...(c.sum_max === undefined ? {} : { sumMax: structuredClone(c.sum_max) }),
       ...(c.children === undefined ? {} : { children: childResources(c.children) }),
     };
@@ -1406,6 +1426,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   }
   if (def.unlock_by !== undefined) issues.push(...unlockIssues(def, table, view as SnapshotView, ctx.shareCodes).map((issue) => ({ ...issue, ref })));
   if (def.pictures !== undefined) issues.push(...pictureIssues(def, table).map((issue) => ({ ...issue, ref })));
+  if (def.uploads !== undefined) {
+    if (!methods.has('POST') && !methods.has('PATCH')) push('ENDPOINT_UPLOADS', "a guest's upload is named by a create or a change, and this endpoint makes neither", 'uploads');
+    uploadIssues(table, def.uploads, def.writable ?? [], def.source, push);
+  }
   if (def.app_column !== undefined) {
     const column = table.columns.get(def.app_column);
     if (column === undefined) push('ENDPOINT_APP_COLUMN', `"${def.app_column}" is not a column of ${def.source}`, 'app_column');
@@ -1724,6 +1748,7 @@ function treeAndPersonIssues(
           push('ENDPOINT_CHILD_COUNTS', `${name} counts its rows by foreign keys to a group with whole-number min and max columns`);
         }
       }
+      if (child.uploads !== undefined) uploadIssues(own, child.uploads, child.writable, `${child.source} (${name})`, push);
       if (child.children !== undefined) walk(child.children, own, level + 1);
     }
   };

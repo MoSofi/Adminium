@@ -296,7 +296,19 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   // A list of files is told by how many it holds: on SQLite a json column is TEXT, so the column's type cannot say it.
   // When, and by whom, the column may change: the columns its guards name keep their names, so nothing is made real.
   if (rules.changes !== undefined) out.push({ op: 'column.changes', value: { guards: rules.changes.map((guard) => structuredClone(guard)) } });
-  if (rules.file !== undefined) out.push({ op: 'column.file', value: { accept: [...rules.file.accept], maxBytes: rules.file.maxBytes, ...(rules.file.maxCount === undefined ? {} : { maxCount: rules.file.maxCount }) } });
+  if (rules.file !== undefined) {
+    const upload = rules.file.upload;
+    out.push({
+      op: 'column.file',
+      value: {
+        accept: [...rules.file.accept],
+        maxBytes: rules.file.maxBytes,
+        ...(rules.file.maxCount === undefined ? {} : { maxCount: rules.file.maxCount }),
+        // What a guest may upload into it through a public entry.
+        ...(upload === undefined ? {} : { upload: { kinds: [...upload.kinds], maxBytes: upload.maxBytes, ...(upload.maxCount === undefined ? {} : { maxCount: upload.maxCount }) } }),
+      },
+    });
+  }
   if (rules.history === 'audit') out.push({ op: 'column.history', value: { history: 'audit' } });
   return out;
 }

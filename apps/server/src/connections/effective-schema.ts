@@ -701,6 +701,12 @@ export interface EffectiveFileRule {
   maxBytes: number;
   /** Present: the column holds a list of up to this many. Absent: one file. */
   maxCount?: number;
+  /**
+   * What a guest may upload into the column through a public entry that lists
+   * it: the upload words (`jpg`, `pdf`, `tiff`…), the most bytes of one, and
+   * how many one write may name (absent: one).
+   */
+  upload?: { kinds: string[]; maxBytes: number; maxCount?: number };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -1676,8 +1682,16 @@ export function applyOverrides(
       }
       case 'column.file': {
         const column = columnOf(table, row.columnName);
-        const rule = value as { accept: string[]; maxBytes: number; maxCount?: number };
-        if (column !== undefined) column.file = { accept: [...rule.accept], maxBytes: rule.maxBytes, ...(rule.maxCount === undefined ? {} : { maxCount: rule.maxCount }) };
+        const rule = value as { accept: string[]; maxBytes: number; maxCount?: number; upload?: { kinds: string[]; maxBytes: number; maxCount?: number } };
+        const upload = rule.upload;
+        if (column !== undefined) {
+          column.file = {
+            accept: [...rule.accept],
+            maxBytes: rule.maxBytes,
+            ...(rule.maxCount === undefined ? {} : { maxCount: rule.maxCount }),
+            ...(upload === undefined ? {} : { upload: { kinds: [...upload.kinds], maxBytes: upload.maxBytes, ...(upload.maxCount === undefined ? {} : { maxCount: upload.maxCount }) } }),
+          };
+        }
         break;
       }
       case 'column.changes': {

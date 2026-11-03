@@ -348,7 +348,7 @@ function treeLoosened(before: PublicScopeResource, after: PublicScopeResource): 
       const prior = was?.[name];
       if (prior === undefined) return true;
       const more = (a: readonly string[] | undefined, b: readonly string[] | undefined) => (b ?? []).some((c) => !(a ?? []).includes(c));
-      return more(prior.writable, child.writable) || more(prior.select, child.select) || child.max > prior.max || grew(prior.children, child.children);
+      return more(prior.writable, child.writable) || more(prior.select, child.select) || more(prior.uploads, child.uploads) || child.max > prior.max || grew(prior.children, child.children);
     });
   if (grew(before.children, after.children)) return true;
   if (before.sessionOnly === true && after.sessionOnly !== true) return true;
@@ -375,11 +375,13 @@ export function wideningOf(before: unknown, after: PublicScopeDocument): Widenin
     const parentChanged = prior?.visibleWith !== undefined && JSON.stringify(prior.visibleWith) !== JSON.stringify(r.visibleWith);
     // A code's unlock dropped or changed lets rows out that a code kept; a picture newly shown lets its file out.
     const unlockChanged = prior !== undefined && (JSON.stringify(prior.unlockBy) !== JSON.stringify(r.unlockBy) || (r.pictures ?? []).some((c) => !(prior.pictures ?? []).includes(c)));
+    // A column a guest may now upload into takes files from strangers it did not take before.
+    const uploadsGrew = prior !== undefined && (r.uploads ?? []).some((c) => !(prior.uploads ?? []).includes(c));
     // An entry newly answered by an add-on's stock words (or by other words) tells what it did not tell before.
     const wordsChanged = prior !== undefined && r.words !== undefined && JSON.stringify(prior.words) !== JSON.stringify(r.words);
     const rows =
       prior !== undefined &&
-      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged || unlockChanged || wordsChanged || treeLoosened(prior, r));
+      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged || unlockChanged || uploadsGrew || wordsChanged || treeLoosened(prior, r));
     if (methods.length > 0 || columns.length > 0 || rows) out.push({ ref: r.ref, methods, columns, rows });
   }
   return out;

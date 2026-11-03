@@ -324,6 +324,12 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.check',
   'addOn.checker',
   'addOn.panels',
+  // A guest's file uploaded into an app's file column (routes/public/uploads.ts), held and adopted by the write that
+  // names it (public-uploads/columns.ts); TIFF kept and handed back as a download; file columns up to 100 MiB.
+  'publicAccess.uploads',
+  'file.upload',
+  'file.tiff',
+  'file.large',
 ];
 
 export interface UnbuiltWord {

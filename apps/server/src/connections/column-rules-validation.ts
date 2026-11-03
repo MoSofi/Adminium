@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, FILE_COLUMN_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
+import { dayColumns, FILE_COLUMN_KINDS, FILE_UPLOAD_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { storedAdjust, storedCheck, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
@@ -615,6 +615,18 @@ export function columnRuleIssue(
       if (!list && !TEXTUAL_TYPES.has(column.logicalType)) return `A file is kept in text; ${name} is ${column.logicalType}.`;
       const accept = value['accept'];
       if (!Array.isArray(accept) || accept.some((kind) => !(FILE_COLUMN_KINDS as readonly unknown[]).includes(kind))) return `Say which kinds of file ${name} takes, from: ${FILE_COLUMN_KINDS.join(', ')}.`;
+      // What a guest may upload: kinds of the guest list the column takes, no larger, no more than it holds.
+      const upload = value['upload'] as { kinds?: unknown; maxBytes?: unknown; maxCount?: unknown } | undefined;
+      if (upload !== undefined) {
+        const words = Object.keys(FILE_UPLOAD_KINDS) as (keyof typeof FILE_UPLOAD_KINDS)[];
+        const kinds = upload.kinds;
+        if (!Array.isArray(kinds) || kinds.length === 0 || kinds.some((kind) => !(words as unknown[]).includes(kind))) return `Say which kinds of file a guest may upload into ${name}, from: ${words.join(', ')}.`;
+        const missing = (kinds as (keyof typeof FILE_UPLOAD_KINDS)[]).find((kind) => !(accept as unknown[]).includes(FILE_UPLOAD_KINDS[kind]));
+        if (missing !== undefined) return `A guest's ${missing} file is one ${name} takes: add ${FILE_UPLOAD_KINDS[missing]} to its kinds.`;
+        if (typeof upload.maxBytes === 'number' && typeof value['maxBytes'] === 'number' && upload.maxBytes > value['maxBytes']) return `A guest's file for ${name} is no larger than the column takes.`;
+        if (upload.maxCount !== undefined && !list) return `${name} holds one file, so a guest uploads one.`;
+        if (typeof upload.maxCount === 'number' && typeof value['maxCount'] === 'number' && upload.maxCount > value['maxCount']) return `A guest uploads no more files into ${name} than it holds.`;
+      }
       return null;
     }
 

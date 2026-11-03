@@ -297,6 +297,8 @@ const scopeChildShape = {
   agrees: z.array(scopeAgreeSchema).min(1).max(8).optional(),
   counts: z.array(scopeCountsSchema).min(1).max(2).optional(),
   plainText: plainTextListSchema(columnSchema).optional(),
+  /** File columns of the child a guest may upload into (`POST /public/uploads`). */
+  uploads: z.array(columnSchema).min(1).max(8).optional(),
   sumMax: z
     .object({ column: columnSchema, max: z.union([z.number().int().min(1), z.object({ table: z.string().min(1).max(256), column: columnSchema }).strict()]) })
     .strict()
@@ -395,6 +397,12 @@ const resourceSchema = z
      * names, read through this resource's whole scope (`GET /public/files`).
      */
     files: z.array(columnSchema).min(1).max(8).optional(),
+    /**
+     * File columns a guest may upload into (`POST /public/uploads`): the
+     * upload is named by the guest's next create or change here, and becomes
+     * the row's own file. Writable columns only.
+     */
+    uploads: z.array(columnSchema).min(1).max(8).optional(),
     /**
      * The state a row must be IN for an update to touch it — ANDed into the
      * UPDATE, never into a read. `from-now`: a time still ahead; `{within}`:
@@ -684,6 +692,8 @@ export interface CompiledResource {
   requiresWhen?: Readonly<Record<string, Readonly<Record<string, readonly (string | number | boolean)[]>>>>;
   /** File columns a signed-in person may download (absent: none). */
   files?: readonly string[];
+  /** File columns a guest may upload into, named by a write here (absent: none). */
+  uploads?: readonly string[];
   /** The state a row must be in for an update to touch it. */
   writableWhen: Readonly<Record<string, WritableState>>;
   /** The session level this resource needs. */
@@ -1007,13 +1017,17 @@ export function compileScope(
      * column the resource shows, on a resource a claim or a parent opens.
      */
     for (const c of r.files ?? []) {
-      // A caller who wrote the column would choose which file the next download serves.
-      if (r.writable.includes(c)) {
+      // A caller who wrote the column would choose which file the next download serves — unless all they may name there is their own upload.
+      if (r.writable.includes(c) && !(r.uploads ?? []).includes(c)) {
         issues.push({ code: 'SCOPE_FILES_WRITABLE', message: `"${c}" is offered for download, so a caller never writes it`, ref: r.ref, column: c });
       }
       if (!r.expose.includes(c)) {
         issues.push({ code: 'SCOPE_FILES_NOT_EXPOSED', message: `"${c}" offers its file for download, so it is one of the columns shown`, ref: r.ref, column: c });
       }
+    }
+    // A guest's upload is named by a write: a column the write may write.
+    for (const c of r.uploads ?? []) {
+      if (!r.writable.includes(c)) issues.push({ code: 'SCOPE_UPLOADS_NOT_WRITABLE', message: `"${c}" is filled by naming an upload, so it is writable`, ref: r.ref, column: c });
     }
     if ((r.files ?? []).length > 0 && ((r.claim === undefined && r.visibleWith === undefined) || r.claim?.optional === true)) {
       issues.push({ code: 'SCOPE_FILES_UNCLAIMED', message: `ref "${r.ref}" offers files, which are a signed-in person's own: it needs a claim or a parent`, ref: r.ref });
@@ -1517,6 +1531,7 @@ export function compileScope(
       requires: [...(r.requires ?? [])],
       ...(r.requiresWhen === undefined ? {} : { requiresWhen: structuredClone(r.requiresWhen) }),
       files: [...(r.files ?? [])],
+      uploads: [...(r.uploads ?? [])],
       writableWhen: { ...(r.writableWhen ?? {}) },
       level: r.level ?? 'lookup',
       onClaim: r.onClaim === undefined ? null : { clear: [...r.onClaim.clear] },

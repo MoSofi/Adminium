@@ -163,6 +163,7 @@ function childDefinitions(children: Readonly<Record<string, ChildEntry>>, idOf: 
       ...(child.agrees === undefined ? {} : { agrees: structuredClone(child.agrees) }),
       ...(child.counts === undefined ? {} : { counts: structuredClone(child.counts) }),
       ...(child.plainText === undefined ? {} : { plain_text: copyPlainText(child.plainText) }),
+      ...(child.uploads === undefined ? {} : { uploads: [...child.uploads] }),
       ...(child.sumMax === undefined
         ? {}
         : { sum_max: { column: child.sumMax.column, max: typeof child.sumMax.max === 'number' ? child.sumMax.max : { table: idOf(child.sumMax.max.table), column: child.sumMax.max.column } } }),
@@ -243,6 +244,7 @@ function definitionOf(
     ...(entry.requires === undefined ? {} : { requires: [...entry.requires] }),
     ...(entry.requiresWhen === undefined ? {} : { requires_when: structuredClone(entry.requiresWhen) }),
     ...(entry.files === undefined ? {} : { files: [...entry.files] }),
+    ...(entry.uploads === undefined ? {} : { uploads: [...entry.uploads] }),
     ...(nested.writableWhen === undefined ? {} : { writable_when: structuredClone(nested.writableWhen) }),
     ...(entry.defaults === undefined ? {} : { defaults: { ...entry.defaults } }),
     ...(entry.claim === undefined
