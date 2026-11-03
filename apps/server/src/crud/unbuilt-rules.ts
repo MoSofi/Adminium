@@ -308,6 +308,12 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'step.recordWhere',
   'step.help',
   'step.recordTokens',
+  // An add-on's entry held to the app whose key serves it: the key's scope is derived with the app's filter and value
+  // (public-api/derive.ts); a person's copy on an add-on's table, found, exported and blanked with them (privacy/copy-rows.ts);
+  // an add-on's rows let go when they expire (add-ons/expire.ts, run daily by the job runner).
+  'publicAccess.appColumn',
+  'people.addOnCopies',
+  'table.expire',
 ];
 
 export interface UnbuiltWord {

@@ -51,6 +51,39 @@ export type AccessMap = Readonly<Record<string, readonly PublicMethod[]>>;
 export interface DeriveKey {
   kind: PublicKeyKind;
   access: AccessMap;
+  /**
+   * The app whose own customer key this is (its manifest key), or none: a
+   * key the owner made, an add-on's own link key, an app's other keys. An
+   * add-on's endpoint held to an app (`app_column`) is served only through
+   * such a key, held to that app's rows.
+   */
+  app?: string | null | undefined;
+}
+
+/** The app a key is the customer key of: what an add-on's endpoint held to an app is held to. */
+export function keyApp(key: { managedBy?: string | null | undefined; purpose?: string | null | undefined }): string | null {
+  return key.managedBy !== null && key.managedBy !== undefined && key.purpose === CUSTOMER_KEY_PURPOSE ? key.managedBy : null;
+}
+
+/** The purpose of the browser key every app's install makes for its public side. */
+const CUSTOMER_KEY_PURPOSE = 'customer';
+
+/**
+ * An add-on's resource held to the app whose key serves it: the app's rows
+ * only (a condition ANDed into every read and change), its key written on a
+ * create whatever the browser sends, and the column never written by one.
+ */
+function heldToApp(resource: PublicScopeResource, column: string, app: string): PublicScopeResource {
+  const { [column]: _values, ...writableValues } = resource.writableValues ?? {};
+  const { [column]: _when, ...writableWhen } = resource.writableWhen ?? {};
+  return {
+    ...resource,
+    where: [...resource.where, { column, op: 'eq', value: app }],
+    writable: resource.writable.filter((name) => name !== column),
+    defaults: { ...resource.defaults, [column]: app },
+    ...(resource.writableValues === undefined ? {} : { writableValues }),
+    ...(resource.writableWhen === undefined ? {} : { writableWhen }),
+  };
 }
 
 export interface DeriveEndpoint {
@@ -147,11 +180,18 @@ export function deriveScopeDocument(
       // carries a staff resource, even in a document stored while broken.
       continue;
     }
+    // Held to an app, and served through a key no app made: there is no app to hold it to, so nothing of it is served.
+    const appColumn = endpoint.definition.app_column;
+    if (appColumn !== undefined && (key.app ?? null) === null) {
+      suspended.push({ endpointId, ref: endpoint.ref, methods: effective });
+      continue;
+    }
     if (endpoint.definition.identity !== undefined) {
       identities.push({ ref: endpoint.ref, definition: endpoint.definition, methods: effective });
     }
     const table = view === null ? null : sourceTable(view, endpoint.definition.source);
-    resources.push(definitionToResource(endpoint.ref, endpoint.definition, effective, table));
+    const resource = definitionToResource(endpoint.ref, endpoint.definition, effective, table);
+    resources.push(appColumn === undefined ? resource : heldToApp(resource, appColumn, key.app!));
     served.set(endpoint.ref, { endpointId, methods: effective });
   }
 

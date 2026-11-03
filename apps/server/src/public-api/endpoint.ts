@@ -441,6 +441,14 @@ export const publicEndpointDefinitionSchema = z
       .optional(),
     /** Image columns any visitor may see, through the rows this endpoint reads. */
     pictures: z.array(columnSchema).min(1).max(4).optional(),
+    /**
+     * An add-on's endpoint on every attached app's key: the text column that
+     * holds the key of the app a row is for. Each key's scope is derived held
+     * to its own app (`derive.ts`): reads see that app's rows, a create
+     * writes its key there, a change never moves it. A key no app made is
+     * served nothing of it.
+     */
+    app_column: columnSchema.optional(),
     /* ── a create with its child rows ─────────────────────────────────────── */
     /** The rows a create carries, by the name the wire uses (see `endpointChildSchema`). */
     children: childMap(endpointChildSchema).optional(),
@@ -617,6 +625,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
     };
   }
   if (def.pictures !== undefined) out['pictures'] = [...def.pictures];
+  if (def.app_column !== undefined) out['app_column'] = def.app_column;
   if (def.children !== undefined) out['children'] = orderedChildren(def.children);
   if (def.agrees !== undefined) out['agrees'] = def.agrees.map(orderedAgree);
   if (def.dry_run !== undefined) out['dry_run'] = def.dry_run;
@@ -1397,6 +1406,15 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   }
   if (def.unlock_by !== undefined) issues.push(...unlockIssues(def, table, view as SnapshotView, ctx.shareCodes).map((issue) => ({ ...issue, ref })));
   if (def.pictures !== undefined) issues.push(...pictureIssues(def, table).map((issue) => ({ ...issue, ref })));
+  if (def.app_column !== undefined) {
+    const column = table.columns.get(def.app_column);
+    if (column === undefined) push('ENDPOINT_APP_COLUMN', `"${def.app_column}" is not a column of ${def.source}`, 'app_column');
+    else if (column.logicalType !== 'text' && column.logicalType !== 'varchar') push('ENDPOINT_APP_COLUMN', `${def.source}.${def.app_column} is not a text column, so it cannot hold an app's key`, 'app_column');
+    // Adminium writes it from the key: a browser never does, and nothing else sets it.
+    if ((def.writable ?? []).includes(def.app_column) || Object.prototype.hasOwnProperty.call(def.defaults ?? {}, def.app_column)) {
+      push('ENDPOINT_APP_COLUMN', `${def.app_column} holds the app whose key serves the endpoint: Adminium writes it`, 'app_column');
+    }
+  }
 
   /*
    * A shared link's code — this endpoint's, or another's on the same table,

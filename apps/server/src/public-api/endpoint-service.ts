@@ -56,6 +56,7 @@ import {
   documentMentions,
   endpointMap,
   introducedIssues,
+  keyApp,
   parseAccess,
   wideningOf,
   type DeriveEndpoint,
@@ -213,6 +214,8 @@ interface AffectedKey {
   appKey: string | null;
   /** The installed app that made the key: held to the safe list. */
   managedBy: string | null;
+  /** The app whose customer key it is (`keyApp`): what an add-on's endpoint held to an app is held to. */
+  app: string | null;
   access: Record<string, PublicMethod[]>;
   storedDocument: unknown;
 }
@@ -308,6 +311,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         kind: managedKeyKind(row.kind),
         appKey: row.appKey,
         managedBy: row.managedBy,
+        app: keyApp(row),
         access,
         storedDocument,
       });
@@ -438,8 +442,8 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     const writes: { key: AffectedKey; document: PublicScopeDocument }[] = [];
 
     for (const key of affected) {
-      const old = deriveScopeDocument({ kind: key.kind, access: key.access }, before, view);
-      const next = deriveScopeDocument({ kind: key.kind, access: key.access }, after, view);
+      const old = deriveScopeDocument({ kind: key.kind, access: key.access, app: key.app }, before, view);
+      const next = deriveScopeDocument({ kind: key.kind, access: key.access, app: key.app }, after, view);
       const oldIssues = [...derivedDocumentIssues(key.storedDocument, view, inherited), ...old.issues];
       const newIssues = [...derivedDocumentIssues(next.document, view, inherited), ...next.issues];
       const added = introducedIssues(oldIssues, newIssues);
@@ -695,7 +699,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         map.set(id, { id, ref: endpoint.ref, definition: endpoint.definition });
         access[id] = canonicalMethods(grant.methods);
       }
-      const derivation = deriveScopeDocument({ kind, access }, map, view);
+      const derivation = deriveScopeDocument({ kind, access, app: keyApp({ managedBy: input.managedBy, purpose: input.purpose }) }, map, view);
       issues.push(...derivation.issues);
       if (issues.length === 0) {
         issues.push(...forDerived(derivedDocumentIssues(derivation.document, view, inherited)));
@@ -825,7 +829,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       if (gained.length === 0 && lost.length === 0) return said;
 
       // A key left holding nothing is allowed: it answers nothing until a version gives it something.
-      const derivation = deriveScopeDocument({ kind, access }, map, view);
+      const derivation = deriveScopeDocument({ kind, access, app: keyApp(key) }, map, view);
       issues.push(...derivation.issues);
       // Refused only for what the change brings in: a key broken by drift elsewhere can still be narrowed.
       if (issues.length === 0) {
@@ -892,7 +896,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       }
       if (lost.length === 0) return { lost };
       // The scope follows the grants it is derived from; whatever it says of the rest, it says already.
-      const derivation = deriveScopeDocument({ kind, access }, map, await deps.viewFor(connectionId));
+      const derivation = deriveScopeDocument({ kind, access, app: keyApp(key) }, map, await deps.viewFor(connectionId));
       const committed = await meta.db.transaction().execute(async (trx) => {
         if (!(await state.advanceFrom(revision, at, trx))) return false;
         await keys.setAccess(key.id, access, at, trx);
@@ -931,7 +935,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         if (!Object.keys(before).some((id) => going.has(id))) continue;
         const access = Object.fromEntries(Object.entries(before).filter(([id]) => !going.has(id)));
         const kind: PublicKeyKind = managedKeyKind(key.kind);
-        changed.push({ id: key.id, scopeId: key.scopeId, access, document: JSON.stringify(deriveScopeDocument({ kind, access }, map, view).document) });
+        changed.push({ id: key.id, scopeId: key.scopeId, access, document: JSON.stringify(deriveScopeDocument({ kind, access, app: keyApp(key) }, map, view).document) });
       }
       if (changed.length === 0) return { keys: [] };
       const committed = await meta.db.transaction().execute(async (trx) => {

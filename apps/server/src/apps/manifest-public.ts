@@ -347,6 +347,8 @@ function definitionOf(
           },
         }),
     ...(entry.pictures === undefined ? {} : { pictures: [...entry.pictures] }),
+    // An add-on's entry held to the app whose key serves it.
+    ...(entry.appColumn === undefined ? {} : { app_column: entry.appColumn }),
     // A create with its child rows, and what it checks.
     ...(entry.children === undefined ? {} : { children: childDefinitions(entry.children, idOf) }),
     ...(entry.agrees === undefined ? {} : { agrees: structuredClone(entry.agrees) }),
