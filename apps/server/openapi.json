@@ -11763,6 +11763,7 @@
                             "enum": [
                               "posting",
                               "adjust",
+                              "link",
                               "forms"
                             ]
                           },
@@ -99104,6 +99105,43 @@
                         "additionalProperties": false
                       }
                     },
+                    "recordPanels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "titleKey": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "order": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "addOn",
+                          "id",
+                          "title",
+                          "titleKey",
+                          "column",
+                          "order"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stateActions": {
                       "type": "array",
                       "items": {
@@ -141255,6 +141293,9 @@
                               },
                               "ref": {
                                 "type": "string"
+                              },
+                              "panel": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -142021,6 +142062,9 @@
                               },
                               "ref": {
                                 "type": "string"
+                              },
+                              "panel": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -142418,6 +142462,9 @@
                                 },
                                 "ref": {
                                   "type": "string"
+                                },
+                                "panel": {
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -142804,6 +142851,9 @@
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
                               },
                               "ref": {
+                                "type": "string"
+                              },
+                              "panel": {
                                 "type": "string"
                               }
                             },
@@ -144095,6 +144145,9 @@
                               },
                               "ref": {
                                 "type": "string"
+                              },
+                              "panel": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -144311,6 +144364,66 @@
             },
             "in": "path",
             "name": "ref",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/panels/{id}/bundle": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "id",
             "required": true
           }
         ],
@@ -144591,6 +144704,9 @@
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
                               },
                               "ref": {
+                                "type": "string"
+                              },
+                              "panel": {
                                 "type": "string"
                               }
                             },
@@ -145086,6 +145202,9 @@
                               },
                               "ref": {
                                 "type": "string"
+                              },
+                              "panel": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -145464,6 +145583,9 @@
                                 "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
                               },
                               "ref": {
+                                "type": "string"
+                              },
+                              "panel": {
                                 "type": "string"
                               }
                             },
@@ -157679,6 +157801,9 @@
                         "pictures": {
                           "type": "string"
                         },
+                        "assets": {
+                          "type": "string"
+                        },
                         "refs": {
                           "type": "object",
                           "propertyNames": {
@@ -157848,6 +157973,12 @@
                                 ]
                               },
                               "pictures": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "assets": {
                                 "type": "array",
                                 "items": {
                                   "type": "string"
@@ -165129,6 +165260,181 @@
       }
     },
     "/api/v1/public/pictures/{keyId}/{ref}/{rowId}/{column}/{fileId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "keyId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ref",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "path",
+            "name": "rowId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "path",
+            "name": "column",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/assets/{keyId}/{ref}/{rowId}/{column}/{fileId}": {
       "get": {
         "parameters": [
           {
