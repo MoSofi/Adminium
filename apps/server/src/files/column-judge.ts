@@ -238,6 +238,11 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
               refuse(column.name, { code: 'file-too-large', n: rule.maxBytes });
               break;
             }
+            // An SVG the upload store cleaned as it took it: cleaned again, the same bytes.
+            if (isSvgMime(file.mime) && !(await svgCleanAsKept(file, deps.bytesOf, rule.maxBytes))) {
+              refuse(column.name, { code: 'file-not-here' });
+              break;
+            }
           }
           continue;
         }

@@ -284,11 +284,14 @@ export const FILE_COLUMN_KINDS = ['png', 'jpeg', 'webp', 'gif', 'pdf', 'office',
 /**
  * The kinds of file a guest may upload into a file column (`rules.file.upload`),
  * by the words a form's file question uses, each with the column kind
- * (`accept`) it is: pictures, PDF, plain text, and TIFF (a print shop's
- * artwork, kept and handed back as a download, never drawn on a page). The
- * column's `accept` names each kind its upload takes.
+ * (`accept`) it is: pictures, PDF, plain text, TIFF (a print shop's artwork,
+ * kept and handed back as a download, never drawn on a page) and SVG (a
+ * customer's logo, kept only as the server writes it again, and never served
+ * to anyone but staff and the guest who sent it). The column's `accept` names
+ * each kind its upload takes. Models and fonts are no guest's: customers send
+ * logos, photos and finished print files, and the shop makes its own assets.
  */
-export const FILE_UPLOAD_KINDS = { jpg: 'jpeg', png: 'png', pdf: 'pdf', text: 'text', tiff: 'tiff' } as const satisfies Readonly<Record<string, (typeof FILE_COLUMN_KINDS)[number]>>;
+export const FILE_UPLOAD_KINDS = { jpg: 'jpeg', png: 'png', pdf: 'pdf', text: 'text', tiff: 'tiff', svg: 'svg' } as const satisfies Readonly<Record<string, (typeof FILE_COLUMN_KINDS)[number]>>;
 export type FileUploadKind = keyof typeof FILE_UPLOAD_KINDS;
 
 /**
@@ -987,7 +990,7 @@ export const columnRulesSchema = z
         maxCount: z.number().int().min(1).max(FILE_COLUMN_MAX_COUNT).optional(),
         /**
          * What a GUEST may upload into the column, through a public entry that
-         * lists it in `uploads`: the kinds (pictures, PDF, plain text, TIFF;
+         * lists it in `uploads`: the kinds (pictures, PDF, plain text, TIFF, SVG;
          * each one the column's `accept` names), the most bytes of one (at most
          * the column's `maxBytes`) and, in a list, how many (at most the
          * column's `maxCount`). The file is kept unattached for a day; the

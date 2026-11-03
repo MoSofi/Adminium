@@ -27,7 +27,10 @@
  * upload store takes it (`public-uploads/store.ts`): the address's daily
  * files and bytes, the app columns' share of the space, the content sniffed
  * (a script renamed `.jpg` is no JPEG), a picture cleaned of what the camera
- * wrote. Kept unattached for a day, for the guest's next write through the
+ * wrote, an SVG written again from its own tree and refused (`kind`, saying
+ * what it holds) when it holds more than a drawing. Kept private: a guest's
+ * SVG is never shown on a page or served as a product asset, only handed back
+ * as a download. Kept unattached for a day, for the guest's next write through the
  * entry to name (`public-uploads/columns.ts`). It answers:
  *
  *   200 `{ data: { id, name, size, kind } }`   taken: `id` is what the write names
@@ -184,6 +187,11 @@ export async function registerUploads(app: FastifyInstance, deps: UploadRouteDep
           kinds: uploadKindsOf(rule.upload.kinds),
           maxBytes,
         });
+        // An SVG holding more than a drawing (a script, a link out, an editor's own parts): what it holds, and what to do.
+        if (!taken.ok && taken.svg !== undefined) {
+          const found = taken.svg.replace(/\s*Save it as a plain SVG\.$/, '');
+          return deps.fail(reply, STATUS.kind, 'PUBLIC_UPLOAD_REFUSED', `${found} Save it as a plain SVG and upload it again.`, { reason: 'kind' });
+        }
         if (!taken.ok) return refused(taken.code);
         return reply.send({ data: taken.upload });
       },

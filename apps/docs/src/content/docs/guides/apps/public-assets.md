@@ -165,3 +165,8 @@ What is stored is the cleaned copy. Cleaning it again gives the same bytes, and 
 an SVG only when that holds: an SVG uploaded through another door, never cleaned, is refused
 `file-not-here` when a record names it. The staff file routes still never show an SVG inline; it
 downloads.
+
+A customer's SVG logo uploaded through a public entry (`POST /api/v1/public/uploads`) is cleaned
+the same way as it is taken, and one that is refused is answered `PUBLIC_UPLOAD_REFUSED` with
+`reason: "kind"` and a message saying what it holds. It stays private: the customer reads it back
+only as a download, and a column customers upload into is never served as an asset.

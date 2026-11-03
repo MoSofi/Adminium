@@ -4945,7 +4945,7 @@ column lists it in `uploads`. Needs Adminium 0.3.43.
 
 | `file.upload` field | Rule |
 |---|---|
-| `kinds` | 1–5 of `jpg`, `png`, `pdf`, `text`, `tiff`, each a kind the column's `accept` names (`jpg` is `jpeg`). Judged by the file's bytes. |
+| `kinds` | 1–6 of `jpg`, `png`, `pdf`, `text`, `tiff`, `svg`, each a kind the column's `accept` names (`jpg` is `jpeg`). Judged by the file's bytes. |
 | `maxBytes` | The most bytes of one file, 1024 up to the column's `maxBytes`. |
 | `maxCount` | A `json` column only: how many files one write may name, up to the column's `maxCount` (absent: one). |
 
@@ -4973,6 +4973,12 @@ default), and from one network address a day `publicUploads.perAddressDaily` fil
 Admin is told once an hour, naming which space is full. Pages for 100 MB files need the proxy to let
 them through: see [Behind a reverse proxy](/self-hosting/reverse-proxy/#large-uploads).
 
+A guest's SVG (a customer's logo) is kept only as Adminium writes it again from its own reading of
+the file, and refused (`kind`, saying what it holds) when it is more than a drawing: see
+[Cleaned SVG](/guides/apps/public-assets/#cleaned-svg). It stays private: handed back only as a
+download, never drawn on a page, and a column guests upload into is never an entry's
+[`assets`](#assets). Models and fonts (`glb`, `stl`, `3mf`, `woff2`) are no guest's to upload.
+
 On iPhones a picture is HEIC, which is not taken: give the file input an `accept` naming
 `image/jpeg` and `image/png` (not `image/*`), and iOS converts it as it is chosen.
 
@@ -4994,6 +5000,7 @@ only reads rows, for every visitor, on the app's `customer` key. A file is serve
 `GET /api/v1/public/assets/…` only for the row it is attached to, as it was kept (each was read whole
 or cleaned as it was uploaded), and only up to its kind's size: a model 30 MiB, a font or an SVG
 2 MiB. A column listed here takes no larger file of that kind, whatever its own `maxBytes` says.
+A column a guest uploads into (an entry's `uploads`) is never one of them.
 `/public/config` gives the base as `assets`, and each entry's asset columns. Needs Adminium 0.3.43.
 See [Models, fonts and SVG pieces on public pages](/guides/apps/public-assets/).
 

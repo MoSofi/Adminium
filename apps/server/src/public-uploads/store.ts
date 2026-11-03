@@ -31,7 +31,9 @@
  *     sniffed, never the name or the type the browser claims (`kind`: a
  *     script renamed `.jpg` has no JPEG in it; a HEIC photo is no kind on the
  *     list); a picture read again without what the camera wrote beside it
- *     (`cleanPicture`: the place it was taken, the device). The file row is of
+ *     (`cleanPicture`: the place it was taken, the device); an SVG written
+ *     again from its own tree (`cleanSvg`), refused when it holds a script, a
+ *     link out or anything else but a drawing. The file row is of
  *     kind `stranger`, which no staff files route serves.
  *  4. A row in `adminium_public_uploads`: a 32-character random id (the
  *     stranger's handle), the binding with the keyed hash of the address, the
@@ -66,16 +68,21 @@ import { filesRepo, publicUploadsRepo, settingsRepo, type MetaDb, type PublicUpl
 
 import { rateAddress } from '../public-api/limiter.js';
 import { SpoolTooLargeError } from '../files/spool.js';
-import { UnsupportedFileTypeError, type FileStore } from '../files/store.js';
+import { SvgNotKeptError, UnsupportedFileTypeError, type FileStore } from '../files/store.js';
 import type { SniffTypeKey } from '../files/sniff.js';
 import type { UploadTrip, UploadTripValues } from './notices.js';
 
 /**
  * The closed list of kinds a stranger may upload, each with the sniffed type
- * it must be. Pictures (cleaned of camera data), PDF, plain text, and TIFF
- * (kept for print and handed back as a download, never drawn). A caller
- * takes a part of it. SVG and HEIC are never on it. The manifest's
- * `FILE_UPLOAD_KINDS` says the same list to an app (a test holds them alike).
+ * it must be. Pictures (cleaned of camera data), PDF, plain text, TIFF
+ * (kept for print and handed back as a download, never drawn) and SVG (a
+ * customer's logo: kept only as `files/svg.ts` writes it again, refused when
+ * it holds more than a drawing, and handed back as a download, never shown on
+ * a page or served as a product asset). A caller takes a part of it. HEIC is
+ * never on it. Nor are models and fonts (GLB, STL, 3MF, WOFF2): customers send
+ * logos, photos and finished print files; a shop's models and fonts are its
+ * own, uploaded by staff. The manifest's `FILE_UPLOAD_KINDS` says the same
+ * list to an app (a test holds them alike).
  */
 export const PUBLIC_UPLOAD_KINDS = {
   jpg: 'jpeg',
@@ -83,6 +90,7 @@ export const PUBLIC_UPLOAD_KINDS = {
   pdf: 'pdf',
   text: 'text',
   tiff: 'tiff',
+  svg: 'svg',
 } as const satisfies Readonly<Record<string, SniffTypeKey>>;
 export type PublicUploadKind = keyof typeof PUBLIC_UPLOAD_KINDS;
 
@@ -121,7 +129,10 @@ export interface TakenUpload {
   kind: PublicUploadKind;
 }
 
-export type TakeResult = { ok: true; upload: TakenUpload } | { ok: false; code: UploadRefusal };
+export type TakeResult =
+  | { ok: true; upload: TakenUpload }
+  /** `svg`: an SVG refused for what it holds, the cleaner's sentence naming it (a `kind` refusal). */
+  | { ok: false; code: UploadRefusal; svg?: string };
 
 export interface TakeInput {
   source: Readable;
@@ -273,11 +284,13 @@ export function createPublicUploads(deps: PublicUploadsDeps) {
       let stored: StoredFile;
       let kind: PublicUploadKind | null;
       try {
-        const put = await storage.putUpload({ kind: 'stranger', filename: name, source: input.source, maxBytes, allowedTypes: allowed, uploadedBy: null, clean: true, at });
+        // A picture is kept without what the camera wrote, an SVG only as the cleaner writes it again from its tree.
+        const put = await storage.putUpload({ kind: 'stranger', filename: name, source: input.source, maxBytes, allowedTypes: allowed, uploadedBy: null, clean: true, cleanSvg: true, at });
         stored = put.file;
         kind = kindOf(put.sniffed.key, input.kinds);
       } catch (error) {
         if (error instanceof SpoolTooLargeError) return { ok: false, code: 'too-big' };
+        if (error instanceof SvgNotKeptError) return { ok: false, code: 'kind', svg: error.reason };
         if (error instanceof UnsupportedFileTypeError) return { ok: false, code: 'kind' };
         throw error;
       }

@@ -17,7 +17,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { FILE_COLUMN_MAX_BYTES, PUBLIC_ASSET_MAX_BYTES } from '@adminium/manifest';
 
+import type { SnapshotView } from '../src/crud/identifiers.js';
 import { cleanSvg } from '../src/files/svg.js';
+import type { CompiledResource } from '../src/public-api/scope.js';
+import { guestUploadsInto } from '../src/routes/public/assets.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { binaryStl, glb, goodGlb, threeMf, triangleGltf, woff2 } from './model-files.js';
@@ -279,5 +282,32 @@ describe.each(LEGS)('product assets anyone may load — %s', (dialect, available
     expect((await asset(shown, 'preview', model.id)).statusCode).toBe(200);
     await h.meta.db.updateTable('adminium_files' as never).set({ sizeBytes: PUBLIC_ASSET_MAX_BYTES.glb + 1 } as never).where('id' as never, '=', model.id as never).execute();
     expect((await asset(shown, 'preview', model.id)).statusCode).toBe(404);
+  });
+});
+
+describe('a column guests upload into is no asset', () => {
+  // A view that knows two tables by name; any other name is no table.
+  const ids: Record<string, string> = { products: 'tbl_products', 'main.products': 'tbl_products', pieces: 'tbl_pieces' };
+  const view = {
+    table: (name: string) => {
+      const known = ids[name];
+      if (known === undefined) throw new Error(`no table ${name}`);
+      return { id: known };
+    },
+  } as unknown as SnapshotView;
+  const resource = (over: Partial<CompiledResource>): CompiledResource => ({ table: 'products', uploads: [], children: new Map(), ...over }) as unknown as CompiledResource;
+
+  it("is found on any entry of the key, on the entry or on a level of its child rows, by the table's id", () => {
+    expect(guestUploadsInto([resource({ uploads: ['art'] })], view, 'tbl_products', 'art')).toBe(true);
+    // Another table's name for the same table.
+    expect(guestUploadsInto([resource({ table: 'main.products', uploads: ['art'] })], view, 'tbl_products', 'art')).toBe(true);
+    const child = { table: 'pieces', uploads: ['art'], children: { products: { table: 'products', uploads: ['logo'] } } };
+    const nested = resource({ table: 'orders', children: new Map([['pieces', child]]) as never });
+    expect(guestUploadsInto([nested], view, 'tbl_pieces', 'art')).toBe(true);
+    expect(guestUploadsInto([nested], view, 'tbl_products', 'logo')).toBe(true);
+    // Another column, another table, or a table the view does not know: not found.
+    expect(guestUploadsInto([resource({ uploads: ['art'] })], view, 'tbl_products', 'preview')).toBe(false);
+    expect(guestUploadsInto([resource({ uploads: ['art'] })], view, 'tbl_pieces', 'art')).toBe(false);
+    expect(guestUploadsInto([resource({ table: 'gone', uploads: ['art'] })], view, 'tbl_products', 'art')).toBe(false);
   });
 });

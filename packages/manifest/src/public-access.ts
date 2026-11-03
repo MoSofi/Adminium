@@ -1827,6 +1827,7 @@ function assetIssues(
   if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at('key'), message: "assets are served through the app's customer key" });
   const writes = new Set([...(entry.writable ?? []), ...Object.keys(entry.defaults ?? {})]);
   const shareCodes = shareCodeColumns(entries, entry.table, ctx.index);
+  const guests = guestUploadColumns(entries, entry.table);
   if (new Set(assets).size !== assets.length) out.push({ path: at('assets'), message: 'an asset column is named twice' });
   for (const ref of assets) {
     const found = ctx.index.column(entry.table, ref) as
@@ -1848,6 +1849,23 @@ function assetIssues(
       out.push({ path: at('assets'), message: `"${entry.table}.${ref}" is kept from readers, so it is no asset for everyone` });
     }
     if (found.rules?.personal === true) out.push({ path: at('assets'), message: `"${entry.table}.${ref}" is personal data, so it is no asset for everyone` });
+    if (guests.has(ref)) out.push({ path: at('assets'), message: `guests upload into "${entry.table}.${ref}", and a guest's file is kept private, so it is no asset for everyone` });
+  }
+  return out;
+}
+
+/** The columns of `table` any entry lets a guest upload into, on the entry itself or on a level of its child rows. */
+function guestUploadColumns(entries: readonly PublicAccess[], table: string): Set<string> {
+  const out = new Set<string>();
+  const walk = (children: Readonly<Record<string, ChildEntry>> | undefined): void => {
+    for (const [name, child] of Object.entries(children ?? {})) {
+      if (name === table) for (const ref of child.uploads ?? []) out.add(ref);
+      walk(child.children);
+    }
+  };
+  for (const entry of entries) {
+    if (entry.table === table) for (const ref of entry.uploads ?? []) out.add(ref);
+    walk(entry.children);
   }
   return out;
 }

@@ -65,7 +65,7 @@ describe("a guest's upload into a file column", () => {
     expect(FILE_COLUMN_MAX_BYTES).toBe(100 * MB);
     expect(FILE_COLUMN_EARLIER_MAX_BYTES).toBe(25 * MB);
     expect(FILE_COLUMN_KINDS).toContain('tiff');
-    expect(FILE_UPLOAD_KINDS).toEqual({ jpg: 'jpeg', png: 'png', pdf: 'pdf', text: 'text', tiff: 'tiff' });
+    expect(FILE_UPLOAD_KINDS).toEqual({ jpg: 'jpeg', png: 'png', pdf: 'pdf', text: 'text', tiff: 'tiff', svg: 'svg' });
     const m = printShop();
     (columnOf(m, 'order_items', 'artwork')['rules'] as { file: Doc }).file['maxBytes'] = 100 * MB + 1;
     expect(issuesText(m)).toContain('maxBytes');

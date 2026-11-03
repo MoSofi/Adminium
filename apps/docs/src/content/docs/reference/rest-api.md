@@ -1530,7 +1530,9 @@ with the column and `reason: "file-not-here"`.
 A refused file answers `PUBLIC_UPLOAD_REFUSED` with `params.reason`: `too-big` (413), `kind` (415,
 judged by the file's bytes, never its name), `cap` (429, this address sent its day's files or
 bytes), `quota` (507, the space kept for guests' files is full) or `column` (400). A TIFF is kept
-and handed back only as a download. The public client's `upload(ref, column, file)` sends one and
+and handed back only as a download. An SVG is kept only cleaned, and handed back only as a
+download; one that is more than a drawing is refused `kind`, the message saying what it holds and
+to save it as a plain SVG. The public client's `upload(ref, column, file)` sends one and
 solves the proof itself. See [Guests' uploads](/reference/manifest/#guests-uploads).
 
 ### Assets

@@ -112,4 +112,16 @@ describe("an entry's assets", () => {
   it.each(cases)('%s', (_, entry, said) => {
     expect(issuesOf(shop(entry)).join('\n')).toContain(said);
   });
+
+  it("are never a column guests upload into, through any entry: a guest's file is kept private", () => {
+    const m = shop();
+    const products = (m['requiredSchema'] as { tables: { columns: Doc[] }[] }).tables[0]!;
+    const pieces = products.columns.find((column) => column['ref'] === 'pieces')!;
+    (pieces['rules'] as { file: Doc }).file['upload'] = { kinds: ['svg'], maxBytes: 1024 * 1024, maxCount: 4 };
+    (m['publicAccess'] as Doc[]).push({ table: 'products', methods: ['POST'], writable: ['name', 'pieces'], uploads: ['pieces'], humanCheck: true, select: ['id'] });
+    expect(issuesOf(m).join('\n')).toContain(`guests upload into "products.pieces", and a guest's file is kept private, so it is no asset for everyone`);
+    // The same column, not served as assets: taken.
+    (m['publicAccess'] as Doc[])[0]!['assets'] = ['preview', 'print', 'font'];
+    expect(issuesOf(m).join('\n')).not.toContain('guests upload into');
+  });
 });

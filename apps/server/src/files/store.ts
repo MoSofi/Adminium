@@ -74,6 +74,17 @@ export class UnsupportedFileTypeError extends Error {
   }
 }
 
+/** An SVG the cleaner would not keep (`files/svg.ts`): a file of a kind the upload takes, holding more than a drawing. */
+export class SvgNotKeptError extends UnsupportedFileTypeError {
+  override readonly name = 'SvgNotKeptError';
+  /** The cleaner's own sentence, naming what it found. */
+  readonly reason: string;
+  constructor(refused: SvgRefused) {
+    super(`That SVG cannot be kept: ${refused.message}`, 'image/svg+xml');
+    this.reason = refused.message;
+  }
+}
+
 export interface PutUploadInput {
   kind: FileKind;
   filename: string;
@@ -202,7 +213,7 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       drawing = cleanSvg(await readFile(spooled.path));
     } catch (error) {
       if (!(error instanceof SvgRefused)) throw error;
-      throw new UnsupportedFileTypeError(`That SVG cannot be kept: ${error.message}`, 'image/svg+xml');
+      throw new SvgNotKeptError(error);
     } finally {
       await spooled.release();
     }

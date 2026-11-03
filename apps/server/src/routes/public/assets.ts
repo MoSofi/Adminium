@@ -39,6 +39,7 @@ import { assetHeaders, assetKindOf, assetTag } from '../../public-api/asset.js';
 import { combinePredicates } from '../../public-api/claim.js';
 import { hasVisitorReach, openPublishableKey } from '../../public-api/keys.js';
 import type { PublicRateLimiter, RateDecision } from '../../public-api/limiter.js';
+import type { CompiledResource } from '../../public-api/scope.js';
 import { matchesTag } from '../../public-api/picture.js';
 import { mandatoryAt } from '../../public-api/relative-filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -72,6 +73,31 @@ export interface AssetDeps {
 
 /** How long a key's id is remembered as its token: a revoke reaches this route within it (the resolver's own cache is emptied at once). */
 const KEY_MEMORY_MS = 30_000;
+
+/**
+ * Whether any entry of a key lets a guest upload into this table's column, on
+ * the entry itself or on a level of its child rows (`uploads`): such a
+ * column's files are strangers' and are no product asset, whatever another
+ * entry says.
+ */
+export function guestUploadsInto(resources: Iterable<CompiledResource>, view: SnapshotView, tableId: string, column: string): boolean {
+  const named = (source: string, uploads: readonly string[] | undefined): boolean => {
+    if (!(uploads ?? []).includes(column)) return false;
+    try {
+      return view.table(source).id === tableId;
+    } catch {
+      return false;
+    }
+  };
+  for (const resource of resources) {
+    if (named(resource.table, resource.uploads)) return true;
+    for (const child of resource.children?.values() ?? []) {
+      if (named(child.table, child.uploads)) return true;
+      for (const grandchild of Object.values(child.children ?? {})) if (named(grandchild.table, grandchild.uploads)) return true;
+    }
+  }
+  return false;
+}
 
 export function registerAssets(app: FastifyInstance, deps: AssetDeps): void {
   const tokens = new Map<string, { token: string | null; until: number }>();
@@ -126,7 +152,8 @@ export function registerAssets(app: FastifyInstance, deps: AssetDeps): void {
     }
 
     // The entry: a read of rows that shows this column as assets, to anyone, of the key as it stands now.
-    const resource = (await withOpenDoors(deps.meta, key)).scope.byRef.get(ref);
+    const { scope } = await withOpenDoors(deps.meta, key);
+    const resource = scope.byRef.get(ref);
     if (
       resource === undefined ||
       resource.kind !== 'records' ||
@@ -152,6 +179,8 @@ export function registerAssets(app: FastifyInstance, deps: AssetDeps): void {
     } catch {
       return none();
     }
+    // A column guests upload into, through any entry of the key: a guest's file (a customer's SVG logo) is kept private.
+    if (guestUploadsInto(scope.byRef.values(), view, table.id, column)) return none();
 
     // The row, read as the entry reads it; its column must name this very file.
     const byKey: RecordFilter[] = Object.entries(pk).map(([name, value]) => ({ column: name, op: 'eq', value }) as RecordFilter);
