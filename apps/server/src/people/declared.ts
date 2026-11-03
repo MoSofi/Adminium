@@ -25,19 +25,27 @@
  * meta store once; `resolveDeclaredPeople` does the rest and is what the
  * tests drive.
  */
-import { FIRST_WORD_OF_NAME, optOutMarkColumn, peopleSchema, type PeopleCopy, type PeopleEntry } from '@adminium/manifest';
+import { FIRST_WORD_OF_NAME, LINK_PATH, isAddOnCopy, optOutMarkColumn, peopleSchema, type PeopleCopy, type PeopleEntry } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, overridesRepo, type AppTableRecord, type MetaDb, type SchemaOverride } from '@adminium/meta';
 
 /** A column on another table that holds a copy of the person's address or name. */
 export interface DeclaredCopy {
   /** The table's id in the snapshot. */
   table: string;
-  /** The app's short name for it. */
+  /** The app's short name for it (an add-on's table: `<add-on>-<its short name>`, safe in a file name). */
   ref: string;
   column: string;
   holds: PeopleCopy['holds'];
   /** The copy table's link back to the person, when there is one. */
   via: string | null;
+  /**
+   * A copy on a table of an add-on the app requires: the app's own table
+   * whose link names the add-on's rows (`line`, its column `link`), and how
+   * that table reaches the person — it is their table or one of their copy
+   * tables (`up` null), or links to one (`up`: its column and the table it
+   * points at). The add-on's rows its rows name are the person's.
+   */
+  through?: { line: string; link: string; up: { column: string; to: string } | null };
 }
 
 /** One people (or companies) table, resolved. Every table is a snapshot id, every column a real column of it. */
@@ -93,8 +101,8 @@ const TEXT_TYPES = new Set(['text', 'varchar']);
 const PRESENT = new Set(['installed', 'disabled']);
 
 /** An app's `people`, read from the manifest it stored; a list that does not read is none. */
-function peopleOf(document: unknown): { entries: PeopleEntry[]; keyFields: Map<string, string> } {
-  const doc = typeof document === 'object' && document !== null ? (document as { people?: unknown; requiredSchema?: { tables?: unknown } }) : {};
+function peopleOf(document: unknown): { entries: PeopleEntry[]; keyFields: Map<string, string>; links: Map<string, { column: string; to: string }[]>; requires: Set<string> } {
+  const doc = typeof document === 'object' && document !== null ? (document as { people?: unknown; requiredSchema?: { tables?: unknown }; addOns?: { requires?: unknown } }) : {};
   const parsed = peopleSchema.safeParse(doc.people);
   const tables = Array.isArray(doc.requiredSchema?.tables) ? (doc.requiredSchema.tables as unknown[]) : [];
   const keyFields = new Map(
@@ -103,7 +111,17 @@ function peopleOf(document: unknown): { entries: PeopleEntry[]; keyFields: Map<s
       return typeof one?.ref === 'string' && typeof one.keyField === 'string' ? [[one.ref, one.keyField] as const] : [];
     }),
   );
-  return { entries: parsed.success ? parsed.data : [], keyFields };
+  // Each table's foreign keys, by the app's short names: how a line reaches the person.
+  const links = new Map(
+    tables.flatMap((table) => {
+      const one = table as { ref?: unknown; columns?: unknown } | null;
+      if (typeof one?.ref !== 'string' || !Array.isArray(one.columns)) return [];
+      const fks = (one.columns as { ref?: unknown; type?: unknown; references?: unknown }[]).flatMap((column) => (column.type === 'fk' && typeof column.ref === 'string' && typeof column.references === 'string' ? [{ column: column.ref, to: column.references }] : []));
+      return [[one.ref, fks] as const];
+    }),
+  );
+  const requires = new Set(Array.isArray(doc.addOns?.requires) ? (doc.addOns.requires as { key?: unknown }[]).flatMap((one) => (typeof one.key === 'string' ? [one.key] : [])) : []);
+  return { entries: parsed.success ? parsed.data : [], keyFields, links, requires };
 }
 
 /** Every people table of the install, resolved against its database and the owner's word. */
@@ -117,10 +135,10 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
     const connectionId = app.connectionId as string;
     const model = source.models.get(connectionId);
     if (model === undefined) continue;
-    const { entries, keyFields } = peopleOf(app.document);
-    /** The real table an app's short name stands for here, while the app still holds it. */
-    const tableOf = (ref: string) => {
-      const record = source.records.find((candidate) => candidate.connectionId === connectionId && candidate.appKey === app.appKey && candidate.ref === ref && HELD.has(candidate.state));
+    const { entries, keyFields, links, requires } = peopleOf(app.document);
+    /** The real table an app's (or an add-on's) short name stands for here, while it still holds it. */
+    const tableOf = (ref: string, owner: string = app.appKey) => {
+      const record = source.records.find((candidate) => candidate.connectionId === connectionId && candidate.appKey === owner && candidate.ref === ref && HELD.has(candidate.state));
       if (record === undefined) return undefined;
       const table = model.tables.find((candidate) => candidate.name === record.tableName && (record.schemaName === null || candidate.schema === undefined || candidate.schema === record.schemaName));
       return table === undefined ? undefined : { table, owned: record.owned };
@@ -149,7 +167,26 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
         name = textColumn(value.name) ?? name;
       }
 
+      /** The app's tables that reach the person: their own, and each copy table of the app's own. */
+      const reaching = new Set([entry.table, ...(entry.copies ?? []).filter((copy) => !isAddOnCopy(copy)).map((copy) => copy.table)]);
       const copies: DeclaredCopy[] = (entry.copies ?? []).flatMap((copy) => {
+        if (isAddOnCopy(copy)) {
+          // On an add-on's table, through the app's link into it: only an add-on the app requires, while both hold their tables here.
+          const path = LINK_PATH.exec(copy.via);
+          if (path === null || !requires.has(copy.addOn)) return [];
+          const [, lineRef, link] = path as unknown as [string, string, string];
+          const held = tableOf(copy.table, copy.addOn);
+          const line = tableOf(lineRef);
+          if (held === undefined || line === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column) || !line.table.columns.some((candidate) => candidate.name === link)) return [];
+          let up: { column: string; to: string } | null = null;
+          if (!reaching.has(lineRef)) {
+            const fk = (links.get(lineRef) ?? []).find((candidate) => reaching.has(candidate.to) && line.table.columns.some((column) => column.name === candidate.column));
+            const to = fk === undefined ? undefined : tableOf(fk.to);
+            if (fk === undefined || to === undefined) return [];
+            up = { column: fk.column, to: to.table.id };
+          }
+          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, through: { line: line.table.id, link, up } }];
+        }
         const held = tableOf(copy.table);
         if (held === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column)) return [];
         const via = copy.via !== undefined && held.table.columns.some((candidate) => candidate.name === copy.via) ? copy.via : null;

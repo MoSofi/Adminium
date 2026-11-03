@@ -26,6 +26,13 @@
  * copies that are theirs by a link, their address or their number go; the
  * rest of the row is the other person's too.
  *
+ * A copy on a table of an add-on the app requires is reached through the
+ * app's own link into it (an order line's design): the add-on's rows named
+ * by the person's rows of the line's table — their own rows, their rows of
+ * a copy table, or the rows linking to either — are theirs, and the copies
+ * declared on them are what is theirs of each. Nothing else of such a row:
+ * the add-on keeps it, and other people's lines may name it too.
+ *
  * Never a key, never a link, never a column another table's link points at,
  * never a secret. Reads only.
  */
@@ -188,7 +195,7 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
   const { db, view, address, pks, limit } = input;
   const pkSet = new Set(pks.map((pk) => String(pk)));
   const byTable = new Map<string, DeclaredCopy[]>();
-  for (const copy of input.copies) byTable.set(copy.table, [...(byTable.get(copy.table) ?? []), copy]);
+  for (const copy of input.copies) if (copy.through === undefined) byTable.set(copy.table, [...(byTable.get(copy.table) ?? []), copy]);
 
   // Their numbers: their own rows' phone columns, then the phone copies a link or the address finds.
   const phones: string[] = [];
@@ -241,5 +248,55 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
   }
 
   for (const held of tables) if (held.rows.size > 0) out.push({ table: held.table, copies: held.copies, rows: [...held.rows.values()] });
+
+  // Copies on an add-on's table, reached through the app's link into it.
+  const onAddOns = new Map<string, DeclaredCopy[]>();
+  for (const copy of input.copies) if (copy.through !== undefined) onAddOns.set(copy.table, [...(onAddOns.get(copy.table) ?? []), copy]);
+  /** The key values of their rows of a table of the app: their own, or the ones found on a copy table. */
+  const theirRowsOf = (tableId: string): Row[] => {
+    if (input.ownTable !== null && tableId === input.ownTable.id) return [...input.ownRows];
+    return [...(tables.find((held) => held.table.id === tableId)?.rows.values() ?? [])].map((theirs) => theirs.row);
+  };
+  const keyValues = (tableId: string): unknown[] => {
+    if (input.ownTable !== null && tableId === input.ownTable.id) return [...pks];
+    const table = input.tableOf(tableId);
+    if (table === null || table.primaryKey.length !== 1) return [];
+    return theirRowsOf(tableId).map((row) => row[table.primaryKey[0]!]).filter(isSet);
+  };
+  for (const [addOnTableId, copies] of onAddOns) {
+    const table = input.tableOf(addOnTableId);
+    if (table === null || table.primaryKey.length !== 1) continue;
+    const named = new Set<string>();
+    const keys: unknown[] = [];
+    for (const copy of copies) {
+      const through = copy.through!;
+      const line = input.tableOf(through.line);
+      if (line === null || !line.columns.has(through.link)) continue;
+      let lines: Row[];
+      if (through.up === null) lines = theirRowsOf(through.line);
+      else {
+        const up = keyValues(through.up.to);
+        lines = up.length === 0 ? [] : await rowsWhere(db, line, inList(through.up.column, up), undefined);
+      }
+      for (const row of lines) {
+        const value = row[through.link];
+        if (!isSet(value) || named.has(String(value))) continue;
+        named.add(String(value));
+        keys.push(value);
+      }
+    }
+    if (keys.length === 0) continue;
+    const rows: TheirCopyRow[] = [];
+    for (const row of await rowsWhere(db, table, inList(table.primaryKey[0]!, keys), limit)) {
+      const columns = new Map<string, ErasedRole>();
+      for (const copy of copies) {
+        const resolved = table.columns.get(copy.column);
+        if (resolved === undefined || resolved.isPrimaryKey || resolved.secret) continue;
+        columns.set(copy.column, copy.holds === 'email' ? 'email' : copy.holds === 'name' ? 'name' : 'other');
+      }
+      rows.push({ key: rowKeyOf(table, row), row, columns, links: [] });
+    }
+    if (rows.length > 0) out.push({ table, copies, rows });
+  }
   return out;
 }
