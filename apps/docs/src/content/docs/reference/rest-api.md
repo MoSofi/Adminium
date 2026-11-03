@@ -1496,6 +1496,15 @@ is ignored. See [Availability](/reference/manifest/#availability).
 may see, with no key header, so an `<img>` can load it. The config's `pictures` gives the base. See
 [Pictures](/reference/manifest/#pictures).
 
+### Assets
+
+`GET /public/assets/{keyId}/{ref}/{rowId}/{column}/{fileId}` serves a product asset any visitor's
+browser may load (a 3D model, a web font, an SVG piece), with no key header, so a viewer's `fetch`
+and a page's `@font-face` can load it; the route answers the browser's preflight. The config's
+`assets` gives the base. Each refusal is `404` `PUBLIC_REF_NOT_FOUND`. See
+[Assets](/reference/manifest/#assets) and
+[Models, fonts and SVG pieces on public pages](/guides/apps/public-assets/).
+
 ### The server's clock
 
 `GET /public/config` carries `now`, the server's time as an ISO instant, and answers with

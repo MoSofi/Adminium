@@ -220,7 +220,12 @@ moves them to the trash, and undoing the delete brings them back.
 **The type is decided by reading the bytes, not by the file name.** Adminium
 holds back the first 8 KiB of every upload and matches it against a closed list
 of signatures: PDF; PNG, JPEG, GIF, WebP, HEIC/HEIF, SVG; ZIP, and Word/Excel/
-PowerPoint documents; MP4/QuickTime, WebM, MP3, WAV, Ogg. The type stored on the
+PowerPoint documents; MP4/QuickTime, WebM, MP3, WAV, Ogg; GLB 3D models and WOFF2
+fonts. Two kinds are read whole because no head can tell them: an STL model (by
+its `.stl` name and its own form) and a 3MF model (a zip whose own directory
+names its model part). A GLB, an STL, a 3MF and a WOFF2 are each checked whole
+before they are kept, and an SVG uploaded for a column is kept only cleaned; see
+[Models, fonts and SVG pieces](/guides/apps/public-assets/). The type stored on the
 file — and served back on download — is always the sniffed one, never the one
 the browser claimed.
 

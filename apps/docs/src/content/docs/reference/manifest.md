@@ -667,8 +667,11 @@ customer's signature and the job's photos.
 A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength` is at least 31); a
 `json` column holds a list of ids, of at most `maxCount`, read back as a list on every database.
 `accept` takes `png`, `jpeg`, `webp`, `gif`, `pdf`, `office`, `zip`, `csv`, `text`, `markdown`,
-`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
-never `heic`, a picture whose camera notes cannot be taken out of it.
+`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`; never `heic`, a picture whose camera notes cannot be
+taken out of it. From Adminium 0.3.43 it also takes a shop's assets (`file.assetKinds`): `svg`,
+kept only as Adminium writes it again from its own tree without anything that could run, and
+`glb`, `stl`, `3mf` and `woff2`, each read whole as it is uploaded and refused when it is not what
+it says. See [Models, fonts and SVG pieces on public pages](/guides/apps/public-assets/).
 
 - **The upload.** `POST /api/v1/files?connectionId=…&table=…&column=…&filename=…`, the body the file
   itself, from a person who may create or change rows of the table. The column's kinds and size
@@ -4341,6 +4344,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](#limits-on-a-guests-change). |
 | `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](#codes-that-unlock-rows). |
 | `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](#pictures). |
+| `assets` | no | 1–8 file columns of product assets (models, fonts, SVG pieces) any visitor's browser may load. See [Assets](#assets). Needs Adminium 0.3.43. |
 | `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](#availability). |
 
 `writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,
@@ -4915,6 +4919,27 @@ column listed here takes no larger file: an upload or a chosen file above 5 MiB 
 customers see the column's pictures, whatever the column's own `maxBytes` says. A `file` rule with a
 larger `maxBytes` is a warning. See
 [Pictures on public pages](/guides/apps/public-pictures/).
+
+### Assets
+
+`assets` lists 1–8 file columns whose files any visitor's browser may load through the rows an
+entry reads: a product's preview model a 3D viewer fetches, its print model, the shop's font, the
+SVG pieces a book nook is cut from.
+
+```json
+{ "table": "products", "methods": ["GET"], "select": ["id", "name", "preview", "pieces"],
+  "filters": [{ "column": "published", "op": "eq", "value": true }], "assets": ["preview", "pieces"] }
+```
+
+Each is a column with a [`file` rule](#files-in-a-column) whose `accept` names only `glb`, `stl`,
+`3mf`, `woff2` and `svg` (a `json` column holds a list), in `select`, never writable, never
+personal or kept from readers, and neither one of the entry's `files` nor its `pictures`. The entry
+only reads rows, for every visitor, on the app's `customer` key. A file is served at
+`GET /api/v1/public/assets/…` only for the row it is attached to, as it was kept (each was read whole
+or cleaned as it was uploaded), and only up to its kind's size: a model 30 MiB, a font or an SVG
+2 MiB. A column listed here takes no larger file of that kind, whatever its own `maxBytes` says.
+`/public/config` gives the base as `assets`, and each entry's asset columns. Needs Adminium 0.3.43.
+See [Models, fonts and SVG pieces on public pages](/guides/apps/public-assets/).
 
 ### Availability
 

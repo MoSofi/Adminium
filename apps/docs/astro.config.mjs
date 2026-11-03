@@ -219,6 +219,7 @@ export default defineConfig({
                   link: '/guides/apps/identity-and-own-links/',
                 },
                 { label: 'Pictures on public pages', link: '/guides/apps/public-pictures/' },
+                { label: 'Models, fonts and SVG pieces on public pages', link: '/guides/apps/public-assets/' },
                 { label: 'Booking rules and limits', link: '/guides/apps/booking-rules/' },
                 { label: 'Timed moves', link: '/guides/apps/timed-moves/' },
                 { label: 'Rows that post into a ledger', link: '/guides/apps/postings/' },
