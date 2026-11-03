@@ -61,6 +61,8 @@ export function bandShopManifest(): Record<string, unknown> {
         kg('weight', { rollup: { from: 'crate_items', via: 'crate_id', sum: 'weight' } }),
         fk('band_id', 'weight_bands', { nullable: true, rules: { band: { ...WEIGHT_BAND, over: 'refuse' } } }),
         money('delivery_price', { copy: { via: 'band_id', from: 'price', mode: 'always' } }),
+        // The crate's charge: its delivery and a handling fee, worked out again when the band moves its delivery.
+        money('charge', { formula: { add: [{ coalesce: ['delivery_price', 0] }, 2.5] } }),
       ],
     },
     {

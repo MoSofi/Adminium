@@ -13,6 +13,8 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { endpointIssues, type PublicEndpointDefinition } from '../src/public-api/endpoint.js';
 import { solveProof } from '../src/public-api/proof.js';
 import { bandShop } from './band-fixture.js';
 import { LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -124,12 +126,16 @@ describe.each(LEGS)('bands, on %s', (dialect, available) => {
     expect(ok.statusCode, ok.body).toBe(201);
     expect(num(tree(ok).data['band_id'])).toBe(3);
     expect(cents(tree(ok).data['delivery_price'])).toBe('16.40');
+    // The charge over the delivery is worked out again in the same settle.
+    expect(cents((await stored('crates', tree(ok).data['id']))['charge'])).toBe('18.90');
   });
 
   it.skipIf(!available)('refuses staff a crate item that takes its crate past the top band, and keeps the item out', async () => {
     const crate = await w.create('crates', { label: 'Desk' });
     await w.create('crate_items', { crate_id: crate['id'], kg_each: 9, count: 3 });
     expect(num((await stored('crates', crate['id']))['band_id'])).toBe(3);
+    // A line added by staff: the charge over the delivery the band copied is worked out again in the same write.
+    expect(cents((await stored('crates', crate['id']))['charge'])).toBe('18.90');
     const refused = await w.create('crate_items', { crate_id: crate['id'], kg_each: 4, count: 1 }).then(
       () => null,
       (error: unknown) => error as { code?: string; details?: { fields?: Record<string, { code: string }> } },
@@ -204,6 +210,25 @@ describe.each(LEGS)('bands, on %s', (dialect, available) => {
     expect(onOrder.statusCode, onOrder.body).toBe(400);
     const onLine = await post('banded_orders', order([[1, 3]], { line: { break_id: 1 } }));
     expect(onLine.statusCode, onLine.body).toBe(400);
+  });
+
+  it.skipIf(!available)('refuses an operator endpoint that lists the link as writable', async () => {
+    const view = await loadSnapshotView(h.meta, h.connectionId);
+    const def = (writable: string[]): PublicEndpointDefinition => ({
+      path: '/lines',
+      source: view.model.tables.find((table) => table.name === h.real('lines'))!.id,
+      methods: ['GET', 'POST'],
+      select: ['id', 'qty'],
+      writable,
+      filters: [],
+      pagination: { default_limit: 20, max_limit: 200, order: 'id.desc' },
+      auth: { role: 'anon' },
+      rate_limit: { requests: 120, window: '1m' },
+      response: { shape: 'object', envelope: 'data' },
+    });
+    const codes = (writable: string[]) => endpointIssues(def(writable), { ref: 'lines', view }).map((issue) => `${issue.code} ${issue.column ?? ''}`);
+    expect(codes(['qty', 'break_id'])).toContain('ENDPOINT_WRITABLE_DECIDED break_id');
+    expect(codes(['qty'])).not.toContain('ENDPOINT_WRITABLE_DECIDED qty');
   });
 
   it.skipIf(!available)('quotes the figures the save then stores', async () => {
