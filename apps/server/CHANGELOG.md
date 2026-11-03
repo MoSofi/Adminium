@@ -1,5 +1,32 @@
 # @adminium/server
 
+## 0.3.41
+
+### Patch Changes
+
+- f8d7a28: An add-on's step can be about a person (from Adminium 0.3.41). An input of kind `person` is whose row of a people table the step is about: the rule's record itself where an app declares its table as people (`@record`), or the person one link of the record names (`@link:<column>`, "the job's main contact"; a column that copies a link through another, such as a job's contact copied from its deal, counts as that link), checked at the save, one hop and no more. The rule editor's sources say which tables hold people (`people`) and which columns name one (`personLinks`). The step's columns read that person's `email`, `name`, `language` (the install's own where the table keeps none), `company`, `table` and `key` (`{ person, field }`), read as the system through the app's people declaration; the address and the name go only into columns the add-on keeps personal and never into the run's log, and a record that names nobody, or somebody with no address, fails by name and writes nothing. A `record` input may name its row by a unique column (`by`, a survey by its slug) and hold the rows it may pick to some values (`where`, 1 to 3: only live surveys), in the rule editor's list and at the run. An input may carry a line under it (`help`), and a choice's options a line each, drawn as cards. The tokens `recordTable` and `recordKey` are the rule's record as other rows name it: its table's stored name and its key. A step's row with a text key nothing else fills is given a fresh id. And a table an automation runs an add-on's step on counts as `linked` for that add-on's record tabs.
+- 5ea797d: A forms builder can show the form a stranger would see while it is still a draft: `/x/forms/<slug>?preview=1` (and its read, `/x/forms/api/<slug>?preview=1`) draws the saved draft, whatever the form's state, for a signed-in person who may read the add-on's forms; anyone else gets exactly the "not available" a stranger gets. A half-made draft is drawn leniently: a word missing in one of its languages is taken from the default language, and a question that does not read yet is left out and named in `skipped`. The preview may be framed by the server's own host alone (`frame-ancestors 'self'`), is never cached or indexed, and is not held to whether strangers can reach the pages. Nothing is sent from it: Send is off, under it "Nothing is sent from here." (in eight languages), and its human check, answer and file routes refuse a preview request and write nothing.
+- 83455f3: A form's slug rule is shared: `@adminium/add-on-contracts/forms` exports `FORM_SLUG`, `FORM_SLUG_MAX`, `FORM_SLUGS_RESERVED` and `isFormSlug(slug)`, which the engine's door and a forms add-on's builder both hold a slug to. `api` and `surveys` are reserved: a form with either slug is never served.
+- 5626847: A table an app opens to forms may name the column a form's fixed "Source" value goes into: `source` on its entry under the key `forms` (from Adminium 0.3.41, the floor word `publicAccess.forms.source`), one of the entry's `writable` text columns, never a link; it is refused on any other entry. A forms add-on's settings table, when it has the `answers_months` column the keeping sweep reads, holds it as a whole number that may be empty (`int`, nullable). The words a step about a person needs are named with their floor too (`step.person`, `step.recordBy`, `step.recordWhere`, `step.help`, `step.recordTokens`, all 0.3.41).
+- 8ac8763: The links Adminium puts in a form's bells, staff e-mails and limit alert now open the forms add-on's own page, whose ref is the add-on's key: `/add-ons/<key>/<key>/<slug>/answers?answer=<id>`, `/add-ons/<key>/<key>/surveys/<slug>/results?answer=<id>` and `/add-ons/<key>/<key>/<slug>?settings=limits`. A survey's link named a page ref (`surveys`) no add-on keyed `forms` may declare, so it opened "No such page".
+- 82e26ee: A forms builder reads one status for its staff: `GET /api/v1/forms/status` answers whether mail a stranger causes goes (and why not), whether strangers can reach the public pages (the Privacy page's own answer), whether the privacy notice is set, the public address, the listed websites and every role by name. It is for a signed-in person who may read an installed forms add-on's forms (a marketer needs neither the privacy nor the roles action), never an API key, and carries no address of a person and no member of a role. `GET /api/v1/forms/mail` answers as before. The kit's forms tables (`useFormTables()`) now give each column's enum `values` and `maxLength`, the table's `sourceColumn` (the app's `source` word), and the `page` slug of a generated page of the table the reader may open, where a row a form became is shown. A forms add-on's kit also says whether the reader may start a campaign (`has['system:settings:manage']`), for its "Send by e-mail".
+- Updated dependencies [f8d7a28]
+- Updated dependencies [5ea797d]
+- Updated dependencies [83455f3]
+- Updated dependencies [5626847]
+- Updated dependencies [82e26ee]
+- Updated dependencies [7ec093c]
+  - @adminium/add-on-contracts@0.3.41
+  - @adminium/manifest@0.3.41
+  - @adminium/i18n@0.3.41
+  - @adminium/engine@0.3.41
+  - @adminium/llm@0.3.41
+  - @adminium/adapter-mysql@0.3.41
+  - @adminium/adapter-postgres@0.3.41
+  - @adminium/adapter-sqlite@0.3.41
+  - @adminium/schema-import@0.3.41
+  - @adminium/meta@0.3.41
+
 ## 0.3.40
 
 ### Patch Changes

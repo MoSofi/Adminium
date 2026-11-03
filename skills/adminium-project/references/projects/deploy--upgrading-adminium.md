@@ -5,8 +5,8 @@
 The version is pinned in two places, and they must agree:
 
 ```bash
-npm install --save-exact @adminiumjs/adminium@0.3.40
-# then change the Dockerfile's FROM tag to 0.3.40
+npm install --save-exact @adminiumjs/adminium@0.3.41
+# then change the Dockerfile's FROM tag to 0.3.41
 npm run check                # this is what compares the two
 npm run build
 ```

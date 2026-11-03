@@ -1,5 +1,24 @@
 # @adminium/dashboard
 
+## 0.3.41
+
+### Patch Changes
+
+- 116160f: `/email-templates?kind=campaign&link=<https address>` opens "New campaign" at once, and the campaign it makes starts with a text block holding the address after whatever its start gave it (a form's "Send by e-mail"). Anything but an `https://` address of at most 2048 characters is dropped, and the address leaves the bar once it is used.
+- 7ec093c: The rule editor draws what a step about a person needs: "To" is a pick of the people the rule's record reaches ("The Job's Main contact", or the record itself on a table of people), and says so when nobody is reached; a record input lists only the rows the add-on lets it pick, by the column it names them by; an input's own line shows under it; and a choice whose options each have a line is drawn as cards. In eight languages.
+- Updated dependencies [f8d7a28]
+- Updated dependencies [5ea797d]
+- Updated dependencies [83455f3]
+- Updated dependencies [82e26ee]
+- Updated dependencies [7ec093c]
+  - @adminium/add-on-contracts@0.3.41
+  - @adminium/i18n@0.3.41
+  - @adminium/widgets@0.3.41
+  - @adminium/charts@0.3.41
+  - @adminium/engine@0.3.41
+  - @adminium/tokens@0.3.41
+  - @adminium/ui@0.3.41
+
 ## 0.3.40
 
 ### Patch Changes

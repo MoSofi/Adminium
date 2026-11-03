@@ -1,5 +1,16 @@
 # @adminium/manifest
 
+## 0.3.41
+
+### Patch Changes
+
+- f8d7a28: An add-on's step can be about a person (from Adminium 0.3.41). An input of kind `person` is whose row of a people table the step is about: the rule's record itself where an app declares its table as people (`@record`), or the person one link of the record names (`@link:<column>`, "the job's main contact"; a column that copies a link through another, such as a job's contact copied from its deal, counts as that link), checked at the save, one hop and no more. The rule editor's sources say which tables hold people (`people`) and which columns name one (`personLinks`). The step's columns read that person's `email`, `name`, `language` (the install's own where the table keeps none), `company`, `table` and `key` (`{ person, field }`), read as the system through the app's people declaration; the address and the name go only into columns the add-on keeps personal and never into the run's log, and a record that names nobody, or somebody with no address, fails by name and writes nothing. A `record` input may name its row by a unique column (`by`, a survey by its slug) and hold the rows it may pick to some values (`where`, 1 to 3: only live surveys), in the rule editor's list and at the run. An input may carry a line under it (`help`), and a choice's options a line each, drawn as cards. The tokens `recordTable` and `recordKey` are the rule's record as other rows name it: its table's stored name and its key. A step's row with a text key nothing else fills is given a fresh id. And a table an automation runs an add-on's step on counts as `linked` for that add-on's record tabs.
+- 5626847: A table an app opens to forms may name the column a form's fixed "Source" value goes into: `source` on its entry under the key `forms` (from Adminium 0.3.41, the floor word `publicAccess.forms.source`), one of the entry's `writable` text columns, never a link; it is refused on any other entry. A forms add-on's settings table, when it has the `answers_months` column the keeping sweep reads, holds it as a whole number that may be empty (`int`, nullable). The words a step about a person needs are named with their floor too (`step.person`, `step.recordBy`, `step.recordWhere`, `step.help`, `step.recordTokens`, all 0.3.41).
+- Updated dependencies [f8d7a28]
+- Updated dependencies [83455f3]
+- Updated dependencies [82e26ee]
+  - @adminium/add-on-contracts@0.3.41
+
 ## 0.3.40
 
 ### Patch Changes
