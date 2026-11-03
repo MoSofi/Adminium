@@ -275,6 +275,10 @@ describe.each(LEGS)('what a forms builder reads for its staff — %s', (dialect,
     expect('page' in feedback!(hosts)).toBe(false);
     expect('page' in enquiries!(await hostsOf('writer'))).toBe(false);
     expect(enquiries!(await hostsOf('writer')).sourceColumn).toBe('from_form');
+    // Whether the reader may start a campaign ("Send by e-mail"): the e-mail screens' grant.
+    const has = async (as: string) => ((await call('GET', '/api/v1/add-ons/forms/kit', as)).json() as { has: Record<string, boolean> }).has['system:settings:manage'];
+    expect(await has('marketer')).toBe(false);
+    expect(await has('boss')).toBe(true);
   });
 
   // ── The preview of a draft ─────────────────────────────────────────────────

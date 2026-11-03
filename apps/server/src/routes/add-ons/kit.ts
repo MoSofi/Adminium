@@ -44,6 +44,8 @@ export interface AddOnKitDeps {
 }
 
 const SCHEMA_REMAP = 'system:schema:remap';
+/** Who may make and send a campaign (`routes/email-templates`). */
+const SETTINGS_MANAGE = 'system:settings:manage';
 
 const kitTable = z.object({
   /** The table's id, as the data routes take it. */
@@ -253,6 +255,8 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
         if (formsOf(manifest) !== null) hosts.push(...(await formsHosts(deps.meta, connectionId, view, index, own, can)));
 
         const has: Record<string, boolean> = { [SCHEMA_REMAP]: await can(SCHEMA_REMAP) };
+        // A forms add-on's "Send by e-mail" starts a campaign, which needs the e-mail screens' grant: the page says who may.
+        if (formsOf(manifest) !== null) has[SETTINGS_MANAGE] = await can(SETTINGS_MANAGE);
         for (const page of manifest.addOn.pages ?? []) has[addOnPagePermission(page.ref)] = await can(addOnPagePermission(page.ref));
         const connection = await deps.meta.db.selectFrom('adminium_connections').select('currency').where('id', '=', connectionId).executeTakeFirst();
         return { connectionId, tables, hosts, has, currency: connection?.currency ?? null };
