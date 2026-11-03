@@ -21,7 +21,7 @@ import { cleanSvg } from '../src/files/svg.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { binaryStl, glb, goodGlb, threeMf, triangleGltf, woff2 } from './model-files.js';
-import { servePublic, type Served } from './public-lane.helpers.js';
+import { ORIGIN, servePublic, type Served } from './public-lane.helpers.js';
 import { makeZip } from './zip-maker.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -150,9 +150,10 @@ describe.each(LEGS)('product assets anyone may load — %s', (dialect, available
     const again = await asset(row, 'preview', shown.id, { 'if-none-match': `"a-${stored.sha256}"` });
     expect(again.statusCode).toBe(304);
     expect(again.rawPayload.length).toBe(0);
-    // The browser's preflight before a fetch with headers of its own.
-    const preflight = await asset(row, 'preview', shown.id, { 'access-control-request-method': 'GET' }, 'OPTIONS');
+    // The browser's preflight before a fetch with headers of its own, from the app's own pages: answered as the namespace answers one.
+    const preflight = await asset(row, 'preview', shown.id, { origin: ORIGIN, 'access-control-request-method': 'GET' }, 'OPTIONS');
     expect(preflight.statusCode).toBeLessThan(300);
+    expect(preflight.headers['access-control-allow-origin']).toBe(ORIGIN);
 
     // The unpublished product: its own model, its id known, is nothing.
     const refused = await asset(draft, 'preview', hidden.id);
@@ -230,7 +231,8 @@ describe.each(LEGS)('product assets anyone may load — %s', (dialect, available
     for (const [svg, said] of [
       [`<svg ${S}><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">x</div></foreignObject></svg>`, /foreignObject/],
       [`<svg ${S}><use href="https://evil.example/s.svg#a"/></svg>`, /outside the drawing/],
-      [`<!DOCTYPE svg [<!ENTITY x "y">]><svg ${S}>&x;</svg>`, /DOCTYPE/],
+      [`<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg ${S}/>`, /DOCTYPE/],
+      [`<svg ${S}><text>&nbsp;</text></svg>`, /entity/],
     ] as const) {
       const res = await sendUpload(Buffer.from(svg), 'bad.svg', 'pieces');
       expect(res.statusCode, res.body).toBe(415);

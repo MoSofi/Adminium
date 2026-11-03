@@ -102,7 +102,7 @@ describe("an entry's assets", () => {
     ['are columns there are', { assets: ['model'] }, '"products" has no column "model"'],
     ['are shown by the entry', { select: ['id', 'name', 'print', 'font', 'pieces'], assets: ['preview'] }, '"preview" is not one of the columns the entry shows'],
     ['are served by an entry that only reads', { methods: ['GET', 'POST'], writable: ['name'] }, 'assets are served through an entry that only reads rows'],
-    ['are never written by a browser', { methods: ['GET'], defaults: { preview: null } }, '"preview" is an asset every visitor loads, so a browser never writes it'],
+    ['are never written by a browser', { methods: ['GET'], defaults: { preview: 'file_x' } }, '"preview" is an asset every visitor loads, so a browser never writes it'],
     ['are for every visitor', { visibleWith: { table: 'products', via: 'id' } }, "assets are for every visitor; a signed-in person's own files are `files`"],
     ['are not for a session alone', { level: 'verified' }, 'assets are for every visitor; rows read by a signed-in session alone are no asset a page loads for anyone'],
     ['are served by the customer key', { key: 'staff' }, "assets are served through the app's customer key"],
