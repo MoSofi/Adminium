@@ -271,11 +271,13 @@ describe.each(LEGS)('product assets anyone may load — %s', (dialect, available
     expect(mixed.json()).toMatchObject({ error: { code: 'FILE_TOO_LARGE', details: { maxBytes: PUBLIC_ASSET_MAX_BYTES.woff2 } } });
     expect((await sendUpload(goodGlb(PUBLIC_ASSET_MAX_BYTES.woff2 + 1024), 'kit.glb', 'kit')).statusCode).toBe(201);
 
-    // A model over 30 MB is refused where it is chosen (by the column's own cap while that is below 30 MB).
+    // A model over 30 MB is refused where it is chosen, held to the public cap below the column's own 100 MiB.
     const heavy = goodGlb(PUBLIC_ASSET_MAX_BYTES.glb + 1024);
     const tooBig = await sendUpload(heavy, 'heavy.glb', 'preview');
     expect(tooBig.statusCode, tooBig.body).toBe(413);
-    if (FILE_COLUMN_MAX_BYTES > PUBLIC_ASSET_MAX_BYTES.glb) expect(tooBig.json()).toMatchObject({ error: { details: { maxBytes: PUBLIC_ASSET_MAX_BYTES.glb, publicAsset: true } } });
+    // A file column takes up to 100 MiB, so a model column is held to the smaller public cap, and the refusal says so.
+    expect(FILE_COLUMN_MAX_BYTES).toBeGreaterThan(PUBLIC_ASSET_MAX_BYTES.glb);
+    expect(tooBig.json()).toMatchObject({ error: { details: { maxBytes: PUBLIC_ASSET_MAX_BYTES.glb, publicAsset: true } } });
     // …and one whose file says it is over 30 MB (saved before its column was held to it) is never served.
     const model = await upload(goodGlb(), 'later.glb', 'preview');
     const shown = await product('Later', { preview: model.ref });
