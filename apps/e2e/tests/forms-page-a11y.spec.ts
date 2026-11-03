@@ -287,3 +287,71 @@ test.describe('a stranger’s form page, through axe', () => {
     await context.close();
   });
 });
+
+/**
+ * THE BUILDER'S PREVIEW OF A DRAFT (`/x/forms/<slug>?preview=1`), in the frame
+ * the forms builder shows it in: the whole form, its note "Nothing is sent
+ * from here." under Send, Send off (pressed, it sends nothing and solves no
+ * check), and a file never uploaded. The builder here is the smallest page
+ * that frames it on the same host; who may read a draft, and that the door
+ * refuses whatever a preview tries to send, is the server's
+ * (`apps/server/test/forms-staff-reads.test.ts`).
+ */
+test.describe('the builder’s preview of a draft, through axe', () => {
+  /** The preview's read, as the server answers it: the draft drawn, with what it left out named for the builder. */
+  const previewPage = (lang: string | null) => ({ ...(livePage(FORM, lang).body as Record<string, unknown>), preview: true, skipped: [] });
+  const builder = (lang: 'en-US' | 'ar-EG') =>
+    `<!doctype html><html lang="${lang}" dir="${lang === 'ar-EG' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview</title>` +
+    '<style>:root{color-scheme:light dark}body{margin:0}iframe{display:block;border:0;inline-size:100%;block-size:100vh}</style></head>' +
+    // The comp's preview modal: a dialog holding the frame (the page in it has its own landmarks, a second `main` would repeat one).
+    `<body><div role="dialog" aria-modal="true" aria-label="${lang === 'ar-EG' ? 'معاينة' : 'Preview'}"><iframe title="${lang === 'ar-EG' ? 'معاينة النموذج' : 'Form preview'}" src="/x/forms/spring-draft?preview=1&amp;lang=${lang}"></iframe></div></body></html>`;
+
+  test('its note, Send off and nothing sent: light and dark, desktop and 390 wide, English and Arabic', async ({ browser }) => {
+    test.slow();
+    const failures: string[] = [];
+    let states = 0;
+    for (const colorScheme of ['light', 'dark'] as const) {
+      for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+        for (const lang of ['en-US', 'ar-EG'] as const) {
+          const context = await browser.newContext({ viewport, colorScheme, locale: lang });
+          const page = await context.newPage();
+          await serve(page, { pages: { 'spring-draft': { status: 200, body: previewPage(lang) } }, answer: { status: 200, body: { state: 'sent' } } });
+          // The builder's page, on the same host: the one place a preview may be framed.
+          await page.route(`${ORIGIN}/builder`, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: builder(lang) }));
+          const sent: string[] = [];
+          page.on('request', (request) => {
+            if (request.method() !== 'GET' || request.url().includes('/challenge')) sent.push(`${request.method()} ${request.url()}`);
+          });
+          const at = `${colorScheme}, ${String(viewport.width)}, ${lang}`;
+
+          await page.goto(`${ORIGIN}/builder`);
+          const frame = page.frameLocator('iframe');
+          await expect(frame.getByRole('heading', { level: 1 })).toBeVisible();
+          const send = frame.getByRole('button', { name: lang === 'ar-EG' ? 'إرسال' : 'Send', exact: true });
+          await expect(send).toHaveAttribute('aria-disabled', 'true');
+          const note = frame.locator('#x-preview');
+          await expect(note).toHaveText(lang === 'ar-EG' ? 'لا يُرسَل أي شيء من هنا.' : 'Nothing is sent from here.');
+          await expect(send).toHaveAttribute('aria-describedby', 'x-preview');
+          expect(await page.frames()[1]!.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${at}: no sideways scroll`).toBe(true);
+          await sweep(page, `${at}: the preview`, failures);
+          states += 1;
+
+          // Filled in and sent: nothing leaves, no check is solved, a file is never uploaded.
+          await frame.locator('#x-q-qname').fill('Marta Kovac');
+          await frame.locator('#x-q-qemail').fill('marta.kovac@cobaltlegal.example');
+          await frame.locator('input[type="file"]').setInputFiles([{ name: 'records-room-layout.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n') }]);
+          // Off, yet still pressable (`aria-disabled`, so it keeps its focus and its note): forced past Playwright's own wait for "enabled".
+          await send.click({ force: true });
+          await expect(frame.getByRole('heading', { level: 1 })).toBeVisible();
+          await expect(note).toBeVisible();
+          expect(sent, `${at}: nothing is sent from a preview`).toEqual([]);
+          await sweep(page, `${at}: the preview after Send`, failures);
+          states += 1;
+          await context.close();
+        }
+      }
+    }
+    expect(states).toBe(2 * 2 * 2 * 2);
+    expect(failures.join('\n\n')).toBe('');
+  });
+});
