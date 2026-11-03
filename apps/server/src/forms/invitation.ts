@@ -16,6 +16,11 @@
  *    record the invitation names, by the name its table is known by, read as
  *    the system). Finding one writes nothing: a link scanner that opens it
  *    spends nothing.
+ * The record is read only when its table is one a link column points at
+ * among the columns an app's `forms` entry opens (the job a feedback row is
+ * about): whoever writes invitations names no other row, and the page says
+ * nothing of any other ("About" is left out, and no link column is filled;
+ * the answer fills only its own "becomes" table's links to it).
  *
  * SPENDING ONE ({@link SurveyInvitations.spend}): `answered_at` set, only
  * while it is still empty, inside the answer's own transaction. Two sends
@@ -37,6 +42,7 @@ import { bindWriteValue } from '../crud/write-values.js';
 import { instantOf } from '../outbox/survey-link.js';
 import type { LiveForm } from './catalog.js';
 import { firstNameOf } from './mail.js';
+import type { FormsScopes } from './scope.js';
 import { SURVEY_TOKEN, surveyTokenHash } from './survey-token.js';
 
 const DAY_MS = 86_400_000;
@@ -71,6 +77,8 @@ export interface SurveyInvitationsDeps {
   installs: () => Promise<AddOnInstalls>;
   viewFor: (connectionId: string) => Promise<SnapshotView | null>;
   data: (connectionId: string) => Promise<{ db: Kysely<SourceDatabase>; dialect: WriteTarget['dialect'] }>;
+  /** The tables the apps open to forms: which tables an invitation's record may be in. */
+  scopes: Pick<FormsScopes, 'scopeFor'>;
 }
 
 /** Whether a form is a survey answered by invitation only. */
@@ -108,13 +116,31 @@ export function createSurveyInvitations(deps: SurveyInvitationsDeps) {
     return { table, view, db, installs };
   }
 
-  /** The record an invitation names (`record_table`, `record_key`), read as the system; null when it names none or it is gone. */
-  async function recordOf(where: { view: SnapshotView; db: Kysely<SourceDatabase>; installs: AddOnInstalls }, connectionId: string, row: Row): Promise<InvitedRecord | null> {
+  /**
+   * The tables an invitation's record may be in: those a link column points
+   * at, among the columns an app's `forms` entry opens on the add-on's
+   * database (as an answer fills one). None when no entry opens a link.
+   */
+  async function linkedTables(live: LiveForm, view: SnapshotView): Promise<ReadonlySet<string>> {
+    const out = new Set<string>();
+    for (const opened of (await deps.scopes.scopeFor(live.connectionId, live.addOn)).tables.values()) {
+      const decided = new Set(opened.entry.decided);
+      for (const relation of view.model.relations) {
+        if (relation.from.tableId !== opened.tableId || relation.through !== null || relation.from.columns.length !== 1) continue;
+        const column = relation.from.columns[0]!;
+        if (opened.resource.writable.has(column) && !decided.has(column)) out.add(relation.to.tableId);
+      }
+    }
+    return out;
+  }
+
+  /** The record an invitation names (`record_table`, `record_key`), read as the system; null when it names none, it is gone, or its table is not one `linked` holds. */
+  async function recordOf(where: { view: SnapshotView; db: Kysely<SourceDatabase>; installs: AddOnInstalls }, connectionId: string, row: Row, linked: ReadonlySet<string>): Promise<InvitedRecord | null> {
     const stored = row['record_table'];
     const key = row['record_key'];
     if (typeof stored !== 'string' || stored === '' || key === null || key === undefined || String(key) === '') return null;
     const tableId = where.installs.tableOfRef(connectionId, stored);
-    if (tableId === null) return null;
+    if (tableId === null || !linked.has(tableId)) return null;
     try {
       const table = where.view.table(tableId);
       const found = await fetchByPk(where.db, table, parseRecordId(table, String(key)));
@@ -147,7 +173,7 @@ export function createSurveyInvitations(deps: SurveyInvitationsDeps) {
       const expiresAt = instantOf(row['expires_at']) ?? (invitedAt === null ? null : invitedAt + stopAfter * DAY_MS);
       if (expiresAt === null || expiresAt <= now) return { state: 'dead' };
       const pkColumn = table.primaryKey[0]!;
-      const record = await recordOf(where, live.connectionId, row);
+      const record = await recordOf(where, live.connectionId, row, await linkedTables(live, where.view));
       const name = typeof row['name'] === 'string' ? row['name'] : null;
       return {
         state: 'open',

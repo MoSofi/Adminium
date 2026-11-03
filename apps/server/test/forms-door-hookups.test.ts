@@ -49,6 +49,7 @@ import type { LiveForm } from '../src/forms/catalog.js';
 import { deleteFormAnswers } from '../src/forms/answers.js';
 import type { FormsFiles } from '../src/forms/files.js';
 import { createSurveyInvitations } from '../src/forms/invitation.js';
+import { createFormsScopes } from '../src/forms/scope.js';
 import { surveyTokenHash } from '../src/forms/survey-token.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
@@ -91,12 +92,16 @@ function crm(): Record<string, unknown> {
       tables: [
         { ref: 'contacts', columns: [pk, text('name', 80), text('email', 254, { nullable: true })] },
         { ref: 'jobs', columns: [pk, text('title', 120)] },
+        // A table the forms entry links nothing to: an invitation naming one of its rows reads nothing of it.
+        { ref: 'secrets', columns: [pk, text('title', 120)] },
         {
           ref: 'feedback',
           columns: [
             pk,
             { ref: 'job_id', type: 'fk', references: 'jobs', unique: true },
             { ref: 'contact_id', type: 'fk', references: 'contacts', nullable: true },
+            // A link the forms entry does not open: its table is no invitation's to name.
+            { ref: 'secret_id', type: 'fk', references: 'secrets', nullable: true },
             { ref: 'score', type: 'int', nullable: true, rules: { validation: { min: 1, max: 5 } } },
             text('text', 1000, { nullable: true }),
             { ref: 'answered_on', type: 'date', rules: { stamp: { set: 'today', on: 'create' } } },
@@ -130,6 +135,7 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
   let invites = 0;
   /** The jobs table's stored name, as a record tab and an invitation hold it. */
   let jobsStored = '';
+  let secretsStored = '';
 
   const count = async (table: string, where = '1=1') => Number((await h.rows(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`))[0]!['n']);
   const nextIp = () => {
@@ -238,6 +244,7 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
     ids['feedback'] = view.table('crm_feedback').id;
     const installs = await keepAddOnInstalls(h.meta, async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null).fresh();
     jobsStored = installs.refOf(h.connectionId, view.table('crm_jobs').id);
+    secretsStored = installs.refOf(h.connectionId, view.table('crm_secrets').id);
 
     const { db } = await h.manager.data(h.connectionId);
     await db.insertInto('crm_contacts').values({ id: 1, name: 'Marta Kovac', email: MARTA } as never).execute();
@@ -249,6 +256,7 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
     ] as const) {
       await db.insertInto('crm_jobs').values({ id, title } as never).execute();
     }
+    await db.insertInto('crm_secrets').values({ id: 7, title: 'Pay rise for Bo' } as never).execute();
 
     const named = (linkNames: boolean, becomes: FormSettingsInput['becomes'] = null): FormSettingsInput => ({ survey: { mode: 'named', linkNames, stopAfterDays: 30 }, becomes, limits: { perHour: 500, harder: false } });
     const forms: [string, string, string, FormDefinitionInput, FormSettingsInput][] = [
@@ -411,6 +419,22 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
     expect(withToken.statusCode).toBe(400);
   });
 
+  it.skipIf(!available)('an invitation naming a row of a table no forms entry links to says nothing of it and fills nothing', async () => {
+    const { token } = await invite('frm_fit', 7, { table: secretsStored });
+    const page = await open('fit-out', token);
+    expect(page.statusCode, page.body).toBe(200);
+    expect(page.json()).toMatchObject({ state: 'live', invitation: { firstName: 'Marta', about: null } });
+    expect(page.body).not.toContain('Pay rise');
+    // Nothing fills the job's link: the feedback row cannot be made, so nothing is.
+    const before = await count('crm_feedback');
+    const sent = await send('fit-out', { qnps: 9, qday: 4, qdiff: 'Fine.' }, { t: token });
+    expect(sent.statusCode).not.toBe(200);
+    expect(await count('crm_feedback')).toBe(before);
+    // On a survey that becomes no row, the same: a job is linked to, a secret is not.
+    expect((await open('quiet-survey', (await invite('frm_quiet', 7, { table: secretsStored })).token)).json()).toMatchObject({ state: 'live', invitation: { about: null } });
+    expect((await open('quiet-survey', (await invite('frm_quiet', 10)).token)).json()).toMatchObject({ state: 'live', invitation: { about: 'Quiet room at Linden' } });
+  });
+
   it.skipIf(!available)('the answer fills the job’s feedback from the invitation; the same token again is already answered', async () => {
     const { id, token } = await invite('frm_fit', 7);
     const sent = await send('fit-out', { qnps: 9, qday: 4, qdiff: 'Fewer cables.' }, { t: token });
@@ -444,7 +468,7 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
   it.skipIf(!available)('an invitation found open but answered before its send is spent once: the second spend changes nothing', async () => {
     const { id, token } = await invite('frm_quiet', null);
     const installs = keepAddOnInstalls(h.meta, async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
-    const invitations = createSurveyInvitations({ installs: () => installs.fresh(), viewFor: (connectionId) => views.viewFor(connectionId), data: (connectionId) => h.manager.data(connectionId) });
+    const invitations = createSurveyInvitations({ installs: () => installs.fresh(), viewFor: (connectionId) => views.viewFor(connectionId), data: (connectionId) => h.manager.data(connectionId), scopes: createFormsScopes({ meta: h.meta, tablesOf: async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined)?.tables ?? null }) });
     const parsed = parseForm(FIT_OUT, { survey: { mode: 'named', linkNames: false }, limits: { perHour: 500, harder: false } });
     if (!parsed.ok) throw new Error('the survey does not parse');
     const live: LiveForm = { id: 'frm_quiet', slug: 'quiet-survey', addOn: 'forms', connectionId: h.connectionId, form: parsed.form };

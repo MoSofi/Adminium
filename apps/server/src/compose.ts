@@ -3166,7 +3166,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const formsWebsites = listedWebsitesOf(meta);
   const formsConfirm = createFormsConfirm({ meta, secret: env.ADMINIUM_SECRET, consent, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews });
   // A named survey's invitations: found by the token their links carry, spent by the answer.
-  const surveyInvitations = createSurveyInvitations({ installs: () => addOnInstalls.fresh(), viewFor: formsViews, data: formsData });
+  const surveyInvitations = createSurveyInvitations({ installs: () => addOnInstalls.fresh(), viewFor: formsViews, data: formsData, scopes: formsScopes });
   const answerDoor = createAnswerDoor({
     meta,
     secret: env.ADMINIUM_SECRET,
