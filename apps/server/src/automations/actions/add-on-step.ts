@@ -58,7 +58,7 @@ import { pkLabel } from '../../crud/records.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { outboundKey } from '../../documents/compose.js';
 import { peopleTablesOf } from '../../people/tables-of.js';
-import { NO_STEPS, inputLabel, personSource, personalInputs, stepName, stepRefusal, type InstalledStep } from '../add-on-steps.js';
+import { NO_STEPS, inputLabel, linkTargetOf, personSource, personalInputs, stepName, stepRefusal, type InstalledStep } from '../add-on-steps.js';
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { assertWritable, createRow, nowValueFor, sourceOf } from './record-write.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -179,8 +179,8 @@ async function personFields(input: AddOnStepInput, written: string, installed: I
     table = source.table;
     row = source.row;
   } else {
-    // One link of the record, and no further: a person two links away is not this step's to find.
-    const target = outboundKey(source.view, source.table, how.link);
+    // One link of the record (or a column that copies one), and no further: a person two links away is not this step's to find.
+    const target = linkTargetOf(source.view, source.table, how.link);
     if (target === null) throw new ActionFailure(`${name}: “${label}” reads ${how.link}, which links to nothing on this record.`);
     const value = source.row[how.link];
     if (value === null || value === undefined || String(value) === '') throw new ActionFailure(`${name}: “${label}” has nobody: this record’s ${how.link} is empty.`);

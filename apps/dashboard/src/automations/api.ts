@@ -114,6 +114,8 @@ export interface SourceTable {
   pageSlug: string | null;
   /** An app declares the table as people: a step's person may be one of its rows. Absent when it does not. */
   people?: true | undefined;
+  /** The columns that name a row of a table of people, one hop (a link, or a column that copies one). Absent when none does. */
+  personLinks?: { column: string; table: string }[] | undefined;
 }
 
 /** One link of a table: the column that holds it, the table it points at, and that table's columns. */

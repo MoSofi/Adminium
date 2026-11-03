@@ -249,10 +249,11 @@ export function personOptions(table: SourceTable | null, tables: readonly Source
   const record = table.label;
   const out: { value: string; label: string }[] = [];
   if (table.people === true) out.push({ value: '@record', label: t('automations:addOn.personRecord', 'The {record} itself', { record }) });
-  for (const link of table.links ?? []) {
-    if (tables.find((candidate) => candidate.id === link.table)?.people !== true) continue;
-    const named = table.columns.find((column) => column.name === link.column)?.label ?? link.label;
-    out.push({ value: `@link:${link.column}`, label: t('automations:addOn.personLink', "The {record}'s {link}", { record, link: named }) });
+  // What the server says names a person (a column that copies a link counts); else the links that lead to a table of people.
+  const named = table.personLinks ?? (table.links ?? []).filter((link) => tables.find((candidate) => candidate.id === link.table)?.people === true);
+  for (const link of named) {
+    const label = table.columns.find((column) => column.name === link.column)?.label ?? link.column;
+    out.push({ value: `@link:${link.column}`, label: t('automations:addOn.personLink', "The {record}'s {link}", { record, link: label }) });
   }
   return out;
 }

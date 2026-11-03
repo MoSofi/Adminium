@@ -15,6 +15,8 @@ import { ADD_ON_STEP_PERSON, type AddOnStep, type AddOnStepInput } from '@admini
 import type { AutomationWriteValue } from '@adminium/meta';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
+import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { outboundKey } from '../documents/compose.js';
 
 /** A step as it stands on one database. */
 export interface InstalledStep {
@@ -119,6 +121,25 @@ export function personalInputs(step: AddOnStep, masked: (column: string) => bool
     if ('input' in value) into.set(value.input, [...(into.get(value.input) ?? []), column]);
   }
   return new Set([...into].filter(([, columns]) => columns.every(masked)).map(([input]) => input));
+}
+
+/**
+ * The row a column of a record names, one hop: a link (a foreign key), or a
+ * column that copies a link through another (`copy: { via, from }`: a job's
+ * contact, copied from its deal's), which holds the same key. Null when the
+ * column names no row.
+ */
+export function linkTargetOf(view: SnapshotView, table: ResolvedTable, column: string): { tableId: string; column: string } | null {
+  const direct = outboundKey(view, table, column);
+  if (direct !== null) return direct;
+  const copy = table.table.columns.find((candidate) => candidate.name === column)?.copy;
+  const via = copy === undefined ? null : outboundKey(view, table, copy.via);
+  if (copy === undefined || via === null) return null;
+  try {
+    return outboundKey(view, view.table(via.tableId), copy.from);
+  } catch {
+    return null;
+  }
 }
 
 /** How a `person` input is kept in a rule, read: the record itself, or the link column of it that names the person. */

@@ -59,7 +59,7 @@ import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import { liveTemplateKeySet, templateFamilies } from '../../automations/templates.js';
-import { findStep, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
+import { findStep, linkTargetOf, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
 import { firstIncompleteNode, holdsAddOnStep, isOwnTable, requiredGrants, resolveRule, ruleWarnings, type RuleSteps } from '../../automations/validate.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import { automationHashOf } from '../../apps/manifest-automations.js';
@@ -113,6 +113,17 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     if (connectionId === null) return () => ({ state: 'no-add-on' });
     const installs = await deps.installs();
     return (addOn, step) => findStep(installs, connectionId, addOn, step);
+  }
+
+  /** The columns of a table that name a row of a table of people, one hop (a link, or a column that copies one): a step's person. */
+  function personLinksOf(view: SnapshotView, table: ResolvedTable, people: ReadonlySet<string>): { personLinks?: { column: string; table: string }[] } {
+    if (people.size === 0) return {};
+    const out: { column: string; table: string }[] = [];
+    for (const column of table.columns.keys()) {
+      const target = linkTargetOf(view, table, column);
+      if (target !== null && people.has(target.tableId)) out.push({ column, table: target.tableId });
+    }
+    return out.length === 0 ? {} : { personLinks: out };
   }
 
   /** The column a table's rows are shown by in a picker, or null. */
@@ -422,6 +433,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
               children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,
               ...(people.has(resolved.id) ? { people: true as const } : {}),
+              ...personLinksOf(view, resolved, people),
             });
           }
           const steps = [];

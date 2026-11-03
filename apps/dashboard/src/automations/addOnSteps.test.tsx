@@ -248,6 +248,12 @@ describe('a step about a person, a survey named by its slug, and a choice with l
     expect(onChange).toHaveBeenLastCalledWith({ inputs: { to: '@link:contact_id' } });
   });
 
+  it('offers what the server says names a person, a column that copies a link among them', () => {
+    const copied = { ...JOBS, columns: [...JOBS.columns, { ...column('deal_contact'), label: 'Deal contact' }], personLinks: [{ column: 'contact_id', table: 'main.crm_contacts' }, { column: 'deal_contact', table: 'main.crm_contacts' }] } as unknown as SourceTable;
+    settings(survey(), copied);
+    expect([...(screen.getByTestId('add-on-input-to') as HTMLSelectElement).options].map((option) => option.textContent)).toEqual(['Choose…', "The Job's Main contact", "The Job's Deal contact"]);
+  });
+
   it('offers the record itself on a table of people, and says when nobody is reached', () => {
     settings(survey(), CONTACTS);
     expect([...(screen.getByTestId('add-on-input-to') as HTMLSelectElement).options].map((option) => option.value)).toEqual(['', '@record']);

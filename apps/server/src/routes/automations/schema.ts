@@ -173,6 +173,8 @@ const sourceTableSchema = z.object({
   pageSlug: z.string().nullable(),
   /** An app declares the table as people: a step's person may be its rows, or the rows a link of another table names. */
   people: z.literal(true).optional(),
+  /** The columns that name a row of a table of people, one hop (a link, or a column that copies one): what a step's person may be. */
+  personLinks: z.array(z.object({ column: z.string(), table: z.string() })).optional(),
 });
 
 /** A text in each of the product's languages, as an add-on's manifest carries it; the screen picks its own. */

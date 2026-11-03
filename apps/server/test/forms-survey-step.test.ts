@@ -15,7 +15,7 @@
  * then shows on the table the rule is about.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { automationsRepo, overridesRepo, settingsRepo, snapshotsRepo, type Automation, type AutomationGraph, type AutomationTriggerEvent } from '@adminium/meta';
+import { automationsRepo, overridesRepo, rolesRepo, settingsRepo, snapshotsRepo, usersRepo, type Automation, type AutomationGraph, type AutomationTriggerEvent } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { formsWithInvitations } from '../../../packages/manifest/test/forms-invitations-fixture.js';
@@ -25,11 +25,15 @@ import { walkRule } from '../src/automations/runner.js';
 import { resolveRule, type RuleSteps } from '../src/automations/validate.js';
 import { loadAddOnInstalls, type AddOnInstalls } from '../src/apps/table-ref.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
+import { composeServer } from '../src/compose.js';
+import { createApplyService } from '../src/llm/apply-service.js';
+import { createRunService } from '../src/llm/run-service.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 import { peopleTablesOf } from '../src/people/tables-of.js';
+import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { shopManifest } from './fixtures/cards-kit/index.js';
-import { TEST_SECRET } from './helpers.js';
+import { makeEnv, TEST_SECRET } from './helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
 
 type Doc = Record<string, unknown>;
@@ -92,7 +96,19 @@ const crm = (): Doc =>
         { ref: 'hours', columns: [pk, { ref: 'day', type: 'text', maxLength: 16, nullable: true }] },
         { ref: 'companies', columns: [pk, { ref: 'name', type: 'text', maxLength: 80 }] },
         { ref: 'contacts', columns: [pk, { ref: 'name', type: 'text', maxLength: 80, nullable: true }, { ref: 'email', type: 'text', maxLength: 254, nullable: true, rules: { personal: true } }, { ref: 'company_id', type: 'fk', references: 'companies', nullable: true }] },
-        { ref: 'jobs', columns: [pk, { ref: 'title', type: 'text', maxLength: 80 }, { ref: 'contact_id', type: 'fk', references: 'contacts', nullable: true }, { ref: 'company_id', type: 'fk', references: 'companies', nullable: true }] },
+        { ref: 'deals', columns: [pk, { ref: 'contact_id', type: 'fk', references: 'contacts', nullable: true }] },
+        {
+          ref: 'jobs',
+          columns: [
+            pk,
+            { ref: 'title', type: 'text', maxLength: 80 },
+            { ref: 'contact_id', type: 'fk', references: 'contacts', nullable: true },
+            { ref: 'company_id', type: 'fk', references: 'companies', nullable: true },
+            { ref: 'deal_id', type: 'fk', references: 'deals', nullable: true },
+            // The deal's contact, copied: not a link of its own, and still the job's contact.
+            { ref: 'deal_contact', type: 'int', nullable: true, rules: { copy: { via: 'deal_id', from: 'contact_id', mode: 'always', follow: true } } },
+          ],
+        },
       ],
     },
     people: [{ table: 'contacts', kind: 'people', email: 'email', name: 'name', company: 'company_id' }],
@@ -126,7 +142,8 @@ describe.each(LEGS)('a step that sends a survey — %s', (dialect, available) =>
     await read();
     await h.rows(`INSERT INTO ${name('companies')} (id, name) VALUES (1, 'Linden Studio'), (2, 'Harbour & Co')`);
     await h.rows(`INSERT INTO ${name('contacts')} (id, name, email, company_id) VALUES (1, 'Ann Lee', 'ann@linden.example', 1), (2, 'No Address', NULL, 2)`);
-    await h.rows(`INSERT INTO ${name('jobs')} (id, title, contact_id, company_id) VALUES (10, 'Kitchen fit-out', 1, 1), (11, 'Office', NULL, 2), (12, 'Shop front', 2, 2)`);
+    await h.rows(`INSERT INTO ${name('deals')} (id, contact_id) VALUES (100, 1)`);
+    await h.rows(`INSERT INTO ${name('jobs')} (id, title, contact_id, company_id, deal_id, deal_contact) VALUES (10, 'Kitchen fit-out', 1, 1, 100, 1), (11, 'Office', NULL, 2, NULL, NULL), (12, 'Shop front', 2, 2, NULL, NULL)`);
     for (const [id, slug, kind, state] of [['frm_fit', 'fit-out', 'survey', 'live'], ['frm_old', 'old-survey', 'survey', 'closed'], ['frm_news', 'newsletter', 'form', 'live']] as const) {
       await h.rows(`INSERT INTO ${name('forms')} (id, title, slug, kind, state, definition, settings) VALUES ('${id}', '${slug}', '${slug}', '${kind}', '${state}', '{}', '{}')`);
     }
@@ -174,6 +191,61 @@ describe.each(LEGS)('a step that sends a survey — %s', (dialect, available) =>
     // The person's address and name are in the row, and nowhere in the run's own record.
     expect(JSON.stringify(outcome.trace)).not.toContain('ann@linden.example');
     expect(JSON.stringify(outcome.trace)).not.toContain('Ann Lee');
+  });
+
+  it.skipIf(!available)('reaches the person through a column that copies a link, one hop as a link is', async () => {
+    await setUp();
+    await check(survey({ ...fitOut, to: '@link:deal_contact' }));
+    const outcome = await walk(survey({ ...fitOut, to: '@link:deal_contact' }), 10);
+    expect(outcome.kind === 'finished' && outcome.status, lineOf(outcome)).toBe('succeeded');
+    expect((await invitations())[0]).toMatchObject({ email: 'ann@linden.example', person_key: '1' });
+    // A plain number that copies nothing names nobody.
+    await expect(check(survey({ ...fitOut, to: '@link:id' }))).rejects.toThrow('To reads id, which links');
+  });
+
+  it.skipIf(!available)('tells the rule editor which tables hold people and which columns name one, and the step\'s own words', async () => {
+    await setUp();
+    // The rule editor's own read, on the real server, as a Super Admin.
+    const runService = createRunService({ meta: h.meta });
+    const composed = await composeServer({
+      env: makeEnv({ ADMINIUM_DATA_DIR: h.dataDir, HOST: '127.0.0.1', ADMINIUM_SECRET: TEST_SECRET }),
+      metaStore: { meta: h.meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() },
+      manager: h.manager,
+      runService,
+      applyService: createApplyService({ meta: h.meta, runService }),
+      allowed: null,
+      logger: false,
+      telemetry: false,
+    });
+    let res;
+    try {
+      await composed.app.ready();
+      await composed.addOnsLoaded;
+      await composed.jobs.worker.stop();
+      composed.jobs.scheduler.stop();
+      const user = await usersRepo(h.meta).create({ email: 'boss@forms.dev', name: 'Boss', passwordHash: await adminPasswordHash() });
+      const roles = rolesRepo(h.meta);
+      await roles.assignToUser(user.id, (await roles.findBySlug('super-admin'))!.id);
+      const login = await composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'boss@forms.dev', password: ADMIN_PASSWORD } });
+      res = await composed.app.inject({ method: 'GET', url: '/api/v1/automations/sources', headers: { cookie: sessionCookie(login.headers['set-cookie']) } });
+    } finally {
+      await composed.app.close();
+    }
+    expect(res.statusCode, res.body).toBe(200);
+    const connection = (res.json() as { connections: Doc[] }).connections.find((one) => one['id'] === h.connectionId)!;
+    const table = (ref: string) => (connection['tables'] as Doc[]).find((one) => one['id'] === tables.get(ref))!;
+    expect(table('contacts')['people']).toBe(true);
+    expect(table('jobs')['people']).toBeUndefined();
+    expect(table('jobs')['personLinks']).toEqual([
+      { column: 'contact_id', table: tables.get('contacts') },
+      { column: 'deal_contact', table: tables.get('contacts') },
+    ]);
+    expect(table('companies')['personLinks']).toBeUndefined();
+    const step = (connection['steps'] as Doc[]).find((one) => one['key'] === 'send-survey')!;
+    const [surveyInput, to, kind] = step['inputs'] as Doc[];
+    expect(surveyInput).toMatchObject({ kind: 'record', by: 'slug', where: [{ column: 'state', eq: 'live' }, { column: 'kind', eq: 'survey' }], tableLabel: 'title', help: { 'en-US': 'Only live surveys are listed.' } });
+    expect(to).toMatchObject({ kind: 'person', required: true });
+    expect((kind!['options'] as { help: Record<string, string> }[]).map((option) => option.help['en-US'])).toEqual(['Only to people who agreed.', 'About work you did for them.']);
   });
 
   it.skipIf(!available)('writes the install\'s own language for a person whose table keeps none', async () => {

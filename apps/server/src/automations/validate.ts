@@ -40,8 +40,7 @@ import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
 import { isDateColumn } from './relative-time.js';
 import { isSlackWebhookUrl } from './actions/webhook.js';
-import { personSource, personalInputs, type StepAnswer } from './add-on-steps.js';
-import { outboundKey } from '../documents/compose.js';
+import { linkTargetOf, personSource, personalInputs, type StepAnswer } from './add-on-steps.js';
 import { isAddressColumn, parseRelated, relatedTarget, relatedUses, type RelatedRef } from './related.js';
 
 /** Every node, branch children included, in walk order. */
@@ -521,8 +520,8 @@ function checkAction(
 
 /**
  * A step's person, as a rule keeps it: the record itself, whose table an app
- * declares as people, or one link column of the record that leads to such a
- * table — one hop, never two. A link the snapshot does not hold, or a table
+ * declares as people, or one link column of the record (or a column that
+ * copies one) that leads to such a table — one hop, never two. A link the snapshot does not hold, or a table
  * nobody declares as people, is refused by name.
  */
 function personInput(given: string, label: string, table: ResolvedTable, ctx: ResolveContext, where: string): void {
@@ -531,7 +530,7 @@ function personInput(given: string, label: string, table: ResolvedTable, ctx: Re
   let reached = table.id;
   if ('link' in how) {
     readColumn(table, how.link, where);
-    const target = ctx.view === null ? null : outboundKey(ctx.view, table, how.link);
+    const target = ctx.view === null ? null : linkTargetOf(ctx.view, table, how.link);
     if (target === null) throw new ValidationFailedError(`${where}: ${label} reads ${how.link}, which links ${table.name} to no other table.`, { column: how.link, reason: 'person' });
     reached = target.tableId;
   }
