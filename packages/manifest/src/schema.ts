@@ -4431,7 +4431,7 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
       out.push({ path: ['publicAccess', e, 'key'], message: `an add-on's entry is served through its app's key, or through the add-on's own link key${linkKey === undefined ? '' : ` "${linkKey}"`}: "${entry.key}" is neither` });
       return;
     }
-    if (!ownLink && entry.methods.some((method) => method !== 'GET')) out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row to whoever holds its link, so it only reads` });
+    // A link that is not the row's own only reads: the key rules every manifest meets say so (`publicAccessIssues`).
     if (ownLink && entry.methods.some((method) => method !== 'GET' && method !== 'PATCH')) {
       out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row as its own link, which reads it and changes it, and makes no row` });
     }
