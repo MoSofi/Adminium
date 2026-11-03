@@ -206,6 +206,30 @@ export {
 } from './price-adjust.js';
 
 export {
+  CHECK_FEATURES_MAX,
+  CHECK_FILES_MAX,
+  CHECK_HOST_REASONS,
+  CHECK_LINES_MAX,
+  CHECK_MODES,
+  CHECK_READS_MAX,
+  CHECK_REASONS,
+  CHECK_ROWS_MAX,
+  checkAnswerIssues,
+  checkOutputSchema,
+  featureRefusals,
+  type CheckAnswer,
+  type CheckFile,
+  type CheckHostReason,
+  type CheckInput,
+  type CheckLine,
+  type CheckMode,
+  type CheckOutput,
+  type CheckReason,
+  type CheckRefusal,
+  type DesignCheckProvider,
+} from './design-check.js';
+
+export {
   CHECKOUT_STATUSES,
   DISPUTE_STATUSES,
   PAYMENT_ANSWER_SCHEMAS,

@@ -862,6 +862,7 @@ export {
   type PostingRowsLedger,
 } from './posting-rows.js';
 export { priceAdjustConformance, type PriceAdjustCase, type PriceAdjustConformanceOptions } from './price-adjust.js';
+export { checkQuestion, designCheckConformance, type DesignCheckCase, type DesignCheckConformanceOptions } from './design-check.js';
 export {
   PAYMENT_AMOUNT_CASES,
   paymentProviderConformance,
