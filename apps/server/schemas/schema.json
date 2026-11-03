@@ -47,6 +47,7 @@
               "column.normalize",
               "column.retryKey",
               "column.lookup",
+              "column.band",
               "column.bounds",
               "column.scale",
               "column.venueLocal",

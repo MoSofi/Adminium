@@ -20,6 +20,8 @@ const SRC = join(import.meta.dirname, '..', 'src');
 
 const ALLOWED: Record<string, string> = {
   'crud/write-service.ts': 'the write service itself',
+  'crud/band.ts':
+    "a total's band picked again inside the write service's own settle (`settleParent`): the link and what is copied through it, Adminium's own columns of the parent row it already holds, written as the settle writes its totals and formulas — no rule of the table decides them and no hook or live frame is owed for a value nobody typed",
   'schema-ddl/sqlite-rebuild.ts': 'a schema change: rows are copied into the rebuilt table unchanged',
   'schema-ddl/compile.ts': 'a schema change: a required MySQL time added to a table gives the rows already there the current time',
   'routes/desktop-local-db/handlers.ts': "the desktop app's placeholder rows in a database it has just created",
