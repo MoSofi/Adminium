@@ -143,6 +143,18 @@ describe.each(LEGS)('a form built, published and answered — %s', (dialect, ava
     expect((await w.as('mia', 'DELETE', w.data('forms', otherId))).statusCode).toBe(200);
   });
 
+  it.skipIf(!run)('a form whose answers become a row of a table named by its stored name, as a sample names it, makes that row', async () => {
+    const definition = { ...EVERY_KIND, questions: EVERY_KIND.questions.slice(0, 2) };
+    const byRef = { becomes: { table: 'crm:enquiries', map: { qname: 'person', qemail: 'email' }, source: { column: 'source', value: 'Sample form' } }, tell: [], limits: { perHour: 200, harder: false } };
+    const made = await draftForm(w, 'mia', { name: 'From a sample', slug: 'from-a-sample', kind: 'form', definition, settings: byRef });
+    const id = String((made.json()['data'] as Doc)['id']);
+    expect((await publishForm(w, 'mia', id, definition, byRef)).statusCode).toBe(200);
+    const sent = await w.send('from-a-sample', { qname: 'Sam Ple', qemail: 'sam@sample.dev' });
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect(await w.rows('enquiries', "email = 'sam@sample.dev'")).toEqual([expect.objectContaining({ person: 'Sam Ple', source: 'Sample form', state: 'open' })]);
+    expect((await w.rows('answers', "email = 'sam@sample.dev'"))[0]).toMatchObject({ became_table: 'crm:enquiries' });
+  });
+
   it.skipIf(!run)('closed, the form says it is closed; opened again, it is served', async () => {
     const closed = await w.as('mia', 'PATCH', w.data('forms', formId), { values: { state: 'closed' }, from: 'live' });
     expect(closed.statusCode, closed.body).toBe(200);
@@ -152,7 +164,7 @@ describe.each(LEGS)('a form built, published and answered — %s', (dialect, ava
     expect(JSON.stringify(shut.json())).toContain('closed');
     const late = await w.send('book-a-showroom-visit', { qname: 'Late', qemail: 'late@cobalt.dev' });
     expect(late.json()['state'], late.body).toBe('closed');
-    expect(await w.rows('answers')).toHaveLength(1);
+    expect(await w.rows('answers', "email = 'late@cobalt.dev'")).toHaveLength(0);
     expect((await publishForm(w, 'mia', formId, EVERY_KIND, settings, 'closed')).statusCode).toBe(200);
     await settle();
     expect((await shown('book-a-showroom-visit')).statusCode).toBe(200);

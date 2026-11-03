@@ -51,6 +51,17 @@ export interface FormsTable {
 /** The tables of one database opened to forms, by table id, with the apps that opened them. */
 export interface FormsScope {
   tables: ReadonlyMap<string, FormsTable>;
+  /** The same tables by their stored name (`<app>:<table>`, as `record_table` holds it). */
+  byRef: ReadonlyMap<string, FormsTable>;
+}
+
+/**
+ * The table a form's "becomes" names: by its id in this database's snapshot
+ * (what the builder writes), or by its stored name `<app>:<table>` (what a
+ * sample file can write, as it cannot know this database's ids).
+ */
+export function openedTable(scope: FormsScope, table: string): FormsTable | undefined {
+  return scope.tables.get(table) ?? scope.byRef.get(table);
 }
 
 export interface FormsScopesDeps {
@@ -113,8 +124,9 @@ export function createFormsScopes(deps: FormsScopesDeps) {
   /** The tables of one database the apps the add-on serves have opened to forms. */
   async function build(connectionId: string, addOnKey: string): Promise<FormsScope> {
     const tables = new Map<string, FormsTable>();
+    const byRef = new Map<string, FormsTable>();
     const snapshot = await deps.tablesOf(connectionId);
-    if (snapshot === null) return { tables };
+    if (snapshot === null) return { tables, byRef };
     const entries = await manifestsRepo(deps.meta, NO_SECRETS).list();
     // The apps the add-on is attached to, and switched on for, on its own database.
     const self = entries.find((one) => one.row.kind === 'add-on' && one.row.manifestKey === addOnKey && one.row.connectionId === connectionId);
@@ -131,10 +143,12 @@ export function createFormsScopes(deps: FormsScopesDeps) {
         const table = real === undefined ? undefined : snapshot.find((candidate) => candidate.name === real);
         if (table === undefined) continue;
         const ref = `forms:${one.row.manifestKey}:${entry.table}`;
-        tables.set(table.id, { appKey: one.row.manifestKey, ref: entry.table, connectionId, tableId: table.id, entry, resource: formsResource(entry, table.id, ref) });
+        const opened: FormsTable = { appKey: one.row.manifestKey, ref: entry.table, connectionId, tableId: table.id, entry, resource: formsResource(entry, table.id, ref) };
+        tables.set(table.id, opened);
+        byRef.set(`${one.row.manifestKey}:${entry.table}`, opened);
       }
     }
-    return { tables };
+    return { tables, byRef };
   }
 
   return {
