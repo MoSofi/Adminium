@@ -306,15 +306,21 @@ export {
 
 export {
   ADD_ON_STEP_INPUT_KINDS,
+  ADD_ON_STEP_PERSON,
+  ADD_ON_STEP_PERSON_FIELDS,
+  ADD_ON_STEP_PERSONAL_FIELDS,
   ADD_ON_STEP_TOKENS,
   addOnStepInputSchema,
   addOnStepSchema,
   addOnStepValueSchema,
+  addOnStepWhereSchema,
   addOnStepsSchema,
   type AddOnStep,
   type AddOnStepInput,
   type AddOnStepInputKind,
+  type AddOnStepPersonField,
   type AddOnStepValue,
+  type AddOnStepWhere,
 } from './steps.js';
 
 export { ADD_ON_COLUMN_NOTE_MAX, ADD_ON_QUESTIONS_MAX, ADD_ON_TABLE_NOTE_MAX, addOnAssistantSchema, type AddOnAssistant } from './assistant-block.js';

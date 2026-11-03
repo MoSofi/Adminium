@@ -232,7 +232,8 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     const found = declared.find((candidate) => candidate.key === step);
     if (found === undefined) return { state: 'no-step', addOnName: manifest.name };
     const inputTables = Object.fromEntries(found.inputs.filter((one) => one.table !== undefined).map((one) => [one.key, input.realId(one.table as string)]));
-    return { state: 'ok', step: { addOn, addOnName: manifest.name, step: found, table: input.realId(found.writes.table), inputTables } };
+    // Only checked here, never run: a table's stored name is the run's to read.
+    return { state: 'ok', step: { addOn, addOnName: manifest.name, step: found, table: input.realId(found.writes.table), inputTables, refOf: (tableId: string) => tableId } };
   };
 
   const roles = rolesRepo(meta);
@@ -272,7 +273,7 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       throw refusal(error instanceof Error ? error.message : String(error));
     }
     // A step of the manifest's own is held to its inputs; another add-on's is that add-on's to answer for, on the day it runs.
-    const unfinished = firstIncompleteNode(bound.graph, (addOn, step) => (addOn === manifest.key ? ownSteps(addOn, step) : { state: 'ok', step: { addOn, addOnName: addOn, step: { key: step, inputs: [] } as never, table: '', inputTables: {} } }));
+    const unfinished = firstIncompleteNode(bound.graph, (addOn, step) => (addOn === manifest.key ? ownSteps(addOn, step) : { state: 'ok', step: { addOn, addOnName: addOn, step: { key: step, inputs: [] } as never, table: '', inputTables: {}, refOf: (tableId: string) => tableId } }));
     if (unfinished !== null) throw refusal(`its step "${unfinished.title}" is not finished.`);
 
     const existing = mine.find((candidate) => candidate.templateKey === rule.key);

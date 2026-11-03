@@ -10,9 +10,12 @@
  *  - a tab `on` a list of stored table names shows on those tables;
  *  - a tab `on: 'linked'` shows on every table a rule hands in to the add-on
  *    as the row asked about — the rule's own table when it maps the row
- *    itself, the table its link column points at when it maps that — and on
- *    a table whose price the add-on answers. A rule switched off still
- *    counts: the links are kept while it is off;
+ *    itself, the table its link column points at when it maps that — on
+ *    a table whose price the add-on answers, and on the table an automation
+ *    that runs one of the add-on's steps is about (its trigger's table, or
+ *    the table a schedule goes through): a survey sent from a job shows on
+ *    the job. A rule switched off still counts: the links are kept while it
+ *    is off;
  *  - on a table an app made, only while the add-on is attached to that app
  *    and switched on for it;
  *  - only to a caller who reads the tab's own table, with what they may do
@@ -24,7 +27,7 @@
 import type { RecordTab } from '@adminium/add-on-contracts';
 import type { TablePrivilegeMap } from '@adminium/engine/adapter';
 import type { AddOnManifest } from '@adminium/manifest';
-import type { MetaDb } from '@adminium/meta';
+import { automationsRepo, type AutomationGraph, type MetaDb } from '@adminium/meta';
 
 import { writeRefused } from '../connections/privileges.js';
 import { readerWords } from '../i18n/bcp47.js';
@@ -94,6 +97,44 @@ function handedIn(view: SnapshotView, addOnKey: string, version: string, manifes
   return found;
 }
 
+/** The add-ons whose steps a rule's graph holds, its branches' included. */
+function stepAddOnsOf(graph: AutomationGraph): Set<string> {
+  const out = new Set<string>();
+  const visit = (nodes: AutomationGraph['nodes']): void => {
+    for (const node of nodes) {
+      if (node.kind === 'action' && node.action.kind === 'add-on.step' && node.action.addOn !== '') out.add(node.action.addOn);
+      if (node.kind === 'branch') for (const branch of node.branches) visit(branch.nodes as AutomationGraph['nodes']);
+    }
+  };
+  visit(graph.nodes);
+  return out;
+}
+
+/**
+ * The tables each add-on's steps run on, by add-on key: the table of every
+ * automation on the database that holds a step of it — the trigger's table,
+ * or the table a schedule goes through. Switched off or not.
+ */
+export async function stepTablesOf(meta: MetaDb, view: SnapshotView): Promise<Map<string, Set<string>>> {
+  const out = new Map<string, Set<string>>();
+  for (const rule of await automationsRepo(meta).list({ connectionId: view.connectionId })) {
+    const named = rule.trigger.kind === 'record' ? rule.trigger.table : (rule.trigger.forEach?.table ?? null);
+    if (named === null) continue;
+    let tableId: string;
+    try {
+      tableId = view.table(named).id;
+    } catch {
+      continue;
+    }
+    for (const addOn of stepAddOnsOf(rule.graph)) {
+      const tables = out.get(addOn) ?? new Set<string>();
+      tables.add(tableId);
+      out.set(addOn, tables);
+    }
+  }
+  return out;
+}
+
 /**
  * The tabs of add-ons' rows the record page of `tableId` shows this caller,
  * or undefined when there is none — and when anything here throws: a facts
@@ -121,6 +162,7 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
       return keys.length === 1 ? keys[0] : undefined;
     };
     const out: RecordTabFact[] = [];
+    let stepped: Promise<Map<string, Set<string>>> | null = null;
     for (const key of installs.keys?.(connectionId) ?? []) {
       const addOn = installs.installed(connectionId, key);
       if (addOn === null || addOn.status !== 'installed') continue;
@@ -133,7 +175,9 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
 
       for (const tab of tabs) {
         const ways = handed.get(table.id);
-        if (Array.isArray(tab.on) ? !tab.on.includes(tableRef) : ways === undefined) continue;
+        // Not handed in by a posting: a table an automation runs one of the add-on's steps on still counts (read only when asked).
+        const linked = ways !== undefined || (!Array.isArray(tab.on) && (await (stepped ??= stepTablesOf(meta, view))).get(key)?.has(table.id) === true);
+        if (Array.isArray(tab.on) ? !tab.on.includes(tableRef) : !linked) continue;
         const tabTable = installs.tableOf(connectionId, key, tab.table);
         if (tabTable === null || !(await may(tabTable, 'read'))) continue;
         const rowKey = keyOf(tabTable);

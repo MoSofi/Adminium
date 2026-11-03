@@ -11,7 +11,7 @@
  * One reader for the save, the run, the grants and the list a person picks
  * from, so they cannot come to disagree about which steps there are.
  */
-import type { AddOnStep, AddOnStepInput } from '@adminium/add-on-contracts';
+import { ADD_ON_STEP_PERSON, type AddOnStep, type AddOnStepInput } from '@adminium/add-on-contracts';
 import type { AutomationWriteValue } from '@adminium/meta';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
@@ -26,6 +26,8 @@ export interface InstalledStep {
   table: string | null;
   /** For each `record` input, the table its row is picked from (null when it is not there). */
   inputTables: Readonly<Record<string, string | null>>;
+  /** How a table of this database is named in other manifests' rows (`<app>:<table>`): the `recordTable` token. */
+  refOf: (tableId: string) => string;
 }
 
 /** What asking for one step answers. Each refusal is a different sentence, so each is its own answer. */
@@ -45,7 +47,7 @@ function installedStep(installs: AddOnInstalls, connectionId: string, addOn: str
   for (const input of step.inputs) {
     if (input.table !== undefined) inputTables[input.key] = installs.tableOf(connectionId, addOn, input.table);
   }
-  return { addOn, addOnName, step, table: installs.tableOf(connectionId, addOn, step.writes.table), inputTables };
+  return { addOn, addOnName, step, table: installs.tableOf(connectionId, addOn, step.writes.table), inputTables, refOf: (tableId) => installs.refOf(connectionId, tableId) };
 }
 
 /** One step of one add-on on one database, or why it cannot be had. */
@@ -119,6 +121,13 @@ export function personalInputs(step: AddOnStep, masked: (column: string) => bool
   return new Set([...into].filter(([, columns]) => columns.every(masked)).map(([input]) => input));
 }
 
+/** How a `person` input is kept in a rule, read: the record itself, or the link column of it that names the person. */
+export function personSource(value: string): { record: true } | { link: string } | null {
+  const given = value.trim();
+  if (!ADD_ON_STEP_PERSON.test(given)) return null;
+  return given === '@record' ? { record: true } : { link: given.slice('@link:'.length) };
+}
+
 /** An add-on's own words as a log or a model is given them: one line, bounded, whatever the stored manifest holds. */
 function oneLine(text: string | undefined): string {
   return (text ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
@@ -153,7 +162,8 @@ export function stepWriteValues(step: AddOnStep, inputs: Readonly<Record<string,
       const given = inputs[value.input] ?? '';
       if (given.trim() !== '') out[column] = given;
     } else if ('text' in value) out[column] = value.text;
-    else out[column] = value.token === 'now' ? { now: true } : `{{${value.token}}}`;
+    else if ('token' in value) out[column] = value.token === 'now' ? { now: true } : `{{${value.token}}}`;
+    // A person's field is read at the run from the person the input names: nothing a rule's own write can spell.
   }
   return out;
 }
