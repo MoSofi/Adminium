@@ -32,6 +32,10 @@ export const addOnKeyParams = z.object({ key: addOnKey });
 /** `GET /add-ons/:key/pages/:ref/bundle`. */
 export const addOnPageBundleParams = z.object({ key: addOnKey, ref: z.string().min(1).max(80) });
 
+/** A record panel's code, asked for one row: the add-on and the panel, then the record it is drawn on. */
+export const addOnPanelBundleParams = z.object({ key: addOnKey, id: z.string().min(1).max(80) });
+export const addOnPanelBundleQuery = z.object({ connection: z.string().min(1).max(200), table: z.string().min(1).max(300), row: z.string().min(1).max(500) });
+
 export const addOnBundleParams = z.object({
   key: addOnKey,
   /**
@@ -164,6 +168,13 @@ export const addOnDto = z.object({
        * pages of an add-on from before, which share their file's address.
        */
       ref: z.string().optional(),
+      /**
+       * Set on the code of one record panel: the panel's id. Its `url` is the
+       * panel's own, which takes the record it is drawn on (`connection`,
+       * `table`, `row`) and answers 404 or 403 to a reader who may not see the
+       * panel there. Listed only to who holds the panel's permission.
+       */
+      panel: z.string().optional(),
     }),
   ),
   /**

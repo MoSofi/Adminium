@@ -86,6 +86,9 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
+import { panelOpen, panelsOn } from '../../add-ons/record-panels.js';
+import type { TabInstalls } from '../../add-ons/record-tabs.js';
+import { factsViewFor } from '../pages/column-facts.js';
 import { addOnUninstallPlan, uninstallAddOn } from '../../add-ons/uninstall.js';
 import { createSampleDataService, enqueueSampleAdd, findSampleOwner, type SampleDataDeps } from '../../apps/sample-data.js';
 import { appJobReply, sampleRemoveBody, sampleRemovePlanReply, sampleRemoveReply, sampleStatusReply } from '../apps/schema.js';
@@ -150,6 +153,8 @@ import { APP_VERSION } from '../../version.js';
 import {
   addOnBundleParams,
   addOnPageBundleParams,
+  addOnPanelBundleParams,
+  addOnPanelBundleQuery,
   addOnKeyParams,
   addOnListReply,
   catalogBrowseReply,
@@ -249,6 +254,13 @@ export interface AddOnRoutesDeps {
   sampleData?: SampleDataDeps | undefined;
   /** Tests only; production checks declared minimums against the running version. */
   serverVersion?: string | undefined;
+  /**
+   * What a record panel's code is served by: what is installed, and whether
+   * the signed-in reader reaches one row of a table (their read of it and
+   * their row limits, as the data routes judge). Absent: no panel's code is
+   * served by anybody.
+   */
+  panels?: { installs: () => Promise<TabInstalls>; rowReached(request: FastifyRequest, connectionId: string, tableId: string, row: string): Promise<boolean> } | undefined;
 }
 
 /** The add-on block of a validated manifest, narrowed for reading. */
@@ -407,16 +419,20 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    */
   function openBundlePathsOf(manifest: AddOnManifest): string[] {
     if (!pagesAreGated(manifest)) return bundlePathsOf(manifest.addOn);
-    // Never a file a page is built into, whatever else names it: the manifest check refuses the pair, and this is the second line.
-    const gated = new Set((manifest.addOn.pages ?? []).map((page) => page.client));
+    // Never a file a page or a panel is built into, whatever else names it: the manifest check refuses the pair, and this is the second line.
+    const gated = new Set([...(manifest.addOn.pages ?? []).map((page) => page.client), ...(manifest.addOn.panels ?? []).map((panel) => panel.client)]);
     return [...new Set((manifest.addOn.slots ?? []).map((slot) => slot.client))].filter((path) => !gated.has(path));
   }
 
   /** Every file a host may be told to load, with its address: one per slot file, and — behind a permission — one per page. */
-  function bundleEntriesOf(manifest: AddOnManifest): { path: string; url: string; ref?: string }[] {
-    const open = openBundlePathsOf(manifest).map((path) => ({ path, url: `/api/v1/add-ons/${manifest.key}/bundle/${path}` }));
-    if (!pagesAreGated(manifest)) return open;
-    return [...open, ...(manifest.addOn.pages ?? []).map((page) => ({ path: page.client, url: `/api/v1/add-ons/${manifest.key}/pages/${page.ref}/bundle`, ref: page.ref }))];
+  function bundleEntriesOf(manifest: AddOnManifest): { path: string; url: string; ref?: string; panel?: string }[] {
+    const open = openBundlePathsOf(manifest)
+      // A panel's file is served behind its own gates only, on an add-on from before too.
+      .filter((path) => !(manifest.addOn.panels ?? []).some((panel) => panel.client === path))
+      .map((path) => ({ path, url: `/api/v1/add-ons/${manifest.key}/bundle/${path}` }));
+    const panels = (manifest.addOn.panels ?? []).map((panel) => ({ path: panel.client, url: `/api/v1/add-ons/${manifest.key}/panels/${panel.id}/bundle`, panel: panel.id }));
+    if (!pagesAreGated(manifest)) return [...open, ...panels];
+    return [...open, ...(manifest.addOn.pages ?? []).map((page) => ({ path: page.client, url: `/api/v1/add-ons/${manifest.key}/pages/${page.ref}/bundle`, ref: page.ref })), ...panels];
   }
 
   /** One file of an installed package, re-hashed against the pin recorded when it was unpacked. */
@@ -697,20 +713,20 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       hostApi: manifest.addOn.hostApi === 2 ? 2 : 1,
       bundles: (
         await Promise.all(
-          bundleEntriesOf(manifest).map(async ({ path, url, ref }) => {
+          bundleEntriesOf(manifest).map(async ({ path, url, ref, panel }) => {
             try {
               const sha256 = await deps.store.pinnedSha256(
                 manifest.key,
                 installed.row.version,
                 path,
               );
-              return { path, url, integrity: sriFor(sha256), ...(ref === undefined ? {} : { ref }) };
+              return { path, url, integrity: sriFor(sha256), ...(ref === undefined ? {} : { ref }), ...(panel === undefined ? {} : { panel }) };
             } catch {
               return null;
             }
           }),
         )
-      ).filter((bundle): bundle is { path: string; url: string; integrity: string; ref?: string } => bundle !== null),
+      ).filter((bundle): bundle is { path: string; url: string; integrity: string; ref?: string; panel?: string } => bundle !== null),
       usedBy: needsDto(usedBy ?? (await needsOf(deps.meta, manifest.key))),
     };
   }
@@ -1536,7 +1552,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         return {
           addOns: await Promise.all(
             addOns.map(async (addOn) => {
-              const open = await Promise.all(addOn.bundles.map(async (bundle) => bundle.ref === undefined || (await request.can(addOnPagePermission(bundle.ref)))));
+              // …and a panel's, only to who holds its permission (its route asks the rest).
+              const open = await Promise.all(
+                addOn.bundles.map(async (bundle) => (bundle.ref === undefined || (await request.can(addOnPagePermission(bundle.ref)))) && (bundle.panel === undefined || (await request.can(addOnPagePermission(bundle.panel))))),
+              );
               return { ...addOn, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
             }),
           ),
@@ -1720,6 +1739,46 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           throw new ForbiddenError(`You may not open the page "${ref}".`, 'FORBIDDEN', { page: ref });
         }
         return sendBundle(reply, key, installed.row.version, page.client);
+      },
+    );
+
+    /*
+     * A RECORD PANEL'S CODE, for one record. The code of a panel is the panel:
+     * whoever is handed it can run it, so it is served only as the record
+     * page shows it — the add-on installed and, on an app's table, attached
+     * to that app and switched on for it; the table linking into the panel's
+     * table — and only to a reader who (1) reaches that row of the table,
+     * (2) holds a grant on the panel's table, and (3) holds the panel's own
+     * permission. Pinned like a page's: the bytes are hashed again against
+     * the pin recorded when the package was unpacked.
+     */
+    app.get(
+      '/add-ons/:key/panels/:id/bundle',
+      {
+        preHandler: app.requireAuth,
+        schema: { params: addOnPanelBundleParams, querystring: addOnPanelBundleQuery },
+      },
+      async (request, reply) => {
+        const { key, id } = request.params;
+        const { connection, table, row } = request.query;
+        const missing = () => new NotFoundError(`"${key}" has no panel "${id}" here.`);
+        if (deps.panels === undefined) throw missing();
+        const view = await factsViewFor(deps.meta, connection);
+        if (view === null) throw missing();
+        let on;
+        try {
+          on = panelsOn(await deps.panels.installs(), view, table).find((candidate) => candidate.addOn === key && candidate.panel.id === id);
+        } catch {
+          // A table this connection does not have: no panel is on it.
+          throw missing();
+        }
+        if (on === undefined) throw missing();
+        const can = (permission: string): Promise<boolean> => (typeof request.can === 'function' ? request.can(permission) : Promise.resolve(true));
+        // (1) The row, as the reader reaches it: a row they do not reach is a row that is not there.
+        if (!(await can(`table:${connection}:${table}:read`)) || !(await deps.panels.rowReached(request, connection, table, row))) throw missing();
+        // (2) and (3): a grant on the panel's table, and the panel's own permission.
+        if (!(await panelOpen(can, connection, on))) throw new ForbiddenError(`You may not open the panel "${id}".`, 'FORBIDDEN', { panel: id });
+        return sendBundle(reply, key, on.version, on.panel.client);
       },
     );
 

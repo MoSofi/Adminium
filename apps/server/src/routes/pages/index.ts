@@ -77,6 +77,7 @@ import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
 import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withStoredLabels, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
+import { recordPanelsFor } from '../../add-ons/record-panels.js';
 import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
@@ -685,11 +686,17 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           factsView === null || source === null || permissions === undefined || deps.installs === undefined
             ? undefined
             : await recordTabsFor(deps.meta, await deps.installs(), { can: (permission) => request.can(permission), permissions, locale: reader, rights, log: request.log }, factsView, source.table);
+        // The add-ons' own screens this record has (`addOn.panels`), for this caller.
+        const recordPanels =
+          factsView === null || source === null || deps.installs === undefined
+            ? undefined
+            : await recordPanelsFor(await deps.installs(), { can: (permission) => request.can(permission), locale: reader, log: request.log }, factsView, source.table);
         const facts = {
           ...(columnFacts === null ? {} : { columnFacts }),
           ...(stateActions === undefined ? {} : { stateActions }),
           ...(bulkActions === undefined ? {} : { bulkActions }),
           ...(recordTabs === undefined ? {} : { recordTabs }),
+          ...(recordPanels === undefined ? {} : { recordPanels }),
         };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.

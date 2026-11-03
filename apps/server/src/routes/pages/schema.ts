@@ -337,6 +337,17 @@ export const pageReply = z.object({
     )
     .optional(),
   /**
+   * The add-ons' own screens a record page of this table shows this caller
+   * (`addOn.panels`): each with its name and the table's link column into
+   * the add-on's table. Only a panel whose `on` table the caller holds a
+   * grant on, and whose own permission they hold. Present only when at
+   * least one applies. Its code is served by
+   * `/add-ons/:key/panels/:id/bundle`, which asks again, the row too.
+   */
+  recordPanels: z
+    .array(z.object({ addOn: z.string(), id: z.string(), title: z.string(), titleKey: z.string(), column: z.string(), order: z.number().int() }))
+    .optional(),
+  /**
    * The buttons a record page of this table may show this caller
    * (`states.actions`): each with the states of the row it may be used in,
    * its words in the reader's language, and what it asks for first. Decided

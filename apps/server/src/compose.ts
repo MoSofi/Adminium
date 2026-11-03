@@ -252,6 +252,10 @@ import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
 import { addOnRoutes } from './routes/add-ons/index.js';
+import { factsViewFor } from './routes/pages/column-facts.js';
+import { fetchByPk, parseRecordId } from './crud/records.js';
+import { rowLimitContextOf } from './crud/row-limit-context.js';
+import { fetchVisible } from './crud/row-limit.js';
 import { addOnKitRoutes } from './routes/add-ons/kit.js';
 import { formSummaryRoutes } from './routes/add-ons/form-summary.js';
 import { addOnCodesRoutes } from './routes/add-ons/codes.js';
@@ -3032,6 +3036,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           store: addOnStore,
           sampleData: sampleDataDeps,
+          // A record panel's code is served for one row the reader reaches, as the data routes judge a row's read.
+          panels: {
+            installs: () => addOnInstalls.fresh(),
+            rowReached: async (request, connectionId, tableId, row) => {
+              const view = await factsViewFor(meta, connectionId);
+              if (view === null) return false;
+              const table = view.table(tableId);
+              const pk = parseRecordId(table, row);
+              const rows = await rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
+              const { db } = await manager.data(connectionId);
+              return (rows === null ? await fetchByPk(db, table, pk) : await fetchVisible(rows, db, table, pk, 'read')) !== undefined;
+            },
+          },
           // Without this a provider installed at 10am is unreachable until the
           // process restarts, round trip cannot pass.
           rebuildRuntime: () => rebuildAddOnRuntime(),

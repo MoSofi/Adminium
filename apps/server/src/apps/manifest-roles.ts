@@ -104,7 +104,8 @@ export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>, realId: (re
 
 /** The refs of the screens an add-on draws from its own bundle (`addOn.pages`); none for an app. */
 function codePagesOf(manifest: Manifest): string[] {
-  return manifest.kind === 'add-on' ? (manifest.addOn.pages ?? []).map((page) => page.ref) : [];
+  // A record panel is opened as a page of the add-on's code is: by its id, `page:<id>:view`.
+  return manifest.kind === 'add-on' ? [...(manifest.addOn.pages ?? []).map((page) => page.ref), ...(manifest.addOn.panels ?? []).map((panel) => panel.id)] : [];
 }
 
 /** What is wrong with the manifest's roles, one message per problem. */
