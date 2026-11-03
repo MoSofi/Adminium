@@ -670,6 +670,11 @@ A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength`
 `json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
 never `heic`, a picture whose camera notes cannot be taken out of it.
 
+`accept` also takes `tiff` (Adminium 0.3.43): a TIFF is kept and handed back only as a download,
+never drawn on a page. `maxBytes` may say up to 100 MiB (104857600) from Adminium 0.3.43, 25 MiB
+before. The install's own `files.maxBytes` still holds every upload, and the owner may set it
+lower. A column may also say what a guest may upload into it (`upload`, below).
+
 - **The upload.** `POST /api/v1/files?connectionId=…&table=…&column=…&filename=…`, the body the file
   itself, from a person who may create or change rows of the table. The column's kinds and size
   narrow the workspace's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
@@ -4318,6 +4323,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `visibleWith` | no | `{ "table", "via" }`. The entry reaches a row only where the entry on `table` (on the same key) reaches the row it belongs to: an invoice's lines are exactly as visible as the invoice. See [Rows visible with their parent](#rows-visible-with-their-parent). |
 | `level` | no | `lookup` (the default) or `verified`: the session the entry needs. Only with `claimedBy` or `visibleWith`. |
 | `files` | no | 1–8 `text` columns holding a file, which a signed-in person may download: the file the row names, never one by its id. Each is in `select`. Needs a `claim`, `claimedBy` or `visibleWith`. |
+| `uploads` | no | 1–8 `writable` file columns a guest may upload into, each with a `file.upload` rule ([Guests' uploads](#guests-uploads)). Also on each level of `children`. A column in both `uploads` and `files` may be written and read back. Needs Adminium 0.3.43. |
 | `documents` | no | 1–8 document kinds (see [Documents](#documents)) a signed-in person may list and open for the rows the entry reaches. Needs a `claim`, `claimedBy` or `visibleWith`. |
 | `sensitive` | no | Whether the rows need a verified session to see. See [A person's own rows](#a-persons-own-rows). |
 | `reason` | with `sensitive: false` | Why the entry is not sensitive, 1–200 characters. Only with `sensitive: false`. |
@@ -4915,6 +4921,56 @@ column listed here takes no larger file: an upload or a chosen file above 5 MiB 
 customers see the column's pictures, whatever the column's own `maxBytes` says. A `file` rule with a
 larger `maxBytes` is a warning. See
 [Pictures on public pages](/guides/apps/public-pictures/).
+
+### Guests' uploads
+
+A guest may upload a file into a file column (a customer's logo, a print job's artwork) when the
+column's [`file`](#files-in-a-column) rule says what a guest may send, and a public entry that writes the
+column lists it in `uploads`. Needs Adminium 0.3.43.
+
+```json
+{ "ref": "artwork", "type": "text", "maxLength": 64, "nullable": true,
+  "rules": { "file": { "accept": ["pdf", "jpeg", "png", "tiff"], "maxBytes": 104857600,
+    "upload": { "kinds": ["pdf", "jpg", "png", "tiff"], "maxBytes": 104857600 } } } }
+```
+
+```json
+{ "table": "orders", "methods": ["POST"], "writable": ["email"], "humanCheck": true,
+  "children": { "order_lines": { "via": "order_id", "writable": ["product_id", "artwork"], "uploads": ["artwork"], "max": 20 } } }
+```
+
+| `file.upload` field | Rule |
+|---|---|
+| `kinds` | 1–5 of `jpg`, `png`, `pdf`, `text`, `tiff`, each a kind the column's `accept` names (`jpg` is `jpeg`). Judged by the file's bytes. |
+| `maxBytes` | The most bytes of one file, 1024 up to the column's `maxBytes`. |
+| `maxCount` | A `json` column only: how many files one write may name, up to the column's `maxCount` (absent: one). |
+
+1. The page sends the file: `POST /api/v1/public/uploads?ref=<entry>&column=<column>&name=<name>`,
+   the body the file itself. A child row's column is `<child>.<column>` (`order_lines.artwork`). A
+   guest with no session sends one proof of work for each file; a guest signed in to the entry needs
+   none. The reply's `data.id` is the upload's id. See [the REST API](/reference/rest-api/#a-guests-file-for-a-column).
+2. The page writes the id into the column: in the create (and its child rows) or in a change of a
+   row the guest is signed in to. In a `json` column it is one item of the list.
+3. Once the write is saved, the file is the row's own, as a staff upload is: staff open it on the
+   record, a guest reads it through [`files`](#public-access) where the entry offers it, it goes to
+   the bin when the row lets go of it, and an erasure of the person removes it.
+
+An upload waits a day for the write that names it, and is then thrown away. Only the column it was
+uploaded for takes it, through any address, so a phone that moves from Wi-Fi to mobile data still
+names it. A write that names another column's upload, an upload past its day or one already taken
+is refused `400 PUBLIC_WRITE_REFUSED` with the column and `reason: "file-not-here"`; one of a kind
+the rule does not take is `file-type`, one too large `file-too-large`, more than `maxCount`
+`too-many-files`. A refused write lets its uploads wait again.
+
+The owner sets how much room guests' files take, in Settings: `publicUploads.quotaBytes` (2 GB of
+files waiting to be attached), shared with forms' files by `publicUploads.columnsShare` (half each by
+default), and from one network address a day `publicUploads.perAddressDaily` files (30) and
+`publicUploads.perAddressDailyBytes` bytes (500 MB). Past one, an upload is refused and every Super
+Admin is told once an hour, naming which space is full. Pages for 100 MB files need the proxy to let
+them through: see [Behind a reverse proxy](/self-hosting/reverse-proxy/#large-uploads).
+
+On iPhones a picture is HEIC, which is not taken: give the file input an `accept` naming
+`image/jpeg` and `image/png` (not `image/*`), and iOS converts it as it is chosen.
 
 ### Availability
 

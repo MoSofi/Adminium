@@ -1496,6 +1496,40 @@ is ignored. See [Availability](/reference/manifest/#availability).
 may see, with no key header, so an `<img>` can load it. The config's `pictures` gives the base. See
 [Pictures](/reference/manifest/#pictures).
 
+### A guest's file for a column
+
+`POST /public/uploads?ref={ref}&column={column}&name={file name}` takes one file a guest uploads
+for a file column: a customer's logo, a print job's artwork. The body is the file itself, not
+multipart. The entry `ref` must list the column in its `uploads` (a child row's column is written
+`order_lines.artwork`), and the column's `file.upload` says the kinds and the size. A guest with no
+session sends a proof of work (`x-adminium-proof`, asked with `GET /public/challenge?purpose=upload`),
+one for each file. A guest signed in to the entry needs none.
+
+```http
+POST /api/v1/public/uploads?ref=shop_orders&column=order_lines.artwork&name=poster.pdf
+Content-Type: application/pdf
+x-adminium-proof: …
+
+<the file's bytes>
+```
+
+```json
+{ "data": { "id": "q3n0Y4Zb7…", "name": "poster.pdf", "size": 18420311, "kind": "pdf" } }
+```
+
+The file is kept for a day. The guest's next create or change through the entry names `id` in the
+column: a create of the order with its lines, or a change of a row the guest is signed in to. The
+file then becomes the row's own, as a staff upload does. Staff open it on the record, the guest
+reads it through `GET /public/files` (where the entry offers it), and it goes to the bin with the
+row. An id taken for another column, or past its day, refuses the write `400 PUBLIC_WRITE_REFUSED`
+with the column and `reason: "file-not-here"`.
+
+A refused file answers `PUBLIC_UPLOAD_REFUSED` with `params.reason`: `too-big` (413), `kind` (415,
+judged by the file's bytes, never its name), `cap` (429, this address sent its day's files or
+bytes), `quota` (507, the space kept for guests' files is full) or `column` (400). A TIFF is kept
+and handed back only as a download. The public client's `upload(ref, column, file)` sends one and
+solves the proof itself. See [Guests' uploads](/reference/manifest/#guests-uploads).
+
 ### The server's clock
 
 `GET /public/config` carries `now`, the server's time as an ISO instant, and answers with

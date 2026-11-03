@@ -122,6 +122,40 @@ optional. Without them the WebSocket fails to establish or is killed after 60
 seconds, and the UI silently stops updating — it does not error, it just goes
 stale. If your instance "does not refresh", this is why.
 
+## Large uploads
+
+A file column may take files up to 100 MB (a print shop's artwork), and staff
+uploads up to `files.maxBytes` (200 MiB by default). The proxy must let a body
+that large through, and give it time to arrive on a slow line.
+
+nginx refuses any body over 1 MB unless told otherwise. Add, inside the
+`location /` block above:
+
+```nginx
+        client_max_body_size 210m;
+        proxy_request_buffering off;
+        client_body_timeout 300s;
+```
+
+`proxy_request_buffering off` hands the bytes on as they come, so nginx does
+not first keep the whole file on its own disk; Adminium writes it to its spool
+and stops reading the moment it passes the column's limit.
+
+Caddy sets no limit by default. If your Caddyfile adds one, keep it above the
+largest file you take:
+
+```text title="Caddyfile"
+admin.example.com {
+	request_body {
+		max_size 210MB
+	}
+	reverse_proxy 127.0.0.1:4600
+}
+```
+
+A limit lower than the column's means the proxy answers `413` before Adminium
+sees the file, with a page of the proxy's own and not Adminium's `too-big`.
+
 ## Under Docker
 
 Do not publish Adminium's port to the world. Put the proxy on the same network
