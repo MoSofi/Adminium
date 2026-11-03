@@ -136,6 +136,13 @@ export const PUBLIC_ERROR_CODES = [
    * sees it when a fresh proof was refused too.
    */
   'PUBLIC_PROOF_REQUIRED',
+  /**
+   * A file `upload` sent was not taken, `params.reason` saying why: `too-big`
+   * (413), `kind` (415: its bytes are no kind the column takes), `cap` (429:
+   * this visitor sent the day's files), `quota` (507: no room is left for
+   * guests' files right now), `column` (400: the entry takes no upload there).
+   */
+  'PUBLIC_UPLOAD_REFUSED',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
   /**
    * The app that made this key at install is switched off (503), or its
@@ -837,6 +844,8 @@ const CSRF_HEADER = 'x-adminium-csrf';
 const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** Where a claim that asked for a proof is remembered — a symbol, so no ref name can be it. */
 const CLAIM = Symbol('claim');
+/** Where an upload that asked for a proof is remembered, beside the refs and the claim. */
+const UPLOAD = Symbol('upload');
 
 /** One time of a day, as an availability ref answers it. */
 export interface SlotAvailability {
@@ -929,6 +938,17 @@ export interface PrivateFile {
   filename: string | null;
   /** An image or a PDF the page may draw; anything else is a download. */
   inline: boolean;
+}
+
+/** A file `upload` sent, as the server took it. */
+export interface UploadedFile {
+  /** What the guest's next write names in the column (kept for a day). */
+  id: string;
+  /** The name kept: cleaned of paths and control characters. */
+  name: string;
+  size: number;
+  /** What the file's bytes were found to be: `jpg`, `png`, `pdf`, `text` or `tiff`. */
+  kind: string;
 }
 
 export interface PublicClient {
@@ -1045,6 +1065,15 @@ export interface PublicClient {
    * session.
    */
   file: (ref: string, id: string | number, column: string, signal?: AbortSignal) => Promise<PrivateFile>;
+  /**
+   * Upload one file for a file column the entry `ref` lets a guest upload
+   * into (`column`, or `<child>.<column>` for a child row's: an order line's
+   * artwork). Answers the upload's `id`, which the guest's next `create` or
+   * `update` through the entry names in that column (in a list column, as
+   * one of the list); kept for a day until then. The human check is solved
+   * first unless the client holds a session.
+   */
+  upload: (ref: string, column: string, file: Blob, name?: string, signal?: AbortSignal) => Promise<UploadedFile>;
   /**
    * The settings an add-on the app needs marks for a browser (payment
    * instructions), for a VERIFIED session; `PUBLIC_REF_NOT_FOUND` otherwise.
@@ -1216,7 +1245,7 @@ export function createPublicClient(
   let ended: SessionEnded | null = null;
   let cachedConfig: Promise<PublicConfig> | null = null;
   /** Refs that asked for a proof under the session held now, and {@link CLAIM} when a claim did. */
-  const asked = new Set<string | typeof CLAIM>();
+  const asked = new Set<string | typeof CLAIM | typeof UPLOAD>();
 
   /**
    * The only way the session changes. What asked for a proof is forgotten
@@ -1720,6 +1749,25 @@ export function createPublicClient(
       };
     },
 
+    async upload(ref, column, file, name, signal) {
+      const query = new URLSearchParams({ ref, column, ...(name === undefined ? {} : { name }) });
+      // The body is the file: a refusal before it is read still cost its sending, so a proof is solved first unless a session may excuse it.
+      const attempt = async (proof: Record<string, string>) => {
+        const init: RequestInit = { method: 'POST', body: file, ...(signal === undefined ? {} : { signal }) };
+        const out = await request<{ data: UploadedFile }>(`/api/v1/public/uploads?${query.toString()}`, init, { 'content-type': file.type === '' ? 'application/octet-stream' : file.type, ...proof });
+        return out.data;
+      };
+      if (humanCheck === false) return attempt({});
+      const first = session === null || asked.has(UPLOAD) ? { [PROOF_HEADER]: await prove('upload') } : {};
+      try {
+        return await attempt(first);
+      } catch (error) {
+        if (!(error instanceof PublicApiError) || error.code !== 'PUBLIC_PROOF_REQUIRED' || PROOF_HEADER in first) throw error;
+        asked.add(UPLOAD);
+        return attempt({ [PROOF_HEADER]: await prove('upload') });
+      }
+    },
+
     async addOnSettings(addOnKey, signal) {
       const init: RequestInit = {};
       if (signal !== undefined) init.signal = signal;
@@ -1958,8 +2006,8 @@ export function isCanonicalTimeZone(timezone: string): boolean {
 
 /* ----------------------------------------------------------- human check */
 
-/** What a proof is asked for: a create, or a claim. */
-export type ProofPurpose = 'write' | 'claim';
+/** What a proof is asked for: a create, a claim, or one file uploaded. */
+export type ProofPurpose = 'write' | 'claim' | 'upload';
 
 /** A challenge, as `GET /public/challenge` hands it out. */
 export interface ProofChallenge {
