@@ -391,3 +391,20 @@ export class AdjustRefusedError extends AppError {
     super(409, 'ADJUST_REFUSED', message, details);
   }
 }
+
+/**
+ * 409 `CHECK_REFUSED`: an order line's design may not be ordered as it is, in
+ * a staff save. `details.column` is the line's design link; `details.reason`
+ * is one of the design-check contract's reasons or one of Adminium's own (a
+ * feature used and not paid for, one paid for and not used, one paid twice,
+ * a design too large to check, an add-on that cannot be asked or did not
+ * answer); `part` is the part of the design it is about, `feature` the
+ * feature; `refusals` every reason the add-on gave.
+ */
+export class CheckRefusedError extends AppError {
+  override readonly name = 'CheckRefusedError';
+
+  constructor(message: string, details: { column: string; reason: string; part?: string; feature?: string; refusals?: { part?: string; reason: string }[] }) {
+    super(409, 'CHECK_REFUSED', message, details);
+  }
+}

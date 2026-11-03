@@ -9,7 +9,7 @@
  */
 import { offeredRoles } from '../rbac/app-parts.js';
 import type { Manifest } from '@adminium/manifest';
-import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequencesRepo, readJson, rolesRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequencesRepo, filesRepo, readJson, rolesRepo, type MetaDb } from '@adminium/meta';
 
 import { SUPER_ADMIN_SLUG } from '../rbac/resolver.js';
 import type { WriteServiceOptions } from './write-service.js';
@@ -45,7 +45,7 @@ export async function declaredDefault(meta: MetaDb, key: string, setting: string
   return 'default' in declared ? declared.default : undefined;
 }
 
-export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'listings' | 'people'> {
+export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'fileFacts' | 'listings' | 'people'> {
   return {
     // The people an app declares: a table's opt-out mark is set by no trigger of its own, whoever writes (`decide.ts`).
     people: { tableOf: (target) => peopleTablesOf(meta).of(target.connectionId, target.view?.model, target.table.id) },
@@ -53,6 +53,16 @@ export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences'
     listings: (target, values, before) => assertListedCanOpen(meta, target.db, target.view.model, target.connectionId, target.table.id, values, before),
     // Which files a file column may be given: found in the meta store; a picture is shown clean only where the bytes can be read (the server's own service).
     files: createFileColumnJudge({ meta }),
+    // What a design check hands an add-on of a design's files: each one's type and size as stored, never its bytes. A file in the bin is not there.
+    fileFacts: async (ids) => {
+      const files = filesRepo(meta);
+      const out = new Map<string, { kind: string; size: number }>();
+      for (const id of ids) {
+        const found = await files.findById(id);
+        if (found !== null && found.deletedAt === null) out.set(id, { kind: found.mime, size: found.sizeBytes });
+      }
+      return out;
+    },
     // A customer's key, under the secret the server said as it started: every service built from these stores makes the same one.
     customerKey: installedCustomerKey,
     sequences: documentSequencesRepo(meta),

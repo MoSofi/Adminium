@@ -268,6 +268,10 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       };
       return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
     }
+    case 'table.check': {
+      // A design rule reads one column of the line's own table: its design link. The paid features' columns are their table's.
+      return same(rule['design']) ? { ...rule, design: to } : value;
+    }
     case 'table.postings': {
       // Everything a posting reads of its own table: its link to the parent, what it maps, the columns
       // that leave a line out or fire a point of the line's own. A column of the parent is that table's.

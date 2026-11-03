@@ -73,6 +73,7 @@ import type {
 } from '../connections/effective-schema.js';
 import type { LinePosting } from './ledger-points.js';
 import { adjustParentsOf, compileAdjust, type AdjustParent, type CompiledAdjust } from './adjust/rule.js';
+import { checkParentsOf, compileCheck, type CheckParent, type CompiledCheck } from './check/rule.js';
 import { holdsNul } from '../security/nul-bytes.js';
 import { PLAIN_TEXT_MAX } from '@adminium/manifest';
 import { linkFreeText, NAME_RULE, type PlainTextRule } from '../public-api/plain-text.js';
@@ -491,6 +492,13 @@ export interface TableRules {
   adjust?: CompiledAdjust;
   adjustParents?: AdjustParent[];
   /**
+   * Whether a line's design may be ordered, as declared — whether the rule is
+   * live is asked per write. `check`: this table's rows are order lines that
+   * may name a design. `checkParents`: its rows are features a line pays for.
+   */
+  check?: CompiledCheck;
+  checkParents?: CheckParent[];
+  /**
    * The columns a price rule makes Adminium's own — a reduction, the links a
    * typed code fills, who gave a reduction by hand: dropped from every
    * writer's values but an import's, which brings in history as it was.
@@ -758,6 +766,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   }
   const adjust = compileAdjust(target.table.table);
   const adjustParents = adjustParentsOf(target.view?.model, target.table.table);
+  const check = compileCheck(target.table.table);
+  const checkParents = checkParentsOf(target.view?.model, target.table.table);
   const priced = [...new Set([...(adjust?.decided ?? []), ...adjustParents.flatMap((parent) => parent.decided)])];
   const off = target.table.table?.switchedOff;
   const switchedOff = off === undefined ? undefined : { postings: new Set(off.postings) as ReadonlySet<string>, adjust: off.adjust === true };
@@ -1054,6 +1064,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     linePostings.length === 0 &&
     adjust === undefined &&
     adjustParents.length === 0 &&
+    check === undefined &&
+    checkParents.length === 0 &&
     customerKeys.length === 0 &&
     lastFours.length === 0 &&
     addOnLinks.length === 0
@@ -1067,6 +1079,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(switchedOff === undefined ? {} : { switchedOff }),
           ...(adjust === undefined ? {} : { adjust }),
           ...(adjustParents.length === 0 ? {} : { adjustParents }),
+          ...(check === undefined ? {} : { check }),
+          ...(checkParents.length === 0 ? {} : { checkParents }),
           ...(priced.length === 0 ? {} : { priced }),
           ...((adjust?.attested.length ?? 0) === 0 ? {} : { attested: adjust!.attested }),
           ...(decided ? { copies, sequences, codes, ...(stamps.length === 0 ? {} : { stamps }) } : {}),

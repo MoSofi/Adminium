@@ -319,6 +319,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.band',
   'stamp.addWorkingDays',
   'formula.ceilFloor',
+  // A design checked inside the save and the dry run (crud/check/step.ts), with the add-on's keyed reads.
+  'table.check',
+  'addOn.checker',
 ];
 
 export interface UnbuiltWord {

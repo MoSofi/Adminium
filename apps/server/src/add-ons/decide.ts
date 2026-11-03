@@ -2,13 +2,14 @@
 /**
  * ADD-ON CODE THAT DECIDES, INSIDE A SAVE.
  *
- * Two contracts hand an add-on a question in the middle of a write: which
- * rows a posting makes (`posting-rows`), and what a price is lowered by
- * (`price-adjust`). The answer is worked out by the add-on's own code, so
+ * Three contracts hand an add-on a question in the middle of a write: which
+ * rows a posting makes (`posting-rows`), what a price is lowered by
+ * (`price-adjust`), and whether a design may be ordered (`design-check`).
+ * The answer is worked out by the add-on's own code, so
  * that code is run here and nowhere else, under these rules:
  *
  *  - It is one classic script that assigns `module.exports = { rows }`,
- *    `{ adjust }` or both. It is never `import()`ed: it is compiled into a
+ *    `{ adjust }`, `{ check }` or several. It is never `import()`ed: it is compiled into a
  *    `vm.Script` and run in a bare context made for the one call.
  *  - The context has no clock, no randomness, no network, no timers and no
  *    way to make code from text. The same input gives the same output.
@@ -48,12 +49,12 @@ export const LEDGER_ROWS_WRITTEN = 500;
 export const POSTINGS_PER_TABLE = 6;
 export const WORDS_IDS_MAX = 60;
 
-/** The two questions an add-on's code answers, by the method that answers each. */
-export const DECIDER_KINDS = ['rows', 'adjust'] as const;
+/** The questions an add-on's code answers, by the method that answers each. */
+export const DECIDER_KINDS = ['rows', 'adjust', 'check'] as const;
 export type DeciderKind = (typeof DECIDER_KINDS)[number];
 
 /** The contracts whose server file is a decider: run here, never imported. */
-export const DECIDER_CONTRACTS: Readonly<Record<string, DeciderKind>> = { 'posting-rows': 'rows', 'price-adjust': 'adjust' };
+export const DECIDER_CONTRACTS: Readonly<Record<string, DeciderKind>> = { 'posting-rows': 'rows', 'price-adjust': 'adjust', 'design-check': 'check' };
 
 /** Why a call gave no answer. Never shown to a customer: the save is refused in the ledger's own words. */
 export type DeciderFailure = 'timeout' | 'threw' | 'thenable' | 'shape' | 'too-large' | 'no-method';
@@ -193,7 +194,7 @@ export function loadDecider(input: { key: string; version: string; path: string;
   } catch (error) {
     throw new Error(`"${input.key}" ships a deciding file that does not load: ${wordsOf(error)}`);
   }
-  if (kinds.length === 0) throw new Error(`"${input.key}" ships a deciding file that exports neither "rows" nor "adjust".`);
+  if (kinds.length === 0) throw new Error(`"${input.key}" ships a deciding file that exports none of "rows", "adjust" and "check".`);
   return { ...decider, kinds, cached: script.createCachedData() };
 }
 

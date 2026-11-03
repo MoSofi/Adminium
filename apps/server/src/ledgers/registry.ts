@@ -23,7 +23,7 @@
  * Synchronous on purpose: it is asked inside a transaction, where nothing may
  * wait on a pool.
  */
-import type { AddOnManifest, Adjuster, Ledger, LedgerAction } from '@adminium/manifest';
+import { checkerOf, type AddOnManifest, type Adjuster, type Checker, type Ledger, type LedgerAction } from '@adminium/manifest';
 
 import { deciderGate, type DeciderGate, type InstalledDecider } from '../add-ons/decide.js';
 import type { AddOnInstalls } from '../apps/table-ref.js';
@@ -92,6 +92,30 @@ export interface ResolvedAdjuster {
  */
 export type AdjusterState = { state: 'idle' } | { state: 'off' } | { state: 'live'; adjuster: ResolvedAdjuster; decider: InstalledDecider } | { state: 'unavailable'; cause: string };
 
+/** An installed add-on that answers whether a design may be ordered, with its own tables as they are in this database. */
+export interface ResolvedChecker {
+  addOn: string;
+  version: string;
+  /** Its designs table and keyed reads (`addOn.checker`). */
+  declared: Checker;
+  /** The add-on's table of designs: what a line's design link points at. */
+  design: ResolvedTable;
+  /** Each keyed read, in order, with its table as it is here and what it is keyed by (`design`, or an earlier read's id). */
+  reads: { id: string; table: ResolvedTable; column: string; from: { read: string; column: string } }[];
+  /** The add-on's one-row settings table, when it declares one. */
+  settings: ResolvedTable | null;
+  /** What the add-on declares its own columns to be, where an engine may not say (see {@link ResolvedLedger.typesOf}). */
+  typesOf(tableId: string): ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'>;
+}
+
+/**
+ * Whether a line table's design rule runs now: `idle` (reads as not there:
+ * the add-on is not installed here, or not connected to the app whose rule it
+ * is), `live`, or `unavailable` (it should run and cannot be asked). There is
+ * no switch to turn it off: a design no one checked is never ordered.
+ */
+export type CheckerState = { state: 'idle' } | { state: 'live'; checker: ResolvedChecker; decider: InstalledDecider } | { state: 'unavailable'; addOn: string; cause: string };
+
 /** What a write asks of the add-ons its postings name. Absent on a server with no add-on runtime: a posting table then refuses every write. */
 export interface LedgerRuntime {
   resolve(view: SnapshotView, table: ResolvedTable, posting: DeclaredPosting): PostingState;
@@ -99,6 +123,8 @@ export interface LedgerRuntime {
   deciderFor(addOnKey: string): InstalledDecider | null;
   /** Whether the price rule of an order's table runs now, and the add-on that answers it. Absent on a runtime that answers no price. */
   adjuster?(view: SnapshotView, table: ResolvedTable): AdjusterState;
+  /** Whether the design rule of an order line's table runs now, and the add-on that answers it. Absent on a runtime that checks no design. */
+  checker?(view: SnapshotView, table: ResolvedTable): CheckerState;
   /** For a table an installed add-on keeps its discount codes in: the code column, and the words no code there may start with. Null for any other table. */
   reservedStarts?(view: SnapshotView, table: ResolvedTable): { column: string; words: readonly string[] } | null;
   /** The add-on's update gate: a save enters as a reader. */
@@ -160,6 +186,8 @@ export interface LedgerRuntimeDeps {
   decider: (addOnKey: string) => InstalledDecider | null;
   /** The loaded code of an add-on that answers a price question, or null. */
   adjustDecider?: ((addOnKey: string) => InstalledDecider | null) | undefined;
+  /** The loaded code of an add-on that answers whether a design may be ordered, or null. */
+  checkDecider?: ((addOnKey: string) => InstalledDecider | null) | undefined;
   versionNow: (addOnKey: string) => Promise<{ version: string; status: string } | null>;
   watches?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
   /** Reads what is installed again when it moved (the kept instance's `fresh`). */
@@ -300,6 +328,53 @@ function resolveAdjuster(installs: AddOnInstalls, view: SnapshotView, addOn: { m
   return { addOn: key, version: addOn.version, declared, settings: settingsRef === undefined ? null : table(settingsRef), table, refOf: (tableId) => refs.get(tableId) ?? tableId, typesOf };
 }
 
+/** An add-on's design checker with its tables resolved here, or the name of what is missing. */
+function resolveChecker(installs: AddOnInstalls, view: SnapshotView, addOn: { manifest: AddOnManifest; version: string }): ResolvedChecker | string {
+  const key = addOn.manifest.key;
+  const declared = checkerOf(addOn.manifest);
+  if (declared === null) return 'no-checker';
+  const refs = new Map<string, string>();
+  const table = (ref: string): ResolvedTable | null => {
+    const tableId = installs.tableOf(view.connectionId, key, ref);
+    if (tableId === null) return null;
+    try {
+      const resolved = view.table(tableId);
+      refs.set(resolved.id, ref);
+      return resolved;
+    } catch {
+      return null;
+    }
+  };
+  const design = table(declared.design);
+  if (design === null) return 'tables-missing';
+  const settingsRef = addOn.manifest.addOn.settingsTable;
+  const settings = settingsRef === undefined ? null : table(settingsRef);
+  if (settingsRef !== undefined && settings === null) return 'tables-missing';
+  const of = new Map<string, ResolvedTable>([['design', design]]);
+  const reads: ResolvedChecker['reads'] = [];
+  for (const read of declared.reads) {
+    const found = table(read.table);
+    if (found === null) return 'tables-missing';
+    const [head = '', column = ''] = read.by.from.split('.');
+    const source = of.get(head);
+    // Every column a read names is one this database has: a read of one that is not would fail inside a save.
+    if (source === undefined || !source.columns.has(column) || !found.columns.has(read.by.column)) return 'columns-missing';
+    reads.push({ id: read.id, table: found, column: read.by.column, from: { read: head, column } });
+    of.set(read.id, found);
+  }
+  const hints = new Map<string, ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'>>();
+  const typesOf = (tableId: string): ReadonlyMap<string, 'json' | 'decimal' | 'boolean' | 'date'> => {
+    const hit = hints.get(tableId);
+    if (hit !== undefined) return hit;
+    const ref = refs.get(tableId);
+    const own = ref === undefined ? undefined : (addOn.manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
+    const found = new Map((own?.columns ?? []).flatMap((column) => (HINTS[column.type] === undefined ? [] : [[column.ref, HINTS[column.type]!] as const])));
+    hints.set(tableId, found);
+    return found;
+  };
+  return { addOn: key, version: addOn.version, declared, design, reads, settings, typesOf };
+}
+
 /** Whether a stored price rule names only what is here, asked once a rule and version of its add-on (see {@link ruleIssue}). */
 function adjustIssue(view: SnapshotView, table: ResolvedTable, addOn: { manifest: AddOnManifest; version: string }): string | null {
   const adjust = table.table.adjust!;
@@ -343,6 +418,37 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
       // Loaded from another version than the one installed: an update is half way, or the add-ons were not loaded again.
       if (decider.version !== addOn.version) return cannot('version-moved');
       return { state: 'live', adjuster, decider };
+    },
+    checker(view, table) {
+      const check = table.table?.check;
+      if (check === undefined) return { state: 'idle' };
+      const installs = deps.installs();
+      const addOn = installs.installed(view.connectionId, check.by.addOn);
+      // Not installed in this database: the rule reads as not there.
+      if (addOn === null) return { state: 'idle' };
+      // An app's rule sits on a table that app made: the table's stored name says who.
+      const stored = installs.refOf(view.connectionId, table.id);
+      const cut = stored.indexOf(':');
+      const owner = stored === table.id || cut <= 0 ? null : stored.slice(0, cut);
+      // An app's rule for an add-on that is not connected to that app is inert, like the rest of what the app keeps for it.
+      if (owner !== null && owner !== check.by.addOn && !addOn.hosts.has(owner)) return { state: 'idle' };
+      const cannot = (cause: string): CheckerState => ({ state: 'unavailable', addOn: check.by.addOn, cause });
+      if (owner !== null && owner !== check.by.addOn) {
+        if (addOn.hosts.get(owner) !== true) return cannot('switched-off-for-app');
+        if (check.needs !== undefined && !installs.featureOn(view.connectionId, owner, check.needs)) return cannot('switched-off-for-app');
+      }
+      if (addOn.status !== 'installed') return cannot(addOn.status);
+      const checker = resolveChecker(installs, view, addOn);
+      if (typeof checker === 'string') return cannot(checker);
+      // The line's design link must point at the add-on's designs: a rule that names another column is never half-run.
+      const link = table.table.columns.find((column) => column.name === check.design)?.addOnLink;
+      if (link === undefined || link.addOn !== check.by.addOn || link.table !== checker.declared.design) return cannot('rule-invalid');
+      const decider = deps.checkDecider?.(check.by.addOn) ?? null;
+      // Its file is gone or was changed, nobody vouches for it, or it did not load.
+      if (decider === null) return cannot('no-decider');
+      // Loaded from another version than the one installed: an update is half way, or the add-ons were not loaded again.
+      if (decider.version !== addOn.version) return cannot('version-moved');
+      return { state: 'live', checker, decider };
     },
     reservedStarts(view, table) {
       const installs = deps.installs();

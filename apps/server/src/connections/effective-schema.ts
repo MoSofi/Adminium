@@ -20,7 +20,7 @@ import type {
 } from '@adminium/engine';
 import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
 import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type StateCondition, type TimeCondition } from '@adminium/manifest';
-import type { SchemaOverride, StoredAdjust, StoredPosting } from '@adminium/meta';
+import type { SchemaOverride, StoredAdjust, StoredCheck, StoredPosting } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
 export interface ColumnOptionItem {
@@ -174,6 +174,9 @@ export type TablePosting = StoredPosting;
 
 /** A table's price rule as it is stored (the manifest's own keys; a child table by its id in the snapshot). */
 export type TableAdjust = StoredAdjust;
+
+/** `table.check`, as stored: whether an order line's design may be ordered, asked of an add-on. */
+export type TableCheck = StoredCheck;
 
 /** `table.switchedOff`: the postings (and the price rule) the owner switched off on this table. */
 export interface TableSwitchedOff {
@@ -738,6 +741,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   adjust?: TableAdjust;
   /** The price rule is one an app's manifest stored (absent: the owner's own). */
   managedAdjust?: true;
+  /** Whether a line's design may be ordered (`table.check`): the app's rule when it ships one, else the owner's. */
+  check?: TableCheck;
   /** The postings the owner switched off (`table.switchedOff`). */
   switchedOff?: TableSwitchedOff;
   /** Rows of other tables that lock this table's rows (`lockedWhenReferencedBy`, resolved). */
@@ -1622,6 +1627,11 @@ export function applyOverrides(
           table.adjust = value as unknown as TableAdjust;
           if (row.origin === 'app') table.managedAdjust = true;
         }
+        break;
+      }
+      case 'table.check': {
+        // One rule a table. Where an app's and an owner's are both stored, the app's stands.
+        if (table !== undefined && (table.check === undefined || row.origin === 'app')) table.check = value as unknown as TableCheck;
         break;
       }
       case 'table.switchedOff': {

@@ -106,6 +106,22 @@ describe('an add-on\'s deciding file, at load', () => {
     expect(deciderFor(runtime, 'kit', 'rows')).toBeNull();
   });
 
+  it('checks a design only from a vouched package: the check is left out, by name, otherwise', async () => {
+    const CHECK = 'module.exports = { check: function (input) { return { lines: input.lines.map(function (line) { return { key: line.key, ok: true, used: [], refusals: [] }; }) }; } };';
+    const provides = [{ contract: 'design-check', version: 1, server: 'dist/check.js' }];
+    const { installed, integrity } = await stage('kit', { 'dist/check.js': CHECK }, provides);
+    const refused = await buildAddOnRuntime({ store, installed, trust: NOBODY });
+    expect(refused.problems).toMatchObject([{ addOnKey: 'kit', reason: 'UNTRUSTED_DECIDER', contract: 'design-check@1' }]);
+    expect(deciderFor(refused, 'kit', 'check')).toBeNull();
+    const vouched = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, recorded: { 'kit@1.0.0': integrity } } });
+    expect(vouched.problems).toEqual([]);
+    const decider = deciderFor(vouched, 'kit', 'check');
+    expect(decider).toMatchObject({ kinds: ['check'] });
+    expect(callDecider('check', decider!, { lines: [{ key: '1' }] })).toEqual({ lines: [{ key: '1', ok: true, used: [], refusals: [] }] });
+    // The same file answers no other question.
+    expect(deciderFor(vouched, 'kit', 'adjust')).toBeNull();
+  });
+
   it('is left out when the runtime is told of nobody at all', async () => {
     const { installed } = await stage('kit', { 'dist/server.js': ROWS }, POSTS);
     const runtime = await buildAddOnRuntime({ store, installed });

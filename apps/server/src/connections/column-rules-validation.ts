@@ -20,7 +20,7 @@
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
 import { dayColumns, FILE_COLUMN_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
-import { storedAdjust, storedPosting } from '@adminium/meta';
+import { storedAdjust, storedCheck, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
 
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
@@ -1654,6 +1654,28 @@ export function belongsRuleIssue(raw: unknown, table: TableModel, model: Databas
       if (when !== undefined && !has(list, when.column)) return `${JSON.stringify(when.column)} is not a column of ${list.name}.`;
     }
   }
+  return null;
+}
+
+/**
+ * Whether an order line's design rule can be kept on this table: spelled as
+ * it is stored, its design link a column of the table, and the table of its
+ * paid features a child of it with the columns it names. Whether the add-on
+ * that answers is here is asked on every write, not when the rule is stored.
+ */
+export function checkRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const parsed = storedCheck.safeParse(raw);
+  if (!parsed.success) return `The design rule of ${table.name} is not spelled as Adminium stores it: ${parsed.error.issues[0]?.message ?? 'invalid'}.`;
+  const check = parsed.data;
+  if (table.primaryKey.length !== 1) return `A design rule needs lines it can name: ${table.name} has no single-column key.`;
+  if (!table.columns.some((c) => c.name === check.design)) return `The design rule reads ${JSON.stringify(check.design)}, which is not a column of ${table.name}.`;
+  const paid = check.paid;
+  if (paid === undefined) return null;
+  const children = model.tables.find((candidate) => candidate.id === paid.table);
+  if (children === undefined) return `The design rule names the table ${JSON.stringify(paid.table)}, which is not in this database.`;
+  const linked = model.relations.some((r) => r.through === null && r.from.tableId === children.id && r.from.columns.length === 1 && r.from.columns[0] === paid.via && r.to.tableId === table.id);
+  if (!linked) return `${JSON.stringify(paid.via)} does not link ${children.name} to ${table.name}, so its rows are no feature of the line.`;
+  if (!children.columns.some((c) => c.name === paid.feature)) return `The design rule reads ${JSON.stringify(paid.feature)}, which is not a column of ${children.name}.`;
   return null;
 }
 

@@ -37,9 +37,9 @@ describe('loading a deciding file', () => {
   it('refuses a file that is too large, will not compile, or answers neither question', () => {
     expect(() => load(`module.exports = { rows: function () { return {}; } };//${'x'.repeat(DECIDER_FILE_MAX)}`)).toThrow(/the most that is run is 524288/);
     expect(() => load('module.exports = {')).toThrow();
-    expect(() => load('module.exports = { plan: function () {} };')).toThrow(/exports neither "rows" nor "adjust"/);
-    expect(() => load('module.exports = 7;')).toThrow(/exports neither/);
-    expect(() => load('module.exports = { rows: 1 };')).toThrow(/exports neither/);
+    expect(() => load('module.exports = { plan: function () {} };')).toThrow(/exports none of "rows", "adjust" and "check"/);
+    expect(() => load('module.exports = 7;')).toThrow(/exports none of/);
+    expect(() => load('module.exports = { rows: 1 };')).toThrow(/exports none of/);
   });
 
   it('refuses a file that reaches for a module system or the process as it loads', () => {

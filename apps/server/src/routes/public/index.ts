@@ -66,6 +66,7 @@ import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, Tre
 import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
 import { priceAnswer, type AppliedReply, type PriceAnswer } from '../../crud/adjust/replies.js';
+import { DesignRefused } from '../../crud/check/step.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
 import { paymentOf } from '../../ledgers/payment.js';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
@@ -693,6 +694,8 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   asCard(usedUp, told?.cards);
   if (usedUp !== null) throw new PublicWriteRefused(usedUp);
   if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
+  // A design the add-on refused, or whose features are not the ones its line pays for: the guest's own design, told by name.
+  if (error instanceof DesignRefused) throw new PublicWriteRefused({ ...error.refused });
   // A ledger's own no: out of stock, or a refused card — and nothing else of it. Any other refusal of a posting has no name here.
   const ledger = publicLedgerRefusal(error);
   if (ledger !== null) throw ledger.code === null ? new PublicWriteRefused(undefined, error) : new PublicSlotRefused(ledger.code, ledger.params);

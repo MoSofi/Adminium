@@ -13,6 +13,14 @@
  * (`addOnLink`), filled only from the design's code the guest types
  * (`lookup`). A shop's customers are its people; a line's design holds a copy
  * of the customer's words, reached through the line's link.
+ *
+ * With `{ checker: true }` the kit also answers whether a design may be
+ * ordered (`design-check@1`): a design's words fill the parts of a ready-made
+ * design, each part with its most characters, and a logo is a paid feature.
+ * Its deciding file is {@link DESIGN_CHECK_SERVER}; its settings row says how
+ * it misbehaves, for the tests of a check that throws, is slow or answers
+ * nonsense. A shop built with `{ check: true }` asks it of every line that
+ * names a design, and keeps the features a line pays for as its child rows.
  */
 const pk = { ref: 'id', type: 'int', role: 'pk' } as const;
 
@@ -25,7 +33,117 @@ export const READY_REF = 'design_kit_ready';
 
 const IDENTITY = { manifestVersion: 1, publisher: { id: 'adminium', name: 'Adminium' }, license: 'MIT' } as const;
 
-export function designKitManifest(over: Record<string, unknown> = {}): Record<string, unknown> {
+/**
+ * The kit's deciding file: one classic script, as an add-on ships it. A part
+ * longer than its most characters is `too-long`, an empty part that must be
+ * filled `required-empty`; a logo file in the design uses the feature
+ * `logo` (and one that is not there is `file-missing`). Its settings row's
+ * `misbehave` makes it throw, loop past its time, answer in no shape, or
+ * leave a line out.
+ */
+export const DESIGN_CHECK_SERVER = `'use strict';
+module.exports = {
+  check: function (input) {
+    var how = input.settings.misbehave;
+    if (how === 'throw') throw new Error('the kit broke');
+    if (how === 'slow') { for (;;) {} }
+    if (how === 'shape') return { lines: 'none' };
+    if (how === 'skip') return { lines: [] };
+    return {
+      lines: input.lines.map(function (line) {
+        var words = {};
+        try { words = JSON.parse(line.design.words || '{}'); } catch (e) { words = {}; }
+        var refusals = [];
+        (line.rows.parts || []).forEach(function (part) {
+          var text = words[part.name];
+          if ((text === undefined || text === null || text === '') && part.required) refusals.push({ part: part.name, reason: 'required-empty' });
+          else if (typeof text === 'string' && text.length > Number(part.max_chars)) refusals.push({ part: part.name, reason: 'too-long' });
+        });
+        var used = [];
+        line.files.forEach(function (file) {
+          if (file.column !== 'logo') return;
+          if (file.size > 0) used.push('logo');
+          else refusals.push({ part: 'logo', reason: 'file-missing' });
+        });
+        return { key: line.key, ok: refusals.length === 0, used: used, refusals: refusals };
+      }),
+    };
+  },
+};
+`;
+
+/** The kit's tables and words for checking a design, added to its manifest by `{ checker: true }`. */
+function withChecker(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] };
+  const tables = schema.tables.map((table) =>
+    table.ref === 'designs'
+      ? {
+          ...table,
+          columns: [
+            ...table.columns,
+            { ref: 'ready_id', type: 'fk', references: 'ready', nullable: true },
+            { ref: 'words', type: 'json', nullable: true },
+            { ref: 'logo', type: 'text', maxLength: 64, nullable: true, rules: { file: { accept: ['png'], maxBytes: 1048576 } } },
+          ],
+        }
+      : table,
+  );
+  return {
+    ...manifest,
+    requiredSchema: {
+      ...schema,
+      tables: [
+        ...tables,
+        // The parts of a ready-made design: each with its most characters, and whether it must be filled.
+        { ref: 'ready_parts', columns: [pk, { ref: 'ready_id', type: 'fk', references: 'ready' }, { ref: 'name', type: 'text', maxLength: 40 }, { ref: 'max_chars', type: 'int' }, { ref: 'required', type: 'bool', default: false }] },
+        // How the kit's code misbehaves, for the tests that need it to.
+        { ref: 'settings', columns: [pk, { ref: 'misbehave', type: 'text', maxLength: 20, nullable: true }] },
+      ],
+    },
+    addOn: {
+      ...(manifest['addOn'] as Record<string, unknown>),
+      settingsTable: 'settings',
+      provides: [{ contract: 'design-check', version: 1, server: 'dist/check.js' }],
+      checker: {
+        design: 'designs',
+        reads: [
+          { id: 'ready', table: 'ready', by: { column: 'id', from: 'design.ready_id' } },
+          { id: 'parts', table: 'ready_parts', by: { column: 'ready_id', from: 'ready.id' } },
+          { id: 'base', table: 'bases', by: { column: 'id', from: 'design.base_id' } },
+        ],
+      },
+    },
+  };
+}
+
+/** The id of the kit's panel on a record that links to one of its designs. */
+export const DESIGN_PANEL = 'design-kit-editor';
+
+/** The kit's panel, added by `{ panel: true }`: its own screen on the record page of an order line that links to a design. */
+function withPanel(manifest: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...manifest,
+    addOn: {
+      ...(manifest['addOn'] as Record<string, unknown>),
+      panels: [{ id: DESIGN_PANEL, on: 'designs', client: 'dist/panel.js', title: { key: 'design-kit.panel.title', fallback: 'Design' }, titles: { 'de-DE': 'Entwurf' } }],
+    },
+  };
+}
+
+/** The kit's package files beside its manifest: its deciding file, and its panel's code. */
+export const DESIGN_KIT_FILES: Record<string, string> = {
+  'dist/check.js': DESIGN_CHECK_SERVER,
+  'dist/panel.js': 'export default function DesignPanel() { return null; }\n',
+};
+
+export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean } = {}): Record<string, unknown> {
+  let made = designKitBase(over);
+  if (opts.checker === true) made = withChecker(made);
+  if (opts.panel === true) made = withPanel(made);
+  return made;
+}
+
+function designKitBase(over: Record<string, unknown>): Record<string, unknown> {
   return {
     ...IDENTITY,
     kind: 'add-on',
@@ -74,8 +192,39 @@ export function designKitManifest(over: Record<string, unknown> = {}): Record<st
   };
 }
 
+/**
+ * The shop's design rule and the table of features a line pays for, added by
+ * `{ check: true }`: a line that names a design is asked about; a guest's
+ * order carries each line's paid features as rows under it.
+ */
+function withCheck(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: Record<string, unknown>[] };
+  const tables = schema.tables.map((table) =>
+    table['ref'] === 'order_lines' ? { ...table, check: { by: { addOn: DESIGN_KIT }, design: 'design_id', paid: { table: 'line_features', via: 'line_id', feature: 'feature' } } } : table,
+  );
+  const entries = (manifest['publicAccess'] as Record<string, unknown>[]).map((entry) => {
+    if (entry['table'] !== 'orders') return entry;
+    const children = entry['children'] as { order_lines: Record<string, unknown> };
+    return {
+      ...entry,
+      dryRun: true,
+      children: { order_lines: { ...children.order_lines, children: { line_features: { via: 'line_id', writable: ['feature'], select: ['id', 'feature'], max: 4 } } } },
+    };
+  });
+  return {
+    ...manifest,
+    requiredSchema: { ...schema, tables: [...tables, { ref: 'line_features', columns: [pk, { ref: 'line_id', type: 'fk', references: 'order_lines' }, { ref: 'feature', type: 'text', maxLength: 40 }] }] },
+    publicAccess: entries,
+  };
+}
+
 /** A shop that sells products in orders whose lines may name a design of the kit by its code. */
-export function designShopManifest(key: 'printing' | 'maker', over: Record<string, unknown> = {}): Record<string, unknown> {
+export function designShopManifest(key: 'printing' | 'maker', over: Record<string, unknown> = {}, opts: { check?: boolean } = {}): Record<string, unknown> {
+  const made = designShopBase(key, over);
+  return opts.check === true ? withCheck(made) : made;
+}
+
+function designShopBase(key: 'printing' | 'maker', over: Record<string, unknown>): Record<string, unknown> {
   return {
     ...IDENTITY,
     kind: 'app',

@@ -140,6 +140,7 @@ import { frozenNow, isLine, moved as movedInputs, type AdjustParent } from './ad
 import type { AppliedReply } from './adjust/replies.js';
 import { storedReductions } from './adjust/stored.js';
 import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek, type AdjustTried, type AdjustTry } from './adjust/step.js';
+import { checkedAt, createDesignCheck, type FileFact } from './check/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
 import { releaseLinks, restoreLinks, type ReleasedLink } from '../outbox/release.js';
@@ -1946,6 +1947,12 @@ export interface WriteServiceOptions {
    * a column holds and name no new file: nothing here can vouch for one.
    */
   files?: FileColumnJudge | undefined;
+  /**
+   * What is known of stored files (their type and size), by id: what a
+   * design check hands an add-on of the files a design holds, never their
+   * bytes. Without it every file is handed in as not there.
+   */
+  fileFacts?: ((ids: readonly string[]) => Promise<ReadonlyMap<string, FileFact>>) | undefined;
   /**
    * The people an app declares (`people/declared.ts`): which of a table's
    * columns is the address, the consent and the opt-out mark (`tableOf`, read
@@ -3837,6 +3844,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     rolesOf: opts.rolesOf,
   });
 
+  /*
+   * THE DESIGN QUESTION. A line's table may say an add-on checks the design
+   * a line names. A save that makes or changes such a line, or the features
+   * it pays for, asks — once a table — after its statements and before any
+   * price or total, in the save's transaction (`check/step.ts`).
+   */
+  const designCheck = createDesignCheck({ ledgers: opts.ledgers, rulesOf, fileFacts: opts.fileFacts });
+
   /** One order a save is about to price: held, as it stood before the save's own statement. */
   interface PricedOrder {
     for: AdjustFor;
@@ -4145,6 +4160,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), about, input.mapError);
       // (A new order has no code on it yet: the offers there to be asked about are all a use could be of. Named with its locks, below.)
       const ownOrder = pricing?.orders.find((order) => order.target.table.id === target.table.id);
+      // The add-ons that check the design a new line names, or the line a new paid feature is of: held against an update for the save.
+      const checks = designCheck.addOnsOf([target]);
+      if (checks.length > 0) await designCheck.refresh();
       let adjusted: AdjustedOrder[] = [];
       /** Whether the look was taken again, from a row this save stored and took back (`StalePeek`). */
       let lookedAgain = false;
@@ -4177,6 +4195,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const followed = brand(await followNow({ db, dialect: target.dialect, rules, values: placed, currency }));
         const counted = brand(await claimSequences(rules, 'create', within, followed, opts.sequences));
         const out = await insertWithCodes(within, counted, codes, input.mapError);
+        // The design a line names (or the line a paid feature is of), asked once the row is in: before its price and its totals.
+        if (checks.length > 0) {
+          const asked = designCheck.linesOf(within, out.row, null, 'all');
+          if (asked.length > 0) await guarded(() => designCheck.run(db, asked, { mode: 'save', context }), input.mapError);
+        }
         // The price, asked once the row is in and before any total is worked out: the settle below reads the reductions it writes.
         if (pricing !== null) {
           const own = pricing.orders.find((order) => order.target.table.id === target.table.id);
@@ -4223,7 +4246,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           peeked !== null || pricing !== null
             ? // A row that posts, or moves an order's price, always writes under one lock call: its own limits, its day, its series and the
               // add-on's rows it stands on — and, with nothing to name, in a plain transaction, the add-ons it asks held against an update.
-              withDeciders([...new Set([...(peeked?.addOns ?? []), ...(pricing?.addOns ?? [])])].sort(), () =>
+              withDeciders([...new Set([...(peeked?.addOns ?? []), ...(pricing?.addOns ?? []), ...checks])].sort(), () =>
                 withLimitLocks(
                   target,
                   async () => [
@@ -4246,7 +4269,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                   clock,
                 ),
               )
-            : limits
+            : withDeciders(checks, () => limits
             ? // The pools' locks and the numbers' series, in one call: one order for every writer.
               withLimitLocks(
                 target,
@@ -4261,11 +4284,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               ? withBookingLock({ ...target, timezone: zone }, day, write)
               : series !== null && !inTransaction(target.db)
                 ? withNamedLock(target, series, 'NUMBER_BUSY', write)
-                : settles(rules) || series !== null || postingScope(rules) !== null || movesParent
+                : settles(rules) || series !== null || postingScope(rules) !== null || movesParent || checks.length > 0
                   ? // A table with a posting rule too: a row stored that turns out to post must be one that can be taken back.
                     // A row that moves its parent too: the totals that move climbs into are held for the whole write.
+                    // A line whose design is asked about too: a refused design takes the row back with it.
                     atomically(target, write)
-                  : write(target.db),
+                  : write(target.db)),
         input.mapError,
       );
       const { row, values: written } = await save(posting).catch(async (error: unknown) => {
@@ -4417,6 +4441,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
       // Which orders the tree's rows move the price of — the root, a child that is an order, or an order outside the tree a row is part
       // of — and whether their add-on can be asked. A quote asks too: it says what the save would cost.
+      // The add-ons that check the designs the tree's lines name: held against an update for the write, as the ones that price it.
+      const treeChecks = designCheck.addOnsOf(everyRow.map((row) => row.target));
+      if (treeChecks.length > 0) await designCheck.refresh();
       const treePricing = await at(rootRow.node, () =>
         ledgerWriter.audited(async () => {
           const found = new Map<string, AdjustFor>();
@@ -4603,6 +4630,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const row = where === undefined ? undefined : everyRow.find((candidate) => candidate.target.table.id === where.table && keyOf(candidate.target.table, written.get(candidate)!) === where.key);
           return input.mapError(error, row?.node.at ?? rootRow.node.at);
         };
+        // 9a. The designs the lines name, asked once every row is in (a line's paid features with it) and before any price or total.
+        if (treeChecks.length > 0) {
+          const asked = everyRow.flatMap((row) => designCheck.linesOf({ ...row.target, db: trx }, written.get(row)!, null, 'all'));
+          try {
+            await designCheck.run(trx, asked, { mode: dry ? 'dry' : 'save', context });
+          } catch (error) {
+            if (error instanceof LockMoved) throw error;
+            const where = checkedAt(error);
+            const row = where === undefined ? undefined : everyRow.find((candidate) => candidate.target.table.id === where.table && keyOf(candidate.target.table, written.get(candidate)!) === where.key);
+            return input.mapError(error, row?.node.at ?? rootRow.node.at);
+          }
+        }
         // 9b. The price, asked once for each order the rows belong to — after every row is in and the limits are judged, before any
         // total is worked out: the settle below reads the reductions it writes.
         const adjusted: AdjustedOrder[] = [];
@@ -4718,7 +4757,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let outcome: TreeOutcome;
       try {
         // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
-        outcome = await conflicted(() => withDeciders([...new Set([...(treePosting?.addOns ?? []), ...(treePricing?.addOns ?? [])])].sort(), () => withLimitLocks(freshReads(rootRow.target, treePosting !== null || treePricing !== null), lockNames, run, clock)), (error) => input.mapError(error, []));
+        outcome = await conflicted(() => withDeciders([...new Set([...(treePosting?.addOns ?? []), ...(treePricing?.addOns ?? []), ...treeChecks])].sort(), () => withLimitLocks(freshReads(rootRow.target, treePosting !== null || treePricing !== null), lockNames, run, clock)), (error) => input.mapError(error, []));
       } catch (error) {
         if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
         if (!(error instanceof TreeSignal)) throw error;
@@ -4862,6 +4901,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const pricing = await ledgerStep(() => adjuster.peek({ target: { ...target, timezone: zone }, rules, action: 'update', values: checkedValues, context }), about, input.mapError);
       if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), about, input.mapError);
       const ownPricing = pricing?.orders.find((order) => order.target.table.id === target.table.id);
+      // A change of a line's design link, or of the line or feature of a paid feature: the design is asked about again, in the change's transaction.
+      const checks = designCheck.asksOn(target, Object.keys(checkedValues)) ? designCheck.addOnsOf([target]) : [];
+      if (checks.length > 0) await designCheck.refresh();
       let adjusted: AdjustedOrder[] = [];
       /** What the change hands to a ledger, from the look each attempt takes before its locks. */
       let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
@@ -4954,10 +4996,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           : dry
             ? ((await fetchByPk(db, target.table, pk)) ?? undefined)
             : await holdOwn(rules, within, pk, ownMoved, currency);
+        // The row as it stood, for the line a paid feature leaves when it is moved to another: that line is asked about again too.
+        const checkStood = checks.length > 0 && (rules?.checkParents?.length ?? 0) > 0 ? ((await fetchByPk(db, target.table, pk)) ?? null) : null;
         // A renewed code that collides with a stored one is made again (`crud/code-renew.ts`).
         const renewing = await statement(() => withRenewRetry(db, target.dialect, written, (row) => updateRows(db, target.dialect, target.table, row, pk, input.refine)), input.mapError);
         written = renewing.values;
         const changed = renewing.result;
+        // The design a line names, asked again once the change is in: before its price and its totals.
+        if (checks.length > 0 && changed > 0) {
+          const now = (await fetchByPk(db, target.table, pk)) ?? null;
+          const asked = designCheck.linesOf(within, now, checkStood, Object.keys(written));
+          if (asked.length > 0) await guarded(() => designCheck.run(db, asked, { mode: dry ? 'dry' : 'save', context }), input.mapError);
+        }
         // The price, asked once the change is in and before any total is worked out.
         /** The rows that follow an order of its own price, brought into step BEFORE the price is asked: its lines are then what they will be. */
         let followedFirst = false;
@@ -5042,7 +5092,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       try {
         count = await conflicted(async () => {
           // A quote takes no named lock: it waits for nobody, and nobody waits for it.
-          if (dry) return await withDeciders(pricing?.addOns ?? [], () => withNamedLocks(target, [], write));
+          if (dry) return await withDeciders([...new Set([...(pricing?.addOns ?? []), ...checks])].sort(), () => withNamedLocks(target, [], write));
           if (posts !== null || pricing !== null || limits || input.children !== undefined || effectLimits) {
             // The locks are named by the pools the row will take from, from a fresh look each time. A change of a posting table always
             // writes here: its own limits, its booking day and the add-on's rows it stands on in one call — and with nothing to name, a plain transaction.
@@ -5101,14 +5151,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                 },
                 clock,
               );
-            return posts === null && pricing === null ? await locked() : await withDeciders([...new Set([...(posts ?? []), ...(pricing?.addOns ?? [])])].sort(), locked);
+            return posts === null && pricing === null && checks.length === 0 ? await locked() : await withDeciders([...new Set([...(posts ?? []), ...(pricing?.addOns ?? []), ...checks])].sort(), locked);
           }
           if (booking !== undefined) {
-            return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
+            return await withDeciders(checks, () => bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
               lockedDay = day;
-            }, write, rolls || quoted, input.mapError);
+            }, write, rolls || quoted || checks.length > 0, input.mapError));
           }
-          return rolls || quoted || effectTotals ? await atomically(target, write) : await write(target.db);
+          // A change whose design is asked about is one transaction: a refused design takes the change back with it.
+          return await withDeciders(checks, () => (rolls || quoted || effectTotals || checks.length > 0 ? atomically(target, write) : write(target.db)));
         }, input.mapError);
       } catch (error) {
         if (!(error instanceof UpdateQuoted)) throw error;
