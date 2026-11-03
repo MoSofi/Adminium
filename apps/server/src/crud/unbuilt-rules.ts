@@ -324,6 +324,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.check',
   'addOn.checker',
   'addOn.panels',
+  // A file column that takes a cleaned SVG, a model or a web font (files/svg.ts, files/models.ts, read whole as they are
+  // uploaded), and an entry's product assets served to every visitor (routes/public/assets.ts).
+  'file.assetKinds',
+  'publicAccess.assets',
 ];
 
 export interface UnbuiltWord {

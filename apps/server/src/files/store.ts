@@ -37,8 +37,10 @@ import { newId } from '@adminium/meta';
 import type { DestinationResolver } from './destinations.js';
 import type { ByteRange, FileDriver, OpenedBytes } from './drivers/driver.js';
 import { cleanPicture, isPictureMime, PictureRefused } from '../public-api/picture.js';
+import { confirmKind, ModelRefused } from './models.js';
 import { sniff, type SniffTypeKey, type SniffedType } from './sniff.js';
-import type { Spool, SpooledFile } from './spool.js';
+import { SpoolTooLargeError, type Spool, type SpooledFile } from './spool.js';
+import { cleanSvg, isSvgMime, SvgRefused } from './svg.js';
 
 /** Everything a row needs to say where its bytes are. */
 export interface StoredBytes {
@@ -116,6 +118,14 @@ export interface PutUploadInput {
    * column an app's own rule makes a file column.
    */
   clean?: boolean | undefined;
+  /**
+   * An SVG is kept only as `files/svg.ts` writes it again from its own tree,
+   * and refused when it holds what a drawing may not (a foreignObject, an
+   * outside link): an upload for a file column that takes SVG.
+   */
+  cleanSvg?: boolean | undefined;
+  /** A lower cap for some kinds, once the bytes say which they are: product assets every visitor loads. */
+  maxBytesFor?: Partial<Record<SniffTypeKey, number>> | undefined;
   at?: number;
 }
 
@@ -183,6 +193,20 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       await spooled.release();
     }
     return spool.spool(Readable.from([picture]), { maxBytes });
+  }
+
+  /** A spooled SVG, written again by the cleaner into a spool of its own; the first is let go. */
+  async function cleanedSvg(spooled: SpooledFile, maxBytes: number): Promise<SpooledFile> {
+    let drawing: Buffer;
+    try {
+      drawing = cleanSvg(await readFile(spooled.path));
+    } catch (error) {
+      if (!(error instanceof SvgRefused)) throw error;
+      throw new UnsupportedFileTypeError(`That SVG cannot be kept: ${error.message}`, 'image/svg+xml');
+    } finally {
+      await spooled.release();
+    }
+    return spool.spool(Readable.from([drawing]), { maxBytes });
   }
 
   /**
@@ -288,7 +312,15 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       // The gate runs on the spooled head, never on the client's claim. A
       // refusal here has already cost one local write and nothing else — no
       // object in a bucket to clean up, which is the whole point of D4.
-      const result = sniff(spooled.head, input.filename);
+      let result = sniff(spooled.head, input.filename);
+      // The kinds a head cannot vouch for (a model, a font) are read whole, and only those this upload may take.
+      try {
+        result = await confirmKind(spooled, result, input.filename, input.allowedTypes);
+      } catch (error) {
+        await spooled.release();
+        if (error instanceof ModelRefused) throw new UnsupportedFileTypeError(`That file cannot be stored: ${error.message}`);
+        throw error;
+      }
       if (!result.ok) {
         await spooled.release();
         throw new UnsupportedFileTypeError(
@@ -305,8 +337,19 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
         );
       }
 
+      const capped = input.maxBytesFor?.[result.type.key];
+      if (capped !== undefined && spooled.sizeBytes > capped) {
+        await spooled.release();
+        throw new SpoolTooLargeError(capped);
+      }
+
       // The cleaned picture is what is kept, under its own hash: the bytes the camera wrote are never stored.
-      const kept = input.clean === true && isPictureMime(result.type.mime) ? await cleaned(spooled, result.type.mime, input.maxBytes) : spooled;
+      const kept =
+        input.clean === true && isPictureMime(result.type.mime)
+          ? await cleaned(spooled, result.type.mime, input.maxBytes)
+          : input.cleanSvg === true && isSvgMime(result.type.mime)
+            ? await cleanedSvg(spooled, input.maxBytes)
+            : spooled;
 
       const bytes = await commit(
         kept,

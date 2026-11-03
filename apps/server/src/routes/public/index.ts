@@ -52,6 +52,7 @@ import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { registerPictures } from './pictures.js';
+import { registerAssets } from './assets.js';
 import { cardInputs, CODE_HEADER, GuessesSpent, guessRung, treeRung, writeRung, type WriteRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -2032,10 +2033,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const config = publicConfigOf(ok.key.scope);
         // Where this key's pictures are asked for: by the key's id, never its token (an `<img>` carries no key).
         const pictured = Object.values(config.refs).some((r) => (r.pictures ?? []).length > 0);
+        // …and its product assets, the same way.
+        const assets = Object.values(config.refs).some((r) => (r.assets ?? []).length > 0) ? { assets: `/api/v1/public/assets/${ok.key.keyId}` } : {};
         // The server's clock when this was answered, so a page on a device with a wrong clock asks for the venue's today — never kept.
         const now = new Date().toISOString();
         void reply.header('cache-control', 'no-store');
-        return reply.send({ data: pictured ? { ...config, now, pictures: `/api/v1/public/pictures/${ok.key.keyId}` } : { ...config, now } });
+        return reply.send({ data: pictured ? { ...config, now, pictures: `/api/v1/public/pictures/${ok.key.keyId}`, ...assets } : { ...config, now, ...assets } });
       },
     );
 
@@ -4945,6 +4948,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
     // Pictures anyone may see: an `<img>` sends no key or session (`pictures.ts`).
     registerPictures(app as unknown as FastifyInstance, { meta, manager, storage: deps.storage, isEnabled, limiter, resolver, crypto: addressCrypto, switches, viewFor, fail, preflight });
+    // Product assets anyone's browser may load: a viewer's fetch or a font load sends no key or session (`assets.ts`).
+    registerAssets(app as unknown as FastifyInstance, { meta, manager, storage: deps.storage, isEnabled, limiter, resolver, crypto: addressCrypto, switches, viewFor, fail, preflight });
 
     /* ------------------------------------------------ an add-on's public settings */
     /*

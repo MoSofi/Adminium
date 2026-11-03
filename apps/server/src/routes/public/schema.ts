@@ -147,6 +147,8 @@ export const publicConfigReply = z.object({
     documents: z.object({ create: z.boolean() }),
     /** Where this key's pictures are asked for (`<base>/<ref>/<rowId>/<column>/<fileId>`); absent when it shows none. */
     pictures: z.string().optional(),
+    /** Where this key's product assets are asked for (`<base>/<ref>/<rowId>/<column>/<fileId>`); absent when it serves none. */
+    assets: z.string().optional(),
     refs: z.record(
       z.string(),
       z.object({
@@ -171,6 +173,8 @@ export const publicConfigReply = z.object({
         unlock: z.literal(true).optional(),
         /** Image columns any visitor may see, at `/public/pictures`. */
         pictures: z.array(z.string()).optional(),
+        /** File columns of product assets any visitor's browser may load, at `/public/assets`. */
+        assets: z.array(z.string()).optional(),
       }),
     ),
   }),

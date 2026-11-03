@@ -27,7 +27,7 @@
  * order, methods in GET POST PATCH PUT DELETE BATCH order, two-space indent.
  */
 
-import { formulaColumns, linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, stateConditionSchema } from '@adminium/manifest';
+import { ASSET_FILE_KINDS, formulaColumns, linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, stateConditionSchema } from '@adminium/manifest';
 import { z } from 'zod';
 
 import type { EffectiveColumn, EffectiveModel } from '../connections/effective-schema.js';
@@ -441,6 +441,8 @@ export const publicEndpointDefinitionSchema = z
       .optional(),
     /** Image columns any visitor may see, through the rows this endpoint reads. */
     pictures: z.array(columnSchema).min(1).max(4).optional(),
+    /** File columns of product assets any visitor's browser may load, through the rows this endpoint reads. */
+    assets: z.array(columnSchema).min(1).max(8).optional(),
     /**
      * An add-on's endpoint on every attached app's key: the text column that
      * holds the key of the app a row is for. Each key's scope is derived held
@@ -625,6 +627,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
     };
   }
   if (def.pictures !== undefined) out['pictures'] = [...def.pictures];
+  if (def.assets !== undefined) out['assets'] = [...def.assets];
   if (def.app_column !== undefined) out['app_column'] = def.app_column;
   if (def.children !== undefined) out['children'] = orderedChildren(def.children);
   if (def.agrees !== undefined) out['agrees'] = def.agrees.map(orderedAgree);
@@ -1037,6 +1040,7 @@ export function definitionToResource(
     };
   }
   if (def.pictures !== undefined) resource.pictures = [...def.pictures];
+  if (def.assets !== undefined) resource.assets = [...def.assets];
   return resource;
 }
 
@@ -1240,6 +1244,37 @@ function pictureIssues(def: PublicEndpointDefinition, table: ResolvedTable): Sco
   return out;
 }
 
+/** The kinds of file a product asset may be. */
+const ASSET_KINDS: ReadonlySet<string> = new Set(ASSET_FILE_KINDS);
+
+/** Product assets every visitor loads: shown file columns of an open read, held to the asset kinds, which no caller writes. */
+function assetIssues(def: PublicEndpointDefinition, table: ResolvedTable): ScopeIssue[] {
+  const out: ScopeIssue[] = [];
+  if (def.methods.some((m) => m !== 'GET') || def.kind === 'availability') {
+    out.push({ code: 'ENDPOINT_ASSETS_READ_ONLY', message: 'assets are served through an endpoint that only reads rows' });
+  }
+  if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.session_only === true || def.unlock_by !== undefined) {
+    out.push({ code: 'ENDPOINT_ASSETS_CLAIMED', message: "assets are for every visitor; a signed-in person's own files are `files`" });
+  }
+  const visible = visibleColumns(table);
+  const written = new Set([...(def.writable ?? []), ...Object.keys(def.defaults ?? {})]);
+  for (const column of def.assets ?? []) {
+    if (!visible.has(column)) {
+      out.push({ code: 'ENDPOINT_ASSETS_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${def.source}`, column });
+      continue;
+    }
+    if (!def.select.includes(column)) out.push({ code: 'ENDPOINT_ASSETS_NOT_SELECTED', message: `"${column}" is an asset, so it is one of the columns shown`, column });
+    const accept = table.columns.get(column)?.file?.accept;
+    if (accept === undefined || accept.length === 0 || accept.some((kind) => !ASSET_KINDS.has(kind))) {
+      out.push({ code: 'ENDPOINT_ASSETS_NOT_ASSETS', message: `"${column}" holds no product assets: a file column that takes only ${[...ASSET_KINDS].join(', ')}`, column });
+    }
+    if (written.has(column) || (def.files ?? []).includes(column) || (def.pictures ?? []).includes(column)) {
+      out.push({ code: 'ENDPOINT_ASSETS_WRITABLE', message: `"${column}" is an asset anyone loads, so no caller writes it, and it is no picture or own file`, column });
+    }
+  }
+  return out;
+}
+
 /**
  * Every issue with a definition, in one list — the scope compiler's
  * discipline, because an operator fixing a definition should see all of it.
@@ -1406,6 +1441,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   }
   if (def.unlock_by !== undefined) issues.push(...unlockIssues(def, table, view as SnapshotView, ctx.shareCodes).map((issue) => ({ ...issue, ref })));
   if (def.pictures !== undefined) issues.push(...pictureIssues(def, table).map((issue) => ({ ...issue, ref })));
+  if (def.assets !== undefined) issues.push(...assetIssues(def, table).map((issue) => ({ ...issue, ref })));
   if (def.app_column !== undefined) {
     const column = table.columns.get(def.app_column);
     if (column === undefined) push('ENDPOINT_APP_COLUMN', `"${def.app_column}" is not a column of ${def.source}`, 'app_column');

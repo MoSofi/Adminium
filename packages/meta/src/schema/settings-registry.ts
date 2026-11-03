@@ -556,7 +556,8 @@ export const SETTINGS_REGISTRY = {
   // `accept` allows — a column narrows this, it never widens it.
   'files.allowedTypes': def(
     z.array(z.string().min(1).max(20)),
-    ['pdf', 'png', 'jpeg', 'gif', 'webp', 'heic', 'svg', 'zip', 'office', 'mp4', 'mp3', 'wav', 'webm', 'ogg', 'csv', 'text', 'markdown', 'json'],
+    // A shop's models and web fonts (each read whole as it is uploaded) since the release that knows them.
+    ['pdf', 'png', 'jpeg', 'gif', 'webp', 'heic', 'svg', 'zip', 'office', 'mp4', 'mp3', 'wav', 'webm', 'ogg', 'csv', 'text', 'markdown', 'json', 'glb', 'stl', '3mf', 'woff2'],
     'File types accepted on upload (the sniffed type must be one of these)',
     P,
   ),
