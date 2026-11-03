@@ -1359,8 +1359,10 @@ export default {
         "switch": "Fichier",
         "switchToggle": "{name} stocke un fichier",
         "type": {
+          "3mf": "Modèle 3D 3MF",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "Modèle 3D GLB",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "Modèle 3D STL",
           "svg": "SVG",
           "text": "Texte brut",
           "wav": "Audio WAV",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "Police WOFF2",
           "zip": "ZIP"
         },
         "acceptPictures": "Images uniquement. Décochez les types que cette colonne doit refuser."

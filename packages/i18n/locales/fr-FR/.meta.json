@@ -30699,6 +30699,10 @@
     "status": "mt",
     "srcHash": "097173380900"
   },
+  "studio.pages.columns.file.type.3mf": {
+    "status": "mt",
+    "srcHash": "adf115f180db"
+  },
   "studio.pages.columns.file.type.csv": {
     "status": "src",
     "srcHash": "3281188351b8"
@@ -30706,6 +30710,10 @@
   "studio.pages.columns.file.type.gif": {
     "status": "src",
     "srcHash": "758f6c9347b9"
+  },
+  "studio.pages.columns.file.type.glb": {
+    "status": "mt",
+    "srcHash": "4e6e5ceec18e"
   },
   "studio.pages.columns.file.type.heic": {
     "status": "src",
@@ -30747,6 +30755,10 @@
     "status": "src",
     "srcHash": "70fe60b7dfe0"
   },
+  "studio.pages.columns.file.type.stl": {
+    "status": "mt",
+    "srcHash": "aab14d65f635"
+  },
   "studio.pages.columns.file.type.svg": {
     "status": "src",
     "srcHash": "50fce6d02899"
@@ -30766,6 +30778,10 @@
   "studio.pages.columns.file.type.webp": {
     "status": "src",
     "srcHash": "6fa39ac0c7ef"
+  },
+  "studio.pages.columns.file.type.woff2": {
+    "status": "mt",
+    "srcHash": "6eb9afe86b84"
   },
   "studio.pages.columns.file.type.zip": {
     "status": "src",

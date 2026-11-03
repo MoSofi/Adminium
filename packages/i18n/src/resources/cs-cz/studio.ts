@@ -1359,8 +1359,10 @@ export default {
         "switch": "Soubor",
         "switchToggle": "{name} ukládá soubor",
         "type": {
+          "3mf": "3D model 3MF",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "3D model GLB",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "3D model STL",
           "svg": "SVG",
           "text": "Prostý text",
           "wav": "Zvuk WAV",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "Písmo WOFF2",
           "zip": "ZIP"
         },
         "acceptPictures": "Pouze obrázky. Zrušte zaškrtnutí druhů, které má tento sloupec odmítat."

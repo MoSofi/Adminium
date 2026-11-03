@@ -1359,8 +1359,10 @@ export default {
         "switch": "Datei",
         "switchToggle": "{name} speichert eine Datei",
         "type": {
+          "3mf": "3MF-3D-Modell",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "GLB-3D-Modell",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "STL-3D-Modell",
           "svg": "SVG",
           "text": "Reiner Text",
           "wav": "WAV-Audio",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "WOFF2-Schrift",
           "zip": "ZIP"
         },
         "acceptPictures": "Nur Bilder. Entfernen Sie den Haken bei den Arten, die diese Spalte ablehnen soll."

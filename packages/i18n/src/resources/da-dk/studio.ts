@@ -1359,8 +1359,10 @@ export default {
         "switch": "Fil",
         "switchToggle": "{name} gemmer en fil",
         "type": {
+          "3mf": "3MF 3D-model",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "GLB 3D-model",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "STL 3D-model",
           "svg": "SVG",
           "text": "Almindelig tekst",
           "wav": "WAV-lyd",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "WOFF2-skrifttype",
           "zip": "ZIP"
         },
         "acceptPictures": "Kun billeder. Fjern fluebenet ved de typer, kolonnen skal afvise."

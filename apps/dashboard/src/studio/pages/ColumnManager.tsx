@@ -209,6 +209,10 @@ const FILE_TYPE_KEYS = [
   'text',
   'markdown',
   'json',
+  'glb',
+  'stl',
+  '3mf',
+  'woff2',
 ] as const;
 type FileTypeKey = (typeof FILE_TYPE_KEYS)[number];
 
@@ -240,6 +244,10 @@ const FILE_TYPE_LABELS: Record<FileTypeKey, () => string> = {
   text: () => t('studio:pages.columns.file.type.text', 'Plain text'),
   markdown: () => t('studio:pages.columns.file.type.markdown', 'Markdown'),
   json: () => t('studio:pages.columns.file.type.json', 'JSON'),
+  glb: () => t('studio:pages.columns.file.type.glb', 'GLB 3D model'),
+  stl: () => t('studio:pages.columns.file.type.stl', 'STL 3D model'),
+  '3mf': () => t('studio:pages.columns.file.type.3mf', '3MF 3D model'),
+  woff2: () => t('studio:pages.columns.file.type.woff2', 'WOFF2 font'),
 };
 
 /**
