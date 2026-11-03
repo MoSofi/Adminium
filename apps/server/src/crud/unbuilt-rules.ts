@@ -314,6 +314,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.appColumn',
   'people.addOnCopies',
   'table.expire',
+  // A band link picked by the write (crud/band.ts), a stamp counted in working days (crud/working-days.ts), and a
+  // formula's ceil and floor (worked out by the manifest's own evaluator).
+  'column.band',
+  'stamp.addWorkingDays',
+  'formula.ceilFloor',
 ];
 
 export interface UnbuiltWord {

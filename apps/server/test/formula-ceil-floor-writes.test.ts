@@ -17,7 +17,7 @@ import { units } from './invoicing-writes.helpers.js';
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
 function manifest(): Record<string, unknown> {
-  return invoicingManifest([
+  const m = invoicingManifest([
     {
       ref: 'jobs',
       columns: [
@@ -31,6 +31,9 @@ function manifest(): Record<string, unknown> {
       ],
     },
   ]);
+  // A band, a working-day stamp and a ceil or floor are read by Adminium 0.3.43 and later.
+  m['compatibility'] = { minAdminiumVersion: '0.3.43' };
+  return m;
 }
 
 /** A table the app did not make: a whole-number column and a `numeric(10,2)` one, each an operator's rule. */

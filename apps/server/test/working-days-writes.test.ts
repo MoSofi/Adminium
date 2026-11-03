@@ -98,6 +98,8 @@ function manifest(): Record<string, unknown> {
     { side: 'customer', kind: 'spa', entry: 'index.html' },
   ];
   m['publicAccess'] = [{ table: 'rushes', methods: ['POST'], writable: ['note'], select: ['id', 'ready_by'], humanCheck: true, dryRun: true }];
+  // A band, a working-day stamp and a ceil or floor are read by Adminium 0.3.43 and later.
+  m['compatibility'] = { minAdminiumVersion: '0.3.43' };
   return m;
 }
 

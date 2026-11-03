@@ -201,6 +201,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.appColumn',
   'people.addOnCopies',
   'table.expire',
+  // A link filled with the band a number falls in; a date so many working days on; a formula rounded up or down.
+  'column.band',
+  'stamp.addWorkingDays',
+  'formula.ceilFloor',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -390,7 +394,18 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'publicAccess.appColumn': '0.3.43',
   'people.addOnCopies': '0.3.43',
   'table.expire': '0.3.43',
+  // The band a number falls in, a date counted in working days, and a formula's ceil and floor: read by the same release.
+  'column.band': '0.3.43',
+  'stamp.addWorkingDays': '0.3.43',
+  'formula.ceilFloor': '0.3.43',
 };
+
+/** Whether a formula, at any depth, rounds up or down (`ceil`, `floor`). */
+function roundsUpOrDown(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(roundsUpOrDown);
+  if (!isDoc(node)) return false;
+  return Object.entries(node).some(([key, value]) => key === 'ceil' || key === 'floor' || roundsUpOrDown(value));
+}
 
 /** Every word of `document` that needs the install floor, in document order. */
 export function installFloorWords(document: unknown): ManifestWord[] {
@@ -541,6 +556,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         else if (bound !== undefined && ((type !== 'date' && type !== 'timestamptz') || (isDoc(bound) && bound['days'] !== undefined))) out.push({ word: 'bounds.other', path: `${here}.${side}` });
       }
       if (isDoc(rules['stamp']) && rules['stamp']['strict'] !== undefined) out.push({ word: 'stamp.strict', path: `${here}.stamp.strict` });
+      if (rules['band'] !== undefined) out.push({ word: 'column.band', path: `${here}.band` });
+      if (isDoc(rules['stamp']) && isDoc(rules['stamp']['set']) && rules['stamp']['set']['addWorkingDays'] !== undefined) {
+        out.push({ word: 'stamp.addWorkingDays', path: `${here}.stamp.set.addWorkingDays` });
+      }
+      if (rules['formula'] !== undefined && roundsUpOrDown(rules['formula'])) out.push({ word: 'formula.ceilFloor', path: `${here}.formula` });
       if (rules['stamp'] !== undefined && rules['requiredWhen'] !== undefined) out.push({ word: 'requiredWhen.stamp', path: `${here}.requiredWhen` });
     });
   });

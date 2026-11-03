@@ -25,7 +25,7 @@ function manifest(): Doc {
     license: 'MIT',
     description: { key: 'd', fallback: 'A shop' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: '0.3.1' },
+    compatibility: { minAdminiumVersion: '0.3.43' },
     requiredSchema: {
       prefixed: true,
       tables: [

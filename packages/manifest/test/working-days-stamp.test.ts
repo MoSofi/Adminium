@@ -28,7 +28,7 @@ function manifest(): Doc {
     license: 'MIT',
     description: { key: 'd', fallback: 'A print works' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: '0.3.1' },
+    compatibility: { minAdminiumVersion: '0.3.43' },
     settings: [
       { key: 'working_days', type: 'string', default: 'mon,tue,wed,thu,fri' },
       { key: 'cutoff', type: 'string', default: '14:00' },

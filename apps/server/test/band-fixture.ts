@@ -111,6 +111,8 @@ export function bandShopManifest(): Record<string, unknown> {
       dryRun: true,
     },
   ];
+  // A band, a working-day stamp and a ceil or floor are read by Adminium 0.3.43 and later.
+  manifest['compatibility'] = { minAdminiumVersion: '0.3.43' };
   return manifest;
 }
 
