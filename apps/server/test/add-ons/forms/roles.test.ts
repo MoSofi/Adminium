@@ -6,7 +6,8 @@
  * The add-on ships two roles. Its manager is shown the Forms page and the
  * off-rail Forms settings page, and the first page they land on is never
  * that settings page; its reader is shown Forms only, and the server refuses
- * them a deleted answer. Somebody who holds neither (the CRM's clerk) is
+ * them a deleted answer. Both read every column of an answer: they are all
+ * kept personal, and blank to a role that may not read personal columns. Somebody who holds neither (the CRM's clerk) is
  * shown no Forms page and is refused a form's summary, a stranger's file and
  * the status read. The manager is a marketer: they read the status (the
  * address, the websites, the roles a form may tell) without the privacy or
@@ -64,8 +65,18 @@ describe.each(LEGS)("Forms' two roles — %s", (dialect, available) => {
     expect(await shown('cal')).toEqual({ code: [], settings: false, offRail: true });
   });
 
-  it.skipIf(!run)("the reader reads the answers and is refused deleting one; the manager deletes", async () => {
-    expect((await w.as('rex', 'GET', w.data('answers'))).statusCode).toBe(200);
+  it.skipIf(!run)('the manager and the reader read who answered and what they wrote: nothing of an answer is blanked for them', async () => {
+    for (const who of ['mia', 'rex']) {
+      const res = await w.as(who, 'GET', w.data('answers'));
+      expect(res.statusCode, who).toBe(200);
+      const [row] = res.json()['data'] as Doc[];
+      expect(row!['_masked'], who).toBeUndefined();
+      expect(row!['name'], who).toBe('Marta');
+      expect(JSON.stringify(row!['values']), who).toContain('Marta');
+    }
+  });
+
+  it.skipIf(!run)("the reader is refused deleting an answer", async () => {
     const refused = await w.as('rex', 'DELETE', w.data('answers', answerId));
     expect(refused.statusCode, refused.body).toBe(403);
     expect(await w.rows('answers')).toHaveLength(1);
