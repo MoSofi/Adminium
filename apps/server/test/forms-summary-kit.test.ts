@@ -189,7 +189,8 @@ describe.each(LEGS)('what a forms add-on\'s pages read of the engine — %s', (d
     expect(hosts.some((host) => host.id === ids.get('products'))).toBe(false);
     const feedback = forms.find((host) => host.id === ids.get('feedback'))!;
     expect(feedback).toMatchObject({ label: 'Customer feedback', app: 'Shop' });
-    expect(feedback.columns).toEqual([
+    // The longest each text holds is the next read's (`forms-staff-reads.test.ts`).
+    expect(feedback.columns.map(({ maxLength: _longest, ...column }: Doc) => column)).toEqual([
       { name: 'job_id', label: 'Job', kind: expect.any(String), required: true, link: true },
       { name: 'score', label: 'Score', kind: expect.any(String), required: true, link: false },
       { name: 'text', label: 'What they said', kind: 'varchar', required: false, link: false },

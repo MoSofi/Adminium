@@ -33,7 +33,9 @@ export interface KitReply {
     label: string;
     via: 'posting' | 'adjust' | 'forms';
     app?: string;
-    columns?: { name: string; label: string; kind: string; required: boolean; link: boolean }[];
+    columns?: { name: string; label: string; kind: string; required: boolean; link: boolean; values?: string[]; maxLength?: number }[];
+    page?: string;
+    sourceColumn?: string;
   }[];
   has: Record<string, boolean>;
   /** Absent from a server older than this dashboard. */

@@ -2326,8 +2326,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           answerFiles: formsFiles.removeAnswerFiles,
         }),
       );
-      // Whether mail a stranger causes through a form goes, for the forms builder to say why not.
-      await api.register(formsStaffRoutes({ meta, secret: env.ADMINIUM_SECRET }));
+      // What the forms builder shows: whether mail a stranger causes goes, and its status read (reach, notice, address, websites, roles).
+      await api.register(
+        formsStaffRoutes({
+          meta,
+          secret: env.ADMINIUM_SECRET,
+          // The status read's reach answer is the forms door's own, as the Privacy page's card reads it.
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        }),
+      );
       // The marketing mail settings: each sender's DKIM key and DNS checks, the reply address, the bounce card's notice addresses.
       await api.register(
         mailSettingsRoutes({

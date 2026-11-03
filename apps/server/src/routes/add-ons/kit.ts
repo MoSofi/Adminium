@@ -13,17 +13,19 @@
  * (`via: 'forms'`): every table an app on the add-on's database opens to
  * forms through a `publicAccess` entry under the reserved key `forms`, with
  * its label, its app's name and the columns that entry lets an answer fill
- * (name, label, kind, whether the row must have it, and whether it is a link
- * to another row: a link is filled only from a named survey's invitation,
- * never from a question). Read only: the page lists them in its builder, and
- * reads no row of them.
+ * (name, label, kind, whether the row must have it, whether it is a link
+ * to another row — a link is filled only from a named survey's invitation,
+ * never from a question —, an enum's values and a text's longest), the column
+ * the entry names for a form's fixed "Source", and the generated page of the
+ * table the reader may open (where an answer's "Became" links its row). Read
+ * only: the page lists them in its builder, and reads no row of them.
  *
  * It grants nothing. Every answer here is asked again by the data routes on
  * the read or the write itself; the page only stops offering what would be
  * refused.
  */
 import { addOnManifestSchema, formsEntriesOf, formsOf, validateManifest, type AddOnManifest } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, pagesRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
@@ -33,6 +35,7 @@ import { storedTableRef, type TableRefIndex } from '../../apps/table-ref.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { NotFoundError } from '../../errors.js';
+import { pagePartOff } from '../../rbac/app-parts.js';
 import { factsViewFor } from '../pages/column-facts.js';
 import { movesFor, rolesOf, stateActionFacts } from '../pages/state-actions.js';
 
@@ -69,6 +72,10 @@ const formsColumn = z.object({
   required: z.boolean(),
   /** A link to another row: filled only from a named survey's invitation, never from a question. */
   link: z.boolean(),
+  /** An enum's values, in order: what a choice question's ids must be to fill it. */
+  values: z.array(z.string()).optional(),
+  /** The longest text the column holds. */
+  maxLength: z.number().optional(),
 });
 
 export const addOnKitReply = z.object({
@@ -86,6 +93,10 @@ export const addOnKitReply = z.object({
       app: z.string().optional(),
       /** A table opened to forms: the columns an answer may fill. */
       columns: z.array(formsColumn).optional(),
+      /** A table opened to forms: the slug of a generated page of it this reader may open (a row is at `/p/<page>/r/<key>`). */
+      page: z.string().optional(),
+      /** A table opened to forms: the column a form's fixed "Source" value goes into, as the app's entry names it. */
+      sourceColumn: z.string().optional(),
     }),
   ),
   /** What the reader holds of the permissions a page asks about by name. */
@@ -104,8 +115,26 @@ const NO_SECRETS = {
 };
 
 /** The tables the apps on this database open to forms, with the columns an answer may fill (see the header). */
-async function formsHosts(meta: MetaDb, connectionId: string, view: SnapshotView, index: TableRefIndex, own: ReadonlySet<string>): Promise<z.infer<typeof addOnKitReply>['hosts']> {
+async function formsHosts(
+  meta: MetaDb,
+  connectionId: string,
+  view: SnapshotView,
+  index: TableRefIndex,
+  own: ReadonlySet<string>,
+  can: (permission: string) => Promise<boolean>,
+): Promise<z.infer<typeof addOnKitReply>['hosts']> {
   const out: z.infer<typeof addOnKitReply>['hosts'] = [];
+  const pages = (await pagesRepo(meta).listForConnection(connectionId)).filter((page) => page.isEnabled).sort((a, b) => a.slug.localeCompare(b.slug));
+  /** A generated page of the table this reader may open, its app's part on: where "Became" links a row to. */
+  async function pageOf(tableId: string): Promise<string | null> {
+    for (const page of pages) {
+      const source = (page.config as { source?: { table?: unknown } } | null)?.source;
+      if (source?.table !== tableId) continue;
+      if (await pagePartOff(meta, page.config)) continue;
+      if (await can(`page:${page.id}:view`)) return page.slug;
+    }
+    return null;
+  }
   const apps = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId === connectionId && entry.row.status === 'installed');
   for (const entry of apps.sort((a, b) => a.row.manifestKey.localeCompare(b.row.manifestKey))) {
     const read = validateManifest(entry.document);
@@ -128,9 +157,30 @@ async function formsHosts(meta: MetaDb, connectionId: string, view: SnapshotView
         const facts = table.table.columns.find((candidate) => candidate.name === column);
         if (resolved === undefined || facts === undefined) return [];
         const required = opened.requires.includes(column) || (!resolved.nullable && (facts.default ?? null) === null && opened.defaults[column] === undefined && !opened.decided.includes(column));
-        return [{ name: column, label: facts.label ?? column, kind: resolved.logicalType as string, required, link: links.has(column) }];
+        const values = facts.enumRef === null ? undefined : view.model.enums.find((one) => one.id === facts.enumRef)?.values;
+        return [
+          {
+            name: column,
+            label: facts.label ?? column,
+            kind: resolved.logicalType as string,
+            required,
+            link: links.has(column),
+            ...(values === undefined ? {} : { values: [...values] }),
+            ...(facts.maxLength === null || facts.maxLength === undefined ? {} : { maxLength: facts.maxLength }),
+          },
+        ];
       });
-      out.push({ tableRef: storedTableRef(index, table.id), id: table.id, label: table.table?.label ?? table.name, via: 'forms', app: name, columns });
+      const page = await pageOf(table.id);
+      out.push({
+        tableRef: storedTableRef(index, table.id),
+        id: table.id,
+        label: table.table?.label ?? table.name,
+        via: 'forms',
+        app: name,
+        columns,
+        ...(page === null ? {} : { page }),
+        ...(opened.source === undefined || !columns.some((column) => column.name === opened.source) ? {} : { sourceColumn: opened.source }),
+      });
     }
   }
   return out;
@@ -200,7 +250,7 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
         });
 
         // A forms add-on: the tables its forms may become a row of (see the header).
-        if (formsOf(manifest) !== null) hosts.push(...(await formsHosts(deps.meta, connectionId, view, index, own)));
+        if (formsOf(manifest) !== null) hosts.push(...(await formsHosts(deps.meta, connectionId, view, index, own, can)));
 
         const has: Record<string, boolean> = { [SCHEMA_REMAP]: await can(SCHEMA_REMAP) };
         for (const page of manifest.addOn.pages ?? []) has[addOnPagePermission(page.ref)] = await can(addOnPagePermission(page.ref));

@@ -559,7 +559,15 @@ export function useFormTables(): UseFormTablesResult {
     () => ({
       tables: kit.reply.hosts
         .filter((host) => host.via === 'forms')
-        .map((host) => ({ id: host.id, tableRef: host.tableRef, label: host.label, app: host.app ?? '', columns: host.columns ?? [] })),
+        .map((host) => ({
+          id: host.id,
+          tableRef: host.tableRef,
+          label: host.label,
+          app: host.app ?? '',
+          columns: host.columns ?? [],
+          ...(host.page === undefined ? {} : { page: host.page }),
+          ...(host.sourceColumn === undefined ? {} : { sourceColumn: host.sourceColumn }),
+        })),
     }),
     [kit],
   );
