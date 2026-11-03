@@ -263,6 +263,22 @@ export function filesRepo(meta: MetaDb) {
       return rows.map(decode);
     },
 
+    /**
+     * A stranger's file becomes an ordinary upload (a guest's file a public
+     * write named in an app's file column): kind `upload`, uploaded by
+     * nobody. Only while it is a live `stranger` file. True when it changed.
+     */
+    async adoptStranger(id: string): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_files')
+        .set({ kind: 'upload', uploadedBy: null })
+        .where('id', '=', id)
+        .where('kind', '=', 'stranger')
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
     /** Hard-delete a row (call only after the bytes are gone). */
     async purge(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_files').where('id', '=', id).executeTakeFirst();

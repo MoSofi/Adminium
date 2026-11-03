@@ -1702,8 +1702,17 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z
       .object({
         accept: z.array(z.string().regex(/^[a-z][a-z0-9]{1,9}$/)).min(1).max(20),
-        maxBytes: z.number().int().min(1024).max(26_214_400),
+        maxBytes: z.number().int().min(1024).max(104_857_600),
         maxCount: z.number().int().min(1).max(20).optional(),
+        /* What a guest may upload into the column through a public entry: kinds by the upload words (`jpg`, `tiff`…). */
+        upload: z
+          .object({
+            kinds: z.array(z.string().regex(/^[a-z][a-z0-9]{1,9}$/)).min(1).max(8),
+            maxBytes: z.number().int().min(1024).max(104_857_600),
+            maxCount: z.number().int().min(1).max(20).optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict(),
   }),
@@ -2757,6 +2766,12 @@ export const fileKindSchema = z.enum([
    * `files.manage`, and the daily sweep bins an unattached upload after a
    * day. A stranger's file is opened only through its owner's grant, and its
    * own sweep removes it two hours after it came unless a write took it.
+   *
+   * A guest's upload into an app's file column is a `stranger` file only until
+   * the write that names it commits: it is then ADOPTED, becoming an ordinary
+   * `upload` attached to that row (`apps/server/src/public-uploads/`), which
+   * every files route, the guest's own read and the bin then treat as any
+   * other.
    */
   'stranger',
 ]);
