@@ -11788,6 +11788,15 @@
                                 },
                                 "link": {
                                   "type": "boolean"
+                                },
+                                "values": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "maxLength": {
+                                  "type": "number"
                                 }
                               },
                               "required": [
@@ -11799,6 +11808,12 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "page": {
+                            "type": "string"
+                          },
+                          "sourceColumn": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -42140,6 +42155,12 @@
                                     "string",
                                     "null"
                                   ]
+                                },
+                                "people": {
+                                  "type": "boolean",
+                                  "enum": [
+                                    true
+                                  ]
                                 }
                               },
                               "required": [
@@ -42222,11 +42243,21 @@
                                           "email",
                                           "number",
                                           "choice",
-                                          "record"
+                                          "record",
+                                          "person"
                                         ]
                                       },
                                       "required": {
                                         "type": "boolean"
+                                      },
+                                      "help": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        }
                                       },
                                       "options": {
                                         "type": "array",
@@ -42237,6 +42268,15 @@
                                               "type": "string"
                                             },
                                             "label": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "help": {
                                               "type": "object",
                                               "propertyNames": {
                                                 "type": "string"
@@ -42264,6 +42304,38 @@
                                           "string",
                                           "null"
                                         ]
+                                      },
+                                      "tableLabel": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "by": {
+                                        "type": "string"
+                                      },
+                                      "where": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "column": {
+                                              "type": "string"
+                                            },
+                                            "eq": {
+                                              "type": [
+                                                "string",
+                                                "number",
+                                                "boolean"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "column",
+                                            "eq"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
                                     },
                                     "required": [
@@ -123620,6 +123692,131 @@
                       "required": [
                         "sends",
                         "blocked"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forms/status": {
+      "get": {
+        "summary": "What a forms builder shows about its forms",
+        "tags": [
+          "forms"
+        ],
+        "description": "Whether mail a stranger causes goes, whether strangers can reach the pages, whether the privacy notice is set, the public address, the listed websites, and the roles a form may tell. For a signed-in person who may read the forms of an installed forms add-on.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mail": {
+                          "type": "object",
+                          "properties": {
+                            "sends": {
+                              "type": "boolean"
+                            },
+                            "blocked": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "no-public-origin",
+                                    "no-mail-server"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "sends",
+                            "blocked"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "reach": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "state"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "notice": {
+                          "type": "boolean"
+                        },
+                        "publicOrigin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "websites": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "mail",
+                        "reach",
+                        "notice",
+                        "publicOrigin",
+                        "websites",
+                        "roles"
                       ],
                       "additionalProperties": false
                     }
