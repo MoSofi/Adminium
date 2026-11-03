@@ -113,12 +113,62 @@ export function adjustRefusalText(reason: unknown, details: { amount?: unknown; 
 }
 
 /**
+ * The sentence for a reason an order line's design was refused with — by the
+ * add-on that checks designs, or by Adminium matching the features it uses to
+ * the ones the line pays for — or null for a word this build does not know.
+ */
+export function checkRefusalText(reason: unknown): string | null {
+  switch (reason) {
+    case 'too-long':
+      return t('errors:CHECK_REASON.too-long', 'The words are too long for this part of the design.');
+    case 'required-empty':
+      return t('errors:CHECK_REASON.required-empty', 'A part of the design that must be filled in is empty.');
+    case 'font-not-allowed':
+      return t('errors:CHECK_REASON.font-not-allowed', 'This font is not one the design offers.');
+    case 'size-out-of-range':
+      return t('errors:CHECK_REASON.size-out-of-range', 'This size is outside what the design allows.');
+    case 'colour-not-allowed':
+      return t('errors:CHECK_REASON.colour-not-allowed', 'This colour is not one the design offers.');
+    case 'choice-not-allowed':
+      return t('errors:CHECK_REASON.choice-not-allowed', 'This choice is not one the design offers.');
+    case 'part-locked':
+      return t('errors:CHECK_REASON.part-locked', 'This part of the design cannot be changed.');
+    case 'file-missing':
+      return t('errors:CHECK_REASON.file-missing', 'The design needs a file that is not there.');
+    case 'file-kind':
+      return t('errors:CHECK_REASON.file-kind', 'This kind of file cannot be used here.');
+    case 'design-unknown':
+      return t('errors:CHECK_REASON.design-unknown', 'This design cannot be found.');
+    case 'format-unknown':
+      return t('errors:CHECK_REASON.format-unknown', 'This design was saved in a way this shop cannot read.');
+    case 'feature-not-paid':
+      return t('errors:CHECK_REASON.feature-not-paid', 'The design uses something that is not paid for on this line.');
+    case 'feature-not-used':
+      return t('errors:CHECK_REASON.feature-not-used', 'This line pays for something the design does not use.');
+    case 'feature-paid-twice':
+      return t('errors:CHECK_REASON.feature-paid-twice', 'This line pays for the same thing twice.');
+    case 'design-too-large':
+      return t('errors:CHECK_REASON.design-too-large', 'This design is too large to be checked.');
+    case 'check-unavailable':
+      return t('errors:CHECK_REASON.check-unavailable', 'Designs cannot be checked right now, so this cannot be saved.');
+    case 'check-failed':
+      return t('errors:CHECK_REASON.check-failed', 'The add-on that checks designs did not answer as it should, so nothing was saved.');
+    default:
+      return null;
+  }
+}
+
+/**
  * A failed save as the reader is told it: a ledger's refusal with its
  * sentence in their language (and what is left, when the server said), any
  * other error as it came. The code, the status and the details are kept, so
  * whatever routes on them still does.
  */
 export function inReadersWords(error: unknown): unknown {
+  if (error instanceof ApiError && error.code === 'CHECK_REFUSED') {
+    const words = checkRefusalText((error.details as { reason?: unknown } | null | undefined)?.reason) ?? t('errors:CHECK_REFUSED', 'This design cannot be ordered as it is.');
+    return new ApiError(error.status, error.code, words, error.requestId, error.details);
+  }
   if (error instanceof ApiError && error.code === 'ADJUST_REFUSED') {
     const told = (error.details ?? {}) as { reason?: unknown; amount?: unknown; max?: unknown };
     const words = adjustRefusalText(told.reason, told) ?? t('errors:ADJUST_REFUSED', 'This could not be applied to the price.');
