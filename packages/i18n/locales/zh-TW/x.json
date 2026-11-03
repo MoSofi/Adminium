@@ -12,6 +12,7 @@
   "send": "傳送",
   "sendAnswers": "送出回答",
   "sending": "正在傳送…",
+  "preview": "此處不會送出任何內容。",
   "keeps": "{business} 會保留您傳送的內容，以便回覆您。",
   "summary": "請檢查下方標出的回答。",
   "proofFailed": "未能確認您是真人。請重試。",

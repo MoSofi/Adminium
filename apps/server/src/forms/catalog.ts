@@ -176,6 +176,37 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
     return lookup;
   }
 
+  /**
+   * A form's saved draft by its slug, whatever its state, for its preview:
+   * the add-on that holds it, its forms table's id (what a reader's grant is
+   * asked on), and the draft's definition and settings as stored. Not served
+   * to strangers: the preview route asks the reader's grant first. No cache:
+   * staff ask as they type.
+   */
+  async function draft(slug: string): Promise<{ addOn: string; connectionId: string; formsTable: string; definition: unknown; settings: unknown } | null> {
+    if (!isFormSlug(slug)) return null;
+    const installs = await deps.installs();
+    for (const addOn of await formsAddOns()) {
+      const block = formsOf(addOn.manifest)!;
+      const tableId = installs.tableOf(addOn.connectionId, addOn.key, block.forms);
+      if (tableId === null) continue;
+      let row: Record<string, unknown> | undefined;
+      try {
+        const { db } = await deps.data(addOn.connectionId);
+        row = (await db
+          .selectFrom(tableId)
+          .select([db.dynamic.ref('definition'), db.dynamic.ref('settings')] as never)
+          .where(db.dynamic.ref('slug'), '=', slug)
+          .executeTakeFirst()) as Record<string, unknown> | undefined;
+      } catch {
+        continue;
+      }
+      if (row === undefined) continue;
+      return { addOn: addOn.key, connectionId: addOn.connectionId, formsTable: tableId, definition: jsonOf(row['definition']), settings: jsonOf(row['settings']) };
+    }
+    return null;
+  }
+
   /** The live forms, for a screen that lists their addresses (no cache: staff ask rarely). */
   async function liveSlugs(): Promise<{ addOn: string; slug: string }[]> {
     const installs = await deps.installs();
@@ -201,7 +232,7 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
     return out;
   }
 
-  return { find, liveSlugs, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
+  return { find, draft, liveSlugs, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
 }
 
 export type FormsCatalog = ReturnType<typeof createFormsCatalog>;

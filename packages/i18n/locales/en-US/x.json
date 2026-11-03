@@ -12,6 +12,7 @@
   "send": "Send",
   "sendAnswers": "Send answers",
   "sending": "Sending…",
+  "preview": "Nothing is sent from here.",
   "keeps": "{business} keeps what you send to answer you.",
   "summary": "Check the answers marked below.",
   "proofFailed": "The check that you are a person did not pass. Try again.",

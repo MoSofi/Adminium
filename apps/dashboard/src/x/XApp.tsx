@@ -104,6 +104,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const t = useT();
   const i18n = useI18n();
   const frame = route.frame;
+  // The builder's look at a draft: drawn whole, and nothing is sent from it.
+  const preview = route.kind === 'form' && route.preview === true;
   const [page, setPage] = useState<XPage | null>(null);
   const [language, setLanguage] = useState<XLanguage>(() => languageOfTag(document.documentElement.lang || 'en-US'));
   const [values, setValues] = useState<Record<string, Held>>({});
@@ -143,7 +145,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       return;
     }
     try {
-      const next = await fetchForm(route.slug, { lang, frame, token: route.token });
+      const next = await fetchForm(route.slug, { lang, frame, token: route.token, preview: route.preview });
       setPage(next);
       setEnding(next.state === 'live' ? null : { kind: next.state });
       if (ACCENTS.has(next.accent)) document.documentElement.dataset['accent'] = next.accent;
@@ -284,7 +286,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
 
   /** Files picked for a question: refused at once when too large or of no kind it takes, else each sent now. */
   async function pickFiles(question: FormQuestionOf<'file'>, files: File[]): Promise<void> {
-    if (route.kind !== 'form') return;
+    // A preview sends nothing, a file included.
+    if (route.kind !== 'form' || route.preview) return;
     const slug = route.slug;
     // Loaded with the file control itself, never in the page's first load.
     const { FILES_MAX, refusalBeforeSending, sendFile } = await import('./Files.js');
@@ -354,7 +357,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
 
   async function send(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (sending || route.kind !== 'form' || vocabularyForm === null || form === null || page?.state !== 'live') return;
+    if (sending || route.kind !== 'form' || route.preview || vocabularyForm === null || form === null || page?.state !== 'live') return;
     setChecked(true);
     setTooMany(undefined);
     // Files still on their way are waited for: the answer names the ones taken.
@@ -619,10 +622,15 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
             <span>{wholeError === 'proof' ? t('x:proofFailed', 'The check that you are a person did not pass. Try again.') : wholeError !== undefined ? refusal(undefined, wholeError) : t('x:summary', 'Check the answers marked below.')}</span>
           </p>
         ) : null}
-        <button type="submit" className="x-button" aria-disabled={sending || undefined}>
+        <button type="submit" className="x-button" aria-disabled={sending || preview || undefined} aria-describedby={preview ? 'x-preview' : undefined}>
           {sending ? <Icon of="spinner" size={16} /> : null}
           <span>{sending ? t('x:sending', 'Sending…') : survey ? t('x:sendAnswers', 'Send answers') : t('x:send', 'Send')}</span>
         </button>
+        {preview ? (
+          <p className="x-note" id="x-preview">
+            {t('x:preview', 'Nothing is sent from here.')}
+          </p>
+        ) : null}
         <p className="x-privacy">
           {business.name === '' ? null : <span>{t('x:keeps', '{business} keeps what you send to answer you.', { business: business.name })} </span>}
           {business.privacyNotice === null ? null : (

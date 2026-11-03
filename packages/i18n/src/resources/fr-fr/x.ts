@@ -22,6 +22,7 @@ export default {
   "send": "Envoyer",
   "sendAnswers": "Envoyer les réponses",
   "sending": "Envoi…",
+  "preview": "Rien n’est envoyé depuis cette page.",
   "keeps": "{business} conserve ce que vous envoyez pour vous répondre.",
   "summary": "Vérifiez les réponses signalées ci-dessous.",
   "proofFailed": "La vérification que vous êtes une personne a échoué. Réessayez.",
