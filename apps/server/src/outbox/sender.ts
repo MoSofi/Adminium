@@ -171,7 +171,7 @@ import {
   saidNoSentence,
   type MarketingMail,
 } from '../email/marketing.js';
-import { existingCustomer, recipientPerson } from './marketing.js';
+import { existingCustomer, invitedPerson, recipientPerson } from './marketing.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
@@ -1491,7 +1491,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       objection = { purpose, person };
     }
     if (mailClass === 'marketing') {
-      const person = await recipientPerson(ctx, box, row, found, addressed);
+      // A survey's invitation is judged on the person it names, never on the invitation row: their own yes, their basis.
+      const person = (surveyPerson === null ? null : await invitedPerson(ctx, surveyPerson)) ?? (await recipientPerson(ctx, box, row, found, addressed));
       marketingPerson = person?.ref ?? surveyPerson;
       const kit = marketing();
       const verdict = await kit.verdict({
