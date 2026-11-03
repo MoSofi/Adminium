@@ -918,6 +918,16 @@ export type StoredPosting = z.infer<typeof storedPosting>;
 const adjustWhat = z.object({ column: ruleColumn, as: z.enum(['item', 'category', 'type', 'tag']) }).strict();
 const adjustOnly = z.union([z.object({ column: ruleColumn, eq: postingScalar }).strict(), z.object({ column: ruleColumn, in: z.array(postingScalar).min(1).max(16) }).strict()]);
 
+/** An order line's design rule as it is stored: the manifest's own keys, the paid features' child table by its id in the snapshot. */
+export const storedCheck = z
+  .object({
+    by: z.object({ addOn: z.string().min(1).max(80) }).strict(),
+    needs: ledgerId.optional(),
+    design: ruleColumn,
+    paid: z.object({ table: ruleTable, via: ruleColumn, feature: ruleColumn }).strict().optional(),
+  })
+  .strict();
+
 /** A table's price rule as it is stored: the manifest's own keys, every one of them; a child table by its id in the snapshot. */
 export const storedAdjust = z
   .object({
@@ -991,6 +1001,7 @@ export const storedAdjust = z
   })
   .strict();
 export type StoredAdjust = z.infer<typeof storedAdjust>;
+export type StoredCheck = z.infer<typeof storedCheck>;
 
 /**
  * One way a person belongs to a row, as it is stored: the manifest's shape
@@ -1626,6 +1637,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   /* Where an add-on's offers and codes lower the price of this table's rows: one rule a table. */
   z.object({ op: z.literal('table.adjust'), value: storedAdjust }),
+  /* Whether an order line's design may be ordered, asked of an add-on inside the save: one rule a table. */
+  z.object({ op: z.literal('table.check'), value: storedCheck }),
   /* The owner's switch on a posting (or on the price rule), apart from the rule so an app update never switches it back on. */
   z.object({
     op: z.literal('table.switchedOff'),
