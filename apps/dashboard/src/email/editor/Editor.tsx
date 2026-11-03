@@ -610,7 +610,8 @@ export function Editor({ detail }: EditorProps) {
           </Suspense>
         ) : (
         <div className="flex min-h-0 flex-1 items-start">
-          <main data-testid="email-canvas" className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[22px]">
+          {/* Not a second `main`: the editor already sits in the app's own. */}
+          <div data-testid="email-canvas" className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[22px]">
             <EmailCanvas
               document={draft.document}
               dir={isLocaleId(detail.locale) ? dirForLocale(detail.locale) : 'ltr'}
@@ -655,7 +656,7 @@ export function Editor({ detail }: EditorProps) {
                 ) : undefined
               }
             />
-          </main>
+          </div>
           <Inspector
             tab={inspectorTab}
             onTabChange={setInspectorTab}

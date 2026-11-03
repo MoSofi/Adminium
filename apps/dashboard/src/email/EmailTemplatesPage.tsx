@@ -32,7 +32,7 @@ export function EmailTemplatesPage() {
       // Asked again here: a search read loosely also holds what another route left unvalidated.
       startLink={search.kind === 'campaign' ? (campaignLinkOf(search.link) ?? undefined) : undefined}
       // Used once: the address leaves the bar, so going back or reloading opens nothing again.
-      onStartLinkUsed={() => void navigate({ to: '/email-templates', search: (prev: Record<string, unknown>) => ({ ...prev, link: undefined }), replace: true })}
+      onStartLinkUsed={() => navigate({ to: '/email-templates', search: (prev: Record<string, unknown>) => ({ ...prev, link: undefined }), replace: true })}
       onShowAll={() => void navigate({ to: '/email-templates', search: (prev: Record<string, unknown>) => ({ ...prev, app: undefined }) })}
     />
   );

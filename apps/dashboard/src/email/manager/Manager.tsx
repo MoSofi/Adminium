@@ -69,8 +69,8 @@ export interface EmailManagerProps {
   onShowAll?: (() => void) | undefined;
   /** An `https://` address a new campaign starts with: "New campaign" opens at once (a form's "Send by e-mail"). */
   startLink?: string | undefined;
-  /** The address was used, or the dialog closed: it is not offered again. */
-  onStartLinkUsed?: (() => void) | undefined;
+  /** The address was used, or the dialog closed: it is not offered again. Settles once the address has left the bar. */
+  onStartLinkUsed?: (() => Promise<void> | void) | undefined;
 }
 
 /** The comp's four empty-state copies (1392), plus archived mode's two. */
@@ -500,17 +500,20 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
             setNewOpen(false);
             if (link !== undefined) {
               setLink(undefined);
-              onStartLinkUsed?.();
+              void onStartLinkUsed?.();
             }
           }}
           onCreated={(detail) => {
             setNewOpen(false);
-            if (link !== undefined) {
-              setLink(undefined);
-              onStartLinkUsed?.();
-            }
             void invalidate();
-            openEditor(detail.id);
+            if (link === undefined) {
+              openEditor(detail.id);
+              return;
+            }
+            setLink(undefined);
+            // The address leaves the bar first, then the editor opens: two navigations at once lose the first, and
+            // going back would open "New campaign" with the address again.
+            void Promise.resolve(onStartLinkUsed?.()).then(() => openEditor(detail.id));
           }}
         />
       ) : null}

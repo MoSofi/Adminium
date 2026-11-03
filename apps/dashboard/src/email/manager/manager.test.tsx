@@ -128,6 +128,9 @@ function stubFetch(fixture: Fixture) {
     if (patch !== null && method === 'GET') {
       return Promise.resolve(jsonResponse(200, detail({ id: patch[1] ?? '', name: 'Welcome email' })));
     }
+    if (patch !== null && method === 'PUT') {
+      return Promise.resolve(jsonResponse(200, { ...detail({ id: patch[1] ?? '', name: 'Welcome email' }), ...(body as object) }));
+    }
     if (patch !== null && method === 'PATCH') {
       const all = [...templates, ...campaigns, ...archived];
       const row = all.find((d) => d.id === patch[1]) ?? doc({ id: patch[1] ?? '' });
@@ -321,6 +324,27 @@ describe('EmailManager — a campaign started with a link', () => {
     await waitFor(() => {
       expect((router.state.location.search as Record<string, unknown>)['link']).toBeUndefined();
     });
+  });
+
+  it('takes the link out of the address before the campaign it made opens, so going back opens nothing again', async () => {
+    const link = 'https://forms.meridian.example/x/forms/showroom-visit';
+    const { router, user } = await renderPage({}, `/email-templates?kind=campaign&link=${encodeURIComponent(link)}`);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => {
+      expect(dialog.querySelector('[data-starter="welcome"]')).not.toBeNull();
+    });
+    await user.click(dialog.querySelector('[data-starter="welcome"]') as HTMLElement);
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/email-templates/et_new');
+    });
+    router.history.back();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/email-templates');
+    });
+    expect((router.state.location.search as Record<string, unknown>)['link']).toBeUndefined();
+    expect((router.state.location.search as Record<string, unknown>)['kind']).toBe('campaign');
+    await screen.findByTestId('email-toolbar');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens nothing for a link that is not an https address', async () => {

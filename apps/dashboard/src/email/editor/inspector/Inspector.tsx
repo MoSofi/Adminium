@@ -40,6 +40,8 @@ export function Inspector({ tab, onTabChange, sections, design, panel }: Inspect
   return (
     <aside
       data-testid="email-inspector"
+      // Named: the app's own sidebar is the page's other complementary landmark.
+      aria-label={t('email:inspector.tabs', 'Inspector')}
       className="nb-scroll sticky top-[calc(var(--adm-topbar-h,0px)+var(--adm-editor-header-h,0px))] hidden max-h-[calc(100dvh-var(--adm-topbar-h,0px)-var(--adm-editor-header-h,0px))] w-72 shrink-0 self-start overflow-auto border-s border-border bg-surface px-4 pb-10 pt-[18px] lg:block"
     >
       <Tabs variant="pill" value={tab} onValueChange={(value) => onTabChange(value === 'design' ? 'design' : 'sections')}>
