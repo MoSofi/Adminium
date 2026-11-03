@@ -242,7 +242,7 @@ describe('a step about a person, a survey named by its slug, and a choice with l
     const to = screen.getByTestId('add-on-input-to') as HTMLSelectElement;
     expect([...to.options].map((option) => [option.value, option.textContent])).toEqual([
       ['', 'Choose…'],
-      ['@link:contact_id', "The Job's Main contact"],
+      ['@link:contact_id', 'Job → Main contact'],
     ]);
     await userEvent.setup().selectOptions(to, '@link:contact_id');
     expect(onChange).toHaveBeenLastCalledWith({ inputs: { to: '@link:contact_id' } });
@@ -251,7 +251,7 @@ describe('a step about a person, a survey named by its slug, and a choice with l
   it('offers what the server says names a person, a column that copies a link among them', () => {
     const copied = { ...JOBS, columns: [...JOBS.columns, { ...column('deal_contact'), label: 'Deal contact' }], personLinks: [{ column: 'contact_id', table: 'main.crm_contacts' }, { column: 'deal_contact', table: 'main.crm_contacts' }] } as unknown as SourceTable;
     settings(survey(), copied);
-    expect([...(screen.getByTestId('add-on-input-to') as HTMLSelectElement).options].map((option) => option.textContent)).toEqual(['Choose…', "The Job's Main contact", "The Job's Deal contact"]);
+    expect([...(screen.getByTestId('add-on-input-to') as HTMLSelectElement).options].map((option) => option.textContent)).toEqual(['Choose…', 'Job → Main contact', 'Job → Deal contact']);
   });
 
   it('offers the record itself on a table of people, and says when nobody is reached', () => {
