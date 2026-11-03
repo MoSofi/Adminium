@@ -29,7 +29,7 @@
  * (published, closed, switched off) reaches strangers within that time.
  */
 import { formsOf, type AddOnManifest } from '@adminium/manifest';
-import { parseForm, type Form } from '@adminium/add-on-contracts/forms';
+import { isFormSlug, parseForm, type Form } from '@adminium/add-on-contracts/forms';
 import type { MetaDb } from '@adminium/meta';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
@@ -41,8 +41,8 @@ export const FORM_CACHE_MS = 5_000;
 /** The most slugs kept at once: a flood of made-up slugs cannot grow the cache past this. */
 const CACHE_MAX = 500;
 
-/** A slug as a form's address may carry one: lower-case letters, digits and dashes. */
-export const FORM_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/;
+/** The slug rule, shared with the forms add-on's builder (`@adminium/add-on-contracts/forms`). */
+export { FORM_SLUG } from '@adminium/add-on-contracts/forms';
 
 /** A live form, as the engine serves it. */
 export interface LiveForm {
@@ -122,7 +122,8 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
 
   async function lookUp(slug: string): Promise<FormLookup> {
     const unavailable: FormLookup = { state: 'unavailable' };
-    if (!FORM_SLUG.test(slug)) return unavailable;
+    // A slug the rule refuses, a reserved word among them, is never a form: the builder refuses it too.
+    if (!isFormSlug(slug)) return unavailable;
     const installs = await deps.installs();
     for (const addOn of await formsAddOns()) {
       const block = formsOf(addOn.manifest)!;
@@ -191,7 +192,8 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
           .select(db.dynamic.ref('slug') as never)
           .where(db.dynamic.ref('state'), '=', 'live')
           .execute()) as { slug?: unknown }[];
-        for (const row of rows) if (typeof row.slug === 'string') out.push({ addOn: addOn.key, slug: row.slug });
+        // Only a slug the door serves: a reserved word is no form's address.
+        for (const row of rows) if (isFormSlug(row.slug)) out.push({ addOn: addOn.key, slug: row.slug });
       } catch {
         continue;
       }
