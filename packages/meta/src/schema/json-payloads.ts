@@ -1694,7 +1694,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    * A column that holds files a signed-in person uploaded for it: the kinds
    * it takes (the server's names for what a file's bytes are), the size of
    * each, and, for a json column, how many it holds. A kind's name may carry
-   * digits (`mp4`, `mp3`, and `3mf`, which starts with one); which names
+   * digits (`mp4`, `mp3`, and `3mf`, which starts with one), never digits
+   * alone; which names
    * mean something is the manifest's FILE_COLUMN_KINDS, checked where an app
    * or Studio writes the rule.
    */
@@ -1702,7 +1703,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     op: z.literal('column.file'),
     value: z
       .object({
-        accept: z.array(z.string().regex(/^[a-z0-9][a-z0-9]{1,9}$/)).min(1).max(32),
+        accept: z.array(z.string().regex(/^(?=[a-z0-9]*[a-z])[a-z0-9]{2,10}$/)).min(1).max(32),
         maxBytes: z.number().int().min(1024).max(26_214_400),
         maxCount: z.number().int().min(1).max(20).optional(),
       })
