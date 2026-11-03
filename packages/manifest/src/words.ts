@@ -208,6 +208,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   // Whether an order line's design may be ordered: the line table's rule, and the add-on's side of it.
   'table.check',
   'addOn.checker',
+  // A panel an add-on draws on the record pages of the tables that link into one of its own.
+  'addOn.panels',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -401,9 +403,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.band': '0.3.43',
   'stamp.addWorkingDays': '0.3.43',
   'formula.ceilFloor': '0.3.43',
-  // A design checked by an add-on inside the save: read by the same release.
+  // A design checked by an add-on inside the save, and an add-on's panel on a record page: read by the same release.
   'table.check': '0.3.43',
   'addOn.checker': '0.3.43',
+  'addOn.panels': '0.3.43',
 };
 
 /** Whether a formula, at any depth, rounds up or down (`ceil`, `floor`). */
@@ -430,6 +433,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['ledgers'] !== undefined) out.push({ word: 'addOn.ledgers', path: 'addOn.ledgers' });
     if (block['adjuster'] !== undefined) out.push({ word: 'addOn.adjuster', path: 'addOn.adjuster' });
     if (block['checker'] !== undefined) out.push({ word: 'addOn.checker', path: 'addOn.checker' });
+    if (block['panels'] !== undefined) out.push({ word: 'addOn.panels', path: 'addOn.panels' });
     if (block['words'] !== undefined) out.push({ word: 'addOn.words', path: 'addOn.words' });
     if (block['recordTabs'] !== undefined) out.push({ word: 'addOn.recordTabs', path: 'addOn.recordTabs' });
     // Pages that also need the data kit.

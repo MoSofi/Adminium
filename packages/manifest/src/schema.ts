@@ -14,6 +14,7 @@ import {
   addOnCategorySchema,
   i18nMessageSchema,
   isSlotId,
+  recordPanelIssues,
   recordTabIssues,
   type AddOnBlock,
   type I18nMessage,
@@ -4301,6 +4302,12 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     out.push(...recordTabIssues({ tabs: m.addOn.recordTabs, tables: tables as unknown as readonly RecordTabTable[], words: wordsOf(m).map((words) => words.id) }));
   }
 
+  // Its own screens on other tables' record pages: on its own tables, under its key, in files of their own.
+  if (m.addOn.panels !== undefined) {
+    const pages = [...(m.addOn.pages ?? []), ...(m.pages ?? []).map((page) => ({ ref: page.ref, client: '' }))];
+    out.push(...recordPanelIssues({ key: m.key, panels: m.addOn.panels, tables, pages, slots: m.addOn.slots ?? [] }));
+  }
+
   // The adjuster is typed loosely in the contracts package too: its words are checked here.
   if (m.addOn.adjuster !== undefined) {
     const parsed = adjusterSchema.safeParse(m.addOn.adjuster);
@@ -4424,7 +4431,8 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
 
   // Roles: what an add-on's role may open is its own tables, its own pages and its settings.
   const generated = new Set((m.pages ?? []).map((page) => page.ref));
-  const code = new Set((m.addOn.pages ?? []).map((page) => page.ref));
+  // A panel is opened as one of its pages is: by `page:@<panel id>:view`.
+  const code = new Set([...(m.addOn.pages ?? []).map((page) => page.ref), ...(m.addOn.panels ?? []).map((panel) => panel.id)]);
   const settingsOf = new Set([m.key, ...(m.addOns?.suggests ?? []).map((need) => need.key)]);
   (m.roles ?? []).forEach((role, r) => {
     if (role.screensOnly !== undefined) out.push({ path: ['roles', r, 'screensOnly'], message: 'an add-on has no screens outside the dashboard, so its roles are never screensOnly' });
