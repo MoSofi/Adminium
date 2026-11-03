@@ -50,6 +50,7 @@ export const SNIFF_TYPE_KEYS = [
   'text',
   'markdown',
   'json',
+  'tiff',
 ] as const;
 
 export type SniffTypeKey = (typeof SNIFF_TYPE_KEYS)[number];
@@ -111,6 +112,9 @@ const SIGNATURES: readonly Signature[] = [
   { key: 'mp3', mime: 'audio/mpeg', ext: 'mp3', at: [{ offset: 0, bytes: [0xff, 0xf2] }] },
   { key: 'webm', mime: 'video/webm', ext: 'webm', at: [{ offset: 0, bytes: [0x1a, 0x45, 0xdf, 0xa3] }] },
   { key: 'ogg', mime: 'audio/ogg', ext: 'ogg', at: [{ offset: 0, bytes: ascii('OggS') }] },
+  // TIFF, in either byte order: kept and handed back as a download, never drawn on a page (`public-api/private-file.ts`).
+  { key: 'tiff', mime: 'image/tiff', ext: 'tif', at: [{ offset: 0, bytes: [0x49, 0x49, 0x2a, 0x00] }] },
+  { key: 'tiff', mime: 'image/tiff', ext: 'tif', at: [{ offset: 0, bytes: [0x4d, 0x4d, 0x00, 0x2a] }] },
 ];
 
 /** Office documents are zips; only the head's entry names tell them apart. */

@@ -16,8 +16,10 @@
  * Streamed from this server, never redirected, with the headers a file
  * opened on the portal's own origin needs: a sandboxing CSP (a hostile PDF or
  * image runs no script there), `nosniff`, `private` caching, and no referrer.
- * Images and PDFs open inline so the page can draw them; SVG never does — it
- * is a document that can carry script — and neither does anything else.
+ * Only the kinds a page draws as they are open inline: PNG, JPEG, WebP, GIF
+ * and PDF. Everything else is a download: SVG (a document that can carry
+ * script), TIFF (stored for print, drawn by some browsers and not others), and
+ * any kind added later until it is put on the list on purpose.
  */
 import type { StoredFile } from '@adminium/meta';
 import { z } from 'zod';
@@ -38,10 +40,12 @@ export function fileIdOf(value: unknown): string | null {
   return parsed?.kind === 'id' ? parsed.id : null;
 }
 
-/** Whether a file may open inline on the page: an image that is not SVG, or a PDF. */
+/** The only types a file opens inline as: what a page draws as it is. */
+const INLINE_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']);
+
+/** Whether a file may open inline on the page: one of the types on the list, nothing else. */
 export function opensInline(mime: string): boolean {
-  const type = mime.toLowerCase().split(';')[0]!.trim();
-  return type === 'application/pdf' || (type.startsWith('image/') && type !== 'image/svg+xml');
+  return INLINE_TYPES.has(mime.toLowerCase().split(';')[0]!.trim());
 }
 
 /** A `Content-Disposition` value, the filename quoted and its UTF-8 form alongside. */
