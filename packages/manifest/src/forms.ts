@@ -166,7 +166,17 @@ export interface FormsAddOnShape {
   steps?: readonly { key: string; writes: { table: string } }[] | undefined;
   /** Whether a rule of the column decides it (a code, a stamp, a default rule): an insert may leave it out. */
   decided?: ((table: string, column: string) => boolean) | undefined;
+  /** The add-on's one-row settings table (`addOn.settingsTable`), when it has one. */
+  settingsTable?: string | undefined;
 }
+
+/**
+ * The column of a forms add-on's settings table that says how many months
+ * its answers are kept; empty keeps them until they are removed. The keeping
+ * sweep reads it, so when the table has it, it is a whole number that may be
+ * empty.
+ */
+export const FORMS_ANSWERS_MONTHS_COLUMN = 'answers_months';
 
 /** The actions on a table no grant gives on a table only Adminium writes. */
 const WRITES = ['create', 'update', 'import'] as const;
@@ -235,6 +245,18 @@ export function formsBlockIssues(block: AddOnForms, m: FormsAddOnShape): Referen
         out.push({ path: columnAt(c), message: `"${ref}" is written by Adminium alone, which never fills "${column.ref}": make it nullable or give it a default` });
       });
       out.push(...onlyAdminiumWrites(ref, t, part, m));
+    }
+  }
+  // How long answers are kept, as the keeping sweep reads it: a whole number of months, or empty for "until removed".
+  const settings = m.settingsTable === undefined ? undefined : tables.get(m.settingsTable);
+  if (settings !== undefined) {
+    const c = settings.table.columns.findIndex((column) => column.ref === FORMS_ANSWERS_MONTHS_COLUMN);
+    const column = settings.table.columns[c];
+    const where = ['requiredSchema', 'tables', settings.t, 'columns', c];
+    if (column !== undefined && column.type !== 'int' && column.type !== 'bigint') {
+      out.push({ path: [...where, 'type'], message: `"${settings.table.ref}.${FORMS_ANSWERS_MONTHS_COLUMN}" is how many months answers are kept, a whole number: int, not ${column.type}` });
+    } else if (column !== undefined && column.nullable !== true) {
+      out.push({ path: [...where, 'nullable'], message: `"${settings.table.ref}.${FORMS_ANSWERS_MONTHS_COLUMN}" is empty while answers are kept until removed: make it nullable` });
     }
   }
   return out;

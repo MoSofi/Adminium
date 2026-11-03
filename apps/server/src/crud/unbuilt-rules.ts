@@ -299,6 +299,15 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A kind's consent purpose and a survey's link: read by the outbox sender (outbox/sender.ts `prepare`, outbox/survey-link.ts).
   'outbox.purposes',
   'outbox.surveyLinks',
+  // A forms entry's source column: read by the add-on kit (routes/add-ons/kit.ts `sourceColumn`) for the builder's Source row.
+  'publicAccess.forms.source',
+  // An add-on step's person, a record named by a column and held to some rows, an input's and a choice's help, the record's table and key:
+  // run by automations/actions/add-on-step.ts, offered by the rule editor (routes/automations `sources`).
+  'step.person',
+  'step.recordBy',
+  'step.recordWhere',
+  'step.help',
+  'step.recordTokens',
 ];
 
 export interface UnbuiltWord {

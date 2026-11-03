@@ -3896,6 +3896,8 @@ export interface FormsEntry {
   requireSetting: { table: string; column: string }[];
   /** The part of the app the entry belongs to: closed while it is off. */
   module?: string;
+  /** The `writable` text column a form's fixed "Source" value goes into; absent when the entry names none. */
+  source?: string;
 }
 
 /**
@@ -3929,6 +3931,7 @@ export function formsEntriesOf(m: Manifest): FormsEntry[] {
       },
       requireSetting: (entry.requireSetting ?? []).map((setting) => ({ table: setting.table, column: setting.column })),
       ...(entry.module === undefined ? {} : { module: entry.module }),
+      ...(entry.source === undefined ? {} : { source: entry.source }),
     };
   });
 }
@@ -3998,6 +4001,7 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
           publicAccess: m.publicAccess,
           steps: m.addOn.steps,
           decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
+          settingsTable: m.addOn.settingsTable,
         }),
       );
     }
