@@ -88,7 +88,7 @@ import type { TablePrivileges } from '@adminium/engine/adapter';
 
 import { isChangeEffect, rollupValue, type MoveEffect } from '@adminium/manifest';
 
-import { AppError, ConflictError, ValidationFailedError, PostingRefusedError } from '../errors.js';
+import { AppError, ConflictError, ForbiddenError, ValidationFailedError, PostingRefusedError } from '../errors.js';
 import type { StateLink } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
@@ -1946,6 +1946,36 @@ export interface WriteServiceOptions {
    * and nothing is told.
    */
   people?: PeopleWrites | undefined;
+  /**
+   * Whether a table's rows are Adminium's own record, written by Adminium
+   * alone (a forms add-on's answers and the files they hold,
+   * `forms/files.ts`): a person's create or change of one is refused
+   * whichever door it came through (a save, a bulk change, a file brought
+   * in, a rule's step, an API key). Reads and deletes are let through.
+   * Without it, no table is.
+   */
+  ownRecords?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+}
+
+/**
+ * Whether a write is Adminium's own (and so may write a table only it
+ * writes): a stranger's answer at the door (`public`), the undo of a
+ * person's delete (the row as it was), a ledger's or a payment's row, and
+ * an app's sample or seed rows (`import` that brings history, not a
+ * person's file, which stamps what it leaves out).
+ */
+export function writtenByAdminium(context: Pick<WriteContext, 'origin' | 'stamps'>): boolean {
+  switch (context.origin) {
+    case 'public':
+    case 'undo':
+    case 'ledger':
+    case 'payment':
+      return true;
+    case 'import':
+      return context.stamps !== 'left-out';
+    default:
+      return false;
+  }
 }
 
 /** What the write service asks of the people an app declares (see {@link WriteServiceOptions.people}). */
@@ -2132,6 +2162,13 @@ function mergeIssues(a: FieldIssues | null, b: FieldIssues | null): FieldIssues 
 
 export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteService {
   const current = (): RecordHooks => opts.hooks?.() ?? NO_RECORD_HOOKS;
+
+  /** A person's create or change of a table only Adminium writes ({@link WriteServiceOptions.ownRecords}): refused, by name. */
+  const refuseOwnRecords = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext): Promise<void> => {
+    if (opts.ownRecords === undefined || writtenByAdminium(context)) return;
+    if (!(await opts.ownRecords(target.connectionId, target.table.id))) return;
+    throw new ForbiddenError('Only Adminium writes these rows. You can read and delete them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-writes' });
+  };
 
   /**
    * What DECIDE reads of the people a table holds: its opt-out mark, looked up
@@ -3443,6 +3480,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }): Promise<PreparedCreate> {
     const { target, context, clock, mapError } = input;
     refuseUnbuiltTable(target);
+    await refuseOwnRecords(target, context);
     refuseEarly(target, 'create', input.values, mapError);
     const hooks = current();
     await freshCodes(target);
@@ -3955,6 +3993,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async check(action, target, context, rows, checkOpts) {
       if (action !== 'delete') refuseUnbuiltTable(target);
+      if (action !== 'delete') await refuseOwnRecords(target, context);
       if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
@@ -4255,6 +4294,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (everyRow.length - 1 > most) {
         await at(rootRow.node, () => Promise.reject(new ValidationFailedError(`A create carries ${String(most)} rows below it at most.`, { child: levels[1]![0]!.node.name, reason: 'too-many' })));
       }
+      // A table only Adminium writes takes no row of a person's tree, at its root or below.
+      for (const row of everyRow) await refuseOwnRecords(row.target, context);
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {
         refuseUnbuiltTable(row.target);
@@ -4670,6 +4711,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const { context, pk } = input;
       const target = freshReads(await withRights(input.target));
       refuseUnbuiltTable(target);
+      await refuseOwnRecords(target, context);
       refuseEarly(target, 'update', input.values, input.mapError);
       await freshCodes(target);
       const hooks = current();
@@ -5207,6 +5249,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async beforeEach(action, givenTarget, context, rows, beforeOpts) {
       const target = action === 'delete' ? givenTarget : await withRights(givenTarget);
       if (action !== 'delete') refuseUnbuiltTable(target);
+      if (action !== 'delete') await refuseOwnRecords(target, context);
       if (action !== 'delete') await freshCodes(target);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;

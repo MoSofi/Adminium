@@ -241,6 +241,52 @@ describe.each(LEGS)('a form’s files on the real server — %s', (dialect, avai
     expect((await fileRows()).some((row) => row['file_id'] === ids['ans_4'] || row['file_id'] === ids['ans_5'])).toBe(false);
   });
 
+  it.skipIf(!available)('staff who hold every grant on the answers and their files still never write them: no create, change or import; a delete goes', async () => {
+    const grants = ['read', 'create', 'update', 'delete', 'import'].flatMap((action) => [`table:${h.connectionId}:${table.answers}:${action}`, `table:${h.connectionId}:${table.files}:${action}`]);
+    const editor = await person('answers-editor@meridian.example', grants);
+    await answer('ans_edit');
+    const data = (rest: string) => `/api/v1/data/${h.connectionId}/${rest}`;
+    const answers = encodeURIComponent(table.answers);
+    const refusedAsOwn = (reply: { statusCode: number; body: string; json: () => unknown }) => {
+      expect(reply.statusCode, reply.body).toBe(403);
+      expect((reply.json() as { error: { details?: { reason?: string } } }).error.details?.reason).toBe('adminium-writes');
+    };
+
+    refusedAsOwn(await composed.app.inject({ method: 'PATCH', url: data(`${answers}/ans_edit`), headers: { cookie: editor }, payload: { values: { email: 'victim@target.example' } } }));
+    refusedAsOwn(await composed.app.inject({ method: 'POST', url: data(answers), headers: { cookie: editor }, payload: { values: { id: 'ans_made', form_id: 'frm_showroom', language: 'en-US', values: '{}', confirm: 'pending', email: 'victim@target.example' } } }));
+    refusedAsOwn(
+      await composed.app.inject({ method: 'POST', url: data(`${encodeURIComponent(table.files)}`), headers: { cookie: editor }, payload: { values: { answer_id: 'ans_edit', file_id: 'f'.repeat(32), question: 'qfiles', name: 'x.pdf', size: 1, kind: 'pdf' } } }),
+    );
+    const bulk = await composed.app.inject({ method: 'POST', url: data(`${answers}/bulk`), headers: { cookie: editor }, payload: { action: 'update', ids: ['ans_edit'], values: { email: 'victim@target.example' } } });
+    expect(bulk.statusCode, bulk.body).not.toBe(200);
+    // Not even the owner writes them.
+    refusedAsOwn(await composed.app.inject({ method: 'PATCH', url: data(`${answers}/ans_edit`), headers: { cookie: owner }, payload: { values: { email: 'victim@target.example' } } }));
+
+    // A file brought in: refused when it is judged, and nothing lands.
+    const up = await composed.app.inject({ method: 'POST', url: '/api/v1/imports/upload?filename=answers.csv', headers: { cookie: editor, 'content-type': 'text/csv' }, payload: 'id,form_id,language,values,confirm,email\nans_brought,frm_showroom,en-US,{},pending,victim@target.example\n' });
+    expect(up.statusCode, up.body).toBe(201);
+    const columns = ['id', 'form_id', 'language', 'values', 'confirm', 'email'].map((name) => ({ from: name, to: name }));
+    const made = await composed.app.inject({ method: 'POST', url: '/api/v1/imports', headers: { cookie: editor }, payload: { fileId: (up.json() as { data: { fileId: string } }).data.fileId, connectionId: h.connectionId, table: table.answers, mapping: { columns }, options: { mode: 'insert' } } });
+    if (made.statusCode < 300) {
+      const id = (made.json() as { data: { import: { id: string } } }).data.import.id;
+      const preview = await composed.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview`, headers: { cookie: editor } });
+      expect(preview.statusCode, preview.body).toBe(403);
+      await composed.app.inject({ method: 'POST', url: `/api/v1/imports/${id}/run`, headers: { cookie: editor } });
+      await composed.jobs.worker.runOnce();
+    } else {
+      expect(made.statusCode, made.body).toBe(403);
+    }
+
+    const { db } = await h.manager.data(h.connectionId);
+    const rows = (await db.selectFrom(table.answers).selectAll().where('id' as never, 'in', ['ans_edit', 'ans_made', 'ans_brought'] as never).execute()) as Record<string, unknown>[];
+    expect(rows.map((row) => [row['id'], row['email'] ?? null])).toEqual([['ans_edit', null]]);
+
+    // Staff read and delete them.
+    expect((await composed.app.inject({ method: 'GET', url: data(`${answers}/ans_edit`), headers: { cookie: editor } })).statusCode).toBe(200);
+    const gone = await composed.app.inject({ method: 'DELETE', url: data(`${answers}/ans_edit?confirm=true`), headers: { cookie: editor } });
+    expect(gone.statusCode, gone.body).toBe(200);
+  });
+
   it.skipIf(!available)('removes every file taken for a form when the form goes', async () => {
     const loose = await upload('other-visit');
     expect(await publicUploadsRepo(h.meta).findById(loose)).not.toBeNull();

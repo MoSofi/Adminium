@@ -1204,6 +1204,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A message never stops the row it is about from being removed, where the app writes to people about removals.
     // …and an answer's files never stop the answer: they lose the link and go after it (`forms/files.ts`).
     releases: async (connectionId, tableId) => [...(await outboxProducers.releasing(connectionId, tableId)), ...(await formsFiles.releasing(connectionId, tableId))],
+    // A forms add-on's answers and their files are written by Adminium alone: staff read and delete them, never write them.
+    ownRecords: (connectionId, tableId) => formsFiles.ownTable(connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({

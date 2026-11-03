@@ -224,6 +224,15 @@ export function createFormsFiles(deps: FormsFilesDeps) {
     },
 
     /**
+     * Whether a table is an installed forms add-on's answers or files table
+     * on this database: rows Adminium alone writes (staff read and delete
+     * them), which the write service refuses a person's create or change of.
+     */
+    async ownTable(connectionId: string, tableId: string): Promise<boolean> {
+      return formsTablesOn(await deps.installs(), connectionId).some((one) => one.answers === tableId || one.files?.table === tableId);
+    },
+
+    /**
      * The links that let go of an answer as it is removed: its rows in the
      * add-on's files table lose their `answer_id` in the delete's own
      * statement (`outbox/release.ts`), so the database lets the answer go;
