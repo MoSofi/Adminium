@@ -145,6 +145,9 @@ function phoneColumnsOf(table: ResolvedTable): string[] {
   return table.table.columns.filter((column) => column.semantics?.primary === 'phone' && table.columns.get(column.name)?.secret !== true).map((column) => column.name);
 }
 
+/** What a copy's column is to the person: JSON of theirs (a design's words), their address, their name, or another field. */
+const roleOf = (copy: DeclaredCopy): ErasedRole => (copy.json === true ? 'json' : copy.holds === 'email' ? 'email' : copy.holds === 'name' ? 'name' : 'other');
+
 /** What of one row is theirs (see the header); null when nothing on it is. */
 function judge(table: ResolvedTable, row: Row, copies: readonly DeclaredCopy[], pkSet: ReadonlySet<string>, address: string, phones: readonly string[], links: ReadonlySet<string>): TheirCopyRow | null {
   let matched = false;
@@ -180,7 +183,7 @@ function judge(table: ResolvedTable, row: Row, copies: readonly DeclaredCopy[], 
   };
   for (const copy of copies) {
     const viaEmpty = copy.via === null || !isSet(row[copy.via]);
-    if (direct.has(copy.column) || (!someoneElse && viaEmpty)) take(copy.column, copy.holds === 'email' ? 'email' : copy.holds === 'name' ? 'name' : 'other');
+    if (direct.has(copy.column) || (!someoneElse && viaEmpty)) take(copy.column, roleOf(copy));
   }
   // Nobody else on the row: their own words on it go with them.
   if (!someoneElse) for (const column of table.columns.values()) if (column.masked) take(column.name, 'other');
@@ -211,7 +214,8 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
     const table = input.tableOf(copyTableId);
     if (table === null || table.primaryKey.length === 0) continue;
     const links = linkColumnsOf(view, table.id);
-    const conditions = copies.flatMap((copy) => [...(copy.holds === 'email' ? [addressIs(copy.column, address)] : []), ...(copy.via !== null && pks.length > 0 ? inList(copy.via, pks) : [])]);
+    // JSON is never compared as an address (Postgres has no lower() of it): such a row is theirs by its link.
+    const conditions = copies.flatMap((copy) => [...(copy.holds === 'email' && copy.json !== true ? [addressIs(copy.column, address)] : []), ...(copy.via !== null && pks.length > 0 ? inList(copy.via, pks) : [])]);
     const rows = new Map<string, TheirCopyRow>();
     for (const row of await rowsWhere(db, table, conditions, limit)) {
       const theirs = judge(table, row, copies, pkSet, address, phones, links);
@@ -292,7 +296,7 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
       for (const copy of copies) {
         const resolved = table.columns.get(copy.column);
         if (resolved === undefined || resolved.isPrimaryKey || resolved.secret) continue;
-        columns.set(copy.column, copy.holds === 'email' ? 'email' : copy.holds === 'name' ? 'name' : 'other');
+        columns.set(copy.column, roleOf(copy));
       }
       rows.push({ key: rowKeyOf(table, row), row, columns, links: [] });
     }

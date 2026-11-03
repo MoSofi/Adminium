@@ -46,6 +46,7 @@ import { peopleTablesOf } from '../people/tables-of.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { theirCopyRows } from './copy-rows.js';
+import { parsedJson } from './erase-values.js';
 import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
 import type { FoundSource } from './types.js';
@@ -109,14 +110,18 @@ export function tableOf(view: SnapshotView, name: string): ResolvedTable | null 
   }
 }
 
-/** A row as the download writes it: every column but the secret ones. */
-function exported(table: ResolvedTable, row: Row, only?: ReadonlySet<string>): Record<string, unknown> {
+/**
+ * A row as the download writes it: every column but the secret ones. `json`
+ * names the columns that keep JSON, written as the value they hold whatever
+ * the engine handed back (SQLite keeps it as text).
+ */
+function exported(table: ResolvedTable, row: Row, only?: ReadonlySet<string>, json?: ReadonlySet<string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(row)) {
     const column = table.columns.get(name);
     if (column?.secret === true) continue;
     if (only !== undefined && !only.has(name) && !table.primaryKey.includes(name)) continue;
-    out[name] = plainValue(value);
+    out[name] = plainValue(json?.has(name) === true ? parsedJson(value) : value);
   }
   return out;
 }
@@ -275,7 +280,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
           // A row matched by a link alone, whose copies hold nobody (blank), is still the person's.
           found.count += 1;
           found.keys.push(theirs.key);
-          found.rows.push(exported(table, theirs.row, new Set([...theirs.columns.keys(), ...theirs.links])));
+          const json = new Set([...theirs.columns].flatMap(([column, role]) => (role === 'json' ? [column] : [])));
+          found.rows.push(exported(table, theirs.row, new Set([...theirs.columns.keys(), ...theirs.links]), json));
         }
         note(
           table,

@@ -16,6 +16,8 @@
  *      - on the column that names the person, "Erased person" in the
  *        install's language (D21; see `erasedNameOf`);
  *      - otherwise `''`;
+ *  - JSON of theirs that may not be empty (a design's words) reads as an
+ *    empty value of its own kind: `[]` where it held a list, else `{}`;
  *  - anything else that may not be empty (a number, a date, a choice) is
  *    left as it is, and said so: the erasure counts it under `left`.
  *
@@ -30,8 +32,8 @@ import type { ResolvedTable } from '../crud/identifiers.js';
 /** The reserved domain an erased unique address is written on. */
 export const ERASED_DOMAIN = 'erased.invalid';
 
-/** What a column is to the person: their address, their name, or another field of theirs. */
-export type ErasedRole = 'email' | 'name' | 'other';
+/** What a column is to the person: their address, their name, another field of theirs, or their details kept as JSON. */
+export type ErasedRole = 'email' | 'name' | 'other' | 'json';
 
 /** What the rule reads of a column. */
 export interface ColumnFacts {
@@ -63,10 +65,29 @@ function uniqueToken(role: ErasedRole, maxLength: number | null): string {
   return maxLength !== null && value.length > maxLength ? value.slice(0, maxLength) : value;
 }
 
-/** What one field becomes (see the header), or `{left: true}` when the column cannot be emptied. */
-export function blankValue(facts: ColumnFacts, role: ErasedRole, dialect: Dialect, erasedName: string): { value: unknown } | { left: true } {
+/**
+ * A stored JSON object or list, parsed when an engine hands it back as text
+ * (SQLite, at times MySQL). Any other text is itself: Postgres hands a JSON
+ * string back already read, and "12" is no number to be made of it.
+ */
+export function parsedJson(value: unknown): unknown {
+  if (typeof value !== 'string' || !/^\s*[[{]/.test(value)) return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * What one field becomes (see the header), or `{left: true}` when the column
+ * cannot be emptied. `current` is the value it holds now: an empty JSON value
+ * keeps its kind.
+ */
+export function blankValue(facts: ColumnFacts, role: ErasedRole, dialect: Dialect, erasedName: string, current?: unknown): { value: unknown } | { left: true } {
   if (facts.generated) return { left: true };
   if (facts.nullable) return { value: null };
+  if (role === 'json') return { value: Array.isArray(parsedJson(current)) ? '[]' : '{}' };
   if (facts.logicalType === 'boolean') return { value: dialect === 'postgres' ? false : 0 };
   if (!TEXT.has(facts.logicalType)) return { left: true };
   if (facts.unique) return { value: uniqueToken(role, facts.maxLength) };
@@ -98,6 +119,10 @@ export function isErasedToken(value: string, role: ErasedRole, maxLength: number
 export function alreadyBlank(value: unknown, facts: ColumnFacts, role: ErasedRole, erasedName: string): boolean {
   if (value === null || value === undefined) return true;
   if (facts.nullable) return false;
+  if (role === 'json') {
+    const held = parsedJson(value);
+    return Array.isArray(held) ? held.length === 0 : typeof held === 'object' && held !== null && Object.keys(held).length === 0;
+  }
   if (facts.logicalType === 'boolean') return value === false || value === 0 || value === '0';
   if (typeof value !== 'string') return false;
   if (facts.unique) return isErasedToken(value, role, facts.maxLength);

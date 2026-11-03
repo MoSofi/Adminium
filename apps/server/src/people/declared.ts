@@ -39,6 +39,12 @@ export interface DeclaredCopy {
   /** The copy table's link back to the person, when there is one. */
   via: string | null;
   /**
+   * The column keeps JSON (a design's words), as its manifest declares it or
+   * the database says: blanked to an empty value of its own, and downloaded
+   * as the value it holds, on every engine (SQLite keeps it as text).
+   */
+  json?: true;
+  /**
    * A copy on a table of an add-on the app requires: the app's own table
    * whose link names the add-on's rows (`line`, its column `link`), and how
    * that table reaches the person — it is their table or one of their copy
@@ -85,6 +91,8 @@ export interface PeopleModel {
 export interface PeopleSource {
   /** Installed apps: their key, the database they were installed on, their status and the manifest they stored. */
   apps: readonly { appKey: string; connectionId: string | null; status: string; document: unknown }[];
+  /** Installed add-ons and the manifests they stored: what their tables' columns are, for the copies kept on them. */
+  addOns?: readonly { key: string; document: unknown }[];
   /** The apps' records of their tables, on every database. */
   records: readonly Pick<AppTableRecord, 'appKey' | 'connectionId' | 'ref' | 'tableName' | 'schemaName' | 'owned' | 'state'>[];
   /** Each database's snapshot, by connection id. */
@@ -99,6 +107,18 @@ const HELD = new Set(['created', 'adopted', 'shared']);
 const TEXT_TYPES = new Set(['text', 'varchar']);
 /** The statuses whose apps' people are still there: one being installed is not yet, a broken row is not read. */
 const PRESENT = new Set(['installed', 'disabled']);
+
+/** The `json` columns of each table a stored manifest declares, by its short names. */
+function jsonColumnsOf(document: unknown): Map<string, Set<string>> {
+  const tables = (document as { requiredSchema?: { tables?: unknown } } | null)?.requiredSchema?.tables;
+  const out = new Map<string, Set<string>>();
+  for (const table of Array.isArray(tables) ? (tables as { ref?: unknown; columns?: unknown }[]) : []) {
+    if (typeof table?.ref !== 'string' || !Array.isArray(table.columns)) continue;
+    const json = (table.columns as { ref?: unknown; type?: unknown }[]).flatMap((column) => (column.type === 'json' && typeof column.ref === 'string' ? [column.ref] : []));
+    if (json.length > 0) out.set(table.ref, new Set(json));
+  }
+  return out;
+}
 
 /** An app's `people`, read from the manifest it stored; a list that does not read is none. */
 function peopleOf(document: unknown): { entries: PeopleEntry[]; keyFields: Map<string, string>; links: Map<string, { column: string; to: string }[]>; requires: Set<string> } {
@@ -130,12 +150,19 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
   /** Which declaration of a real table stands: the one of the app that made it, else the first by app key. */
   const owner = new Map<string, { index: number; owned: boolean }>();
   const apps = [...source.apps].filter((app) => app.connectionId !== null && PRESENT.has(app.status)).sort((a, b) => a.appKey.localeCompare(b.appKey));
+  // Each add-on's JSON columns, from the first manifest it stored (its tables' shape is its own, whichever app it is for).
+  const addOnJson = new Map<string, Map<string, Set<string>>>();
+  for (const addOn of source.addOns ?? []) if (!addOnJson.has(addOn.key)) addOnJson.set(addOn.key, jsonColumnsOf(addOn.document));
 
   for (const app of apps) {
     const connectionId = app.connectionId as string;
     const model = source.models.get(connectionId);
     if (model === undefined) continue;
     const { entries, keyFields, links, requires } = peopleOf(app.document);
+    const appJson = jsonColumnsOf(app.document);
+    /** Whether a copy's column keeps JSON: its manifest says so, or the database does. */
+    const keepsJson = (declared: Map<string, Set<string>> | undefined, ref: string, column: string, real: PeopleModel['tables'][number]): boolean =>
+      declared?.get(ref)?.has(column) === true || real.columns.find((candidate) => candidate.name === column)?.logicalType === 'json';
     /** The real table an app's (or an add-on's) short name stands for here, while it still holds it. */
     const tableOf = (ref: string, owner: string = app.appKey) => {
       const record = source.records.find((candidate) => candidate.connectionId === connectionId && candidate.appKey === owner && candidate.ref === ref && HELD.has(candidate.state));
@@ -185,12 +212,14 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
             if (fk === undefined || to === undefined) return [];
             up = { column: fk.column, to: to.table.id };
           }
-          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, through: { line: line.table.id, link, up } }];
+          const json = keepsJson(addOnJson.get(copy.addOn), copy.table, copy.column, held.table);
+          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, ...(json ? { json: true as const } : {}), through: { line: line.table.id, link, up } }];
         }
         const held = tableOf(copy.table);
         if (held === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column)) return [];
         const via = copy.via !== undefined && held.table.columns.some((candidate) => candidate.name === copy.via) ? copy.via : null;
-        return [{ table: held.table.id, ref: copy.table, column: copy.column, holds: copy.holds, via }];
+        const json = keepsJson(appJson, copy.table, copy.column, held.table);
+        return [{ table: held.table.id, ref: copy.table, column: copy.column, holds: copy.holds, via, ...(json ? { json: true as const } : {}) }];
       });
       const firstName = entry.firstName === undefined ? null : typeof entry.firstName === 'object' ? (column(entry.firstName.column) === null ? null : { column: entry.firstName.column }) : FIRST_WORD_OF_NAME;
       const consentColumn = entry.consent === undefined ? null : column(entry.consent.column);
@@ -250,6 +279,7 @@ const NO_SECRETS = {
 export async function declaredPeople(meta: MetaDb, models: (connectionId: string) => Promise<PeopleModel | null>): Promise<DeclaredPeopleTable[]> {
   const installed = await manifestsRepo(meta, NO_SECRETS).list('app');
   const apps = installed.map((entry) => ({ appKey: entry.row.manifestKey, connectionId: entry.row.connectionId, status: entry.row.status, document: entry.document }));
+  const addOns = (await manifestsRepo(meta, NO_SECRETS).list('add-on')).map((entry) => ({ key: entry.row.manifestKey, document: entry.document }));
   const connectionIds = [...new Set(apps.flatMap((app) => (app.connectionId === null ? [] : [app.connectionId])))];
   const records: AppTableRecord[] = [];
   const overrides: SchemaOverride[] = [];
@@ -261,5 +291,5 @@ export async function declaredPeople(meta: MetaDb, models: (connectionId: string
     records.push(...(await appTablesRepo(meta).forConnection(connectionId)));
     overrides.push(...(await overridesRepo(meta).listForConnection(connectionId, { status: 'active' })));
   }
-  return resolveDeclaredPeople({ apps, records, models: loaded, overrides });
+  return resolveDeclaredPeople({ apps, addOns, records, models: loaded, overrides });
 }
