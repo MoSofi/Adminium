@@ -121,11 +121,19 @@ export default {
     "notice": {
       "quota": {
         "title": "Files from your forms are being refused",
-        "body": "The files strangers uploaded fill the space set for them ({gb} GB). Delete answers you no longer need, or raise the limit in Settings."
+        "body": "The files strangers sent with your forms, waiting for their answers, fill the space set for them ({gb} GB). It frees itself as they are sent or expire, or raise the limit in Settings."
+      },
+      "quotaColumns": {
+        "title": "Customers' files are being refused",
+        "body": "The files customers uploaded for your apps, waiting for their orders, fill the space set for them ({gb} GB). It frees itself as they order or the files expire, or raise the limit in Settings."
       },
       "cap": {
         "title": "One visitor sent too many files",
         "body": "A network address sent {n} files in a day, the most allowed. Its next files are refused until tomorrow."
+      },
+      "bytes": {
+        "title": "One visitor sent too much",
+        "body": "A network address sent {mb} MB of files in a day, the most allowed. Its next files are refused until tomorrow."
       }
     }
   }

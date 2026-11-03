@@ -111,11 +111,19 @@
     "notice": {
       "quota": {
         "title": "Les fichiers de vos formulaires sont refusés",
-        "body": "Les fichiers envoyés remplissent l’espace prévu pour eux ({gb} Go). Supprimez les réponses dont vous n’avez plus besoin, ou augmentez la limite dans les Réglages."
+        "body": "Les fichiers envoyés avec vos formulaires, qui attendent leur réponse, remplissent l’espace prévu pour eux ({gb} Go). Il se libère quand ils sont envoyés ou expirent, ou augmentez la limite dans les Réglages."
+      },
+      "quotaColumns": {
+        "title": "Les fichiers de vos clients sont refusés",
+        "body": "Les fichiers que vos clients ont envoyés pour vos applications, qui attendent leur commande, remplissent l’espace prévu pour eux ({gb} Go). Il se libère quand ils commandent ou que les fichiers expirent, ou augmentez la limite dans les Réglages."
       },
       "cap": {
         "title": "Un visiteur a envoyé trop de fichiers",
         "body": "Une adresse réseau a envoyé {n} fichiers en un jour, le maximum autorisé. Ses prochains fichiers sont refusés jusqu’à demain."
+      },
+      "bytes": {
+        "title": "Un visiteur a envoyé trop de données",
+        "body": "Une adresse réseau a envoyé {mb} Mo de fichiers en un jour, le maximum autorisé. Ses prochains fichiers sont refusés jusqu’à demain."
       }
     }
   }

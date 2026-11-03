@@ -111,11 +111,19 @@
     "notice": {
       "quota": {
         "title": "Filer fra dine formularer bliver afvist",
-        "body": "De uploadede filer fylder den plads, der er sat af til dem ({gb} GB). Slet svar, du ikke længere har brug for, eller hæv grænsen under Indstillinger."
+        "body": "De filer, fremmede har sendt med dine formularer, og som venter på deres svar, fylder den plads, der er sat af til dem ({gb} GB). Den bliver fri, når de sendes eller udløber, eller hæv grænsen under Indstillinger."
+      },
+      "quotaColumns": {
+        "title": "Kunders filer bliver afvist",
+        "body": "De filer, kunder har uploadet til dine apps, og som venter på deres ordre, fylder den plads, der er sat af til dem ({gb} GB). Den bliver fri, når de bestiller, eller filerne udløber, eller hæv grænsen under Indstillinger."
       },
       "cap": {
         "title": "En besøgende har sendt for mange filer",
         "body": "En netværksadresse har sendt {n} filer på en dag, det højeste tilladte. Dens næste filer afvises indtil i morgen."
+      },
+      "bytes": {
+        "title": "En besøgende har sendt for meget",
+        "body": "En netværksadresse har sendt {mb} MB filer på en dag, det højeste tilladte. Dens næste filer afvises indtil i morgen."
       }
     }
   }

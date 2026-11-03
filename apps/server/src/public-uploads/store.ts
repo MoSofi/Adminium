@@ -4,20 +4,29 @@
  * stranger's next write, removed with the row that took them.
  *
  * Generic: a form's file question is the first caller (`routes/forms-door/
- * files.ts`); an app's public write is the next (a file column a guest may
- * fill). Each caller says what a file is taken FOR (the binding: a kind and
- * a key, `form` + `<add-on>/<form id>`), which kinds it takes from the closed
- * list ({@link PUBLIC_UPLOAD_KINDS}) and how large one may be.
+ * files.ts`); a guest's file for an app's file column is the second
+ * (`routes/public/uploads.ts`, attached by `columns.ts`). Each caller says
+ * what a file is taken FOR (the binding: a kind and a key, `form` +
+ * `<add-on>/<form id>`, or `column` + `<connection>/<table id>/<column>`),
+ * which kinds it takes from the closed list ({@link PUBLIC_UPLOAD_KINDS}) and
+ * how large one may be.
  *
  * ─── TAKING ONE ────────────────────────────────────────────────────────────
- *  1. The address's day: past `publicUploads.perAddressDaily` files from one
- *     network address (its /64) in 24 hours, refused (`cap`) before a byte is
- *     read.
- *  2. The store's room: once the files kept (attached or not) reach
- *     `publicUploads.quotaBytes`, refused (`quota`) before a byte is read, and
- *     again after, when this one would pass it.
+ *  1. The address's day: past `publicUploads.perAddressDaily` files, or
+ *     `publicUploads.perAddressDailyBytes` bytes, from one network address
+ *     (its /64) in 24 hours, refused (`cap`) before a byte is read — and the
+ *     bytes again after, when this one would pass them.
+ *  2. The pool's room: the files WAITING to be attached (taken, not yet named
+ *     by a write) of the caller's pool — forms, or app columns — may hold the
+ *     pool's share of `publicUploads.quotaBytes` (`publicUploads.columnsShare`
+ *     percent to app columns, the rest to forms), so a flood on one never
+ *     stops the other. Past it, refused (`quota`) before a byte is read, and
+ *     again after, when this one would pass it. A file a write took no longer
+ *     counts: an app column's is the row's own file by then, a form's is its
+ *     answer's.
  *  3. The bytes go through the engine's one upload path (`files/store.ts`
- *     `putUpload`): spooled with the caller's cap, the spool cut off and the
+ *     `putUpload`): spooled with the caller's cap (never past the install's
+ *     `files.maxBytes`), the spool cut off and the
  *     body no longer read the moment it passes (`too-big`); the content
  *     sniffed, never the name or the type the browser claims (`kind`: a
  *     script renamed `.jpg` has no JPEG in it; a HEIC photo is no kind on the
@@ -26,14 +35,19 @@
  *     kind `stranger`, which no staff files route serves.
  *  4. A row in `adminium_public_uploads`: a 32-character random id (the
  *     stranger's handle), the binding with the keyed hash of the address, the
- *     cleaned name, size and kind, and an expiry two hours on.
- *  The owner is told when 1 or 2 refuses, once an hour (`notices.ts`).
+ *     cleaned name, size and kind, and an expiry: two hours on for a form's,
+ *     a day for an app column's (a customer may spend an hour on a design).
+ *  The owner is told when 1 or 2 refuses, once an hour, naming the pool
+ *  (`notices.ts`).
  *
  * ─── ATTACHING ─────────────────────────────────────────────────────────────
- * {@link PublicUploads.attach}: every id must be there, unattached, unexpired
- * and of exactly the write's binding (the same form, the same address), or
- * none is attached and the write is refused. The owner is the row the files
- * became part of (connection, table, key).
+ * A form's: {@link PublicUploads.attach}: every id must be there, unattached,
+ * unexpired and of exactly the write's binding (the same form, the same
+ * address), or none is attached and the write is refused. The owner is the
+ * row the files became part of (connection, table, key).
+ * An app column's: held, then adopted, by `columns.ts`. Its binding names
+ * what it is for and no address: a phone that moves from Wi-Fi to mobile data
+ * between the upload and the order still names it.
  *
  * ─── REMOVING ──────────────────────────────────────────────────────────────
  * Bytes first, then the file row, then this row: a crash between leaves a row
@@ -54,24 +68,43 @@ import { rateAddress } from '../public-api/limiter.js';
 import { SpoolTooLargeError } from '../files/spool.js';
 import { UnsupportedFileTypeError, type FileStore } from '../files/store.js';
 import type { SniffTypeKey } from '../files/sniff.js';
-import type { UploadTrip } from './notices.js';
+import type { UploadTrip, UploadTripValues } from './notices.js';
 
 /**
  * The closed list of kinds a stranger may upload, each with the sniffed type
- * it must be. Pictures (cleaned of camera data), PDF and plain text. A caller
- * takes a part of it; plan 73's TIFF (stored, never drawn) is one more line
- * here. SVG and HEIC are never on it.
+ * it must be. Pictures (cleaned of camera data), PDF, plain text, and TIFF
+ * (kept for print and handed back as a download, never drawn). A caller
+ * takes a part of it. SVG and HEIC are never on it. The manifest's
+ * `FILE_UPLOAD_KINDS` says the same list to an app (a test holds them alike).
  */
 export const PUBLIC_UPLOAD_KINDS = {
   jpg: 'jpeg',
   png: 'png',
   pdf: 'pdf',
   text: 'text',
+  tiff: 'tiff',
 } as const satisfies Readonly<Record<string, SniffTypeKey>>;
 export type PublicUploadKind = keyof typeof PUBLIC_UPLOAD_KINDS;
 
-/** How long an unattached file waits for the write that takes it. */
+/** How long a form's unattached file waits for the answer that takes it. */
 export const UPLOAD_TTL_MS = 2 * 3_600_000;
+/** What a guest's file for an app's column is taken for: the binding's kind. */
+export const COLUMN_UPLOAD_KIND = 'column';
+/** How long a guest's file for an app's column waits for the write that names it. */
+export const COLUMN_UPLOAD_TTL_MS = 24 * 3_600_000;
+
+/** The two pools of the quota: app columns' files, and every other (a form's). */
+export type UploadPool = 'forms' | 'columns';
+
+/** The pool a binding's files count in. */
+export function poolOf(kind: string): UploadPool {
+  return kind === COLUMN_UPLOAD_KIND ? 'columns' : 'forms';
+}
+
+/** How long a file of this kind waits unattached. */
+export function ttlOf(kind: string): number {
+  return kind === COLUMN_UPLOAD_KIND ? COLUMN_UPLOAD_TTL_MS : UPLOAD_TTL_MS;
+}
 /** The window the per-address cap counts over. */
 export const UPLOAD_DAY_MS = 24 * 3_600_000;
 /** The longest name kept, in characters. */
@@ -109,7 +142,7 @@ export interface PublicUploadsDeps {
   /** `ADMINIUM_SECRET`: what addresses are hashed under. */
   secret: string;
   /** The owner is told uploads are refused (once an hour each; see `notices.ts`). */
-  tell?: ((trip: UploadTrip, values: { gb?: string; n?: number }, at: number) => Promise<unknown>) | undefined;
+  tell?: ((trip: UploadTrip, values: UploadTripValues, at: number) => Promise<unknown>) | undefined;
   log?: { warn: (fields: Record<string, unknown>, message: string) => void } | undefined;
   now?: () => number;
 }
@@ -144,6 +177,7 @@ function kindOf(sniffed: SniffTypeKey, kinds: readonly PublicUploadKind[]): Publ
 }
 
 const GB = 1024 * 1024 * 1024;
+const MB = 1024 * 1024;
 
 export function createPublicUploads(deps: PublicUploadsDeps) {
   const { meta, storage } = deps;
@@ -158,7 +192,7 @@ export function createPublicUploads(deps: PublicUploadsDeps) {
     return { kind, key, addressKey: createHmac('sha256', addressKey).update(rateAddress(ip)).digest('hex') };
   }
 
-  async function tell(trip: UploadTrip, values: { gb?: string; n?: number }, at: number): Promise<void> {
+  async function tell(trip: UploadTrip, values: UploadTripValues, at: number): Promise<void> {
     if (deps.tell === undefined) return;
     try {
       await deps.tell(trip, values, at);
@@ -167,13 +201,29 @@ export function createPublicUploads(deps: PublicUploadsDeps) {
     }
   }
 
-  async function quotaRefusal(at: number, adding: number): Promise<TakeResult | null> {
+  /** The pool's share of the quota, in bytes: app columns' percent of it, forms the rest. */
+  async function shareOf(pool: UploadPool): Promise<number> {
     const quota = await settings.get('publicUploads.quotaBytes');
-    const kept = await repo.keptBytes();
-    // Before reading: refused once the store is full. After: refused when this file would pass the quota.
-    if (adding === 0 ? kept < quota : kept + adding <= quota) return null;
-    await tell('quota', { gb: (Math.round((quota / GB) * 10) / 10).toString() }, at);
+    const columns = Math.floor((quota * (await settings.get('publicUploads.columnsShare'))) / 100);
+    return pool === 'columns' ? columns : quota - columns;
+  }
+
+  async function quotaRefusal(pool: UploadPool, at: number, adding: number): Promise<TakeResult | null> {
+    const share = await shareOf(pool);
+    const waiting = await repo.waitingBytes(pool === 'columns' ? { in: [COLUMN_UPLOAD_KIND] } : { notIn: [COLUMN_UPLOAD_KIND] });
+    // Before reading: refused once the pool is full. After: refused when this file would pass its share.
+    if (adding === 0 ? waiting < share : waiting + adding <= share) return null;
+    await tell('quota', { gb: (Math.round((share / GB) * 10) / 10).toString(), pool }, at);
     return { ok: false, code: 'quota' };
+  }
+
+  /** One address's day of bytes: refused once it is spent, or when this file would pass it. */
+  async function bytesRefusal(addressKey: string, at: number, adding: number): Promise<TakeResult | null> {
+    const cap = await settings.get('publicUploads.perAddressDailyBytes');
+    const sent = await repo.bytesFrom(addressKey, at - UPLOAD_DAY_MS);
+    if (adding === 0 ? sent < cap : sent + adding <= cap) return null;
+    await tell('bytes', { mb: String(Math.round(cap / MB)) }, at);
+    return { ok: false, code: 'cap' };
   }
 
   /** The bytes of one file, then its file row; failures are logged and left for a later pass. */
@@ -205,20 +255,25 @@ export function createPublicUploads(deps: PublicUploadsDeps) {
     async take(input: TakeInput): Promise<TakeResult> {
       const at = now();
       const binding = bindingOf(input.binding.kind, input.binding.key, input.ip);
+      const pool = poolOf(binding.kind);
       const cap = await settings.get('publicUploads.perAddressDaily');
       if ((await repo.countFrom(binding.addressKey, at - UPLOAD_DAY_MS)) >= cap) {
         await tell('cap', { n: cap }, at);
         return { ok: false, code: 'cap' };
       }
-      const full = await quotaRefusal(at, 0);
+      const spent = await bytesRefusal(binding.addressKey, at, 0);
+      if (spent !== null) return spent;
+      const full = await quotaRefusal(pool, at, 0);
       if (full !== null) return full;
 
       const name = cleanUploadName(input.name);
       const allowed = [...new Set(input.kinds.map((kind) => PUBLIC_UPLOAD_KINDS[kind]))];
+      // The caller's cap, and never past the install's own ceiling for any upload.
+      const maxBytes = Math.min(input.maxBytes, await settings.get('files.maxBytes'));
       let stored: StoredFile;
       let kind: PublicUploadKind | null;
       try {
-        const put = await storage.putUpload({ kind: 'stranger', filename: name, source: input.source, maxBytes: input.maxBytes, allowedTypes: allowed, uploadedBy: null, clean: true, at });
+        const put = await storage.putUpload({ kind: 'stranger', filename: name, source: input.source, maxBytes, allowedTypes: allowed, uploadedBy: null, clean: true, at });
         stored = put.file;
         kind = kindOf(put.sniffed.key, input.kinds);
       } catch (error) {
@@ -234,15 +289,15 @@ export function createPublicUploads(deps: PublicUploadsDeps) {
         await drop();
         return { ok: false, code: 'kind' };
       }
-      // Room checked again with this file in it: two strangers at the edge do not both get in.
-      const over = await quotaRefusal(at, stored.sizeBytes);
+      // The address's bytes and the pool's room checked again with this file in it: two strangers at the edge do not both get in.
+      const over = (await bytesRefusal(binding.addressKey, at, stored.sizeBytes)) ?? (await quotaRefusal(pool, at, stored.sizeBytes));
       if (over !== null) {
         await drop();
         return over;
       }
       const id = randomBytes(24).toString('base64url');
       try {
-        await repo.create({ id, binding, name, size: stored.sizeBytes, kind, fileId: stored.id, expiresAt: at + UPLOAD_TTL_MS }, at);
+        await repo.create({ id, binding, name, size: stored.sizeBytes, kind, fileId: stored.id, expiresAt: at + ttlOf(binding.kind) }, at);
       } catch (error) {
         await drop();
         throw error;

@@ -19711,6 +19711,14 @@
     "status": "mt",
     "srcHash": "215e90a2a1e9"
   },
+  "files.publicUploads.notice.bytes.body": {
+    "status": "mt",
+    "srcHash": "ab63c36900b2"
+  },
+  "files.publicUploads.notice.bytes.title": {
+    "status": "mt",
+    "srcHash": "9268cc481bd3"
+  },
   "files.publicUploads.notice.cap.body": {
     "status": "mt",
     "srcHash": "fb3cc63ddd6b"
@@ -19726,6 +19734,14 @@
   "files.publicUploads.notice.quota.title": {
     "status": "mt",
     "srcHash": "c017d89d0d99"
+  },
+  "files.publicUploads.notice.quotaColumns.body": {
+    "status": "mt",
+    "srcHash": "c12dbc86d30c"
+  },
+  "files.publicUploads.notice.quotaColumns.title": {
+    "status": "mt",
+    "srcHash": "be6c1deed57c"
   },
   "files.rail.byConnection": {
     "status": "mt",

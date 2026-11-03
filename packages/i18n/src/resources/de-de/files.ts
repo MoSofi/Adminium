@@ -121,11 +121,19 @@ export default {
     "notice": {
       "quota": {
         "title": "Dateien aus Ihren Formularen werden abgelehnt",
-        "body": "Die hochgeladenen Dateien füllen den dafür vorgesehenen Platz ({gb} GB). Löschen Sie Antworten, die Sie nicht mehr brauchen, oder erhöhen Sie das Limit in den Einstellungen."
+        "body": "Die Dateien, die Fremde mit Ihren Formularen gesendet haben und die auf ihre Antwort warten, füllen den dafür vorgesehenen Platz ({gb} GB). Er wird frei, sobald sie gesendet werden oder ablaufen, oder erhöhen Sie das Limit in den Einstellungen."
+      },
+      "quotaColumns": {
+        "title": "Dateien von Kunden werden abgelehnt",
+        "body": "Die Dateien, die Kunden für Ihre Apps hochgeladen haben und die auf ihre Bestellung warten, füllen den dafür vorgesehenen Platz ({gb} GB). Er wird frei, sobald sie bestellen oder die Dateien ablaufen, oder erhöhen Sie das Limit in den Einstellungen."
       },
       "cap": {
         "title": "Ein Besucher hat zu viele Dateien gesendet",
         "body": "Eine Netzwerkadresse hat an einem Tag {n} Dateien gesendet, so viele wie erlaubt. Ihre nächsten Dateien werden bis morgen abgelehnt."
+      },
+      "bytes": {
+        "title": "Ein Besucher hat zu viel gesendet",
+        "body": "Eine Netzwerkadresse hat an einem Tag {mb} MB an Dateien gesendet, so viel wie erlaubt. Ihre nächsten Dateien werden bis morgen abgelehnt."
       }
     }
   }

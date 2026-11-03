@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Telling the owner that strangers' uploads are being refused: the store is
- * full (`quota`), or one network address sent its day's files (`cap`).
+ * Telling the owner that strangers' uploads are being refused: a pool is full
+ * (`quota`: forms' files, or guests' files for an app's columns, each said
+ * apart), one network address sent its day's files (`cap`), or its day's
+ * bytes (`bytes`).
  *
  * Every Super Admin is told, in their own language, through the
  * notifications system (bell and its e-mail leg) — at most ONCE AN HOUR for
- * each of the two: the first refusal in an hour claims that hour's name in
+ * each of them (a pool's quota is its own): the first refusal in an hour claims that hour's name in
  * the "told once" store the payment notices use (`notice:` names, dropped
  * after 90 days by their sweep), every other refusal that hour, in any
  * process, stays quiet. Best effort: a notice that cannot be written never
@@ -18,8 +20,16 @@ import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 import { NOTICE_CLAIM_PREFIX } from '../payments/notices.js';
 
-/** Why uploads were refused: the store holds its quota, or one address sent its day's files. */
-export type UploadTrip = 'quota' | 'cap';
+/** Why uploads were refused: a pool holds its share, or one address sent its day's files or bytes. */
+export type UploadTrip = 'quota' | 'cap' | 'bytes';
+
+/** What a notice says: the pool's share in GB, the day's files, the day's megabytes; and which pool filled. */
+export interface UploadTripValues {
+  gb?: string;
+  n?: number;
+  mb?: string;
+  pool?: 'forms' | 'columns';
+}
 
 /** The notice's kind (what a person's notification settings switch). */
 export const UPLOAD_NOTICE_KIND = 'publicUploads.refused';
@@ -39,12 +49,26 @@ async function owners(meta: MetaDb): Promise<string[]> {
   return out.sort();
 }
 
-const WORDS: Readonly<Record<UploadTrip, { titleKey: string; bodyKey: string; title: string; body: string }>> = {
+type Notice = 'quota' | 'quotaColumns' | 'cap' | 'bytes';
+
+const WORDS: Readonly<Record<Notice, { titleKey: string; bodyKey: string; title: string; body: string }>> = {
   quota: {
     titleKey: 'files:publicUploads.notice.quota.title',
     bodyKey: 'files:publicUploads.notice.quota.body',
     title: 'Files from your forms are being refused',
-    body: 'The files strangers uploaded fill the space set for them ({gb} GB). Delete answers you no longer need, or raise the limit in Settings.',
+    body: 'The files strangers sent with your forms, waiting for their answers, fill the space set for them ({gb} GB). It frees itself as they are sent or expire, or raise the limit in Settings.',
+  },
+  quotaColumns: {
+    titleKey: 'files:publicUploads.notice.quotaColumns.title',
+    bodyKey: 'files:publicUploads.notice.quotaColumns.body',
+    title: "Customers' files are being refused",
+    body: 'The files customers uploaded for your apps, waiting for their orders, fill the space set for them ({gb} GB). It frees itself as they order or the files expire, or raise the limit in Settings.',
+  },
+  bytes: {
+    titleKey: 'files:publicUploads.notice.bytes.title',
+    bodyKey: 'files:publicUploads.notice.bytes.body',
+    title: 'One visitor sent too much',
+    body: 'A network address sent {mb} MB of files in a day, the most allowed. Its next files are refused until tomorrow.',
   },
   cap: {
     titleKey: 'files:publicUploads.notice.cap.title',
@@ -61,9 +85,10 @@ const WORDS: Readonly<Record<UploadTrip, { titleKey: string; bodyKey: string; ti
 export async function tellUploadsRefused(
   deps: { meta: MetaDb; hub?: NotificationPublisher | undefined },
   trip: UploadTrip,
-  values: { gb?: string; n?: number },
+  values: UploadTripValues,
   at: number,
 ): Promise<number> {
+  const notice: Notice = trip === 'quota' && values.pool === 'columns' ? 'quotaColumns' : trip;
   let people: string[];
   try {
     people = await owners(deps.meta);
@@ -72,7 +97,8 @@ export async function tellUploadsRefused(
   }
   if (people.length === 0) return 0;
   const docs = paymentSettingsRepo(deps.meta);
-  const name = `${NOTICE_CLAIM_PREFIX}public-uploads:${trip}:${String(Math.floor(at / HOUR_MS))}`;
+  // A pool's quota is told apart from the other's: a flood on one never quiets the other's notice.
+  const name = `${NOTICE_CLAIM_PREFIX}public-uploads:${notice}:${String(Math.floor(at / HOUR_MS))}`;
   try {
     if (!(await docs.claim(name, claimSchema, { at }, at))) return 0;
   } catch {
@@ -82,8 +108,8 @@ export async function tellUploadsRefused(
   for (const userId of people) {
     try {
       const i18n = await translatorFor(deps.meta, userId);
-      const words = WORDS[trip];
-      const shown = { gb: values.gb ?? '', n: values.n ?? 0 };
+      const words = WORDS[notice];
+      const shown = { gb: values.gb ?? '', n: values.n ?? 0, mb: values.mb ?? '' };
       await notify(
         deps.meta,
         {

@@ -111,11 +111,19 @@
     "notice": {
       "quota": {
         "title": "Soubory z vašich formulářů jsou odmítány",
-        "body": "Nahrané soubory zaplnily místo, které je pro ně vyhrazeno ({gb} GB). Smažte odpovědi, které už nepotřebujete, nebo zvyšte limit v Nastavení."
+        "body": "Soubory, které cizí lidé poslali s vašimi formuláři a které čekají na odpověď, zaplnily místo, které je pro ně vyhrazeno ({gb} GB). Uvolní se, jakmile budou odeslány nebo vyprší, nebo zvyšte limit v Nastavení."
+      },
+      "quotaColumns": {
+        "title": "Soubory zákazníků jsou odmítány",
+        "body": "Soubory, které zákazníci nahráli pro vaše aplikace a které čekají na objednávku, zaplnily místo, které je pro ně vyhrazeno ({gb} GB). Uvolní se, jakmile objednají nebo soubory vyprší, nebo zvyšte limit v Nastavení."
       },
       "cap": {
         "title": "Jeden návštěvník poslal příliš mnoho souborů",
         "body": "Jedna síťová adresa poslala za den {n} souborů, nejvíc, kolik je dovoleno. Její další soubory budou do zítřka odmítnuty."
+      },
+      "bytes": {
+        "title": "Jeden návštěvník poslal příliš mnoho dat",
+        "body": "Jedna síťová adresa poslala za den {mb} MB souborů, nejvíc, kolik je dovoleno. Její další soubory budou do zítřka odmítnuty."
       }
     }
   }
