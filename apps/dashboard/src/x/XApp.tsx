@@ -36,7 +36,6 @@ import { answerValues, checkBeforeSend, formOf, hiddenQuery, shownQuestions, WHO
 import { fetchChallenge, fetchForm, postAnswer, type XBusiness, type XPage } from './api.js';
 import type { FileRow } from './Files.js';
 import { linkToParent, type FrameLink } from './frame.js';
-import { solve } from '../pay/proof.js';
 import { controlId, Question, textOf } from './Questions.js';
 import type { XRoute } from './route.js';
 import { languageOfTag, X_LANGUAGES, type XLanguage } from './words.js';
@@ -381,6 +380,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       const parent = frame ? (link.current?.parentOrigin() ?? null) : null;
       const answer = { language: form.language, values: answerValues(vocabularyForm, now), query, website: trap, ...(parent === null ? {} : { from: parent }), ...(route.token === null ? {} : { t: route.token }) };
       let reply: Awaited<ReturnType<typeof postAnswer>> = { state: 'proof' };
+      // The human check's solver is fetched at the first Send, off the page's first load: no page needs it before.
+      const { solve } = await import('../pay/proof.js');
       // One silent retry: a challenge can expire while a slow phone solves it.
       for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
         const challenge = await fetchChallenge(route.slug, route.token);
