@@ -219,6 +219,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'file.upload',
   'file.tiff',
   'file.large',
+  // A file column that takes a cleaned SVG, a model (GLB, STL, 3MF) or a web font (WOFF2); an entry's product assets,
+  // loaded by every visitor's browser.
+  'file.assetKinds',
+  'publicAccess.assets',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -421,7 +425,13 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'file.upload': '0.3.43',
   'file.tiff': '0.3.43',
   'file.large': '0.3.43',
+  // A cleaned SVG, a model and a web font in a file column, and an entry's product assets: read by the same release.
+  'file.assetKinds': '0.3.43',
+  'publicAccess.assets': '0.3.43',
 };
+
+/** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
+const ASSET_KINDS: ReadonlySet<string> = new Set(['svg', 'glb', 'stl', '3mf', 'woff2']);
 
 /** Whether a formula, at any depth, rounds up or down (`ceil`, `floor`). */
 function roundsUpOrDown(node: unknown): boolean {
@@ -568,6 +578,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (file !== null && file['upload'] !== undefined) out.push({ word: 'file.upload', path: `${here}.file.upload` });
       if (file !== null && list(file['accept']).includes('tiff')) out.push({ word: 'file.tiff', path: `${here}.file.accept` });
       if (file !== null && typeof file['maxBytes'] === 'number' && file['maxBytes'] > FILE_COLUMN_EARLIER_MAX_BYTES) out.push({ word: 'file.large', path: `${here}.file.maxBytes` });
+      if (isDoc(rules['file']) && list(rules['file']['accept']).some((kind) => typeof kind === 'string' && ASSET_KINDS.has(kind))) out.push({ word: 'file.assetKinds', path: `${here}.file.accept` });
       if (rules['changes'] !== undefined) out.push({ word: 'column.changes', path: `${here}.changes` });
       if (rules['history'] !== undefined) out.push({ word: 'column.history', path: `${here}.history` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
@@ -786,6 +797,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       for (const [name, child] of Object.entries(isDoc(node['children']) ? node['children'] : {})) uploadsIn(child, `${path}.children.${name}`);
     };
     uploadsIn(entry, `publicAccess.${String(e)}`);
+    if (isDoc(entry) && entry['assets'] !== undefined) out.push({ word: 'publicAccess.assets', path: `publicAccess.${String(e)}.assets` });
   });
   return out;
 }

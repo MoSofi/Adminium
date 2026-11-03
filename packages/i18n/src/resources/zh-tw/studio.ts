@@ -1359,8 +1359,10 @@ export default {
         "switch": "檔案",
         "switchToggle": "{name} 存放檔案",
         "type": {
+          "3mf": "3MF 3D 模型",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "GLB 3D 模型",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "STL 3D 模型",
           "svg": "SVG",
           "text": "純文字",
           "wav": "WAV 音訊",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "WOFF2 字型",
           "zip": "ZIP"
         },
         "acceptPictures": "僅限圖片。取消勾選此欄應拒絕的類型。"

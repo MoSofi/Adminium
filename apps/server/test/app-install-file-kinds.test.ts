@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Every kind of file an app's `rules.file` may name installs: the stored rule
- * takes each name the manifest check takes, digits and all. `mp4` and `mp3`
+ * takes each name the manifest check takes, digits and all (`3mf` starts with one). `mp4` and `mp3`
  * once passed the manifest check and failed the install at its pages step
  * ("invalid override payload for op column.file"), on every engine.
  */
@@ -39,7 +39,7 @@ describe('a stored file rule', () => {
   it('takes every kind of file the manifest check takes', () => {
     const value = { accept: [...FILE_COLUMN_KINDS], maxBytes: 1024, maxCount: 2 };
     expect(() => validateOverrideInput({ connectionId: 'c', op: 'column.file', tableName: 't', columnName: 'f', value, origin: 'app' } as never)).not.toThrow();
-    for (const kind of ['', 'MP4', '4k', 'a', 'mpeg-4', 'x'.repeat(11)]) {
+    for (const kind of ['', 'MP4', '42', 'a', 'mpeg-4', 'x'.repeat(11)]) {
       expect(() => validateOverrideInput({ connectionId: 'c', op: 'column.file', tableName: 't', columnName: 'f', value: { accept: [kind], maxBytes: 1024 }, origin: 'app' } as never), kind).toThrow(/invalid override payload/);
     }
   });

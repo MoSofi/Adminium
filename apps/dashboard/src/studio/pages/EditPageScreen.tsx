@@ -140,6 +140,10 @@ const ATTACHMENT_TYPE_KEYS = [
   'text',
   'markdown',
   'json',
+  'glb',
+  'stl',
+  '3mf',
+  'woff2',
 ] as const;
 
 /**
@@ -164,6 +168,10 @@ const ATTACHMENT_TYPE_NAMES: Record<string, string> = {
   csv: 'CSV',
   markdown: 'Markdown',
   json: 'JSON',
+  glb: 'GLB',
+  stl: 'STL',
+  '3mf': '3MF',
+  woff2: 'WOFF2',
 };
 
 /** The two keys that are English words rather than format names. */

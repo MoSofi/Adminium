@@ -1359,8 +1359,10 @@ export default {
         "switch": "文件",
         "switchToggle": "{name} 存放文件",
         "type": {
+          "3mf": "3MF 3D 模型",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "GLB 3D 模型",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "STL 3D 模型",
           "svg": "SVG",
           "text": "纯文本",
           "wav": "WAV 音频",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "WOFF2 字体",
           "zip": "ZIP"
         },
         "acceptPictures": "仅限图片。取消勾选此列应拒绝的类型。"

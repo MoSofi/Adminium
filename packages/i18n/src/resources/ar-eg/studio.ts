@@ -1359,8 +1359,10 @@ export default {
         "switch": "ملف",
         "switchToggle": "{name} يخزّن ملفًا",
         "type": {
+          "3mf": "نموذج ثلاثي الأبعاد 3MF",
           "csv": "CSV",
           "gif": "GIF",
+          "glb": "نموذج ثلاثي الأبعاد GLB",
           "heic": "HEIC",
           "jpeg": "JPEG",
           "json": "JSON",
@@ -1371,11 +1373,13 @@ export default {
           "ogg": "Ogg",
           "pdf": "PDF",
           "png": "PNG",
+          "stl": "نموذج ثلاثي الأبعاد STL",
           "svg": "SVG",
           "text": "نص عادي",
           "wav": "صوت WAV",
           "webm": "WebM",
           "webp": "WebP",
+          "woff2": "خط WOFF2",
           "zip": "ZIP"
         },
         "acceptPictures": "صور فقط. ألغِ تحديد الأنواع التي يجب أن يرفضها هذا العمود."

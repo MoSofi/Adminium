@@ -538,6 +538,8 @@ const resourceSchema = z
       .optional(),
     /** Image columns any visitor may see, through the rows this resource reads (`GET /public/pictures`). */
     pictures: z.array(columnSchema).min(1).max(4).optional(),
+    /** File columns of product assets any visitor's browser may load, through the rows this resource reads (`GET /public/assets`). */
+    assets: z.array(columnSchema).min(1).max(8).optional(),
   })
   .strict();
 
@@ -763,6 +765,8 @@ export interface CompiledResource {
   unlockBy?: CodeUnlock | null | undefined;
   /** Image columns any visitor may see (`routes/public/pictures.ts`). */
   pictures?: readonly string[] | undefined;
+  /** File columns of product assets any visitor's browser may load (`routes/public/assets.ts`). */
+  assets?: readonly string[] | undefined;
 }
 
 export interface CompiledScope {
@@ -1585,6 +1589,7 @@ export function compileScope(
             },
       unlockBy: r.unlockBy === undefined ? null : { ...r.unlockBy, ...(r.unlockBy.where === undefined ? {} : { where: r.unlockBy.where.map((w) => ({ ...w })) }) },
       pictures: [...(r.pictures ?? [])],
+      assets: [...(r.assets ?? [])],
     });
   }
 
@@ -1897,6 +1902,8 @@ function projectResource(r: CompiledResource): {
   unlock?: true;
   /** Image columns any visitor may see, at `/public/pictures`. */
   pictures?: string[];
+  /** File columns of product assets any visitor's browser may load, at `/public/assets`. */
+  assets?: string[];
 } {
   // Copied, not aliased: this object is serialized straight onto the wire, and
   // handing out the compiled scope's own arrays would let a serializer or a
@@ -1918,6 +1925,7 @@ function projectResource(r: CompiledResource): {
     ...(r.dryRun === true ? { dryRun: true as const } : {}),
     ...(r.unlockBy === undefined || r.unlockBy === null ? {} : { unlock: true as const }),
     ...(r.pictures === undefined || r.pictures.length === 0 ? {} : { pictures: [...r.pictures] }),
+    ...(r.assets === undefined || r.assets.length === 0 ? {} : { assets: [...r.assets] }),
   };
 }
 

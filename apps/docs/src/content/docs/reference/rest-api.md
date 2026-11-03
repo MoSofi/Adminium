@@ -852,6 +852,7 @@ POST /api/v1/public/claim/link/verify
 GET /api/v1/public/files/{ref}/{rowId}/{column}
 POST /api/v1/public/uploads
 GET /api/v1/public/pictures/{keyId}/{ref}/{rowId}/{column}/{fileId}
+GET /api/v1/public/assets/{keyId}/{ref}/{rowId}/{column}/{fileId}
 GET /api/v1/public/add-ons/{key}/settings
 GET /api/v1/public/challenge
 POST /api/v1/public/documents/render
@@ -1531,6 +1532,15 @@ judged by the file's bytes, never its name), `cap` (429, this address sent its d
 bytes), `quota` (507, the space kept for guests' files is full) or `column` (400). A TIFF is kept
 and handed back only as a download. The public client's `upload(ref, column, file)` sends one and
 solves the proof itself. See [Guests' uploads](/reference/manifest/#guests-uploads).
+
+### Assets
+
+`GET /public/assets/{keyId}/{ref}/{rowId}/{column}/{fileId}` serves a product asset any visitor's
+browser may load (a 3D model, a web font, an SVG piece), with no key header, so a viewer's `fetch`
+and a page's `@font-face` can load it; the route answers the browser's preflight. The config's
+`assets` gives the base. Each refusal is `404` `PUBLIC_REF_NOT_FOUND`. See
+[Assets](/reference/manifest/#assets) and
+[Models, fonts and SVG pieces on public pages](/guides/apps/public-assets/).
 
 ### The server's clock
 

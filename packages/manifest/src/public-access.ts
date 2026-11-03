@@ -766,6 +766,13 @@ export const publicAccessSchema = z
     /** Image columns any visitor may see, through the rows this entry reads. */
     pictures: z.array(refSchema).min(1).max(4).optional(),
     /**
+     * File columns of product assets every visitor's browser may load,
+     * through the rows this entry reads (`GET /public/assets`): a preview
+     * model (GLB), a print model (STL, 3MF), a web font (WOFF2), an SVG piece.
+     * Each column holds files by a `file` rule that takes only those kinds.
+     */
+    assets: z.array(refSchema).min(1).max(8).optional(),
+    /**
      * On rows reached through a parent: `columns` are left out unless
      * `unlessHolder` is empty or names the session's own person (a ticket
      * sent to a friend keeps its code from the buyer who sent it).
@@ -1610,6 +1617,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (!entry.methods.includes('POST') && !entry.methods.includes('PATCH')) out.push({ path: at('uploads'), message: "a guest's upload is named by a create or a change, and this entry makes neither" });
       out.push(...uploadIssues(ctx.index, entry.table, entry.uploads, entry.writable ?? [], at('uploads')));
     }
+    if (entry.assets !== undefined) out.push(...assetIssues(entry, entry.assets, entries, ctx, at));
   });
   out.push(...treeIssues(entries, ctx, identities, shareCodes));
   out.push(...personIssues(entries, ctx, identities));
@@ -1785,6 +1793,61 @@ function pictureIssues(
       out.push({ path: at('pictures'), message: `"${entry.table}.${ref}" is kept from readers, so it is no picture for everyone` });
     }
     if (found.rules?.personal === true) out.push({ path: at('pictures'), message: `"${entry.table}.${ref}" is personal data, so it is no picture for everyone` });
+  }
+  return out;
+}
+
+/** The kinds of file a product asset may be (`ASSET_FILE_KINDS` in `schema.ts`, which imports this file). */
+const ASSET_KINDS: readonly string[] = ['svg', 'glb', 'stl', '3mf', 'woff2'];
+
+/**
+ * Product assets every visitor's browser loads: file columns the entry shows,
+ * held to a model's, a font's or an SVG's kinds, which no browser writes. The
+ * same shape as pictures: a viewer `fetch`es a model and `@font-face` loads a
+ * font with no session, so the rows are read by every visitor alike.
+ */
+function assetIssues(
+  entry: PublicAccess,
+  assets: readonly string[],
+  entries: readonly PublicAccess[],
+  ctx: PublicAccessContext,
+  at: (...rest: (string | number)[]) => (string | number)[],
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  if (entry.methods.length !== 1 || entry.methods[0] !== 'GET' || entry.kind === 'availability') {
+    out.push({ path: at('assets'), message: 'assets are served through an entry that only reads rows' });
+  }
+  if (entry.claim !== undefined || entry.claimedBy !== undefined || entry.visibleWith !== undefined) {
+    out.push({ path: at('assets'), message: "assets are for every visitor; a signed-in person's own files are `files`" });
+  }
+  if (entry.unlockBy !== undefined) out.push({ path: at('assets'), message: 'assets are for every visitor; rows a code unlocks are read only by whoever gave the code' });
+  if (entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined) {
+    out.push({ path: at('assets'), message: 'assets are for every visitor; rows read by a signed-in session alone are no asset a page loads for anyone' });
+  }
+  if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at('key'), message: "assets are served through the app's customer key" });
+  const writes = new Set([...(entry.writable ?? []), ...Object.keys(entry.defaults ?? {})]);
+  const shareCodes = shareCodeColumns(entries, entry.table, ctx.index);
+  if (new Set(assets).size !== assets.length) out.push({ path: at('assets'), message: 'an asset column is named twice' });
+  for (const ref of assets) {
+    const found = ctx.index.column(entry.table, ref) as
+      | (ColumnShape & { rules?: { code?: unknown; secret?: boolean; personal?: boolean; file?: { accept?: readonly string[] } } })
+      | undefined;
+    if (found === undefined) {
+      out.push({ path: at('assets'), message: `"${entry.table}" has no column "${ref}"` });
+      continue;
+    }
+    const accept = found.rules?.file?.accept;
+    if (accept === undefined || accept.length === 0 || accept.some((kind) => !ASSET_KINDS.includes(kind))) {
+      out.push({ path: at('assets'), message: `"${entry.table}.${ref}" is not a column of assets: a file rule that takes only ${ASSET_KINDS.join(', ')}` });
+    }
+    if (writes.has(ref)) out.push({ path: at('assets'), message: `"${ref}" is an asset every visitor loads, so a browser never writes it` });
+    if (entry.select !== undefined && !entry.select.includes(ref)) out.push({ path: at('assets'), message: `"${ref}" is not one of the columns the entry shows` });
+    if ((entry.files ?? []).includes(ref)) out.push({ path: at('assets'), message: `"${ref}" is a signed-in person's file, not an asset for everyone` });
+    if ((entry.pictures ?? []).includes(ref)) out.push({ path: at('assets'), message: `"${ref}" is a picture already; a column is one or the other` });
+    if (found.rules?.secret === true || found.rules?.code !== undefined || shareCodes.includes(ref)) {
+      out.push({ path: at('assets'), message: `"${entry.table}.${ref}" is kept from readers, so it is no asset for everyone` });
+    }
+    if (found.rules?.personal === true) out.push({ path: at('assets'), message: `"${entry.table}.${ref}" is personal data, so it is no asset for everyone` });
   }
   return out;
 }

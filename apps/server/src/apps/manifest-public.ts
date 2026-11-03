@@ -349,6 +349,7 @@ function definitionOf(
           },
         }),
     ...(entry.pictures === undefined ? {} : { pictures: [...entry.pictures] }),
+    ...(entry.assets === undefined ? {} : { assets: [...entry.assets] }),
     // An add-on's entry held to the app whose key serves it.
     ...(entry.appColumn === undefined ? {} : { app_column: entry.appColumn }),
     // A create with its child rows, and what it checks.

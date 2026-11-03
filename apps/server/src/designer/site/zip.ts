@@ -100,53 +100,75 @@ function nameOf(bytes: Buffer, utf8: boolean, zip: string): string {
   return bytes.toString('latin1');
 }
 
+/**
+ * The bytes a zip is read from: a buffer held whole (a site template), or a
+ * file read a piece at a time (`files/models.ts`, a 3MF): the rules are the
+ * same either way, so one reader keeps them.
+ */
+export interface ZipBytes {
+  readonly length: number;
+  u16(at: number): number;
+  u32(at: number): number;
+  bytes(from: number, to: number): Buffer;
+}
+
+/** A zip held whole. */
+export function zipBytesOf(zip: Buffer): ZipBytes {
+  return { length: zip.length, u16: (at) => zip.readUInt16LE(at), u32: (at) => zip.readUInt32LE(at), bytes: (from, to) => zip.subarray(from, to) };
+}
+
 /** The entries of a zip, by the rules above. Reads no entry's bytes. */
 export function readZipDirectory(zip: Buffer, label: string): ZipEntry[] {
   if (zip.length > ZIP_MAX_BYTES) throw new ZipRefusal('ZIP_FORM', `${label} is over 25 MB.`);
+  return readZipDirectoryOf(zipBytesOf(zip), label, { maxEntries: ZIP_MAX_ENTRIES });
+}
+
+/** The entries of a zip read from `zip`, held to `maxEntries`, by the rules above. Reads no entry's bytes. */
+export function readZipDirectoryOf(zip: ZipBytes, label: string, limits: { maxEntries: number }): ZipEntry[] {
   const notZip = new ZipRefusal('NOT_A_ZIP', `${label} is not a zip file that can be read.`);
   if (zip.length < 22) throw notZip;
   // The end record: the one whose comment runs exactly to the end. Two that could be it are one too many.
   const ends: number[] = [];
   for (let at = zip.length - 22; at >= Math.max(0, zip.length - 22 - 0xffff); at -= 1) {
-    if (zip.readUInt32LE(at) === SIG_END && at + 22 + zip.readUInt16LE(at + 20) === zip.length) ends.push(at);
+    if (zip.u32(at) === SIG_END && at + 22 + zip.u16(at + 20) === zip.length) ends.push(at);
   }
   const end = ends[ends.length - 1] ?? -1;
   if (end < 0) throw notZip;
-  if (ends.length > 1 || zip.subarray(end + 22).includes(END)) throw form(label, 'its comment holds a second end record');
-  if (end >= 20 && zip.readUInt32LE(end - 20) === SIG_END64_LOCATOR) throw form(label, 'it is a ZIP64 file');
-  const disk = zip.readUInt16LE(end + 4);
-  const directoryDisk = zip.readUInt16LE(end + 6);
-  const onDisk = zip.readUInt16LE(end + 8);
-  const total = zip.readUInt16LE(end + 10);
-  const directorySize = zip.readUInt32LE(end + 12);
-  const directoryAt = zip.readUInt32LE(end + 16);
+  if (ends.length > 1 || zip.bytes(end + 22, zip.length).includes(END)) throw form(label, 'its comment holds a second end record');
+  if (end >= 20 && zip.u32(end - 20) === SIG_END64_LOCATOR) throw form(label, 'it is a ZIP64 file');
+  const disk = zip.u16(end + 4);
+  const directoryDisk = zip.u16(end + 6);
+  const onDisk = zip.u16(end + 8);
+  const total = zip.u16(end + 10);
+  const directorySize = zip.u32(end + 12);
+  const directoryAt = zip.u32(end + 16);
   if ([disk, directoryDisk, onDisk, total].includes(0xffff) || directorySize === 0xffffffff || directoryAt === 0xffffffff) throw form(label, 'it is a ZIP64 file');
   if (disk !== 0 || directoryDisk !== 0 || onDisk !== total) throw form(label, 'it is split over several disks');
   // Counted before the directory is read.
-  if (total > ZIP_MAX_ENTRIES) throw new ZipRefusal('ZIP_TOO_MANY', `${label} has more than ${ZIP_MAX_ENTRIES.toLocaleString('en-US')} files and folders.`);
+  if (total > limits.maxEntries) throw new ZipRefusal('ZIP_TOO_MANY', `${label} has more than ${limits.maxEntries.toLocaleString('en-US')} files and folders.`);
   if (total === 0) throw new ZipRefusal('ZIP_EMPTY', `${label} is empty.`);
   if (directoryAt + directorySize !== end) throw form(label, 'its directory is not where it says');
 
   const entries: (ZipEntry & { end: number })[] = [];
   let at = directoryAt;
   for (let index = 0; index < total; index += 1) {
-    if (at + 46 > end || zip.readUInt32LE(at) !== SIG_CENTRAL) throw form(label, 'its directory is broken');
-    const madeBy = zip.readUInt16LE(at + 4);
-    const flags = zip.readUInt16LE(at + 8);
-    const method = zip.readUInt16LE(at + 10);
-    const crc = zip.readUInt32LE(at + 16);
-    const compressedSize = zip.readUInt32LE(at + 20);
-    const size = zip.readUInt32LE(at + 24);
-    const nameLength = zip.readUInt16LE(at + 28);
-    const extraLength = zip.readUInt16LE(at + 30);
-    const commentLength = zip.readUInt16LE(at + 32);
-    const startDisk = zip.readUInt16LE(at + 34);
-    const external = zip.readUInt32LE(at + 38);
-    const offset = zip.readUInt32LE(at + 42);
+    if (at + 46 > end || zip.u32(at) !== SIG_CENTRAL) throw form(label, 'its directory is broken');
+    const madeBy = zip.u16(at + 4);
+    const flags = zip.u16(at + 8);
+    const method = zip.u16(at + 10);
+    const crc = zip.u32(at + 16);
+    const compressedSize = zip.u32(at + 20);
+    const size = zip.u32(at + 24);
+    const nameLength = zip.u16(at + 28);
+    const extraLength = zip.u16(at + 30);
+    const commentLength = zip.u16(at + 32);
+    const startDisk = zip.u16(at + 34);
+    const external = zip.u32(at + 38);
+    const offset = zip.u32(at + 42);
     const next = at + 46 + nameLength + extraLength + commentLength;
     if (next > end) throw form(label, 'its directory is broken');
-    const nameBytes = zip.subarray(at + 46, at + 46 + nameLength);
-    const extra = zip.subarray(at + 46 + nameLength, at + 46 + nameLength + extraLength);
+    const nameBytes = zip.bytes(at + 46, at + 46 + nameLength);
+    const extra = zip.bytes(at + 46 + nameLength, at + 46 + nameLength + extraLength);
     if (compressedSize === 0xffffffff || size === 0xffffffff || offset === 0xffffffff || startDisk === 0xffff || extraHasZip64(extra, label)) throw form(label, 'it is a ZIP64 file');
     if (startDisk !== 0) throw form(label, 'it is split over several disks');
     if ((flags & 0x1) !== 0 || (flags & 0x40) !== 0 || method === 99) throw new ZipRefusal('ZIP_ENCRYPTED', `${label} is locked with a password, so it cannot be read.`);
@@ -166,18 +188,18 @@ export function readZipDirectory(zip: Buffer, label: string): ZipEntry[] {
     if (type === 'dir' && (size !== 0 || !name.endsWith('/'))) throw form(label, 'a folder holds bytes');
 
     // The local header, checked against the directory.
-    if (offset + 30 > directoryAt || zip.readUInt32LE(offset) !== SIG_LOCAL) throw form(label, "a file's two headers disagree");
-    const localFlags = zip.readUInt16LE(offset + 6);
-    const localMethod = zip.readUInt16LE(offset + 8);
-    const localCrc = zip.readUInt32LE(offset + 14);
-    const localCompressed = zip.readUInt32LE(offset + 18);
-    const localSize = zip.readUInt32LE(offset + 22);
-    const localNameLength = zip.readUInt16LE(offset + 26);
-    const localExtraLength = zip.readUInt16LE(offset + 28);
+    if (offset + 30 > directoryAt || zip.u32(offset) !== SIG_LOCAL) throw form(label, "a file's two headers disagree");
+    const localFlags = zip.u16(offset + 6);
+    const localMethod = zip.u16(offset + 8);
+    const localCrc = zip.u32(offset + 14);
+    const localCompressed = zip.u32(offset + 18);
+    const localSize = zip.u32(offset + 22);
+    const localNameLength = zip.u16(offset + 26);
+    const localExtraLength = zip.u16(offset + 28);
     const dataStart = offset + 30 + localNameLength + localExtraLength;
     if (dataStart > directoryAt) throw form(label, "a file's two headers disagree");
-    if (localFlags !== flags || localMethod !== method || !zip.subarray(offset + 30, offset + 30 + localNameLength).equals(nameBytes)) throw form(label, "a file's two headers disagree");
-    if (extraHasZip64(zip.subarray(offset + 30 + localNameLength, dataStart), label)) throw form(label, 'it is a ZIP64 file');
+    if (localFlags !== flags || localMethod !== method || !zip.bytes(offset + 30, offset + 30 + localNameLength).equals(nameBytes)) throw form(label, "a file's two headers disagree");
+    if (extraHasZip64(zip.bytes(offset + 30 + localNameLength, dataStart), label)) throw form(label, 'it is a ZIP64 file');
     const described = (flags & 0x8) !== 0;
     const agrees = (local: number, central: number): boolean => local === central || (described && local === 0);
     if (!agrees(localCrc, crc) || !agrees(localCompressed, compressedSize) || !agrees(localSize, size)) throw form(label, "a file's two headers disagree");
@@ -185,8 +207,8 @@ export function readZipDirectory(zip: Buffer, label: string): ZipEntry[] {
     let entryEnd = dataEnd;
     if (described) {
       // A descriptor, with or without its signature; either way it says what the directory says.
-      const matches = (from: number): boolean => from + 12 <= directoryAt && zip.readUInt32LE(from) === crc && zip.readUInt32LE(from + 4) === compressedSize && zip.readUInt32LE(from + 8) === size;
-      if (dataEnd + 4 <= directoryAt && zip.readUInt32LE(dataEnd) === SIG_DESCRIPTOR && matches(dataEnd + 4)) entryEnd = dataEnd + 16;
+      const matches = (from: number): boolean => from + 12 <= directoryAt && zip.u32(from) === crc && zip.u32(from + 4) === compressedSize && zip.u32(from + 8) === size;
+      if (dataEnd + 4 <= directoryAt && zip.u32(dataEnd) === SIG_DESCRIPTOR && matches(dataEnd + 4)) entryEnd = dataEnd + 16;
       else if (matches(dataEnd)) entryEnd = dataEnd + 12;
       else throw form(label, "a file's descriptor disagrees with its header");
     }

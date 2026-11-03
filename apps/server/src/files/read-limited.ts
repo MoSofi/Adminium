@@ -148,6 +148,21 @@ export async function ruledFileColumn(meta: MetaDb, input: { connectionId: strin
  * limits stand.
  */
 export async function publicPictureColumn(meta: MetaDb, input: { connectionId: string; table: string; column: string }): Promise<boolean> {
+  return listedByCustomerScope(meta, input, 'pictures');
+}
+
+/**
+ * Whether a column holds product assets every visitor's browser loads: one a
+ * customer scope of the connection lists under an entry's `assets`. Such a
+ * column takes no file of a kind larger than that kind's public cap
+ * (`PUBLIC_ASSET_MAX_BYTES`). Unsure is no, as for pictures.
+ */
+export async function publicAssetColumn(meta: MetaDb, input: { connectionId: string; table: string; column: string }): Promise<boolean> {
+  return listedByCustomerScope(meta, input, 'assets');
+}
+
+/** Whether a customer scope of the connection lists this column under a resource's `pictures` or `assets`. */
+async function listedByCustomerScope(meta: MetaDb, input: { connectionId: string; table: string; column: string }, list: 'pictures' | 'assets'): Promise<boolean> {
   try {
     const scopes = (await publicScopesRepo(meta).listByConnection(input.connectionId)).filter((scope) => scope.side === 'customer');
     if (scopes.length === 0) return false;
@@ -162,13 +177,10 @@ export async function publicPictureColumn(meta: MetaDb, input: { connectionId: s
         return false;
       }
       if (!Array.isArray(resources)) return false;
-      return resources.some((resource: { table?: unknown; pictures?: unknown } | null) =>
-        resource !== null &&
-        typeof resource.table === 'string' &&
-        Array.isArray(resource.pictures) &&
-        resource.pictures.includes(input.column) &&
-        idOf(resource.table) === target,
-      );
+      return resources.some((resource: { table?: unknown; pictures?: unknown; assets?: unknown } | null) => {
+        const listed = resource?.[list];
+        return resource !== null && typeof resource.table === 'string' && Array.isArray(listed) && listed.includes(input.column) && idOf(resource.table) === target;
+      });
     });
   } catch {
     return false;

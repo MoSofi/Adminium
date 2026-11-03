@@ -59,6 +59,7 @@ import { UnsupportedFileTypeError, type FileStore } from '../../files/store.js';
 import type { SniffTypeKey } from '../../files/sniff.js';
 import { mimesForKeys, SNIFF_TYPE_KEYS } from '../../files/sniff.js';
 import { PICTURE_MAX_BYTES } from '../../public-api/picture.js';
+import { assetCapsFor, assetTooLargeWords } from '../../public-api/asset.js';
 import {
   fileIdParams,
   filesAttachBody,
@@ -150,6 +151,13 @@ export interface FilesRoutesDeps {
    * an upload or a copy for it is refused above that, saying why.
    */
   publicPicture?: (input: { connectionId: string; table: string; column: string }) => Promise<boolean>;
+  /**
+   * Whether a column holds product assets every visitor's browser loads (an
+   * entry's `assets`: models, fonts, SVG pieces): such a column takes no
+   * file larger than its kind's cap, so an upload or a copy for it is
+   * refused above that, saying why.
+   */
+  publicAsset?: (input: { connectionId: string; table: string; column: string }) => Promise<boolean>;
   /**
    * A table as the database knows it (`main.sign_offs`), for the name an
    * app's screen gives (`sign_offs`, from its side's config): the grant
@@ -352,10 +360,16 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
     clean: boolean;
     /** A picture every visitor sees: `maxBytes` is at most a public picture's, and a refusal says so. */
     publicPicture: boolean;
+    /** An SVG for a column is kept only cleaned (`files/svg.ts`). */
+    cleanSvg: boolean;
+    /** Product assets every visitor loads: each kind held to its own cap, and a refusal says so. */
+    publicAsset: boolean;
+    maxBytesFor: Partial<Record<SniffTypeKey, number>> | undefined;
   }
 
   /** Why a file is too large for a column, in plain words: a picture visitors see says so. */
-  function tooLargeWords(limits: Pick<UploadLimits, 'maxBytes' | 'publicPicture'>, fallback: string): string {
+  function tooLargeWords(limits: Pick<UploadLimits, 'maxBytes' | 'publicPicture'> & { publicAsset?: boolean | undefined }, fallback: string): string {
+    if (limits.publicAsset === true) return assetTooLargeWords();
     if (!limits.publicPicture) return fallback;
     const mib = Math.round((limits.maxBytes / (1024 * 1024)) * 10) / 10;
     return `Customers see the pictures in this column, so a picture in it can be at most ${String(mib)} MB. Choose a smaller picture, or make this one smaller first.`;
@@ -393,14 +407,25 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
       deps.publicPicture !== undefined &&
       PICTURE_MAX_BYTES <= maxBytes &&
       (await deps.publicPicture({ connectionId, table, column }));
+    const allowedTypes = await allowedTypesFor(limits?.accept);
+    // Product assets every visitor loads: each kind no larger than its cap, the spool no larger than the largest.
+    const publicAsset =
+      column !== undefined && table !== undefined && deps.publicAsset !== undefined && (await deps.publicAsset({ connectionId, table, column }));
+    const caps = publicAsset ? assetCapsFor(allowedTypes) : null;
+    const largest = caps === null ? null : Math.max(0, ...Object.values(caps));
+    const held = publicPicture ? PICTURE_MAX_BYTES : largest !== null && largest > 0 && largest < maxBytes ? largest : maxBytes;
     return {
       block,
       sidecar,
-      maxBytes: publicPicture ? PICTURE_MAX_BYTES : maxBytes,
+      maxBytes: held,
       destinationId: input.destinationId ?? limits?.destinationId,
-      allowedTypes: await allowedTypesFor(limits?.accept),
+      allowedTypes,
       clean: block?.ruled === true,
       publicPicture,
+      // An SVG named for a column that takes SVG is kept cleaned, whoever's rule made it a file column.
+      cleanSvg: block !== null && allowedTypes.includes('svg'),
+      publicAsset: publicAsset && caps !== null && Object.values(caps).some((cap) => cap < maxBytes),
+      maxBytesFor: caps ?? undefined,
     };
   }
 
@@ -551,7 +576,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           }
         }
 
-        const { block, sidecar, maxBytes, destinationId, allowedTypes, clean, publicPicture } = await uploadLimits({
+        const { block, sidecar, maxBytes, destinationId, allowedTypes, clean, publicPicture, cleanSvg, publicAsset, maxBytesFor } = await uploadLimits({
           connectionId,
           table,
           column,
@@ -583,6 +608,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
             allowedTypes,
             uploadedBy: userId,
             clean,
+            cleanSvg,
+            ...(maxBytesFor === undefined ? {} : { maxBytesFor }),
             ...(destinationId === undefined
               ? {}
               : { destinationId: destinationId === LOCAL_DESTINATION_ID ? null : destinationId }),
@@ -608,9 +635,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           });
         } catch (error) {
           if (error instanceof SpoolTooLargeError) {
-            throw new AppError(413, 'FILE_TOO_LARGE', tooLargeWords({ maxBytes, publicPicture }, `That file is larger than the ${String(maxBytes)}-byte limit.`), {
-              maxBytes,
+            throw new AppError(413, 'FILE_TOO_LARGE', tooLargeWords({ maxBytes, publicPicture, publicAsset }, `That file is larger than the ${String(maxBytes)}-byte limit.`), {
+              maxBytes: error.maxBytes,
               ...(publicPicture ? { publicPicture: true } : {}),
+              ...(publicAsset ? { publicAsset: true } : {}),
             });
           }
           if (error instanceof UnsupportedFileTypeError) {
@@ -692,6 +720,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           new AppError(422, 'TOO_LARGE', tooLargeWords(limits, `That file is larger than this column's ${String(limits.maxBytes)}-byte limit.`), {
             maxBytes: limits.maxBytes,
             ...(limits.publicPicture ? { publicPicture: true } : {}),
+            ...(limits.publicAsset ? { publicAsset: true } : {}),
           });
 
         // 2–4, answered alike when the answer is no.
@@ -729,6 +758,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
             allowedTypes: limits.allowedTypes,
             uploadedBy: userId,
             clean: limits.clean,
+            cleanSvg: limits.cleanSvg,
+            ...(limits.maxBytesFor === undefined ? {} : { maxBytesFor: limits.maxBytesFor }),
             ...(limits.destinationId === undefined
               ? {}
               : { destinationId: limits.destinationId === LOCAL_DESTINATION_ID ? null : limits.destinationId }),

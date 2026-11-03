@@ -373,8 +373,12 @@ export function wideningOf(before: unknown, after: PublicScopeDocument): Widenin
     const limits = writeLimits(r);
     // A parent it was visible with, dropped or changed, lets its rows out from under the parent's scope.
     const parentChanged = prior?.visibleWith !== undefined && JSON.stringify(prior.visibleWith) !== JSON.stringify(r.visibleWith);
-    // A code's unlock dropped or changed lets rows out that a code kept; a picture newly shown lets its file out.
-    const unlockChanged = prior !== undefined && (JSON.stringify(prior.unlockBy) !== JSON.stringify(r.unlockBy) || (r.pictures ?? []).some((c) => !(prior.pictures ?? []).includes(c)));
+    // A code's unlock dropped or changed lets rows out that a code kept; a picture or an asset newly shown lets its file out.
+    const unlockChanged =
+      prior !== undefined &&
+      (JSON.stringify(prior.unlockBy) !== JSON.stringify(r.unlockBy) ||
+        (r.pictures ?? []).some((c) => !(prior.pictures ?? []).includes(c)) ||
+        (r.assets ?? []).some((c) => !(prior.assets ?? []).includes(c)));
     // A column a guest may now upload into takes files from strangers it did not take before.
     const uploadsGrew = prior !== undefined && (r.uploads ?? []).some((c) => !(prior.uploads ?? []).includes(c));
     // An entry newly answered by an add-on's stock words (or by other words) tells what it did not tell before.

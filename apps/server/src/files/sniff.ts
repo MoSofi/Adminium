@@ -51,6 +51,12 @@ export const SNIFF_TYPE_KEYS = [
   'markdown',
   'json',
   'tiff',
+  // A shop's product assets: a preview model, two print models and a web font. GLB and WOFF2 by their signatures;
+  // STL and 3MF have none in their head, and are told by their whole bytes (`files/models.ts`) after the head.
+  'glb',
+  'stl',
+  '3mf',
+  'woff2',
 ] as const;
 
 export type SniffTypeKey = (typeof SNIFF_TYPE_KEYS)[number];
@@ -115,7 +121,20 @@ const SIGNATURES: readonly Signature[] = [
   // TIFF, in either byte order: kept and handed back as a download, never drawn on a page (`public-api/private-file.ts`).
   { key: 'tiff', mime: 'image/tiff', ext: 'tif', at: [{ offset: 0, bytes: [0x49, 0x49, 0x2a, 0x00] }] },
   { key: 'tiff', mime: 'image/tiff', ext: 'tif', at: [{ offset: 0, bytes: [0x4d, 0x4d, 0x00, 0x2a] }] },
+  // A binary glTF: `glTF`, then the version (checked whole, with the rest, by `files/models.ts`).
+  { key: 'glb', mime: 'model/gltf-binary', ext: 'glb', at: [{ offset: 0, bytes: ascii('glTF') }] },
+  { key: 'woff2', mime: 'font/woff2', ext: 'woff2', at: [{ offset: 0, bytes: ascii('wOF2') }] },
 ];
+
+/**
+ * The kinds no head can tell, each with what it is stored as: an STL is
+ * reached by its name and confirmed by its form, a 3MF by its zip's own
+ * directory (`files/models.ts`). Listed here so the mime lists below know them.
+ */
+export const MODEL_TYPES = {
+  stl: { key: 'stl', mime: 'model/stl', ext: 'stl' },
+  '3mf': { key: '3mf', mime: 'model/3mf', ext: '3mf' },
+} as const satisfies Readonly<Record<string, SniffedType>>;
 
 /** Office documents are zips; only the head's entry names tell them apart. */
 const OFFICE_BY_ENTRY: readonly { entry: string; mime: string; ext: string }[] = [
@@ -256,5 +275,6 @@ export function mimesForKeys(keys: readonly SniffTypeKey[]): string[] {
   for (const text of Object.values(TEXT_BY_EXTENSION)) if (keys.includes(text.key)) set.add(text.mime);
   if (keys.includes('svg')) set.add('image/svg+xml');
   if (keys.includes('zip')) set.add('application/zip');
+  for (const model of Object.values(MODEL_TYPES)) if (keys.includes(model.key)) set.add(model.mime);
   return [...set].sort();
 }

@@ -29,7 +29,10 @@
  *  - and, a picture, one whose camera notes were taken out as it was
  *    uploaded for a file column: its bytes, cleaned again, are the same
  *    bytes (`public-api/picture.ts`). A picture sent through another door
- *    keeps the place it was taken, and is refused here.
+ *    keeps the place it was taken, and is refused here;
+ *  - and, an SVG, one the cleaner wrote as it was uploaded for a file
+ *    column: cleaned again, the same bytes (`files/svg.ts`). One sent
+ *    through another door was never cleaned, and is refused here.
  *
  * Each refusal is the field's own issue. Whose a file is, whether it exists,
  * and which record holds it are said alike (`file-not-here`): a refusal is
@@ -58,6 +61,7 @@ import { pkLabel } from '../crud/records.js';
 import type { WriteActor, WriteOrigin } from '../crud/write-context.js';
 import { cleanPicture, isPictureMime, PictureRefused, readCapped } from '../public-api/picture.js';
 import { fileIdsIn, namedIn } from './column-values.js';
+import { cleanSvg, isSvgMime, SvgRefused } from './svg.js';
 import { parseRefList, type RefDestination } from './refs.js';
 import { mimesForKeys, SNIFF_TYPE_KEYS, type SniffTypeKey } from './sniff.js';
 import type { FileStore } from './store.js';
@@ -130,6 +134,19 @@ async function cleanAsKept(file: StoredFile, bytesOf: FileBytes | undefined, max
     return createHash('sha256').update(cleanPicture(bytes, file.mime).bytes).digest('hex') === file.sha256;
   } catch (error) {
     if (error instanceof PictureRefused) return false;
+    throw error;
+  }
+}
+
+/** Whether a stored SVG is one the cleaner wrote: its bytes, cleaned again, are the bytes kept. */
+async function svgCleanAsKept(file: StoredFile, bytesOf: FileBytes | undefined, max: number): Promise<boolean> {
+  if (bytesOf === undefined) return false;
+  const bytes = await bytesOf(file, max);
+  if (bytes === undefined) return false;
+  try {
+    return createHash('sha256').update(cleanSvg(bytes)).digest('hex') === file.sha256;
+  } catch (error) {
+    if (error instanceof SvgRefused) return false;
     throw error;
   }
 }
@@ -250,6 +267,10 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
             break;
           }
           if (isPictureMime(file.mime) && !(await cleanAsKept(file, deps.bytesOf, rule.maxBytes))) {
+            refuse(column.name, { code: 'file-not-here' });
+            break;
+          }
+          if (isSvgMime(file.mime) && !(await svgCleanAsKept(file, deps.bytesOf, rule.maxBytes))) {
             refuse(column.name, { code: 'file-not-here' });
             break;
           }
