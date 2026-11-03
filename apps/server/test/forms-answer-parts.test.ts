@@ -11,16 +11,26 @@ import { describe, expect, it } from 'vitest';
 
 import { formsResource } from '../src/forms/scope.js';
 import { createFormCaps, FORM_PER_ADDRESS_HOUR, FORM_PER_EMAIL_DAY } from '../src/forms/caps.js';
-import { confirmKey, confirmLinkLive, CONFIRM_LINK_MS, makeConfirmToken, readConfirmToken } from '../src/forms/confirm-token.js';
+import { confirmAddressHash, confirmAddressMatches, confirmKey, confirmLinkLive, CONFIRM_LINK_MS, makeConfirmToken, readConfirmToken } from '../src/forms/confirm-token.js';
 import { answerLines, firstNameOf, unlinked } from '../src/forms/mail.js';
 import { capKey } from '../src/public-api/anonymous-caps.js';
 import { TEST_SECRET } from './helpers.js';
 import { META_ENGINES } from './meta-dialects.js';
 
-const claim = { addOn: 'forms', form: 'frm_1', answer: 'ans_1', purpose: 'newsletter' as const, issuedAt: 1_700_000_000_000 };
+const claim = { addOn: 'forms', form: 'frm_1', answer: 'ans_1', purpose: 'newsletter' as const, issuedAt: 1_700_000_000_000, addressHash: confirmAddressHash(confirmKey(TEST_SECRET), 'Ana@Example.test ') };
 
 describe('the confirm token', () => {
   const key = confirmKey(TEST_SECRET);
+
+  it('carries a keyed hash of the address, never the address, and matches only that address', () => {
+    const token = makeConfirmToken(key, 'inst-a', claim);
+    expect(Buffer.from(token.split('~')[0]!, 'base64url').toString('utf8')).not.toMatch(/ana@/i);
+    const read = readConfirmToken(key, 'inst-a', token)!;
+    expect(confirmAddressMatches(key, read, 'ana@example.test')).toBe(true);
+    expect(confirmAddressMatches(key, read, 'eve@example.test')).toBe(false);
+    // Under another secret the same address hashes otherwise.
+    expect(confirmAddressHash(confirmKey(`${TEST_SECRET}x`), 'ana@example.test')).not.toBe(claim.addressHash);
+  });
 
   it('reads back what it was made with, for this install only', () => {
     const token = makeConfirmToken(key, 'inst-a', claim);

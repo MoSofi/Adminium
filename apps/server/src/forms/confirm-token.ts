@@ -12,9 +12,14 @@
  *   - `a`: the forms add-on, `f`: the form's row, `r`: the answer's row;
  *   - `p`: the purpose the tick asked for (`newsletter`, `surveys`);
  *   - `t`: when it was made (epoch ms). It works for {@link CONFIRM_LINK_DAYS}
- *     days after that, and then says "too old".
- * No address: the page reads it from the answer, so an answer erased leaves
- * the link saying nothing about anyone.
+ *     days after that, and then says "too old";
+ *   - `h`: a keyed hash of the address the mail went to (trimmed, lower
+ *     case), never the address itself.
+ * The page reads the address from the answer, so an answer erased leaves the
+ * link saying nothing about anyone; and it confirms only while the answer
+ * still holds the address the mail went to, so an answer whose address was
+ * changed since (it never should be: Adminium alone writes answers)
+ * confirms nobody.
  *
  * Signed with a key of its own, derived from `ADMINIUM_SECRET` under its own
  * salt. A token changed by one byte, made by another install or under
@@ -31,6 +36,8 @@ export const CONFIRM_LINK_DAYS = 30;
 export const CONFIRM_LINK_MS = CONFIRM_LINK_DAYS * 24 * 60 * 60_000;
 
 const SIGN_SALT = 'adminium:sign-up-confirm:sign:v1';
+/** What the address's hash is made under, before the address: one key, its two uses kept apart. */
+const ADDRESS_LABEL = 'address\u0000';
 const PURPOSES: ReadonlySet<string> = new Set(['newsletter', 'surveys']);
 /** The longest token read. */
 const TOKEN_MAX = 1024;
@@ -44,6 +51,8 @@ export interface ConfirmClaim {
   purpose: 'newsletter' | 'surveys';
   /** When it was made, epoch ms. */
   issuedAt: number;
+  /** The keyed hash of the address the mail went to ({@link confirmAddressHash}). */
+  addressHash: string;
 }
 
 interface Payload {
@@ -54,6 +63,7 @@ interface Payload {
   r: string;
   p: string;
   t: number;
+  h: string;
 }
 
 /** The key confirm tokens are signed under. */
@@ -65,9 +75,21 @@ function sign(key: Buffer, text: string): string {
   return createHmac('sha256', key).update(text).digest('base64url');
 }
 
+/** The keyed hash of an address a confirm link is for: trimmed and in lower case first, as answers keep it. */
+export function confirmAddressHash(key: Buffer, address: string): string {
+  return sign(key, `${ADDRESS_LABEL}${address.trim().toLowerCase()}`);
+}
+
+/** Whether `address` is the one the link's hash was made from. */
+export function confirmAddressMatches(key: Buffer, claim: Pick<ConfirmClaim, 'addressHash'>, address: string): boolean {
+  const want = Buffer.from(confirmAddressHash(key, address), 'utf8');
+  const got = Buffer.from(claim.addressHash, 'utf8');
+  return want.length === got.length && timingSafeEqual(want, got);
+}
+
 /** A token for one waiting sign-up. */
 export function makeConfirmToken(key: Buffer, install: string, claim: ConfirmClaim): string {
-  const payload: Payload = { v: 1, i: install, a: claim.addOn, f: claim.form, r: claim.answer, p: claim.purpose, t: claim.issuedAt };
+  const payload: Payload = { v: 1, i: install, a: claim.addOn, f: claim.form, r: claim.answer, p: claim.purpose, t: claim.issuedAt, h: claim.addressHash };
   const text = Buffer.from(JSON.stringify(payload)).toString('base64url');
   return `${text}~${sign(key, text)}`;
 }
@@ -91,7 +113,8 @@ export function readConfirmToken(key: Buffer, install: string, token: unknown): 
   if (payload.v !== 1 || payload.i !== install) return null;
   if (typeof payload.a !== 'string' || typeof payload.f !== 'string' || typeof payload.r !== 'string' || typeof payload.t !== 'number' || !Number.isFinite(payload.t)) return null;
   if (typeof payload.p !== 'string' || !PURPOSES.has(payload.p)) return null;
-  return { addOn: payload.a, form: payload.f, answer: payload.r, purpose: payload.p as ConfirmClaim['purpose'], issuedAt: payload.t };
+  if (typeof payload.h !== 'string' || payload.h === '') return null;
+  return { addOn: payload.a, form: payload.f, answer: payload.r, purpose: payload.p as ConfirmClaim['purpose'], issuedAt: payload.t, addressHash: payload.h };
 }
 
 /** Whether a link made at `issuedAt` still works at `now`. */

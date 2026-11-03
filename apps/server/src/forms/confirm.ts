@@ -16,7 +16,9 @@
  *    person's entry stays: it has no address to lift;
  *  - says "too old" for a link past its 30 days, an answer no longer there
  *    (erased) or one the sweep let go (`expired`), and "already" for one
- *    confirmed before. The same pages whether or not the address is known
+ *    confirmed before; "This link doesn't work" for an answer that no
+ *    longer holds the address the mail went to (the token carries its keyed
+ *    hash). The same pages whether or not the address is known
  *    anywhere else.
  * The sweep (`expirePending`) lets a sign-up go 30 days after its answer.
  *
@@ -36,7 +38,7 @@ import type { ConsentService } from '../consent/index.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { bindWriteValue } from '../crud/write-values.js';
 import { peopleTablesOf } from '../people/tables-of.js';
-import { CONFIRM_LINK_MS, confirmKey, confirmLinkLive, readConfirmToken, type ConfirmClaim } from './confirm-token.js';
+import { CONFIRM_LINK_MS, confirmAddressMatches, confirmKey, confirmLinkLive, readConfirmToken, type ConfirmClaim } from './confirm-token.js';
 
 export interface FormsConfirmDeps {
   meta: MetaDb;
@@ -123,6 +125,8 @@ export function createFormsConfirm(deps: FormsConfirmDeps) {
     const waiting = await answerOf(claim);
     const address = text(waiting?.row['email']);
     if (waiting === null || address === null) return { claim, state: { state: 'too-old' }, waiting: null };
+    // The answer must still hold the address the mail went to: one changed since confirms nobody.
+    if (!confirmAddressMatches(key, claim, address)) return { claim, state: { state: 'dead' }, waiting: null };
     const confirm = waiting.row['confirm'];
     if (confirm === 'confirmed') return { claim, state: { state: 'already' }, waiting };
     if (confirm !== 'pending' || waiting.row['consent_purpose'] !== claim.purpose) return { claim, state: { state: 'too-old' }, waiting: null };

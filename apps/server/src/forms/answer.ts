@@ -78,7 +78,7 @@ import { createFormCaps, type CapCharge, type FormCap } from './caps.js';
 import type { LiveForm } from './catalog.js';
 import type { FormsFiles, QuestionFiles } from './files.js';
 import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from './invitation.js';
-import { confirmKey, makeConfirmToken } from './confirm-token.js';
+import { confirmAddressHash, confirmKey, makeConfirmToken } from './confirm-token.js';
 import { alertLimit, formsMailBlocked, holdersOf, sendConfirmMail, tellStaff, toldBy } from './mail.js';
 import type { FormsScopes, FormsTable } from './scope.js';
 import { businessToday } from './view.js';
@@ -499,7 +499,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       /** The confirmation mail, to the address the answer keeps: the yes waits for its click. */
       const askToConfirm = async (to: string) => {
         const install = String((await settingsRepo(meta).get('system.instanceId')) ?? '');
-        const token = makeConfirmToken(confirmSecret, install, { addOn: live.addOn, form: live.id, answer: answerId, purpose: tick.purpose, issuedAt: at });
+        const token = makeConfirmToken(confirmSecret, install, { addOn: live.addOn, form: live.id, answer: answerId, purpose: tick.purpose, issuedAt: at, addressHash: confirmAddressHash(confirmSecret, to) });
         await sendConfirmMail({ meta, secret: deps.secret, caps, capKey: capSecret, to, language: body.language, name: checked.name, purpose: tick.purpose, token, at, logger: request.log }).catch((error: unknown) => {
           request.log.warn({ err: error, form: live.id }, 'forms door: the confirmation mail could not be queued');
         });

@@ -547,6 +547,26 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect((await consent.stateFor({ person: { connectionId: h.connectionId, table: enquiriesId, key: String(una['became_key']) } }, 'newsletter')).state).toBe('yes');
   });
 
+  it.skipIf(!available)('a link whose answer no longer holds the address the mail went to confirms nobody', async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    await consent.withdraw({ address: 'vic@target.example', purpose: 'newsletter', source: 'unsubscribe', detail: 'link-all' });
+    await consent.stop.add({ address: 'vic@target.example', reason: 'link' });
+    expect((await send('keep-only', { qname: 'Mallory', qemail: 'mallory@own.example', qnews: true })).statusCode).toBe(200);
+    const [mail] = (await mails()).filter((one) => one.templateKey === 'sign-up-confirm');
+    const token = /\/m\/c\/([A-Za-z0-9_~-]+)/.exec(mail!.html)![1]!;
+    // The pending answer's address changed under it (as a write to the answers table would).
+    const { db } = await h.manager.data(h.connectionId);
+    await db.updateTable(answersTable).set({ email: 'vic@target.example' } as never).where('email' as never, '=', 'mallory@own.example' as never).execute();
+    const shown = await composed.app.inject({ method: 'GET', url: `/m/c/${token}`, headers: { host: HOST } });
+    expect(shown.body).toContain('This link doesn’t work.');
+    expect(shown.body).not.toContain('vic@target.example');
+    const posted = await composed.app.inject({ method: 'POST', url: `/m/c/${token}`, headers: { host: HOST, 'content-type': 'application/x-www-form-urlencoded' }, payload: 'act=confirm' });
+    expect(posted.body).toContain('This link doesn’t work.');
+    expect((await answerRows('frm_keep')).find((row) => row['email'] === 'vic@target.example')!['confirm']).toBe('pending');
+    expect((await consent.stateFor({ address: 'vic@target.example' }, 'newsletter')).state).toBe('no');
+    expect(await consent.stop.has('vic@target.example')).toBe(true);
+  });
+
   it.skipIf(!available)('a link 31 days old is too old, with the business’s website', async () => {
     const sent = await send('keep-only', { qname: 'Olga', qemail: 'olga@old.example', qnews: true });
     expect(sent.statusCode).toBe(200);
