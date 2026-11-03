@@ -31,7 +31,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { FormDefinitionInput, FormSettingsInput } from '@adminium/add-on-contracts/forms';
-import { paymentSettingsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
+import { paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 
 import { formsAddOn } from '../../../packages/manifest/test/forms-fixture.js';
 import { recordDeciderTrust } from '../src/add-ons/decider-trust.js';
@@ -179,7 +179,10 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
   let answersTable = '';
   let enquiries = '';
   let enquiriesId = '';
+  let answersId = '';
   let repId = '';
+  let nilsId = '';
+  let leaId = '';
   let seq = 0;
 
   const t = (ref: string) => `crm_${ref}`;
@@ -237,6 +240,7 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     const snapshot = await h.meta.db.selectFrom('adminium_schema_snapshots').select(['schema']).where('connectionId', '=', h.connectionId).orderBy('createdAt', 'desc').executeTakeFirstOrThrow();
     const schema = (typeof snapshot.schema === 'string' ? JSON.parse(snapshot.schema) : snapshot.schema) as { tables: { id: string; name: string }[] };
     enquiriesId = schema.tables.find((table) => table.name === enquiries)!.id;
+    answersId = schema.tables.find((table) => table.name === answersTable)!.id;
     const secretsId = schema.tables.find((table) => table.name === t('secrets'))!.id;
 
     const tell = [{ kind: 'role' as const, id: 'crm-rep' }];
@@ -259,10 +263,24 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     await settings.set('email.smtp', { host: '127.0.0.1', port: 9, user: 'postmaster', passEncrypted: encryptSecret('not-a-real-password', emailSecretKey(TEST_SECRET)), from: 'Desk <no-reply@desk.test>', secure: false }, { updatedBy: null });
     await paymentSettingsRepo(h.meta).set(PAY_PAGE_DOC, payPageSchema, { shopName: 'Meridian', logoFileId: null, contactEmail: 'hello@meridian.example', contactPhone: null, shopCountry: 'GB', showLines: false });
 
-    // A rep, who is told of each answer.
+    // A rep, who is told of each answer, and reads the forms add-on's answers.
     const rep = await usersRepo(h.meta).create({ email: 'rita@meridian.example', name: 'Rita' });
-    await rolesRepo(h.meta).assignToUser(rep.id, (await rolesRepo(h.meta).findBySlug('crm-rep'))!.id);
+    const repRole = (await rolesRepo(h.meta).findBySlug('crm-rep'))!;
+    await rolesRepo(h.meta).assignToUser(rep.id, repRole.id);
+    const answersRead = { read: true, create: false, update: false, delete: false, export: false, import: false };
+    await permissionsRepo(h.meta).grant(repRole.id, 'table', `${h.connectionId}/${answersId}`, answersRead as never);
     repId = rep.id;
+    // Two more a form names: one who does not read the answers, one who reads only another form's.
+    const nils = await usersRepo(h.meta).create({ email: 'nils@meridian.example', name: 'Nils' });
+    nilsId = nils.id;
+    const lea = await usersRepo(h.meta).create({ email: 'lea@meridian.example', name: 'Lea' });
+    const otherForm = await rolesRepo(h.meta).create({ slug: 'other-form-reader', name: 'Other form' });
+    await permissionsRepo(h.meta).grant(otherForm.id, 'table', `${h.connectionId}/${answersId}`, { ...answersRead, rowLimit: { read: { reach: 'all', while: { column: 'form_id', in: ['frm_other'] } } } } as never);
+    await rolesRepo(h.meta).assignToUser(lea.id, otherForm.id);
+    leaId = lea.id;
+    const named = [{ kind: 'role' as const, id: 'crm-rep' }, { kind: 'person' as const, id: nilsId }, { kind: 'person' as const, id: leaId }];
+    await insertForm('frm_told', 'told', { tell: named, limits: { perHour: 200, harder: false } });
+    await insertForm('frm_told_cap', 'told-capped', { tell: named, limits: { perHour: 1, harder: false } });
     const { db } = await h.manager.data(h.connectionId);
     await db.insertInto(t('contacts')).values({ id: 1, name: 'Marta on file', email: 'marta@cobalt.example' } as never).execute();
 
@@ -596,6 +614,28 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect(staffMail.html).not.toMatch(/<a [^>]*href="https:\/\/evil/);
     expect(staffMail.text).not.toContain('https://evil.example');
     expect(staffMail.text).not.toContain('www.evil.example');
+  });
+
+  it.skipIf(!available)('only those the form names who may read the answer are told: no grant, or rows limited to another form, are skipped; the cap’s alert alike', async () => {
+    const noticesOf = async (userId: string, kind: string) => (await h.meta.db.selectFrom('adminium_notifications').select(['actionUrl']).where('userId', '=', userId).where('kind', '=', kind).execute()).length;
+    const before = { rita: await noticesOf(repId, 'forms.answer'), nils: await noticesOf(nilsId, 'forms.answer'), lea: await noticesOf(leaId, 'forms.answer') };
+    const sent = await send('told', { qname: 'Tia', qemail: 'tia@told.example' });
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect(await noticesOf(repId, 'forms.answer')).toBe(before.rita + 1);
+    expect(await noticesOf(nilsId, 'forms.answer')).toBe(before.nils);
+    expect(await noticesOf(leaId, 'forms.answer')).toBe(before.lea);
+    const staffMail = (await mails()).map((mail) => mail.to);
+    expect(staffMail).toContain('rita@meridian.example');
+    expect(staffMail).not.toContain('nils@meridian.example');
+    expect(staffMail).not.toContain('lea@meridian.example');
+
+    const ip = '192.0.2.77';
+    expect((await send('told-capped', { qname: 'Una', qemail: 'una@told.example' }, { ip })).statusCode).toBe(200);
+    expect((await send('told-capped', { qname: 'Una', qemail: 'una@told.example' }, { ip })).statusCode).toBe(429);
+    expect(await noticesOf(repId, 'forms.limit')).toBeGreaterThan(0);
+    expect(await noticesOf(nilsId, 'forms.limit')).toBe(0);
+    // Lea holds the read grant (limited to other rows): the alert shows no answer, so the grant is enough.
+    expect(await noticesOf(leaId, 'forms.limit')).toBe(1);
   });
 
   it.skipIf(!available)('a hand-uploaded package that declares forms serves nothing', async () => {

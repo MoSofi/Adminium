@@ -46,7 +46,8 @@
  *     click instead, or, with no address to mail, writes nothing. No tick,
  *     nothing about consent;
  *  8. staff are told (the form's "Tell", and on a survey only when its
- *     low-score rule holds).
+ *     low-score rule holds): only those who may read this answer in the
+ *     add-on's answers table when it is sent; the rest are skipped.
  * Mail and notices come after the answer is kept, and never undo it.
  */
 import { createHash, randomUUID } from 'node:crypto';
@@ -79,7 +80,7 @@ import type { LiveForm } from './catalog.js';
 import type { FormsFiles, QuestionFiles } from './files.js';
 import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from './invitation.js';
 import { confirmAddressHash, confirmKey, makeConfirmToken } from './confirm-token.js';
-import { alertLimit, formsMailBlocked, holdersOf, sendConfirmMail, tellStaff, toldBy } from './mail.js';
+import { alertLimit, answerReaders, formsMailBlocked, holdersOf, sendConfirmMail, tellStaff, toldBy, type AnswersAt } from './mail.js';
 import type { FormsScopes, FormsTable } from './scope.js';
 import { businessToday } from './view.js';
 import type { ListedWebsites } from './websites.js';
@@ -271,7 +272,11 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       meta,
       caps,
       hub: deps.hub?.(),
-      people: await toldBy(meta, live.form.settings.tell),
+      // Those the form tells who may read its answers (the alert shows none, so the grant alone).
+      people: async () => {
+        const answers = await answersTarget(live);
+        return answers === null ? [] : answerReaders(meta, await toldBy(meta, live.form.settings.tell), { connectionId: live.connectionId, table: answers.target.table, model: answers.target.view.model, db: answers.target.db });
+      },
       // Nobody told: those who may change the form.
       fallback: () => (formsTable === null ? Promise.resolve([]) : holdersOf(meta, `table:${live.connectionId}:${formsTable}:update`)),
       form: { addOn: live.addOn, id: live.id, perHour: live.form.settings.limits.perHour, name: live.form.definition.title as Record<string, string> },
@@ -543,7 +548,9 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     const tellWhen = form.settings.tellWhen;
     const lowEnough = tellWhen === undefined || (typeof checked.values[tellWhen.question] === 'number' && (checked.values[tellWhen.question] as number) <= tellWhen.atMost);
     if (form.settings.tell.length > 0 && lowEnough) {
-      const people = await toldBy(meta, form.settings.tell);
+      // Only those who may read this answer in the add-on's answers table now: the rest are skipped.
+      const place: AnswersAt = { connectionId: live.connectionId, table: answers.target.table, model: answers.target.view.model, db: answers.target.db };
+      const people = await answerReaders(meta, await toldBy(meta, form.settings.tell), place, { [answers.pk]: answerId });
       await tellStaff({
         meta,
         hub,

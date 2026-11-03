@@ -33,6 +33,14 @@ import { translatorFor } from '../i18n/server-i18n.js';
 import { businessZone, notify, type NotificationPublisher } from '../notifications/notify.js';
 import { HOUR_MS, linkFreeText, mailboxOf, NAME_RULE } from '../public-api/anonymous-caps.js';
 import { DAY_MS } from '../public-api/claim-code.js';
+import type { Kysely } from 'kysely';
+
+import type { EffectiveModel } from '../connections/effective-schema.js';
+import type { SourceDatabase } from '../connections/manager.js';
+import type { ResolvedTable } from '../crud/identifiers.js';
+import type { Row } from '../crud/mask.js';
+import { fetchVisible, rowLimitFor } from '../crud/row-limit.js';
+import { rowLimitContextOf } from '../crud/row-limit-context.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { businessName } from '../privacy/business.js';
 import type { FormCap, FormCaps } from './caps.js';
@@ -159,6 +167,41 @@ export async function toldBy(meta: MetaDb, tell: readonly { kind: 'role' | 'pers
   return out.sort();
 }
 
+/** Where a forms add-on's answers are, as {@link answerReaders} asks about them. */
+export interface AnswersAt {
+  connectionId: string;
+  table: ResolvedTable;
+  model: Pick<EffectiveModel, 'tables' | 'relations' | 'dialect'>;
+  db: Kysely<SourceDatabase>;
+}
+
+/**
+ * Of the people a form tells, those who may read its answers now (asked at
+ * send time, so a grant taken away since the form named them counts): the
+ * read grant of the add-on's answers table, and, when a role of theirs
+ * holds them to some of its rows, this answer among the rows they reach
+ * (`key`; with none, as for a cap's alert, which shows no answer, the grant
+ * alone). Anyone else is skipped without a word: no bell, no e-mail.
+ */
+export async function answerReaders(meta: MetaDb, people: readonly string[], at: AnswersAt, key?: Row): Promise<string[]> {
+  const permission = `table:${at.connectionId}:${at.table.id}:read`;
+  const out: string[] = [];
+  for (const userId of people) {
+    try {
+      const set = await resolvePermissionSet(meta, { kind: 'user', id: userId, label: '' });
+      if (!permissionSetAllows(set, permission)) continue;
+      if (key !== undefined) {
+        const rows = await rowLimitContextOf(meta, set, at.connectionId, at.model);
+        if (rows !== null && rowLimitFor(rows, at.table.id, 'read') !== null && (await fetchVisible(rows, at.db, at.table, key, 'read')) === undefined) continue;
+      }
+      out.push(userId);
+    } catch {
+      // A person whose reach cannot be read is not told.
+    }
+  }
+  return out;
+}
+
 /** The people who hold `permission`: whom a cap's alert goes to when the form tells nobody. */
 export async function holdersOf(meta: MetaDb, permission: string): Promise<string[]> {
   const out: string[] = [];
@@ -219,8 +262,8 @@ export interface LimitAlertInput {
   meta: MetaDb;
   caps: FormCaps;
   hub?: NotificationPublisher | undefined;
-  /** Whom the form tells; when nobody, those who may change the form (`fallback`). */
-  people: readonly string[];
+  /** Whom the form tells, read once the alert is due (not on every answer a tripped cap refuses); when nobody, those who may change the form (`fallback`). */
+  people: () => Promise<string[]>;
   fallback: () => Promise<string[]>;
   form: { addOn: string; id: string; perHour: number; name: Readonly<Record<string, string>> };
   cap: FormCap;
@@ -238,7 +281,8 @@ export async function alertLimit(input: LimitAlertInput): Promise<number> {
   const { meta } = input;
   try {
     if (!(await input.caps.once(`form-alert:${input.form.addOn}:${input.form.id}`.slice(0, 191), 'alert', 1, HOUR_MS, input.at))) return 0;
-    const people = input.people.length > 0 ? input.people : await input.fallback();
+    const named = await input.people();
+    const people = named.length > 0 ? named : await input.fallback();
     let told = 0;
     for (const userId of people) {
       const i18n = await translatorFor(meta, userId);
