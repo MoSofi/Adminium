@@ -815,6 +815,12 @@ interface PublicAccessContext {
   answersAvailability: (table: string) => boolean;
   /** The add-ons whose stock words an entry may be answered by: the ones the manifest names, and itself when it is one. Absent: not checked. */
   addOns?: ReadonlySet<string> | undefined;
+  /**
+   * The manifest is an add-on's: its entries with no key ride the `customer`
+   * key of each app it is attached to, whose own sign-in opens the sessions
+   * they are read with.
+   */
+  ridesAppKeys?: boolean | undefined;
   /** The table's limits, as it declares them (absent: the caller does not say). */
   capacityOf?: (table: string) => Capacity | undefined;
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
@@ -2475,7 +2481,9 @@ function personIssues(
     // A read for the holder of a session alone (no claim of its own): the settings a signed-in guest may see.
     if (entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined) {
       if (entry.methods.length !== 1 || entry.methods[0] !== 'GET') out.push({ path: at('methods'), message: 'a read for a signed-in guest alone only reads' });
-      if (!identities.has(key)) out.push({ path: at('level'), message: `the "${key}" key signs nobody in, so no session could read this` });
+      // An add-on's entry on an app's key is read with a session the app's own sign-in opened (a guest who found their order).
+      const appSignsIn = ctx.ridesAppKeys === true && key === CUSTOMER_KEY;
+      if (!identities.has(key) && !appSignsIn) out.push({ path: at('level'), message: `the "${key}" key signs nobody in, so no session could read this` });
       if (entry.select === undefined) out.push({ path: at('select'), message: 'a read for a signed-in guest lists what it shows; without select it would show every column' });
       const signIn = identities.get(key)?.entry.claim;
       const verifiedOnly = signIn !== undefined && (claimKind(signIn) === 'link' || ('own' in signIn && signIn.own === true));

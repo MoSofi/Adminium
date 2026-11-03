@@ -31,7 +31,8 @@
  *  - `consent`: a yes/no column that mirrors one purpose of the consent log
  *    (`newsletter` or `surveys`). With none, the consent log alone holds it;
  *  - `copies`: columns on OTHER tables that hold this person's address, name or phone
- *    (a quote's recipient, a signer), each with the link back to the person
+ *    (a quote's recipient, a signer), or other details of theirs (`details`,
+ *    in text or JSON: a design's words), each with the link back to the person
  *    when there is one. Found and exported with the person, and blanked when
  *    they are erased (but not on a table the law keeps). A copy may sit on a
  *    table of an add-on the app requires (`addOn`): its `via` is then the
@@ -73,8 +74,13 @@ export const PEOPLE_KINDS = ['people', 'companies'] as const;
 export const CONSENT_PURPOSES = ['newsletter', 'surveys'] as const;
 /** A first name read as the first word of the name column. */
 export const FIRST_WORD_OF_NAME = 'firstWordOfName';
-/** What a copy of a person holds. */
-export const COPY_HOLDS = ['email', 'name', 'phone'] as const;
+/**
+ * What a copy of a person holds. `details`: anything else of theirs kept on
+ * the row, in a `text` or a `json` column (the words and choices of a design
+ * they made, `{"line1": "Mum & Dad 1985"}`). It finds nobody: its row is
+ * theirs by a link, as every copy's is. A `json` column holds only details.
+ */
+export const COPY_HOLDS = ['email', 'name', 'phone', 'details'] as const;
 /** The most people tables one app declares, and copies one entry lists. */
 export const PEOPLE_MAX = 8;
 export const PEOPLE_COPIES_MAX = 32;
@@ -346,7 +352,8 @@ export function peopleIssues<C extends PeopleColumn>(
       const id = `${copy.table}.${copy.column}`;
       if (seen.has(id)) out.push({ path: here('column'), message: `"${id}" is listed twice` });
       seen.add(id);
-      col(copy.table, copy.column, ['text'], here('column'), `a text column (${copy.holds === 'email' ? 'an address' : copy.holds === 'phone' ? 'a phone number' : 'a name'})`);
+      // Details may be kept as JSON (a design's words); an address, a name or a number is text, which a search reads.
+      col(copy.table, copy.column, copy.holds === 'details' ? ['text', 'json'] : ['text'], here('column'), copy.holds === 'details' ? 'a text or json column (their details)' : `a text column (${copy.holds === 'email' ? 'an address' : copy.holds === 'phone' ? 'a phone number' : 'a name'})`);
       if (copy.via !== undefined) {
         const link = col(copy.table, copy.via, ['fk'], here('via'), `a link to "${entry.table}"`);
         if (link?.type === 'fk' && link.references !== entry.table) out.push({ path: here('via'), message: `"${copy.table}.${copy.via}" links to "${link.references ?? ''}", not to "${entry.table}"` });

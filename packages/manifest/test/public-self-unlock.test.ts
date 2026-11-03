@@ -78,14 +78,15 @@ describe('the one key of an add-on', () => {
   it('takes no staff sign-in, no switch and no peak', () => {
     const roles = [{ key: 'desk', name: 'Desk', permissions: ['table:@cards:read'] }];
     const staffed = issuesOf(kit({ roles, publicAccess: [LINK], publicKeys: { 'card-link': { requiresStaff: { role: 'desk' } } } })).join('\n');
-    expect(staffed).toContain('publicKeys.card-link.requiresStaff: an add-on\'s key opens one row by its link and only reads: it takes no "requiresStaff"');
+    expect(staffed).toContain('publicKeys.card-link.requiresStaff: an add-on\'s key opens one row by its link: it takes no "requiresStaff"');
     const peak = issuesOf(kit({ publicAccess: [LINK], publicKeys: { 'card-link': { peak: { reads: 3000, writes: 300 } } } })).join('\n');
     expect(peak).toContain('it takes no "peak"');
   });
 
-  it('claims by a token staff never see, and never as the row\'s own link', () => {
+  it('claims by a token staff never see, as the row\'s own link only from the floor that changes a row through it', () => {
+    // Below the floor an own link is a word the server does not read yet.
     const own = issuesOf(kit({ publicAccess: [{ ...LINK, claim: { by: 'token', column: 'link_token', own: true } }], publicKeys: { 'card-link': {} } })).join('\n');
-    expect(own).toContain("an add-on's link key claims by token, and never as the row's own link");
+    expect(own).toContain('0.3.43');
     const shown = { ...CARDS, columns: CARDS.columns.map((column) => (column.ref === 'link_token' ? { ...column, rules: { code: { length: 16 } } } : column)) };
     expect(issuesOf(kit({ publicAccess: [LINK], publicKeys: { 'card-link': {} } }, shown)).join('\n')).toContain('give "cards.link_token" rules.code {"length": 16, "hiddenFromStaff": true}');
   });
