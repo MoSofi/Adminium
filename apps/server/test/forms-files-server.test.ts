@@ -35,7 +35,7 @@ import { solveProof } from '../src/public-api/proof.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
-import { published, SHOWROOM, SHOWROOM_SETTINGS } from './forms-door.helpers.js';
+import { published, SHOWROOM, SHOWROOM_SETTINGS, words } from './forms-door.helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
 
@@ -76,14 +76,14 @@ describe.each(LEGS)('a form’s files on the real server — %s', (dialect, avai
   }
 
   /** A file uploaded through the file door, from `ip`, for the form at `slug`. */
-  async function upload(slug: string, ip = '127.0.0.1'): Promise<string> {
+  async function upload(slug: string, ip = '127.0.0.1', body: Buffer = PDF): Promise<string> {
     const challenge = (await composed.app.inject({ method: 'GET', url: `/x/forms/api/${slug}/challenge`, headers: { host: HOST }, remoteAddress: ip })).json() as { id: string; salt: string; difficulty: number };
     const reply = await composed.app.inject({
       method: 'POST',
       url: `/x/forms/api/${slug}/files?q=qfiles&name=plan.pdf`,
       remoteAddress: ip,
       headers: { host: HOST, origin: ORIGIN, 'content-type': 'application/octet-stream', 'x-adminium-proof': `${challenge.id}.${solveProof(challenge.salt, challenge.difficulty)}` },
-      payload: PDF,
+      payload: body,
     });
     expect(reply.statusCode, reply.body).toBe(200);
     return (reply.json() as { id: string }).id;
@@ -185,6 +185,34 @@ describe.each(LEGS)('a form’s files on the real server — %s', (dialect, avai
     expect(rows.map((row) => ({ answer: String(row['answer_id']), file: String(row['file_id']), question: row['question'], name: row['name'], size: Number(row['size']), kind: row['kind'] })).sort((a, b) => (a.file < b.file ? -1 : 1))).toEqual(
       [mine, second].sort().map((id) => ({ answer: 'ans_1', file: id, question: 'qfiles', name: 'plan.pdf', size: PDF.length, kind: 'pdf' })),
     );
+  });
+
+  it.skipIf(!available)('a file named under a question that takes another kind, or a smaller size, refuses the whole answer and stays unattached', async () => {
+    // The showroom form with two more file questions: one for pictures only, one for a file of 1 MB at most.
+    const parsed = parseForm(
+      {
+        ...SHOWROOM,
+        questions: [
+          ...SHOWROOM.questions,
+          { id: 'qphoto', kind: 'file', section: 'sfiles', maxMb: 10, kinds: ['jpg', 'png'], label: words('A photo') },
+          { id: 'qsmall', kind: 'file', section: 'sfiles', maxMb: 1, kinds: ['pdf'], label: words('A small file') },
+        ],
+      },
+      SHOWROOM_SETTINGS,
+    );
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.issues));
+    const live: LiveForm = { id: 'frm_showroom', slug: 'showroom-visit', addOn: 'forms', connectionId: h.connectionId, form: parsed.form };
+    const pdf = await upload('showroom-visit');
+    // A PDF of a little over 1 MB: taken by the 10 MB question it was uploaded for.
+    const big = await upload('showroom-visit', '127.0.0.1', Buffer.concat([PDF, Buffer.alloc(1024 * 1024 + 10, 0x20)]));
+    await answer('ans_kind');
+    expect(await formsFiles.attachToAnswer({ live, ip: '127.0.0.1', answerKey: 'ans_kind', files: [{ question: 'qphoto', ids: [pdf] }] })).toBeNull();
+    expect(await formsFiles.attachToAnswer({ live, ip: '127.0.0.1', answerKey: 'ans_kind', files: [{ question: 'qsmall', ids: [big] }] })).toBeNull();
+    expect(await formsFiles.attachToAnswer({ live, ip: '127.0.0.1', answerKey: 'ans_kind', files: [{ question: 'qfiles', ids: [pdf] }, { question: 'qsmall', ids: [big] }] })).toBeNull();
+    for (const id of [pdf, big]) expect((await publicUploadsRepo(h.meta).findById(id))?.owner ?? null).toBeNull();
+    expect((await fileRows()).some((row) => row['answer_id'] === 'ans_kind')).toBe(false);
+    // Under the questions that take them, both attach.
+    expect((await formsFiles.attachToAnswer({ live, ip: '127.0.0.1', answerKey: 'ans_kind', files: [{ question: 'qphoto', ids: [] }, { question: 'qfiles', ids: [pdf, big] }] }))?.length).toBe(2);
   });
 
   it.skipIf(!available)('opens a file for staff who read the answers, as a download; refuses staff without the grant, a stranger, and a file no answer took', async () => {

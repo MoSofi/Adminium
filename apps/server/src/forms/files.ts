@@ -38,6 +38,9 @@ import type { LiveForm } from './catalog.js';
 /** What a form's files are taken for. */
 export const FORM_UPLOAD_KIND = 'form';
 
+/** A megabyte as a file question's `maxMb` counts it. */
+export const FORM_FILE_MB = 1024 * 1024;
+
 /** The key a form's files are bound to: its add-on and its own row. */
 export function formUploadKey(live: Pick<LiveForm, 'addOn' | 'id'>): string {
   return `${live.addOn}/${live.id}`;
@@ -185,7 +188,9 @@ export function createFormsFiles(deps: FormsFilesDeps) {
      * Attach the files an answer names to it, and write them into the
      * add-on's files table (`db`: the answer's own transaction, when the door
      * has one, as `on`). Every id must have been taken for this form from this
-     * address, unattached and in time, or nothing is attached and the answer
+     * address, unattached and in time, and be of a kind and a size the
+     * question it is named under takes (a file is uploaded for one question
+     * and may be named under another), or nothing is attached and the answer
      * must be refused (`null`). The door calls this after the answer row is
      * written; if the answer then does not stand, {@link detachAnswer}.
      */
@@ -197,6 +202,20 @@ export function createFormsFiles(deps: FormsFilesDeps) {
       const owner = { connectionId: tables.connectionId, table: tables.answers, key: input.answerKey };
       const attached = await deps.uploads.attach(ids, bindingOf(input.live, input.ip), owner);
       if (attached === null) return null;
+      // Each file judged again by the question it is named under: its kinds, and its size cap.
+      const byUpload = new Map(attached.map((upload) => [upload.id, upload]));
+      const fits = input.files.every((one) => {
+        const question = input.live.form.definition.questions.find((candidate) => candidate.id === one.question);
+        if (question === undefined || question.kind !== 'file') return false;
+        return one.ids.every((id) => {
+          const upload = byUpload.get(id);
+          return upload !== undefined && (question.kinds as readonly string[]).includes(upload.kind) && upload.size <= question.maxMb * FORM_FILE_MB;
+        });
+      });
+      if (!fits) {
+        await deps.uploads.detach(ids, owner);
+        return null;
+      }
       if (tables.files !== null) {
         const byId = new Map(attached.map((upload) => [upload.id, upload]));
         try {
