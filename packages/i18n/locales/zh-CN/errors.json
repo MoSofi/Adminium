@@ -74,5 +74,25 @@
     "frozen": "此订单的价格已确定，不能再更改。",
     "not-allowed": "您不能更改此项。",
     "refund-over": "这超出了剩余可退的金额。"
+  },
+  "CHECK_REFUSED": "此设计无法按现状下单。",
+  "CHECK_REASON": {
+    "too-long": "文字对设计的这一部分来说太长。",
+    "required-empty": "设计中必须填写的部分是空的。",
+    "font-not-allowed": "该设计不提供此字体。",
+    "size-out-of-range": "此尺寸超出了设计允许的范围。",
+    "colour-not-allowed": "该设计不提供此颜色。",
+    "choice-not-allowed": "该设计不提供此选项。",
+    "part-locked": "设计的这一部分不能更改。",
+    "file-missing": "设计缺少所需的文件。",
+    "file-kind": "此处不能使用这种文件。",
+    "design-unknown": "找不到此设计。",
+    "format-unknown": "此设计的保存方式本店无法读取。",
+    "feature-not-paid": "设计使用了本行未付费的功能。",
+    "feature-not-used": "本行付费的功能在设计中并未使用。",
+    "feature-paid-twice": "本行为同一功能付费了两次。",
+    "design-too-large": "此设计太大，无法检查。",
+    "check-unavailable": "目前无法检查设计，因此无法保存。",
+    "check-failed": "检查设计的附加组件未按要求应答，因此未保存任何内容。"
   }
 }

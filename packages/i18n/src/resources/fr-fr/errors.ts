@@ -84,5 +84,25 @@ export default {
     "frozen": "Le prix de cette commande est arrêté : il ne peut plus être modifié.",
     "not-allowed": "Vous ne pouvez pas modifier cela.",
     "refund-over": "C’est plus que ce qu’il reste à rembourser."
+  },
+  "CHECK_REFUSED": "Ce design ne peut pas être commandé tel quel.",
+  "CHECK_REASON": {
+    "too-long": "Le texte est trop long pour cette partie du design.",
+    "required-empty": "Une partie obligatoire du design est vide.",
+    "font-not-allowed": "Cette police ne fait pas partie de celles que propose le design.",
+    "size-out-of-range": "Cette taille sort des limites que permet le design.",
+    "colour-not-allowed": "Cette couleur ne fait pas partie de celles que propose le design.",
+    "choice-not-allowed": "Ce choix ne fait pas partie de ceux que propose le design.",
+    "part-locked": "Cette partie du design ne peut pas être modifiée.",
+    "file-missing": "Il manque au design un fichier nécessaire.",
+    "file-kind": "Ce type de fichier ne peut pas être utilisé ici.",
+    "design-unknown": "Ce design est introuvable.",
+    "format-unknown": "Ce design a été enregistré dans un format que cette boutique ne sait pas lire.",
+    "feature-not-paid": "Le design utilise une option qui n’est pas payée sur cette ligne.",
+    "feature-not-used": "Cette ligne paie une option que le design n’utilise pas.",
+    "feature-paid-twice": "Cette ligne paie deux fois la même option.",
+    "design-too-large": "Ce design est trop volumineux pour être vérifié.",
+    "check-unavailable": "Les designs ne peuvent pas être vérifiés pour le moment ; l’enregistrement est donc impossible.",
+    "check-failed": "Le module qui vérifie les designs n’a pas répondu comme il le devait ; rien n’a été enregistré."
   }
 } as const;

@@ -19263,6 +19263,78 @@
     "status": "mt",
     "srcHash": "2ece85d745f0"
   },
+  "errors.CHECK_REASON.check-failed": {
+    "status": "mt",
+    "srcHash": "31acaf34df58"
+  },
+  "errors.CHECK_REASON.check-unavailable": {
+    "status": "mt",
+    "srcHash": "ae1deb3abd63"
+  },
+  "errors.CHECK_REASON.choice-not-allowed": {
+    "status": "mt",
+    "srcHash": "8df90c7c735f"
+  },
+  "errors.CHECK_REASON.colour-not-allowed": {
+    "status": "mt",
+    "srcHash": "330e957ae330"
+  },
+  "errors.CHECK_REASON.design-too-large": {
+    "status": "mt",
+    "srcHash": "223117f44372"
+  },
+  "errors.CHECK_REASON.design-unknown": {
+    "status": "mt",
+    "srcHash": "7713d50d21cd"
+  },
+  "errors.CHECK_REASON.feature-not-paid": {
+    "status": "mt",
+    "srcHash": "fee59be57e53"
+  },
+  "errors.CHECK_REASON.feature-not-used": {
+    "status": "mt",
+    "srcHash": "39a231e62555"
+  },
+  "errors.CHECK_REASON.feature-paid-twice": {
+    "status": "mt",
+    "srcHash": "10609fa829a3"
+  },
+  "errors.CHECK_REASON.file-kind": {
+    "status": "mt",
+    "srcHash": "eeb74453e63a"
+  },
+  "errors.CHECK_REASON.file-missing": {
+    "status": "mt",
+    "srcHash": "4ca27b9bbac7"
+  },
+  "errors.CHECK_REASON.font-not-allowed": {
+    "status": "mt",
+    "srcHash": "bf8f81eebb7d"
+  },
+  "errors.CHECK_REASON.format-unknown": {
+    "status": "mt",
+    "srcHash": "05709b0f27de"
+  },
+  "errors.CHECK_REASON.part-locked": {
+    "status": "mt",
+    "srcHash": "53b46bfb504e"
+  },
+  "errors.CHECK_REASON.required-empty": {
+    "status": "mt",
+    "srcHash": "3f307369e170"
+  },
+  "errors.CHECK_REASON.size-out-of-range": {
+    "status": "mt",
+    "srcHash": "48dc2db9d129"
+  },
+  "errors.CHECK_REASON.too-long": {
+    "status": "mt",
+    "srcHash": "659f709854c5"
+  },
+  "errors.CHECK_REFUSED": {
+    "status": "mt",
+    "srcHash": "273c6502bedd"
+  },
   "errors.CONFLICT": {
     "srcHash": "b28abca7131d",
     "status": "mt"
@@ -39298,6 +39370,10 @@
   "ui.pages.record.notFound": {
     "status": "mt",
     "srcHash": "698be211be6f"
+  },
+  "ui.pages.record.panelFailed": {
+    "status": "mt",
+    "srcHash": "ee087c5ba93d"
   },
   "ui.pages.record.roles": {
     "status": "mt",

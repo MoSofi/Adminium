@@ -84,5 +84,25 @@ export default {
     "frozen": "此訂單的價格已確定，無法再變更。",
     "not-allowed": "您無法變更此項目。",
     "refund-over": "這超出了剩餘可退的金額。"
+  },
+  "CHECK_REFUSED": "此設計無法照現狀下單。",
+  "CHECK_REASON": {
+    "too-long": "文字對設計的這一部分來說太長。",
+    "required-empty": "設計中必須填寫的部分是空的。",
+    "font-not-allowed": "此設計不提供這個字型。",
+    "size-out-of-range": "此尺寸超出設計允許的範圍。",
+    "colour-not-allowed": "此設計不提供這個顏色。",
+    "choice-not-allowed": "此設計不提供這個選項。",
+    "part-locked": "設計的這一部分無法變更。",
+    "file-missing": "設計缺少所需的檔案。",
+    "file-kind": "此處無法使用這種檔案。",
+    "design-unknown": "找不到此設計。",
+    "format-unknown": "此設計的儲存方式本店無法讀取。",
+    "feature-not-paid": "設計使用了本項目未付費的功能。",
+    "feature-not-used": "本項目付費的功能在設計中並未使用。",
+    "feature-paid-twice": "本項目為同一功能付費了兩次。",
+    "design-too-large": "此設計太大，無法檢查。",
+    "check-unavailable": "目前無法檢查設計，因此無法儲存。",
+    "check-failed": "檢查設計的附加元件未依要求回應，因此未儲存任何內容。"
   }
 } as const;

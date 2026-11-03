@@ -74,5 +74,25 @@
     "frozen": "Cena této objednávky je konečná a už ji nelze změnit.",
     "not-allowed": "Toto nesmíte změnit.",
     "refund-over": "To je víc, než kolik zbývá vrátit."
+  },
+  "CHECK_REFUSED": "Tento návrh nelze objednat v této podobě.",
+  "CHECK_REASON": {
+    "too-long": "Text je pro tuto část návrhu příliš dlouhý.",
+    "required-empty": "Povinná část návrhu je prázdná.",
+    "font-not-allowed": "Toto písmo návrh nenabízí.",
+    "size-out-of-range": "Tato velikost je mimo rozsah, který návrh povoluje.",
+    "colour-not-allowed": "Tuto barvu návrh nenabízí.",
+    "choice-not-allowed": "Tuto volbu návrh nenabízí.",
+    "part-locked": "Tuto část návrhu nelze změnit.",
+    "file-missing": "Návrhu chybí potřebný soubor.",
+    "file-kind": "Tento druh souboru zde nelze použít.",
+    "design-unknown": "Tento návrh nebyl nalezen.",
+    "format-unknown": "Tento návrh byl uložen ve formátu, který tento obchod neumí přečíst.",
+    "feature-not-paid": "Návrh používá něco, co na této položce není zaplaceno.",
+    "feature-not-used": "Tato položka platí za něco, co návrh nepoužívá.",
+    "feature-paid-twice": "Tato položka platí za totéž dvakrát.",
+    "design-too-large": "Tento návrh je příliš velký na to, aby se dal zkontrolovat.",
+    "check-unavailable": "Návrhy teď nelze zkontrolovat, proto to nelze uložit.",
+    "check-failed": "Doplněk, který kontroluje návrhy, neodpověděl tak, jak měl, takže se nic neuložilo."
   }
 }

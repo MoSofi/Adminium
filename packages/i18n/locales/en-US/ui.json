@@ -2305,7 +2305,8 @@
       "locked": "This record is locked, so this cannot be changed.",
       "forbidden": "Your role may not change this.",
       "notFound": "This record, or this action, is no longer there.",
-      "fieldRequired": "Fill this in first."
+      "fieldRequired": "Fill this in first.",
+      "panelFailed": "This panel could not be loaded. Nothing from it has been run."
     },
     "bulk": {
       "tooMany": "Select {max} rows or fewer.",

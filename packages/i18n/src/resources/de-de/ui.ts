@@ -2315,7 +2315,8 @@ export default {
       "locked": "Dieser Datensatz ist gesperrt und kann daher nicht geändert werden.",
       "forbidden": "Ihre Rolle darf das nicht ändern.",
       "notFound": "Diesen Datensatz oder diese Aktion gibt es nicht mehr.",
-      "fieldRequired": "Füllen Sie dies zuerst aus."
+      "fieldRequired": "Füllen Sie dies zuerst aus.",
+      "panelFailed": "Dieses Panel konnte nicht geladen werden. Nichts davon wurde ausgeführt."
     },
     "bulk": {
       "tooMany": "Wählen Sie höchstens {max} Zeilen aus.",

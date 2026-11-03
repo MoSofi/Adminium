@@ -2315,7 +2315,8 @@ export default {
       "locked": "Tento záznam je uzamčen, takže jej nelze změnit.",
       "forbidden": "Vaše role to nesmí změnit.",
       "notFound": "Tento záznam nebo tato akce už neexistuje.",
-      "fieldRequired": "Nejprve vyplňte toto pole."
+      "fieldRequired": "Nejprve vyplňte toto pole.",
+      "panelFailed": "Tento panel se nepodařilo načíst. Nic z něj se nespustilo."
     },
     "bulk": {
       "tooMany": "Vyberte nejvýše {max} řádků.",

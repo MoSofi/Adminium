@@ -74,5 +74,25 @@
     "frozen": "Prisen på denne ordre står fast og kan ikke længere ændres.",
     "not-allowed": "Du må ikke ændre dette.",
     "refund-over": "Det er mere, end der er tilbage at give tilbage."
+  },
+  "CHECK_REFUSED": "Dette design kan ikke bestilles, som det er.",
+  "CHECK_REASON": {
+    "too-long": "Teksten er for lang til denne del af designet.",
+    "required-empty": "En del af designet, der skal udfyldes, er tom.",
+    "font-not-allowed": "Denne skrifttype er ikke en, designet tilbyder.",
+    "size-out-of-range": "Denne størrelse ligger uden for, hvad designet tillader.",
+    "colour-not-allowed": "Denne farve er ikke en, designet tilbyder.",
+    "choice-not-allowed": "Dette valg er ikke et, designet tilbyder.",
+    "part-locked": "Denne del af designet kan ikke ændres.",
+    "file-missing": "Designet mangler en fil, det har brug for.",
+    "file-kind": "Denne filtype kan ikke bruges her.",
+    "design-unknown": "Dette design kan ikke findes.",
+    "format-unknown": "Dette design er gemt på en måde, som denne butik ikke kan læse.",
+    "feature-not-paid": "Designet bruger noget, der ikke er betalt for på denne linje.",
+    "feature-not-used": "Denne linje betaler for noget, designet ikke bruger.",
+    "feature-paid-twice": "Denne linje betaler for det samme to gange.",
+    "design-too-large": "Dette design er for stort til at blive kontrolleret.",
+    "check-unavailable": "Designs kan ikke kontrolleres lige nu, så dette kan ikke gemmes.",
+    "check-failed": "Tilføjelsen, der kontrollerer designs, svarede ikke, som den skulle, så intet blev gemt."
   }
 }

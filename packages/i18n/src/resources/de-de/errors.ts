@@ -84,5 +84,25 @@ export default {
     "frozen": "Der Preis dieser Bestellung steht fest und kann nicht mehr geändert werden.",
     "not-allowed": "Das dürfen Sie nicht ändern.",
     "refund-over": "Das ist mehr, als noch zurückgegeben werden kann."
+  },
+  "CHECK_REFUSED": "Dieses Design kann so nicht bestellt werden.",
+  "CHECK_REASON": {
+    "too-long": "Der Text ist für diesen Teil des Designs zu lang.",
+    "required-empty": "Ein Pflichtteil des Designs ist leer.",
+    "font-not-allowed": "Diese Schriftart wird für das Design nicht angeboten.",
+    "size-out-of-range": "Diese Größe liegt außerhalb dessen, was das Design erlaubt.",
+    "colour-not-allowed": "Diese Farbe wird für das Design nicht angeboten.",
+    "choice-not-allowed": "Diese Auswahl wird für das Design nicht angeboten.",
+    "part-locked": "Dieser Teil des Designs kann nicht geändert werden.",
+    "file-missing": "Dem Design fehlt eine benötigte Datei.",
+    "file-kind": "Diese Dateiart kann hier nicht verwendet werden.",
+    "design-unknown": "Dieses Design wurde nicht gefunden.",
+    "format-unknown": "Dieses Design wurde in einer Form gespeichert, die dieser Shop nicht lesen kann.",
+    "feature-not-paid": "Das Design nutzt etwas, das in dieser Position nicht bezahlt ist.",
+    "feature-not-used": "Diese Position bezahlt etwas, das das Design nicht nutzt.",
+    "feature-paid-twice": "Diese Position bezahlt dasselbe zweimal.",
+    "design-too-large": "Dieses Design ist zu groß, um geprüft zu werden.",
+    "check-unavailable": "Designs können gerade nicht geprüft werden, daher kann dies nicht gespeichert werden.",
+    "check-failed": "Das Add-on, das Designs prüft, hat nicht wie erwartet geantwortet. Es wurde nichts gespeichert."
   }
 } as const;

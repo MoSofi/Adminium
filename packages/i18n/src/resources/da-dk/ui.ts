@@ -2315,7 +2315,8 @@ export default {
       "locked": "Denne post er låst, så dette kan ikke ændres.",
       "forbidden": "Din rolle må ikke ændre dette.",
       "notFound": "Denne post eller denne handling findes ikke længere.",
-      "fieldRequired": "Udfyld dette først."
+      "fieldRequired": "Udfyld dette først.",
+      "panelFailed": "Dette panel kunne ikke indlæses. Intet fra det er blevet kørt."
     },
     "bulk": {
       "tooMany": "Vælg højst {max} rækker.",

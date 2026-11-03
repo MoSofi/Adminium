@@ -84,5 +84,25 @@ export default {
     "frozen": "This order’s price stands: it cannot be changed any more.",
     "not-allowed": "You may not change this.",
     "refund-over": "This is more than is left to give back."
+  },
+  "CHECK_REFUSED": "This design cannot be ordered as it is.",
+  "CHECK_REASON": {
+    "too-long": "The words are too long for this part of the design.",
+    "required-empty": "A part of the design that must be filled in is empty.",
+    "font-not-allowed": "This font is not one the design offers.",
+    "size-out-of-range": "This size is outside what the design allows.",
+    "colour-not-allowed": "This colour is not one the design offers.",
+    "choice-not-allowed": "This choice is not one the design offers.",
+    "part-locked": "This part of the design cannot be changed.",
+    "file-missing": "The design needs a file that is not there.",
+    "file-kind": "This kind of file cannot be used here.",
+    "design-unknown": "This design cannot be found.",
+    "format-unknown": "This design was saved in a way this shop cannot read.",
+    "feature-not-paid": "The design uses something that is not paid for on this line.",
+    "feature-not-used": "This line pays for something the design does not use.",
+    "feature-paid-twice": "This line pays for the same thing twice.",
+    "design-too-large": "This design is too large to be checked.",
+    "check-unavailable": "Designs cannot be checked right now, so this cannot be saved.",
+    "check-failed": "The add-on that checks designs did not answer as it should, so nothing was saved."
   }
 } as const;
