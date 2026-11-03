@@ -2114,6 +2114,7 @@ export default {
         "stampClaim": "已登入者的 {column}",
         "stampAddDays": "{date} 加 {days} 天",
         "stampAddDaysColumn": "{date} 加上 {column} 給出的天數",
+        "stampAddWorkingDays": "{from} 加上 {days} 個工作日",
         "stampHashOf": "該列的指紋",
         "stampFilled": "當 {column} 首次填寫時設為{what}",
         "sequenceGapless": "按順序的下一個編號，不跳號也不重複",

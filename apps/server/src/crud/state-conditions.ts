@@ -418,6 +418,6 @@ export function isStateRefusal(error: unknown): boolean {
 export function statesReadClock(states: TableStatesRule | undefined, stamps: readonly Pick<ColumnStampRule, 'set'>[] | undefined): boolean {
   // A move's last day (`notPast`) is today where the venue is, as a move's window is its clock.
   const moves = Object.values(states?.moves ?? {}).some((list) => list.some((move) => typeof move === 'object' && (move.requires?.time !== undefined || move.requires?.notPast !== undefined)));
-  const stamped = (stamps ?? []).some((stamp) => typeof stamp.set === 'object' && ('addMinutes' in stamp.set || 'deadline' in stamp.set || 'moment' in stamp.set));
+  const stamped = (stamps ?? []).some((stamp) => typeof stamp.set === 'object' && ('addMinutes' in stamp.set || 'deadline' in stamp.set || 'moment' in stamp.set || 'addWorkingDays' in stamp.set));
   return moves || stamped || states?.create?.requires.time !== undefined || (states?.late?.length ?? 0) > 0 || (states?.timed?.length ?? 0) > 0;
 }

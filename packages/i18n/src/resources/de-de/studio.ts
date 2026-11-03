@@ -2114,6 +2114,7 @@ export default {
         "stampClaim": "{column} der angemeldeten Person",
         "stampAddDays": "{date} plus {days} Tage",
         "stampAddDaysColumn": "{date} plus die Tage, die {column} angibt",
+        "stampAddWorkingDays": "{from} plus {days} Arbeitstage",
         "stampHashOf": "ein Fingerabdruck der Zeile",
         "stampFilled": "Wird auf {what} gesetzt, wenn {column} zum ersten Mal ausgefüllt wird",
         "sequenceGapless": "Die nächste Nummer der Reihe nach, ohne Lücken und ohne Wiederholung",

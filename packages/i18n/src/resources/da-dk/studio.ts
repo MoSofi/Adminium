@@ -2114,6 +2114,7 @@ export default {
         "stampClaim": "den indloggede persons {column}",
         "stampAddDays": "{date} plus {days} dage",
         "stampAddDaysColumn": "{date} plus de dage, {column} angiver",
+        "stampAddWorkingDays": "{from} plus {days} arbejdsdage",
         "stampHashOf": "et fingeraftryk af rækken",
         "stampFilled": "Sættes til {what}, når {column} udfyldes første gang",
         "sequenceGapless": "Det næste nummer i rækkefølge, uden huller og uden gentagelser",

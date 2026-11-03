@@ -2104,6 +2104,7 @@
         "stampClaim": "the signed-in person’s {column}",
         "stampAddDays": "{date} plus {days} days",
         "stampAddDaysColumn": "{date} plus the days {column} gives",
+        "stampAddWorkingDays": "{from} plus {days} working days",
         "stampHashOf": "a fingerprint of the row",
         "stampFilled": "Set to {what} when {column} is first filled",
         "sequenceGapless": "The next number in order, with no gaps and none repeated",

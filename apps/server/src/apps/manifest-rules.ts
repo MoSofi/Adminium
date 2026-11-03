@@ -194,6 +194,29 @@ export function listKeyFor(appKey: string, name: string): string {
   return name.startsWith('builtin:') ? name : `${appKey}-${name}`;
 }
 
+/**
+ * A stamp as it is stored. A working week or a cut-off that names one of the
+ * app's own settings by key is kept as that setting of the app
+ * (`{addOn: <app key>, setting}`), read where an add-on's setting is.
+ */
+function stampValue(appKey: string, stamp: NonNullable<ColumnRules['stamp']>): Record<string, unknown> {
+  const set = stamp.set;
+  if (typeof set !== 'object' || !('addWorkingDays' in set)) return { ...stamp };
+  const w = set.addWorkingDays;
+  const setting = (key: string) => ({ addOn: appKey, setting: key });
+  return {
+    ...stamp,
+    set: {
+      addWorkingDays: {
+        ...w,
+        weekdays: typeof w.weekdays === 'string' ? setting(w.weekdays) : [...w.weekdays],
+        ...(w.cutoff === undefined ? {} : { cutoff: /^\d/.test(w.cutoff) ? w.cutoff : setting(w.cutoff) }),
+        ...(w.closures === undefined ? {} : { closures: { ...w.closures } }),
+      },
+    },
+  };
+}
+
 /** The override rows one column's manifest rules become. */
 export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; value: Record<string, unknown> }[] {
   const out: { op: RuleOp; value: Record<string, unknown> }[] = [];
@@ -233,7 +256,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   // `from` names the child by its short ref; the installer swaps in its real id.
   if (rules.rollup !== undefined) out.push({ op: 'column.rollup', value: { ...rules.rollup } });
   if (rules.venueLocal === true) out.push({ op: 'column.venueLocal', value: { venueLocal: true } });
-  if (rules.stamp !== undefined) out.push({ op: 'column.stamp', value: { ...rules.stamp } });
+  if (rules.stamp !== undefined) out.push({ op: 'column.stamp', value: stampValue(appKey, rules.stamp) });
   if (rules.default !== undefined) out.push({ op: 'column.default', value: { kind: 'from', from: rules.default.from } });
   if (rules.format !== undefined) out.push({ op: 'column.format', value: { ...rules.format } });
   if (rules.formula !== undefined) out.push({ op: 'column.formula', value: { formula: rules.formula } });

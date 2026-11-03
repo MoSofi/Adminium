@@ -342,6 +342,32 @@ const deadlineSchema = z
   .object({ days: stampAmount(MOMENT_LIMITS.days), time: clockTimeSchema, notAfter: momentSchema.optional() })
   .strict();
 
+/** The days of the week, as a working week names them. */
+export const WORKING_WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+/** A time of day on a 24-hour clock, `HH:MM`. */
+const cutoffTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a time of day, HH:MM on a 24-hour clock');
+
+/**
+ * `addWorkingDays`: the `days`-th working day after the day an order is
+ * RECEIVED — the day of `from` (`now`, or a date or moment of the row) on
+ * the venue's clock when that is a working day and `from` is before the
+ * cut-off (or has no time, or there is no cut-off); otherwise the next
+ * working day. A working day is one of `weekdays` that no active row of
+ * `closures` covers. `weekdays` and `cutoff` are stated, or name a `string`
+ * setting of the app (a shop changes its week and its cut-off itself).
+ */
+const addWorkingDaysSchema = z
+  .object({
+    from: z.union([z.literal('now'), refSchema]),
+    days: z.union([refSchema, z.number().int().min(0).max(3650)]),
+    map: z.record(z.string().min(1), z.number().int().min(0).max(3650)).optional(),
+    weekdays: z.union([refSchema, z.array(z.enum(WORKING_WEEKDAYS)).min(1).max(7)]),
+    cutoff: z.union([cutoffTimeSchema, refSchema]).optional(),
+    closures: z.object({ table: refSchema, from: refSchema, to: refSchema, active: refSchema.optional() }).strict().optional(),
+  })
+  .strict();
+
 /**
  * What a stamp writes:
  *
@@ -356,6 +382,10 @@ const deadlineSchema = z
  *    name) on a public write; on a staff write, `staff` says what instead;
  *  - `addDays`: a date so many days after another (`due_on` = `issued_on` +
  *    the terms' days, `map` giving each term its days);
+ *  - `addWorkingDays`: a date so many WORKING days after a moment on the
+ *    venue's clock (`ready_by` = the order's time + 3 working days): the
+ *    working week and the daily cut-off stated, or named as the app's own
+ *    settings; the days a closures table holds skipped;
  *  - `hashOf`: a fingerprint — SHA-256 over the named columns, child rows and
  *    a linked row's text, in a canonical form anyone can recompute;
  *  - `addMinutes`: the moment so many minutes or hours from now (a hold for
@@ -412,6 +442,7 @@ export const stampSetSchema = z.union([
   z.object({ addMinutes: addMinutesSchema }).strict(),
   z.object({ deadline: deadlineSchema }).strict(),
   z.object({ moment: momentSchema }).strict(),
+  z.object({ addWorkingDays: addWorkingDaysSchema }).strict(),
 ]);
 
 /**
@@ -2224,6 +2255,8 @@ export function appReferenceIssues(
     /** An add-on's own ledgers, parsed: its tables' postings may go into them. Present (even empty) only for an add-on. */
     ledgers?: readonly Ledger[] | undefined;
     automations?: readonly ManifestAutomation[] | undefined;
+    /** The settings the manifest declares, which a working week or a cut-off may name. */
+    settings?: readonly { key: string; type: string }[] | undefined;
     /** `add-on` for an add-on's own blocks; absent or `app` for an app's. */
     kind?: string | undefined;
     /** An add-on's code page refs (`addOn.pages`), which a state action's link may open. */
@@ -2643,6 +2676,8 @@ export function appReferenceIssues(
               out.push({ path: here('stamp', 'set', 'addDays', 'days'), message: `"${table.ref}.${a.days}" is neither a number of days nor a choice with a map` });
             }
           }
+        } else if (typeof set === 'object' && 'addWorkingDays' in set) {
+          out.push(...workingDaysIssues(table, column, set.addWorkingDays, here('stamp', 'set', 'addWorkingDays'), index, m.settings ?? []));
         } else if (typeof set === 'object' && 'hashOf' in set) {
           const h = set.hashOf;
           if (column.type !== 'text' || (column.maxLength !== undefined && column.maxLength < 64)) {
@@ -3532,6 +3567,70 @@ function bandReadsItself(tableRef: string, link: string, value: string, tables: 
     return next.some(([nt, nc]) => reads(nt, nc, depth + 1));
   };
   return reads(tableRef, value, 0);
+}
+
+/**
+ * A date so many working days on: written into a date column, from `now` or
+ * a date or moment of the row; its days a number, a whole-number column, or
+ * a choice with each value's days; its week named days, none twice, or a
+ * `string` setting the app declares, as its cut-off is; its closures a table
+ * of the app with two dates (and a yes/no that switches a row off).
+ */
+function workingDaysIssues(
+  table: RequiredTableShape,
+  column: RequiredTableShape['columns'][number],
+  w: z.infer<typeof addWorkingDaysSchema>,
+  path: (string | number)[],
+  index: ReturnType<typeof tableIndex>,
+  settings: readonly { key: string; type: string }[],
+): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  if (column.type !== 'date') out.push({ path, message: 'a date so many working days on needs a date column' });
+  if (w.from !== 'now') {
+    const from = index.column(table.ref, w.from);
+    if (from === undefined) out.push({ path: [...path, 'from'], message: `"${table.ref}" has no column "${w.from}"` });
+    else if (from.type !== 'date' && from.type !== 'timestamptz') out.push({ path: [...path, 'from'], message: `"${table.ref}.${w.from}" is neither a date nor a moment` });
+    else if (from.ref === column.ref) out.push({ path: [...path, 'from'], message: 'working days are counted from another column' });
+  }
+  if (typeof w.days === 'string') {
+    const days = index.column(table.ref, w.days);
+    if (days === undefined) {
+      out.push({ path: [...path, 'days'], message: `"${table.ref}" has no column "${w.days}"` });
+    } else if (days.type === 'enum' || days.type === 'text') {
+      const missing = (days.enum ?? []).filter((value) => w.map?.[value] === undefined);
+      if (w.map === undefined || missing.length > 0) {
+        out.push({ path: [...path, 'map'], message: `each value of "${table.ref}.${w.days}" needs its days${missing.length > 0 ? ` (${missing.join(', ')})` : ''}` });
+      }
+    } else if (days.type !== 'int' && days.type !== 'bigint') {
+      out.push({ path: [...path, 'days'], message: `"${table.ref}.${w.days}" is neither a number of days nor a choice with a map` });
+    }
+  }
+  const named = (key: string, at: string) => {
+    const setting = settings.find((candidate) => candidate.key === key);
+    if (setting === undefined) out.push({ path: [...path, at], message: `the app declares no setting "${key}"` });
+    else if (setting.type !== 'string') out.push({ path: [...path, at], message: `the setting "${key}" is a ${setting.type}: a working week or a cut-off is kept in a string setting` });
+  };
+  if (typeof w.weekdays === 'string') named(w.weekdays, 'weekdays');
+  else if (new Set(w.weekdays).size !== w.weekdays.length) out.push({ path: [...path, 'weekdays'], message: 'a working week names each day once' });
+  if (w.cutoff !== undefined && !/^\d/.test(w.cutoff)) named(w.cutoff, 'cutoff');
+  if (w.closures !== undefined) {
+    const c = w.closures;
+    if (index.table(c.table) === undefined) {
+      out.push({ path: [...path, 'closures', 'table'], message: `"${c.table}" is not a table of this app` });
+    } else {
+      for (const side of ['from', 'to'] as const) {
+        const found = index.column(c.table, c[side]);
+        if (found === undefined) out.push({ path: [...path, 'closures', side], message: `"${c.table}" has no column "${c[side]}"` });
+        else if (found.type !== 'date') out.push({ path: [...path, 'closures', side], message: `"${c.table}.${c[side]}" is not a date` });
+      }
+      if (c.active !== undefined) {
+        const active = index.column(c.table, c.active);
+        if (active === undefined) out.push({ path: [...path, 'closures', 'active'], message: `"${c.table}" has no column "${c.active}"` });
+        else if (active.type !== 'bool') out.push({ path: [...path, 'closures', 'active'], message: `"${c.table}.${c.active}" is not a yes/no` });
+      }
+    }
+  }
+  return out;
 }
 
 /** What `appReferenceIssues` reads of a table. */

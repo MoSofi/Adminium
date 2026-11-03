@@ -81,6 +81,7 @@ export interface StampRule {
     | { copy: string }
     | { claim: string; staff?: 'user-name' | 'user-id' }
     | { addDays: { date: string; days: string | number; map?: Record<string, number> } }
+    | { addWorkingDays: { from: string; days: string | number; map?: Record<string, number> } & Record<string, unknown> }
     | { hashOf: Record<string, unknown> };
   on: StampTrigger | StampTrigger[];
 }

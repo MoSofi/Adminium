@@ -2114,6 +2114,7 @@ export default {
         "stampClaim": "{column} přihlášené osoby",
         "stampAddDays": "{date} plus {days} dní",
         "stampAddDaysColumn": "{date} plus počet dní podle {column}",
+        "stampAddWorkingDays": "{from} plus {days} pracovních dnů",
         "stampHashOf": "otisk řádku",
         "stampFilled": "Nastaví se na {what}, když se {column} poprvé vyplní",
         "sequenceGapless": "Další číslo v pořadí, bez mezer a bez opakování",

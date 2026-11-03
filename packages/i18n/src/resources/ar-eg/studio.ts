@@ -2114,6 +2114,7 @@ export default {
         "stampClaim": "{column} الخاص بالشخص المسجِّل دخوله",
         "stampAddDays": "{date} مضافًا إليه {days} يومًا",
         "stampAddDaysColumn": "{date} مضافًا إليه الأيام التي يحددها {column}",
+        "stampAddWorkingDays": "{from} مضافًا إليه {days} أيام عمل",
         "stampHashOf": "بصمة للصف",
         "stampFilled": "يُضبط على {what} عندما يُملأ {column} لأول مرة",
         "sequenceGapless": "الرقم التالي بالترتيب، بلا فجوات ولا تكرار",

@@ -2114,6 +2114,7 @@ export default {
         "stampClaim": "{column} de la personne connectée",
         "stampAddDays": "{date} plus {days} jours",
         "stampAddDaysColumn": "{date} plus les jours indiqués par {column}",
+        "stampAddWorkingDays": "{from} plus {days} jours ouvrés",
         "stampHashOf": "une empreinte de la ligne",
         "stampFilled": "Défini sur {what} quand {column} est rempli pour la première fois",
         "sequenceGapless": "Le numéro suivant dans l’ordre, sans trou ni doublon",

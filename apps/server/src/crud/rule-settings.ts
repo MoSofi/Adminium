@@ -25,8 +25,10 @@ import type { WriteAction } from './write-context.js';
 export interface RuleSettingsReader {
   /** The connection's currency (ISO 4217), or null when it names none. */
   currency(connectionId: string): Promise<string | null>;
-  /** One of an add-on's settings, or undefined. */
+  /** One of an add-on's settings (or an app's own, by the app's key), or undefined. */
   addOnSetting(addOnKey: string, setting: string): Promise<unknown>;
+  /** The default an add-on or an app declares for one of its settings, whatever is saved; undefined for none. */
+  defaultSetting?(key: string, setting: string): Promise<unknown>;
 }
 
 type Db = Kysely<SourceDatabase>;

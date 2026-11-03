@@ -35735,6 +35735,10 @@
     "status": "mt",
     "srcHash": "dfab334d9345"
   },
+  "studio.remap.rules.decided.stampAddWorkingDays": {
+    "status": "mt",
+    "srcHash": "5362f0ce3b97"
+  },
   "studio.remap.rules.decided.stampByOrigin": {
     "status": "mt",
     "srcHash": "45f8c801c087"

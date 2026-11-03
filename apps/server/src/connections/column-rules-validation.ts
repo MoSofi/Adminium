@@ -738,7 +738,8 @@ export function columnRuleIssue(
       // SQLite keeps a date and a timestamp as text, and reports them as text.
       const sqliteText = model.dialect === 'sqlite' && (column.logicalType === 'text' || column.logicalType === 'varchar');
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
-      const dated = typeof set === 'object' && set !== null && 'addDays' in set;
+      const working = typeof set === 'object' && set !== null && 'addWorkingDays' in set;
+      const dated = (typeof set === 'object' && set !== null && 'addDays' in set) || working;
       // A moment (now plus some minutes, a deadline, a moment of the row) is written into a clock column.
       const momentous = typeof set === 'object' && set !== null && ('addMinutes' in set || 'deadline' in set || 'moment' in set);
       if (momentous) {
@@ -775,7 +776,23 @@ export function columnRuleIssue(
           return `A stamp copies a column into one of its own kind; ${JSON.stringify(source)} is ${kind(from.logicalType)} and ${name} is ${kind(column.logicalType)}.`;
         }
       }
-      if (dated) {
+      if (working) {
+        // Counted from now or a date of the row, by a number or a column; the closures a table of dates.
+        const w = (set as { addWorkingDays: Value }).addWorkingDays;
+        for (const part of [w['from'] === 'now' ? undefined : w['from'], typeof w['days'] === 'string' ? w['days'] : undefined]) {
+          if (part !== undefined && table?.columns.some((c) => c.name === String(part)) !== true) {
+            return `${table?.name ?? 'This table'} has no column ${JSON.stringify(part)} to count working days from.`;
+          }
+        }
+        const closures = w['closures'] as Value | undefined;
+        if (closures !== undefined) {
+          const held = model.tables.find((candidate) => candidate.id === String(closures['table']));
+          if (held === undefined) return `There is no table ${JSON.stringify(closures['table'])} of closures.`;
+          for (const part of [closures['from'], closures['to'], closures['active']]) {
+            if (part !== undefined && !held.columns.some((c) => c.name === String(part))) return `${held.name} has no column ${JSON.stringify(part)}.`;
+          }
+        }
+      } else if (dated) {
         const days = (set as { addDays: Value }).addDays;
         for (const part of [days['date'], typeof days['days'] === 'string' ? days['days'] : undefined]) {
           if (part !== undefined && table?.columns.some((c) => c.name === String(part)) !== true) {

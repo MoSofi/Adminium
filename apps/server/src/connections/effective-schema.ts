@@ -238,7 +238,19 @@ export type StampSet =
   /** Days after today at a time of day, never later than `notAfter`. */
   | { deadline: { days: StampAmount; time: string | { table: string; column: string }; notAfter?: Moment } }
   /** A moment of the row or a linked row; none found writes empty. */
-  | { moment: Moment };
+  | { moment: Moment }
+  /** A date so many working days after a moment on the venue's clock (`crud/working-days.ts`). */
+  | { addWorkingDays: WorkingDaysRule };
+
+/** `addWorkingDays`, as stored: the week and the cut-off stated, or an app's setting by key; the closures table by its id. */
+export interface WorkingDaysRule {
+  from: 'now' | string;
+  days: string | number;
+  map?: Record<string, number>;
+  weekdays: string[] | { addOn: string; setting: string };
+  cutoff?: string | { addOn: string; setting: string };
+  closures?: { table: string; from: string; to: string; active?: string };
+}
 
 /** A number a stamp states, or a whole-number column of the settings row (its table id). */
 export type StampAmount = number | { table: string; column: string };

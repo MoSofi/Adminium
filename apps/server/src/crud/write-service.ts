@@ -2098,7 +2098,7 @@ function refuseEarly(target: WriteTarget, action: 'create' | 'update', values: R
 }
 
 /** What DECIDE needs to know about a write. */
-function decideContext(target: WriteTarget, context: WriteContext, now: Date, zone: string | undefined, people: Pick<DecideContext, 'optOut'> = {}): DecideContext {
+function decideContext(target: WriteTarget, context: WriteContext, now: Date, zone: string | undefined, people: Pick<DecideContext, 'optOut' | 'settings'> = {}): DecideContext {
   return {
     ...people,
     db: target.db,
@@ -2150,7 +2150,7 @@ function withoutStamped(rules: TableRules | null, values: Row, origin: WriteOrig
     if (stamp.strict === true) return false;
     const set = stamp.set;
     if (typeof set !== 'object' || set === null) return false;
-    if ('addDays' in set) return !guest;
+    if ('addDays' in set || 'addWorkingDays' in set) return !guest;
     // A deadline or a hold's end staff may move by hand (a reminder that gives a day more); the stamp wins when it fires.
     if ('addMinutes' in set || 'deadline' in set) return !guest;
     if ('byOrigin' in set) return !guest && (set as { byOrigin: { staff?: string } }).byOrigin.staff === undefined;
@@ -2199,11 +2199,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * What DECIDE reads of the people a table holds: its opt-out mark, looked up
    * only for a table with a strict stamp (every other table costs nothing).
    */
-  const peopleDecide = async (rules: TableRules | null, target: WriteTarget, context: WriteContext): Promise<Pick<DecideContext, 'optOut'>> => {
-    if (opts.people === undefined || !(rules?.stamps ?? []).some((stamp) => stamp.strict === true)) return {};
+  const peopleDecide = async (rules: TableRules | null, target: WriteTarget, context: WriteContext): Promise<Pick<DecideContext, 'optOut' | 'settings'>> => {
+    // The settings a stamp reads (a working week, a cut-off), as every other rule reads them.
+    const settings = opts.settings === undefined ? {} : { settings: opts.settings };
+    if (opts.people === undefined || !(rules?.stamps ?? []).some((stamp) => stamp.strict === true)) return settings;
     const declared = await opts.people.tableOf(target);
-    if (declared?.optOutMark == null) return {};
-    return { optOut: { column: declared.optOutMark, email: declared.email, shown: context.optOut?.shown === true, carried: context.optOut?.carried ?? null } };
+    if (declared?.optOutMark == null) return settings;
+    return { ...settings, optOut: { column: declared.optOutMark, email: declared.email, shown: context.optOut?.shown === true, carried: context.optOut?.carried ?? null } };
   };
 
   /** Whether the consent log hears of writes to this table: its consent column, or a public tick on it. */

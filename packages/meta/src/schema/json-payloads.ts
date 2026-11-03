@@ -563,6 +563,9 @@ const ruleSetting = z.union([
   z.object({ addOn: z.string().min(1).max(80), setting: z.string().min(1).max(80) }),
 ]);
 
+/** A setting of an app or an add-on by its key (`{addOn: <key>, setting}`), kept by Adminium. */
+const appSetting = z.object({ addOn: z.string().min(1).max(80), setting: z.string().min(1).max(80) }).strict();
+
 /** A column of the booking table, or of a table the booking rule names. */
 const bookingName = z.string().min(1).max(128);
 
@@ -1372,6 +1375,26 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
           }),
         }),
         ...momentStamps,
+        /**
+         * A date so many working days after a moment on the venue's clock: the
+         * week and the cut-off stated, or read from the app's own settings
+         * (`{addOn: <app key>, setting}`); the days a closures table (its id in
+         * the snapshot) holds, skipped.
+         */
+        z
+          .object({
+            addWorkingDays: z
+              .object({
+                from: z.union([z.literal('now'), ruleColumn]),
+                days: z.union([ruleColumn, z.number().int().min(0).max(3650)]),
+                map: z.record(z.string(), z.number().int().min(0).max(3650)).optional(),
+                weekdays: z.union([z.array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])).min(1).max(7), appSetting]),
+                cutoff: z.union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), appSetting]).optional(),
+                closures: z.object({ table: ruleTable, from: ruleColumn, to: ruleColumn, active: ruleColumn.optional() }).strict().optional(),
+              })
+              .strict(),
+          })
+          .strict(),
       ]),
       on: z.union([stampTrigger, z.array(stampTrigger).min(2).max(3)]),
       /** Emptied again when a move marked `undo` takes the row back out of a state it watches. */

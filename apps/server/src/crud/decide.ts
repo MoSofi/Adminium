@@ -29,7 +29,10 @@
  *  - `claim`: a column of the signed-in person's own row on a public write
  *    (their email, their name); on a staff write, the staff word or nothing;
  *  - `addDays`: a date so many days after another — worked out after every
- *    other stamp, so a due date follows the issue date the same write stamps.
+ *    other stamp, so a due date follows the issue date the same write stamps;
+ *  - `addWorkingDays`: a date so many working days after a moment, on the
+ *    venue's clock, its closures read in the write (`crud/working-days.ts`) —
+ *    worked out last of all, so it may count from a moment this write stamps.
  *
  * A fingerprint (`hashOf`) is not decided here: it is sealed after the hooks,
  * the formulas and the child rows (`crud/seal.ts`).
@@ -80,6 +83,8 @@ import { StateTooLate } from './state-conditions.js';
 import { clearedByUndo, emptiedByUndo, keptByUndo, undoMoveOf } from './undo-moves.js';
 import { dayOf } from './states.js';
 import { venueClock } from './venue-time.js';
+import type { RuleSettingsReader } from './rule-settings.js';
+import { workingDaysValue } from './working-days.js';
 import { sameValue } from './write-values.js';
 import type { Row } from './mask.js';
 import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
@@ -102,6 +107,8 @@ export interface DecideContext {
   rights?: TablePrivileges | null | undefined;
   /** A file a person brings in: a stamp fills what a line leaves out (`WriteContext.stamps`). */
   stamps?: 'left-out' | undefined;
+  /** The settings a rule reads (a working week, a cut-off): the app's own, by its key. */
+  settings?: RuleSettingsReader | undefined;
   /**
    * The table's opt-out mark, when its app declares one (`people[].optOutMark`):
    * the column, the address column, and what the save says of the line
@@ -182,7 +189,7 @@ export async function decideRow(
   // The opt-out mark is never fired by its own trigger (see OPT-OUT MARK).
   const stamps = (undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo))).filter((stamp) => stamp.column !== context.optOut?.column);
   const worked = await momentStamps(stamps, action, out, before, context);
-  const stamped = stampRow(stamps, action, out, before, context, worked);
+  const stamped = await workingDayStamps(stamps, action, stampRow(stamps.filter((stamp) => !isWorkingDays(stamp)), action, out, before, context, worked), before, context);
   const emptied = undo === null ? [] : (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
   let moved = emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
   // And the further columns the move names (`clears`): a value the writer sent for one is left for the judge to refuse.
@@ -242,7 +249,8 @@ async function stampLeftOut(rules: TableRules, action: WriteAction, values: Row,
   // The opt-out mark is never a file's: no line stamps it (see OPT-OUT MARK).
   const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]) && !asked.has(stamp.column) && stamp.column !== context.optOut?.column);
   if (stamps.length === 0) return values;
-  return stampRow(stamps, action, values, before, context, await momentStamps(stamps, action, values, before, context));
+  const stamped = stampRow(stamps.filter((stamp) => !isWorkingDays(stamp)), action, values, before, context, await momentStamps(stamps, action, values, before, context));
+  return workingDayStamps(stamps, action, stamped, before, context);
 }
 
 /** The values without what a writer sent for a strict stamp's column; the same object when none was sent. */
@@ -493,6 +501,40 @@ function stampRow(stamps: readonly ColumnStamp[], action: WriteAction, values: R
 }
 
 const isAddDays = (stamp: ColumnStamp) => typeof stamp.set === 'object' && 'addDays' in stamp.set;
+
+const isWorkingDays = (stamp: ColumnStamp) => typeof stamp.set === 'object' && 'addWorkingDays' in stamp.set;
+
+/**
+ * The `addWorkingDays` stamps that fire on this write, worked out last, from
+ * the row as the other stamps leave it: its closures and its settings read
+ * on the write's own handle (a quote reads what the save reads). The same
+ * object when none fires.
+ */
+async function workingDayStamps(stamps: readonly ColumnStamp[], action: WriteAction, values: Row, before: Row | null, context: DecideContext): Promise<Row> {
+  let out: Row | null = null;
+  for (const stamp of stamps) {
+    if (!isWorkingDays(stamp) || !stampFires(stamp, action, values, before)) continue;
+    const rule = (stamp.set as { addWorkingDays: Parameters<typeof workingDaysValue>[0] }).addWorkingDays;
+    const value = await workingDaysValue(rule, stamp.column, { ...(before ?? {}), ...(out ?? values) }, {
+      db: context.db,
+      zone: context.zone ?? 'UTC',
+      now: context.now,
+      settings: context.settings,
+      fromIsDate: rule.from !== 'now' && context.table.columns.get(rule.from)?.logicalType === 'date',
+    });
+    if (value === undefined) {
+      // Fired, and gave nothing (no number of days): what the writer sent there is not taken for it.
+      if (has(out ?? values, stamp.column)) {
+        out ??= { ...values };
+        delete out[stamp.column];
+      }
+      continue;
+    }
+    out ??= { ...values };
+    out[stamp.column] = value;
+  }
+  return out ?? values;
+}
 
 async function decideLate(rule: TableBookingRule, values: Row, before: Row, context: DecideContext): Promise<Row> {
   const cancel = rule.cancel!;

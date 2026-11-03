@@ -2104,6 +2104,7 @@
         "stampClaim": "已登录者的 {column}",
         "stampAddDays": "{date} 加 {days} 天",
         "stampAddDaysColumn": "{date} 加上 {column} 给出的天数",
+        "stampAddWorkingDays": "{from} 加上 {days} 个工作日",
         "stampHashOf": "该行的指纹",
         "stampFilled": "当 {column} 首次填写时设为{what}",
         "sequenceGapless": "按顺序的下一个编号，不跳号也不重复",

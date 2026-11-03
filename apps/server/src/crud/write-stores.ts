@@ -19,19 +19,25 @@ import { assertListedCanOpen } from './row-writes.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 
 /**
- * One of an add-on's settings: the value the install saved, else the default
- * the add-on declares — a fresh install already has its prefixes, its ladder
- * and its default terms before anyone opens the settings page. A secret is
- * never read by a rule.
+ * One of an add-on's settings (or an app's own, under the app's key): the
+ * value the install saved, else the default the manifest declares — a fresh
+ * install already has its prefixes, its ladder, its default terms and its
+ * working week before anyone opens the settings page. A secret is never read
+ * by a rule.
  */
 export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: string): Promise<unknown> {
   const saved = (await addOnSettingsRepo(meta).valuesFor(addOnKey))[setting];
   if (saved !== undefined && saved !== null) return saved;
+  return declaredDefault(meta, addOnKey, setting);
+}
+
+/** The default an installed add-on or app declares for one of its settings, whatever is saved; undefined for none or a secret. */
+export async function declaredDefault(meta: MetaDb, key: string, setting: string): Promise<unknown> {
   const row = await meta.db
     .selectFrom('adminium_manifests')
     .select('manifest')
-    .where('manifestKey', '=', addOnKey)
-    .where('kind', '=', 'add-on')
+    .where('manifestKey', '=', key)
+    .where('kind', 'in', ['add-on', 'app'])
     .where('status', '=', 'installed')
     .executeTakeFirst();
   const declared = (readJson<Manifest | null>(row?.manifest ?? null)?.settings ?? []).find((candidate) => candidate.key === setting);
@@ -54,6 +60,7 @@ export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences'
     settings: {
       currency: async (connectionId) => (await connectionTenantConfig(meta, connectionId))?.currency ?? null,
       addOnSetting: (addOnKey, setting) => addOnSetting(meta, addOnKey, setting),
+      defaultSetting: (key, setting) => declaredDefault(meta, key, setting),
     },
     rolesOf: async (actor) => {
       const roles = rolesRepo(meta);

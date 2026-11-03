@@ -281,6 +281,9 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
           ? t('studio:remap.rules.decided.stampAddDays', '{date} plus {days} days', { date: set.addDays.date, days: set.addDays.days })
           : t('studio:remap.rules.decided.stampAddDaysColumn', '{date} plus the days {column} gives', { date: set.addDays.date, column: set.addDays.days });
       }
+      if ('addWorkingDays' in set) {
+        return t('studio:remap.rules.decided.stampAddWorkingDays', '{from} plus {days} working days', { from: set.addWorkingDays.from, days: set.addWorkingDays.days });
+      }
       return t('studio:remap.rules.decided.stampHashOf', 'a fingerprint of the row');
     }
     return set === 'now'
