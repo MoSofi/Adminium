@@ -54,17 +54,24 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
   globalsBefore = new Set(Object.keys(window));
   document.documentElement.lang = 'de-DE';
-  document.body.innerHTML = [
-    '<div data-adminium-form="showroom-visit" data-title="Book a visit"></div>',
-    '<div data-adminium-form="newsletter"></div>',
-    '<div data-adminium-form="../../etc"></div>',
-    '<div data-adminium-form="Bad_Slug"></div>',
-  ].join('');
+  // Built with DOM calls, not raw HTML: no file a render layer ships beside may hold an HTML sink.
+  const spots: [string, string | null][] = [
+    ['showroom-visit', 'Book a visit'],
+    ['newsletter', null],
+    ['../../etc', null],
+    ['Bad_Slug', null],
+  ];
+  for (const [slug, title] of spots) {
+    const spot = document.createElement('div');
+    spot.setAttribute('data-adminium-form', slug);
+    if (title !== null) spot.setAttribute('data-title', title);
+    document.body.append(spot);
+  }
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
-  document.body.innerHTML = '';
+  document.body.replaceChildren();
   delete (window as { adminium?: unknown }).adminium;
   document.documentElement.removeAttribute('lang');
 });
