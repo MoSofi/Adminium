@@ -169,8 +169,10 @@ import {
   marketingRefusalSentence,
   marketingSkipSentence,
   saidNoSentence,
+  STOPPED_FOR_PURPOSE_SENTENCE,
   type MarketingMail,
 } from '../email/marketing.js';
+import { PLAIN_RECIPIENT } from '../email/plain-address.js';
 import { existingCustomer, invitedPerson, recipientPerson } from './marketing.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
@@ -1476,7 +1478,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const mailClass = mailClassOf(manifest, { outboxKind: kind });
     // The consent purpose the kind is sent for (`outbox.purposes`): a marketing kind is judged for it instead of the
     // newsletter; a service kind that names one skips a person whose latest answer for it is "no" (a survey
-    // invitation sent as service mail never reaches a person who said no to surveys). The list stops marketing only.
+    // invitation sent as service mail never reaches a person who said no to surveys), and the do-not-email list too:
+    // a purpose marks the mail as an offer the person may refuse, and a stranger can type anyone's address into a
+    // public form. A service kind with no purpose (a receipt) is never stopped by the list.
     const purpose = mailPurposeOf(manifest, kind);
     // A kind that prints a survey's link is about an invitation, whose person the consent log knows by their row too.
     const survey = printsSurveyLink(manifest, kind) ? await invitationOf(ctx, producer, row) : null;
@@ -1488,6 +1492,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const person = surveyPerson ?? (await recipientPerson(ctx, box, row, found, addressed))?.ref ?? null;
       const standing = await marketing().consent.stateFor({ person, address: found.trim() }, purpose);
       if (standing.state === 'no') return { status: 'skipped', error: sentence(saidNoSentence(purpose)) };
+      // The list is asked by the bare address: one that is not plain could be delivered past it, so it is not sent.
+      if (!PLAIN_RECIPIENT.test(found.trim()) || (await marketing().consent.stop.has(found.trim()))) return { status: 'skipped', error: STOPPED_FOR_PURPOSE_SENTENCE };
       objection = { purpose, person };
     }
     if (mailClass === 'marketing') {

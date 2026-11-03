@@ -14,9 +14,9 @@
  *    that is not live, and any while the server has no public address: not
  *    sent, the row saying why;
  *  - sent as service mail, it still skips a person who said no to surveys
- *    (by their address, or by their row), and still reaches an address on
- *    the do-not-email list; a "no" given after it was queued stops it at the
- *    hand-over;
+ *    (by their address, or by their row), and an address on the do-not-email
+ *    list (a purpose marks it as an offer they may refuse); a "no", or the
+ *    list, given after it was queued stops it at the hand-over;
  *  - sent as marketing mail, it is judged for surveys, not the newsletter.
  */
 import { documentSequencesRepo, settingsRepo } from '@adminium/meta';
@@ -193,18 +193,24 @@ describe.each(LEGS)('a survey invitation, mailed — %s', (dialect, available) =
     expect(await invitationRow('inv_noorigin')).toMatchObject({ token_hash: null });
   });
 
-  it.skipIf(!available)('as service mail: skips a "no" to surveys, by the address or by their row, and still reaches the do-not-email list', async () => {
+  it.skipIf(!available)('as service mail: skips a "no" to surveys, by the address or by their row, and an address on the do-not-email list', async () => {
     await consent().record({ address: 'gil@harbour.dev', purpose: 'surveys', source: 'import', state: 'no' });
     await invitation('inv_no_address', { email: 'gil@harbour.dev' });
     expect(await mail('inv_no_address')).toEqual(expect.objectContaining({ status: 'skipped', error: 'Not sent: they said no to surveys' }));
     await consent().record({ person: { connectionId: h.connectionId, table: 'public.crm_contacts', key: 'c_hal' }, purpose: 'surveys', source: 'import', state: 'no' });
     await invitation('inv_no_row', { email: 'hal@harbour.dev', person: 'c_hal' });
     expect(await mail('inv_no_row')).toEqual(expect.objectContaining({ status: 'skipped', error: 'Not sent: they said no to surveys' }));
-    // A "no" to the newsletter is not a "no" to surveys, and the list never stops service mail.
+    // A "no" to the newsletter is not a "no" to surveys: it goes.
     await consent().record({ address: 'ivy@harbour.dev', purpose: 'newsletter', source: 'import', state: 'no' });
+    await invitation('inv_newsletter_no', { email: 'ivy@harbour.dev' });
+    expect(await mail('inv_newsletter_no')).toMatchObject({ status: 'sent' });
+    // The do-not-email list stops a service kind sent for a purpose (a receipt, with none, still goes: outbox-mail-classes).
     await consent().stop.add({ address: 'ivy@harbour.dev', reason: 'link' });
     await invitation('inv_stopped', { email: 'ivy@harbour.dev' });
-    expect(await mail('inv_stopped')).toMatchObject({ status: 'sent' });
+    expect(await mail('inv_stopped')).toEqual(expect.objectContaining({ status: 'skipped', error: 'Not sent: on the do-not-email list' }));
+    // Asked by the bare address: a spelling a mail server would deliver past the list is not sent either.
+    await invitation('inv_spelled', { email: 'ivy@harbour.dev;' });
+    expect(await mail('inv_spelled')).toMatchObject({ status: 'skipped' });
   });
 
   it.skipIf(!available)('a "no" to surveys given after it was queued stops it at the hand-over', async () => {
@@ -228,6 +234,27 @@ describe.each(LEGS)('a survey invitation, mailed — %s', (dialect, available) =
     expect(sent.map((one) => one.to)).not.toContain('jo@harbour.dev');
     expect(told).toContain('Not sent: they said no to surveys');
     expect(sent.length).toBeGreaterThan(0);
+  });
+
+  it.skipIf(!available)('an address put on the do-not-email list after it was queued stops it at the hand-over', async () => {
+    await invitation('inv_late_stop', { email: 'kit@harbour.dev' });
+    expect((await mail('inv_late_stop')).status).toBe('sent');
+    await consent().stop.add({ address: 'kit@harbour.dev', reason: 'link' });
+    const sent: OutboundEmail[] = [];
+    const told: string[] = [];
+    const transport: EmailTransport = { send: async (message) => void sent.push(message) };
+    const registry = createJobRegistry();
+    const hub = new RealtimeHub();
+    registerEmailSendHandler(registry, { meta: h.meta, secret: TEST_SECRET, createTransport: () => transport, onGiveUp: async (_report, error) => void told.push((error as Error).message) });
+    const worker = new JobWorker({ meta: h.meta, registry, hub, workerId: 'survey-stop-test', backoffBaseMs: 1, concurrency: 1 });
+    try {
+      for (let pass = 0; pass < 50 && (await worker.runOnce()) > 0; pass += 1);
+    } finally {
+      await worker.stop({ drainTimeoutMs: 50 });
+      hub.close();
+    }
+    expect(sent.map((one) => one.to)).not.toContain('kit@harbour.dev');
+    expect(told).toContain('Not sent: on the do-not-email list');
   });
 
   it.skipIf(!available)('as marketing mail, judged for surveys: a yes to the newsletter alone does not carry it', async () => {
