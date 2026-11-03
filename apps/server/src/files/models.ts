@@ -379,7 +379,7 @@ export async function check3mf(file: WholeFile, given?: readonly ZipEntry[]): Pr
 
   // The model part, inflated as a stream within its declared size and the cap; its start must be a 3MF model.
   const start = (await inflateEntry(file.path, part, THREE_MF_MAX_UNPACKED, 4096)).toString('utf8');
-  const root = start.replace(/^﻿/, '').replace(/^\s*<\?xml[^>]*\?>/, '').replace(/^(\s*<!--[\s\S]*?-->)*/, '').trimStart();
+  const root = start.replace(/^\uFEFF/, '').replace(/^\s*<\?xml[^>]*\?>/, '').replace(/^(\s*<!--[\s\S]*?-->)*/, '').trimStart();
   if (!/^<model[\s>]/.test(root)) refuse(`This is not a 3MF: ${part.name} is not a 3D model.`);
 }
 

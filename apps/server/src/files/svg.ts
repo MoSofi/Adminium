@@ -486,7 +486,7 @@ export function cleanSvg(input: Buffer): Buffer {
     refuse('This SVG is not UTF-8 text.');
   }
   // XML's own line-end handling, before anything is read.
-  text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const tree = new Reader(text).read();
   const cleaned = cleanElement(tree, true);
   if (cleaned === null) refuse('This is not an SVG drawing.');
