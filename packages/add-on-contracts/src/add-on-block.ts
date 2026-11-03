@@ -309,6 +309,13 @@ export const addOnBlockSchema = z
      */
     adjuster: z.record(z.string(), z.unknown()).optional(),
     /**
+     * What the add-on reads to answer whether a design may be ordered (its
+     * designs table and keyed reads from a design row), served by its
+     * `design-check` provider. Its words are the manifest's own, so
+     * `@adminium/manifest` checks the whole of it.
+     */
+    checker: z.record(z.string(), z.unknown()).optional(),
+    /**
      * Stock words: a question a page may ask of a ledger without writing
      * anything — "is this in, low or out?". Only the id is typed here; the
      * rest names the manifest's own ledgers and settings, which

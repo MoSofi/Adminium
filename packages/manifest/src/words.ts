@@ -205,6 +205,9 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.band',
   'stamp.addWorkingDays',
   'formula.ceilFloor',
+  // Whether an order line's design may be ordered: the line table's rule, and the add-on's side of it.
+  'table.check',
+  'addOn.checker',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -398,6 +401,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.band': '0.3.43',
   'stamp.addWorkingDays': '0.3.43',
   'formula.ceilFloor': '0.3.43',
+  // A design checked by an add-on inside the save: read by the same release.
+  'table.check': '0.3.43',
+  'addOn.checker': '0.3.43',
 };
 
 /** Whether a formula, at any depth, rounds up or down (`ceil`, `floor`). */
@@ -423,6 +429,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['settingsTable'] !== undefined) out.push({ word: 'addOn.settingsTable', path: 'addOn.settingsTable' });
     if (block['ledgers'] !== undefined) out.push({ word: 'addOn.ledgers', path: 'addOn.ledgers' });
     if (block['adjuster'] !== undefined) out.push({ word: 'addOn.adjuster', path: 'addOn.adjuster' });
+    if (block['checker'] !== undefined) out.push({ word: 'addOn.checker', path: 'addOn.checker' });
     if (block['words'] !== undefined) out.push({ word: 'addOn.words', path: 'addOn.words' });
     if (block['recordTabs'] !== undefined) out.push({ word: 'addOn.recordTabs', path: 'addOn.recordTabs' });
     // Pages that also need the data kit.
@@ -489,6 +496,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['indexes'] !== undefined) out.push({ word: 'table.indexes', path: `${at}.indexes` });
     if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
     if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
+    if (table['check'] !== undefined) out.push({ word: 'table.check', path: `${at}.check` });
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
     list(table['belongs']).forEach((way, w) => {
       if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });

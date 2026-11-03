@@ -64,6 +64,7 @@ import { expireIssues, expireSchema } from './expire.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
+import { checkIssues, checkSchema, checkerIssues, checkerSchema, type Checker, type CheckTableShape } from './check.js';
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 import { addOnFormsSchema, formsBlockIssues, type AddOnForms, type FormsTableShape } from './forms.js';
 
@@ -1165,6 +1166,8 @@ export const requiredTableSchema = z
     postings: postingsSchema.optional(),
     /** Where an add-on's offers and codes lower this order's price (see `adjust.ts`). */
     adjust: adjustSchema.optional(),
+    /** Whether an order line's design may be ordered, asked of an add-on (see `check.ts`). */
+    check: checkSchema.optional(),
     /** How a person belongs to a row, so a role's rows can be limited to their own or their team's (see `roles.ts`). */
     belongs: belongsSchema.optional(),
     /** Rows read by the people they belong to and by nobody and nothing else: no rule, public entry, document or export. */
@@ -2934,6 +2937,22 @@ export function appReferenceIssues(
         ),
       );
     }
+    if (table.check !== undefined) {
+      out.push(
+        ...checkIssues(
+          table as unknown as CheckTableShape,
+          table.check,
+          {
+            key: shapeOf?.addOn ?? m.key,
+            kind: shapeOf !== undefined || m.kind === 'add-on' ? 'add-on' : 'app',
+            tables: tables as unknown as ReadonlyMap<string, CheckTableShape>,
+            named: new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)),
+            features: new Map((m.addOns?.features ?? []).map((feature) => [feature.id, feature.requires])),
+          },
+          at,
+        ),
+      );
+    }
     if (table.postings !== undefined) {
       // What a posting makes Adminium's own: how long a hold lasts, and an amount its ledger decides — on the row, or on the parent its lines belong to.
       for (const [p, posting] of table.postings.entries()) {
@@ -3660,6 +3679,7 @@ export interface RequiredTableShape {
   builtOn?: string | undefined;
   postings?: z.infer<typeof postingsSchema> | undefined;
   adjust?: z.infer<typeof adjustSchema> | undefined;
+  check?: z.infer<typeof checkSchema> | undefined;
   belongs?: z.infer<typeof belongsSchema> | undefined;
   private?: true | undefined;
   module?: string | undefined;
@@ -3973,7 +3993,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -4111,6 +4131,13 @@ export function lookUpOf(m: Manifest): LookUp | null {
 export function adjusterOf(m: Manifest): Adjuster | null {
   if (m.kind !== 'add-on' || m.addOn.adjuster === undefined) return null;
   const parsed = adjusterSchema.safeParse(m.addOn.adjuster);
+  return parsed.success ? parsed.data : null;
+}
+
+/** An add-on's checker, typed; null for an app, and for an add-on that declares none. */
+export function checkerOf(m: Manifest): Checker | null {
+  if (m.kind !== 'add-on' || m.addOn.checker === undefined) return null;
+  const parsed = checkerSchema.safeParse(m.addOn.checker);
   return parsed.success ? parsed.data : null;
 }
 
@@ -4284,6 +4311,18 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     }
     const providers = (m.addOn.provides ?? []).filter((entry) => entry.contract === 'price-adjust');
     if (providers.length !== 1) out.push({ path: ['addOn', 'provides'], message: 'an add-on with an adjuster provides the contract "price-adjust" exactly once' });
+  }
+
+  // The checker is typed loosely in the contracts package too: its words are checked here.
+  if (m.addOn.checker !== undefined) {
+    const parsed = checkerSchema.safeParse(m.addOn.checker);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'checker', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(...checkerIssues(parsed.data, byRef as unknown as ReadonlyMap<string, CheckTableShape>));
+    }
+    const providers = (m.addOn.provides ?? []).filter((entry) => entry.contract === 'design-check');
+    if (providers.length !== 1) out.push({ path: ['addOn', 'provides'], message: 'an add-on with a checker provides the contract "design-check" exactly once' });
   }
 
   // A ledger is served by the add-on's one `posting-rows` provider, and its receipt table is the one Adminium writes.

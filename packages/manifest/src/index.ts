@@ -67,6 +67,7 @@ export {
   type FormsEntry,
   addOnRoleTableHold,
   adjusterOf,
+  checkerOf,
   lookUpOf,
   wordsOf,
   indexSetIssues,
@@ -535,6 +536,7 @@ export {
   type AdjustTableShape,
   type Adjuster,
 } from './adjust.js';
+export { CHECKER_READS_MAX, checkIssues, checkReadSchema, checkSchema, checkerIssues, checkerSchema, type Check, type CheckRead, type Checker, type CheckTableShape } from './check.js';
 export {
   AUTOMATION_CONDITION_OPS,
   AUTOMATION_NODES_MAX,
