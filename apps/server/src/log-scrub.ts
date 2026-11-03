@@ -108,8 +108,23 @@ const PAY_PATH_SECRETS: readonly RegExp[] = [
   /^(\/pay\/)(?!api\/|back\/|demo\/|assets\/)[^/?#]+/,
 ];
 
-/** The path with a pay link's token (or a way back's nonce) replaced by {@link REDACTED}. */
+/**
+ * The mail door's links (`/m/u/<token>` unsubscribe, `/m/l/<token>` a counted
+ * click, `/m/c/<token>` a sign-up's confirm): the token is the whole of what
+ * opens the page, so everything after the door's letter is replaced.
+ */
+const MAIL_PATH_SECRET = /^(\/m\/[cul]\/)[^?#]+/;
+
+/**
+ * Query parameters whose value is a credential only on the stranger pages
+ * under `/x/`: a named survey's one-use token (`?t=`), which answers the
+ * survey as its invitee. Elsewhere `t` is an ordinary name.
+ */
+const STRANGER_QUERY_PARAMS: ReadonlySet<string> = new Set(['t']);
+
+/** The path with a pay link's token (or a way back's nonce), or a mail link's token, replaced by {@link REDACTED}. */
 export function scrubPathForLog(path: string): string {
+  if (MAIL_PATH_SECRET.test(path)) return path.replace(MAIL_PATH_SECRET, `$1${REDACTED}`);
   if (!path.startsWith('/pay/')) return path;
   for (const pattern of PAY_PATH_SECRETS) {
     if (pattern.test(path)) return path.replace(pattern, `$1${REDACTED}`);
@@ -123,6 +138,7 @@ export function scrubUrlForLog(url: string): string {
 
   const path = scrubPathForLog(url.slice(0, mark));
   const query = url.slice(mark + 1);
+  const stranger = url.startsWith('/x/');
   let touched = false;
 
   const scrubbed = query
@@ -133,7 +149,8 @@ export function scrubUrlForLog(url: string): string {
       // `?bootToken` with no `=` carries no value to leak; leave it alone.
       if (eq === -1) return pair;
       const rawName = pair.slice(0, eq);
-      if (!SENSITIVE_LOWER.has(decodeParamName(rawName).toLowerCase())) return pair;
+      const name = decodeParamName(rawName).toLowerCase();
+      if (!SENSITIVE_LOWER.has(name) && !(stranger && STRANGER_QUERY_PARAMS.has(name))) return pair;
       touched = true;
       return `${rawName}=${REDACTED}`;
     })

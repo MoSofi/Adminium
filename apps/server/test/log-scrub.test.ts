@@ -112,4 +112,21 @@ describe('scrubUrlForLog', () => {
     expect(scrubUrlForLog('/x?tokenizer=fast')).toBe('/x?tokenizer=fast');
     expect(scrubUrlForLog('/x?mybootToken=1')).toBe('/x?mybootToken=1');
   });
+
+  it('redacts a named survey token on the stranger pages, and only there', () => {
+    expect(scrubUrlForLog(`/x/forms/api/feedback/files?q=qfiles&t=${TOKEN}&name=a.pdf`)).toBe(`/x/forms/api/feedback/files?q=qfiles&t=${REDACTED}&name=a.pdf`);
+    expect(scrubUrlForLog(`/x/forms/feedback?t=${TOKEN}`)).toBe(`/x/forms/feedback?t=${REDACTED}`);
+    // Elsewhere `t` is an ordinary parameter.
+    expect(scrubUrlForLog('/api/v1/rows?t=5')).toBe('/api/v1/rows?t=5');
+  });
+
+  it('redacts the token of a mail link: confirm, unsubscribe and click', () => {
+    for (const letter of ['c', 'u', 'l']) {
+      expect(scrubUrlForLog(`/m/${letter}/${TOKEN}~abc_DEF-123`)).toBe(`/m/${letter}/${REDACTED}`);
+      expect(scrubUrlForLog(`/m/${letter}/${TOKEN}?List-Unsubscribe=One-Click`)).toBe(`/m/${letter}/${REDACTED}?List-Unsubscribe=One-Click`);
+    }
+    // Another of the door's paths, and a path that only begins alike, keep what they are.
+    expect(scrubUrlForLog('/m/x/abc')).toBe('/m/x/abc');
+    expect(scrubUrlForLog('/media/c/abc')).toBe('/media/c/abc');
+  });
 });
