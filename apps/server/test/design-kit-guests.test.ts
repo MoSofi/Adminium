@@ -169,4 +169,14 @@ describe.each(LEGS)('a shopper\'s design on two shops sharing one add-on — %s'
     expect(checked.ok).toBe(false);
     expect(JSON.stringify(checked.issues)).toContain('design_id');
   });
+
+  it.skipIf(!available)('two shops requiring the add-on at ^1.0.0 both installed it once, and its update within the range is not blocked', async () => {
+    const attached = await h.meta.db.selectFrom('adminium_manifest_attachments').select('attachedTo').execute();
+    expect(attached.map((row) => row.attachedTo).sort()).toEqual(['maker', 'printing']);
+    expect((await h.meta.db.selectFrom('adminium_manifests').select('manifestKey').where('manifestKey', '=', DESIGN_KIT).execute()).length).toBe(1);
+    await h.stageAddOn(designKitManifest({ version: '1.0.1' }));
+    const updated = await h.inject({ method: 'POST', url: `/add-ons/${DESIGN_KIT}/update`, payload: { to: '1.0.1' } });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect((updated.json() as { to: string }).to).toBe('1.0.1');
+  });
 });
