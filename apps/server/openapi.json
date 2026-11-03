@@ -42161,6 +42161,25 @@
                                   "enum": [
                                     true
                                   ]
+                                },
+                                "personLinks": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string"
+                                      },
+                                      "table": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "table"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
                               },
                               "required": [
