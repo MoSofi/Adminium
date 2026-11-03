@@ -97,7 +97,7 @@ export function crmApp(): Doc {
       { table: 'enquiries', methods: ['POST'], key: 'forms', writable: ['person', 'email', 'message', 'source'], defaults: { state: 'open' }, source: 'source', anonymous: { perKeyHour: 100, plainText: ['person'] } },
       { table: 'feedback', methods: ['POST'], key: 'forms', writable: ['job_id', 'score', 'text'], anonymous: { perKeyHour: 100 } },
     ],
-    roles: [{ key: 'clerk', name: 'Clerk', permissions: ['table:@enquiries:read', 'table:@contacts:read', 'table:@jobs:read'] }],
+    roles: [{ key: 'clerk', name: 'Clerk', permissions: ['table:@enquiries:read', 'table:@contacts:read', 'table:@jobs:read', 'page:@crm-jobs:view', 'page:@crm-enquiries:view'] }],
     pages: [
       { ref: 'crm-enquiries', template: 'page-crud', title: { key: 'p.enq', fallback: 'Enquiries' }, nav: { group: 'crm', icon: 'list', order: 1 }, bindings: { rows: 'enquiries' } },
       { ref: 'crm-jobs', template: 'page-crud', title: { key: 'p.jobs', fallback: 'Jobs' }, nav: { group: 'crm', icon: 'list', order: 2 }, bindings: { rows: 'jobs' } },
@@ -154,7 +154,8 @@ export interface FormsWorld {
 /**
  * The CRM and the built add-on, attached to it, on one database; the people:
  * `mia` the add-on's manager, `rex` its reader, `lim` a reader of one form's
- * answers only, `cal` the CRM's clerk (nothing of Forms), `boss` a Super Admin.
+ * answers only, `cal` the CRM's clerk (nothing of Forms), `rox` a clerk who
+ * reads Forms too, `boss` a Super Admin.
  */
 export async function formsWorld(dialect: Dialect): Promise<FormsWorld> {
   if (FORMS === null) throw new Error('Forms is not built: set ADMINIUM_ADD_ONS_REPO and run `npm run build` in packages/forms');
@@ -230,6 +231,7 @@ export async function formsWorld(dialect: Dialect): Promise<FormsWorld> {
   await person('rex', ['forms-reader']);
   await person('lim', ['forms-one-form']);
   await person('cal', ['crm-clerk']);
+  await person('rox', ['crm-clerk', 'forms-reader']);
   await person('boss', ['super-admin']);
 
   let seq = 0;
@@ -238,8 +240,9 @@ export async function formsWorld(dialect: Dialect): Promise<FormsWorld> {
     seq += 1;
     return reply(await composed.app.inject({ method: method as 'GET', url, remoteAddress: ip ?? `198.51.100.${String(seq % 250)}`, headers: { host: HOST, origin: ORIGIN, 'user-agent': 'Mozilla/5.0 test', ...headers }, ...(payload === undefined ? {} : { payload: payload as never }) }));
   };
-  const proof = async (slug: string): Promise<string> => {
-    const challenge = (await composed.app.inject({ method: 'GET', url: `/x/forms/api/${slug}/challenge`, headers: { host: HOST } })).json() as Doc;
+  // A named survey's link carries its token on the challenge too.
+  const proof = async (slug: string, token?: string): Promise<string> => {
+    const challenge = (await composed.app.inject({ method: 'GET', url: `/x/forms/api/${slug}/challenge${token === undefined ? '' : `?t=${token}`}`, headers: { host: HOST } })).json() as Doc;
     return typeof challenge['salt'] === 'string' ? `${challenge['id'] as string}.${solveProof(challenge['salt'], challenge['difficulty'] as number)}` : 'none';
   };
   return {
@@ -251,7 +254,7 @@ export async function formsWorld(dialect: Dialect): Promise<FormsWorld> {
     as: async (who, method, url, payload) => reply(await composed.app.inject({ method: method as 'GET', url, headers: { host: HOST, cookie: cookies.get(who)! }, ...(payload === undefined ? {} : { payload: payload as never }) })),
     stranger,
     send: async (slug, values, opts = {}) =>
-      stranger('POST', `/x/forms/api/${slug}/answers`, { language: opts.language ?? 'en-US', values, query: {}, website: opts.website ?? '', ...(opts.t === undefined ? {} : { t: opts.t }) }, { 'x-adminium-proof': await proof(slug) }, opts.ip),
+      stranger('POST', `/x/forms/api/${slug}/answers`, { language: opts.language ?? 'en-US', values, query: {}, website: opts.website ?? '', ...(opts.t === undefined ? {} : { t: opts.t }) }, { 'x-adminium-proof': await proof(slug, opts.t) }, opts.ip),
     upload: async (slug, question, fileName, ip, body = PDF) => {
       const res = await composed.app.inject({
         method: 'POST',
