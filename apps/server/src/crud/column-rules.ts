@@ -78,7 +78,6 @@ import { holdsNul } from '../security/nul-bytes.js';
 import { PLAIN_TEXT_MAX } from '@adminium/manifest';
 import { linkFreeText, NAME_RULE, type PlainTextRule } from '../public-api/plain-text.js';
 import { codeLookupsOf, type CodeLookup } from './code-lookup.js';
-import type { ColumnBand } from './band.js';
 import { isNowType, renderNow } from './instants.js';
 import { clockOf } from './moments.js';
 import { booleanOf, sameValue } from './write-values.js';
@@ -461,6 +460,31 @@ export interface RollupInto {
    * them after this one settles, up to three rows high.
    */
   climbs: RollupInto[];
+}
+
+/** A `column.band` rule, compiled against the model. */
+export interface ColumnBand {
+  /** This table's foreign key the band fills. */
+  column: string;
+  /** The band table's id, and the key the link points at. */
+  table: string;
+  key: string;
+  /** The band table's inclusive bounds; no `max`, or an empty one, is open above. */
+  min: string;
+  max?: string | undefined;
+  /** This table's number placed among the bands. */
+  value: string;
+  /** Pairs of a band-table column and this row's column that must hold the same. */
+  scope: readonly { column: string; equals: string }[];
+  over: 'refuse' | 'empty';
+  /**
+   * When the band is picked: `resolve` with the copies, `formula` after the
+   * row's formulas, `settle` in the row's settle (its number is a total of
+   * child rows, or a formula over one).
+   */
+  when: 'resolve' | 'formula' | 'settle';
+  /** The copies that read through the link, in the order the copies run. */
+  copies: readonly ColumnCopy[];
 }
 
 /** A table's plain guard, as the write service carries it where a booking rule would be. */

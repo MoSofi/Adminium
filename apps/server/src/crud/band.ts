@@ -38,36 +38,14 @@ import { sql, type Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import { ValidationFailedError } from '../errors.js';
-import type { ColumnCopy, TableRules } from './column-rules.js';
+import type { ColumnBand, TableRules } from './column-rules.js';
 import { evaluateAll, touchedFormulas } from './formulas.js';
 import type { Row } from './mask.js';
 
 type Db = Kysely<SourceDatabase>;
 
-/** A `column.band` rule, compiled against the model. */
-export interface ColumnBand {
-  /** This table's foreign key the band fills. */
-  column: string;
-  /** The band table's id, and the key the link points at. */
-  table: string;
-  key: string;
-  /** The band table's inclusive bounds; no `max`, or an empty one, is open above. */
-  min: string;
-  max?: string | undefined;
-  /** This table's number placed among the bands. */
-  value: string;
-  /** Pairs of a band-table column and this row's column that must hold the same. */
-  scope: readonly { column: string; equals: string }[];
-  over: 'refuse' | 'empty';
-  /**
-   * When the band is picked: `resolve` with the copies, `formula` after the
-   * row's formulas, `settle` in the row's settle (its number is a total of
-   * child rows, or a formula over one).
-   */
-  when: 'resolve' | 'formula' | 'settle';
-  /** The copies that read through the link, in the order the copies run. */
-  copies: readonly ColumnCopy[];
-}
+/** A `column.band` rule, compiled against the model (kept with the other compiled rules). */
+export type { ColumnBand } from './column-rules.js';
 
 /** What the pick gives: the band row's key (null for none), or `over` for a number past the top of its band. */
 export type BandPick = { link: unknown } | { over: true };
