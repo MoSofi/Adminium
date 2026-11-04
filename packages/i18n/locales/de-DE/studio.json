@@ -168,6 +168,7 @@
       "through": "Ihre Kunden erreichen es über den öffentlichen Schlüssel einer App, mit der es verbunden ist: {refs}.",
       "link": "Es legt einen eigenen Link-Schlüssel an: Wer einen Link hat, öffnet genau diesen einen Datensatz und kann ihn nur lesen.",
       "ownLink": "Es erstellt einen eigenen Link-Schlüssel: Wer den eigenen Link eines Datensatzes hat, öffnet genau diesen Datensatz und darf einen Teil davon ändern, solange er in einem Status ist, den das Add-on nennt.",
+      "ownLinkRemove": "Es erstellt einen eigenen Link-Schlüssel: Wer den eigenen Link eines Datensatzes hat, öffnet genau diesen Datensatz und darf einen Teil davon ändern oder ihn löschen, solange er in einem Status ist, den das Add-on nennt.",
       "allow": "Öffentlichen Zugriff erlauben",
       "allowHelp": "Ohne Häkchen wird nichts öffentlich geöffnet. Sie können es später erlauben.",
       "cannot": "Das kann nur erlauben, wer API-Schlüssel verwalten darf.",

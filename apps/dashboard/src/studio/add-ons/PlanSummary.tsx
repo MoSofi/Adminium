@@ -134,6 +134,8 @@ export function PublicAccessChoice({
   if (through.length === 0 && access.linkKey === undefined) return null;
   // A record's own link may change it (a shopper's saved draft): the owner is told so, never "only read".
   const changes = access.linkKey !== undefined && access.endpoints.some((entry) => entry.key === access.linkKey && entry.methods.includes('PATCH'));
+  // And may delete it (a shopper deleting their own draft): said too, so allowing it is a choice made knowing.
+  const removes = access.linkKey !== undefined && access.endpoints.some((entry) => entry.key === access.linkKey && entry.methods.includes('DELETE'));
   return (
     <div className="flex flex-col gap-2" data-part="add-on-public-access">
       <p className="text-sm font-semibold text-fg">{t('studio:addOns.public.title', 'Public access')}</p>
@@ -141,11 +143,14 @@ export function PublicAccessChoice({
         {through.length > 0 && (
           <li>{t('studio:addOns.public.through', 'Your customers can reach it through the public key of an app it is attached to: {refs}.', { refs: through.join(', ') })}</li>
         )}
-        {access.linkKey !== undefined && !changes && (
+        {access.linkKey !== undefined && !changes && !removes && (
           <li>{t('studio:addOns.public.link', 'It makes a link key of its own: whoever holds a link opens that one record, and can only read it.')}</li>
         )}
-        {changes && (
+        {changes && !removes && (
           <li>{t('studio:addOns.public.ownLink', "It makes a link key of its own: whoever holds a record's own link opens that one record, and may change some of it while it is in a state the add-on names.")}</li>
+        )}
+        {removes && (
+          <li>{t('studio:addOns.public.ownLinkRemove', "It makes a link key of its own: whoever holds a record's own link opens that one record, and may change some of it or delete it while it is in a state the add-on names.")}</li>
         )}
       </ul>
       <label className="flex items-start gap-2 text-sm text-fg">
