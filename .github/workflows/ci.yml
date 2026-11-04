@@ -466,7 +466,10 @@ jobs:
     # with no test red, so the limit went above verify's 40; on 2026-10-21 it
     # was 31m on main and passed 45 with the Designer's template and picture
     # suites (about 600 tests more, whole-server ones on three engines), so 60.
-    timeout-minutes: 60
+    # By 2026-11-03 it took 52-57 minutes and was cancelled at 60 twice with no
+    # test red; the 0.3.43 tests (uploads, kinds, design checks, panels, three
+    # engines) took it past 60 on 2026-11-04, so 80.
+    timeout-minutes: 80
     strategy:
       # One red suite must not hide the state of the other two.
       fail-fast: false
