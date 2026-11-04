@@ -262,6 +262,8 @@ export const scopeAgreeSchema = z
   .object({
     column: columnSchema,
     path: scopePathSchema.optional(),
+    /** Compares how many characters the text has (with `lte`): refused as `too-long`. */
+    length: z.literal(true).optional(),
     when: z.object({ path: scopePathSchema.optional(), in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
     eq: scopeAgreeTargetSchema.optional(),
     lte: scopeAgreeTargetSchema.optional(),

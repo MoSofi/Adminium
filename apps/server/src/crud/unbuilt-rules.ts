@@ -343,6 +343,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.ownDelete',
   // An app role given an add-on's page or panel while the add-on is here for the app (apps/manifest-role-tables.ts).
   'roles.addOnPages',
+  // An agreement on how many characters a text has, refused as `too-long` (public-api/tree-checks.ts).
+  'agrees.length',
 ];
 
 export interface UnbuiltWord {

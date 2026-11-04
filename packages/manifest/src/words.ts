@@ -232,6 +232,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.ownDelete',
   // An app role given a page or a record panel of an add-on the app names (`page:@customiser-line:view`).
   'roles.addOnPages',
+  // An agreement on how many characters a text has (a line's lettering at most its product's limit).
+  'agrees.length',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -446,6 +448,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'publicAccess.ownDelete': '0.3.43',
   // An app role given an add-on's page or panel: a release before refuses the grant as a page the app does not declare.
   'roles.addOnPages': '0.3.44',
+  // A length agreement: a release before refuses the key.
+  'agrees.length': '0.3.44',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -553,6 +557,18 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       });
     });
   }
+
+  // An agreement on a text's length, on an entry or on its child rows (two levels).
+  list(document['publicAccess']).forEach((entry, e) => {
+    const lengths = (holder: unknown, at: string): void => {
+      if (!isDoc(holder)) return;
+      list(holder['agrees']).forEach((agree, a) => {
+        if (isDoc(agree) && agree['length'] !== undefined) out.push({ word: 'agrees.length', path: `${at}.agrees.${String(a)}.length` });
+      });
+      for (const [name, child] of Object.entries(isDoc(holder['children']) ? holder['children'] : {})) lengths(child, `${at}.children.${name}`);
+    };
+    lengths(entry, `publicAccess.${String(e)}`);
+  });
 
   list(schema['tables']).forEach((table, t) => {
     if (!isDoc(table)) return;
