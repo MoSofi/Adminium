@@ -228,6 +228,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.ownLink',
   'publicAccess.sessionRead',
   'people.copyDetails',
+  // An add-on's own link removing its row (a shopper deleting their own draft) while it is in a state.
+  'publicAccess.ownDelete',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -438,6 +440,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'publicAccess.ownLink': '0.3.43',
   'publicAccess.sessionRead': '0.3.43',
   'people.copyDetails': '0.3.43',
+  // A guest's own draft removed through its own link: read by the same release.
+  'publicAccess.ownDelete': '0.3.43',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -498,6 +502,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     list(document['publicAccess']).forEach((entry, e) => {
       if (!isDoc(entry)) return;
       if (isDoc(entry['claim']) && entry['claim']['own'] === true) out.push({ word: 'publicAccess.ownLink', path: `publicAccess.${String(e)}.claim.own` });
+      if (Array.isArray(entry['methods']) && entry['methods'].includes('DELETE')) out.push({ word: 'publicAccess.ownDelete', path: `publicAccess.${String(e)}.methods` });
       if (entry['level'] !== undefined && entry['claim'] === undefined && entry['claimedBy'] === undefined && entry['visibleWith'] === undefined) {
         out.push({ word: 'publicAccess.sessionRead', path: `publicAccess.${String(e)}.level` });
       }
