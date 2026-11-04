@@ -180,7 +180,7 @@ describe.each(LEGS)('Maker Shop, reworked, installed with the built Customiser �
   it.skipIf(!runs)("loads Birch Row's sample, its stored figures worked out by Adminium", async () => {
     expect(Number((await one(`SELECT COUNT(*) AS n FROM maker_order_lines`))['n'])).toBe(26);
     expect(Number((await one(`SELECT COUNT(*) AS n FROM customiser_designs WHERE app = 'maker'`))['n'])).toBe(3);
-    // Tom's logo coasters: two sets at £34, his logo at £1.50 a piece on eight pieces, second class. B1-F4's £83.95.
+    // Tom's logo coasters: two sets at £34, his logo at £1.50 a piece on eight pieces, second class: £83.95.
     const tom = await one(`SELECT pieces_total, postage, total, post_by FROM maker_orders WHERE number = 'BR-2290'`);
     expect([Number(tom['pieces_total']), Number(tom['postage']), Number(tom['total'])]).toEqual([80, 3.95, 83.95]);
     expect(String(tom['post_by'] instanceof Date ? (tom['post_by'] as Date).toISOString() : tom['post_by']).slice(0, 10)).toBe('2026-08-11');
