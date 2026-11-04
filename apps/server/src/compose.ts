@@ -3278,6 +3278,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         peopleConsent: consentMirror,
         // A guest's file for an app's column, and the holds a write that names it makes.
         uploads: { store: publicUploads, columns: columnUploads },
+        // A guest's own draft removed through its link: its files to the bin, as a staff delete sends them.
+        files: fileReconciler,
       }));
       },
       { prefix: API_PREFIX },

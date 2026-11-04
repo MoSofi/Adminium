@@ -339,6 +339,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.ownLink',
   'publicAccess.sessionRead',
   'people.copyDetails',
+  // A guest's own draft removed through its own link while it is in a state, its files to the bin.
+  'publicAccess.ownDelete',
 ];
 
 export interface UnbuiltWord {
