@@ -243,13 +243,15 @@ describe('someone who opens only an app’s own screens', () => {
     }
   });
 
-  it('may upload a file for a record of their app, read one back and throw away one no record holds, and no other file route', () => {
+  it('may upload a file for a record of their app, copy one for it, read one back and throw away one no record holds, and no other file route', () => {
     const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, { id: 'file_1' }, new Set(['conn_1']), ['clients']);
     for (const [method, route] of [
       ['POST', '/api/v1/files'],
       ['GET', '/api/v1/files/:id'],
       ['GET', '/api/v1/files/:id/content'],
       ['DELETE', '/api/v1/files/:id'],
+      // A copy for a record of theirs: the route asks the target table's own rights.
+      ['POST', '/api/v1/files/:id/copy'],
     ] as const) {
       expect(allowed(method, route), `${method} ${route}`).toBe(true);
     }

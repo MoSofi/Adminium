@@ -11,7 +11,7 @@
  * (its stock words), which of their app's own rules are switched on, and
  * bringing a file in to a table their role may import (a "paste a list"
  * screen of their app), and the files a record of theirs keeps (a crew's
- * signature and photos), and a record's e-mail consent (the panel, and recording consent,
+ * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
  * "Replied" and "They said no" on it). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
@@ -90,12 +90,14 @@ const IMPORT_ROUTES: ReadonlySet<string> = new Set([
 /**
  * A file uploaded for a record of a table their role creates or changes (a
  * crew's signature and photos), read back with its record, and thrown away
- * while no record holds it yet. Each route asks the table's own rights and
- * whose the file is (`routes/files`): a file no role of theirs reaches is not
- * there for them. The list of files, their library, renaming and moving them
- * stay the dashboard's.
+ * while no record holds it yet — or copied, for such a record, from a file
+ * they may read (a photo a past order already has, chosen again). Each route
+ * asks the table's own rights and whose the file is (`routes/files`): a copy,
+ * the target table's create or update, and the source's read as reading it
+ * asks; a file no role of theirs reaches is not there for them. The list of
+ * files, their library, renaming and moving them stay the dashboard's.
  */
-const FILE_ROUTES: ReadonlySet<string> = new Set(['POST /files', 'GET /files/:id', 'GET /files/:id/content', 'DELETE /files/:id']);
+const FILE_ROUTES: ReadonlySet<string> = new Set(['POST /files', 'GET /files/:id', 'GET /files/:id/content', 'DELETE /files/:id', 'POST /files/:id/copy']);
 
 /**
  * A record's e-mail consent, on a screen of their app (the kit's consent part, an app's own "may be

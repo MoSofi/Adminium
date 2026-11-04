@@ -77,6 +77,12 @@ for (const [dialect, available] of ENGINES) {
       });
     };
 
+    /** A role's rights on a table, every other action off. */
+    const grant = async (slug: string, table: string, actions: Record<string, unknown>): Promise<void> => {
+      const role = (await rolesRepo(w.meta).findBySlug(slug)) ?? (await rolesRepo(w.meta).create({ slug, name: slug }));
+      await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${table}`, { read: false, create: false, update: false, delete: false, export: false, import: false, ...actions } as never);
+    };
+
     beforeAll(async () => {
       w = await world(dialect);
       await w.run(`CREATE TABLE menus (id INTEGER PRIMARY KEY, title VARCHAR(80), cover VARCHAR(400), leaflet VARCHAR(400))`);
@@ -111,10 +117,6 @@ for (const [dialect, available] of ENGINES) {
         { name: 'leaflet', file: { ref: 'id' } },
       ]);
 
-      const grant = async (slug: string, table: string, actions: Record<string, unknown>): Promise<void> => {
-        const role = (await rolesRepo(w.meta).findBySlug(slug)) ?? (await rolesRepo(w.meta).create({ slug, name: slug }));
-        await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${table}`, { read: false, create: false, update: false, delete: false, export: false, import: false, ...actions } as never);
-      };
       const ALL = { read: true, create: true, update: true, delete: true };
       // Dana cooks: every dish, menu and badge.
       for (const table of [dishes, menus, badges]) await grant('cook', table, ALL);
@@ -134,6 +136,10 @@ for (const [dialect, available] of ENGINES) {
       await w.system('librarian', ['files.manage']);
       await w.give('mara', 'librarian');
       await w.give('mara', 'cook');
+      // Kim works the pass on the kitchen app's own screens, and never the dashboard: she reads dishes and changes their photos.
+      await rolesRepo(w.meta).create({ slug: 'pass', name: 'pass', appKey: 'kitchen', screensOnly: true });
+      await grant('pass', dishes, { read: true, update: true });
+      await w.give('kim', 'pass');
     }, 180_000);
     afterAll(async () => w?.close());
 
@@ -176,6 +182,28 @@ for (const [dialect, available] of ENGINES) {
       expect((await call('mara', 'DELETE', `files/${library}`)).statusCode).toBe(200);
       const served = await call('dana', 'GET', `files/${ref}/content`);
       expect(served.statusCode, served.body).toBe(200);
+    });
+
+    it('a screens-only account copies into a table its role writes, and is refused one it does not, by that table', async () => {
+      const original = await uploaded('dana', png({ fill: 70 }).bytes, { column: 'photo' });
+      await dish('dana', { photo: original });
+      // Kim's role writes dishes: the copy is hers, for a dish's photo.
+      const made = await copy('kim', original, 'dishes', 'photo');
+      expect(made.statusCode, made.body).toBe(201);
+      expect(await files().findById(json<{ data: { id: string } }>(made).data.id)).toMatchObject({ uploadedBy: w.people.kim, attachedAt: null });
+      // It writes no menus: refused by the menus' own rights, never by her screens.
+      const across = await copy('kim', original, 'menus', 'cover');
+      expect(across.statusCode, across.body).toBe(403);
+      expect(json<{ error: { code: string } }>(across).error.code).toBe('FORBIDDEN');
+      // Without the dishes' update, the dishes are refused her too.
+      await grant('pass', dishes, { read: true });
+      try {
+        const refused = await copy('kim', original, 'dishes', 'photo');
+        expect(refused.statusCode, refused.body).toBe(403);
+        expect(json<{ error: { code: string } }>(refused).error.code).toBe('FORBIDDEN');
+      } finally {
+        await grant('pass', dishes, { read: true, update: true });
+      }
     });
 
     it('a library file is copied by its uploader or a file manager, and answers 404 to anyone else', async () => {
