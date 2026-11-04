@@ -158,3 +158,28 @@ describe('a column that holds files', () => {
     });
   });
 });
+
+describe("a file column on a page's form", () => {
+  /** The sign-offs page with a designed form whose fields are these. */
+  const withForm = (fields: Record<string, unknown>[]) => {
+    const doc = signOffs();
+    const pages = doc['pages'] as Record<string, unknown>[];
+    pages[0] = { ...pages[0], config: { form: { v: 2, sections: [{ id: 'main', fields }] } } };
+    return doc;
+  };
+
+  it('takes its own control by naming none, or one the form has for files', () => {
+    expect(issuesOf(withForm([{ column: 'signer_name' }, { column: 'signature' }, { column: 'photos', control: 'attachments' }]))).toEqual([]);
+    expect(issuesOf(withForm([{ column: 'signature', control: 'picture' }, { column: 'photos', control: 'image' }]))).toEqual([]);
+  });
+
+  it('refuses a control no form has, "file" among them, by its place: the install would read no form at all', () => {
+    const issues = issuesOf(withForm([{ column: 'signer_name' }, { column: 'signature', control: 'file' }]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('pages.0.config.form.sections.0.fields.1.control');
+    expect(issues[0]).toContain('"file" is not a form control');
+    // A related table's field takes its own three, and a child row's column the column controls.
+    expect(issuesOf(withForm([{ relation: 'sign_offs', control: 'select' }]))[0]).toContain('"select" is not a form control');
+    expect(issuesOf(withForm([{ relation: 'sign_offs', control: 'child-rows', columns: [{ column: 'photos', control: 'file' }] }]))[0]).toContain('fields.0.columns.0.control');
+  });
+});
