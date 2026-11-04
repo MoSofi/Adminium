@@ -3204,7 +3204,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const parents = new Map<string, { target: WriteTarget; rules: TableRules } | null>();
     const parentOf = (table: string) => {
       if (!parents.has(table)) {
-        const resolved = target.view === undefined ? undefined : target.view.table(table);
+        let resolved: ResolvedTable | undefined;
+        try {
+          resolved = target.view?.table(table);
+        } catch {
+          // A table the view cannot name has no stamp a settle works out here.
+          resolved = undefined;
+        }
         const parent = resolved === undefined ? null : { ...target, table: resolved, rights: undefined };
         const rules = parent === null ? null : rulesOf(parent);
         const stamps = (rules?.stamps ?? []).some((stamp) => typeof stamp.set === 'object' && 'addWorkingDays' in stamp.set);
