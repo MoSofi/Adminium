@@ -122,6 +122,7 @@ import { rulesKeptBack, writeManifestRules, type RulesResult } from './manifest-
 import { formIssues, layoutQueryProblems, layoutTables } from './manifest-page-config.js';
 import {
   addOnGrantsOf,
+  addOnPageGrantIssues,
   roleIssues,
   roleSlugFor,
   roleSlugProblems,
@@ -984,6 +985,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
       ...roleIssues(manifest).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
+      // A role's grant of an add-on's page or panel, against that add-on's manifest where one is at hand.
+      ...addOnPageGrantIssues(manifest, await addOnManifestsForCheck(manifest, addOnRows)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
       ...(await repeatedUniques(pure, connectionId, manifest, dialect)),

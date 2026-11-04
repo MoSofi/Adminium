@@ -341,6 +341,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'people.copyDetails',
   // A guest's own draft removed through its own link while it is in a state, its files to the bin.
   'publicAccess.ownDelete',
+  // An app role given an add-on's page or panel while the add-on is here for the app (apps/manifest-role-tables.ts).
+  'roles.addOnPages',
 ];
 
 export interface UnbuiltWord {

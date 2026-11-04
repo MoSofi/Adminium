@@ -9,6 +9,10 @@
  *
  *   `table:@<ref>:<action>`   read | create | update | delete | export | import | read_pii
  *   `page:@<pageRef>:<action>` view | edit
+ *   `page:@<ref>:view`         a page or record panel of an add-on the app
+ *                              requires or suggests (its ref starts with the
+ *                              add-on's key): given while that add-on is here
+ *                              for the app, as the role's `tables` are
  *   `app:@:staff`              the app's own staff screens
  *   `addOn:<key>:settings`     one add-on's non-secret settings — only an add-on
  *                              the app requires or suggests, never "every add-on"
@@ -47,8 +51,11 @@ export const ROLE_SLUG_MAX = 40;
 
 export const SEEDED_APP_ROLE_GRANTS_KEY = 'system.seededAppRoleGrants';
 
-/** A ledger pair of a grant on an add-on's table (`table:@<addOn>/<ref>:<action>`): the role-table writer's, never read here. */
-const ADD_ON_TABLE = /^table:@[a-z][a-z0-9-]{1,79}\//;
+/**
+ * A ledger pair of a grant on an add-on's table (`table:@<addOn>/<ref>:<action>`) or on one of its pages or panels
+ * (`page:@<addOn>/<ref>:view`): the role-table writer's, never read here.
+ */
+const ADD_ON_TABLE = /^(?:table|page):@[a-z][a-z0-9-]{1,79}\//;
 
 const TABLE = /^table:@([A-Za-z0-9_]+):(read|create|update|delete|export|import|read_pii)$/;
 const PAGE = /^page:@([a-z][a-z0-9-]*):(view|edit)$/;
@@ -102,6 +109,55 @@ export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>, realId: (re
   return out;
 }
 
+/** A role's grants, with the ones of the role it clones (for the role-table writer). */
+export function roleGrantsOf(role: ManifestRole, roles: readonly ManifestRole[]): string[] {
+  return grantsOf(role, roles);
+}
+
+/** The keys of the add-ons an app requires or suggests. */
+function namedAddOns(manifest: Manifest): string[] {
+  const named = manifest.addOns as { requires?: readonly { key: string }[]; suggests?: readonly { key: string }[] } | undefined;
+  return [...(named?.requires ?? []), ...(named?.suggests ?? [])].map((need) => need.key);
+}
+
+/**
+ * The add-on a page grant of an app names, when the ref is not one of the
+ * app's own pages: an add-on's pages and panels are named under its key
+ * (`customiser-line` is the Customiser's), so the add-on is the one the app
+ * names whose key the ref starts with — the longest, when two would do.
+ */
+export function addOnOfPageGrant(manifest: Manifest, ref: string): string | null {
+  if (manifest.kind !== 'app' || (manifest.pages ?? []).some((page) => page.ref === ref)) return null;
+  const fits = namedAddOns(manifest).filter((key) => ref === key || ref.startsWith(`${key}-`));
+  return fits.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+
+/** The ids an add-on opens its own screens by: its pages' refs and its panels' ids. */
+export function addOnScreensOf(manifest: Manifest): string[] {
+  return codePagesOf(manifest);
+}
+
+/**
+ * What is wrong with the app's grants of add-ons' pages and panels, judged by
+ * each add-on's manifest at hand (an install's or update's check): a ref the
+ * add-on has neither as a page nor as a panel. An add-on not at hand is
+ * judged when it is attached, where an unknown ref is left out by name.
+ */
+export function addOnPageGrantIssues(manifest: Manifest, addOns: ReadonlyMap<string, Manifest>): { role: string; code: 'ROLE_INVALID'; message: string }[] {
+  if (manifest.kind !== 'app') return [];
+  const out: { role: string; code: 'ROLE_INVALID'; message: string }[] = [];
+  for (const role of manifest.roles ?? []) {
+    for (const grant of role.permissions ?? []) {
+      const page = PAGE.exec(grant);
+      const addOn = page === null ? null : addOnOfPageGrant(manifest, page[1]!);
+      const theirs = addOn === null ? undefined : addOns.get(addOn);
+      if (theirs === undefined || codePagesOf(theirs).includes(page![1]!)) continue;
+      out.push({ role: role.key, code: 'ROLE_INVALID', message: `The role "${role.key}": "${grant}" names a page or panel the add-on "${addOn!}" does not have.` });
+    }
+  }
+  return out;
+}
+
 /** The refs of the screens an add-on draws from its own bundle (`addOn.pages`); none for an app. */
 function codePagesOf(manifest: Manifest): string[] {
   // A record panel is opened as a page of the add-on's code is: by its id, `page:<id>:view`.
@@ -143,7 +199,11 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
       if (table !== null) {
         if (!tables.has(table[1]!)) refuse(`"${grant}" names a table the app does not declare`);
       } else if (page !== null) {
-        if (!pages.has(page[1]!)) refuse(`"${grant}" names a page the app does not declare`);
+        if (pages.has(page[1]!)) continue;
+        // A page or panel of an add-on the app names: seen, never changed, from the app's role.
+        const addOn = addOnOfPageGrant(manifest, page[1]!);
+        if (addOn === null) refuse(`"${grant}" names a page the app does not declare, nor one of an add-on it requires or suggests (whose pages are named under its key)`);
+        else if (page[2] !== 'view') refuse(`"${grant}" asks to edit a page of the add-on "${addOn}"; a role of the app is given its pages and panels to view`);
       } else if (ADD_ON_SETTINGS.test(grant)) {
         /*
          * One add-on's settings, and only one the app names: an app may not
@@ -412,6 +472,8 @@ export async function writeManifestRoles(input: {
           result.seeded += 1;
           continue;
         }
+        // A page or panel of an add-on the app names: given with that add-on, by the role-table writer.
+        if (addOnOfPageGrant(manifest, page[1]!) !== null) continue;
         const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
         if (target === null) continue;
         const existing = await permissions.find(role.id, 'page', target.id);

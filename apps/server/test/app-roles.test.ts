@@ -51,7 +51,7 @@ describe('an app’s roles, as its manifest asks for them', () => {
       'ROLE_INVALID The role "cashier": "system:users:manage" gives a console permission, which an app cannot.',
       'ROLE_INVALID The role "cashier": "table:@*:read" is a wildcard; name each table and page.',
       'ROLE_INVALID The role "cashier": "table:@invoices:read" names a table the app does not declare.',
-      'ROLE_INVALID The role "cashier": "page:@reports:view" names a page the app does not declare.',
+      'ROLE_INVALID The role "cashier": "page:@reports:view" names a page the app does not declare, nor one of an add-on it requires or suggests (whose pages are named under its key).',
       'ROLE_INVALID The role "cashier": "table:conn_1:x:read" is not a grant an app can give (table:@…, page:@… or app:@:staff).',
     ]);
   });
