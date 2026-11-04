@@ -524,6 +524,55 @@ export async function rulesKeptBack(
   return out;
 }
 
+/** The kinds of moment a column's `role` says it holds, as the name guess calls them. */
+const ROLE_MOMENTS = { created_at: 'created-at', updated_at: 'updated-at' } as const;
+type MomentRole = keyof typeof ROLE_MOMENTS;
+const isMomentRole = (role: string | undefined): role is MomentRole => role === 'created_at' || role === 'updated_at';
+
+/**
+ * A COLUMN'S ROLE STAMPS IT, WHATEVER ITS NAME.
+ *
+ * Without a rule, the server stamps a moment by the column's name alone
+ * (`created_at`, `updated_at`: `crud/column-rules.ts`). A manifest's `role`
+ * says it outright, so the role decides, and the name is the fallback for
+ * columns no role speaks of:
+ *
+ *  - a column whose role is `created_at` is filled with the moment its row is
+ *    made, and one whose role is `updated_at` with the moment of every change
+ *    too, through every door (the desk, a guest's create, a change through a
+ *    link) — written as the column's own fill wherever the name alone would
+ *    not do it (a `saved_on`, or an `updated_at` the database gives a default,
+ *    which the server leaves to the database on a change);
+ *  - in a table where a role names that moment, another column the name guess
+ *    reads as the same moment is not filled by Adminium (`none`): two columns
+ *    are never both the row's "last changed".
+ *
+ * A moment is a date or a time: a role on another type stamps nothing. A
+ * column whose rules fill it some other way (its own `default`, a stamp, a
+ * formula, a copy) keeps them.
+ */
+function roleStamp(
+  table: { columns: readonly { ref: string; type: string; role?: string | undefined }[] },
+  column: { ref: string; type: string; role?: string | undefined; default?: unknown; rules?: ColumnRules | undefined },
+  live: ColumnModel | undefined,
+): { kind: 'now'; onUpdate?: true } | { kind: 'none' } | null {
+  const isMoment = (type: string) => type === 'timestamptz' || type === 'date';
+  if (live === undefined || !isMoment(column.type)) return null;
+  const rules = column.rules;
+  if (rules?.default !== undefined || rules?.stamp !== undefined || rules?.formula !== undefined || rules?.copy !== undefined) return null;
+  const guessed = live.semantics?.primary ?? null;
+  if (isMomentRole(column.role)) {
+    const onUpdate = column.role === 'updated_at';
+    // The name guess fills it already: on a create, and on a change while nothing else fills it first (the
+    // database's default, or the app's `default: "now"`, which fills a create alone).
+    if (guessed === ROLE_MOMENTS[column.role] && (!onUpdate || (live.default === null && column.default === undefined))) return null;
+    return onUpdate ? { kind: 'now', onUpdate: true } : { kind: 'now' };
+  }
+  if (column.role !== undefined || column.default !== undefined) return null;
+  const named = Object.entries(ROLE_MOMENTS).find(([, moment]) => moment === guessed)?.[0];
+  return named !== undefined && table.columns.some((other) => other.ref !== column.ref && other.role === named && isMoment(other.type)) ? { kind: 'none' } : null;
+}
+
 /**
  * Install the app's option lists, then write, replace and take back its
  * column rules against the latest snapshot. Run after the tables exist and
@@ -664,7 +713,10 @@ export async function writeManifestRules(input: {
        * (`renderDefault`). On every engine it lets what the create works out
        * read the moment: a visit's hours, counted from a start nobody typed.
        */
-      if (column.default === 'now' && column.type === 'timestamptz' && column.rules?.default === undefined) {
+      const stamp = roleStamp(table, column, live);
+      if (stamp !== null) {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.default', value: stamp });
+      } else if (column.default === 'now' && column.type === 'timestamptz' && column.rules?.default === undefined) {
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.default', value: { kind: 'now' } });
       }
       // What the column IS, which SQLite's `integer` does not say: a yes or a no, on every engine.
