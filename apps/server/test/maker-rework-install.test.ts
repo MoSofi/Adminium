@@ -275,3 +275,49 @@ describe.each(LEGS)('Maker Shop, reworked, installed with the built Customiser �
     expect(built === null || maker === null).toBe(true);
   });
 });
+
+/**
+ * The same install on a database that already holds tables of the plain
+ * names the app declares — a shop's own `products`, `orders` and
+ * `customers`. The app is prefixed, so it makes its own beside them and
+ * leaves theirs alone; the Customiser it requires is installed first, and
+ * the app's plan read again after it keeps the prefix.
+ */
+describe.each(LEGS)('Maker Shop, reworked, on a database with bare products, orders and customers — %s', (dialect, available) => {
+  const runs = available && built !== null && maker !== null;
+  let h: Harness;
+  let trusted: string | undefined;
+
+  beforeAll(async () => {
+    if (!runs) return;
+    trusted = process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
+    process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = CUSTOMISER;
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    await h.rows(`create table products (id integer primary key, name varchar(80) not null)`);
+    await h.rows(`create table orders (id integer primary key, total numeric(10, 2))`);
+    await h.rows(`create table customers (id integer primary key, email varchar(120))`);
+    await h.rows(`insert into products (id, name) values (1, 'Their own chair')`);
+    await h.introspect();
+    await h.stageAddOn(built!.manifest, { files: built!.files });
+  }, 240_000);
+  afterAll(async () => {
+    if (!runs) return;
+    await h?.close();
+    if (trusted === undefined) delete process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
+    else process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = trusted;
+  });
+
+  it.skipIf(!runs)('installs under its prefix beside them, the Customiser first, and leaves their tables as they were', async () => {
+    const planned = await h.plan(maker!.manifest);
+    expect(planned.statusCode, planned.body).toBe(200);
+    await h.stageApp(maker!.manifest, maker!.files);
+    const installed = await h.install('maker', String(maker!.manifest['version']), { addOns: [{ key: CUSTOMISER, version: built!.version }] });
+    expect(installed.statusCode, installed.body).toBe(200);
+    const names = await h.tableNames();
+    for (const ref of ['products', 'orders', 'customers', 'order_lines']) expect(names).toContain(`maker_${ref}`);
+    expect(names).toContain('customiser_designs');
+    // Theirs, untouched: the same columns and the same row.
+    expect(await h.rows(`select id, name from products`)).toEqual([{ id: 1, name: 'Their own chair' }]);
+    expect(Object.keys((await h.rows(`select * from orders`))[0] ?? { id: 0, total: 0 })).toEqual(['id', 'total']);
+  });
+});

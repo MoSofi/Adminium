@@ -855,9 +855,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const prefix = likeApp && manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : null;
     const records: Record<string, { table: string; owned: boolean; state: string }> = {};
     for (const r of own) records[r.ref] = { table: r.tableName, owned: r.owned, state: r.state };
+    /*
+     * Installed here already: an update, or an install from before table
+     * records. Not the row of an install still running — it is written
+     * before the add-ons it requires go in, and the plan is read again after
+     * them: counted as installed, that plan would take a shop's own tables of
+     * the plain names over, dropping the prefix it was checked with. What a
+     * running install has made is in its records.
+     */
     const installedHere =
       likeApp &&
-      (await manifests.list(manifest.kind)).some((m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId);
+      (await manifests.list(manifest.kind)).some((m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId && m.row.status !== 'installing');
     /*
      * A FRESH INSTALL OF A PREFIXED VERSION STARTS ON ITS OWN TABLES. The
      * tables an unprefixed version left behind when it was uninstalled (kept,
