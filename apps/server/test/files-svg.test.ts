@@ -10,10 +10,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { cleanSvg, SvgRefused } from '../src/files/svg.js';
+import { cleanSvg, cleanSvgReport, SVG_REMOVED_MAX, SvgRefused } from '../src/files/svg.js';
 
 const S = 'xmlns="http://www.w3.org/2000/svg"';
 const clean = (text: string): string => cleanSvg(Buffer.from(text, 'utf8')).toString('utf8');
+const removed = (text: string): string[] => cleanSvgReport(Buffer.from(text, 'utf8')).removed;
 const refused = (text: string): string => {
   try {
     cleanSvg(Buffer.from(text, 'utf8'));
@@ -188,6 +189,22 @@ describe('a cleaned SVG', () => {
     expect(paths(out)).toEqual(paths(inkscape));
     // Cleaned again: the same bytes.
     expect(clean(out)).toBe(out);
+    // What was taken out, said as the person reads it: each editor's notes as one thing.
+    expect(removed(inkscape)).toEqual(['version', 'inkscape:*', 'sodipodi:*', '-inkscape-stroke']);
+    expect(removed(out)).toEqual([]);
+  });
+
+  it('says what it took out, each once, in the order met, and the same bytes as it keeps', () => {
+    const dirty = `<svg ${S} class="logo" onload="go()"><metadata><x/></metadata><script>alert(1)</script><g data-id="1" aria-hidden="true"><rect onclick="a()" style="-webkit-x:1;fill:red"/><script/></g></svg>`;
+    const report = cleanSvgReport(Buffer.from(dirty, 'utf8'));
+    expect(report.removed).toEqual(['class', 'onload', '<metadata>', '<script>', 'data-id', 'aria-hidden', 'onclick', '-webkit-x']);
+    expect(report.bytes.equals(cleanSvg(Buffer.from(dirty, 'utf8')))).toBe(true);
+    // Nothing taken out: nothing said.
+    expect(removed(`<svg ${S}><rect width="1"/></svg>`)).toEqual([]);
+    // A drawing made to say a great deal is told of up to a bound, and cleaned all the same.
+    const many = `<svg ${S}>${Array.from({ length: SVG_REMOVED_MAX + 10 }, (_unused, i) => `<rect data-n${String(i)}="1"/>`).join('')}</svg>`;
+    expect(removed(many)).toHaveLength(SVG_REMOVED_MAX);
+    expect(clean(many)).not.toContain('data-');
   });
 
   it('refuses a document that is not well formed, and does not repair it', () => {

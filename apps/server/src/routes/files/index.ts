@@ -664,7 +664,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         if (column === undefined) return reply.status(201).send({ data: view });
 
         const ref = await refFor(request, block, result.file);
-        return reply.status(201).send({ data: view, ref });
+        return reply.status(201).send({ data: view, ref, ...(result.removed === undefined ? {} : { removed: result.removed }) });
       },
     );
 
