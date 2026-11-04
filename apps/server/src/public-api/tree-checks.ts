@@ -12,7 +12,8 @@
  *  - AGREES: a row's value agrees with its parent's, through foreign keys
  *    (an option belongs to the chosen dish: `modifier → group → item` equals
  *    the line's dish), or is within a bound read through one (guests no more
- *    than the room type sleeps).
+ *    than the room type sleeps; a line's lettering no longer than its
+ *    product allows, `too-long`).
  *  - COUNTS: the rows of one list, grouped (options by their group), each
  *    group between its own least and most — an empty required group too.
  *  - SUM MAX: what one column of a list's rows adds up to, at most a number
@@ -44,7 +45,7 @@ type Db = Kysely<SourceDatabase>;
 /** What a check refused: the column, why, and — for a count — the group; a sum over a list names the list. */
 export interface TreeRefusalParams {
   column?: string | undefined;
-  reason: 'not-offered' | 'too-many' | 'too-few';
+  reason: 'not-offered' | 'too-many' | 'too-few' | 'too-long';
   group?: string | number | undefined;
   /** The list a refusal over a whole list is about (a sum of its rows). */
   child?: string | undefined;
@@ -124,7 +125,9 @@ export async function judgeAgrees(
       const at = await follow(db, view, table.id, agree.column, agree.when.path ?? [], own);
       if (!agree.when.in.some((listed) => sameValue(listed, at))) continue;
     }
-    const mine = await follow(db, view, table.id, agree.column, agree.path ?? [], own);
+    const reached = await follow(db, view, table.id, agree.column, agree.path ?? [], own);
+    // A length: how many characters the text has (as a person counts them, not UTF-16 halves).
+    const mine = agree.length === true ? (reached === null || reached === undefined ? reached : [...String(reached)].length) : reached;
     for (const [op, target] of [['eq', agree.eq], ['lte', agree.lte], ['gte', agree.gte]] as const) {
       if (target === undefined) continue;
       let theirs: unknown;
@@ -143,7 +146,7 @@ export async function judgeAgrees(
       // No bound where the row read has none.
       if (theirs === null || theirs === undefined) continue;
       const order = compare(mine, theirs);
-      if (order === null || (op === 'lte' && order > 0)) throw new TreeCheckRefused({ column: agree.column, reason: op === 'lte' ? 'too-many' : 'too-few' });
+      if (order === null || (op === 'lte' && order > 0)) throw new TreeCheckRefused({ column: agree.column, reason: op === 'lte' ? (agree.length === true ? 'too-long' : 'too-many') : 'too-few' });
       if (op === 'gte' && order < 0) throw new TreeCheckRefused({ column: agree.column, reason: 'too-few' });
     }
   }

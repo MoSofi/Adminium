@@ -225,3 +225,22 @@ describe("a person's details kept as JSON (people copies, holds details)", () =>
     expect(appIssues(shop([{ table: 'orders', column: 'customer_id', holds: 'details' }])).join('\n')).toContain('is not a text or json column (their details)');
   });
 });
+
+describe("a person's copy further into an add-on (people copies, `from`)", () => {
+  const VERSIONS = { addOn: 'design-kit', table: 'design_versions', column: 'values', holds: 'details', via: 'order_lines.design_id', from: ['design_id'] };
+  const FILES = { addOn: 'design-kit', table: 'version_files', column: 'file', holds: 'details', via: 'order_lines.design_id', from: ['version_id', 'design_id'] };
+  const at = (doc: Doc) => ({ ...doc, compatibility: { minAdminiumVersion: '0.3.44' } });
+
+  it('one or two of the add-on\'s links back to the table the app\'s link names: taken, a word of 0.3.44', () => {
+    expect(appIssues(at(shop([VERSIONS, FILES])))).toEqual([]);
+    expect(WORD_FLOORS['people.addOnCopyFrom']).toBe('0.3.44');
+    expect(installFloorWords(shop([VERSIONS])).map((found) => found.word)).toContain('people.addOnCopyFrom');
+    expect(validateManifest(shop([VERSIONS])).ok).toBe(false);
+  });
+
+  it('refused on a table of the app, past two links, and where the link names the copy table itself', () => {
+    expect(appIssues(at(shop([{ table: 'orders', column: 'note', holds: 'details', via: 'customer_id', from: ['customer_id'] }])))).toEqual([expect.stringContaining('only on a table of an add-on')]);
+    expect(appIssues(at(shop([{ ...FILES, from: ['a_id', 'b_id', 'design_id'] }])))).not.toEqual([]);
+    expect(appIssues(at(shop([{ ...VERSIONS, table: 'designs' }])))).toEqual([expect.stringContaining('reached without "from"')]);
+  });
+});

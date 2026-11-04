@@ -31,7 +31,9 @@
  * by the person's rows of the line's table — their own rows, their rows of
  * a copy table, or the rows linking to either — are theirs, and the copies
  * declared on them are what is theirs of each. Nothing else of such a row:
- * the add-on keeps it, and other people's lines may name it too.
+ * the add-on keeps it, and other people's lines may name it too. A copy
+ * with `from` reaches the add-on's rows one or two links further (a design's
+ * versions, and their files), the same way.
  *
  * Never a key, never a link, never a column another table's link points at,
  * never a secret. Reads only.
@@ -42,6 +44,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { DeclaredCopy } from '../people/declared.js';
+import { foreignKeyOf } from '../public-api/tree-checks.js';
 import { rowKeyOf } from '../payments/payables.js';
 import type { ErasedRole } from './erase-values.js';
 import { isAddress } from './values.js';
@@ -253,9 +256,13 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
 
   for (const held of tables) if (held.rows.size > 0) out.push({ table: held.table, copies: held.copies, rows: [...held.rows.values()] });
 
-  // Copies on an add-on's table, reached through the app's link into it.
+  // Copies on an add-on's table, reached through the app's link into it (and, with `from`, the add-on's own links back to it).
   const onAddOns = new Map<string, DeclaredCopy[]>();
-  for (const copy of input.copies) if (copy.through !== undefined) onAddOns.set(copy.table, [...(onAddOns.get(copy.table) ?? []), copy]);
+  for (const copy of input.copies) {
+    if (copy.through === undefined) continue;
+    const group = `${copy.table}\u0000${(copy.through.from ?? []).join('\u0000')}`;
+    onAddOns.set(group, [...(onAddOns.get(group) ?? []), copy]);
+  }
   /** The key values of their rows of a table of the app: their own, or the ones found on a copy table. */
   const theirRowsOf = (tableId: string): Row[] => {
     if (input.ownTable !== null && tableId === input.ownTable.id) return [...input.ownRows];
@@ -267,8 +274,8 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
     if (table === null || table.primaryKey.length !== 1) return [];
     return theirRowsOf(tableId).map((row) => row[table.primaryKey[0]!]).filter(isSet);
   };
-  for (const [addOnTableId, copies] of onAddOns) {
-    const table = input.tableOf(addOnTableId);
+  for (const copies of onAddOns.values()) {
+    const table = input.tableOf(copies[0]!.table);
     if (table === null || table.primaryKey.length !== 1) continue;
     const named = new Set<string>();
     const keys: unknown[] = [];
@@ -290,8 +297,10 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
       }
     }
     if (keys.length === 0) continue;
+    const from = copies[0]!.through!.from;
+    const found = from === undefined ? await rowsWhere(db, table, inList(table.primaryKey[0]!, keys), limit) : await rowsFrom(db, view, table, from, copies[0]!.through!, keys, limit);
     const rows: TheirCopyRow[] = [];
-    for (const row of await rowsWhere(db, table, inList(table.primaryKey[0]!, keys), limit)) {
+    for (const row of found) {
       const columns = new Map<string, ErasedRole>();
       for (const copy of copies) {
         const resolved = table.columns.get(copy.column);
@@ -303,4 +312,42 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
     if (rows.length > 0) out.push({ table, copies, rows });
   }
   return out;
+}
+
+/**
+ * The rows of an add-on's table reached from the rows the app's link names
+ * (`keys`) through the table's own links (`from`), followed back: a design's
+ * versions by their `design_id`, a version's files by their `version_id`
+ * and that version's `design_id`. Each link must lead where the next one
+ * starts, and the last to the table the app's link names; otherwise none.
+ */
+async function rowsFrom(
+  db: Kysely<SourceDatabase>,
+  view: SnapshotView,
+  table: ResolvedTable,
+  from: readonly string[],
+  through: NonNullable<DeclaredCopy['through']>,
+  keys: readonly unknown[],
+  limit: number | undefined,
+): Promise<Row[]> {
+  const steps: { table: ResolvedTable; column: string; key: string }[] = [];
+  let here: ResolvedTable = table;
+  for (const column of from) {
+    const target = foreignKeyOf(view, here.id, column);
+    if (target === null) return [];
+    steps.push({ table: here, column, key: target.key });
+    here = target.table;
+  }
+  // The table the app's link names, and the column of it the link holds.
+  const named = foreignKeyOf(view, through.line, through.link);
+  if (named === null || named.table.id !== here.id || named.key !== steps[steps.length - 1]!.key) return [];
+  let values: unknown[] = [...keys];
+  // From the far end back: the rows of each table between, by the link into the next one.
+  for (let at = steps.length - 1; at >= 1; at -= 1) {
+    const step = steps[at]!;
+    const between = await rowsWhere(db, step.table, inList(step.column, values), undefined);
+    values = [...new Set(between.map((row) => row[steps[at - 1]!.key]).filter(isSet))];
+    if (values.length === 0) return [];
+  }
+  return rowsWhere(db, table, inList(steps[0]!.column, values), limit);
 }

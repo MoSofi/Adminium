@@ -33,19 +33,22 @@ const STAFF_BRANDING = {
 
 let loginReply: { status: number; body: unknown };
 let branding: unknown;
+/** Holds the branding reply back until released: a sign-in quicker than the address's branding. */
+let brandingHeld: Promise<void> | null = null;
 const assign = vi.fn();
 const original = window.location;
 
 beforeEach(() => {
   loginReply = { status: 200, body: { data: { user: { id: 'usr_1', name: 'Ava Reyes', email: 'ava@daybreak.coffee' } } } };
   branding = STAFF_BRANDING;
+  brandingHeld = null;
   assign.mockReset();
   Object.defineProperty(window, 'location', { configurable: true, value: { ...original, assign } });
   vi.stubGlobal(
     'fetch',
     vi.fn((input: unknown) => {
       const url = String(input);
-      if (url === '/api/v1/branding') return Promise.resolve(jsonResponse(200, { data: branding }));
+      if (url === '/api/v1/branding') return (brandingHeld ?? Promise.resolve()).then(() => jsonResponse(200, { data: branding }));
       if (url === '/api/v1/auth/login') return Promise.resolve(jsonResponse(loginReply.status, loginReply.body));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url, requestId: 'r' } }));
     }),
@@ -101,6 +104,20 @@ describe('signing in on an app’s staff address', () => {
     await signIn();
     expect(await screen.findByText('Opening Point of Sale…')).toBeTruthy();
     expect(screen.getByText('Signed in as Ava Reyes')).toBeTruthy();
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
+  });
+
+  it('hands over to the app when the sign-in is quicker than the address’s branding', async () => {
+    let release = () => undefined as void;
+    brandingHeld = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    renderPage();
+    // Signed in while the screen still draws neutral: the address is not yet known to be the app's.
+    await signIn();
+    expect(screen.queryByText('Point of Sale · Staff sign-in')).toBeNull();
+    release();
+    expect(await screen.findByText('Opening Point of Sale…')).toBeTruthy();
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
   });
 

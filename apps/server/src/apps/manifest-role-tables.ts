@@ -29,7 +29,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest, type Manifest, type RoleTableHold } from '@adminium/manifest';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
+import { addOnOfPageGrant, addOnScreensOf, roleGrantsOf, roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
 import { addOnGrantsWider, holdOf, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck } from '../add-ons/grants-wider.js';
 
 export { addOnGrantsWider, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck };
@@ -94,15 +94,118 @@ interface LiveForApp {
   manifest: AddOnManifest;
 }
 
+const PAGE_GRANT = /^page:@([a-z][a-z0-9-]*):view$/;
+const PAGE_PAIR = /^page:@([a-z][a-z0-9-]{1,79})\/([a-z][a-z0-9-]*):view$/;
+const pagePairOf = (slug: string, addOn: string, ref: string): string => `${slug}|page:@${addOn}/${ref}:view`;
+
+/** What a settle did with one of the app's grants of an add-on's page or panel. */
+export interface RolePageResult {
+  role: string;
+  addOn: string;
+  page: string;
+  /** Held by the role now (given now or before, and not taken away by the owner). */
+  held: boolean;
+  /** Left out: the add-on has no page or panel of that id. */
+  skipped?: 'unknown-page';
+}
+
+/**
+ * WHAT AN APP'S ROLES SEE OF AN ADD-ON'S PAGES AND PANELS (`page:@<ref>:view`
+ * for a ref of an add-on the app names). The grant is the app's, the screen
+ * the add-on's, so it follows the role's `tables`: given while the add-on is
+ * here for the app and has that page or panel, once (an owner who takes it
+ * away keeps it away); taken back the moment the add-on is not, and given
+ * again on its return. Only `view`: the grant is on the ref, as the add-on's
+ * own roles hold it (`page:<ref>:view`), so the same gates read it.
+ */
+export async function settleRolePages(input: { meta: MetaDb; app: Manifest; connectionId: string; live: readonly LiveForApp[] }): Promise<RolePageResult[]> {
+  const { meta, app } = input;
+  const out: RolePageResult[] = [];
+  if (app.kind !== 'app') return out;
+  const declared = app.roles ?? [];
+  const settings = settingsRepo(meta);
+  const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
+  const slugs = new Map(declared.map((role) => [roleSlugFor(app.key, role.key), role]));
+  /** What the ledger says was given to this app's roles of add-ons' screens. */
+  const given = [...seeded].flatMap((pair) => {
+    const cut = pair.indexOf('|');
+    const found = PAGE_PAIR.exec(pair.slice(cut + 1));
+    return found === null || !slugs.has(pair.slice(0, cut)) ? [] : [{ pair, slug: pair.slice(0, cut), addOn: found[1]!, ref: found[2]! }];
+  });
+  /** What each role asks for of add-ons' screens, by its add-on. */
+  const asked = [...slugs].flatMap(([slug, role]) =>
+    roleGrantsOf(role, declared).flatMap((grant) => {
+      const ref = PAGE_GRANT.exec(grant)?.[1];
+      const addOn = ref === undefined ? null : addOnOfPageGrant(app, ref);
+      return addOn === null ? [] : [{ slug, role: role.key, addOn, ref: ref! }];
+    }),
+  );
+  if (given.length === 0 && asked.length === 0) return out;
+  const live = new Map(input.live.map((addOn) => [addOn.key, addOn.manifest]));
+  const roles = rolesRepo(meta);
+  const permissions = permissionsRepo(meta);
+  let changed = false;
+  const keep = new Set<string>();
+  try {
+    for (const one of asked) {
+      const manifest = live.get(one.addOn);
+      // Not here for this app: nothing is written, and what was given before is taken back below.
+      if (manifest === undefined) continue;
+      if (!addOnScreensOf(manifest).includes(one.ref)) {
+        out.push({ role: one.role, addOn: one.addOn, page: one.ref, held: false, skipped: 'unknown-page' });
+        continue;
+      }
+      const role = await roles.findBySlug(one.slug);
+      if (role === null || role.appKey !== app.key) continue;
+      const pair = pagePairOf(one.slug, one.addOn, one.ref);
+      keep.add(pair);
+      const existing = await permissions.find(role.id, 'page', one.ref);
+      // Given once: an owner who took it away keeps it away.
+      if (!seeded.has(pair)) {
+        await permissions.grant(role.id, 'page', one.ref, { edit: false, ...(existing?.actions as Record<string, boolean> | undefined), view: true } as never);
+        seeded.add(pair);
+        changed = true;
+      }
+      const now = await permissions.find(role.id, 'page', one.ref);
+      out.push({ role: one.role, addOn: one.addOn, page: one.ref, held: (now?.actions as Record<string, unknown> | undefined)?.['view'] === true });
+    }
+    // Given, and no longer asked for or its add-on not here for the app: taken back.
+    for (const one of given) {
+      if (keep.has(one.pair)) continue;
+      const stillAsked = asked.some((entry) => entry.slug === one.slug && entry.addOn === one.addOn && entry.ref === one.ref);
+      const role = await roles.findBySlug(one.slug);
+      if (role !== null && role.appKey !== app.key) continue;
+      const existing = role === null ? null : await permissions.find(role.id, 'page', one.ref);
+      const held = (existing?.actions as Record<string, unknown> | undefined)?.['view'] === true;
+      if (existing !== null && held) {
+        const actions = { ...(existing.actions as Record<string, unknown>), view: false };
+        if (Object.values(actions).some((value) => value === true)) await permissions.grant(role!.id, 'page', one.ref, actions as never);
+        else await permissions.revoke(role!.id, 'page', one.ref);
+      }
+      // What the row held is forgotten, so the add-on's return gives it again; what the owner took away stays remembered while the
+      // app still asks for it. An entry the app no longer asks for is forgotten whole.
+      if (held || !stillAsked || role === null) {
+        seeded.delete(one.pair);
+        changed = true;
+      }
+    }
+  } finally {
+    if (changed) await settings.set(SEEDED_APP_ROLE_GRANTS_KEY, [...seeded].sort());
+  }
+  return out;
+}
+
 /**
  * Settles what the app's roles hold of every add-on's tables: written for an
  * add-on in `live`, taken back for any other. Answers what each entry came
- * to, by name.
+ * to, by name. The app's grants of the add-ons' pages and panels are settled
+ * first, the same way (`settleRolePages`).
  */
 export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; connectionId: string; live: readonly LiveForApp[] }): Promise<RoleTableResult[]> {
   const { meta, app, connectionId } = input;
   const out: RoleTableResult[] = [];
   if (app.kind !== 'app') return out;
+  await settleRolePages(input);
   const declared = app.roles ?? [];
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));

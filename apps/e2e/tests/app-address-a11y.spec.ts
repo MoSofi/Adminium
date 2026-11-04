@@ -123,6 +123,22 @@ function contextFor(browser: Browser, host: string, combo: (typeof COMBOS)[numbe
   });
 }
 
+const RESET_PAGE_EMAIL = 'e2e-reset-page@adminium.local';
+
+/**
+ * The two people this spec invites, removed for good if a run before left
+ * them (a failed run, or its retry): a suspended account keeps its address,
+ * so inviting it again would be refused as taken.
+ */
+async function removeLeftovers(page: Page): Promise<void> {
+  for (const status of ['', '&status=active', '&status=invited', '&status=suspended']) {
+    const listed = (await (await page.request.get(`/api/v1/users?q=e2e-${status}`)).json()) as { users?: { id: string; email: string }[] };
+    for (const user of listed.users ?? []) {
+      if (user.email === NO_ROLE.email || user.email === RESET_PAGE_EMAIL) await page.request.delete(`/api/v1/users/${user.id}?permanent=true`);
+    }
+  }
+}
+
 /** The session user as `/auth/login` returns it, for the painted replies. */
 const USER = { id: 'usr_a11y', email: 'staff@example.test', name: 'Sam Staff', isSuperAdmin: false };
 
@@ -152,7 +168,8 @@ test.describe('an app’s own addresses under axe', () => {
     });
     expect(mapped.ok(), await mapped.text()).toBe(true);
 
-    // A user with no role, invited and activated through the reset route.
+    // A user with no role, invited and activated through the reset route — after whatever an earlier run left.
+    await removeLeftovers(page);
     const invited = await page.request.post('/api/v1/users', { data: { email: NO_ROLE.email, name: NO_ROLE.name } });
     expect(invited.status(), await invited.text()).toBe(201);
     const invite = ((await invited.json()) as { invite: { token: string; activationPath: string } }).invite;
@@ -165,7 +182,7 @@ test.describe('an app’s own addresses under axe', () => {
     expect(activated.ok(), await activated.text()).toBe(true);
     // A fresh invitation for the reset page: the first one is spent now.
     const reinvite = await activate.request.post('/api/v1/users', {
-      data: { email: 'e2e-reset-page@adminium.local', name: 'Reset Page' },
+      data: { email: RESET_PAGE_EMAIL, name: 'Reset Page' },
     });
     expect(reinvite.status(), await reinvite.text()).toBe(201);
     resetPath = ((await reinvite.json()) as { invite: { activationPath: string } }).invite.activationPath;
@@ -199,12 +216,7 @@ test.describe('an app’s own addresses under axe', () => {
     await page.request.post(`/api/v1/apps/${APP_KEY}/enable`).catch(() => undefined);
     await page.request.put(`/api/v1/apps/${APP_KEY}/domains`, { data: { domains: {} } }).catch(() => undefined);
     await page.request.delete(`/api/v1/apps/${APP_KEY}`).catch(() => undefined);
-    const users = (await (await page.request.get('/api/v1/users?q=e2e-')).json()) as { users?: { id: string; email: string }[] };
-    for (const user of users.users ?? []) {
-      if (user.email === NO_ROLE.email || user.email === 'e2e-reset-page@adminium.local') {
-        await page.request.delete(`/api/v1/users/${user.id}`).catch(() => undefined);
-      }
-    }
+    await removeLeftovers(page).catch(() => undefined);
     await page.close();
   });
 
@@ -291,6 +303,8 @@ test.describe('an app’s own addresses under axe', () => {
        * not navigate": the hand-over stays on screen, with nothing pending.
        */
       await page.goto('/login?next=%2F');
+      // The venue's page, drawn: the address is known to be the app's before anybody signs in.
+      await expect(page.locator('[data-part="staff-header"]')).toBeVisible();
       await answer((route) => route.fulfill({ status: 200, json: { data: { user: USER } } }));
       await page.route(
         (url) => url.pathname === '/' && url.host === STAFF,

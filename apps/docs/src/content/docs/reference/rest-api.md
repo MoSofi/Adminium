@@ -213,6 +213,7 @@ POST /api/v1/add-ons/plan
 POST /api/v1/add-ons/{key}/attachments
 GET /api/v1/add-ons/{key}/bundle/{*}
 GET /api/v1/add-ons/{key}/pages/{ref}/bundle
+GET /api/v1/add-ons/{key}/pages/{ref}/files/{*}
 GET /api/v1/add-ons/{key}/panels/{id}/bundle
 POST /api/v1/add-ons/{key}/connect
 DELETE /api/v1/add-ons/{key}/connect

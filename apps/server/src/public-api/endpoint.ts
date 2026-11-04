@@ -684,6 +684,7 @@ function orderedAgree(agree: z.infer<typeof endpointAgreeSchema>): Record<string
   return {
     column: agree.column,
     ...(agree.path === undefined ? {} : { path: [...agree.path] }),
+    ...(agree.length === undefined ? {} : { length: agree.length }),
     ...(agree.when === undefined ? {} : { when: { ...(agree.when.path === undefined ? {} : { path: [...agree.when.path] }), in: [...agree.when.in] } }),
     ...(agree.eq === undefined ? {} : { eq: target(agree.eq) }),
     ...(agree.lte === undefined ? {} : { lte: target(agree.lte) }),
@@ -1976,6 +1977,8 @@ function agreePathIssues(
     ok &&= linked !== null && linked.columns.has(target.column);
   }
   if (!ok) push('ENDPOINT_CHILD_AGREES_PATH', `${at}: an agreement follows foreign keys to the column it compares, with one of eq, lte or gte`);
+  // A length is at most so many characters: compared with lte alone.
+  if (agree.length === true && (agree.lte === undefined || agree.eq !== undefined || agree.gte !== undefined)) push('ENDPOINT_CHILD_AGREES_PATH', `${at}: a length is compared with lte (at most so many characters)`);
 }
 
 /**

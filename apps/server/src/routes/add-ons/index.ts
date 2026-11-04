@@ -153,6 +153,7 @@ import { APP_VERSION } from '../../version.js';
 import {
   addOnBundleParams,
   addOnPageBundleParams,
+  addOnPageFileParams,
   addOnPanelBundleParams,
   addOnPanelBundleQuery,
   addOnKeyParams,
@@ -197,6 +198,20 @@ import {
 
 /** Sideload cap: the largest first-party dist is ~300 KB (own sizing). */
 export const UPLOAD_BODY_LIMIT = 32 * 1024 * 1024;
+
+/** The kinds of file a page may fetch from beside its code, by extension: fonts, pictures, and the licences that come with them. */
+const PAGE_FILE_TYPES: Readonly<Record<string, string>> = {
+  woff2: 'font/woff2',
+  woff: 'font/woff',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+  svg: 'image/svg+xml',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  txt: 'text/plain; charset=utf-8',
+};
 
 export interface AddOnRoutesDeps {
   meta: MetaDb;
@@ -1739,6 +1754,55 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           throw new ForbiddenError(`You may not open the page "${ref}".`, 'FORBIDDEN', { page: ref });
         }
         return sendBundle(reply, key, installed.row.version, page.client);
+      },
+    );
+
+    /*
+     * A FILE SHIPPED BESIDE A PAGE'S CODE: a font or a picture the page
+     * fetches (the Customiser's starter fonts), from the folder its code is
+     * in (`dist/pages/` for `dist/pages/customiser.js`) or below it. Behind
+     * the page's own gates, as its code is; only the kinds of file a page
+     * draws with, served as what they are and never as a script; pinned like
+     * the code (a file not verified at unpack is refused).
+     */
+    app.get(
+      '/add-ons/:key/pages/:ref/files/*',
+      {
+        preHandler: app.requireAuth,
+        schema: { params: addOnPageFileParams },
+      },
+      async (request, reply) => {
+        const { key, ref } = request.params;
+        const asked = request.params['*'];
+        const installed = await manifests.findByKey(key);
+        if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
+        const manifest = parseManifest(installed.document, key);
+        const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
+        if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
+        if (pagesAreGated(manifest) && !installed.attachments.some((attachment) => attachment.attachedTo === DASHBOARD_HOST && attachment.disabledAt === null)) {
+          throw new NotFoundError(`"${key}" has no page "${ref}".`);
+        }
+        if (pagesAreGated(manifest) && typeof request.can === 'function' && !(await request.can(addOnPagePermission(ref)))) {
+          throw new ForbiddenError(`You may not open the page "${ref}".`, 'FORBIDDEN', { page: ref });
+        }
+        const folder = page.client.includes('/') ? page.client.slice(0, page.client.lastIndexOf('/') + 1) : '';
+        const type = PAGE_FILE_TYPES[(/\.([a-z0-9]+)$/i.exec(asked)?.[1] ?? '').toLowerCase()];
+        // A plain path below the page's folder: no step up, no empty or dot step, no back-slash; and a kind a page draws with.
+        const plain = asked.split('/').every((step) => step !== '' && step !== '.' && step !== '..' && !step.includes('\\'));
+        if (!plain || type === undefined) throw new NotFoundError(`"${key}" ships no file "${asked}" for the page "${ref}".`);
+        let bytes: Buffer;
+        try {
+          ({ bytes } = await deps.store.readVerifiedFile(key, installed.row.version, `${folder}${asked}`));
+        } catch {
+          throw new NotFoundError(`"${key}" ships no file "${asked}" for the page "${ref}".`);
+        }
+        return reply
+          .header('content-type', type)
+          .header('x-content-type-options', 'nosniff')
+          // A picture opened on its own runs nothing: an SVG's scripts stay asleep.
+          .header('content-security-policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+          .header('cache-control', 'no-cache')
+          .send(bytes);
       },
     );
 
