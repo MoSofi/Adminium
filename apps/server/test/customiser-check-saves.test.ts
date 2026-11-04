@@ -5,8 +5,8 @@
  * The design kit's tests prove the question with a fixture written to look
  * like an add-on. This takes the Customiser itself from a checkout of the
  * add-ons repository, built (`ADMINIUM_ADD_ONS_REPO`, `npm run build` in
- * `packages/customiser`): its manifest and the `dist/check.js` it names,
- * staged as a developer's own package and vouched for by
+ * `packages/customiser`): its manifest as it ships, and the `dist/check.js`
+ * it names, staged as a developer's own package and vouched for by
  * `ADMINIUM_ADD_ON_DEV_TRUST=customiser`, as a sandbox runs it. A print shop
  * whose order lines name a customer's design by its code asks it of every
  * line, through the public create and its dry run, on each engine this run
@@ -18,12 +18,6 @@
  * - a design whose ready-made design is another app's is unknown;
  * - a design that stands is ordered, with its feature paid where it has one;
  * - a copy nobody vouches for is never asked: a line with a design is refused.
- *
- * The Customiser's saved-design link (its own link key, which opens a
- * design's personal columns by a token) is left out of what is staged: this
- * engine refuses a link that shows personal columns without a proved mailbox,
- * and that link is the design-link work's to settle. The design question
- * reads nothing through it.
  *
  * Without the checkout the suite is skipped, by name.
  */
@@ -41,13 +35,6 @@ type Doc = Record<string, unknown>;
 
 const CUSTOMISER = 'customiser';
 const built = builtAddOn(CUSTOMISER);
-/** The Customiser as built, but for its saved-design link. */
-const staged = (): Doc => {
-  const manifest = { ...built!.manifest };
-  manifest['publicAccess'] = (manifest['publicAccess'] as Doc[]).filter((entry) => entry['key'] === undefined);
-  delete manifest['publicKeys'];
-  return manifest;
-};
 const FLOOR = '0.3.43';
 const pk = { ref: 'id', type: 'int', role: 'pk' } as const;
 
@@ -159,7 +146,7 @@ describe.each(LEGS)('the built Customiser, checking a design inside the order â€
   beforeAll(async () => {
     if (!runs) return;
     h = await addOnHarness(dialect, { unbuiltWords: {} });
-    await h.stageAddOn(staged(), { files: built!.files });
+    await h.stageAddOn(built!.manifest, { files: built!.files });
     await h.stageApp(printShop());
     const installed = await h.install('printing', '1.0.0', { addOns: [{ key: CUSTOMISER, version: built!.version }], publicAccess: true });
     expect(installed.statusCode, installed.body).toBe(200);
@@ -179,7 +166,7 @@ describe.each(LEGS)('the built Customiser, checking a design inside the order â€
     const logo = (await filesRepo(h.meta).create({ filename: 'logo.png', mime: 'image/png', sizeBytes: 48 * 1024, sha256: 'b'.repeat(64), kind: 'upload' as never })).id;
     const design = async (id: number, code: string, ready: number, base: number, values: Doc, withLogo = false) => {
       await h.rows(
-        `INSERT INTO customiser_designs (id, app, code, ${q('format')}, ready_design_id, base_id, ${q('values')}, logo_file, ${q('state')}, created_at, last_changed_at) ` +
+        `INSERT INTO customiser_designs (id, app, code, ${q('format')}, ready_design_id, base_id, ${q('values')}, logo_file, ${q('state')}, created_at, updated_at) ` +
           `VALUES (${String(id)}, 'printing', '${code}', 1, ${String(ready)}, ${String(base)}, '${JSON.stringify(values)}', ${withLogo ? `'${logo}'` : 'NULL'}, 'draft', '2026-11-01 10:00:00', '2026-11-01 10:00:00')`,
       );
     };
