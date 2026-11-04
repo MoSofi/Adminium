@@ -106885,6 +106885,12 @@
                     },
                     "ref": {
                       "type": "string"
+                    },
+                    "removed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
