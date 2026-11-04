@@ -1510,6 +1510,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               ? { relation: String(at[at.length - 2]), row: Number(at[at.length - 1]), ...(at.length === 4 ? { under: { relation: String(at[0]), row: Number(at[1]) } } : {}) }
               : {};
           if (error instanceof ValidationFailedError) throw new ValidationFailedError(error.message, { ...((error.details as Record<string, unknown> | undefined) ?? {}), ...where });
+          // A time taken by a row below (a batch's machine booking): the desk is told which row, as for a value refused.
+          if (error instanceof AppError && error.code.startsWith('BOOKING_') && at.length >= 2) throw new AppError(error.statusCode, error.code, error.message, { ...((error.details as Record<string, unknown> | undefined) ?? {}), ...where });
           if (error instanceof AppError) throw error;
           return mapDbError(error, tableAt(at));
         },

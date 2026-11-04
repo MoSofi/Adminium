@@ -4441,7 +4441,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {
         refuseUnbuiltTable(row.target);
-        if (rulesOf(row.target)?.booking !== undefined) await at(row.node, () => Promise.reject(new GuardedBatchError(row.target.table.name)));
+        // A row below that takes a resource for a time is placed under its day's lock on a staff save (`placed`, below); a quote's or a guest's is refused.
+        if (rulesOf(row.target)?.booking !== undefined && (dry || context.origin === 'public')) await at(row.node, () => Promise.reject(new GuardedBatchError(row.target.table.name)));
         if (await hooks.wants('before', 'create', row.target, context)) {
           await at(row.node, () =>
             Promise.reject(
@@ -4491,6 +4492,24 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rootDay = rootBooking === undefined || rootNeed === null ? null : bookingDay(rootBooking, root.checked, root.zone ?? 'UTC');
       if (rootBooking !== undefined && rootNeed !== null && rootDay === null) {
         await at(rootRow.node, () => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(rootBooking))));
+      }
+      /*
+       * A ROW BELOW THAT TAKES A RESOURCE FOR A TIME (a batch's machine
+       * booking): placed as the root is. Its day's lock — the resource's, for
+       * a plain rule — is named from the values it was sent with, beside the
+       * write's other locks, and the row is judged under it inside the
+       * transaction, before it is written: a time that is taken refuses the
+       * whole tree. A row whose resource or time is filled only once it is
+       * prepared (no lock could be named for it) is refused as before:
+       * written one at a time.
+       */
+      const placedDays = new Map<TreeRow, string | null>();
+      if (!dry) {
+        for (const row of everyRow.slice(1)) {
+          const booking = rulesOf(row.target)?.booking;
+          if (booking === undefined) continue;
+          placedDays.set(row, bookingDay(booking, row.node.values, (await zoneFor(rulesOf(row.target), row.target)) ?? 'UTC'));
+        }
       }
       // Every column the tree's totals write in other rows, granted, before anything is written.
       for (const target of rights.values()) {
@@ -4574,6 +4593,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return [
           ...limits,
           ...(rootDay === null ? [] : [{ name: `${rootRow.target.connectionId}|${rootRow.target.table.id}|booking|${rootDay}`, busy: 'BOOKING_BUSY' as const }]),
+          ...[...placedDays.entries()].flatMap(([row, day]) => (day === null ? [] : [{ name: bookingLockName(row.target, day), busy: 'BOOKING_BUSY' as const }])),
           ...series,
           ...(input.locks ?? []),
           ...(treePosting === null
@@ -4623,10 +4643,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
           const parent = row.parent === null ? null : written.get(row.parent)!;
           await input.checks?.(trx, row.node, prepared.checked, parent);
-          // A root that takes a resource for a time, judged under its day's lock: "anyone" comes back as the person the rule picked.
+          // A row that takes a resource for a time, judged under its day's lock: "anyone" comes back as the person the rule picked.
+          const booking = row === rootRow ? rootBooking : placedDays.has(row) ? prepared.rules?.booking : undefined;
+          const need = booking === undefined ? null : row === rootRow ? rootNeed : bookingNeed(booking, prepared.checked, null);
+          // A row below judged under the lock named for it: one whose day is only known now, or another than it was sent with, was named no lock.
+          if (row !== rootRow && booking !== undefined && need !== null) {
+            const day = bookingDay(booking, prepared.checked, prepared.zone ?? 'UTC');
+            if (day === null) throw bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(booking));
+            if (day !== placedDays.get(row)) throw new GuardedBatchError(row.target.table.name);
+          }
           const placed =
-            row === rootRow && rootBooking !== undefined && rootNeed !== null
-              ? brand({ ...prepared.checked, ...(await checkBooking(rootBooking, { ...within, origin: context.origin }, { row: prepared.checked, before: null, need: rootNeed, now: new Date() })) })
+            booking !== undefined && need !== null
+              ? brand({ ...prepared.checked, ...(await checkBooking(booking, { ...within, origin: context.origin }, { row: prepared.checked, before: null, need, now: new Date() })) })
               : prepared.checked;
           // The root was prepared before the write began: a copy that follows its parent is read again from the parent, held.
           const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: placed, currency })) : placed;
