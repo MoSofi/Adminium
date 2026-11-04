@@ -17,7 +17,7 @@
  * never as a rule that is stored, shown in Studio, drawn in the form, and then
  * contradicted by the database.
  */
-import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
+import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type RelationKind, type TableModel } from '@adminium/engine';
 import { dayColumns, FILE_COLUMN_KINDS, FILE_UPLOAD_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { storedAdjust, storedCheck, storedPosting } from '@adminium/meta';
@@ -99,6 +99,8 @@ const UUID_TYPES: ReadonlySet<LogicalType> = new Set(['uuid', 'text', 'varchar']
 const USER_TYPES: ReadonlySet<LogicalType> = new Set(['text', 'varchar', 'uuid', 'integer', 'bigint']);
 const NUMERIC_TYPES: ReadonlySet<LogicalType> = new Set(['integer', 'bigint', 'decimal', 'float']);
 const TEXTUAL_TYPES: ReadonlySet<LogicalType> = new Set(['text', 'varchar']);
+/** The links somebody made: the database's foreign keys, and those a person or an app declared. Never a guess. */
+const DECLARED_LINKS: ReadonlySet<RelationKind> = new Set(['declared-fk', 'override', 'manifest']);
 /** The columns a joined text reads: text and whole numbers, spelled alike by every database. */
 const JOINED_TYPES: ReadonlySet<LogicalType> = new Set(['text', 'varchar', 'integer', 'bigint']);
 /** Types whose answers cannot be a list: they have their own, or no, vocabulary. */
@@ -644,7 +646,9 @@ export function columnRuleIssue(
         return `A link into an add-on's table is a whole number or text; ${name} is ${column.logicalType}.`;
       }
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
-      const linked = model.relations.some((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.includes(column.name));
+      // Only a real foreign key counts: one the database keeps, or one a person or an app declared. A link the
+      // server guessed from the column's name (`design_id` → `designs`) is no key, and gives way to this one.
+      const linked = model.relations.some((r) => r.through === null && DECLARED_LINKS.has(r.kind) && r.from.tableId === table?.id && r.from.columns.includes(column.name));
       if (linked) return `${name} is a foreign key already, so it cannot also link into an add-on's table.`;
       return null;
     }

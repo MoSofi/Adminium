@@ -97,13 +97,6 @@ function printShop(): Doc {
             },
           ],
         },
-        /*
-         * The features a line pays for, as the shop apps keep them. Without a
-         * fourth table, the server's guess at links by name reads
-         * `order_lines.design_id` as a foreign key into `customiser_designs`,
-         * and the link into the add-on is refused on install.
-         */
-        { ref: 'line_features', columns: [pk, { ref: 'line_id', type: 'fk', references: 'order_lines' }, { ref: 'feature', type: 'text', maxLength: 40 }] },
       ],
     },
     pages: [{ ref: 'printing-home', template: 'page-dashboard', title: { key: 'mft.printing.page.home', fallback: 'Home' }, nav: { group: 'manifest:sample', icon: 'layout-dashboard', order: 1 } }],

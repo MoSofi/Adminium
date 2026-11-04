@@ -77,6 +77,20 @@ export interface CodeUnlock {
   where?: readonly (CodeLookupWhere | { column: string; not_before?: 'now' | 'today'; not_after?: 'now' | 'today'; or_empty?: true; eq?: unknown })[] | undefined;
 }
 
+/** How long a row's own code must be before a read by it may show the row's personal columns. */
+export const SELF_UNLOCK_PERSONAL_LENGTH = 16;
+
+/**
+ * Whether a read opened by a row's own code may show its personal columns: a
+ * code of 16 characters or more is 80 bits of secret, as hard to find by
+ * trying as a shared link's, and whoever holds it holds that one row. A
+ * shorter code (a gift card's 12), or a code of another table that unlocks
+ * the row (a presale code), keeps the mask.
+ */
+export function opensByLongOwnCode(unlock: Pick<CodeUnlock, 'self' | 'length'> | null | undefined): boolean {
+  return unlock?.self === true && (unlock.length ?? 0) >= SELF_UNLOCK_PERSONAL_LENGTH;
+}
+
 /** How a column keeps the codes a lookup compares with. */
 export function spellingOf(column: Pick<EffectiveColumn, 'code'> | undefined): CodeSpelling {
   return column?.code !== undefined ? { made: { prefix: column.code.prefix ?? '', length: column.code.length } } : { kept: true };

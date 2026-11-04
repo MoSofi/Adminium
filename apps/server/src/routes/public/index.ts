@@ -51,6 +51,7 @@ import type { Dialect } from '@adminium/engine';
 import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
+import { opensByLongOwnCode } from '../../crud/code-lookup.js';
 import { registerPictures } from './pictures.js';
 import { registerUploads } from './uploads.js';
 import type { PublicUploads } from '../../public-uploads/store.js';
@@ -499,6 +500,8 @@ function readsOwnPii(scope: CompiledScope, resource: CompiledResource, session: 
   // A child's rows are theirs only through a parent they reach: the same rule, one step removed.
   const own = (resource.claim !== null && resource.claim.optional !== true) || parentOf(resource) !== null;
   if (own && resource.level === 'verified' && session.level === 'verified') return true;
+  // One row opened by its own long code, by a session the app signed in: whoever holds the code holds the row.
+  if (opensByLongOwnCode(resource.unlockBy)) return true;
   // The identity's own row: its claim reads it by the session's own value (`claimPredicateFor`), never another's.
   const identity = scope.claim ?? null;
   const itself =
