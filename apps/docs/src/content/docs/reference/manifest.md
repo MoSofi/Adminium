@@ -933,6 +933,19 @@ names beside their email read as personal by their names, so the joined name nee
 `"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
 and a stamp's copy.
 
+A join may read a running number or the text written from one (`format`): an order's number as a
+person types it, kept as a code so a lookup finds "br-2291".
+
+```json
+{ "ref": "number_code", "type": "text", "maxLength": 16, "nullable": true, "unique": true,
+  "rules": { "formula": { "join": ["number", " "] }, "normalize": "code" } }
+```
+
+The number is taken after the row's other formulas are worked out (a gapless one at the row's
+INSERT, a counted one when it is claimed), so the formulas that read it are worked out again on
+the number taken, in the same statement, and kept as their column's `normalize` says
+(`BR-2291` → `BR2291`). Needs Adminium 0.3.44; before it, such a column stays empty.
+
 #### Numbers without gaps
 
 A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A

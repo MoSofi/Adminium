@@ -78,8 +78,14 @@ interface Claim {
  * statement nor a JSON copy of the row (an undo entry) sees it.
  */
 const CLAIMS = Symbol('adminium.gapless-claims');
+/**
+ * What the row works out from its numbers once they are written (a formula
+ * over the number's text: an order's number as it is typed), carried beside
+ * the claims and run on the row just before its INSERT.
+ */
+const AFTER = Symbol('adminium.gapless-after');
 
-type Carrier = Row & { [CLAIMS]?: readonly Claim[] };
+type Carrier = Row & { [CLAIMS]?: readonly Claim[]; [AFTER]?: (row: Row) => Row };
 
 /** How many duplicates a MySQL claim steps past before it gives up. */
 const MAX_STEPS = 200;
@@ -128,6 +134,8 @@ export async function prepareNumbers(
   values: Row,
   origin: WriteOrigin,
   reader: RuleSettingsReader | undefined,
+  /** What the row works out from the numbers once they are taken (its formulas over them), run at the INSERT. */
+  after?: (row: Row) => Row,
 ): Promise<Row> {
   const sequences = action === 'create' ? (rules?.gapless ?? []) : [];
   if (sequences.length === 0) return values;
@@ -150,6 +158,7 @@ export async function prepareNumbers(
   }
   const out: Carrier = { ...values };
   out[CLAIMS] = claims;
+  if (after !== undefined) out[AFTER] = after;
   return out;
 }
 
@@ -300,14 +309,18 @@ export async function insertNumbered<T>(
   insert: (db: Db, row: Row) => Promise<T>,
 ): Promise<T> {
   const claims = (row as Carrier)[CLAIMS] ?? [];
+  const after = (row as Carrier)[AFTER];
   const bare: Row = { ...row };
   delete (bare as Carrier)[CLAIMS];
+  delete (bare as Carrier)[AFTER];
   if (claims.length === 0) return insert(db, bare);
+  // The row as its numbers leave it: what it works out from them, worked out on the numbers taken.
+  const finish = after === undefined ? insert : (handle: Db, numberedRow: Row) => insert(handle, after(numberedRow));
   if (!inTransaction(db)) {
     // The lock is held until the commit: a writer let in before it would read a largest number without this one.
-    return withNamedLock({ db, dialect }, numberLockName(table, row)!, 'NUMBER_BUSY', (trx) => take(trx, dialect, table, bare, claims, insert));
+    return withNamedLock({ db, dialect }, numberLockName(table, row)!, 'NUMBER_BUSY', (trx) => take(trx, dialect, table, bare, claims, finish));
   }
-  return take(db, dialect, table, bare, claims, insert);
+  return take(db, dialect, table, bare, claims, finish);
 }
 
 async function take<T>(

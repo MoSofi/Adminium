@@ -247,8 +247,10 @@ describe.each(LEGS)('Maker Shop, reworked, installed with the built Customiser â
     const design = await saveDesign('Harbour Lights', false);
     const placed = await create(CREATE, await order([await line('coast-wal', 1, { design_code: design.code })], { client_key: 'maker-install-test-order-0001' }));
     expect(placed.statusCode, placed.body).toBe(201);
-    const row = await one(`SELECT number, total FROM maker_orders WHERE number_seq IS NOT NULL ORDER BY id DESC`);
+    const row = await one(`SELECT number, number_code, total FROM maker_orders WHERE number_seq IS NOT NULL ORDER BY id DESC`);
     expect(row['number']).toBe('BR-2291');
+    // The number as a person types it, worked out on the number the order took.
+    expect(row['number_code']).toBe('BR2291');
     expect(Number(row['total'])).toBe(37.95);
     const versions = await h.rows(`SELECT version, receipt_id FROM customiser_design_versions WHERE design_id = ${String(design.id)}`);
     expect(versions.map((v) => Number(v['version']))).toEqual([1]);
@@ -263,6 +265,10 @@ describe.each(LEGS)('Maker Shop, reworked, installed with the built Customiser â
     expect(theirs.statusCode, theirs.body).toBe(201);
     expect(await one(`SELECT ref, order_id FROM maker_problem_reports ORDER BY id DESC`)).toMatchObject({ ref: 'FIX-0001' });
     expect(Number((await one(`SELECT order_id FROM maker_problem_reports ORDER BY id DESC`))['order_id'])).toBe(await id(`SELECT id FROM maker_orders WHERE number = 'BR-2287'`));
+    // An order placed here a moment ago is found by the number it took, typed as the guest types it.
+    const ours = await report(EMAIL, 'br-2291', 'maker-install-test-problem-0003');
+    expect(ours.statusCode, ours.body).toBe(201);
+    expect(Number((await one(`SELECT order_id FROM maker_problem_reports ORDER BY id DESC`))['order_id'])).toBe(await id(`SELECT id FROM maker_orders WHERE number = 'BR-2291'`));
     const someoneElses = await report('stranger@example.com', 'BR-2287', 'maker-install-test-problem-0002');
     expect(someoneElses.statusCode, someoneElses.body).toBeGreaterThanOrEqual(400);
     expect((someoneElses.json() as { error: { params: Doc } }).error.params).toMatchObject({ column: 'order_ref', reason: 'unknown' });

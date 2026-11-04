@@ -2149,6 +2149,25 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
  * changes. An import reads a file's cells through it too, so a line is
  * matched on the value its row would hold.
  */
+/**
+ * The formulas a row works out from its running numbers — an order's number
+ * as it is typed (`number_code`, a join over `number`), kept as a code — and
+ * a function that works them out on the row once its numbers are written:
+ * a counted number when it is claimed, a number without gaps at its INSERT
+ * (`gapless.ts`). Worked out before then they read no number at all. Null
+ * for a table with none.
+ */
+export function formulasAfterNumbers(rules: TableRules | null): ((row: Row) => Row) | null {
+  if (rules === null) return null;
+  const numbers = [...(rules.gapless ?? []), ...(rules.sequences ?? [])].flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
+  const formulas = numbers.length === 0 ? [] : touchedFormulas(rules.formulas ?? [], numbers);
+  if (formulas.length === 0) return null;
+  const own = new Set(formulas.map((formula) => formula.column));
+  const kept = { ...rules, normalizes: (rules.normalizes ?? []).filter((normalize) => own.has(normalize.column)) };
+  // A money formula over a number is no formula anyone writes: the connection's currency is not read for it.
+  return (row) => normalizeText(kept, { ...row, ...evaluateAll(formulas, row, rules.currencyColumn, null) });
+}
+
 export function normalizeText(rules: TableRules | null, values: Row): Row {
   let out: Row | null = null;
   for (const { column, how } of rules?.normalizes ?? []) {
@@ -3030,11 +3049,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rules,
         action,
         target,
-        await claimSequences(rules, action, target, values, opts.sequences),
+        afterCounted(rules, action, context.origin, values, await claimSequences(rules, action, target, values, opts.sequences)),
         context.origin,
         opts.settings,
+        formulasAfterNumbers(rules) ?? undefined,
       ),
     );
+
+  /** A row a counted number was just claimed for, with what its formulas work out from that number. */
+  const afterCounted = (rules: TableRules | null, action: WriteAction, origin: WriteOrigin, before: Row, claimed: Row): Row => {
+    if (action !== 'create' || claimed === before || origin === 'import' || origin === 'undo') return claimed;
+    const after = formulasAfterNumbers(rules);
+    return after === null ? claimed : after(claimed);
+  };
 
   /**
    * INSERT, trying again with fresh codes when a code this create generated
@@ -3622,7 +3649,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // The listing rule, for a writer no person door judged: the new row as its rules filled it.
     if (opts.listings !== undefined && LISTING_ORIGINS.has(context.origin)) await guardedValue(() => opts.listings!(target, judged, null), mapError);
     // What a number without gaps needs at its INSERT, read before any lock is taken; a quote takes none.
-    const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, opts.settings) : await unclaimedNumbers(rules, target, judged);
+    const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, opts.settings, formulasAfterNumbers(rules) ?? undefined) : await unclaimedNumbers(rules, target, judged);
     const checked = await carry(rules, 'create', target, context, brand(numbered), null, clock);
     // A quote's row is judged on rows read as they are: it holds none it does not write, and waits on no save.
     if (input.mode === 'dry') quoteOnly(checked);
@@ -4277,7 +4304,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const orders = pricing === null ? [] : await holdOrders(db, pricing, { target: within, rules, rows: [placed] });
         // A copy that follows its parent, read again from the parent as held: a change of it meanwhile would not have reached this row.
         const followed = brand(await followNow({ db, dialect: target.dialect, rules, values: placed, currency }));
-        const counted = brand(await claimSequences(rules, 'create', within, followed, opts.sequences));
+        const counted = brand(afterCounted(rules, 'create', context.origin, followed, await claimSequences(rules, 'create', within, followed, opts.sequences)));
         const out = await insertWithCodes(within, counted, codes, input.mapError);
         // The design a line names (or the line a paid feature is of), asked once the row is in: before its price and its totals.
         if (checks.length > 0) {
@@ -4658,7 +4685,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               : prepared.checked;
           // The root was prepared before the write began: a copy that follows its parent is read again from the parent, held.
           const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: placed, currency })) : placed;
-          const counted = dry ? current : brand(await claimSequences(prepared.rules, 'create', within, current, opts.sequences));
+          const counted = dry ? current : brand(afterCounted(prepared.rules, 'create', context.origin, current, await claimSequences(prepared.rules, 'create', within, current, opts.sequences)));
           let out: { row: Row; values: CheckedRow };
           try {
             out = await insertWithCodes(within, counted, prepared.codes, undefined);

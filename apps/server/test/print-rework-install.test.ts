@@ -252,7 +252,7 @@ describe.each(LEGS)('Print Shop, reworked, installed with the built Customiser â
   it.skipIf(!runs)("numbers the works' own next order MP-4127, after the sample's MP-4126", async () => {
     const placed = await create(CREATE, order([await flyers()], { client_key: 'print-install-test-order-0001' }));
     expect(placed.statusCode, placed.body).toBe(201);
-    expect((await one(`SELECT number FROM printing_orders WHERE number_seq IS NOT NULL ORDER BY id DESC`))['number']).toBe('MP-4127');
+    expect(await one(`SELECT number, number_code FROM printing_orders WHERE number_seq IS NOT NULL ORDER BY id DESC`)).toMatchObject({ number: 'MP-4127', number_code: 'MP4127' });
   });
 
   it.skipIf(!runs)('moves a job a working day for a change asked, to Tue 11, and counts it again from its approval', async () => {
