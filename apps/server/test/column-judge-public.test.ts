@@ -5,14 +5,18 @@
  * was held for, a stranger's file still alive and no record's yet, of a kind
  * and a size the column takes. A file id it does not hold, one held for
  * another column or table, a staff upload and a binned file are each refused
- * as `file-not-here`; a public write that holds nothing names nothing.
+ * as `file-not-here`; a public write that holds nothing names nothing. A
+ * held SVG is one the upload store cleaned: cleaned again, the bytes kept.
  */
+import { createHash } from 'node:crypto';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { filesRepo, type MetaDb } from '@adminium/meta';
 
 import type { ResolvedTable } from '../src/crud/identifiers.js';
 import { createFileColumnJudge } from '../src/files/column-judge.js';
+import { cleanSvg } from '../src/files/svg.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const file = (accept: string[], maxBytes: number) => ({ accept, maxBytes });
@@ -28,6 +32,7 @@ const LINES = {
     ['id', { name: 'id' }],
     ['artwork', { name: 'artwork', file: file(['pdf', 'png'], 1_000) }],
     ['proof', { name: 'proof', file: file(['pdf'], 1_000) }],
+    ['logo', { name: 'logo', file: file(['svg'], 1_000) }],
   ]),
 } as unknown as ResolvedTable;
 
@@ -61,6 +66,26 @@ for (const engine of META_ENGINES) {
       // Not held by this write at all, or no holds.
       expect(await judge({ artwork }, new Map())).toEqual({ artwork: { code: 'file-not-here' } });
       expect(await judge({ artwork })).toEqual({ artwork: { code: 'file-not-here' } });
+    });
+
+    it('takes a held SVG only when its bytes are the cleaner\'s own', async () => {
+      const raw = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" class="x"><rect width="1" height="1"/></svg>', 'utf8');
+      const cleaned = cleanSvg(raw);
+      const stored = async (bytes: Buffer) =>
+        (await filesRepo(meta).create({ filename: 'logo.svg', mime: 'image/svg+xml', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), kind: 'stranger', uploadedBy: null })).id;
+      const kept = await stored(cleaned);
+      const uncleaned = await stored(raw);
+      const bytes = new Map([
+        [kept, cleaned],
+        [uncleaned, raw],
+      ]);
+      const holds = new Map([kept, uncleaned].map((id) => [id, { table: LINES.id, column: 'logo' }]));
+      const withBytes = (values: Record<string, unknown>) =>
+        createFileColumnJudge({ meta, bytesOf: async (f) => bytes.get(f.id) }).judge({ connectionId: 'conn_1', table: LINES, origin: 'public', actor: { kind: 'public', id: null, label: 'public:key' }, values, stored: null, held: holds });
+      expect(await withBytes({ logo: kept })).toBeNull();
+      expect(await withBytes({ logo: uncleaned })).toEqual({ logo: { code: 'file-not-here' } });
+      // Bytes that cannot be read: not taken.
+      expect(await judge({ logo: kept }, holds)).toEqual({ logo: { code: 'file-not-here' } });
     });
 
     it('refuses a staff upload, a binned file, a kind and a size the column does not take', async () => {
