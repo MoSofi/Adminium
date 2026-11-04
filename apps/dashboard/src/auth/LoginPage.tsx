@@ -4,6 +4,7 @@
  * into the app (honoring `?returnTo`), 202 → stash the challenge token and
  * hand off to `/otp` (TwoFactorForm), 401/429 → inline error banner.
  */
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { SignInForm } from '@adminium/ui';
@@ -11,6 +12,7 @@ import { SignInForm } from '@adminium/ui';
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { useBranding } from '../shell/BrandMark.js';
+import { addressSurface } from './addressSurface.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { login, storeChallenge } from './authApi.js';
 import { nextTarget } from './nextTarget.js';
@@ -23,9 +25,12 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   // On an app's staff address the words are the venue's (`App Address Pages.dc.html`).
   const { surface } = useBranding();
-  const [opening, setOpening] = useState<string | null>(null);
+  const [opening, setOpening] = useState<{ userName: string; appName: string | null } | null>(null);
+  const queries = useQueryClient();
 
-  const finish = (to: string | undefined, userName: string) => {
+  const finish = async (to: string | undefined, userName: string) => {
+    // Whether this is an app's staff address, as its branding says: waited for, when the sign-in beat it here.
+    const here = await addressSurface(queries, surface);
     // A new session means every cached query is another principal's data.
     router.options.context.queryClient.clear();
     /*
@@ -36,9 +41,9 @@ export function LoginPage() {
      * validateSearch already pinned it to a path (never `//host`), and it is
      * followed only into an app's own screens (auth/nextTarget.ts).
      */
-    const target = nextTarget(next, surface !== undefined);
+    const target = nextTarget(next, here !== undefined);
     if (target !== null) {
-      setOpening(userName);
+      setOpening({ userName, appName: here?.appName ?? null });
       window.location.assign(target);
       return;
     }
@@ -49,7 +54,7 @@ export function LoginPage() {
   if (opening !== null) {
     return (
       <AuthScreenLayout documentTitle={t('auth.signIn.submit', 'Sign in')}>
-        <StaffHandover appName={surface?.appName ?? null} userName={opening} />
+        <StaffHandover appName={opening.appName} userName={opening.userName} />
       </AuthScreenLayout>
     );
   }
@@ -107,7 +112,7 @@ export function LoginPage() {
                   .then(() => router.navigate({ to: '/otp' }));
                 return;
               }
-              finish(returnTo, result.user.name);
+              return finish(returnTo, result.user.name);
             })
             .catch((cause: unknown) => {
               setLoading(false);

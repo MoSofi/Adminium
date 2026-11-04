@@ -4,6 +4,7 @@
  * The challenge token comes from the login 202 via sessionStorage; arriving
  * without one bounces back to `/login`.
  */
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { TwoFactorForm } from '@adminium/ui';
@@ -11,6 +12,7 @@ import { TwoFactorForm } from '@adminium/ui';
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { useBranding } from '../shell/BrandMark.js';
+import { addressSurface } from './addressSurface.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { clearChallenge, readChallenge, verify2fa } from './authApi.js';
 import { nextTarget } from './nextTarget.js';
@@ -22,7 +24,8 @@ export function OtpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { surface } = useBranding();
-  const [opening, setOpening] = useState<string | null>(null);
+  const [opening, setOpening] = useState<{ userName: string; appName: string | null } | null>(null);
+  const queries = useQueryClient();
 
   useEffect(() => {
     if (challenge === null) void router.navigate({ to: '/login' });
@@ -32,7 +35,7 @@ export function OtpPage() {
   if (opening !== null) {
     return (
       <AuthScreenLayout documentTitle={t('auth.otp.title', 'Two-factor authentication')}>
-        <StaffHandover appName={surface?.appName ?? null} userName={opening} />
+        <StaffHandover appName={opening.appName} userName={opening.userName} />
       </AuthScreenLayout>
     );
   }
@@ -56,14 +59,16 @@ export function OtpPage() {
           setLoading(true);
           setError(null);
           verify2fa(challenge.challengeToken, values.code)
-            .then((user) => {
+            .then(async (user) => {
               clearChallenge();
+              // Whether this is an app's staff address, as its branding says (LoginPage.finish).
+              const here = await addressSurface(queries, surface);
               router.options.context.queryClient.clear();
               // The surface gate's target needs a DOCUMENT navigation — same
               // rule as LoginPage.finish, same path-only guard.
-              const target = nextTarget(challenge.next, surface !== undefined);
+              const target = nextTarget(challenge.next, here !== undefined);
               if (target !== null) {
-                setOpening(user.name);
+                setOpening({ userName: user.name, appName: here?.appName ?? null });
                 window.location.assign(target);
                 return;
               }
