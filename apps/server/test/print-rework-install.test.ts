@@ -262,12 +262,15 @@ describe.each(LEGS)('Print Shop, reworked, installed with the built Customiser â
     await staffUpdate('printing_proofs', Number(first['id']), { state: 'change_asked', change_note: 'Make the date line bigger.' });
     const changed = await one(`SELECT changes, turnaround_days, ready_by FROM printing_jobs WHERE id = ${String(job['id'])}`);
     expect([Number(changed['changes']), Number(changed['turnaround_days']), dateOf(changed['ready_by'])]).toEqual([1, 4, '2026-08-11']);
+    // The order's ready-by is its newest job's: it moves with it.
+    expect(dateOf((await one(`SELECT ready_by FROM printing_orders WHERE id = ${String(job['order_id'])}`))['ready_by'])).toBe('2026-08-11');
     // The second proof approved: the job's own three days, counted from now.
     await staffUpdate('printing_proofs', Number(first['id']), { state: 'superseded' });
     const second = await staffCreate('printing_proofs', { order_id: Number(job['order_id']), job_id: Number(job['id']), kind: 'email', note: 'Second proof.' });
     await staffUpdate('printing_proofs', Number(second['id']), { state: 'approved' });
     const approved = await one(`SELECT proof_state, proof_ok, turnaround_days, ready_by FROM printing_jobs WHERE id = ${String(job['id'])}`);
     expect([approved['proof_state'], Number(approved['proof_ok']), Number(approved['turnaround_days']), dateOf(approved['ready_by'])]).toEqual(['approved', 1, 3, '2026-08-10']);
+    expect(dateOf((await one(`SELECT ready_by FROM printing_orders WHERE id = ${String(job['order_id'])}`))['ready_by'])).toBe('2026-08-10');
   });
 
   it.skipIf(!runs)("refuses a card made in the Customiser whose back is not paid for", async () => {

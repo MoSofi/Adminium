@@ -1276,6 +1276,23 @@ const ROLLUPS = new WeakMap<object, Map<string, RollupInto[]>>();
  * The totals of every table of a model, by table id, each knowing the totals
  * one table higher that add up what it moves (`RollupInto.climbs`).
  */
+/**
+ * The columns a working-day stamp reads or watches: its `from`, its `days`,
+ * the columns its triggers name. A settle that moves one of them works the
+ * stamp out again (`decide.ts` `workingDaysAfterSettle`); any other stamp
+ * reads none (it is not worked out by a settle).
+ */
+function settleStampReads(stamp: ColumnStampRule): string[] {
+  if (typeof stamp.set !== 'object' || !('addWorkingDays' in stamp.set)) return [];
+  const rule = stamp.set.addWorkingDays;
+  const triggers = Array.isArray(stamp.on) ? stamp.on : [stamp.on];
+  return [
+    ...(rule.from === 'now' ? [] : [rule.from]),
+    ...(typeof rule.days === 'string' ? [rule.days] : []),
+    ...triggers.flatMap((trigger) => (trigger === 'create' ? [] : 'columns' in trigger ? trigger.columns : [trigger.column])),
+  ];
+}
+
 function modelRollups(model: { tables: readonly EffectiveTable[]; relations?: readonly Relation[] }): Map<string, RollupInto[]> {
   const cached = ROLLUPS.get(model);
   if (cached !== undefined) return cached;
@@ -1287,6 +1304,9 @@ function modelRollups(model: { tables: readonly EffectiveTable[]; relations?: re
   const all = [...out.values()].flat();
   for (const rollup of all) {
     const moved = new Set([rollup.column, ...rollup.derived, ...rollup.balances.map((balance) => balance.column)]);
+    // A working-day stamp the settle sets off is a column it moves too: the order's newest ready-by climbs from a job's.
+    const parent = model.tables.find((table) => table.id === rollup.parent);
+    for (const column of parent?.columns ?? []) if (column.stamp !== undefined && settleStampReads(column.stamp).some((read) => moved.has(read))) moved.add(column.name);
     rollup.climbs = all.filter(
       (above) =>
         above !== rollup &&
