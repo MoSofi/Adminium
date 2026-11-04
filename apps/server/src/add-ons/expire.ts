@@ -16,6 +16,12 @@
  *  - a row another row of the database still points at (a foreign key the
  *    database refuses to break): it is left, and the next day tries again.
  *
+ * A message about the row never keeps it (`outbox/release.ts`): a design
+ * whose private link was mailed goes on its day all the same. As the row
+ * goes, each message that names it lets go of it, in the same transaction:
+ * one already sent stays in the log as it was sent (its kind, its address,
+ * when it went), naming no row; one not sent yet is skipped, never sent.
+ *
  * A row's files go the way any deleted row's do: to the bin, through the
  * file reconciler (`files/reconcile.ts` `trashForRecord`), whose sweep empties
  * it later. The rows are deleted as the system, in batches, never through a
@@ -29,9 +35,12 @@ import { sql, type Kysely } from 'kysely';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { deleteRows } from '../crud/write-service.js';
 import { bindWriteValue } from '../crud/write-values.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { ruledBlocksOf } from '../files/column-blocks.js';
 import type { FileReconciler } from '../files/reconcile.js';
+import type { ReleasedLink } from '../outbox/release.js';
 import { rowKeyOf } from '../payments/payables.js';
 
 /** Daily, after the forms' sweeps: an add-on's rows past their time are let go. */
@@ -53,6 +62,12 @@ export interface ExpireSweepDeps {
   /** The snapshot of a database; the stored one when absent. */
   viewFor?: ((connectionId: string) => Promise<SnapshotView | null>) | undefined;
   log?: { warn(details: object, message: string): void } | undefined;
+  /**
+   * The outbox links that let go of a table's rows as they go (the
+   * producers' `releasing`): a message about a row never keeps it. Absent,
+   * a row a message names is left as the database refuses it.
+   */
+  releases?: ((connectionId: string, tableId: string) => Promise<readonly ReleasedLink[]>) | undefined;
 }
 
 /** A credential is never read here: only stored manifests. */
@@ -94,14 +109,14 @@ async function stillNamed(db: Kysely<SourceDatabase>, view: SnapshotView, addOn:
   return out;
 }
 
-/** Deletes one row by its key; false when the database refuses (another row still points at it). */
-async function deleteOne(db: Kysely<SourceDatabase>, table: ResolvedTable, key: string, value: unknown): Promise<boolean> {
+/**
+ * Deletes one row by its key, its messages letting go of it in the same
+ * transaction; false when the database refuses (another row still points at
+ * it), and then the messages are as they were.
+ */
+async function deleteOne(db: Kysely<SourceDatabase>, table: ResolvedTable, key: string, value: unknown, released: readonly ReleasedLink[]): Promise<boolean> {
   try {
-    const result = await db
-      .deleteFrom(table.id as never)
-      .where(sql.ref(key), '=', value as never)
-      .executeTakeFirst();
-    return Number(result.numDeletedRows) > 0;
+    return (await deleteRows(db, table, { [key]: value }, undefined, undefined, released)) > 0;
   } catch {
     return false;
   }
@@ -116,6 +131,7 @@ async function sweepTable(deps: ExpireSweepDeps, input: { db: Kysely<SourceDatab
   // A table whose key or columns are not as declared is left alone: nothing is guessed.
   if (key === undefined || after === undefined || (expire.unless !== undefined && kept === undefined)) return 0;
   const before = cutoffFor(after, input.now, expire.days, input.dialect);
+  const released = (await deps.releases?.(input.connectionId, table.id)) ?? [];
   const keep = kept === undefined ? undefined : bindWriteValue(kept, expire.unless!.equals, input.dialect);
   let gone = 0;
   /** Rows looked at and left (still named, or refused by the database), by their keys: not read again this run. */
@@ -133,14 +149,15 @@ async function sweepTable(deps: ExpireSweepDeps, input: { db: Kysely<SourceDatab
     const named = await stillNamed(db, input.view, input.addOn, input.ref, due.map((row) => row[key]));
     for (const row of due) {
       const value = row[key];
-      if (named.has(String(value)) || !(await deleteOne(db, table, key, value))) {
+      if (named.has(String(value)) || !(await deleteOne(db, table, key, value, released))) {
         left.set(String(value), value);
         continue;
       }
       gone += 1;
       // Its files to the bin, as any deleted row's: the row is gone, so they are read from it as it was.
       const entity: RecordRef = { connectionId: input.connectionId, table: table.id, pk: { [key]: value }, label: rowKeyOf(table, row) };
-      await deps.files?.trashForRecord({ connectionId: input.connectionId, table: table.id, entity, row });
+      // The add-on's own file columns (`column.file`) are named: the page blocks alone never list them.
+      await deps.files?.trashForRecord({ connectionId: input.connectionId, table: table.id, entity, row, ruled: ruledBlocksOf(table.columns.values()) });
     }
     if (due.length < BATCH) break;
   }

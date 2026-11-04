@@ -181,6 +181,70 @@ function withLink(manifest: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+/** The kit's mail log, the kind of mail it sends, and that mail's template, added by `{ mail: true }` (with `{ link: true }`). */
+export const DESIGN_MAILS = 'design_kit_mails';
+export const DESIGN_LINK_KIND = 'design-link';
+
+/**
+ * The one mail the kit sends, added by `{ mail: true }`: a saved design's own
+ * link, to the address saved with it, logged one row a message in `mails`,
+ * which links the design it is about (as the Customiser's `design_mails`).
+ */
+function withMail(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] };
+  return {
+    ...manifest,
+    requiredSchema: {
+      ...schema,
+      tables: [
+        ...schema.tables,
+        {
+          ref: 'mails',
+          columns: [
+            pk,
+            { ref: 'kind', type: 'enum', enum: [DESIGN_LINK_KIND] },
+            { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
+            { ref: 'to_address', type: 'text', maxLength: 254, nullable: true },
+            { ref: 'sent_at', type: 'timestamptz', nullable: true },
+            { ref: 'error', type: 'text', maxLength: 500, nullable: true },
+            { ref: 'design_id', type: 'fk', references: 'designs', nullable: true },
+          ],
+        },
+      ],
+    },
+    outbox: {
+      table: 'mails',
+      columns: { kind: 'kind', status: 'status', to: 'to_address', sentAt: 'sent_at', error: 'error' },
+      links: { design: 'design_id' },
+      recipient: { via: 'design_id', table: 'designs', email: 'email' },
+      kinds: { [DESIGN_LINK_KIND]: 'design-kit-design-link' },
+      classes: { [DESIGN_LINK_KIND]: 'service' },
+      producers: [{ kind: DESIGN_LINK_KIND, link: 'design_id', onCreate: { table: 'designs' } }],
+    },
+    emailTemplates: [
+      {
+        key: 'design-kit-design-link',
+        name: 'A saved design\u2019s link',
+        locales: { 'en-US': { subject: 'Your design is saved', blocks: [{ block: 'email.text', data: { text: 'Open it again: #{{design.link_token}}' } }] } },
+      },
+    ],
+  };
+}
+
+/**
+ * A shopper who deletes their own draft, added by `{ remove: true }` (with
+ * `{ link: true }`): the design's own link also removes it while it is a
+ * draft, and a design keeps a photo (a file column of the kit's own).
+ */
+function withRemove(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] };
+  const tables = schema.tables.map((table) =>
+    table.ref === 'designs' ? { ...table, columns: [...table.columns, { ref: 'photo', type: 'text', maxLength: 64, nullable: true, rules: { file: { accept: ['png'], maxBytes: 1048576 } } }] } : table,
+  );
+  const entries = (manifest['publicAccess'] as Record<string, unknown>[]).map((entry) => (entry['key'] === DESIGN_LINK_KEY ? { ...entry, methods: ['GET', 'PATCH', 'DELETE'] } : entry));
+  return { ...manifest, requiredSchema: { ...schema, tables }, publicAccess: entries };
+}
+
 /** The kit's package files beside its manifest: its deciding file, and its panel's code. */
 export const DESIGN_KIT_FILES: Record<string, string> = {
   'dist/check.js': DESIGN_CHECK_SERVER,
@@ -214,11 +278,13 @@ function withUploads(manifest: Record<string, unknown>): Record<string, unknown>
   };
 }
 
-export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean; link?: boolean; uploads?: boolean } = {}): Record<string, unknown> {
+export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean; link?: boolean; uploads?: boolean; mail?: boolean; remove?: boolean } = {}): Record<string, unknown> {
   let made = designKitBase(over);
   if (opts.checker === true) made = withChecker(made);
   if (opts.panel === true) made = withPanel(made);
   if (opts.link === true) made = withLink(made);
+  if (opts.mail === true) made = withMail(made);
+  if (opts.remove === true) made = withRemove(made);
   if (opts.uploads === true) made = withUploads(made);
   return made;
 }

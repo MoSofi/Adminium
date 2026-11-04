@@ -1696,9 +1696,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'form answers sweep');
   });
-  // An add-on's own rows past the time its table keeps them (`expire`): let go by the engine, their files to the bin.
+  // An add-on's own rows past the time its table keeps them (`expire`): let go by the engine, their files to the bin,
+  // and the messages about them letting go of them (a mailed design goes on its day all the same).
   jobs.scheduler.registerSchedule(ADD_ON_EXPIRE_SWEEP_NAME, ADD_ON_EXPIRE_SWEEP_CRON, async () => {
-    const swept = await sweepExpiredRows({ meta, manager, files: fileReconciler, log: app.log });
+    const swept = await sweepExpiredRows({ meta, manager, files: fileReconciler, log: app.log, releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId) });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'add-on expired rows sweep');
   });
   // A recorded live payment emails its receipt once, to the record's customer.

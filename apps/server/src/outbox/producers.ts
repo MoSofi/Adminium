@@ -104,7 +104,7 @@ import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
 import { notDropped } from './dropped.js';
 import { producedLanguage } from './language.js';
-import { releasedLinksOf, type ReleasedLink } from './release.js';
+import { expiringLinksOf, releasedLinksOf, withLinks, type ReleasedLink } from './release.js';
 import { repeatKeyOf } from './repeat-key.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
@@ -321,7 +321,8 @@ export interface OutboxProducers {
   /**
    * The outbox links that let go of this table's rows as they are removed:
    * of every stored outbox on the connection, its app switched on or not (the
-   * key holds the row either way).
+   * key holds the row either way). A producer's removal link, and, for a
+   * table whose rows expire, every link that points at it.
    */
   releasing(connectionId: string, tableId: string): Promise<readonly ReleasedLink[]>;
   /** Forget the cached list: an app was installed, updated or removed. */
@@ -856,11 +857,42 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     );
   }
 
+  /**
+   * The tables of a connection whose rows expire (`expire` on an add-on's own
+   * table), by their ids: read from the installed add-ons' manifests, cached
+   * as the outboxes are.
+   */
+  let expiringCache: { at: number; byConnection: Map<string, Set<string>> } | null = null;
+  async function expiringTables(connectionId: string, view: SnapshotView): Promise<ReadonlySet<string>> {
+    const now = Date.now();
+    if (expiringCache === null || now - expiringCache.at >= LIST_TTL_MS) expiringCache = { at: now, byConnection: new Map() };
+    const known = expiringCache.byConnection.get(connectionId);
+    if (known !== undefined) return known;
+    const out = new Set<string>();
+    for (const entry of await manifestsRepo(deps.meta, NEVER_A_SECRET).list('add-on')) {
+      if (entry.row.connectionId !== connectionId || (entry.row.status !== 'installed' && entry.row.status !== 'disabled')) continue;
+      const tables = ((entry.document as { requiredSchema?: { tables?: { ref: string; expire?: unknown }[] } } | null)?.requiredSchema?.tables ?? []).filter((table) => table.expire !== undefined);
+      if (tables.length === 0) continue;
+      const names = await appTablesRepo(deps.meta).realNames(connectionId, entry.row.manifestKey);
+      for (const table of tables) {
+        const real = names[table.ref];
+        const id = real === undefined ? undefined : view.model.tables.find((model) => model.name === real)?.id;
+        if (id !== undefined) out.add(id);
+      }
+    }
+    expiringCache.byConnection.set(connectionId, out);
+    return out;
+  }
+
   async function releasing(connectionId: string, tableId: string): Promise<readonly ReleasedLink[]> {
-    const boxes = (await stored()).filter((box) => box.connectionId === connectionId && (box.definition.producers ?? []).some((producer) => removalTableOf(producer) === tableId));
+    const boxes = (await stored()).filter((box) => box.connectionId === connectionId);
     if (boxes.length === 0) return [];
+    const removing = boxes.filter((box) => (box.definition.producers ?? []).some((producer) => removalTableOf(producer) === tableId));
     const view = await deps.viewFor(connectionId);
     if (view === null) return [];
+    // A table whose rows expire: every outbox's links to it let go (`release.ts`).
+    const expires = (await expiringTables(connectionId, view)).has(tableId);
+    if (removing.length === 0 && !expires) return [];
     const keyOf = (outbox: string): string | undefined => {
       try {
         const key = view.table(outbox).primaryKey;
@@ -869,7 +901,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         return undefined;
       }
     };
-    return boxes.flatMap((box) => releasedLinksOf(box.definition, tableId, keyOf));
+    const out = removing.flatMap((box) => releasedLinksOf(box.definition, tableId, keyOf));
+    return expires ? withLinks(out, boxes.flatMap((box) => expiringLinksOf(box.definition, tableId, keyOf, (outbox, column) => referenced(view, outbox, column)))) : out;
   }
 
   /** The outbox of the app, and the message it would write about the row: its link to the row's table, and the recipient the kind declares when resent. */
@@ -967,6 +1000,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     releasing,
     reset: () => {
       cached = null;
+      expiringCache = null;
     },
     queueKind,
     addressKind,
