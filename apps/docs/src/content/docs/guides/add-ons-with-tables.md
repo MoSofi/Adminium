@@ -93,6 +93,7 @@ read or a write the role does not grant is refused the same way.
 | `useExport()` | Starts an export of a table's rows and downloads it. |
 | `useFormSummary(formId)` | A forms add-on: the form's results, counted by Adminium over every answer (per choice, per score, per star, the recommend score, answers per language, and how many were invited and answered), under the reader's read grant on the answers. No row reaches the page. From Adminium 0.3.40. |
 | `useFormTables()` | A forms add-on: the tables an app opens to forms (its `publicAccess` entry under the key `forms`), each with its app's name and the columns an answer may fill, the link columns marked (filled only from a named survey's invitation). A page lists them and reads none of their rows. From Adminium 0.3.40. |
+| `useUpload(table, column)` | `upload(key, file, { name? })` puts a file into a file column of one of the add-on's own rows: the bytes are judged by the column's rule, then the row is saved with the file. Answers the reference the column holds, the file's id, name, type, size, and `removed`: what was taken out of an SVG. See [Files in its own columns](#files-in-its-own-columns). From Adminium 0.3.43. |
 
 The parts are `Card`, `Grid`, `Stack`, `Sheet` (with `SheetHeader`, `SheetBody`, `SheetFooter`),
 `StickyBar`, `Divider`, `Skeleton`, `DataTable`, `Stat`, `KeyValueList`, `StatusPill`,
@@ -118,6 +119,73 @@ Three things to know:
 reads. A document that prints a [money code](/reference/manifest/#documents-that-print-a-money-code)
 is kept nowhere, so it is not in the documents register: pass the `once` ticket the create
 answered to print the code that was shown once.
+
+### Files in its own columns
+
+A column of one of the add-on's tables holds files when its manifest gives it a
+[`file` rule](/reference/manifest/#files-in-a-column): the kinds it takes and how large one may be. A
+page puts a file there with `useUpload`:
+
+```tsx
+const { upload, uploading, error } = useUpload('bases', 'outline_file');
+
+const done = await upload(base.id, picked); // a File from an <input type="file">
+if (done.removed.length > 0) say(`We removed ${done.removed.join(', ')}.`);
+```
+
+It does what a record form does, in two steps. The bytes go to the files route for that table and
+column, where they are read whole: a file of a kind the column does not take is refused by what it
+is (not by its name), an SVG is kept only as Adminium writes it again (a script, an event handler
+or an editor's notes are taken out, and named in `removed`; a part that would draw something else,
+such as a `foreignObject`, refuses the file), and a WOFF2 font, a GLB, STL or 3MF model is checked
+before it is kept. Then the row is saved with the reference in the column, through every rule of
+the table. That save is when the file becomes the row's.
+
+The reader needs `update` on the table, and their role must be able to write that column. A
+reader without them is refused (`403`), and so is a file the column does not take (`415`, with a
+sentence that names what was wrong). A file whose save is refused is thrown away at once.
+
+`useUpload` is absent from an Adminium older than 0.3.43. Check for it before offering an upload
+(`host.data.useUpload` is undefined there), and ask for 0.3.43 in
+`compatibility.minAdminiumVersion` once the add-on relies on it.
+
+### Reading an app's prices
+
+An add-on's features may cost the shopper something, and the price is the app's: each app sells
+them at its own price. The app keeps it on a row of its own that links to the add-on's row with
+[`addOnLink`](/reference/manifest/#binding-an-add-on-to-the-apps-rows), and a page of the add-on reads it
+there. Nothing new is granted for it.
+
+```json
+{ "ref": "options", "columns": [
+  { "ref": "feature_id", "type": "int", "nullable": true,
+    "rules": { "addOnLink": { "addOn": "customiser", "table": "features" } } },
+  { "ref": "price", "type": "decimal", "scale": 2 },
+  { "ref": "cost", "type": "decimal", "scale": 2 } ] }
+```
+
+A table with a link into one of the add-on's tables is one of those that hand it rows, so the
+kit's read lists it as `maker:options`, and `useRecords('maker:options', …)` reads it. The page
+reads it with the reader's own grant on the app's table, which the app's role gives. Give it only
+the link and the price:
+
+```json
+{ "key": "designer", "name": "Designer",
+  "permissions": ["table:@options:read"],
+  "limits": { "options": { "readable": ["feature_id", "price"] } },
+  "tables": [{ "addOn": "customiser", "table": "features", "actions": ["read"] }] }
+```
+
+```tsx
+const { rows } = useRecords('maker:options', {
+  filter: [{ column: 'feature_id', op: 'in', value: featureIds }],
+  columns: ['feature_id', 'price'],
+});
+```
+
+The price comes back as text, so nothing is rounded. A page only reads such a table: a write there
+is refused. A reader whose role does not read it is refused (`403`), so show the feature without
+its price then.
 
 ## Starting rows
 
