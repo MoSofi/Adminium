@@ -3840,6 +3840,13 @@ Adminium, also while the app is switched off; a row removed by SQL of your own i
 the database while a message names it. Nothing is altered in the database for it, so an install
 made before this word gets it with the update that adds the producer.
 
+A table whose rows [expire](#rows-that-expire) (an add-on's) is never held by its messages either,
+with no producer to name it: every link of every outbox that points at it lets go the same way, on
+its daily expiry and on every other removal made through Adminium (a staff delete, a shopper
+deleting their own draft). A message already sent stays in the log as it was sent (its kind, its
+address, when it went), naming no row; one not sent yet is skipped, never sent about a row that is
+gone. Needs Adminium 0.3.43.
+
 ```json
 { "kind": "visit-cancelled", "link": "visit_id",
   "onDelete": { "table": "visits" },
@@ -5827,7 +5834,7 @@ Adminium runs add-on code, and why only first-party add-ons are accepted, is exp
 | `roles` | As an app's. A role grants the add-on's own tables (`table:@items:read`), its own pages (`page:@stock-kit-items:view`) and its settings (`addOn:<key>:settings`). Never `screensOnly`. |
 | `sampleData` | As an app's, for its own tables. |
 | `publicAccess` | Entries as an app's. One with no `key` is served through the `customer` key of an app that names the add-on, once that is allowed. One with `key` set to the add-on's link key is served through that key. |
-| `publicKeys` | At most one key, under a name that is not `customer`, with no `requiresStaff`, `enabledBy` or `peak`. It opens one row by its link and only reads: every entry on it has `"methods": ["GET"]` and either claims by token (`"claim": { "by": "token", "column": "…" }`, on a column with `rules.code { "length": 16, "hiddenFromStaff": true }`) or is read with the row a link opened (`visibleWith`, `claimedBy`). A link that is the row's own (`"own": true`) may also change its row; see [A shopper's own link](#a-shoppers-own-link). |
+| `publicKeys` | At most one key, under a name that is not `customer`, with no `requiresStaff`, `enabledBy` or `peak`. It opens one row by its link and only reads: every entry on it has `"methods": ["GET"]` and either claims by token (`"claim": { "by": "token", "column": "…" }`, on a column with `rules.code { "length": 16, "hiddenFromStaff": true }`) or is read with the row a link opened (`visibleWith`, `claimedBy`). A link that is the row's own (`"own": true`) may also change and remove its row; see [A shopper's own link](#a-shoppers-own-link). |
 
 A column may keep the name of a table (`"rules": { "tableRef": true }`): Adminium stores it so
 that renaming the table it names keeps the rows pointing at it.
@@ -5898,6 +5905,14 @@ written through it, and an `enum` it may set lists its values (`writableValues`)
 no row (`POST`), reaches no row but its own, and a column it does not name is refused `400`. The
 human check and a change's `limits` work as on an app's entries. Needs Adminium 0.3.43.
 
+The same entry may also remove its row (`"methods": ["GET", "PATCH", "DELETE"]`): a shopper deletes
+their own saved draft (`DELETE /api/v1/public/records/<ref>/<id>`, with the link's session). It is
+held to the same `writableWhen` states (an ordered design answers `404`, as a design that is not
+there), asks no reason, and reaches no row but its own. The row's files go to the bin as a staff
+delete sends them, and a message about it lets go of it (a mailed link stays in the log as sent).
+Only an add-on's own link removes a row: `DELETE` on any other entry is refused. Needs Adminium
+0.3.43.
+
 #### A row read by its code, by whoever the app signed in
 
 An add-on's entry on each app's key may be read by a session of that app's own sign-in alone
@@ -5937,9 +5952,12 @@ A table of the add-on's own may let its rows go some days after a moment of thei
 | `unless` | `{ "column", "equals" }`: a row whose column holds the value is kept, however old. An `enum` column's value is one of its values. |
 
 Once a day the server deletes each row whose `after` lies more than `days` days back, its files to
-the bin as any deleted row's. It keeps a row with no `after`, a row an app's table still names
-through its link into this table, and a row another row of the database still points at (tried
-again the next day). Only an add-on's table says it. Needs Adminium 0.3.43.
+the bin as any deleted row's (its own file columns too). It keeps a row with no `after`, a row an
+app's table still names through its link into this table, and a row another row of the database
+still points at (tried again the next day). A message about the row never keeps it: a design whose
+link was mailed goes on its day all the same, and the message lets go of it (see
+[A row that is removed](#a-row-that-is-removed)). Only an add-on's table says it. Needs Adminium
+0.3.43.
 
 ### What an app's role may hold of an add-on's table
 
