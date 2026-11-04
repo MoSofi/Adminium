@@ -194,6 +194,20 @@ describe('a cleaned SVG', () => {
     expect(removed(out)).toEqual([]);
   });
 
+  it('takes text as Inkscape writes it, line spacing, alignment and font variants in its style', () => {
+    const style = 'font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:8px;line-height:1.25;font-family:Sans;-inkscape-font-specification:\'Sans Bold\';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000';
+    const out = clean(`<svg ${S}><text x="10" y="20" style="${style}"><tspan x="10" y="20" style="text-align:center;line-height:125%">Mia</tspan></text></svg>`);
+    expect(out).toBe(
+      `<svg ${S}><text x="10" y="20" style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:8px;line-height:1.25;font-family:Sans;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000">` +
+        '<tspan x="10" y="20" style="text-align:center;line-height:125%">Mia</tspan></text></svg>',
+    );
+    expect(clean(out)).toBe(out);
+    // Only in a style: as attributes they are no SVG, and an unknown attribute is refused.
+    expect(refused(`<svg ${S}><text line-height="2">a</text></svg>`)).toMatch(/line-height/);
+    // A variant property past the font's own is still refused.
+    expect(refused(`<svg ${S}><text style="font-variant-anything:1">a</text></svg>`)).toMatch(/font-variant-anything/);
+  });
+
   it('says what it took out, each once, in the order met, and the same bytes as it keeps', () => {
     const dirty = `<svg ${S} class="logo" onload="go()"><metadata><x/></metadata><script>alert(1)</script><g data-id="1" aria-hidden="true"><rect onclick="a()" style="-webkit-x:1;fill:red"/><script/></g></svg>`;
     const report = cleanSvgReport(Buffer.from(dirty, 'utf8'));

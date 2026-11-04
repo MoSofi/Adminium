@@ -153,7 +153,14 @@ const PAINT_PROPERTIES = [
   'unicode-bidi',
   'mix-blend-mode',
 ];
-const STYLE_PROPERTIES = new Set(PAINT_PROPERTIES);
+/**
+ * Text properties Inkscape writes into a text's `style` (and only there): how
+ * lines are spaced and aligned, and the font's variants. They set how text is
+ * laid out, never what it reaches; they are no SVG attributes, so they are
+ * taken in a style alone.
+ */
+const TEXT_STYLE_PROPERTIES = ['line-height', 'text-align', 'font-variant-alternates', 'font-variant-caps', 'font-variant-east-asian', 'font-variant-emoji', 'font-variant-ligatures', 'font-variant-numeric', 'font-variant-position'];
+const STYLE_PROPERTIES = new Set([...PAINT_PROPERTIES, ...TEXT_STYLE_PROPERTIES]);
 
 /** Attributes kept, on any kept element. */
 const ATTRIBUTES = new Set([
