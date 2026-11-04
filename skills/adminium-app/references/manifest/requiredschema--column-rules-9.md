@@ -22,6 +22,19 @@ names beside their email read as personal by their names, so the joined name nee
 `"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
 and a stamp's copy.
 
+A join may read a running number or the text written from one (`format`): an order's number as a
+person types it, kept as a code so a lookup finds "br-2291".
+
+```json
+{ "ref": "number_code", "type": "text", "maxLength": 16, "nullable": true, "unique": true,
+  "rules": { "formula": { "join": ["number", " "] }, "normalize": "code" } }
+```
+
+The number is taken after the row's other formulas are worked out (a gapless one at the row's
+INSERT, a counted one when it is claimed), so the formulas that read it are worked out again on
+the number taken, in the same statement, and kept as their column's `normalize` says
+(`BR-2291` → `BR2291`). Needs Adminium 0.3.44; before it, such a column stays empty.
+
 #### Numbers without gaps
 
 A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
@@ -121,12 +134,3 @@ refused, nothing is kept. A paid stay whose balance would fall below zero is ref
 `409` `BALANCE_EXCEEDED`.
 
 The rules that keep a follow sound:
-
-- it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
-  follow another row;
-- it never follows a total, a balance or a stamp, nor a formula over one: those change without a
-  change of the row, so the copy would keep an old value;
-- the row it follows is not worked out from this table's own totals (a loop);
-- a total another table keeps of these rows reads none of what the follow writes, including the
-  link it groups by: a follow that moved rows between another table's totals would leave those
-  totals behind.

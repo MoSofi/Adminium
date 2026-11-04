@@ -62,4 +62,14 @@ new rows, or a batch change that could move a row's time or resource, is refused
 one row may carry a retry key (`clientKey`), on this table and on a booking table: it is placed
 under the same lock and judged by the same rule, the same key again answers the row the first
 made, and another key for a time that is taken is refused `BOOKING_TAKEN`. A create with rows
-below it is still refused (`CAPACITY_ONE_AT_A_TIME`).
+below it is still refused (`CAPACITY_ONE_AT_A_TIME`) when the row that takes the time is its root.
+
+A row of this table (or of a booking table) may itself be a row **below** a staff create: a batch
+with its machine booking and the stock it takes, sent as one write. The booking is placed as a
+single create places it: the resource's lock (a booking's day) is named from the values it is sent
+with, beside the write's other locks, and it is judged under that lock inside the write, against
+the rows already there and the tree's own rows of that table. A time that is taken refuses the
+whole write (`BOOKING_TAKEN`, with `details.relation` and `details.row` naming the row), and
+nothing is written. The row must carry its resource and its time as sent: one that only a fill or
+a copy gives them, a quote of such a write, and a guest's are refused `CAPACITY_ONE_AT_A_TIME`.
+Needs Adminium 0.3.44.

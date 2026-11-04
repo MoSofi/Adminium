@@ -1,5 +1,12 @@
 # @adminium/llm
 
+## 0.3.44
+
+### Patch Changes
+
+- @adminium/widgets@0.3.44
+  - @adminium/engine@0.3.44
+
 ## 0.3.43
 
 ### Patch Changes

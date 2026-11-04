@@ -45,6 +45,14 @@ the Wednesday, from 14:01 the Thursday, and from a Saturday at 10:00 the Thursda
 Monday in the closures pushes each a day. A print job received on Wednesday 5 August 2026 at 10:20
 is ready on Monday 10 August, or on Thursday 6 August as express.
 
+**Days a formula works out.** `days` (or `from`) may be a [formula](https://docs.adminium.dev/reference/manifest/#formulas) column of the row,
+and the stamp may fire when one changes (`"on": { "columns": ["turnaround_days"] }`): it is then
+worked out once the formulas are, on a create and on a change, so a job's standard or express days
+plus a day for each change asked count as the formula says. When the formula reads a total of
+child rows (a count of the proofs asked to change), adding, changing or removing one of those rows
+counts the date again, as the row's own change would; an import of history and an undo never do.
+Needs Adminium 0.3.44.
+
 **The venue's clock.** `from` is read on the venue's clock (the connection's time zone), so across a
 clock change the day an order lands on is the one on the shop's wall, whatever zone the server runs
 in.

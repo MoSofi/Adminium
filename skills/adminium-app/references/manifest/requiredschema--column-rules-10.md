@@ -2,6 +2,15 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+- it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
+  follow another row;
+- it never follows a total, a balance or a stamp, nor a formula over one: those change without a
+  change of the row, so the copy would keep an old value;
+- the row it follows is not worked out from this table's own totals (a loop);
+- a total another table keeps of these rows reads none of what the follow writes, including the
+  link it groups by: a follow that moved rows between another table's totals would leave those
+  totals behind.
+
 More than 500 rows following one changed row refuse the whole write, `409` `FOLLOW_TOO_MANY`
 (`details.table`, `details.count`), rather than leave some behind. A bulk edit, an import or a
 public batch that would move a paid balance below zero through its followers, or could not write
@@ -75,17 +84,3 @@ code on a ticket. The browser never names the codes row itself; Adminium finds i
 A typed code is read the way codes are kept: upper case, spaces and dashes left out. A column
 Adminium [makes codes in](https://docs.adminium.dev/reference/manifest/#column-rules) reads it as a claim does, its prefix put back, `O` as `0`,
 `I` and `L` as `1`. Two stored codes that fold alike are told apart by the exact spelling.
-
-Every miss is one answer: no such code, a code switched off, expired, another show's, or two that
-fold alike are all refused `422` `VALIDATION_FAILED` on the typed column with the code `unknown`
-(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "unknown"`), so a guesser learns no
-more from one miss than from another. A code whose uses are all taken, counted by a
-[parent limit](https://docs.adminium.dev/reference/manifest/#parent-limits) through the link, is refused on the typed column as `used-up`.
-Emptying the typed column empties the link, and every copy made through it: a code taken off
-takes its discount with it. A bulk edit, a form's child rows and an import find each row's code
-the same way, and an unknown code refuses just that row. A table resolves at most two typed codes.
-
-A code typed to **read** rows rather than write one (a presale code that shows its ticket type) is
-a public entry's [`unlockBy`](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows).
-
-#### Bands

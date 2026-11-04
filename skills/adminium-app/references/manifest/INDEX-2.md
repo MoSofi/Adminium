@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 5159 |
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
 | `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
@@ -37,7 +38,7 @@
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7784 |
 | `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 3549 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 4767 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 5061 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |
 | `references/manifest/add-on-manifests--what-an-app-s-role-may-hold-of-an-add-on-s-table.md` | Add-on manifests — What an app's role may hold of an add-on's table | 2978 |

@@ -31,7 +31,9 @@ A quote runs the save's own steps in a transaction that is always rolled back:
   how many orders were made), no code and no retry key.
 - **Before the details.** The name and address a guest has not typed yet are filled in for the
   quote alone and shown empty, so the cart can be priced first. Only a column the price does not
-  read is filled in.
+  read is filled in. That includes one another column asks for (`requiredWhen`: a delivered
+  order's address) when the values sent ask for it; the save still refuses the order without it.
+  Needs Adminium 0.3.44 for a `requiredWhen` column.
 - **Nothing kept, nothing held.** A quote takes no lock, claims no number, makes no person, sends
   nothing and holds no place. It reads the rows it judges as they are.
 - **Never charged.** A quote does not count against the entry's [caps](https://docs.adminium.dev/guides/apps/orders-with-lines/#limits-on-a-strangers-order),

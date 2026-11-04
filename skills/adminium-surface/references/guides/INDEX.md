@@ -75,14 +75,14 @@
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 2301 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 2504 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |
 | `references/guides/orders-with-lines--the-tables.md` | The tables | 2063 |
 | `references/guides/orders-with-lines--the-create-entry.md` | The create entry | 6922 |
 | `references/guides/orders-with-lines--placing-the-order.md` | Placing the order | 3283 |
-| `references/guides/orders-with-lines--the-price-first.md` | The price first | 2818 |
+| `references/guides/orders-with-lines--the-price-first.md` | The price first | 3039 |
 | `references/guides/orders-with-lines--the-price-check.md` | The price check | 1152 |
 
 More: `references/guides/INDEX-2.md`

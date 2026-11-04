@@ -2,6 +2,20 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+Every miss is one answer: no such code, a code switched off, expired, another show's, or two that
+fold alike are all refused `422` `VALIDATION_FAILED` on the typed column with the code `unknown`
+(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "unknown"`), so a guesser learns no
+more from one miss than from another. A code whose uses are all taken, counted by a
+[parent limit](https://docs.adminium.dev/reference/manifest/#parent-limits) through the link, is refused on the typed column as `used-up`.
+Emptying the typed column empties the link, and every copy made through it: a code taken off
+takes its discount with it. A bulk edit, a form's child rows and an import find each row's code
+the same way, and an unknown code refuses just that row. A table resolves at most two typed codes.
+
+A code typed to **read** rows rather than write one (a presale code that shows its ticket type) is
+a public entry's [`unlockBy`](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows).
+
+#### Bands
+
 A `band` fills a foreign key with the row of a band table a number of this row falls in: a line's
 quantity picks its product's price break, an order's weight its delivery band. A `copy` then takes
 the band's multiplier or price through the link, and the formulas do the rest. The browser never

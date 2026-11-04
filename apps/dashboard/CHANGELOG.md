@@ -1,5 +1,18 @@
 # @adminium/dashboard
 
+## 0.3.44
+
+### Patch Changes
+
+- 3da068e: Signing in on an app's staff address before the page had learned it was the app's no longer drops the person into the dashboard's own screens at that address: the sign-in waits for the address's branding before it decides, and hands over to the app ("Opening {app}…") as it always should have. The same holds after the two-factor code.
+- @adminium/widgets@0.3.44
+  - @adminium/add-on-contracts@0.3.44
+  - @adminium/charts@0.3.44
+  - @adminium/engine@0.3.44
+  - @adminium/i18n@0.3.44
+  - @adminium/tokens@0.3.44
+  - @adminium/ui@0.3.44
+
 ## 0.3.43
 
 ### Patch Changes

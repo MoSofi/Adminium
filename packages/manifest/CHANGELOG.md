@@ -1,5 +1,15 @@
 # @adminium/manifest
 
+## 0.3.44
+
+### Patch Changes
+
+- 908cee9: An agreement may compare how many characters a text holds with a number: `{ "column": "lettering", "length": true, "lte": { "via": "product_id", "column": "lettering_limit" } }` holds an order line's lettering to its product's limit. A line over it is refused as `too-long` on the column, on a save and a quote alike; characters are counted as a person counts them, and a product with no limit sets none. Needs `minAdminiumVersion` 0.3.44.
+- 181453c: A person's copy on an add-on's table may reach one or two links further into the add-on with `from`, so erasing a customer reaches their design's versions and each version's files: `{ "addOn": "customiser", "table": "design_versions", "column": "values", "holds": "details", "via": "order_lines.design_id", "from": ["design_id"] }`. The search finds and exports those rows, and the erasure blanks them. A copy column that holds files is emptied and the files it named are deleted with the person, and counted in the preview. Needs `minAdminiumVersion` 0.3.44.
+- f820b2d: The manifest check refuses a page form field whose control the form does not have (`"control": "file"`, which the install refused as an unreadable form), naming the field and the controls it may take. A file column names no control and gets its own.
+- 7f95541: An app's role may be given a page or a record panel of an add-on the app requires or suggests, as `page:@<id>:view` (`page:@customiser-line:view`), so a shop's own staff role sees the Customiser's panel without the Customiser's own role. The grant follows the role's `tables` on that add-on: given while the add-on is here for the app, taken back when it is switched off or uninstalled, given again when it is back, and kept away once the owner takes it away. The install's check refuses an id the add-on has neither as a page nor as a panel. Needs `minAdminiumVersion` 0.3.44.
+- @adminium/add-on-contracts@0.3.44
+
 ## 0.3.43
 
 ### Patch Changes

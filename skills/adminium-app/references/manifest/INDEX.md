@@ -24,16 +24,16 @@
 | `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7818 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 6589 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 7742 |
-| `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7608 |
-| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7621 |
-| `references/manifest/requiredschema--column-rules-11.md` | requiredSchema — Column rules (part 11) | 6790 |
+| `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7750 |
+| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7164 |
+| `references/manifest/requiredschema--column-rules-11.md` | requiredSchema — Column rules (part 11) | 7808 |
 | `references/manifest/requiredschema--column-rules-12.md` | requiredSchema — Column rules (part 12) | 7788 |
-| `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 4273 |
+| `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 4926 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
 | `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
-| `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 4769 |
+| `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7671 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7686 |
 | `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7624 |
@@ -49,7 +49,7 @@
 | `references/manifest/parts.md` | Parts | 5719 |
 | `references/manifest/maps.md` | Maps | 4830 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
-| `references/manifest/pages.md` | Pages | 5808 |
+| `references/manifest/pages.md` | Pages | 6557 |
 | `references/manifest/pages-2.md` | Pages (part 2) | 7055 |
 | `references/manifest/pages-3.md` | Pages (part 3) | 2610 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 5063 |
@@ -60,7 +60,8 @@
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 7636 |
 | `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7680 |
 | `references/manifest/whose-a-row-is-3.md` | Whose a row is (part 3) | 1960 |
-| `references/manifest/roles.md` | Roles | 7386 |
+| `references/manifest/roles.md` | Roles | 7177 |
+| `references/manifest/roles-2.md` | Roles (part 2) | 1109 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 2199 |
 | `references/manifest/settings.md` | Settings | 1211 |
 | `references/manifest/add-ons.md` | Add-ons | 5863 |
@@ -81,7 +82,8 @@
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7062 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 4763 |
-| `references/manifest/people.md` | People | 7735 |
+| `references/manifest/people.md` | People | 979 |
+| `references/manifest/people-2.md` | People (part 2) | 7597 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7740 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 5807 |
@@ -89,6 +91,5 @@
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 | `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
 | `references/manifest/public-access--rows-visible-with-their-parent.md` | Public access — Rows visible with their parent | 2567 |
-| `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 4601 |
 
 More: `references/manifest/INDEX-2.md`

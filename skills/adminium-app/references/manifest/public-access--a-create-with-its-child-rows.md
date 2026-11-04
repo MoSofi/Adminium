@@ -55,6 +55,14 @@ belongs to; `{ "via", "column" }`, a column of a row this row points at; or `{ "
 target. A root `agrees` is held on staff writes to the table too: creates and changes at the desk,
 single, bulk or with links. An import is history, and is not held.
 
+`"length": true` compares how many characters a `text` column holds instead of its value, with
+`lte` alone: a line's lettering no longer than its product allows,
+`{ "column": "lettering", "length": true, "lte": { "via": "product_id", "column": "lettering_limit" } }`.
+The target is a number column, or a whole-number `value`. Characters are counted as a person
+counts them: an accented letter or an emoji is one. An empty value, or a target row with no
+limit, passes. A line over it is refused with `reason` `too-long` on the column. Needs Adminium
+0.3.44.
+
 A **count** is `{ "by", "every"?, "min", "max" }`: `by` follows the row's foreign keys to its group
 (an option's group), whose whole-number `min` and `max` columns bound how many sibling rows fall in
 it. `every` (`{ "column", "eq": { "parent" } }`) names the groups judged even when no row falls in

@@ -33,6 +33,14 @@ A manifest cannot know the real table names or page ids, so it grants through pl
 | `page:@<page ref>:<action>` | `view`, `edit` |
 | `app:@:staff` | Open the app's staff screens. |
 | `addOn:<add-on key>:settings` | Edit that add-on's non-secret settings (the letterhead of an invoicing add-on). Only an add-on the app requires or suggests in [`addOns`](https://docs.adminium.dev/reference/manifest/#add-ons). |
+| `page:@<add-on page or panel id>:view` | See a page or a record panel of an add-on the app requires or suggests (`page:@customiser-line:view`). The id starts with the add-on's key. `view` only. Needs Adminium 0.3.44. |
+
+An add-on's page or panel is given as the role's [`tables`](https://docs.adminium.dev/reference/manifest/#a-role-on-an-add-ons-tables)
+are: while that add-on is installed in the same database, attached to the app and switched on.
+It is taken back when that stops, and given again when the add-on is back. An owner who takes
+it away from the role keeps it away. The install's check refuses an id the add-on has neither as
+a page nor as a panel. A record panel also needs the role's grant on the panel's table (its
+`tables` entry) and on the record's own table.
 
 `read_pii` shows the table's personal columns in clear. Without it they read as `null`, listed in
 the row's `_masked`. A lookup into another table needs `read_pii` on that other table. See
@@ -96,15 +104,3 @@ and none of its guest or its money.
 ```json
 "limits": { "stays": { "readable": ["room_id", "arrive", "depart", "late_checkout", "status"] } }
 ```
-
-Every staff read of the table holds to it: lists and records, links and lookups, search, exports,
-imports, dashboard cards and their live updates, documents, the audit log, files kept in a hidden
-column, and the page assistant. Selecting, filtering or sorting by a hidden column is refused `403`
-`COLUMN_FORBIDDEN` with `details.reason: "read-limit"`; a lookup into one reads as masked. A
-refusal never repeats a hidden value, and the desk's limit counts and nightly lines are refused
-when the rule reads a hidden column. A hidden column is not written through the role either,
-creates included, unless `writable` names it. Roles add up: two limited roles read the union of
-their columns, one unlimited read of the table reads it all, and a Super Admin is never limited.
-
-A role that signs in a staff-bound browser key (a check-in tablet; see [publicKeys](https://docs.adminium.dev/reference/manifest/#publickeys))
-must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`.

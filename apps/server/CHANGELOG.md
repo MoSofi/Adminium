@@ -1,5 +1,36 @@
 # @adminium/server
 
+## 0.3.44
+
+### Patch Changes
+
+- 4bb04c1: An add-on's page may fetch a font, a picture or a licence shipped beside its code, from `/api/v1/add-ons/<key>/pages/<ref>/files/<path>`: only from the code's own folder or below it, only those kinds of file (never a script), behind the page's own permission, and only bytes verified when the package was unpacked. An SVG is served sandboxed, so opened on its own it runs nothing.
+- 908cee9: An agreement may compare how many characters a text holds with a number: `{ "column": "lettering", "length": true, "lte": { "via": "product_id", "column": "lettering_limit" } }` holds an order line's lettering to its product's limit. A line over it is refused as `too-long` on the column, on a save and a quote alike; characters are counted as a person counts them, and a product with no limit sets none. Needs `minAdminiumVersion` 0.3.44.
+- e9266bc: The add-ons that come with Adminium are now version 1.0.16, and they include the Customiser: the shop's set-up and the customer's editor for made-to-order products, with its design check trusted on every install.
+- 181453c: A person's copy on an add-on's table may reach one or two links further into the add-on with `from`, so erasing a customer reaches their design's versions and each version's files: `{ "addOn": "customiser", "table": "design_versions", "column": "values", "holds": "details", "via": "order_lines.design_id", "from": ["design_id"] }`. The search finds and exports those rows, and the erasure blanks them. A copy column that holds files is emptied and the files it named are deleted with the person, and counted in the preview. Needs `minAdminiumVersion` 0.3.44.
+- f820b2d: The manifest check refuses a page form field whose control the form does not have (`"control": "file"`, which the install refused as an unreadable form), naming the field and the controls it may take. A file column names no control and gets its own.
+- 5d2b301: A formula that reads a running number, or the text written from one (an order's number as it is typed, `number_code`: a join over `number`, kept as a code), is worked out again on the number the row takes — at the INSERT for a number without gaps, when it is claimed for a counted one — and kept as its column's `normalize` says. It stayed empty before, so a lookup on it (a problem report's order, by the number typed) found nothing.
+- f820b2d: Installing a prefixed app with an add-on it requires, on a database that already holds tables of the plain names the app declares (a shop's own `products`, `orders`, `customers`), keeps the app's prefix when its plan is read again after the add-on goes in: the app makes its own tables beside them and leaves theirs alone, where it stopped at the add-ons step before.
+- 230b65b: A staff create may carry a row below it that takes a resource for a time (a table with `occupies` or a booking rule): a batch with its machine booking and the stock it takes, made as one write. The row is placed under its resource's lock, named with the write's other locks, and judged inside the write: a time that is taken refuses the whole write with `BOOKING_TAKEN`, naming the row, and nothing is written. A quote of such a write, a guest's, and a row whose resource or time only a fill gives are still refused one at a time.
+- 12aeb03: A public quote fills in, for itself alone, a column another column asks for (`requiredWhen`: a delivered order's address) when the values sent ask for it, as it fills an entry's required details: a delivered basket is priced before its address is typed, where it was refused `400 PUBLIC_WRITE_REFUSED` (`required`). The save still refuses the order without it.
+- 7f95541: An app's role may be given a page or a record panel of an add-on the app requires or suggests, as `page:@<id>:view` (`page:@customiser-line:view`), so a shop's own staff role sees the Customiser's panel without the Customiser's own role. The grant follows the role's `tables` on that add-on: given while the add-on is here for the app, taken back when it is switched off or uninstalled, given again when it is back, and kept away once the owner takes it away. The install's check refuses an id the add-on has neither as a page nor as a panel. Needs `minAdminiumVersion` 0.3.44.
+- f820b2d: Someone who opens only an app's own screens may copy a file they can read into a file column of a table their role creates or changes rows of (`POST /api/v1/files/<id>/copy`), judged by that table's own rights as it is for everyone else, where it was refused as a dashboard route before.
+- f820b2d: A working-day stamp whose days (or moment) is a formula of the row, or that fires when one changes, is worked out once the formulas are: a print job's ready-by counted in its standard or express days plus a day for each change asked is filled on the create, moved by a change, and counted again when a proof asked to change, or approved, moves the total its formula reads; a total above it that reads the ready-by (the order's newest) follows.
+- Updated dependencies [908cee9]
+- Updated dependencies [181453c]
+- Updated dependencies [f820b2d]
+- Updated dependencies [7f95541]
+  - @adminium/manifest@0.3.44
+  - @adminium/adapter-mysql@0.3.44
+  - @adminium/adapter-postgres@0.3.44
+  - @adminium/adapter-sqlite@0.3.44
+  - @adminium/add-on-contracts@0.3.44
+  - @adminium/engine@0.3.44
+  - @adminium/i18n@0.3.44
+  - @adminium/llm@0.3.44
+  - @adminium/meta@0.3.44
+  - @adminium/schema-import@0.3.44
+
 ## 0.3.43
 
 ### Patch Changes

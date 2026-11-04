@@ -18,8 +18,10 @@ is sent to the app instead of the dashboard:
   role may import, from a screen of their app ([the import part](https://docs.adminium.dev/guides/apps/kit-parts/#the-import-wizard)):
   the routes of one import and its progress, each of which still asks the table's own rights. And
   they may upload a file for a [file column](https://docs.adminium.dev/reference/manifest/#files-in-a-column) of a table
-  their role creates or changes rows of (a crew's signature and photos), read a file back with the
-  record that holds it, and throw away one of their own uploads no record holds yet; the list of
+  their role creates or changes rows of (a crew's signature and photos), copy a file they may read
+  into such a column (`POST /api/v1/files/<id>/copy`: a photo a past order has, chosen again; judged
+  by the target table's own create or update, never by a files-wide right), read a file back with
+  the record that holds it, and throw away one of their own uploads no record holds yet; the list of
   files and the rest of the file routes stay the dashboard's.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it

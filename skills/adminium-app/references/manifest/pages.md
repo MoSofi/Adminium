@@ -38,7 +38,15 @@ page's own table. `page-dashboard` reads from several tables and takes its widge
 
 **Config.** `config.form` and `config.layout` name the app's tables and columns by their short
 refs; Adminium binds them to the real tables at install. The plan refuses a form or layout that is
-not well formed or that names a column or table the manifest does not declare. Other problems do
+not well formed or that names a column or table the manifest does not declare. The manifest check
+refuses a form field whose `control` is not one the form has, so it fails there and not at install:
+a column field takes `text`, `title`, `textarea`, `mono`, `email`, `url`, `phone`, `password`,
+`number`, `currency`, `stepper`, `slider`, `date`, `time`, `datetime`, `select`, `segmented`,
+`pill-switch`, `choice-cards`, `toggle-row`, `check-row`, `chips`, `reference`, `reference-chips`,
+`image`, `avatar`, `attachments`, `picture`, `json`, `readonly` or `calendar`, and a `relation`
+field `reference-chips`, `check-rows` or `child-rows`. There is no `file` control: a
+[file column](https://docs.adminium.dev/reference/manifest/#files-in-a-column) names no control and gets its own (or names `attachments`,
+`image` or `picture`). Other problems do
 not block the install: a page with no `bindings`, an unknown template, or a table that cannot back
 its template gives a page that is created empty and says so, and the install report lists it.
 
