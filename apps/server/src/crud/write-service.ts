@@ -97,7 +97,7 @@ import { negotiateLocale } from '../plugins/surfaces.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
-import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
+import { decideRow, hasStampsAfterFormulas, needsStored, stampFires, stampYields, workingDaysAfterFormulas, workingDaysAfterSettle, type DecideContext } from './decide.js';
 import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { canonicalCode, isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
@@ -165,7 +165,7 @@ import { venueLocalValue } from './venue-time.js';
 import { priceValues, repricedBy } from './per-night.js';
 import { followChanged, followColumns, followedRollups, followNow, followsFrom, movedFollows, refuseTooManyFollowers } from './follow.js';
 import { stampNow, writeClock, type WriteClock } from './write-clock.js';
-import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
+import type { ClimbStart, HeldBalances, HoldChain, SettleChain, SettleStamps } from './climb.js';
 import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
 import { hasLimits, judgeCapacity } from './capacity/judge.js';
 import { LockMoved, beginOn, heldNames, withNamedLocks, type NamedLock } from './capacity/locks.js';
@@ -1171,6 +1171,16 @@ function climbMoved(table: string): ConflictError {
 }
 
 /** Rows by key, with the columns asked for — held (`FOR UPDATE`, in key order) where the engine can, else read. */
+/** One row, every column, by its key: held as {@link rowsByKey} holds one. Null when it is gone. */
+async function wholeRow(db: Db, dialect: Dialect, table: string, keyColumn: string, key: unknown, hold: boolean): Promise<Row | null> {
+  let query = db
+    .selectFrom(table)
+    .selectAll()
+    .where((eb) => eb(db.dynamic.ref(keyColumn), '=', key as never));
+  if (hold && dialect !== 'sqlite') query = dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
+  return ((await query.executeTakeFirst()) as Row | undefined) ?? null;
+}
+
 async function rowsByKey(db: Db, dialect: Dialect, table: string, keyColumn: string, keys: Iterable<unknown>, columns: readonly string[], hold: boolean): Promise<Map<string, Row>> {
   const unique = new Map<string, unknown>();
   for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
@@ -1315,6 +1325,8 @@ export const settleChain: SettleChain = async (db, dialect, start, currency, opt
     // one balance (what was held is taken: one goes up as the other comes down) is judged by where it leaves the balance, not by the
     // order its totals happen to be settled in.
     const capped = new Map<string, { rollup: RollupInto; key: unknown; text: string; balances: Map<string, TableBalance> }>();
+    // The rows of this height a stamp watches, as they were before it settled: worked out again once every total of theirs is in.
+    const stamping = new Map<string, { rollup: RollupInto; key: unknown; before: Row | null }>();
     for (const { rollup, keys } of level) {
       const unique = new Map<string, unknown>();
       for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
@@ -1323,6 +1335,10 @@ export const settleChain: SettleChain = async (db, dialect, start, currency, opt
         if (done.has(id)) continue;
         done.add(id);
         if (opts.only !== undefined && !opts.only(rollup.parent, key)) continue;
+        const stampId = `${rollup.parent}\u0000${text}`;
+        if (opts.stamps?.watches(rollup.parent) === true && !stamping.has(stampId)) {
+          stamping.set(stampId, { rollup, key, before: await wholeRow(db, dialect, rollup.parent, rollup.parentKey, key, read === 'locking') });
+        }
         await settleParent(db, dialect, [rollup], key, rollup.balances, currency, read);
         if (opts.cap !== undefined && rollup.capped) {
           const row = capped.get(`${rollup.parent}\u0000${text}`) ?? { rollup, key, text, balances: new Map<string, TableBalance>() };
@@ -1335,6 +1351,11 @@ export const settleChain: SettleChain = async (db, dialect, start, currency, opt
         entry.keys.set(text, key);
         climbing.set(rollup.parent, entry);
       }
+    }
+    for (const { rollup, key, before } of stamping.values()) {
+      if (before === null) continue;
+      const after = await wholeRow(db, dialect, rollup.parent, rollup.parentKey, key, read === 'locking');
+      if (after !== null) await opts.stamps!.stamp(rollup.parent, rollup.parentKey, key, before, after);
     }
     const cap = opts.cap;
     if (cap !== undefined) {
@@ -2215,6 +2236,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return { ...settings, optOut: { column: declared.optOutMark, email: declared.email, shown: context.optOut?.shown === true, carried: context.optOut?.carried ?? null } };
   };
 
+  /**
+   * The working-day stamps that wait for the formulas (a ready-by counted in
+   * days a formula works out), worked out on the row as the formulas leave
+   * it (`decide.ts`). The same object for a table with none.
+   */
+  const daysAfterFormulas = async (rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, before: Row | null, clock: WriteClock, zone: string | undefined): Promise<Row> =>
+    hasStampsAfterFormulas(rules) ? workingDaysAfterFormulas(rules, action, values, before, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context))) : values;
+
   /** Whether the consent log hears of writes to this table: its consent column, or a public tick on it. */
   const mirrored = async (target: WriteTarget, context?: WriteContext): Promise<boolean> => {
     if (opts.people?.written === undefined) return false;
@@ -2762,6 +2791,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
     values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone, await peopleDecide(rules, moved, declared)));
     values = await formulate(rules, 'update', moved, values, before, declared.origin);
+    values = await daysAfterFormulas(rules, 'update', moved, declared, values, before, clock, zone);
     // …judged again on the row as it will be written: a point may be reached by what the move stamps or works out, not by the state alone.
     await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values, record: before }], effect: moved.table.name });
     const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
@@ -2922,7 +2952,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         after = (await fetchByPk(db, within.table, pk)) ?? null;
       }
       if (rolls || ownMoved.length > 0) {
-        if (rolls) await settleRows(rules, within, [{ record: after, before }], currency, held);
+        if (rolls) await settleRows(rules, within, [{ record: after, before }], currency, held, { context, clock });
         if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, checked, currency, ownBefore);
         const sealing = sealsOf(checked);
         if (sealing !== undefined) await sealRows(db, within.table, pk, sealing, writeSeals);
@@ -3155,9 +3185,45 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     rows: readonly { record: Row | null; before: Row | null }[],
     currency: CurrencyOf,
     cap?: Held | 'strict',
+    /** The write's own: a working-day stamp a settled row's totals set off is worked out on its clock (`settleStamps`). */
+    by?: { context: WriteContext; clock: WriteClock },
   ): Promise<void> {
     // Bottom-up: each parent, then the rows above it that add it up.
-    await settleChain(target.db, target.dialect, chainStarts(rules, rows), currency, { cap });
+    await settleChain(target.db, target.dialect, chainStarts(rules, rows), currency, { cap, stamps: by === undefined ? undefined : settleStamps(target, by.context, by.clock) });
+  }
+
+  /**
+   * The working-day stamps of the rows a settle moves: a parent whose stamp
+   * reads or watches a total or a formula over one (`decide.ts`
+   * `workingDaysAfterSettle`), worked out as the write's own DECIDE would —
+   * on its clock, by its writer — and written to the row in a statement of
+   * its own, as the settle writes its totals. A table with no working-day
+   * stamp costs nothing.
+   */
+  function settleStamps(target: WriteTarget, context: WriteContext, clock: WriteClock): SettleStamps {
+    const parents = new Map<string, { target: WriteTarget; rules: TableRules } | null>();
+    const parentOf = (table: string) => {
+      if (!parents.has(table)) {
+        const resolved = target.view === undefined ? undefined : target.view.table(table);
+        const parent = resolved === undefined ? null : { ...target, table: resolved, rights: undefined };
+        const rules = parent === null ? null : rulesOf(parent);
+        const stamps = (rules?.stamps ?? []).some((stamp) => typeof stamp.set === 'object' && 'addWorkingDays' in stamp.set);
+        parents.set(table, parent === null || rules === null || !stamps ? null : { target: parent, rules });
+      }
+      return parents.get(table) ?? null;
+    };
+    return {
+      watches: (table) => parentOf(table) !== null,
+      stamp: async (table, keyColumn, key, before, after) => {
+        const parent = parentOf(table);
+        if (parent === null) return;
+        const zone = await zoneFor(parent.rules, parent.target);
+        const set = await workingDaysAfterSettle(parent.rules, before, after, decideContext(parent.target, context, stampNow(clock), zone, await peopleDecide(parent.rules, parent.target, context)));
+        if (Object.keys(set).length === 0) return;
+        const bound = Object.fromEntries(Object.entries(set).map(([column, value]) => [column, bindValue(target.dialect, value)]));
+        await target.db.updateTable(table).set(bound as never).where((eb) => eb(target.db.dynamic.ref(keyColumn), '=', key as never)).execute();
+      },
+    };
   }
 
   /**
@@ -3308,7 +3374,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * there. A total that keeps a balance is settled holding its parent row, in
    * a transaction of its own when there is none.
    */
-  async function settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], settleOpts?: { cap?: boolean }): Promise<void> {
+  async function settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], settleOpts?: { cap?: boolean; by?: { context: WriteContext; clock: WriteClock } }): Promise<void> {
     const rules = rulesOf(target);
     // A change of rows other rows follow (a bulk edit of stays, an import's updates, an undo): the followers are brought into step too.
     const following = action === 'update' && rows.some((row) => row.before !== null && (rules?.follows ?? []).some((follow) => !sameValue(row.before![follow.from], row.record[follow.from])));
@@ -3331,7 +3397,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (after !== null) await followAndSettle(within, rules, row.before, after, currency, followMode);
         }
       }
-      await settleRows(rules, within, sides, currency, settleOpts?.cap === true ? 'strict' : undefined);
+      await settleRows(rules, within, sides, currency, settleOpts?.cap === true ? 'strict' : undefined, settleOpts?.by);
       if (action === 'delete' || (rules?.ownRollups?.length ?? 0) === 0) return;
       const keys = rows.map((row) => row.record[rules!.ownRollups![0]!.parentKey]).filter((key) => key !== null && key !== undefined);
       // Its own totals too, and what they feed: a restored or edited row may carry child rows written beside it.
@@ -3544,7 +3610,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       input.hooks && (await hooks.wants('before', 'create', target, context))
         ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
         : decided;
-    const values = await formulate(rules, 'create', target, hooked, null, context.origin);
+    const values = await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, hooked, null, context.origin), null, clock, zone);
     if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
     const judged = await checkAllOrThrow(rules, 'create', target, context, values, null, mapError);
     // The listing rule, for a writer no person door judged: the new row as its rules filled it.
@@ -3575,7 +3641,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), opts.settings);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), opts.settings);
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
-      return await formulate(rules, 'create', target, decided, null, context.origin);
+      return await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, decided, null, context.origin), null, clock, zone);
     } catch {
       return values;
     }
@@ -3770,6 +3836,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let values = await prepareValues(rules, 'update', target, declared, set, clock.startedAt);
       values = await decideRow(rules, 'update', values, before, decideContext(target, declared, stampNow(clock), zone, await peopleDecide(rules, target, declared)));
       values = await formulate(rules, 'update', target, values, before, declared.origin);
+      values = await daysAfterFormulas(rules, 'update', target, declared, values, before, clock, zone);
       const checked = await carry(rules, 'update', target, declared, await checkAllOrThrow(rules, 'update', target, declared, values, before, undefined), before, clock);
       await updateRows(target.db, target.dialect, target.table, checked, key);
       return (await fetchByPk(target.db, target.table, key)) ?? null;
@@ -4086,7 +4153,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             continue;
           }
         }
-        const formulated = await formulate(rules, action, target, stamped, null, context.origin);
+        let formulated = await formulate(rules, action, target, stamped, null, context.origin);
+        // …and those of its stamps that count days its formulas work out, once they are.
+        if (action === 'create' && context.stamps === 'left-out' && hasStampsAfterFormulas(rules)) {
+          try {
+            formulated = await daysAfterFormulas(rules, 'create', target, context, formulated, null, clock, (stampZone ??= { zone: await zoneFor(rules, target) }).zone);
+          } catch (error) {
+            const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
+            issues.push({ [column]: { code: 'not-allowed' } });
+            out.push(null);
+            continue;
+          }
+        }
         // A place and an area as their columns keep them: a line of a file is read as a save is.
         const geo = action === 'delete' ? null : await geoValues(target, formulated);
         const values = geo?.values ?? formulated;
@@ -4207,7 +4285,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           adjusted = await ledgerStep(() => adjustHeld(db, [...made, ...orders], { mode: 'save', context, clock, made: [{ table: target.table.id, row: out.row }] }), about, input.mapError);
         }
         await guarded(async () => {
-          await settleRows(rules, within, [{ record: out.row, before: null }], currency, held);
+          await settleRows(rules, within, [{ record: out.row, before: null }], currency, held, { context, clock });
           await settleOwn(rules, within, 'create', out.row, out.values, currency);
         }, input.mapError);
         // What the row hands to a ledger: after its own totals, on the same transaction — a refusal undoes the row too.
@@ -4838,6 +4916,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         !(context.origin === 'import' && values[perNight.column] !== null && values[perNight.column] !== undefined && values[perNight.column] !== '');
       // PRICE and FORMULA, over the stored row: a change of `qty` alone still has the `rate` it multiplies.
       values = await formulate(rules, 'update', target, values, before, context.origin, repricing ? true : undefined);
+      if (stored) values = await guardedValue(async () => daysAfterFormulas(rules, 'update', target, context, values, before, clock, zone), input.mapError);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
       const carried = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
@@ -5043,7 +5122,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             // The rows that follow this one (a stay's extras), brought into step, and their totals settled into it — before its own balances are judged.
             if (following && !followedFirst && prior !== null && after !== null) await followAndSettle(within, rules, prior, after, currency, dry ? (input.children === undefined ? 'dry' : 'dry-written') : 'save');
             // A quote shows its own row: the totals it feeds elsewhere are not its to settle.
-            if (!dry) await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
+            if (!dry) await settleRows(rules, within, [{ record: after, before: prior }], currency, held, { context, clock });
             if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, currency, ownBefore);
           }, input.mapError);
           // SEAL again over the totals the settle just wrote beside the row.
@@ -5309,7 +5388,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             // The price, asked once the row is gone and before any total is worked out.
             if (removed > 0 && orders.length > 0) adjusted = await ledgerStep(() => adjustHeld(db, orders, { mode: 'save', context, clock }), { target, context }, input.mapError);
             if (removed > 0 && leaving !== null && gone !== null) await adjuster.forget(db, leaving, gone[leaving.adjust.key]);
-            if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
+            if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held, { context, clock }), input.mapError);
             return removed;
           })), input.mapError)
         : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged, released), input.mapError), input.mapError);
@@ -5359,7 +5438,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
        */
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
-        const formulated = await formulate(rules, action, target, values, record, context.origin);
+        let formulated = await formulate(rules, action, target, values, record, context.origin);
+        // The working-day stamps that count days a formula works out, once it is: a refusal is that row's own issue, as DECIDE's is.
+        if (action !== 'delete' && hasStampsAfterFormulas(rules)) {
+          try {
+            formulated = await daysAfterFormulas(rules, action, target, context, formulated, record, clock, zone);
+          } catch (error) {
+            const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
+            return { values: brand(formulated), issues: { [column]: { code: 'not-allowed' } } };
+          }
+        }
         // A place and an area as their columns keep them, on this way of writing a row too.
         const geo = action === 'delete' ? null : await geoValues(target, formulated);
         const worked = geo?.values ?? formulated;
@@ -5480,7 +5568,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async afterEach(action, target, context, rows) {
       if (rows.length === 0) return;
-      await settle(action, target, rows);
+      await settle(action, target, rows, { by: { context, clock: writeClock(context) } });
       if (action !== 'delete') for (const row of rows) await toldPeople(action, target, context, row.record, row.before);
       const hooks = current();
       if (!(await hooks.wants('after', action, target, context))) return;

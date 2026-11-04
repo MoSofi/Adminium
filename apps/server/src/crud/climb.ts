@@ -66,5 +66,21 @@ export type SettleChain = (
     cap?: HeldBalances | 'strict' | undefined;
     only?: ((table: string, key: unknown) => boolean) | undefined;
     read?: 'locking' | 'plain' | undefined;
+    /** The working-day stamps a settled row's moved totals and formulas set off (see {@link SettleStamps}). */
+    stamps?: SettleStamps | undefined;
   },
 ) => Promise<void>;
+
+/**
+ * What a settle sets off in a row it moves: a working-day stamp that reads or
+ * watches a total or a formula over one (a print job's ready-by, a day later
+ * for each change asked on its proofs). The chain reads each such row before
+ * a height settles it and after, and hands both over; what the stamps decide
+ * is written to it by the write service, which knows the venue's clock.
+ */
+export interface SettleStamps {
+  /** Whether a row of this table may have a stamp to work out again after a settle. */
+  watches(table: string): boolean;
+  /** Work out, and write, what the row's stamps decide now the settle has moved it. */
+  stamp(table: string, keyColumn: string, key: unknown, before: Row, after: Row): Promise<void>;
+}

@@ -187,7 +187,7 @@ export async function decideRow(
   // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
   const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;
   // The opt-out mark is never fired by its own trigger (see OPT-OUT MARK).
-  const stamps = (undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo))).filter((stamp) => stamp.column !== context.optOut?.column);
+  const stamps = decidedStamps(rules, undo, context);
   const worked = await momentStamps(stamps, action, out, before, context);
   const stamped = await workingDayStamps(stamps, action, stampRow(stamps.filter((stamp) => !isWorkingDays(stamp)), action, out, before, context, worked), before, context);
   const emptied = undo === null ? [] : (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
@@ -198,6 +198,84 @@ export async function decideRow(
   if (cleared.length > 0) moved = { ...moved, ...Object.fromEntries(cleared.map((column) => [column, null])) };
   // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
   return markOptOut(rules, action, await renewCodes(rules.codes, action, moved, before, context), before, context);
+}
+
+/**
+ * The stamps DECIDE works out on this write: the table's own, less those an
+ * undo move keeps, the opt-out mark (never fired by its own trigger), and the
+ * working-day stamps that wait for the formulas (`afterFormulas`).
+ */
+function decidedStamps(rules: TableRules, undo: ReturnType<typeof undoMoveOf>, context: DecideContext): ColumnStamp[] {
+  const kept = undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo));
+  return kept.filter((stamp) => stamp.column !== context.optOut?.column && !afterFormulas(rules, stamp));
+}
+
+/** The columns a working-day stamp reads (its `from`, its `days`) or watches (its triggers). */
+function workingDayColumns(stamp: ColumnStamp): string[] {
+  const rule = (stamp.set as { addWorkingDays: { from: string; days: string | number } }).addWorkingDays;
+  const watched = triggersOf(stamp).flatMap((trigger) => (trigger === 'create' ? [] : 'columns' in trigger ? trigger.columns : [trigger.column]));
+  return [...(rule.from === 'now' ? [] : [rule.from]), ...(typeof rule.days === 'string' ? [rule.days] : []), ...watched];
+}
+
+/**
+ * Whether a working-day stamp waits for the row's formulas: one that counts
+ * its days (or from a moment) a formula works out, or fires when one changes
+ * — a print job's ready-by, in its standard or express days plus a day for
+ * each change asked. The formulas are worked out after DECIDE (and after the
+ * hooks), so such a stamp is worked out once they are
+ * (`workingDaysAfterFormulas`): decided before them, it would count from no
+ * days at all on a create, and from the stored days on a change.
+ */
+export function afterFormulas(rules: TableRules, stamp: ColumnStamp): boolean {
+  if (!isWorkingDays(stamp) || (rules.formulas?.length ?? 0) === 0) return false;
+  const formulas = new Set(rules.formulas!.map((formula) => formula.column));
+  return workingDayColumns(stamp).some((column) => formulas.has(column));
+}
+
+/** Whether any of a table's working-day stamps waits for its formulas: nothing else need be done after them. */
+export function hasStampsAfterFormulas(rules: TableRules | null): boolean {
+  return rules !== null && (rules.stamps ?? []).some((stamp) => afterFormulas(rules, stamp));
+}
+
+/**
+ * WORKING DAYS, AFTER THE FORMULAS: the working-day stamps that wait for the
+ * row's formulas (`afterFormulas`), worked out on the row as the formulas
+ * leave it — so a create counts the days its formulas work out, and a change
+ * that moves them (a change asked adds a day) counts again. The same writes
+ * as DECIDE: none for an import of history or an undo, nothing for an update
+ * whose stored row is gone; a file a person brings in fills only what its
+ * line leaves out. The same object when nothing fires.
+ */
+export async function workingDaysAfterFormulas(rules: TableRules | null, action: WriteAction, values: Row, before: Row | null, context: DecideContext): Promise<Row> {
+  if (rules === null || action === 'delete' || !hasStampsAfterFormulas(rules)) return values;
+  const leftOut = context.origin === 'import' && context.stamps === 'left-out';
+  if (HISTORY.has(context.origin) && !leftOut) return values;
+  if (action === 'update' && before === null) return values;
+  const undo = action === 'update' && !leftOut ? undoMoveOf(rules.states, before, values) : null;
+  const kept = undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo));
+  const stamps = kept.filter((stamp) => afterFormulas(rules, stamp) && stamp.column !== context.optOut?.column && (!leftOut || empty(values[stamp.column])));
+  return stamps.length === 0 ? values : workingDayStamps(stamps, action, values, before, context);
+}
+
+/**
+ * WORKING DAYS, AFTER A SETTLE: a row's totals added up again by a write to
+ * its child rows (a proof asked to change, a proof approved) move its
+ * formulas, and a working-day stamp that reads or watches one of them is
+ * worked out again, from the row as it was and as the settle left it. Only
+ * the stamps that read or watch a column the settle moved; the columns it
+ * writes, or none. Nothing for a write of history or an undo.
+ */
+export async function workingDaysAfterSettle(rules: TableRules | null, before: Row, after: Row, context: DecideContext): Promise<Row> {
+  if (rules === null || HISTORY.has(context.origin)) return {};
+  const moved: Row = {};
+  for (const [column, value] of Object.entries(after)) if (!sameValue(before[column], value)) moved[column] = value;
+  if (Object.keys(moved).length === 0) return {};
+  const stamps = (rules.stamps ?? []).filter((stamp) => isWorkingDays(stamp) && workingDayColumns(stamp).some((column) => has(moved, column)));
+  if (stamps.length === 0) return {};
+  const stamped = await workingDayStamps(stamps, 'update', moved, before, context);
+  const out: Row = {};
+  for (const stamp of stamps) if (has(stamped, stamp.column) && !sameValue(before[stamp.column], stamped[stamp.column])) out[stamp.column] = stamped[stamp.column];
+  return out;
 }
 
 /** Two addresses, the same one: trimmed and in lower case. */
@@ -247,7 +325,7 @@ async function stampLeftOut(rules: TableRules, action: WriteAction, values: Row,
       .map((check) => check.column),
   );
   // The opt-out mark is never a file's: no line stamps it (see OPT-OUT MARK).
-  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]) && !asked.has(stamp.column) && stamp.column !== context.optOut?.column);
+  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]) && !asked.has(stamp.column) && stamp.column !== context.optOut?.column && !afterFormulas(rules, stamp));
   if (stamps.length === 0) return values;
   const stamped = stampRow(stamps.filter((stamp) => !isWorkingDays(stamp)), action, values, before, context, await momentStamps(stamps, action, values, before, context));
   return workingDayStamps(stamps, action, stamped, before, context);

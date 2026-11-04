@@ -76,6 +76,24 @@ function manifest(): Record<string, unknown> {
       ],
     },
     {
+      // Days a formula works out: the job's own days and one for each change asked on it (a total of its child rows).
+      ref: 'press_jobs',
+      columns: [
+        id,
+        { ref: 'received_at', type: 'timestamptz', nullable: true },
+        { ref: 'base_days', type: 'int', nullable: true },
+        { ref: 'changes', type: 'int', nullable: true, rules: { rollup: { from: 'press_changes', via: 'job_id', count: true } } },
+        { ref: 'days', type: 'int', nullable: true, rules: { formula: { add: [{ coalesce: ['base_days', 3] }, { coalesce: ['changes', 0] }] } } },
+        {
+          ref: 'ready_by',
+          type: 'date',
+          nullable: true,
+          rules: { stamp: { set: { addWorkingDays: { from: 'received_at', days: 'days', weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'], cutoff: '14:00' } }, on: ['create', { columns: ['days'] }] } },
+        },
+      ],
+    },
+    { ref: 'press_changes', columns: [id, { ref: 'job_id', type: 'fk', references: 'press_jobs' }, { ref: 'note', type: 'text', maxLength: 80, nullable: true }] },
+    {
       // A guest's rush order: two days from now, every day of the week.
       ref: 'rushes',
       columns: [id, { ref: 'note', type: 'text', maxLength: 80, nullable: true }, { ref: 'ready_by', type: 'date', nullable: true, rules: { stamp: { set: { addWorkingDays: { from: 'now', days: 2, weekdays: ALL_WEEK } }, on: 'create' } } }],
@@ -230,6 +248,26 @@ describe.each(LEGS)('working days, on %s', (dialect, available) => {
     await w.update('proofs', proof['id'], { proof_state: 'approved' });
     const today = venueClock(new Date(), 'Europe/London').day;
     expect(day((await stored('proofs', proof['id']))['ready_by'])).toBe(dayPlus(today, 3));
+  });
+
+  it.skipIf(!available)('counts the days a formula works out: on the create, on a change of what it reads, and when a change asked on the job adds one', async () => {
+    // Wednesday 5 August 10:20 in London: three days is Monday, four Tuesday.
+    const made = await w.create('press_jobs', { received_at: '2026-08-05T09:20:00Z', base_days: 3 });
+    const at = async () => {
+      const row = await stored('press_jobs', made['id']);
+      return [Number(row['days']), day(row['ready_by'])];
+    };
+    expect(await at()).toEqual([3, '2026-08-10']);
+    await w.update('press_jobs', made['id'], { base_days: 4 });
+    expect(await at()).toEqual([4, '2026-08-11']);
+    // A change asked: the job's total of them moves its days, and the ready-by with them.
+    const change = await w.create('press_changes', { job_id: made['id'], note: 'Bigger date line.' });
+    expect(await at()).toEqual([5, '2026-08-12']);
+    await w.writes.delete({ target: w.targetOf('press_changes'), pk: { id: change['id'] }, context: w.desk, announce: async () => {} });
+    expect(await at()).toEqual([4, '2026-08-11']);
+    // Its days left to the formula's own: three again.
+    await w.update('press_jobs', made['id'], { base_days: null });
+    expect(await at()).toEqual([3, '2026-08-10']);
   });
 
   it.skipIf(!available)("quotes a guest the date the save then stores, on the venue's calendar", async () => {

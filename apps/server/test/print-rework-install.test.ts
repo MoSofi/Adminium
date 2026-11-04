@@ -80,16 +80,6 @@ const OPTS = { locale: 'en-US', userId: null, userLabel: 'test' };
 const COLLECT = { name: 'Harbour Bakery', email: EMAIL, delivery_method: 'collect' };
 const DESK: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_rosa', label: 'Rosa' }, request: null };
 
-/**
- * A core gap, open: an `addWorkingDays` stamp is decided before the row's
- * formulas (`decide.ts` runs the stamps, then `formulate`), so a ready-by
- * whose `days` is a formula of the row (the standard or express days, the
- * printed proof's post days, a day for each change) is written empty. The
- * three tests that date a job say what the app declares; they fail until the
- * stamp is worked out after the formulas, and then pass.
- */
-const READY_BY_GAP = true;
-
 describe.each(LEGS)('Print Shop, reworked, installed with the built Customiser â€” %s', (dialect, available) => {
   const runs = available && built !== null && print !== null;
   let h: Harness;
@@ -248,7 +238,7 @@ describe.each(LEGS)('Print Shop, reworked, installed with the built Customiser â
     ]);
   });
 
-  (READY_BY_GAP ? it.fails : it).skipIf(!runs)('dates each job in working days from Wednesday 10:20: Mon 10 standard, Thu 6 express, Wed 12 with a printed proof', async () => {
+  it.skipIf(!runs)('dates each job in working days from Wednesday 10:20: Mon 10 standard, Thu 6 express, Wed 12 with a printed proof', async () => {
     const res = await quote(CREATE, order([await flyers(), await flyers({ express: true }), await flyers({ proof_by_post: true })]));
     expect(res.statusCode, res.body).toBe(200);
     expect(jobsOf(res).map((row) => [Number(row['turnaround_days']), dateOf(row['ready_by'])])).toEqual([
@@ -265,7 +255,7 @@ describe.each(LEGS)('Print Shop, reworked, installed with the built Customiser â
     expect((await one(`SELECT number FROM printing_orders WHERE number_seq IS NOT NULL ORDER BY id DESC`))['number']).toBe('MP-4127');
   });
 
-  (READY_BY_GAP ? it.fails : it).skipIf(!runs)('moves a job a working day for a change asked, to Tue 11, and counts it again from its approval', async () => {
+  it.skipIf(!runs)('moves a job a working day for a change asked, to Tue 11, and counts it again from its approval', async () => {
     const job = await one(`SELECT j.id, j.order_id, j.ready_by FROM printing_jobs j JOIN printing_orders o ON o.id = j.order_id WHERE o.number = 'MP-4127'`);
     expect(dateOf(job['ready_by'])).toBe('2026-08-10');
     const first = await staffCreate('printing_proofs', { order_id: Number(job['order_id']), job_id: Number(job['id']), kind: 'email', note: 'Proof by email.' });
