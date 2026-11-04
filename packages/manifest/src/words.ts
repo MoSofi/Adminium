@@ -234,6 +234,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'roles.addOnPages',
   // An agreement on how many characters a text has (a line's lettering at most its product's limit).
   'agrees.length',
+  // A copy of a person one or two links further into an add-on (a design's versions, and their files).
+  'people.addOnCopyFrom',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -450,6 +452,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'roles.addOnPages': '0.3.44',
   // A length agreement: a release before refuses the key.
   'agrees.length': '0.3.44',
+  // A copy reached through the add-on's own links: a release before refuses the key.
+  'people.addOnCopyFrom': '0.3.44',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -554,6 +558,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       list(isDoc(entry) ? entry['copies'] : undefined).forEach((copy, c) => {
         if (isDoc(copy) && copy['addOn'] !== undefined) out.push({ word: 'people.addOnCopies', path: `people.${String(e)}.copies.${String(c)}.addOn` });
         if (isDoc(copy) && copy['holds'] === 'details') out.push({ word: 'people.copyDetails', path: `people.${String(e)}.copies.${String(c)}.holds` });
+        if (isDoc(copy) && copy['from'] !== undefined) out.push({ word: 'people.addOnCopyFrom', path: `people.${String(e)}.copies.${String(c)}.from` });
       });
     });
   }

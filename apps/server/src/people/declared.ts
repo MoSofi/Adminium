@@ -51,7 +51,18 @@ export interface DeclaredCopy {
    * tables (`up` null), or links to one (`up`: its column and the table it
    * points at). The add-on's rows its rows name are the person's.
    */
-  through?: { line: string; link: string; up: { column: string; to: string } | null };
+  through?: {
+    line: string;
+    link: string;
+    up: { column: string; to: string } | null;
+    /**
+     * The copy table's own links, followed back to the add-on's table the
+     * app's link names (`["version_id", "design_id"]`): its rows are theirs
+     * because the rows those links lead to are. Absent, the link names the
+     * copy table itself.
+     */
+    from?: string[];
+  };
 }
 
 /** One people (or companies) table, resolved. Every table is a snapshot id, every column a real column of it. */
@@ -205,6 +216,8 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
           const held = tableOf(copy.table, copy.addOn);
           const line = tableOf(lineRef);
           if (held === undefined || line === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column) || !line.table.columns.some((candidate) => candidate.name === link)) return [];
+          // The first of the add-on's own links is the copy table's; the rest are found where the rows are read.
+          if (copy.from !== undefined && !held.table.columns.some((candidate) => candidate.name === copy.from![0])) return [];
           let up: { column: string; to: string } | null = null;
           if (!reaching.has(lineRef)) {
             const fk = (links.get(lineRef) ?? []).find((candidate) => reaching.has(candidate.to) && line.table.columns.some((column) => column.name === candidate.column));
@@ -213,7 +226,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
             up = { column: fk.column, to: to.table.id };
           }
           const json = keepsJson(addOnJson.get(copy.addOn), copy.table, copy.column, held.table);
-          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, ...(json ? { json: true as const } : {}), through: { line: line.table.id, link, up } }];
+          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, ...(json ? { json: true as const } : {}), through: { line: line.table.id, link, up, ...(copy.from === undefined ? {} : { from: [...copy.from] }) } }];
         }
         const held = tableOf(copy.table);
         if (held === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column)) return [];
