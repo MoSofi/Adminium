@@ -100,7 +100,8 @@ import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed,
 import { decideRow, hasStampsAfterFormulas, needsStored, stampFires, stampYields, workingDaysAfterFormulas, workingDaysAfterSettle, type DecideContext } from './decide.js';
 import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
-import { canonicalCode, isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
+import { isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
+import { normalizedAs } from './normalize.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   attachRequiredGuards,
@@ -144,7 +145,6 @@ import { checkedAt, createDesignCheck, type FileFact } from './check/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
 import { releaseLinks, restoreLinks, type ReleasedLink } from '../outbox/release.js';
-import { normaliseAddress } from '../public-api/claim-code.js';
 import {
   claimSequences,
   generatedCodes,
@@ -2162,10 +2162,8 @@ export function formulasAfterNumbers(rules: TableRules | null): ((row: Row) => R
   const numbers = [...(rules.gapless ?? []), ...(rules.sequences ?? [])].flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
   const formulas = numbers.length === 0 ? [] : touchedFormulas(rules.formulas ?? [], numbers);
   if (formulas.length === 0) return null;
-  const own = new Set(formulas.map((formula) => formula.column));
-  const kept = { ...rules, normalizes: (rules.normalizes ?? []).filter((normalize) => own.has(normalize.column)) };
   // A money formula over a number is no formula anyone writes: the connection's currency is not read for it.
-  return (row) => normalizeText(kept, { ...row, ...evaluateAll(formulas, row, rules.currencyColumn, null) });
+  return (row) => ({ ...row, ...evaluateAll(formulas, row, rules.currencyColumn, null) });
 }
 
 export function normalizeText(rules: TableRules | null, values: Row): Row {
@@ -2173,7 +2171,7 @@ export function normalizeText(rules: TableRules | null, values: Row): Row {
   for (const { column, how } of rules?.normalizes ?? []) {
     const value = values[column];
     if (typeof value !== 'string') continue;
-    const next = how === 'email' ? normaliseAddress(value) : how === 'code' ? canonicalCode(value) : value.trim();
+    const next = normalizedAs(how, value);
     if (next === value) continue;
     out ??= { ...values };
     out[column] = next;

@@ -32,6 +32,7 @@ import { currencyScale, evaluateFormula, ratioText, toRatio } from '@adminium/ma
 
 import type { ColumnFormula, Scale, TableRules } from './column-rules.js';
 import type { Row } from './mask.js';
+import { normalizedAs } from './normalize.js';
 import type { WriteAction } from './write-context.js';
 
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
@@ -85,7 +86,9 @@ export function evaluateAll(
   const working: Row = { ...row };
   const out: Row = {};
   for (const formula of formulas) {
-    const worked = evaluateFormula(formula.expr, working, placesFor(formula.scale, working, currencyColumn, connectionCurrency));
+    const raw = evaluateFormula(formula.expr, working, placesFor(formula.scale, working, currencyColumn, connectionCurrency));
+    // Kept as the column's `normalize` says, as a typed value is: a joined key in another case is the same key at the unique check.
+    const worked = formula.normalize !== undefined && raw !== null ? normalizedAs(formula.normalize, raw) : raw;
     // A joined text longer than its column holds is cut to it (by characters), never refused: a long name is still a name.
     const value = formula.maxLength !== undefined && worked !== null && [...worked].length > formula.maxLength ? [...worked].slice(0, formula.maxLength).join('').trimEnd() : worked;
     working[formula.column] = value;

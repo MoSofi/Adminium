@@ -269,6 +269,8 @@ export interface ColumnFormula {
   limit?: { digits: number } | { max: bigint };
   /** A joined text's longest (the column's length): cut there rather than refused. */
   maxLength?: number;
+  /** The column's `normalize`: the worked-out text kept that way, as a typed value is. */
+  normalize?: 'trim' | 'email' | 'code';
 }
 
 /** One side of a date bound, resolved: the other date is this row's, or read through a foreign key. */
@@ -1253,6 +1255,7 @@ export function formulasOf(table: Pick<EffectiveTable, 'columns'>): ColumnFormul
       reads,
       ...(limit === undefined ? {} : { limit }),
       ...(joined === undefined ? {} : { maxLength: joined }),
+      ...(column.normalize === undefined ? {} : { normalize: column.normalize }),
     });
   };
   for (const name of byName.keys()) visit(name);
