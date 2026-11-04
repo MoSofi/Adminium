@@ -76,7 +76,6 @@ export class UnsupportedFileTypeError extends Error {
 
 /** An SVG the cleaner would not keep (`files/svg.ts`): a file of a kind the upload takes, holding more than a drawing. */
 export class SvgNotKeptError extends UnsupportedFileTypeError {
-  override readonly name = 'SvgNotKeptError';
   /** The cleaner's own sentence, naming what it found. */
   readonly reason: string;
   constructor(refused: SvgRefused) {
