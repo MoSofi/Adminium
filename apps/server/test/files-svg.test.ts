@@ -208,6 +208,94 @@ describe('a cleaned SVG', () => {
     expect(refused(`<svg ${S}><text style="font-variant-anything:1">a</text></svg>`)).toMatch(/font-variant-anything/);
   });
 
+  it('takes an older Inkscape export with its licence notes, dropping them and their declarations', () => {
+    const older = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="60mm"
+   height="30mm"
+   viewBox="0 0 60 30"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
+   sodipodi:docname="name-tag.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     inkscape:zoom="2.8"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:none;stroke:#000000;stroke-width:0.26458332"
+       id="rect10"
+       width="58"
+       height="28"
+       x="1"
+       y="1"
+       ry="3" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:10.58333302px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="30"
+       y="18"
+       id="text12"><tspan
+         sodipodi:role="line"
+         id="tspan14"
+         x="30"
+         y="18"
+         style="text-align:center;text-anchor:middle;stroke-width:0.26458332">Mia</tspan></text>
+  </g>
+</svg>
+`;
+    const out = clean(older);
+    expect(out).toBe(
+      `<svg ${S} width="60mm" height="30mm" viewBox="0 0 60 30" id="svg8"><defs id="defs2"/><g id="layer1">` +
+        '<rect style="fill:none;stroke:#000000;stroke-width:0.26458332" id="rect10" width="58" height="28" x="1" y="1" ry="3"/>' +
+        '<text xml:space="preserve" style="font-style:normal;font-weight:normal;font-size:10.58333302px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332" x="30" y="18" id="text12">' +
+        '<tspan id="tspan14" x="30" y="18" style="text-align:center;text-anchor:middle;stroke-width:0.26458332">Mia</tspan></text></g></svg>',
+    );
+    expect(out).not.toMatch(/rdf|dc:|cc:|purl|creativecommons/);
+    expect(clean(out)).toBe(out);
+    expect(removed(older)).toEqual(['version', 'inkscape:*', 'sodipodi:*', '<metadata>']);
+    // Drawings Inkscape 0.4x saved name Creative Commons by its old address.
+    expect(clean(`<svg ${S} xmlns:cc="http://web.resource.org/cc/"/>`)).toBe(`<svg ${S}/>`);
+  });
+
+  it('refuses a licence-notes prefix under any other address, and its parts outside the metadata', () => {
+    expect(refused(`<svg ${S} xmlns:rdf="http://www.w3.org/1999/xhtml"/>`)).toMatch(/namespace rdf/);
+    expect(refused(`<svg ${S} xmlns:dc="http://purl.org/dc/terms/"/>`)).toMatch(/namespace dc/);
+    expect(refused(`<svg ${S} xmlns:cc="http://example.com/ns#"/>`)).toMatch(/namespace cc/);
+    // The right address under another prefix is no licence note.
+    expect(refused(`<svg ${S} xmlns:x="http://purl.org/dc/elements/1.1/"/>`)).toMatch(/namespace x/);
+    expect(refused(`<svg ${S} xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:RDF/></svg>`)).toMatch(/rdf:RDF/);
+    expect(refused(`<svg ${S} xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rect rdf:about=""/></svg>`)).toMatch(/rdf:about/);
+  });
+
   it('says what it took out, each once, in the order met, and the same bytes as it keeps', () => {
     const dirty = `<svg ${S} class="logo" onload="go()"><metadata><x/></metadata><script>alert(1)</script><g data-id="1" aria-hidden="true"><rect onclick="a()" style="-webkit-x:1;fill:red"/><script/></g></svg>`;
     const report = cleanSvgReport(Buffer.from(dirty, 'utf8'));

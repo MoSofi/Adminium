@@ -16,7 +16,9 @@
  *    `sodipodi:`), which hold the editor's notes about the drawing (its
  *    layers' names, its page, how a path's nodes are edited) and never what
  *    is drawn: their elements, their attributes and their declarations are
- *    dropped, so a drawing saved as "Inkscape SVG" is taken. A document that
+ *    dropped, so a drawing saved as "Inkscape SVG" is taken (and the RDF,
+ *    Creative Commons and Dublin Core declarations an older one puts on the
+ *    root for its `<metadata>`, under their own addresses). A document that
  *    is not well formed is refused, never repaired.
  *  - KEPT FROM AN ALLOW-LIST of elements (shapes, paths, groups, `defs`,
  *    `symbol`, gradients, `clipPath`, `mask`, `use`, `text`/`tspan`,
@@ -96,6 +98,22 @@ const EDITOR_NAMESPACES: Readonly<Record<string, string>> = {
   inkscape: 'http://www.inkscape.org/namespaces/inkscape',
   sodipodi: 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd',
 };
+/**
+ * The namespaces of a drawing's licence and author notes (RDF, Creative
+ * Commons, Dublin Core), which an older Inkscape declares on the root for
+ * what it writes inside `<metadata>`. That element is dropped with all it
+ * holds, so a declaration of one of them is dropped too, when it names that
+ * namespace's own address; under any other address it is refused as any
+ * other namespace is. Creative Commons has two addresses, the old one still
+ * in drawings Inkscape 0.4x saved.
+ */
+const METADATA_NAMESPACES: Readonly<Record<string, readonly string[]>> = {
+  rdf: ['http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
+  cc: ['http://creativecommons.org/ns#', 'http://web.resource.org/cc/'],
+  dc: ['http://purl.org/dc/elements/1.1/'],
+};
+const metadataDeclaration = (prefix: string, value: string): boolean => Object.prototype.hasOwnProperty.call(METADATA_NAMESPACES, prefix) && METADATA_NAMESPACES[prefix]!.includes(value);
+
 const editorName = (name: string): boolean => {
   const colon = name.indexOf(':');
   return colon > 0 && Object.prototype.hasOwnProperty.call(EDITOR_NAMESPACES, name.slice(0, colon));
@@ -479,6 +497,8 @@ function cleanElement(element: SvgElement, root: boolean, removed: Removed): { e
       // SVG's own namespace under a prefix (Inkscape declares `svg:`), and an editor's own: written by nothing kept.
       if (attribute === 'xmlns:svg' && value === SVG_NS) continue;
       if (editorName(attribute.slice(6) + ':') && EDITOR_NAMESPACES[attribute.slice(6)] === value) continue;
+      // The licence notes' own namespaces, for what `<metadata>` held (dropped with it).
+      if (metadataDeclaration(attribute.slice(6), value)) continue;
       refuse(`This SVG declares the namespace ${attribute.slice(6)}, which is not taken. Save it as a plain SVG.`);
     }
     if (attribute === 'href' || attribute === 'xlink:href') {
