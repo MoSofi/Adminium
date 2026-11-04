@@ -22,7 +22,9 @@
  * - a design whose words run past their part's limit is refused by the
  *   design check, on the code the guest typed;
  * - an order of a design snapshots it in the Customiser and locks its draft,
- *   and the order takes the next number, BR-2291.
+ *   and the order takes the next number, BR-2291;
+ * - "Something's wrong" finds its order only among the orders sent to the
+ *   address it gives, and "Ask us for something" is taken.
  *
  * Without either checkout the suite is skipped, by name.
  */
@@ -252,6 +254,21 @@ describe.each(LEGS)('Maker Shop, reworked, installed with the built Customiser â
     expect(versions.map((v) => Number(v['version']))).toEqual([1]);
     expect(versions[0]!['receipt_id']).not.toBeNull();
     expect((await one(`SELECT ${q('state')} AS state FROM customiser_designs WHERE id = ${String(design.id)}`))['state']).toBe('ordered');
+  });
+
+  it.skipIf(!runs)("finds a problem's order only among the orders sent to the address it gives; takes a request for something made", async () => {
+    const report = (email: string, ref: string, key: string) =>
+      create('maker_problem_reports', { values: { order_ref: ref, name: 'Bex T.', email, what: 'damaged', details: 'The corner of the sign chipped in the post.', client_key: key } });
+    const theirs = await report('bex.t@mail.example', 'br 2287', 'maker-install-test-problem-0001');
+    expect(theirs.statusCode, theirs.body).toBe(201);
+    expect(await one(`SELECT ref, order_id FROM maker_problem_reports ORDER BY id DESC`)).toMatchObject({ ref: 'FIX-0001' });
+    expect(Number((await one(`SELECT order_id FROM maker_problem_reports ORDER BY id DESC`))['order_id'])).toBe(await id(`SELECT id FROM maker_orders WHERE number = 'BR-2287'`));
+    const someoneElses = await report('stranger@example.com', 'BR-2287', 'maker-install-test-problem-0002');
+    expect(someoneElses.statusCode, someoneElses.body).toBeGreaterThanOrEqual(400);
+    expect((someoneElses.json() as { error: { params: Doc } }).error.params).toMatchObject({ column: 'order_ref', reason: 'unknown' });
+    const ask = await create('maker_commission_requests', { values: { name: 'Ada W.', email: 'ada.w@example.com', idea: 'Twelve slate place names for a long table', quantity: 12, client_key: 'maker-install-test-request-0001' } });
+    expect(ask.statusCode, ask.body).toBe(201);
+    expect((await one(`SELECT ref FROM maker_commission_requests ORDER BY id DESC`))['ref']).toBe('ASK-0001');
   });
 
   it.skipIf(built !== null && maker !== null)('is skipped: set ADMINIUM_MAKER_REPO to a Maker Shop checkout and ADMINIUM_ADD_ONS_REPO to a built add-ons checkout', () => {
