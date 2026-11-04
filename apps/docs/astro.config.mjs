@@ -221,6 +221,8 @@ export default defineConfig({
                 { label: 'Pictures on public pages', link: '/guides/apps/public-pictures/' },
                 { label: 'Models, fonts and SVG pieces on public pages', link: '/guides/apps/public-assets/' },
                 { label: 'Booking rules and limits', link: '/guides/apps/booking-rules/' },
+                { label: 'Prices by quantity, sheets and weight', link: '/guides/apps/quantity-prices/' },
+                { label: 'Ready-by dates in working days', link: '/guides/apps/working-days/' },
                 { label: 'Timed moves', link: '/guides/apps/timed-moves/' },
                 { label: 'Rows that post into a ledger', link: '/guides/apps/postings/' },
                 { label: 'Discounts, codes and refunds', link: '/guides/apps/discounts-and-codes/' },
