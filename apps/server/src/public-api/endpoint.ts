@@ -468,8 +468,12 @@ export const publicEndpointDefinitionSchema = z
     client_key: columnSchema.optional(),
     /* ── a person found by address ────────────────────────────────────────── */
     find_or_create: findOrCreateSchema.optional(),
-    /** A create answers, once, the new row's own link: this code column, opened through the key of this purpose. */
-    share_link: z.object({ column: columnSchema, key: z.string().min(1).max(64) }).strict().optional(),
+    /**
+     * A create answers, once, the new row's own link: this code column, opened
+     * through the key of this purpose — the app's, or (`add_on`) the link key
+     * of the add-on whose entry it is, riding the app's key.
+     */
+    share_link: z.object({ column: columnSchema, key: z.string().min(1).max(64), add_on: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/).optional() }).strict().optional(),
     /** Read only by the holder of a live session of the key (no claim of its own). */
     session_only: z.literal(true).optional(),
     /** On an identity endpoint: the columns "delete my details" empties, and the time it stamps. */
@@ -649,7 +653,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       ...(f.on === undefined ? {} : { on: { column: f.on.column, to: f.on.to } }),
     };
   }
-  if (def.share_link !== undefined) out['share_link'] = { column: def.share_link.column, key: def.share_link.key };
+  if (def.share_link !== undefined) out['share_link'] = { column: def.share_link.column, key: def.share_link.key, ...(def.share_link.add_on === undefined ? {} : { add_on: def.share_link.add_on }) };
   if (def.session_only !== undefined) out['session_only'] = def.session_only;
   if (def.forget !== undefined) {
     out['forget'] = {
@@ -1019,7 +1023,7 @@ export function definitionToResource(
     const f = def.find_or_create;
     resource.findOrCreate = { identityRef: f.identity_ref, email: f.email, link: f.link, ...(f.fill === undefined ? {} : { fill: { ...f.fill } }), ...(f.on === undefined ? {} : { on: { ...f.on } }) };
   }
-  if (def.share_link !== undefined) resource.shareLink = { ...def.share_link };
+  if (def.share_link !== undefined) resource.shareLink = { column: def.share_link.column, key: def.share_link.key, ...(def.share_link.add_on === undefined ? {} : { addOn: def.share_link.add_on }) };
   if (def.session_only !== undefined) resource.sessionOnly = true;
   if (def.forget !== undefined) {
     resource.forget = {

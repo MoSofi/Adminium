@@ -187,7 +187,7 @@ export interface PublicAccessCheck {
   endpoints: { ref: string; table: string; methods: string[]; key: string }[];
   /** By app: the entries its public key would gain, and the ones it holds already. */
   byApp: Record<string, { adds: string[]; held: string[] }>;
-  /** The add-on's one key of its own: a link that opens one record and only reads. */
+  /** The add-on's one key of its own: a link that opens one record, and changes it only where an entry on it may (PATCH). */
   linkKey?: string;
   /** Whether the person asking may allow it. */
   canGrant: boolean;

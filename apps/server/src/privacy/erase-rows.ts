@@ -177,7 +177,7 @@ function blankRow(table: ResolvedTable, row: Row, columns: ReadonlyMap<string, E
       written.push(column);
       continue;
     }
-    const blank = blankValue(facts, role, dialect, erasedName);
+    const blank = blankValue(facts, role, dialect, erasedName, row[column]);
     if ('left' in blank) {
       left.set(column, (left.get(column) ?? 0) + 1);
       continue;

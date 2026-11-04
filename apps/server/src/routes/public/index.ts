@@ -2463,16 +2463,22 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: of, action: 'create', entity, before: null, after: row, origin: 'public' });
     };
 
-    /** The app's key that opens a row by its own link (`shareLink.key`), resolved: what a session on it carries. */
+    /**
+     * The key that opens a row by its own link (`shareLink.key`), resolved: what
+     * a session on it carries. The app's own key of that purpose — or, for an
+     * add-on's entry riding the app's key (`shareLink.addOn`), the add-on's
+     * own link key on this database.
+     */
     const ownLinkKeyOf = async (
       ok: { key: ResolvedKey },
       view: SnapshotView,
       table: ResolvedTable,
-      shareLink: { column: string; key: string },
+      shareLink: { column: string; key: string; addOn?: string | undefined },
     ): Promise<{ keyId: string; ref: string; column: string; own: boolean; address?: readonly string[] | undefined } | null> => {
       if (ok.key.managedBy === null) return null;
-      const stored = await keys.newestLiveByAppAndConnection(ok.key.managedBy, 'customer', ok.key.connectionId, Date.now(), shareLink.key);
-      if (stored === null || stored.managedBy !== ok.key.managedBy || stored.tokenEncrypted === null || keyStaffBinding(stored) !== null) return null;
+      const owner = shareLink.addOn ?? ok.key.managedBy;
+      const stored = await keys.newestLiveByAppAndConnection(owner, 'customer', ok.key.connectionId, Date.now(), shareLink.key);
+      if (stored === null || stored.managedBy !== owner || stored.tokenEncrypted === null || keyStaffBinding(stored) !== null) return null;
       const linkKey = await resolver.resolve(openPublishableKey(addressCrypto, stored.tokenEncrypted));
       const claim = linkKey === null ? null : tokenClaimOf(linkKey.scope);
       const opener = claim === null ? undefined : linkKey!.scope.byRef.get(claim.ref);
@@ -2505,7 +2511,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       view: SnapshotView,
       table: ResolvedTable,
       row: Row,
-      shareLink: { column: string; key: string },
+      shareLink: { column: string; key: string; addOn?: string | undefined },
       carried: { token: string; expiresAt: number } | null,
     ): Promise<{ key: string; token: string; session?: string; expiresAt?: number } | null> => {
       const token = row[shareLink.column];

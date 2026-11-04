@@ -4260,7 +4260,7 @@ consent log for the column it keeps in step. One entry per table, up to eight:
 | `language` | no | A `text` column of the table with the language the person is written to in. An app that keeps the language only on an order adds one, filled when the person is made (`identity.fill`); rows without one read the install's language. |
 | `firstName` | no | `{ "column" }`, a `text` column, or `"firstWordOfName"`: what a mail's `{{first_name}}` reads. |
 | `consent` | no | `{ "column", "purpose" }`: a `bool` column that mirrors one purpose of the consent log, `newsletter` or `surveys`. With none, the consent log alone holds consent. The two stay in step: a save that changes the column adds a row to the log in the same write (a staff member's tick in their name, a file brought in as an import, a rule or an API key as the system), and a change that starts in the log (an unsubscribe, "Record consent", a [public tick](#a-consent-tick)) writes the column and its stamps without a save, so no rule runs on it. "Delete my details" that empties the column first records the person's withdrawal. |
-| `copies` | no | Up to 32 columns on **other** tables that hold a copy of the person's address, name or phone number: `{ "table", "column", "holds": "email" \| "name" \| "phone", "via"? }`. `column` is `text`; `via`, when there is one, is that table's link (`fk`) back to this table. A copy is found and exported with the person and blanked when they are erased, except on a table [kept by law](#kept-by-law). A row is the person's when one of their copies on it links to them, holds their address, or holds one of their phone numbers (the phone columns of their own rows, a leading 0 or a country code aside); on a row theirs by a link or the address, every copy of theirs on it with no link goes too, and, when no copy links to somebody else, every column of the row marked `personal`. A row found by a phone number alone loses that number and nothing else, since a number may be shared. Needs Adminium 0.3.39 for a phone copy with no link, and for the personal columns. A copy may sit on a table of an add-on the app [requires](#add-ons): `{ "addOn", "table", "column", "holds", "via" }`, where `via` is the app's own link into that table as `"table.column"` (`"order_lines.design_id"`), on a table that reaches the person: this table, one of the entry's own copy tables, or a table with a link (`fk`) to one of those (a line to its order). The add-on's rows that the person's rows name through it are theirs: the copy is found, exported and blanked with them, and nothing else of such a row. Needs Adminium 0.3.43. |
+| `copies` | no | Up to 32 columns on **other** tables that hold a copy of the person's address, name or phone number: `{ "table", "column", "holds": "email" \| "name" \| "phone", "via"? }`. `column` is `text`; `via`, when there is one, is that table's link (`fk`) back to this table. A copy is found and exported with the person and blanked when they are erased, except on a table [kept by law](#kept-by-law). A row is the person's when one of their copies on it links to them, holds their address, or holds one of their phone numbers (the phone columns of their own rows, a leading 0 or a country code aside); on a row theirs by a link or the address, every copy of theirs on it with no link goes too, and, when no copy links to somebody else, every column of the row marked `personal`. A row found by a phone number alone loses that number and nothing else, since a number may be shared. Needs Adminium 0.3.39 for a phone copy with no link, and for the personal columns. A copy may sit on a table of an add-on the app [requires](#add-ons): `{ "addOn", "table", "column", "holds", "via" }`, where `via` is the app's own link into that table as `"table.column"` (`"order_lines.design_id"`), on a table that reaches the person: this table, one of the entry's own copy tables, or a table with a link (`fk`) to one of those (a line to its order). The add-on's rows that the person's rows name through it are theirs: the copy is found, exported and blanked with them, and nothing else of such a row. Needs Adminium 0.3.43. A copy may also hold other details of theirs (`"holds": "details"`), in a `text` or a `json` column (the words of a design they made, `{"line1": "Mum & Dad 1985"}`): it finds nobody, and goes with a row that is theirs. A `json` column holds only details; its value is downloaded as it is held, on every engine, and erased to `null`, or to an empty `{}` or `[]` where the column may not be empty. Needs Adminium 0.3.43. |
 | `customer` | no | A `bool` or number column that says the person is a customer (a count of won deals): "existing customers" counts them. |
 | `optOutMark` | no | A `timestamptz` column that is a strict [stamp](#stamps) (`"strict": true`). Declaring it says the app's staff screens show the line "you can say no to our mail" where they take the address. Only a signed-in staff member's save on such a screen sets it (or a carry, below); never a public page, an import, a rule, an add-on, an API key or sample data. Only marked rows may be mailed as existing customers. The screen says it showed the line with `"optOut": { "shown": true }` beside the row's values (the [data API](/reference/rest-api/)'s create or change): the mark is set to now on a create, or on a change of the address, when the row has an address. The stamp's own `on` is never fired; write `{ "set": "now", "on": { "columns": ["email"] }, "strict": true }`. `{ "column", "carryFrom": { "table", "column" } }` also names the mark of the row a person is made from (a claimed enquiry's, itself a strict stamp on another table): the save that makes them sends `"optOut": { "from": "<that row's key>" }`, and the mark comes with them when that row's address is theirs. |
 | `carry` | no | Up to 4 things an app update carries over once: `{ "stopList": { "column" } }` puts the address of every row whose column holds a value on the do-not-email list (an old "unsubscribed" mark); `{ "consent": { "from", "via", "column", "latest" } }` writes each person's newest answer on a linked table (`via` links it to this table, `column` is its `bool`, `latest` a date, moment or number that orders the answers) into the `consent` column, as a yes with no record that the first send's review asks about (an answer with no `latest`, an order never confirmed, is none; a person the consent log already holds an answer from keeps it; a person with no address is left alone). It runs on the update that brings it. A carried column is declared in the same manifest: keep it one more release, and drop it in the next. A second update adds nothing. |
@@ -5820,7 +5820,7 @@ Adminium runs add-on code, and why only first-party add-ons are accepted, is exp
 | `roles` | As an app's. A role grants the add-on's own tables (`table:@items:read`), its own pages (`page:@stock-kit-items:view`) and its settings (`addOn:<key>:settings`). Never `screensOnly`. |
 | `sampleData` | As an app's, for its own tables. |
 | `publicAccess` | Entries as an app's. One with no `key` is served through the `customer` key of an app that names the add-on, once that is allowed. One with `key` set to the add-on's link key is served through that key. |
-| `publicKeys` | At most one key, under a name that is not `customer`, with no `requiresStaff`, `enabledBy` or `peak`. It opens one row by its link and only reads: every entry on it has `"methods": ["GET"]` and either claims by token (`"claim": { "by": "token", "column": "…" }`, on a column with `rules.code { "length": 16, "hiddenFromStaff": true }`) or is read with the row a link opened (`visibleWith`, `claimedBy`). |
+| `publicKeys` | At most one key, under a name that is not `customer`, with no `requiresStaff`, `enabledBy` or `peak`. It opens one row by its link and only reads: every entry on it has `"methods": ["GET"]` and either claims by token (`"claim": { "by": "token", "column": "…" }`, on a column with `rules.code { "length": 16, "hiddenFromStaff": true }`) or is read with the row a link opened (`visibleWith`, `claimedBy`). A link that is the row's own (`"own": true`) may also change its row; see [A shopper's own link](#a-shoppers-own-link). |
 
 A column may keep the name of a table (`"rules": { "tableRef": true }`): Adminium stores it so
 that renaming the table it names keeps the rows pointing at it.
@@ -5858,6 +5858,54 @@ Adminium 0.3.43.
 A table anyone may add to through an entry is never one anyone may read through another on the
 same key: ready-made designs a shop offers live in a table of their own, apart from the designs
 shoppers save.
+
+#### A shopper's own link
+
+The add-on's link key may open a row as the row's own link (`"own": true`): a link mailed only to
+the row's own address (`address`) or handed once to whoever made the row. Such a link reads its
+row and may change it in place, so a shopper who saves a design and comes back keeps one design,
+one code and one mailed link:
+
+```json
+"publicKeys": { "customiser-link": {} },
+"publicAccess": [
+  { "table": "designs", "methods": ["POST"], "writable": ["base_id", "values", "email"],
+    "select": ["id", "code"], "humanCheck": true, "appColumn": "app", "shareLink": "link_token" },
+  { "table": "designs", "key": "customiser-link", "methods": ["GET", "PATCH"],
+    "select": ["id", "base_id", "values", "state"], "writable": ["base_id", "values"],
+    "writableWhen": { "state": ["draft"] },
+    "claim": { "by": "token", "column": "link_token", "own": true, "address": "email" } }
+]
+```
+
+The create through each app's key answers the new row's own link once (`shareLink`): its code,
+the add-on's key name, and a session already open on the row through that key, so the page that
+saved the design changes it with no claim. The mailed link opens the same row from any device
+(`POST /api/v1/public/claim/token`).
+
+A change through the link writes only the columns its entry names, and only while the row holds
+one of the values `writableWhen` lists for a column: every such entry names one (an ordered design
+is the order's, never the shopper's to change). The column an entry holds to its app
+(`appColumn`), the link's own code, its end, its stop and the address it is mailed to are never
+written through it, and an `enum` it may set lists its values (`writableValues`). The link makes
+no row (`POST`), reaches no row but its own, and a column it does not name is refused `400`. The
+human check and a change's `limits` work as on an app's entries. Needs Adminium 0.3.43.
+
+#### A row read by its code, by whoever the app signed in
+
+An add-on's entry on each app's key may be read by a session of that app's own sign-in alone
+(`level`), and then opens one row by its own code (`unlockBy` with `self`), never a list:
+
+```json
+{ "table": "designs", "methods": ["GET"], "select": ["id", "values", "state"], "appColumn": "app",
+  "level": "lookup", "unlockBy": { "header": true, "column": "code", "self": true, "length": 16 } }
+```
+
+A guest who found their order again reads its lines, each with the code of the design it names
+(the app's own entry, read with the order), and opens each design by sending that code in the
+`x-adminium-code` header with the session. With no session it is the one `404`; a code no design
+of this app has answers an empty list, and counts as a guess. The code is never shown back, and a
+shared link's code is never looked up this way. Needs Adminium 0.3.43.
 
 #### Rows that expire
 

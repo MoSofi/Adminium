@@ -3137,6 +3137,7 @@ export function appReferenceIssues(
       decided: (table) => decided.get(table) ?? new Set(),
       answersAvailability: (table) => tables.get(table)?.capacity !== undefined || tables.get(table)?.booking !== undefined,
       addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),
+      ridesAppKeys: m.kind === 'add-on',
       capacityOf: (table) => tables.get(table)?.capacity,
       figures: figureColumns(m.requiredSchema.tables),
       mailsOnCreate: (table) => (m.outbox?.producers ?? []).some((producer) => 'onCreate' in producer && producer.onCreate.table === table),
@@ -4475,16 +4476,49 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     if (linkKey === 'customer') out.push({ path: ['publicKeys', linkKey], message: 'an add-on has no "customer" key: its one key is a link\'s, under a name of its own' });
     const key = (m.publicKeys ?? {})[linkKey];
     for (const field of ['requiresStaff', 'enabledBy', 'peak'] as const) {
-      if (key?.[field] !== undefined) out.push({ path: ['publicKeys', linkKey, field], message: `an add-on's key opens one row by its link and only reads: it takes no "${field}"` });
+      if (key?.[field] !== undefined) out.push({ path: ['publicKeys', linkKey, field], message: `an add-on's key opens one row by its link: it takes no "${field}"` });
     }
   }
+  /*
+   * The link key's own link (`own: true`): emailed to the row's own address
+   * or handed once to whoever made the row, it may also change that row (a
+   * shopper's saved draft), within what its entry names and only while the row
+   * is in a state the entry names. Any other link only reads.
+   */
+  const ownLink = (m.publicAccess ?? []).some((entry) => entry.key !== undefined && entry.key === linkKey && entry.claim !== undefined && 'by' in entry.claim && entry.claim.own === true);
+  /** The columns of each table an entry holds to the app whose key serves it: never moved by a link. */
+  const heldTo = new Map<string, string>();
+  for (const entry of m.publicAccess ?? []) if (entry.appColumn !== undefined) heldTo.set(entry.table, entry.appColumn);
   (m.publicAccess ?? []).forEach((entry, e) => {
+    /*
+     * A read for a session's holder alone, on each app's key: whoever the app
+     * signed in (a guest who found their order) reads one row by its own code
+     * (a design's code, which the order's lines hold) and nothing else. Never
+     * a list: everyone the app signs in would read every row.
+     */
+    if (entry.key === undefined && entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined) {
+      if (entry.unlockBy === undefined || !('self' in entry.unlockBy)) {
+        out.push({ path: ['publicAccess', e, 'unlockBy'], message: "an add-on's read for whoever an app signed in opens one row by its own code: give it unlockBy {\"header\": true, \"column\": …, \"self\": true, \"length\": …}" });
+      }
+    }
     if (entry.key === undefined) return;
     if (entry.key !== linkKey) {
       out.push({ path: ['publicAccess', e, 'key'], message: `an add-on's entry is served through its app's key, or through the add-on's own link key${linkKey === undefined ? '' : ` "${linkKey}"`}: "${entry.key}" is neither` });
       return;
     }
-    if (entry.methods.some((method) => method !== 'GET')) out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row to whoever holds its link, so it only reads` });
+    // A link that is not the row's own only reads: the key rules every manifest meets say so (`publicAccessIssues`).
+    if (ownLink && entry.methods.some((method) => method !== 'GET' && method !== 'PATCH')) {
+      out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row as its own link, which reads it and changes it, and makes no row` });
+    }
+    if (entry.methods.includes('PATCH')) {
+      // Changed only while it is in a state it names: an ordered design is the order's, never the shopper's to change.
+      const states = Object.values(entry.writableWhen ?? {}).some((when) => Array.isArray(when));
+      if (!states) out.push({ path: ['publicAccess', e, 'writableWhen'], message: `a row changed through "${linkKey}" is changed only while it is in a state the entry names: give it writableWhen, e.g. {"state": ["draft"]}` });
+      const held = heldTo.get(entry.table);
+      if (held !== undefined && ((entry.writable ?? []).includes(held) || Object.prototype.hasOwnProperty.call(entry.writableValues ?? {}, held))) {
+        out.push({ path: ['publicAccess', e, 'writable'], message: `"${entry.table}.${held}" holds the app a row is for (appColumn), so no link moves it` });
+      }
+    }
     const claim = entry.claim;
     if (claim === undefined) {
       // Whoever holds a link reads that one row and what hangs under it: nothing on the key is open to everyone.
@@ -4493,8 +4527,8 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
       }
       return;
     }
-    if (!('by' in claim) || claim.by !== 'token' || claim.own === true) {
-      out.push({ path: ['publicAccess', e, 'claim'], message: 'an add-on\'s link key claims by token, and never as the row\'s own link that may change it' });
+    if (!('by' in claim) || claim.by !== 'token') {
+      out.push({ path: ['publicAccess', e, 'claim'], message: 'an add-on\'s link key claims by token' });
       return;
     }
     const token = byRef.get(entry.table)?.columns.find((column) => column.ref === claim.column);

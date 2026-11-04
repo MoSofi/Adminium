@@ -223,6 +223,11 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   // loaded by every visitor's browser.
   'file.assetKinds',
   'publicAccess.assets',
+  // An add-on's link key opening its row as the row's own link, which may change it while it is in a state; an add-on's
+  // read for a session the app's own sign-in opened; a copy of a person's other details (a design's words, in JSON).
+  'publicAccess.ownLink',
+  'publicAccess.sessionRead',
+  'people.copyDetails',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -428,6 +433,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // A cleaned SVG, a model and a web font in a file column, and an entry's product assets: read by the same release.
   'file.assetKinds': '0.3.43',
   'publicAccess.assets': '0.3.43',
+  // A guest's draft changed in place through its own link, a design read by its code inside a session, and a copy of
+  // a person's words kept as JSON: read by the same release.
+  'publicAccess.ownLink': '0.3.43',
+  'publicAccess.sessionRead': '0.3.43',
+  'people.copyDetails': '0.3.43',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -484,6 +494,14 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (isDoc(value) && (value['token'] === 'recordTable' || value['token'] === 'recordKey')) out.push({ word: 'step.recordTokens', path: `${at}.writes.values.${column}` });
       }
     });
+    // Its link key opening a row as the row's own link; a read for a session of the app's own sign-in.
+    list(document['publicAccess']).forEach((entry, e) => {
+      if (!isDoc(entry)) return;
+      if (isDoc(entry['claim']) && entry['claim']['own'] === true) out.push({ word: 'publicAccess.ownLink', path: `publicAccess.${String(e)}.claim.own` });
+      if (entry['level'] !== undefined && entry['claim'] === undefined && entry['claimedBy'] === undefined && entry['visibleWith'] === undefined) {
+        out.push({ word: 'publicAccess.sessionRead', path: `publicAccess.${String(e)}.level` });
+      }
+    });
     // An amount Adminium decides for a ledger's action (what a card may pay).
     list(block['ledgers']).forEach((ledger, l) => {
       for (const [name, action] of Object.entries(isDoc(ledger) && isDoc(ledger['actions']) ? ledger['actions'] : {})) {
@@ -514,6 +532,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     list(document['people']).forEach((entry, e) => {
       list(isDoc(entry) ? entry['copies'] : undefined).forEach((copy, c) => {
         if (isDoc(copy) && copy['addOn'] !== undefined) out.push({ word: 'people.addOnCopies', path: `people.${String(e)}.copies.${String(c)}.addOn` });
+        if (isDoc(copy) && copy['holds'] === 'details') out.push({ word: 'people.copyDetails', path: `people.${String(e)}.copies.${String(c)}.holds` });
       });
     });
   }
