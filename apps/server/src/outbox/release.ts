@@ -28,6 +28,14 @@
  * it cannot skip a waiting message. So the link is emptied here, where the
  * row is removed through Adminium; a row removed by a statement Adminium did
  * not write is still refused by the database while a message names it.
+ *
+ * A TABLE WHOSE ROWS EXPIRE. An add-on that says its rows go after a time
+ * (`expire`: a shopper's design never ordered) says with it that they may go
+ * whatever was mailed about them, so every link of every outbox that points
+ * at such a table lets go the same way, on every removal of its rows: the
+ * daily expiry, a staff delete, a guest deleting their own draft. A message
+ * already sent stays in the log as it was sent (kind, address, when it went);
+ * one not sent yet is skipped, never sent about a row that is gone.
  */
 import { removalTableOf, type Outbox } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
@@ -89,6 +97,39 @@ export function releasedLinksOf(definition: Outbox, tableId: string, keyOf: (out
     });
   }
   return [...out.values()];
+}
+
+/**
+ * The links of one outbox that let go of the rows of a table whose rows
+ * EXPIRE (`expire` on an add-on's table: a design never ordered goes 90 days
+ * after its last change): every link column of the outbox that points at
+ * `tableId`, whatever its producers listen for. A message about such a row
+ * must never keep it: a design whose private link was mailed once would
+ * otherwise be kept for ever, words and photos with it. `pointsAt` answers
+ * the table a column of the outbox points at.
+ */
+export function expiringLinksOf(definition: Outbox, tableId: string, keyOf: (outbox: string) => string | undefined, pointsAt: (outbox: string, column: string) => string | undefined): ReleasedLink[] {
+  const key = keyOf(definition.table);
+  if (key === undefined) return [];
+  const columns = new Set([...Object.values(definition.links ?? {}), ...(definition.producers ?? []).map((producer) => producer.link)]);
+  const cols = definition.columns;
+  return [...columns]
+    .filter((column) => pointsAt(definition.table, column) === tableId)
+    .map((link) => ({
+      outbox: definition.table,
+      key,
+      link,
+      status: cols.status,
+      ...(cols.skipReason === undefined ? {} : { skipReason: cols.skipReason }),
+      ...(cols.error === undefined ? {} : { error: cols.error }),
+    }));
+}
+
+/** The links of `more` not already in `links` (the same outbox and column), added to them. */
+export function withLinks(links: readonly ReleasedLink[], more: readonly ReleasedLink[]): ReleasedLink[] {
+  const out = [...links];
+  for (const link of more) if (!out.some((one) => one.outbox === link.outbox && one.link === link.link)) out.push(link);
+  return out;
 }
 
 /**

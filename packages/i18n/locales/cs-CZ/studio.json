@@ -168,6 +168,7 @@
       "through": "Vaši zákazníci se k němu dostanou přes veřejný klíč aplikace, ke které je připojen: {refs}.",
       "link": "Vytvoří si vlastní klíč pro odkazy: kdo má odkaz, otevře právě ten jeden záznam a může ho jen číst.",
       "ownLink": "Vytvoří vlastní klíč odkazu: kdo má vlastní odkaz záznamu, otevře právě tento záznam a smí změnit jeho část, dokud je ve stavu, který doplněk uvádí.",
+      "ownLinkRemove": "Vytvoří vlastní klíč odkazu: kdo má vlastní odkaz záznamu, otevře právě tento záznam a smí změnit jeho část nebo ho smazat, dokud je ve stavu, který doplněk uvádí.",
       "allow": "Povolit veřejný přístup",
       "allowHelp": "Bez zaškrtnutí se veřejnosti nic neotevře. Povolit to můžete později.",
       "cannot": "Povolit to může jen ten, kdo smí spravovat klíče API.",

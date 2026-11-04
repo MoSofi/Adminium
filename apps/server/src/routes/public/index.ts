@@ -56,6 +56,8 @@ import { registerPictures } from './pictures.js';
 import { registerUploads } from './uploads.js';
 import type { PublicUploads } from '../../public-uploads/store.js';
 import type { ColumnUploads, HeldUploads, UploadRow } from '../../public-uploads/columns.js';
+import { ruledBlocksOf } from '../../files/column-blocks.js';
+import type { FileReconciler } from '../../files/reconcile.js';
 import { registerAssets } from './assets.js';
 import { cardInputs, CODE_HEADER, GuessesSpent, guessRung, treeRung, writeRung, type WriteRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
@@ -319,6 +321,8 @@ export interface PublicRoutesDeps {
    * names them. Absent = no upload route, and a write names no guest's file.
    */
   uploads?: { store: PublicUploads; columns: ColumnUploads } | undefined;
+  /** The bin a removed row's files go to, as a staff delete sends them; absent, only the row goes. */
+  files?: Pick<FileReconciler, 'trashForRecord'> | undefined;
 }
 
 /**
@@ -3882,6 +3886,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * 404, with no audit row and nothing announced. A foreign key the database
      * enforces is the one opaque `PUBLIC_WRITE_REFUSED`, no constraint name.
      * The reply is `{ data: {} }`, as `DELETE /public/session` answers.
+     *
+     * A row removed only in the state its endpoint names (`writable_when`, a
+     * draft) is held to it in the same WHERE, as a change is: an ordered
+     * design is the same 404 as a design that is not there. A removal gives
+     * no reason. The row's files go to the bin, as a staff delete sends them.
      */
     app.delete(
       '/public/records/:ref/:id',
@@ -3912,7 +3921,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
         }
 
-        const predicate = found.predicate;
+        const predicate = combinePredicates(found.predicate, updatableState(found.resource, found.table, ok.key.scope.timezone));
         const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
           predicate === null
             ? query
@@ -3997,6 +4006,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 reason: null,
                 by: { kind: 'api-key', id: null, label: `public:${ok.key.keyId}` },
               });
+              // What the row owned goes with it: its files to the bin, as a staff delete sends them.
+              if (before !== null) await deps.files?.trashForRecord({ connectionId: ok.key.connectionId, table: found.table.id, entity: deletedRef, row: before, ruled: ruledBlocksOf(found.table.columns.values()) });
             },
           });
         } catch (error) {

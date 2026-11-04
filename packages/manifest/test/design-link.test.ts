@@ -102,7 +102,7 @@ describe("a design changed in place through its own link (an add-on's own link k
   it('a link that is not the row\'s own still only reads, and the own link makes no row', () => {
     const shared = { ...OWN, claim: { by: 'token', column: 'link_token' } };
     expect(issues(kit([{ ...SAVE, shareLink: undefined }, shared])).join('\n')).toContain(`"${LINK_KEY}" opens a row to whoever holds its link, so it only reads`);
-    expect(issues(kit([SAVE, { ...OWN, methods: ['GET', 'PATCH', 'POST'] }])).join('\n')).toContain(`"${LINK_KEY}" opens a row as its own link, which reads it and changes it, and makes no row`);
+    expect(issues(kit([SAVE, { ...OWN, methods: ['GET', 'PATCH', 'POST'] }])).join('\n')).toContain(`"${LINK_KEY}" opens a row as its own link, which reads it, changes it and removes it, and makes no row`);
   });
 
   it('is a word of its floor: an older floor is told to rise', () => {
@@ -111,6 +111,42 @@ describe("a design changed in place through its own link (an add-on's own link k
     const old = validateManifest({ ...kit(), compatibility: { minAdminiumVersion: '0.3.42' } });
     expect(old.ok).toBe(false);
     expect(JSON.stringify(old)).toContain('0.3.43');
+  });
+});
+
+describe('a draft removed through its own link (DELETE)', () => {
+  const REMOVES = { ...OWN, methods: ['GET', 'PATCH', 'DELETE'] };
+
+  it('the own link may also remove its row while it is in a named state: taken, and a word of its floor', () => {
+    expect(issues(kit([SAVE, REMOVES]))).toEqual([]);
+    expect(issues(kit([SAVE, { ...OWN, methods: ['GET', 'DELETE'], writable: undefined }]))).toEqual([]);
+    expect(WORD_FLOORS['publicAccess.ownDelete']).toBe(FLOOR);
+    expect(installFloorWords(kit([SAVE, REMOVES])).map((found) => found.word)).toContain('publicAccess.ownDelete');
+    const old = validateManifest({ ...kit([SAVE, REMOVES]), compatibility: { minAdminiumVersion: '0.3.42' } });
+    expect(old.ok).toBe(false);
+  });
+
+  it('a removal with no state it is held to is refused: an ordered design is the order\'s', () => {
+    const { writableWhen: _when, ...loose } = REMOVES;
+    expect(issues(kit([SAVE, loose]))).toContain(`publicAccess.1.writableWhen: a row changed or removed through "${LINK_KEY}" is changed or removed only while it is in a state the entry names: give it writableWhen, e.g. {"state": ["draft"]}`);
+    const { writableWhen: _also, writable: _none, ...bare } = { ...OWN, methods: ['GET', 'DELETE'] };
+    expect(issues(kit([SAVE, bare])).join('\n')).toContain(`a row removed through "${LINK_KEY}" is removed only while it is in a state the entry names`);
+  });
+
+  it('a link that is not the row\'s own, and any entry of an app\'s key, removes nothing', () => {
+    const shared = { ...REMOVES, claim: { by: 'token', column: 'link_token' } };
+    expect(issues(kit([{ ...SAVE, shareLink: undefined }, shared])).join('\n')).toContain("DELETE is allowed only on an add-on's own link");
+    // The kit's entries on each app's key: a create, or a read by code, never a removal.
+    expect(issues(kit([{ ...SAVE, methods: ['POST', 'DELETE'] }, OWN])).join('\n')).toContain("DELETE is allowed only on an add-on's own link");
+    expect(issues(kit([SAVE, OWN, { ...BY_CODE, methods: ['GET', 'DELETE'] }])).join('\n')).toContain("DELETE is allowed only on an add-on's own link");
+  });
+
+  it("an app's own link removes nothing: only an add-on's does", () => {
+    const own = { table: 'orders', key: 'order-link', methods: ['GET', 'DELETE'], select: ['id'], writableWhen: { note: [null] }, claim: { by: 'token', column: 'link_code', own: true, address: 'email' } };
+    const doc = shop([]);
+    const tables = (doc['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] }).tables;
+    tables.find((table) => table.ref === 'orders')!.columns.push({ ref: 'link_code', type: 'text', maxLength: 16, nullable: true, rules: { code: { length: 16 } } });
+    expect(appIssues({ ...doc, publicKeys: { 'order-link': {} }, publicAccess: [own] }).join('\n')).toContain("DELETE is allowed only on an add-on's own link");
   });
 });
 

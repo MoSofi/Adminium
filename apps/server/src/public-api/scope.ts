@@ -1373,12 +1373,20 @@ export function compileScope(
        */
       if (doc.claim.strategy === 'token') {
         for (const r of doc.resources) {
-          // The owner's own link reads and changes; it creates only rows that belong to the one it opens.
-          const allowed = doc.claim.own === true ? (action: PublicAction) => action === 'read' || action === 'update' || (action === 'create' && r.visibleWith !== undefined) : (action: PublicAction) => action === 'read';
+          /*
+           * The owner's own link reads and changes; it creates only rows that
+           * belong to the one it opens, and removes only the row it opens,
+           * while that row is in a state the resource lists (a draft).
+           */
+          const removes = r.ref === doc.claim.ref && r.visibleWith === undefined && Object.values(r.writableWhen ?? {}).some((when) => Array.isArray(when));
+          const allowed =
+            doc.claim.own === true
+              ? (action: PublicAction) => action === 'read' || action === 'update' || (action === 'create' && r.visibleWith !== undefined) || (action === 'delete' && removes)
+              : (action: PublicAction) => action === 'read';
           if (r.actions.some((action) => !allowed(action))) {
             issues.push({
               code: 'SCOPE_CLAIM_TOKEN_READ_ONLY',
-              message: doc.claim.own === true ? `"${r.ref}" is opened by the row's own link, so it reads, changes, and makes only child rows` : `"${r.ref}" is opened by a shared link, so it only reads`,
+              message: doc.claim.own === true ? `"${r.ref}" is opened by the row's own link, so it reads, changes, makes only child rows, and removes only its own row while it is in a state it lists` : `"${r.ref}" is opened by a shared link, so it only reads`,
               ref: r.ref,
             });
           }

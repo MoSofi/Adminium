@@ -10,7 +10,10 @@
  *    reaches the claimant's own row alone), and only while its `writable`
  *    names no column Adminium decides — a copied price, a code, a running
  *    number, a total, a stamp;
- *  - never PUT, DELETE or BATCH (a batch updates every row the key reaches).
+ *  - DELETE only on a row's own link (`identity.own`) held to a state its
+ *    `writable_when` lists: an add-on's link key, whose holder removes their
+ *    own saved draft and nothing else, never once it is ordered;
+ *  - never PUT or BATCH (a batch updates every row the key reaches), nor DELETE elsewhere.
  * And an anonymous create never also offers GET: the single-row read by id
  * would let anyone read every booking by guessing ids.
  *
@@ -55,6 +58,14 @@ const unsafe = (ref: string, message: string, column?: string): ScopeIssue => ({
 const claimGated = (definition: PublicEndpointDefinition) => definition.auth.role === 'authenticated';
 
 /**
+ * A removal a managed key may hold: through a row's own link (its holder's
+ * own row alone), only while the row is in a state the endpoint lists.
+ */
+function ownRemoval(definition: PublicEndpointDefinition): boolean {
+  return claimGated(definition) && definition.identity?.strategy === 'token' && definition.identity.own === true && Object.values(definition.writable_when ?? {}).some((when) => Array.isArray(when));
+}
+
+/**
  * Why a managed key may not hold `methods` on this endpoint, or nothing.
  * `decided` names the source table's columns Adminium decides.
  */
@@ -66,6 +77,7 @@ export function managedGrantIssues(
 ): ScopeIssue[] {
   const out: ScopeIssue[] = [];
   for (const method of methods) {
+    if (method === 'DELETE' && ownRemoval(definition)) continue;
     if (NEVER.has(method)) out.push(unsafe(ref, `an app’s own key may not hold ${method} on "${ref}"`));
   }
   if (methods.includes('PATCH')) {

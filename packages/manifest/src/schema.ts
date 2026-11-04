@@ -4483,7 +4483,8 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
    * The link key's own link (`own: true`): emailed to the row's own address
    * or handed once to whoever made the row, it may also change that row (a
    * shopper's saved draft), within what its entry names and only while the row
-   * is in a state the entry names. Any other link only reads.
+   * is in a state the entry names, and remove it (`DELETE`) on the same terms.
+   * Any other link only reads.
    */
   const ownLink = (m.publicAccess ?? []).some((entry) => entry.key !== undefined && entry.key === linkKey && entry.claim !== undefined && 'by' in entry.claim && entry.claim.own === true);
   /** The columns of each table an entry holds to the app whose key serves it: never moved by a link. */
@@ -4507,13 +4508,16 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
       return;
     }
     // A link that is not the row's own only reads: the key rules every manifest meets say so (`publicAccessIssues`).
-    if (ownLink && entry.methods.some((method) => method !== 'GET' && method !== 'PATCH')) {
-      out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row as its own link, which reads it and changes it, and makes no row` });
+    if (ownLink && entry.methods.some((method) => method !== 'GET' && method !== 'PATCH' && method !== 'DELETE')) {
+      out.push({ path: ['publicAccess', e, 'methods'], message: `"${linkKey}" opens a row as its own link, which reads it, changes it and removes it, and makes no row` });
+    }
+    if (entry.methods.includes('PATCH') || entry.methods.includes('DELETE')) {
+      // Changed or removed only while it is in a state it names: an ordered design is the order's, never the shopper's.
+      const states = Object.values(entry.writableWhen ?? {}).some((when) => Array.isArray(when));
+      const done = entry.methods.includes('PATCH') ? (entry.methods.includes('DELETE') ? 'changed or removed' : 'changed') : 'removed';
+      if (!states) out.push({ path: ['publicAccess', e, 'writableWhen'], message: `a row ${done} through "${linkKey}" is ${done} only while it is in a state the entry names: give it writableWhen, e.g. {"state": ["draft"]}` });
     }
     if (entry.methods.includes('PATCH')) {
-      // Changed only while it is in a state it names: an ordered design is the order's, never the shopper's to change.
-      const states = Object.values(entry.writableWhen ?? {}).some((when) => Array.isArray(when));
-      if (!states) out.push({ path: ['publicAccess', e, 'writableWhen'], message: `a row changed through "${linkKey}" is changed only while it is in a state the entry names: give it writableWhen, e.g. {"state": ["draft"]}` });
       const held = heldTo.get(entry.table);
       if (held !== undefined && ((entry.writable ?? []).includes(held) || Object.prototype.hasOwnProperty.call(entry.writableValues ?? {}, held))) {
         out.push({ path: ['publicAccess', e, 'writable'], message: `"${entry.table}.${held}" holds the app a row is for (appColumn), so no link moves it` });

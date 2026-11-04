@@ -523,7 +523,8 @@ export const publicAccessSchema = z
   .object({
     table: refSchema,
     kind: z.enum(['records', 'availability']).optional(),
-    methods: z.array(z.enum(['GET', 'POST', 'PATCH'])).min(1),
+    /** `DELETE` only on an add-on's own link: its holder removes their own row while it is in a state the entry names. */
+    methods: z.array(z.enum(['GET', 'POST', 'PATCH', 'DELETE'])).min(1),
     select: z.array(refSchema).optional(),
     writable: z.array(refSchema).optional(),
     filters: z.array(z.union([valueFilterSchema, relativeFilterSchema])).optional(),
@@ -1197,6 +1198,15 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (patches && entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true)) {
       out.push({ path: at('methods'), message: 'PATCH is allowed only with a claim' });
     }
+    /*
+     * A removal from a browser: only through an add-on's own link (a shopper
+     * deleting their own saved draft), on the entry that opens the row by it.
+     * Nothing else a guest holds removes a row.
+     */
+    if (entry.methods.includes('DELETE')) {
+      const ownLink = ctx.ridesAppKeys === true && entry.key !== undefined && entry.claim !== undefined && 'by' in entry.claim && entry.claim.own === true;
+      if (!ownLink) out.push({ path: at('methods'), message: "DELETE is allowed only on an add-on's own link, the entry that opens the row by it (claim by token, own)" });
+    }
     // Nothing a server decides may be written by a browser.
     const decided = ctx.decided(entry.table);
     for (const ref of writable) {
@@ -1470,7 +1480,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
           [when.after, when.before].some((end) => end !== undefined) &&
           [when.after, when.before].every((end) => end === undefined || end.column !== undefined),
       );
-    if (entry.writableWhen !== undefined && !patches && !createWindow) {
+    if (entry.writableWhen !== undefined && !patches && !entry.methods.includes('DELETE') && !createWindow) {
       out.push({ path: at('writableWhen'), message: "writableWhen limits a change, and this entry changes nothing (a child's create takes a window read from its parent, keyed by the link)" });
     }
     for (const [ref, when] of Object.entries(entry.writableWhen ?? {})) {

@@ -1085,6 +1085,21 @@ describe('AddOnsPage', () => {
       expect(within(dialog).queryByText(/can only read it/)).toBeNull();
     });
 
+    it('a record\'s own link that may also delete it is said so', async () => {
+      const user = userEvent.setup();
+      const own = { ...PUBLIC(true), endpoints: [PUBLIC(true).endpoints[0]!, { ref: 'cards_kit_cards_claimed', table: 'cards', methods: ['GET', 'PATCH', 'DELETE'], key: 'cards-link' }] };
+      const respond: NonNullable<StubOptions['respond']> = (method, url) =>
+        method === 'GET' && url.endsWith('/holiday-calendars/plan')
+          ? { status: 200, body: { plan: makePlan({ touchesData: true, create: [{ ref: 'cards', columns: [] }] }), connectionId: 'conn_shop', connectionName: 'Shop', checksum: 'sum-1', publicAccess: own } }
+          : undefined;
+      await renderPage({ respond });
+      await user.click(await screen.findByRole('button', { name: 'Install' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(await within(dialog).findByText(/may change some of it or delete it while it is in a state the add-on names/)).toBeTruthy();
+      expect(within(dialog).queryByText(/can only read it/)).toBeNull();
+      expect(within(dialog).queryByText(/may change some of it while it is in a state/)).toBeNull();
+    });
+
     it('ticked, the install says so', async () => {
       const user = userEvent.setup();
       const { calls } = await renderPage({ respond: checked(true) });
