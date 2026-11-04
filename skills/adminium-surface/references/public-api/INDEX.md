@@ -10,4 +10,4 @@
 | `references/public-api/keys.md` | Keys | 1894 |
 | `references/public-api/calling-the-api.md` | Calling the API | 6562 |
 | `references/public-api/keys-for-your-own-scripts.md` | Keys for your own scripts | 979 |
-| `references/public-api/routes.md` | The public API: every route | 3928 |
+| `references/public-api/routes.md` | The public API: every route | 4115 |

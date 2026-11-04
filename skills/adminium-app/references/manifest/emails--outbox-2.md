@@ -44,6 +44,13 @@ Adminium, also while the app is switched off; a row removed by SQL of your own i
 the database while a message names it. Nothing is altered in the database for it, so an install
 made before this word gets it with the update that adds the producer.
 
+A table whose rows [expire](https://docs.adminium.dev/reference/manifest/#rows-that-expire) (an add-on's) is never held by its messages either,
+with no producer to name it: every link of every outbox that points at it lets go the same way, on
+its daily expiry and on every other removal made through Adminium (a staff delete, a shopper
+deleting their own draft). A message already sent stays in the log as it was sent (its kind, its
+address, when it went), naming no row; one not sent yet is skipped, never sent about a row that is
+gone. Needs Adminium 0.3.43.
+
 ```json
 { "kind": "visit-cancelled", "link": "visit_id",
   "onDelete": { "table": "visits" },

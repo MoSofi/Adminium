@@ -1,5 +1,25 @@
 # @adminium/dashboard
 
+## 0.3.43
+
+### Patch Changes
+
+- eaf2012: An app binds an add-on from its own side: a table with a link column into one of the add-on's tables (`addOnLink`) is one of the add-on's hosts, listed to its pages (`via: "link"`) and shown its record tabs. An add-on at `minAdminiumVersion` 0.3.43 or later names only its own tables in a foreign key's `references`; an older one keeps pointing at the database's tables. An add-on installed with plain table names before its tables were recorded is refused an update to a version under its own prefix (`409` `ADD_ON_BARE_TABLES`, naming the tables), so no rows are left behind beside new empty tables.
+- 5ad24d8: An add-on's own page puts a file into a file column of one of its own rows: `useUpload(table, column)` in the data kit uploads the bytes through the files route, judged by the column's rule as a record form's upload is, then saves the row with the file, which is when the file becomes the row's; a file whose save is refused is thrown away at once. The upload's reply for an SVG says what the cleaner took out of it (`removed`: `<script>`, `onload`, `inkscape:*` for all of an editor's notes), so a page can say "We removed …". An add-on page reads the price an app keeps for one of its rows on the app's own table that links to it, with the reader's own grant: documented in the add-on guide.
+- 7296807: A shop's product assets: a file column may take a cleaned SVG (`svg`, kept only as Adminium writes it again from its own tree, with no script, event handler, outside link or foreign namespace), 3D models (`glb`, `stl`, `3mf`) and web fonts (`woff2`), each read whole as it is uploaded and refused when it is not what it says (a GLB pointing outside itself or needing Draco or meshopt, a zip renamed 3MF, a 3MF declaring more than it may unpack). A public entry's new `assets` list serves such columns to every visitor's browser at `GET /api/v1/public/assets/…`, on the pictures route's terms, each kind held to its own size (a model 30 MiB, a font or an SVG 2 MiB). `assetUrls` in the public client builds their addresses.
+- 9701769: A column rule `band` fills a link with the band a number of the row falls in: of the band table's rows within `scope` whose `min` is at most `value`, the one with the greatest `min` (a line's quantity among its product's price breaks; an order's weight among the delivery bands). No row leaves the link empty; past the picked row's `max` the write is refused (`out-of-range` on the number's column, `PUBLIC_WRITE_REFUSED` with that reason through the public API) or, with `over: "empty"`, the link is left empty. A number the write sets is placed before the copies that read through the link; a formula of the row after the formulas; a total of child rows in the parent's settle, so the delivery price follows the order's weight on a create with lines, a line added or removed, and a quote. Only Adminium writes the link.
+- 86a86dc: A stamp may write a date so many working days on: `set: { addWorkingDays: { from, days, map?, weekdays, cutoff?, closures? } }`. The order is received on the venue's day of `from` (`now`, or a date or moment of the row) when that is a working day before the cut-off, else on the next working day; the date is the `days`-th working day after it. The working week and the cut-off are stated, or name one of the app's own `string` settings (a saved value nobody can read falls back to the declared default; with none the write is refused `unreadable-setting`, never counted in calendar days). A closures table's active rows are read in the write itself, so a quote gives the date the save stores. More than 400 working days is refused `out-of-range`. Studio's column inspector names the rule.
+- Updated dependencies [5ad24d8]
+- Updated dependencies [342b923]
+- Updated dependencies [86a86dc]
+  - @adminium/add-on-contracts@0.3.43
+  - @adminium/i18n@0.3.43
+  - @adminium/widgets@0.3.43
+  - @adminium/charts@0.3.43
+  - @adminium/engine@0.3.43
+  - @adminium/tokens@0.3.43
+  - @adminium/ui@0.3.43
+
 ## 0.3.42
 
 ### Patch Changes

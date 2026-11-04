@@ -83,17 +83,3 @@ document's tax and total.
 ```
 
 An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
-
-| Expression | Value |
-|---|---|
-| `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
-| `{ "sub": [a, b] }` | `a − b`. |
-| `{ "mul": [a, b, …] }` | The product of 2–8 expressions. |
-| `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
-| `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
-| `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
-| `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
-| `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
-| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments). |
-| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
-| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |

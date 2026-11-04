@@ -54,6 +54,14 @@ table's rows hold, changes nothing. This applies to every removal made through A
 while the app is switched off. A row removed by SQL of your own is still refused while a message
 names it. A table with no `onDelete` producer keeps the old rule: its messages hold its rows.
 
+A table whose rows [expire](https://docs.adminium.dev/reference/manifest/#rows-that-expire) is the other exception, with no
+producer to name it: an add-on that keeps a shopper's design for 90 days after its last change
+mails the design's private link, and that mail must never keep the design for ever. Every link of
+every outbox that points at such a table lets go as above, on the daily expiry and on every other
+removal made through Adminium (a staff delete, a shopper deleting their own draft through its
+link). The sent mail stays in the log as it was sent; one still waiting is skipped, never sent
+about a design that is gone. Needs Adminium 0.3.43.
+
 ### What a removal does not do
 
 - **No message** for a sample row; for a row taken back by the Undo of its creation (nobody is

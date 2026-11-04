@@ -6,7 +6,7 @@
 |---|---|---|
 | `references/errors/overview.md` | Error codes | 455 |
 | `references/errors/the-two-envelopes.md` | The two envelopes | 2266 |
-| `references/errors/public-api-codes.md` | Public API codes | 4880 |
+| `references/errors/public-api-codes.md` | Public API codes | 5161 |
 | `references/errors/public-api-codes--a-lost-race.md` | Public API codes — A lost race | 1481 |
 | `references/errors/public-api-codes--full-sold-out-no-room.md` | Public API codes — Full, sold out, no room | 1963 |
 | `references/errors/public-api-codes--too-early-and-too-late.md` | Public API codes — Too early and too late | 1481 |
@@ -21,6 +21,7 @@
 | `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2155 |
 | `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 4809 |
 | `references/errors/staff-and-api-key-write-codes--a-refused-price.md` | Staff and API-key write codes — A refused price | 1581 |
+| `references/errors/staff-and-api-key-write-codes--a-refused-design.md` | Staff and API-key write codes — A refused design | 1691 |
 | `references/errors/staff-and-api-key-write-codes--validation-failed.md` | Staff and API-key write codes — VALIDATION_FAILED | 2335 |
 | `references/errors/staff-and-api-key-write-codes--unique-violation.md` | Staff and API-key write codes — UNIQUE_VIOLATION | 589 |
 | `references/errors/staff-and-api-key-write-codes--capacity-full.md` | Staff and API-key write codes — CAPACITY_FULL | 1086 |

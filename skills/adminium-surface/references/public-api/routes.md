@@ -27,6 +27,7 @@ that a route exists and what it answers.
 | `DELETE` | `/api/v1/public-scopes/{id}` |  | 200 |
 | `DELETE` | `/api/v1/public/account` |  | 200, 401, 403, 404, 409, 429, 503 |
 | `GET` | `/api/v1/public/add-ons/{key}/settings` |  | 200, 401, 403, 404, 429, 503 |
+| `GET` | `/api/v1/public/assets/{keyId}/{ref}/{rowId}/{column}/{fileId}` |  | 404, 429, 503 |
 | `GET` | `/api/v1/public/availability/{ref}` |  | 200, 400, 401, 403, 404, 429, 503 |
 | `GET` | `/api/v1/public/challenge` |  | 200, 400, 401, 429, 503 |
 | `POST` | `/api/v1/public/claim` |  | 200, 401, 403, 429, 503 |
@@ -57,3 +58,4 @@ that a route exists and what it answers.
 | `POST` | `/api/v1/public/records/{ref}/{id}/new-link` |  | 202, 401, 403, 404, 409, 429, 503 |
 | `DELETE` | `/api/v1/public/session` |  | 200, 401, 429, 503 |
 | `POST` | `/api/v1/public/session/revoke-all` |  | 200, 401, 403, 404, 429, 503 |
+| `POST` | `/api/v1/public/uploads` |  | 200, 400, 401, 403, 404, 413, 415, 429, 503, 507 |

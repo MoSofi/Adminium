@@ -61,7 +61,7 @@
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
 | `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |
 | `references/guides/emails--messages-about-changes.md` | Messages about changes | 4152 |
-| `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4293 |
+| `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4950 |
 | `references/guides/emails--sending.md` | Sending | 4071 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1887 |

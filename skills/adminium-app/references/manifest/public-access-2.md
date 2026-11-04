@@ -22,6 +22,7 @@
 | `visibleWith` | no | `{ "table", "via" }`. The entry reaches a row only where the entry on `table` (on the same key) reaches the row it belongs to: an invoice's lines are exactly as visible as the invoice. See [Rows visible with their parent](https://docs.adminium.dev/reference/manifest/#rows-visible-with-their-parent). |
 | `level` | no | `lookup` (the default) or `verified`: the session the entry needs. Only with `claimedBy` or `visibleWith`. |
 | `files` | no | 1–8 `text` columns holding a file, which a signed-in person may download: the file the row names, never one by its id. Each is in `select`. Needs a `claim`, `claimedBy` or `visibleWith`. |
+| `uploads` | no | 1–8 `writable` file columns a guest may upload into, each with a `file.upload` rule ([Guests' uploads](https://docs.adminium.dev/reference/manifest/#guests-uploads)). Also on each level of `children`. A column in both `uploads` and `files` may be written and read back. Needs Adminium 0.3.43. |
 | `documents` | no | 1–8 document kinds (see [Documents](https://docs.adminium.dev/reference/manifest/#documents)) a signed-in person may list and open for the rows the entry reaches. Needs a `claim`, `claimedBy` or `visibleWith`. |
 | `sensitive` | no | Whether the rows need a verified session to see. See [A person's own rows](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows). |
 | `reason` | with `sensitive: false` | Why the entry is not sensitive, 1–200 characters. Only with `sensitive: false`. |
@@ -43,5 +44,3 @@
 | `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](https://docs.adminium.dev/reference/manifest/#delete-my-details). |
 | `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](https://docs.adminium.dev/reference/manifest/#withheld-columns). |
 | `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](https://docs.adminium.dev/reference/manifest/#limits-on-a-guests-change). |
-| `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows). |
-| `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](https://docs.adminium.dev/reference/manifest/#pictures). |

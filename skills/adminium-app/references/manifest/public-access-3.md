@@ -4,6 +4,9 @@
 
 | Field | Required | Rule |
 |---|---|---|
+| `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows). |
+| `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](https://docs.adminium.dev/reference/manifest/#pictures). |
+| `assets` | no | 1–8 file columns of product assets (models, fonts, SVG pieces) any visitor's browser may load. See [Assets](https://docs.adminium.dev/reference/manifest/#assets). Needs Adminium 0.3.43. |
 | `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](https://docs.adminium.dev/reference/manifest/#availability). |
 
 `writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,

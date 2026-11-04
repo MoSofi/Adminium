@@ -2,6 +2,22 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+| Expression | Value |
+|---|---|
+| `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
+| `{ "sub": [a, b] }` | `a − b`. |
+| `{ "mul": [a, b, …] }` | The product of 2–8 expressions. |
+| `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
+| `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
+| `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
+| `{ "ceil": a }` or `{ "ceil": [a, places] }` | `a` rounded up (towards plus infinity), to the column's scale or to `places` (0–4): `ceil(-1.5)` is `-1`. |
+| `{ "floor": a }` or `{ "floor": [a, places] }` | `a` rounded down (towards minus infinity), to the column's scale or to `places` (0–4): `floor(-1.5)` is `-2`. |
+| `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
+| `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
+| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments). |
+| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
+| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |
+
 A condition is one of:
 
 | Condition | Holds when |
@@ -26,6 +42,15 @@ How a formula is worked out:
   column with no `scale` rounds to 0 places when it is an `int` or `bigint`, and to 4 when it is a
   decimal. `round` inside a formula rounds that part early, where the arithmetic calls for it (a
   tax rounded before it is added).
+- **Up or down, when the arithmetic says so.** `ceil` and `floor` round a part up or down on the
+  exact value, so a value already at the scale stays as it is (`2.000` is `2`). A print job's sheets
+  are the quantity over the pieces a sheet holds, rounded up: 250 cards at 24 a sheet are 11 sheets,
+  240 are 10.
+
+  ```json
+  { "ref": "sheets", "type": "int", "nullable": true,
+    "rules": { "formula": { "ceil": { "div": ["qty", "per_sheet"] } } } }
+  ```
 - **Empty in, empty out.** An empty column makes the result empty unless `coalesce` says what to
   read instead: a draft line with no rate yet has no amount, rather than an amount of 0 that looks
   like a price.
@@ -83,37 +108,3 @@ stay from its arrival to its departure. A night the clocks change is still one n
 date, or a `to` before its `from`, leaves the result empty.
 
 #### Joined text
-
-A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
-line's description.
-
-```json
-{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
-  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
-```
-
-A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
-is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
-no, or a time would be spelled differently by each database. An empty column is left out, and so
-is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
-result is trimmed, and empty when every column is. A join is the whole formula of its column,
-never a part of a sum.
-
-A join that reads personal data lands it only in a personal column. A guest's first and last
-names beside their email read as personal by their names, so the joined name needs
-`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
-and a stamp's copy.
-
-#### Numbers without gaps
-
-A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
-`sequence` with `"gapless": true` numbers rows that way.
-
-```json
-{ "ref": "number_seq", "type": "int", "nullable": true,
-  "rules": { "sequence": { "gapless": true,
-                           "startSetting": { "addOn": "invoices", "setting": "number_start_invoice" } } } },
-{ "ref": "number", "type": "text", "maxLength": 24, "nullable": true, "unique": true,
-  "rules": { "format": { "from": "number_seq",
-                         "prefixSetting": { "addOn": "invoices", "setting": "prefix_invoice" }, "pad": 4 } } }
-```

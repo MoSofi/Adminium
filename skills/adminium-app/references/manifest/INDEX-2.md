@@ -4,6 +4,8 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
+| `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
 | `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
 | `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
 | `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1240 |
@@ -12,6 +14,8 @@
 | `references/manifest/public-access--limits-on-a-guest-s-change.md` | Public access — Limits on a guest's change | 1325 |
 | `references/manifest/public-access--codes-that-unlock-rows.md` | Public access — Codes that unlock rows | 1923 |
 | `references/manifest/public-access--pictures.md` | Public access — Pictures | 1198 |
+| `references/manifest/public-access--guests-uploads.md` | Public access — Guests' uploads | 4192 |
+| `references/manifest/public-access--assets.md` | Public access — Assets | 1606 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
@@ -33,16 +37,19 @@
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7784 |
 | `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 3549 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
-| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2726 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 4767 |
+| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
+| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |
 | `references/manifest/add-on-manifests--what-an-app-s-role-may-hold-of-an-add-on-s-table.md` | Add-on manifests — What an app's role may hold of an add-on's table | 2978 |
 | `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5372 |
 | `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
+| `references/manifest/add-on-manifests--the-design-question.md` | Add-on manifests — The design question | 1816 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 2541 |
 | `references/manifest/add-on-manifests--steps-for-automations.md` | Add-on manifests — Steps for Automations | 5011 |
 | `references/manifest/add-on-manifests--what-an-add-on-tells-the-assistant.md` | Add-on manifests — What an add-on tells the assistant | 1646 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
 | `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2828 |
+| `references/manifest/add-on-manifests--a-panel-on-another-table-s-record.md` | Add-on manifests — A panel on another table's record | 2611 |
 | `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
 | `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
 | `references/manifest/validation.md` | Validation | 3648 |

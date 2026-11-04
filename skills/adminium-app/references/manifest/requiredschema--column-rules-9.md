@@ -2,6 +2,40 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
+line's description.
+
+```json
+{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
+  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
+```
+
+A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
+is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
+no, or a time would be spelled differently by each database. An empty column is left out, and so
+is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
+result is trimmed, and empty when every column is. A join is the whole formula of its column,
+never a part of a sum.
+
+A join that reads personal data lands it only in a personal column. A guest's first and last
+names beside their email read as personal by their names, so the joined name needs
+`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
+and a stamp's copy.
+
+#### Numbers without gaps
+
+A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
+`sequence` with `"gapless": true` numbers rows that way.
+
+```json
+{ "ref": "number_seq", "type": "int", "nullable": true,
+  "rules": { "sequence": { "gapless": true,
+                           "startSetting": { "addOn": "invoices", "setting": "number_start_invoice" } } } },
+{ "ref": "number", "type": "text", "maxLength": 24, "nullable": true, "unique": true,
+  "rules": { "format": { "from": "number_seq",
+                         "prefixSetting": { "addOn": "invoices", "setting": "prefix_invoice" }, "pad": 4 } } }
+```
+
 | Field | Rule |
 |---|---|
 | `gapless` | `true`. The column is an `int` or `bigint`, and nullable. |
@@ -96,31 +130,3 @@ The rules that keep a follow sound:
 - a total another table keeps of these rows reads none of what the follow writes, including the
   link it groups by: a follow that moved rows between another table's totals would leave those
   totals behind.
-
-More than 500 rows following one changed row refuse the whole write, `409` `FOLLOW_TOO_MANY`
-(`details.table`, `details.count`), rather than leave some behind. A bulk edit, an import or a
-public batch that would move a paid balance below zero through its followers, or could not write
-them under the caller's role, or would move more than 500, is refused before anything is written:
-`409` `BALANCE_ONE_AT_A_TIME`. Make such changes one row at a time.
-
-A row put back by an undo of its removal takes each copy that always wins (`"mode": "always"`)
-again from the row it copies, as that row is now, with the formulas that read it: a deal's member
-removed and brought back after the deal changed hands names the deal's owner now, not the one it
-was removed under. A copy that only fills a blank comes back as it was. Needs Adminium 0.3.35.
-
-#### Prices by the night
-
-`perNight` works a price out night by night: for each night from `from` up to the day before `to`,
-the base rate read from the row `rate.via` points at, plus every adjustment row that matches that
-night (a weekend, a season). Each night is rounded to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places), and
-the column holds their sum.
-
-```json
-{ "ref": "room_total", "type": "money", "scale": "currency", "nullable": true,
-  "rules": { "perNight": {
-    "from": "arrive", "to": "depart",
-    "rate": { "via": "room_type_id", "column": "base_rate" },
-    "adjust": { "table": "rate_rules",
-                "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
-                "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
-```

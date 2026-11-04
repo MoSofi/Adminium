@@ -47,3 +47,38 @@ rely on them. Uninstalling the app keeps them too; only their link to the app go
 uninstall preview lists them. Only a required add-on's settings may be read by the app's rules (see
 [Values from elsewhere](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere)); a role may be given any named add-on's settings
 (see [Roles](https://docs.adminium.dev/reference/manifest/#roles)).
+
+### Binding an add-on to the app's rows
+
+An app binds an add-on from its own side: a column of the app's table links into a table the
+add-on keeps ([`addOnLink`](https://docs.adminium.dev/reference/manifest/#column-rules)). The add-on never names a table of the app. An order
+line names the shopper's design it was made from, filled only from the design's secret code the
+shopper types (a [`lookup`](https://docs.adminium.dev/reference/manifest/#typed-codes) into the add-on's table), never from a key the browser
+sends:
+
+```json
+{ "ref": "design_code", "type": "text", "maxLength": 40, "nullable": true },
+{ "ref": "design_id", "type": "int", "nullable": true,
+  "rules": { "addOnLink": { "addOn": "customiser", "table": "designs" },
+             "lookup": { "from": "design_code", "table": { "addOn": "customiser", "table": "designs" },
+                         "column": "code" } } }
+```
+
+A public entry lists `design_code` among a line's `writable` columns, never `design_id`: the link
+is Adminium's to fill, so a guest who sends another guest's design key is refused, a code that
+finds no design is refused `unknown` and counts as a guess against the visitor's code tries (see
+[Typed codes](https://docs.adminium.dev/reference/manifest/#typed-codes)), and the right code, typed however a person types it, links the line.
+
+The line's table is then one that hands the add-on rows, as a [posting](https://docs.adminium.dev/reference/manifest/#postings) or a
+[price rule](https://docs.adminium.dev/reference/manifest/#a-price-an-add-on-lowers) makes it: the add-on's pages find it among their tables'
+hosts, and a [tab](https://docs.adminium.dev/reference/manifest/#a-tab-on-another-tables-record) declared `"on": "linked"` shows on its records.
+An add-on's page reads such a table with the reader's own grant on it, and writes nothing there:
+that is how it shows what the app charges for one of its rows (an option row that links to the
+add-on's feature and holds its price). Give the app's role `table:@<ref>:read`, limited with
+`readable` to the link and the price. See
+[Reading an app's prices](https://docs.adminium.dev/guides/add-ons-with-tables/#reading-an-apps-prices).
+
+Two apps may require the same add-on at the same range (`^1.0.0`): both install against one
+install of it, and an update of the add-on within the range is never blocked by either. The add-on
+keeps the rows of both; its [entries](https://docs.adminium.dev/reference/manifest/#an-add-ons-entry-on-each-apps-key) hold each app's key to
+that app's rows.

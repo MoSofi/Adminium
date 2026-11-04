@@ -2,84 +2,99 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A `band` fills a foreign key with the row of a band table a number of this row falls in: a line's
+quantity picks its product's price break, an order's weight its delivery band. A `copy` then takes
+the band's multiplier or price through the link, and the formulas do the rest. The browser never
+names the band row; Adminium picks it.
+
 ```json
-{ "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }
+{ "ref": "break_id", "type": "fk", "references": "price_breaks", "nullable": true,
+  "rules": { "band": { "table": "price_breaks", "min": "min_qty", "value": "qty",
+                       "scope": [{ "column": "product_id", "equals": "product_id" }] } } },
+{ "ref": "multiplier", "type": "decimal", "scale": 4, "nullable": true,
+  "rules": { "copy": { "via": "break_id", "from": "multiplier", "mode": "always" } } },
+{ "ref": "line_total", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "formula": { "round": [{ "mul": ["unit_price", "qty", { "coalesce": ["multiplier", 1] }] }, 2] } } }
 ```
 
 | Field | Rule |
 |---|---|
-| `set` | What is written; see the table below. |
-| `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
-| `clearOnBack` | `true`: emptied again when a move marked [`undo`](https://docs.adminium.dev/reference/manifest/#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
-| `strict` | `true`: the value is always Adminium's, on every door and for every writer, Super Admin included: a value a create, a change, a bulk edit, a rule, the public API or an add-on sends for the column is dropped (the stamp writes it, or the row keeps what it holds), and a line of a brought file that carries one is refused, the column named, in the preview and in the run (a line that leaves it empty is stamped as its bringer). Who ticked "may be e-mailed" and when is never typed. Only history keeps its own: an app's sample data and an undo. Not with a `byOrigin` that leaves staff their own word. Needs Adminium 0.3.35. |
+| `table` | The band table. The rule's own column is a nullable foreign key to it. |
+| `min` | The band table's number column holding each band's lower bound, inclusive. |
+| `max` | Optional: the band table's number column holding its upper bound, inclusive. An empty `max` is a band open above. |
+| `value` | This row's number column placed among the bands: one a write sets (typed, defaulted, copied), a [formula](https://docs.adminium.dev/reference/manifest/#formulas), or a [total](https://docs.adminium.dev/reference/manifest/#totals-and-balances) of child rows. |
+| `scope` | 1–2 `{ "column", "equals" }`: only band rows whose `column` holds what this row's `equals` column holds (this product's breaks). The two columns hold the same thing (the same type, the same table linked). |
+| `over` | What happens to a number past the `max` of its band: `"refuse"` (the default) refuses the write, `"empty"` leaves the link empty. |
 
-What a stamp writes:
+**The pick.** Of the band rows within the scope whose `min` is at most the number, the one with the
+greatest `min`. Coasters with breaks at 1, 4, 8 and 12: a quantity of 3 picks the 1-row, 4 the
+4-row, 11 the 8-row, 12 the 12-row. No row at or below the number (a product with no breaks, a
+line with no product yet, an empty number) leaves the link empty, and what is copied through it
+is emptied too: `coalesce` in the formula says what that means ("multiplier 1"). The number is
+compared exactly, as a formula counts, on every engine.
 
-| `set` | Writes | Column |
-|---|---|---|
-| `"now"` | The moment. | `timestamptz` |
-| `"today"` | Today's date on the venue's calendar. | `date` |
-| `"user-name"`, `"user-id"` | Who made the write. | `text` |
-| `{ "byOrigin": { "public", "staff"? } }` | One value for a write through the public API and another for everyone else. With no `staff`, a staff write keeps the value its writer chose (a desk records how a client approved; the portal always says "portal"). Each value must fit the column. | `text` or `enum` |
-| `{ "copy": column }` | Another column of the same row, as it stands at that moment: a client's first answer, kept when they edit it later. Both columns have the same type. | any |
-| `{ "claim": column, "staff"? }` | A column of the signed-in person's own row (their email, their name), on a public write. `column` is a column of a table the app's people sign in as (an entry with a [`claim`](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows)). `staff` is `"user-name"` or `"user-id"`: what a staff write stamps instead. | `text` |
-| `{ "addDays": { "date", "days", "map"? } }` | A date so many days after `date`, a `date` or `timestamptz` column of the row: a due date from the issue date and the terms. `days` is a number (0–3650) or a column: an `int`, or an enum or text column with `map` giving each of its values its days. | `date` |
-| `{ "hashOf": { "columns", "children"?, "linked"? } }` | A fingerprint: SHA-256 over the named columns, child rows and linked rows, in a canonical form anyone can recompute. | `text` of at least 64 characters |
-| `{ "addMinutes": { "minutes" or "hours", "notAfter"? } }` | The moment so many minutes or hours from now: a hold for ten minutes, an offer open for a day. The amount is a number or a whole-number setting. `notAfter` is a [moment](https://docs.adminium.dev/reference/manifest/#moments) it never passes (an offer ends at the doors at the latest); a missing moment caps nothing. | `timestamptz` |
-| `{ "deadline": { "days", "time", "notAfter"? } }` | `days` after today on the venue's calendar, at `time` (`"HH:MM"` or a text setting), but never later than `notAfter`: a transfer due in five days at 18:00, or three days before the show. | `timestamptz` |
-| `{ "moment": <moment> }` | A [moment](https://docs.adminium.dev/reference/manifest/#moments) of the row or a linked row, worked out whenever the stamp fires: a stay's cancel-by, from its arrival. Read from other columns, never its own. A moment that cannot be found writes nothing. | `timestamptz` |
-
-`hashOf` takes 1–24 of the row's own `columns`; up to 4 `children`, each
-`{ "table", "via", "columns", "orderBy"? }`, a child table whose foreign key `via` points at this
-table, read in `orderBy` order and then by key; and up to 4 `linked`, each
-`{ "via", "table", "columns", "children"? }`, the row this table's foreign key `via` points at, with
-its own children.
+**Past the top.** A picked band with a `max` the number is past is over it. With `"over": "refuse"`
+the write is refused `422` `VALIDATION_FAILED` with the code `out-of-range` on the number's column
+(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "out-of-range"` and the column). With
+`"over": "empty"` the link is left empty: an order over the top delivery band goes through with no
+delivery price, for the shop to quote by hand.
 
 ```json
-{ "ref": "due_on", "type": "date", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "addDays": { "date": "issued_on", "days": "terms",
-                          "map": { "net7": 7, "net14": 14, "net30": 30, "on-receipt": 0 } } },
-    "on": { "column": "status", "values": ["sent"] } } } }
+{ "ref": "weight", "type": "decimal", "scale": 3, "nullable": true,
+  "rules": { "rollup": { "from": "order_lines", "via": "order_id", "sum": "weight" } } },
+{ "ref": "delivery_band_id", "type": "fk", "references": "delivery_bands", "nullable": true,
+  "rules": { "band": { "table": "delivery_bands", "min": "min_kg", "max": "max_kg",
+                       "value": "weight", "over": "empty" } } },
+{ "ref": "delivery_price", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "copy": { "via": "delivery_band_id", "from": "price", "mode": "always" } } }
 ```
 
-A change is judged against the stored row, so sending a status the row already holds stamps
-nothing again. A create that already holds one of the values (a walk-in written as checked in)
-is stamped too. A stamp wins over a value the writer sent. Between its moments a stamped column
-is Adminium's, and a value a writer sends there is dropped, with two exceptions for staff: an
-`addDays` date (the desk may still move a due date) and a `byOrigin` column with no `staff`
-value. A `byOrigin` value that is itself `now`, `today`, `user-name` or `user-id` writes what that
-stamp would.
+**When it is picked.** A band whose number the write sets is picked with the copies, before every
+copy that reads through it, so the copied price and the formulas after it see the band in the same
+write. One over a formula of the row is picked once the row's formulas are worked out, and the
+formulas over what it copies are worked out again. One over a total of child rows (or a formula
+over one) is picked whenever the total settles: a guest's order created with its lines, a line
+added, changed or removed by staff, an import. A quote (`dryRun`) picks it the same way, so it
+gives the figures the save stores.
 
-A public write stamps like any other write, except `user-name` and `user-id`: a browser key is
-nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
-what `claim` reads. For an automation, `user-name` is the rule's name. Sample data, an app's seed
-rows and undo stamp nothing, since a stamp of today's time over history would be false.
+**Nobody else writes the link.** A value any writer sends for it, staff included, is dropped and the
+band picks it; an import and an undo keep the link they bring, as history. A public entry may not
+list it as writable. A band is the column's one filler (no `copy`, `default`, `lookup` or other rule
+beside it), and its number may not read, through formulas, totals or copies, what is copied through
+its own link: the band would decide itself.
 
-A file somebody brings in is different: each line is their own create or their own change. A
-stamp is written into a column the line leaves out or leaves empty, as it would be for a save
-(`now` is the moment of the import, `user-id` and `user-name` are the person who brought the
-file, a `byOrigin` column gets its `staff` value). So a role that may not write `received_at`
-still brings a list of enquiries in, and each row says when it arrived. A value the line does
-carry is kept, where a save would lose it to the stamp: the day an old enquiry really came is
-the file's to say. Whether the person may say it is their role's create limit, which refuses a
-file that carries a column they may not give a new row. A line that changes a stored row (an
-import that updates the rows it matches) fires the stamps a change by hand would, against the
-row as stored: moving a status stamps its moment once, and the same file brought in again
-stamps nothing. A stamped column takes
-no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup` or `perNight` as
-well, and a stamp watches a column other than its own.
+#### Codes that renew
 
-A stamp that works out a moment again whenever what it reads changes: a stay may be cancelled
-free until 48 hours before 15:00 on its arrival day, and moving the arrival moves the deadline.
+A ticket's code is the door's proof. When the ticket goes to somebody else, the old code must
+stop working at once, and the new holder gets one the old holder never saw. `code.renew` says
+what makes a new code:
 
 ```json
-{ "ref": "cancel_by", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "moment": { "column": "arrive", "time": { "table": "settings", "column": "arrive_from" },
-                         "minus": { "hours": { "table": "settings", "column": "cancel_hours" } } } },
-    "on": { "columns": ["arrive"] } } } }
+{ "ref": "code", "type": "text", "nullable": true,
+  "rules": { "code": { "length": 8, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } }
 ```
 
-An offer that lasts as many hours as the settings row says, but never past the show's doors:
+`on` is one trigger or a list of 2–3: `{ "column", "changed": true }`, any change of another
+column of the row, or `{ "column", "values" }`, that column moving to one of 1–16 values (a
+transfer accepted). The watched column is not a code itself, not `json` or `blob`, and a `changed`
+trigger watches a column a person changes or a stamp writes (a holder stamped in as an offer is
+taken renews too).
+
+The new code is written in the same statement as the change: the old one stops as the write
+commits, and every session a [token link](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows) on that column opened stops with
+it. What never renews: a create (it makes a code anyway), an import or other history, a change that
+sends back the value the row already holds, and a server action that writes the code itself (a
+[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link)). A [timed move's](https://docs.adminium.dev/reference/manifest/#timed-moves) `set` renews like any other change.
+Undoing a change of hands renews once more, so neither the old code nor the one handed on works
+after it; see [Undo of a move](https://docs.adminium.dev/reference/manifest/#undo-of-a-move). A renewed code is never shown to a public caller
+in the change's reply, and only to staff who may read the table.
+
+#### Stamps
+
+A stamp writes a value when a row is created, or when another column changes to one of a list of
+values: the time a patient checked in, who took a payment.
+
+```json
+{ "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
+  "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }
+```

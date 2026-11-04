@@ -42,15 +42,25 @@ customer's signature and the job's photos.
 A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength` is at least 31); a
 `json` column holds a list of ids, of at most `maxCount`, read back as a list on every database.
 `accept` takes `png`, `jpeg`, `webp`, `gif`, `pdf`, `office`, `zip`, `csv`, `text`, `markdown`,
-`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
-never `heic`, a picture whose camera notes cannot be taken out of it.
+`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`; never `heic`, a picture whose camera notes cannot be
+taken out of it. From Adminium 0.3.43 it also takes a shop's assets (`file.assetKinds`): `svg`,
+kept only as Adminium writes it again from its own tree without anything that could run, and
+`glb`, `stl`, `3mf` and `woff2`, each read whole as it is uploaded and refused when it is not what
+it says. See [Models, fonts and SVG pieces on public pages](https://docs.adminium.dev/guides/apps/public-assets/).
+
+`accept` also takes `tiff` (Adminium 0.3.43): a TIFF is kept and handed back only as a download,
+never drawn on a page. `maxBytes` may say up to 100 MiB (104857600) from Adminium 0.3.43, 25 MiB
+before. The install's own `files.maxBytes` still holds every upload, and the owner may set it
+lower. A column may also say what a guest may upload into it (`upload`, below).
 
 - **The upload.** `POST /api/v1/files?connectionId=…&table=…&column=…&filename=…`, the body the file
   itself, from a person who may create or change rows of the table. The column's kinds and size
   narrow the workspace's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
   another kind is refused `415`, a larger one `413`. A PNG, JPEG, WebP or GIF is kept without what a
   camera writes beside it: the place it was taken, the device, comments, XMP. A picture that cannot be
-  read as one is refused `415`. The reply's `data.id` is what the column holds. Until a record names
+  read as one is refused `415`. The reply's `data.id` is what the column holds; for an SVG it also
+  carries `removed`, what was taken out of the drawing, by name (`<script>`, `onload`, `inkscape:*`
+  for all of an editor's notes), empty when nothing was (Adminium 0.3.43). Until a record names
   it, the file is its uploader's alone: nobody else reads it, and the uploader may throw it away
   (`DELETE /api/v1/files/{id}`). One no record names is thrown away after `files.unattachedHours`.
 - **The write.** A create or a change may name, beside what the column already held, only a file

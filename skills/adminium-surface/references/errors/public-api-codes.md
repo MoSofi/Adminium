@@ -13,6 +13,7 @@
 | `PUBLIC_KEY_OFF` | 503 | A key the app switches in its settings row is off. | none |
 | `PUBLIC_RATE_LIMITED` | 429 | Over a rate limit, or out of [guesses at a typed code](https://docs.adminium.dev/reference/errors/#a-typed-code). `Retry-After` says when. | none |
 | `PUBLIC_PROOF_REQUIRED` | 403 | The human check is missing, wrong, expired or used, or a batch of creates on an entry that asks for one. | none |
+| `PUBLIC_UPLOAD_REFUSED` | 413, 415, 429, 507, 400 | A guest's file was not taken: too big, not a kind the column takes by its bytes, the address's day spent, no room left for guests' files, or no upload into that column. | `reason`: `too-big`, `kind`, `cap`, `quota`, `column` |
 | `PUBLIC_REF_NOT_FOUND` | 404 | No such endpoint, a method the key does not have, a row outside the endpoint's filter or someone else's, or an unknown shared link. All look the same on purpose. | none |
 | `PUBLIC_ACTION_NOT_ALLOWED` | — | Listed for the client, not sent by this server: a method an endpoint lacks is `PUBLIC_REF_NOT_FOUND`. | — |
 | `PUBLIC_QUERY_REFUSED` | 400 | A read the endpoint does not take. See [below](https://docs.adminium.dev/reference/errors/#a-refused-query). | `parameter` for U+0000 only |
