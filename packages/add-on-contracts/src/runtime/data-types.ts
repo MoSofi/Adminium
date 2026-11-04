@@ -277,6 +277,44 @@ export interface UseFormTablesResult {
   tables: readonly FormTable[];
 }
 
+/** A file put into a file column of one of the add-on's own rows, and the row as saved with it. */
+export interface UploadResult {
+  /** What the column now holds for the file: its reference, in the column's own shape. */
+  ref: string;
+  /** The stored file's id. */
+  id: string;
+  /** The file's name, as it was sent. */
+  name: string;
+  /** Its type, as Adminium read it from the bytes (never the browser's claim). */
+  mime: string;
+  /** Its size in bytes, as stored (a cleaned SVG is its cleaned size). */
+  size: number;
+  /**
+   * An SVG is kept only cleaned: what the cleaner took out of it, by name (an
+   * element as `<script>`, an attribute or a style property by its own name),
+   * each once. Empty for any other file, and when nothing was taken out.
+   */
+  removed: readonly string[];
+  /** The row as it was saved with the file in its column. */
+  row: DataRow;
+}
+
+/**
+ * Puts files into one file column of one of the add-on's own tables. The
+ * bytes go through the dashboard's own files route, judged as a record
+ * form's upload is: the reader's grant on the table, the column's file rule
+ * (the kinds it takes, its size, an SVG cleaned, a font or a model read
+ * whole). The row is then saved with the file in the column, through the data
+ * routes and every rule of the table, which is when the file becomes the
+ * row's. A refusal of either leaves no file behind.
+ */
+export interface UseUploadResult {
+  /** Uploads `file` and saves it into the column of the row `key`. `name`: the file's name, when `file` is a Blob with none. */
+  upload: (key: string | number, file: Blob, options?: { name?: string }) => Promise<UploadResult>;
+  uploading: boolean;
+  error: DataError | null;
+}
+
 /** The data kit's hooks, by name. */
 export interface AddOnDataHooks {
   useRecords: (table: string, options?: UseRecordsOptions) => UseRecordsResult;
@@ -294,6 +332,8 @@ export interface AddOnDataHooks {
   useFormSummary: (formId: string | number | null) => UseFormSummaryResult;
   /** The tables a form may become a row of (a forms add-on, from Adminium 0.3.40). */
   useFormTables: () => UseFormTablesResult;
+  /** Files into a file column of one of the add-on's own tables (from Adminium 0.3.43; absent before). */
+  useUpload: (table: string, column: string) => UseUploadResult;
 }
 
 /**

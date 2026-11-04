@@ -62,5 +62,7 @@ export const useDocument = data['useDocument'] as never;
 export const useExport = data['useExport'] as never;
 export const useFormSummary = data['useFormSummary'] as never;
 export const useFormTables = data['useFormTables'] as never;
+/** Undefined on a host older than 0.3.43: a page asks `host.data.useUpload` before it offers an upload. */
+export const useUpload = data['useUpload'] as never;
 
 export default data;

@@ -84,6 +84,8 @@ export interface UploadFileResult {
   data: FileDto;
   /** The value to write into the column. Absent when no column was named. */
   ref?: string;
+  /** An SVG kept cleaned for a column that takes SVG: what the cleaner took out, by name; empty when nothing was. */
+  removed?: string[];
 }
 
 /** The upload was cancelled by the caller — not a failure to report. */
