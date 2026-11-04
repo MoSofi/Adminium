@@ -12,8 +12,12 @@
  *    drawings never need and XML tricks always use: a DOCTYPE, any entity but
  *    the five built-in ones and character references, processing
  *    instructions (but the XML declaration at the very start), CDATA, and any
- *    namespace but SVG's and xlink's. A document that is not well formed is
- *    refused, never repaired.
+ *    namespace but SVG's and xlink's — save Inkscape's own two (`inkscape:`,
+ *    `sodipodi:`), which hold the editor's notes about the drawing (its
+ *    layers' names, its page, how a path's nodes are edited) and never what
+ *    is drawn: their elements, their attributes and their declarations are
+ *    dropped, so a drawing saved as "Inkscape SVG" is taken. A document that
+ *    is not well formed is refused, never repaired.
  *  - KEPT FROM AN ALLOW-LIST of elements (shapes, paths, groups, `defs`,
  *    `symbol`, gradients, `clipPath`, `mask`, `use`, `text`/`tspan`,
  *    `title`/`desc`) and attributes (geometry, paint, text and font ones). A
@@ -79,6 +83,23 @@ const ELEMENTS = new Set([
   'title',
   'desc',
 ]);
+
+/**
+ * An editor's own namespaces, by the prefix it writes them with: Inkscape's,
+ * and Sodipodi's (Inkscape's ancestor, still written by it). What they say is
+ * about the drawing, never in it, so an element of theirs is dropped with all
+ * it holds (`sodipodi:namedview`, the page and its grid), an attribute of
+ * theirs is dropped, and a declaration of theirs is dropped when it names
+ * their own namespace (and refused when it names any other).
+ */
+const EDITOR_NAMESPACES: Readonly<Record<string, string>> = {
+  inkscape: 'http://www.inkscape.org/namespaces/inkscape',
+  sodipodi: 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd',
+};
+const editorName = (name: string): boolean => {
+  const colon = name.indexOf(':');
+  return colon > 0 && Object.prototype.hasOwnProperty.call(EDITOR_NAMESPACES, name.slice(0, colon));
+};
 
 /** Elements that draw nothing, dropped with all they hold. */
 const DROPPED_ELEMENTS = new Set(['script', 'metadata']);
@@ -397,6 +418,7 @@ function cleanStyle(style: string): string | null {
 /** One element, kept from the allow-list, or null when it is one dropped with all it holds. */
 function cleanElement(element: SvgElement, root: boolean): { element: SvgElement; xlink: boolean } | null {
   const { name } = element;
+  if (editorName(name)) return null;
   if (name.includes(':')) refuse(`This SVG has <${name}>, from a namespace that is not SVG's.`);
   if (DROPPED_ELEMENTS.has(name)) return null;
   if (!ELEMENTS.has(name)) refuse(`This SVG has a <${name}>, which is not taken.`);
@@ -410,6 +432,9 @@ function cleanElement(element: SvgElement, root: boolean): { element: SvgElement
     }
     if (attribute.startsWith('xmlns:')) {
       if (attribute === 'xmlns:xlink' && value === XLINK_NS) continue;
+      // SVG's own namespace under a prefix (Inkscape declares `svg:`), and an editor's own: written by nothing kept.
+      if (attribute === 'xmlns:svg' && value === SVG_NS) continue;
+      if (editorName(attribute.slice(6) + ':') && EDITOR_NAMESPACES[attribute.slice(6)] === value) continue;
       refuse(`This SVG declares the namespace ${attribute.slice(6)}, which is not taken. Save it as a plain SVG.`);
     }
     if (attribute === 'href' || attribute === 'xlink:href') {
@@ -419,7 +444,7 @@ function cleanElement(element: SvgElement, root: boolean): { element: SvgElement
       if (attribute === 'xlink:href') xlink = true;
       continue;
     }
-    if (droppedAttribute(attribute)) continue;
+    if (droppedAttribute(attribute) || editorName(attribute)) continue;
     if (attribute.includes(':') && attribute !== 'xml:space' && attribute !== 'xml:lang') refuse(`This SVG has the attribute ${attribute}, from a namespace that is not taken.`);
     if (!ATTRIBUTES.has(attribute)) refuse(`This SVG has the attribute ${attribute} on <${name}>, which is not taken.`);
     if (attribute === 'id' && !ID.test(value)) refuse(`This SVG has an id that is not a plain name: "${value.slice(0, 40)}".`);

@@ -5,7 +5,8 @@
  * handler) comes back without it; what could change the drawing or reach
  * outside it (a foreignObject, an outside link, a style rule) is refused; an
  * XML trick (a DOCTYPE, an entity, CDATA, a processing instruction, another
- * namespace) is refused. Cleaning the output again gives the same bytes.
+ * namespace) is refused; an Inkscape export's own notes are dropped. Cleaning
+ * the output again gives the same bytes.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -108,12 +109,85 @@ describe('a cleaned SVG', () => {
     expect(refused(`  <?xml version="1.0"?><svg ${S}/>`)).toMatch(/processing instruction/);
   });
 
-  it('refuses a namespace but SVG and xlink', () => {
-    expect(refused(`<svg ${S} xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"/>`)).toMatch(/namespace inkscape/);
+  it("refuses a namespace but SVG's, xlink's and an editor's own", () => {
+    // Inkscape's prefix bound to anything but Inkscape's namespace, and another editor's (Illustrator's).
+    expect(refused(`<svg ${S} xmlns:inkscape="http://www.w3.org/1999/xhtml"/>`)).toMatch(/namespace inkscape/);
+    expect(refused(`<svg ${S} xmlns:sodipodi="http://www.inkscape.org/namespaces/inkscape"/>`)).toMatch(/namespace sodipodi/);
+    expect(refused(`<svg ${S} xmlns:i="http://ns.adobe.com/AdobeIllustrator/10.0/"/>`)).toMatch(/namespace i,/);
+    expect(refused(`<svg ${S} xmlns:svg="http://www.w3.org/1999/xhtml"/>`)).toMatch(/namespace svg/);
     expect(refused(`<svg xmlns="http://www.w3.org/1999/xhtml"/>`)).toMatch(/not SVG's/);
     expect(refused(`<svg ${S}><x:rect xmlns:x="http://www.w3.org/2000/svg"/></svg>`)).toMatch(/namespace/);
     expect(refused(`<svg ${S}><rect ev:event="click"/></svg>`)).toMatch(/namespace/);
     expect(refused(`<svg ${S}><g><rect xmlns="http://www.w3.org/1999/xhtml"/></g></svg>`)).toMatch(/not SVG's/);
+  });
+
+  it('takes a drawing saved as "Inkscape SVG", dropping the editor\'s notes and drawing the same paths', () => {
+    const inkscape = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="120mm"
+   height="80mm"
+   viewBox="0 0 120 80"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25)"
+   sodipodi:docname="nook-front.svg"
+   inkscape:export-filename="nook-front.png"
+   inkscape:export-xdpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:document-units="mm"
+     inkscape:zoom="1.4"
+     inkscape:current-layer="layer1">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="120"
+       height="80"
+       id="page2" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Cut"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="fill:none;stroke:#ff0000;stroke-width:0.1;-inkscape-stroke:hairline"
+       d="M 10,10 H 110 V 70 H 10 Z"
+       id="path1"
+       sodipodi:nodetypes="ccccc" />
+    <path
+       style="fill:none;stroke:#0000ff;stroke-width:0.1"
+       d="m 40,70 v -25 a 20,20 0 0 1 40,0 v 25"
+       id="path2"
+       inkscape:transform-center-x="1.5"
+       sodipodi:nodetypes="cscc" />
+  </g>
+</svg>
+`;
+    const out = clean(inkscape);
+    expect(out).toBe(
+      `<svg ${S} width="120mm" height="80mm" viewBox="0 0 120 80" id="svg1"><defs id="defs1"/><g id="layer1">` +
+        '<path style="fill:none;stroke:#ff0000;stroke-width:0.1" d="M 10,10 H 110 V 70 H 10 Z" id="path1"/>' +
+        '<path style="fill:none;stroke:#0000ff;stroke-width:0.1" d="m 40,70 v -25 a 20,20 0 0 1 40,0 v 25" id="path2"/></g></svg>',
+    );
+    expect(out).not.toMatch(/inkscape|sodipodi|namedview/);
+    // The same paths, drawn the same way.
+    const paths = (text: string) => [...text.matchAll(/<path\b[^>]*?\sd="([^"]*)"/g)].map((match) => match[1]);
+    expect(paths(out)).toEqual(paths(inkscape));
+    // Cleaned again: the same bytes.
+    expect(clean(out)).toBe(out);
   });
 
   it('refuses a document that is not well formed, and does not repair it', () => {

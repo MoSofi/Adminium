@@ -147,8 +147,10 @@ own reading of the file, for any column that takes `svg` (a customer's logo, a s
 
 - **Read strictly, as XML.** A DOCTYPE, any entity but the five built-in ones, a processing
   instruction (the XML declaration at the very start aside), CDATA, and any namespace but SVG's and
-  xlink's are refused. A file that is not well formed is refused, never repaired. An SVG saved by an
-  editor with its own namespaces (Inkscape's, Illustrator's) is refused: save it as a plain SVG.
+  xlink's are refused. A file that is not well formed is refused, never repaired. A drawing saved
+  as "Inkscape SVG" is taken: Inkscape's own notes (its `inkscape:` and `sodipodi:` parts, such as
+  the page view and the layers' names) draw nothing and are dropped. Another editor's namespaces
+  (Illustrator's) are refused: save the drawing as a plain SVG.
 - **Kept from a short list.** Elements: `svg`, `g`, `defs`, `symbol`, `path`, `rect`, `circle`,
   `ellipse`, `line`, `polyline`, `polygon`, `linearGradient`, `radialGradient`, `stop`,
   `clipPath`, `mask`, `use`, `text`, `tspan`, `title`, `desc`. Attributes: geometry, paint, text and
