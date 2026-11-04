@@ -37,6 +37,8 @@ import type {
   UseRecordsResult,
   UseStateMoveResult,
   UseTreeWriteResult,
+  UploadResult,
+  UseUploadResult,
   UseWordsResult,
   UseWriteResult,
   WordsAnswer,
@@ -45,6 +47,7 @@ import type {
 
 import { createCrudApi } from '../../api/crud.js';
 import { api, ApiError } from '../../app/api.js';
+import { deleteFile, uploadFile } from '../../files/api.js';
 import { addOnKitQuery, resolveOwnTable, resolveTable, useKit, type Kit } from './resolve.js';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -570,5 +573,43 @@ export function useFormTables(): UseFormTablesResult {
         })),
     }),
     [kit],
+  );
+}
+
+/**
+ * A file into one file column of one of the add-on's own rows, as a record
+ * form puts one there: the bytes go to the files route for that table and
+ * column (the reader's create or update on the table, the column's own rule:
+ * its kinds, its size, an SVG cleaned, a font or a model read whole), and
+ * the row is then saved with the reference the server made, through the data
+ * routes, where the file becomes the row's (`files/reconcile.ts`). An upload
+ * whose save is refused is thrown away at once, not left for the sweep.
+ */
+export function useUpload(table: string, column: string): UseUploadResult {
+  const kit = useKit();
+  const at = resolveOwnTable(kit, table);
+  const { run, saving, error } = useRunner(kit, at.connectionId);
+  return useMemo<UseUploadResult>(
+    () => ({
+      upload: (key, file, options) =>
+        run(async (): Promise<UploadResult> => {
+          const name = options?.name ?? (file instanceof File ? file.name : '');
+          if (name === '') throw new Error('A file sent without a name needs one: pass { name }.');
+          const sent = await uploadFile({ file: file instanceof File && options?.name === undefined ? file : new File([file], name, { type: file.type }), connectionId: at.connectionId, table: at.id, column });
+          const ref = sent.ref ?? sent.data.id;
+          let saved: Saved;
+          try {
+            saved = (await createCrudApi(at.connectionId, at.id).update(keyText(key), { [column]: ref })) as Saved;
+          } catch (caught) {
+            // Nothing holds it: it goes now, with the refusal the page shows.
+            await deleteFile(sent.data.id).catch(() => undefined);
+            throw caught;
+          }
+          return { ref, id: sent.data.id, name: sent.data.filename, mime: sent.data.mime, size: sent.data.sizeBytes, removed: sent.removed ?? [], row: written(table, saved).row };
+        }),
+      uploading: saving,
+      error,
+    }),
+    [at.connectionId, at.id, table, column, run, saving, error],
   );
 }

@@ -14,10 +14,21 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { Suspense, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '../app/api.js';
 import { jsonResponse } from '../test/fixtures.js';
 import { AddOnKeyContext } from './data-kit/context.js';
-import { EACH_CALL_MAX, listParams, useAccess, useDocument, useExport, useFormSummary, useFormTables, useLookUp, useRead, useRecord, useRecords, useStateMove, useTreeWrite, useWords, useWrite } from './data-kit/hooks.js';
+import { EACH_CALL_MAX, listParams, useAccess, useDocument, useExport, useFormSummary, useFormTables, useLookUp, useRead, useRecord, useRecords, useStateMove, useTreeWrite, useUpload, useWords, useWrite } from './data-kit/hooks.js';
 import type { KitReply } from './data-kit/resolve.js';
+
+/** The files route's upload goes by XMLHttpRequest (for its progress): what it is handed is kept, and what it answers is the test's. */
+const sent = vi.hoisted(() => ({ uploads: [] as Record<string, unknown>[], answer: null as null | ((input: Record<string, unknown>) => Promise<unknown>) }));
+vi.mock('../files/api.js', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  uploadFile: async (input: Record<string, unknown>) => {
+    sent.uploads.push(input);
+    return sent.answer === null ? Promise.reject(new Error('no upload answer')) : sent.answer(input);
+  },
+}));
 
 const CONN = 'cnx_1';
 const KIT: KitReply = {
@@ -569,6 +580,86 @@ describe('a forms add-on', () => {
     expect(access.result.current.canRead('shop:dishes')).toBe(true);
     const refused = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(() => renderHook(() => useRecords('crm:enquiries'), { wrapper: ({ children }) => <Preloaded kit={FORMS_KIT}>{children}</Preloaded> })).toThrow('"crm:enquiries" is not a table of stock');
+    refused.mockRestore();
+  });
+});
+
+describe('a file into an own file column', () => {
+  const FILE_KIT: KitReply = {
+    ...KIT,
+    tables: { ...KIT.tables, bases: { id: 'public.stock_bases', can: { read: true, create: true, update: true, delete: false }, unreadable: [] } },
+  };
+  const view = { id: 'fil_1', filename: 'heart.svg', mime: 'image/svg+xml', sizeBytes: 812 };
+  afterEach(() => {
+    sent.uploads.length = 0;
+    sent.answer = null;
+  });
+
+  it('sends the bytes for the real table and its column, then saves the row with the reference the server made', async () => {
+    sent.answer = async () => ({ data: view, ref: 'fil_1', removed: ['<script>', 'onload'] });
+    const calls = serve((call) => (call.method === 'PATCH' ? jsonResponse(200, { data: { id: 7, outline_file: 'fil_1' }, undoToken: null }) : undefined), FILE_KIT);
+    const upload = await use(() => useUpload('bases', 'outline_file'));
+    const file = new File(['<svg/>'], 'heart.svg', { type: 'image/svg+xml' });
+    let done!: Awaited<ReturnType<typeof upload.result.current.upload>>;
+    await act(async () => {
+      done = await upload.result.current.upload(7, file);
+    });
+    expect(sent.uploads).toHaveLength(1);
+    expect(sent.uploads[0]).toMatchObject({ connectionId: CONN, table: 'public.stock_bases', column: 'outline_file' });
+    expect((sent.uploads[0]!['file'] as File).name).toBe('heart.svg');
+    expect(sent.uploads[0]).not.toHaveProperty('recordId');
+    // The row takes the file by its own save: the reference, in that column, and nothing else.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ method: 'PATCH', path: `/api/v1/data/${CONN}/public.stock_bases/7`, body: { values: { outline_file: 'fil_1' } } });
+    expect(done).toEqual({ ref: 'fil_1', id: 'fil_1', name: 'heart.svg', mime: 'image/svg+xml', size: 812, removed: ['<script>', 'onload'], row: { id: 7, outline_file: 'fil_1' } });
+    expect(upload.result.current.uploading).toBe(false);
+  });
+
+  it('names a Blob by what it is given, and says nothing was removed from a file nothing was removed from', async () => {
+    sent.answer = async () => ({ data: { ...view, id: 'fil_2', filename: 'Serif.woff2', mime: 'font/woff2' }, ref: 'fil_2' });
+    serve((call) => (call.method === 'PATCH' ? jsonResponse(200, { data: { id: 3, file: 'fil_2' }, undoToken: null }) : undefined), FILE_KIT);
+    const upload = await use(() => useUpload('bases', 'file'));
+    let done!: Awaited<ReturnType<typeof upload.result.current.upload>>;
+    await act(async () => {
+      done = await upload.result.current.upload('3', new Blob([new Uint8Array([0x77, 0x4f, 0x46, 0x32])], { type: 'font/woff2' }), { name: 'Serif.woff2' });
+    });
+    expect((sent.uploads[0]!['file'] as File).name).toBe('Serif.woff2');
+    expect(done.removed).toEqual([]);
+    await act(async () => {
+      await expect(upload.result.current.upload(3, new Blob(['x']))).rejects.toThrow('needs one');
+    });
+  });
+
+  it('throws away an upload whose save is refused, and keeps the refusal as the server said it', async () => {
+    sent.answer = async () => ({ data: view, ref: 'fil_1', removed: [] });
+    const calls = serve((call) => {
+      if (call.method === 'PATCH') return jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'You need update on bases.', requestId: 'r' } });
+      if (call.method === 'DELETE') return jsonResponse(200, { data: view });
+      return undefined;
+    }, FILE_KIT);
+    const upload = await use(() => useUpload('bases', 'outline_file'));
+    await act(async () => {
+      await expect(upload.result.current.upload(7, new File(['<svg/>'], 'heart.svg'))).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([`PATCH /api/v1/data/${CONN}/public.stock_bases/7`, 'DELETE /api/v1/files/fil_1']);
+    expect(upload.result.current.error).toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('a refused upload saves nothing', async () => {
+    sent.answer = async () => Promise.reject(new ApiError(415, 'UNSUPPORTED_MEDIA_TYPE', 'That SVG cannot be kept: it has a <foreignObject>.', null));
+    const calls = serve(undefined, FILE_KIT);
+    const upload = await use(() => useUpload('bases', 'outline_file'));
+    await act(async () => {
+      await expect(upload.result.current.upload(7, new File(['<svg/>'], 'heart.svg'))).rejects.toMatchObject({ code: 'UNSUPPORTED_MEDIA_TYPE' });
+    });
+    expect(calls).toEqual([]);
+    expect(upload.result.current.error).toMatchObject({ code: 'UNSUPPORTED_MEDIA_TYPE', message: 'That SVG cannot be kept: it has a <foreignObject>.' });
+  });
+
+  it('never puts a file into a table that hands the add-on rows', async () => {
+    serve(undefined, FILE_KIT);
+    const refused = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() => renderHook(() => useUpload('shop:dishes', 'photo'), { wrapper: ({ children }) => <Preloaded kit={FILE_KIT}>{children}</Preloaded> })).toThrow('is not stock\'s own table');
     refused.mockRestore();
   });
 });

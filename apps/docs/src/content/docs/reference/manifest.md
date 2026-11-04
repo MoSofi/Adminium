@@ -683,7 +683,9 @@ lower. A column may also say what a guest may upload into it (`upload`, below).
   narrow the workspace's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
   another kind is refused `415`, a larger one `413`. A PNG, JPEG, WebP or GIF is kept without what a
   camera writes beside it: the place it was taken, the device, comments, XMP. A picture that cannot be
-  read as one is refused `415`. The reply's `data.id` is what the column holds. Until a record names
+  read as one is refused `415`. The reply's `data.id` is what the column holds; for an SVG it also
+  carries `removed`, what was taken out of the drawing, by name (`<script>`, `onload`, `inkscape:*`
+  for all of an editor's notes), empty when nothing was (Adminium 0.3.43). Until a record names
   it, the file is its uploader's alone: nobody else reads it, and the uploader may throw it away
   (`DELETE /api/v1/files/{id}`). One no record names is thrown away after `files.unattachedHours`.
 - **The write.** A create or a change may name, beside what the column already held, only a file
@@ -3510,6 +3512,11 @@ finds no design is refused `unknown` and counts as a guess against the visitor's
 The line's table is then one that hands the add-on rows, as a [posting](#postings) or a
 [price rule](#a-price-an-add-on-lowers) makes it: the add-on's pages find it among their tables'
 hosts, and a [tab](#a-tab-on-another-tables-record) declared `"on": "linked"` shows on its records.
+An add-on's page reads such a table with the reader's own grant on it, and writes nothing there:
+that is how it shows what the app charges for one of its rows (an option row that links to the
+add-on's feature and holds its price). Give the app's role `table:@<ref>:read`, limited with
+`readable` to the link and the price. See
+[Reading an app's prices](/guides/add-ons-with-tables/#reading-an-apps-prices).
 
 Two apps may require the same add-on at the same range (`^1.0.0`): both install against one
 install of it, and an update of the add-on within the range is never blocked by either. The add-on

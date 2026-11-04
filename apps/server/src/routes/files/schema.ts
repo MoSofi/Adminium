@@ -92,6 +92,13 @@ export const filesUploadReply = z.object({
    * configured for (D7/D31). Absent when the upload named no column.
    */
   ref: z.string().optional(),
+  /**
+   * An SVG kept cleaned for a column that takes SVG: what the cleaner took
+   * out of it, by name (an element as `<script>`, an attribute or a style
+   * property by its own name), each once; empty when nothing was. Absent for
+   * any other file. What a page shows as "We removed …".
+   */
+  removed: z.array(z.string()).optional(),
 });
 
 export const filesGetReply = z.object({ data: fileView });

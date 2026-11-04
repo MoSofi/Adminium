@@ -40,7 +40,7 @@ import { cleanPicture, isPictureMime, PictureRefused } from '../public-api/pictu
 import { confirmKind, ModelRefused } from './models.js';
 import { sniff, type SniffTypeKey, type SniffedType } from './sniff.js';
 import { SpoolTooLargeError, type Spool, type SpooledFile } from './spool.js';
-import { cleanSvg, isSvgMime, SvgRefused } from './svg.js';
+import { cleanSvgReport, isSvgMime, SvgRefused } from './svg.js';
 
 /** Everything a row needs to say where its bytes are. */
 export interface StoredBytes {
@@ -142,6 +142,11 @@ export interface PutUploadInput {
 export interface PutUploadResult {
   file: StoredFile;
   sniffed: SniffedType;
+  /**
+   * An SVG kept cleaned: what the cleaner took out of it, by name (empty when
+   * nothing was). Absent for every other file, and for an SVG not cleaned.
+   */
+  removed?: string[];
 }
 
 export interface FileStore {
@@ -205,18 +210,18 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
     return spool.spool(Readable.from([picture]), { maxBytes });
   }
 
-  /** A spooled SVG, written again by the cleaner into a spool of its own; the first is let go. */
-  async function cleanedSvg(spooled: SpooledFile, maxBytes: number): Promise<SpooledFile> {
-    let drawing: Buffer;
+  /** A spooled SVG, written again by the cleaner into a spool of its own, with what it took out; the first is let go. */
+  async function cleanedSvg(spooled: SpooledFile, maxBytes: number): Promise<{ spooled: SpooledFile; removed: string[] }> {
+    let drawing: { bytes: Buffer; removed: string[] };
     try {
-      drawing = cleanSvg(await readFile(spooled.path));
+      drawing = cleanSvgReport(await readFile(spooled.path));
     } catch (error) {
       if (!(error instanceof SvgRefused)) throw error;
       throw new SvgNotKeptError(error);
     } finally {
       await spooled.release();
     }
-    return spool.spool(Readable.from([drawing]), { maxBytes });
+    return { spooled: await spool.spool(Readable.from([drawing.bytes]), { maxBytes }), removed: drawing.removed };
   }
 
   /**
@@ -354,12 +359,11 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       }
 
       // The cleaned picture is what is kept, under its own hash: the bytes the camera wrote are never stored.
-      const kept =
-        input.clean === true && isPictureMime(result.type.mime)
-          ? await cleaned(spooled, result.type.mime, input.maxBytes)
-          : input.cleanSvg === true && isSvgMime(result.type.mime)
-            ? await cleanedSvg(spooled, input.maxBytes)
-            : spooled;
+      // A cleaned SVG likewise, and what the cleaner took out of it is said back.
+      let removed: string[] | undefined;
+      let kept = spooled;
+      if (input.clean === true && isPictureMime(result.type.mime)) kept = await cleaned(spooled, result.type.mime, input.maxBytes);
+      else if (input.cleanSvg === true && isSvgMime(result.type.mime)) ({ spooled: kept, removed } = await cleanedSvg(spooled, input.maxBytes));
 
       const bytes = await commit(
         kept,
@@ -391,7 +395,7 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
         },
         at,
       );
-      return { file, sniffed: result.type };
+      return { file, sniffed: result.type, ...(removed === undefined ? {} : { removed }) };
     },
   };
 }

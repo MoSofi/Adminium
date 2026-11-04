@@ -456,6 +456,7 @@ export const ADD_ON_DATA_EXPORTS = [
   'useExport',
   'useFormSummary',
   'useFormTables',
+  'useUpload',
 ] as const;
 export type AddOnDataExport = (typeof ADD_ON_DATA_EXPORTS)[number];
 

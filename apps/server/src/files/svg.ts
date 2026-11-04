@@ -16,7 +16,9 @@
  *    `sodipodi:`), which hold the editor's notes about the drawing (its
  *    layers' names, its page, how a path's nodes are edited) and never what
  *    is drawn: their elements, their attributes and their declarations are
- *    dropped, so a drawing saved as "Inkscape SVG" is taken. A document that
+ *    dropped, so a drawing saved as "Inkscape SVG" is taken (and the RDF,
+ *    Creative Commons and Dublin Core declarations an older one puts on the
+ *    root for its `<metadata>`, under their own addresses). A document that
  *    is not well formed is refused, never repaired.
  *  - KEPT FROM AN ALLOW-LIST of elements (shapes, paths, groups, `defs`,
  *    `symbol`, gradients, `clipPath`, `mask`, `use`, `text`/`tspan`,
@@ -96,6 +98,22 @@ const EDITOR_NAMESPACES: Readonly<Record<string, string>> = {
   inkscape: 'http://www.inkscape.org/namespaces/inkscape',
   sodipodi: 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd',
 };
+/**
+ * The namespaces of a drawing's licence and author notes (RDF, Creative
+ * Commons, Dublin Core), which an older Inkscape declares on the root for
+ * what it writes inside `<metadata>`. That element is dropped with all it
+ * holds, so a declaration of one of them is dropped too, when it names that
+ * namespace's own address; under any other address it is refused as any
+ * other namespace is. Creative Commons has two addresses, the old one still
+ * in drawings Inkscape 0.4x saved.
+ */
+const METADATA_NAMESPACES: Readonly<Record<string, readonly string[]>> = {
+  rdf: ['http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
+  cc: ['http://creativecommons.org/ns#', 'http://web.resource.org/cc/'],
+  dc: ['http://purl.org/dc/elements/1.1/'],
+};
+const metadataDeclaration = (prefix: string, value: string): boolean => Object.prototype.hasOwnProperty.call(METADATA_NAMESPACES, prefix) && METADATA_NAMESPACES[prefix]!.includes(value);
+
 const editorName = (name: string): boolean => {
   const colon = name.indexOf(':');
   return colon > 0 && Object.prototype.hasOwnProperty.call(EDITOR_NAMESPACES, name.slice(0, colon));
@@ -153,7 +171,14 @@ const PAINT_PROPERTIES = [
   'unicode-bidi',
   'mix-blend-mode',
 ];
-const STYLE_PROPERTIES = new Set(PAINT_PROPERTIES);
+/**
+ * Text properties Inkscape writes into a text's `style` (and only there): how
+ * lines are spaced and aligned, and the font's variants. They set how text is
+ * laid out, never what it reaches; they are no SVG attributes, so they are
+ * taken in a style alone.
+ */
+const TEXT_STYLE_PROPERTIES = ['line-height', 'text-align', 'font-variant-alternates', 'font-variant-caps', 'font-variant-east-asian', 'font-variant-emoji', 'font-variant-ligatures', 'font-variant-numeric', 'font-variant-position'];
+const STYLE_PROPERTIES = new Set([...PAINT_PROPERTIES, ...TEXT_STYLE_PROPERTIES]);
 
 /** Attributes kept, on any kept element. */
 const ATTRIBUTES = new Set([
@@ -389,6 +414,34 @@ class Reader {
 
 /* ───────────────────────────────────────────────────────────── the cleaner */
 
+/** The most names a cleaning lists of what it took out; past it, the list stops (the drawing is cleaned all the same). */
+export const SVG_REMOVED_MAX = 40;
+
+/** An editor's element or attribute, as the one entry its editor's notes are listed under. */
+const editorNotes = (name: string): string => `${name.slice(0, name.indexOf(':'))}:*`;
+
+/**
+ * What a cleaning took out, by name, each once, in the order first met: an
+ * element as `<script>` (with all it held), an attribute or a style property
+ * by its own name (`onload`, `class`, `-inkscape-font-specification`). An
+ * editor's notes are one entry for each editor (`inkscape:*`), however many
+ * there were: a drawing saved by Inkscape carries dozens, and they are one
+ * thing to the person. Namespace declarations, comments and the spaces
+ * between parts are not listed: they draw nothing and say nothing of the
+ * drawing.
+ */
+class Removed {
+  private readonly names = new Set<string>();
+
+  add(name: string): void {
+    if (this.names.size < SVG_REMOVED_MAX) this.names.add(name);
+  }
+
+  list(): string[] {
+    return [...this.names];
+  }
+}
+
 /** A paint or reference value: `url(` only as `url(#id)`, written back plainly. */
 function cleanValue(name: string, value: string): string {
   if (!/url\s*\(/i.test(value)) return value;
@@ -398,7 +451,7 @@ function cleanValue(name: string, value: string): string {
 }
 
 /** A `style` attribute, held to its properties, written back as `name:value;name:value`. */
-function cleanStyle(style: string): string | null {
+function cleanStyle(style: string, removed: Removed): string | null {
   if (/[\\<>@]|\/\*|expression\s*\(/i.test(style)) refuse('This SVG has a style that is not taken (an escape, a comment, a rule or an expression).');
   const kept: string[] = [];
   for (const declaration of style.split(';')) {
@@ -407,7 +460,10 @@ function cleanStyle(style: string): string | null {
     if (colon < 0) refuse(`This SVG has a style that is not a property: "${declaration.trim().slice(0, 40)}".`);
     const property = declaration.slice(0, colon).trim().toLowerCase();
     const value = declaration.slice(colon + 1).trim();
-    if (droppedProperty(property)) continue;
+    if (droppedProperty(property)) {
+      removed.add(property);
+      continue;
+    }
     if (!STYLE_PROPERTIES.has(property)) refuse(`This SVG's style sets ${property}, which is not taken.`);
     if (value === '') refuse(`This SVG's style sets ${property} to nothing.`);
     kept.push(`${property}:${cleanValue(property, value)}`);
@@ -416,11 +472,17 @@ function cleanStyle(style: string): string | null {
 }
 
 /** One element, kept from the allow-list, or null when it is one dropped with all it holds. */
-function cleanElement(element: SvgElement, root: boolean): { element: SvgElement; xlink: boolean } | null {
+function cleanElement(element: SvgElement, root: boolean, removed: Removed): { element: SvgElement; xlink: boolean } | null {
   const { name } = element;
-  if (editorName(name)) return null;
+  if (editorName(name)) {
+    removed.add(editorNotes(name));
+    return null;
+  }
   if (name.includes(':')) refuse(`This SVG has <${name}>, from a namespace that is not SVG's.`);
-  if (DROPPED_ELEMENTS.has(name)) return null;
+  if (DROPPED_ELEMENTS.has(name)) {
+    removed.add(`<${name}>`);
+    return null;
+  }
   if (!ELEMENTS.has(name)) refuse(`This SVG has a <${name}>, which is not taken.`);
   if (root && name !== 'svg') refuse('This is not an SVG drawing: its first element is not <svg>.');
   let xlink = false;
@@ -435,6 +497,8 @@ function cleanElement(element: SvgElement, root: boolean): { element: SvgElement
       // SVG's own namespace under a prefix (Inkscape declares `svg:`), and an editor's own: written by nothing kept.
       if (attribute === 'xmlns:svg' && value === SVG_NS) continue;
       if (editorName(attribute.slice(6) + ':') && EDITOR_NAMESPACES[attribute.slice(6)] === value) continue;
+      // The licence notes' own namespaces, for what `<metadata>` held (dropped with it).
+      if (metadataDeclaration(attribute.slice(6), value)) continue;
       refuse(`This SVG declares the namespace ${attribute.slice(6)}, which is not taken. Save it as a plain SVG.`);
     }
     if (attribute === 'href' || attribute === 'xlink:href') {
@@ -444,12 +508,15 @@ function cleanElement(element: SvgElement, root: boolean): { element: SvgElement
       if (attribute === 'xlink:href') xlink = true;
       continue;
     }
-    if (droppedAttribute(attribute) || editorName(attribute)) continue;
+    if (droppedAttribute(attribute) || editorName(attribute)) {
+      removed.add(editorName(attribute) ? editorNotes(attribute) : attribute);
+      continue;
+    }
     if (attribute.includes(':') && attribute !== 'xml:space' && attribute !== 'xml:lang') refuse(`This SVG has the attribute ${attribute}, from a namespace that is not taken.`);
     if (!ATTRIBUTES.has(attribute)) refuse(`This SVG has the attribute ${attribute} on <${name}>, which is not taken.`);
     if (attribute === 'id' && !ID.test(value)) refuse(`This SVG has an id that is not a plain name: "${value.slice(0, 40)}".`);
     if (attribute === 'style') {
-      const style = cleanStyle(value);
+      const style = cleanStyle(value, removed);
       if (style !== null) attributes.push(['style', style]);
       continue;
     }
@@ -462,7 +529,7 @@ function cleanElement(element: SvgElement, root: boolean): { element: SvgElement
       if (TEXT_ELEMENTS.has(name)) children.push(child);
       continue;
     }
-    const kept = cleanElement(child, false);
+    const kept = cleanElement(child, false, removed);
     if (kept === null) continue;
     xlink ||= kept.xlink;
     children.push(kept.element);
@@ -498,12 +565,23 @@ function write(element: SvgElement, out: string[], namespaces: string): void {
   out.push(`</${element.name}>`);
 }
 
+/** A cleaned SVG and what the cleaning took out of it (see {@link Removed}); `removed` is empty when nothing was. */
+export interface CleanedSvg {
+  bytes: Buffer;
+  removed: string[];
+}
+
 /**
  * An SVG, cleaned: read strictly, kept from the allow-list, written again
  * from its tree. Throws {@link SvgRefused} with the sentence the person
  * reads. Cleaning the result again gives the same bytes.
  */
 export function cleanSvg(input: Buffer): Buffer {
+  return cleanSvgReport(input).bytes;
+}
+
+/** As {@link cleanSvg}, saying also what was taken out, so a page can tell the person "We removed …". */
+export function cleanSvgReport(input: Buffer): CleanedSvg {
   let text: string;
   try {
     text = new TextDecoder('utf-8', { fatal: true }).decode(input);
@@ -513,11 +591,12 @@ export function cleanSvg(input: Buffer): Buffer {
   // XML's own line-end handling, before anything is read.
   text = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const tree = new Reader(text).read();
-  const cleaned = cleanElement(tree, true);
+  const removed = new Removed();
+  const cleaned = cleanElement(tree, true, removed);
   if (cleaned === null) refuse('This is not an SVG drawing.');
   const out: string[] = [];
   write(cleaned.element, out, ` xmlns="${SVG_NS}"${cleaned.xlink ? ` xmlns:xlink="${XLINK_NS}"` : ''}`);
-  return Buffer.from(out.join(''), 'utf8');
+  return { bytes: Buffer.from(out.join(''), 'utf8'), removed: removed.list() };
 }
 
 /** Whether a stored file's (sniffed) type is SVG. */
