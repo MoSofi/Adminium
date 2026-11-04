@@ -5907,6 +5907,13 @@ A guest who found their order again reads its lines, each with the code of the d
 of this app has answers an empty list, and counts as a guess. The code is never shown back, and a
 shared link's code is never looked up this way. Needs Adminium 0.3.43.
 
+Such a read may show [personal](#column-rules) columns it selects (a shopper's words on the
+design) when the code is 16 characters long (`length: 16`): that is 80 bits of secret, as hard to
+find by trying as a shared link's, and whoever holds it holds that one row, as a verified claim
+does. A shorter code, or a code of another row that unlocks this one (`unlockBy` without `self`),
+shows none: an entry that selects a personal column there is refused where it is written
+(`ENDPOINT_PII_NOT_PROVED`). Needs Adminium 0.3.43.
+
 #### Rows that expire
 
 A table of the add-on's own may let its rows go some days after a moment of theirs:

@@ -32,6 +32,7 @@ import { z } from 'zod';
 
 import type { EffectiveColumn, EffectiveModel } from '../connections/effective-schema.js';
 import { columnPolicyFor } from '../connections/effective-schema.js';
+import { opensByLongOwnCode } from '../crud/code-lookup.js';
 import { ruleDecidedColumns } from '../crud/decided-columns.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
@@ -856,6 +857,8 @@ function visibleColumns(table: ResolvedTable): Set<string> {
  */
 function everyReaderProvesMailbox(def: PublicEndpointDefinition): boolean {
   const verified = def.level === 'verified';
+  // A signed-in read of one row by its own long code: the code is as strong a secret as a verified claim (`opensByLongOwnCode`).
+  if (opensByLongOwnCode(def.unlock_by)) return true;
   if (def.identity !== undefined) return verified || def.identity.strategy === 'email-link';
   if (def.claim !== undefined) return verified && def.claim.optional !== true;
   return verified && def.visible_with !== undefined;
@@ -1642,7 +1645,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
       if (masked.has(column) && !typed.includes(column)) {
         push(
           'ENDPOINT_PII_NOT_PROVED',
-          `"${column}" is marked personal data; it is shown only to a person who proved their mailbox (a verified level, or a sign-in by an emailed link), which this endpoint does not ask`,
+          `"${column}" is marked personal data; it is shown only to a person who proved their mailbox (a verified level, or a sign-in by an emailed link), or to whoever holds the row's own code of 16 characters or more, which this endpoint does not ask`,
           column,
         );
       }
