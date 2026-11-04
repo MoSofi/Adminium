@@ -48,7 +48,9 @@ async function person(harness: Harness, role: 'stock-kit-manager' | 'stock-kit-r
   if (role !== null) await rolesRepo(harness.meta).assignToUser(user.id, (await rolesRepo(harness.meta).findBySlug(role))!.id);
   return user;
 }
-const file = (harness: Harness, path: string, as?: User | null) => harness.inject({ method: 'GET', url: `/add-ons/stock-kit/pages/stock-kit-count/files/${path}`, ...(as === undefined ? {} : { as }) });
+/** One file, as the harness answers (its reply carries the headers too). */
+const file = async (harness: Harness, path: string, as?: User | null) =>
+  (await harness.inject({ method: 'GET', url: `/add-ons/stock-kit/pages/stock-kit-count/files/${path}`, ...(as === undefined ? {} : { as }) })) as Awaited<ReturnType<Harness['inject']>> & { headers: Record<string, string | string[] | undefined> };
 
 describe('a file shipped beside a page\'s code', () => {
   it('is given to somebody whose role opens the page, as what it is', async () => {
