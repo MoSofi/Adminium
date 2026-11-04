@@ -297,6 +297,17 @@ describe.each(LEGS)('Print Shop, reworked, installed with the built Customiser â
     expect([Number(job['design_id']), job['feature']]).toEqual([design.id, 'print-back']);
   });
 
+  it.skipIf(!runs)('prices a delivered order before its address is typed, and still refuses the save without it', async () => {
+    // Asked for only when the order is delivered (`requiredWhen`): the quote fills the address in for itself.
+    const delivered = order([await flyers()], { delivery_method: 'deliver' });
+    const quoted = await quote(CREATE, delivered);
+    expect(quoted.statusCode, quoted.body).toBe(200);
+    expect((quoted.json() as { data: Doc }).data['delivery_band_id']).not.toBeNull();
+    const saved = await create(CREATE, { ...delivered, values: { ...delivered.values, client_key: 'print-install-test-order-0003' } });
+    expect(saved.statusCode, saved.body).toBe(400);
+    expect((saved.json() as { error: { code: string; params: Doc } }).error).toMatchObject({ code: 'PUBLIC_WRITE_REFUSED', params: { column: 'address_line1', reason: 'required' } });
+  });
+
   it.skipIf(built !== null && print !== null)('is skipped: set ADMINIUM_PRINT_REPO to a Print Shop checkout and ADMINIUM_ADD_ONS_REPO to a built add-ons checkout', () => {
     expect(built === null || print === null).toBe(true);
   });

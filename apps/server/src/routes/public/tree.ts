@@ -10,7 +10,7 @@ import { createHmac, hkdfSync } from 'node:crypto';
 
 import type { Dialect, LogicalType } from '@adminium/engine';
 
-import { tableRulesFor, type ColumnCheck } from '../../crud/column-rules.js';
+import { requiredBy, tableRulesFor, type ColumnCheck } from '../../crud/column-rules.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import { TREE_MAX_ROWS, type TreePath } from '../../crud/write-tree.js';
@@ -155,7 +155,14 @@ export function quotePlaceholders(
     ...(rules?.rollupsInto ?? []).flatMap((rollup) => [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column, rollup.latest?.of, rollup.latest?.by].filter((c): c is string => typeof c === 'string')),
     ...(rules?.copies ?? []).map((copy) => copy.via),
   ]);
-  const needed = new Set([...requires, ...(rules?.checks ?? []).filter((check) => check.requiredByRule === true).map((check) => check.column)]);
+  const needed = new Set([
+    ...requires,
+    ...(rules?.checks ?? []).filter((check) => check.requiredByRule === true).map((check) => check.column),
+    // A column another one asks for (`requiredWhen`: a delivered order's address), when the values sent ask for it — the row's default deciding when it is not sent.
+    ...(rules?.checks ?? [])
+      .filter((check) => check.requiredWhen !== undefined && requiredBy(check, Object.prototype.hasOwnProperty.call(values, check.requiredWhen.column) ? values[check.requiredWhen.column] : check.requiredWhenDefault))
+      .map((check) => check.column),
+  ]);
   const out: Row = {};
   for (const column of writable) {
     const resolved = table.columns.get(column);
