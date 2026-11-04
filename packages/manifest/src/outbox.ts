@@ -397,10 +397,11 @@ export const outboxSchema = z
     /**
      * The consent purpose a kind is sent for (`newsletter`, `surveys`). A
      * marketing kind is judged by the consent log's answer for it instead of
-     * the newsletter's; a service kind that names one is still sent to the
-     * do-not-email list, and skipped for a person whose latest answer for it
-     * is "no" (a survey invitation, sent as service mail, never reaches a
-     * person who said no to surveys). From Adminium 0.3.40.
+     * the newsletter's; a service kind that names one is skipped for a
+     * person whose latest answer for it is "no" (a survey invitation, sent as
+     * service mail, never reaches a person who said no to surveys), and, from
+     * Adminium 0.3.42, for an address on the do-not-email list: a purpose
+     * marks the mail as an offer the person may refuse. From Adminium 0.3.40.
      */
     purposes: z.record(z.string().min(1).max(40), z.enum(MAIL_PURPOSES)).optional(),
     /**

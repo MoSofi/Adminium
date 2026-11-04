@@ -34,7 +34,7 @@ import { emailRunsRepo, emailSendsRepo, filesRepo, type MetaDb } from '@adminium
 
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
-import { createMarketingMail, marketingSkipSentence, saidNoSentence, type MarketingMail } from '../email/marketing.js';
+import { createMarketingMail, marketingSkipSentence, saidNoSentence, STOPPED_FOR_PURPOSE_SENTENCE, type MarketingMail } from '../email/marketing.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
 import { campaignMessageId, campaignSendOfReport } from '../email/message-id.js';
 import type { PermanentRefusal } from '../email/refused.js';
@@ -329,13 +329,17 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
         return { templateKey: payload.templateKey, locale: payload.locale, skipped: stopped };
       }
     }
-    // A service mail sent for a purpose (a survey invitation) asks the person's answer for it once more: never the list.
+    // A service mail sent for a purpose (a survey invitation) asks the person's answer for it once more, and the
+    // do-not-email list: an address put on it since the mail was queued is not written to.
     if (envelope.mailClass === 'service' && envelope.objection !== undefined) {
-      const standing = await marketing.consent.stateFor({ person: envelope.objection.person, address: envelope.to.trim().toLowerCase() }, envelope.objection.purpose);
-      if (standing.state === 'no') {
-        if (payload.report !== undefined && deps.onGiveUp !== undefined) await deps.onGiveUp(payload.report, new Error(saidNoSentence(envelope.objection.purpose))).catch(() => undefined);
+      const address = envelope.to.trim().toLowerCase();
+      const standing = await marketing.consent.stateFor({ person: envelope.objection.person, address }, envelope.objection.purpose);
+      const stopped = standing.state !== 'no' && (!PLAIN_RECIPIENT.test(address) || (await marketing.consent.stop.has(address)));
+      if (standing.state === 'no' || stopped) {
+        const why = stopped ? STOPPED_FOR_PURPOSE_SENTENCE : saidNoSentence(envelope.objection.purpose);
+        if (payload.report !== undefined && deps.onGiveUp !== undefined) await deps.onGiveUp(payload.report, new Error(why)).catch(() => undefined);
         ctx.progress(100, { step: 'skipped' });
-        return { templateKey: payload.templateKey, locale: payload.locale, skipped: 'said-no' };
+        return { templateKey: payload.templateKey, locale: payload.locale, skipped: stopped ? 'do-not-email' : 'said-no' };
       }
     }
     // Bytes are read HERE, never at enqueue: the queue row carries

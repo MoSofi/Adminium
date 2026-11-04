@@ -1,5 +1,18 @@
 # @adminium/desktop
 
+## 0.3.42
+
+### Patch Changes
+
+- Updated dependencies [0a214d7]
+- Updated dependencies [599d1f5]
+- Updated dependencies [d21c391]
+- Updated dependencies [170a7a3]
+  - @adminium/server@0.3.42
+  - @adminium/adapter-mysql@0.3.42
+  - @adminium/adapter-postgres@0.3.42
+  - @adminium/adapter-sqlite@0.3.42
+
 ## 0.3.41
 
 ### Patch Changes

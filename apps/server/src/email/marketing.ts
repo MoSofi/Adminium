@@ -8,7 +8,10 @@
  * Only marketing mail (`mailClassOf`, `@adminium/manifest`): an outbox kind or
  * a rule's step an app classes `marketing`, a campaign run marked so. Service
  * mail (a quote, a receipt, a booking) is never stopped and carries none of
- * this; mail to staff (digests, notices, a rule's mail to a person named on
+ * this, except a service kind sent for a consent purpose (a survey's
+ * invitation, an asked-for brochure): it is an offer the person may refuse,
+ * and anyone can type their address into a public form, so it skips their
+ * "no" for that purpose AND the do-not-email list; mail to staff (digests, notices, a rule's mail to a person named on
  * the record) has no class at all.
  *
  * ─── Who it skips: {@link MarketingMail.verdict} ───────────────────────────
@@ -49,7 +52,8 @@
  * ─── A permanent refusal at send time: {@link MarketingMail.bounced} ───────
  * A 5xx from a direct relay that says the address takes no mail puts it on
  * the do-not-email list (reason `bounce`), for mail of either class: the
- * list stops marketing mail only, so a receipt still tries next time.
+ * list stops marketing mail (and service mail sent for a purpose) only, so a
+ * receipt still tries next time.
  */
 import {
   notificationsRepo,
@@ -180,12 +184,18 @@ export interface MarketingMail {
 
 /**
  * Why a service mail sent for a consent purpose (a survey invitation) is not
- * sent: the person's latest answer for that purpose is "no". The
- * do-not-email list never stops service mail; this does.
+ * sent: the person's latest answer for that purpose is "no".
  */
 export function saidNoSentence(purpose: ConsentPurpose): string {
   return purpose === 'surveys' ? 'Not sent: they said no to surveys' : 'Not sent: they said no to the newsletter';
 }
+
+/**
+ * Why a service mail sent for a consent purpose is not sent: its address is on
+ * the do-not-email list (or is not one plain address the list could be asked
+ * by). A receipt, which names no purpose, never reads this.
+ */
+export const STOPPED_FOR_PURPOSE_SENTENCE = 'Not sent: on the do-not-email list';
 
 /** The kind of the notice a refused marketing send tells the e-mail managers. */
 export const MARKETING_REFUSED_NOTICE_KIND = 'email.marketing-refused';

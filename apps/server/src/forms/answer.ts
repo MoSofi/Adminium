@@ -81,7 +81,7 @@ import type { FormsFiles, QuestionFiles } from './files.js';
 import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from './invitation.js';
 import { confirmAddressHash, confirmKey, makeConfirmToken } from './confirm-token.js';
 import { alertLimit, answerReaders, formsMailBlocked, holdersOf, sendConfirmMail, tellStaff, toldBy, type AnswersAt } from './mail.js';
-import type { FormsScopes, FormsTable } from './scope.js';
+import { openedTable, type FormsScopes, type FormsTable } from './scope.js';
 import { businessToday } from './view.js';
 import type { ListedWebsites } from './websites.js';
 
@@ -631,7 +631,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       return { state: 'unavailable' };
     };
     const scope = await deps.scopes.scopeFor(live.connectionId, live.addOn);
-    const opened = scope.tables.get(becomes.table);
+    const opened = openedTable(scope, becomes.table);
     if (opened === undefined) return broken('the table is not opened to forms');
     // The part of the app the entry belongs to, and the settings it needs: closed while off.
     if (!(await appPartIsOn(meta, opened.appKey, opened.entry.module ?? null))) return { state: 'closed' };

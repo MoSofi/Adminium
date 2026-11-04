@@ -52,6 +52,22 @@ export async function recipientPerson(
   return { ref: { connectionId: box.connectionId, table: table.id, key: pkLabel(table, { [key]: record[key] }) }, record };
 }
 
+/**
+ * The person a survey invitation names (`person_table`, `person_key`), with
+ * their own row: who a survey's marketing mail is judged on. The invitation
+ * row itself is nobody's: a yes kept on the contact, and the contact's
+ * standing as an existing customer, are the contact's. Null when the row is
+ * not there any more.
+ */
+export async function invitedPerson(ctx: { db: Kysely<SourceDatabase>; view: SnapshotView }, ref: ConsentPerson): Promise<{ ref: ConsentPerson; record: Row } | null> {
+  try {
+    const record = await rowOf(ctx.db, ctx.view, ref.table, ref.key);
+    return record === null ? null : { ref, record };
+  } catch {
+    return null;
+  }
+}
+
 /** Whether a "who counts as a customer" value says yes: true, or a number above nought. */
 export function isCustomer(value: unknown): boolean {
   if (value === true || value === 1) return true;
