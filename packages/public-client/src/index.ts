@@ -951,7 +951,7 @@ export interface UploadedFile {
   /** The name kept: cleaned of paths and control characters. */
   name: string;
   size: number;
-  /** What the file's bytes were found to be: `jpg`, `png`, `pdf`, `text` or `tiff`. */
+  /** What the file's bytes were found to be: `jpg`, `png`, `pdf`, `text`, `tiff` or `svg` (kept cleaned). */
   kind: string;
 }
 
