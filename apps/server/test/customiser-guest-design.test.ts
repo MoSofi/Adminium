@@ -150,7 +150,7 @@ describe.each(LEGS)("a customer's design in the built Customiser, from saved to 
     return served.composed.app.inject({ method: 'POST', url: `/api/v1/public/records/${ref}`, remoteAddress: address, headers, payload });
   };
   /** One file sent as a page sends it, the body the file: through the link with its session, or through the shop's key with a proof. */
-  const upload = async (through: Served, at: string, column: string, body: Buffer, opts: { session?: string; name: string; type: string }) => {
+  const upload = async (through: Served, at: string, column: string, body: Buffer, opts: { session?: string | undefined; name: string; type: string }) => {
     const address = fresh();
     const extra = opts.session === undefined ? { 'x-adminium-proof': await proof('upload', address) } : {};
     return through.composed.app.inject({
