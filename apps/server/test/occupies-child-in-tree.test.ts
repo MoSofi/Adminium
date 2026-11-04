@@ -34,7 +34,7 @@ for (const [dialect, available] of ENGINES) {
     const count = async (table: string) => Number((await w.rows(`select count(*) as n from ${table}`))[0]!['n']);
     const counts = async () => [await count('batches'), await count('machine_bookings'), await count('stock_movements')];
     /** A batch on the laser from `from` to `to` (UTC, 6 August), with its booking and the sheet it takes. */
-    const batch = (label: string, from: string, to: string) => ({
+    const batch = (label: string, from: string, to: string): { values: Record<string, unknown>; children: Record<string, { values: Record<string, unknown> }[]> } => ({
       values: { machine_id: 1, label },
       children: {
         [list('machine_bookings')]: [{ values: { machine_id: 1, starts_at: `2026-08-06T${from}:00Z`, ends_at: `2026-08-06T${to}:00Z` } }],
