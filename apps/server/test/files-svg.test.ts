@@ -301,6 +301,8 @@ describe('a cleaned SVG', () => {
     const report = cleanSvgReport(Buffer.from(dirty, 'utf8'));
     expect(report.removed).toEqual(['class', 'onload', '<metadata>', '<script>', 'data-id', 'aria-hidden', 'onclick', '-webkit-x']);
     expect(report.bytes.equals(cleanSvg(Buffer.from(dirty, 'utf8')))).toBe(true);
+    // An editor's element alone is its notes too.
+    expect(removed(`<svg ${S} xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"><sodipodi:namedview/><rect width="1"/></svg>`)).toEqual(['sodipodi:*']);
     // Nothing taken out: nothing said.
     expect(removed(`<svg ${S}><rect width="1"/></svg>`)).toEqual([]);
     // A drawing made to say a great deal is told of up to a bound, and cleaned all the same.
