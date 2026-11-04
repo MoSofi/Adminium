@@ -187,11 +187,39 @@ export const DESIGN_KIT_FILES: Record<string, string> = {
   'dist/panel.js': 'export default function DesignPanel() { return null; }\n',
 };
 
-export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean; link?: boolean } = {}): Record<string, unknown> {
+/** The most bytes a shop's own outline or font may be, as the Customiser's columns say. */
+export const SHOP_FILE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * A shop's own files, added by `{ uploads: true }`: a base's outline (an SVG,
+ * cleaned as it comes in), the fonts a shop uploads (WOFF2), and the paid
+ * features an app sets a price for (`features`, which an app's option rows
+ * link to). Each file column has the add-on's own rule, as the Customiser's.
+ */
+function withUploads(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: { ref: string; columns: unknown[] }[] };
+  const tables = schema.tables.map((table) =>
+    table.ref === 'bases' ? { ...table, columns: [...table.columns, { ref: 'outline_file', type: 'text', maxLength: 64, nullable: true, rules: { file: { accept: ['svg'], maxBytes: SHOP_FILE_BYTES } } }] } : table,
+  );
+  return {
+    ...manifest,
+    requiredSchema: {
+      ...schema,
+      tables: [
+        ...tables,
+        { ref: 'fonts', columns: [pk, { ref: 'family', type: 'text', maxLength: 80 }, { ref: 'file', type: 'text', maxLength: 64, nullable: true, rules: { file: { accept: ['woff2'], maxBytes: SHOP_FILE_BYTES } } }] },
+        { ref: 'features', columns: [pk, { ref: 'code', type: 'text', maxLength: 40 }, { ref: 'name', type: 'text', maxLength: 80 }] },
+      ],
+    },
+  };
+}
+
+export function designKitManifest(over: Record<string, unknown> = {}, opts: { checker?: boolean; panel?: boolean; link?: boolean; uploads?: boolean } = {}): Record<string, unknown> {
   let made = designKitBase(over);
   if (opts.checker === true) made = withChecker(made);
   if (opts.panel === true) made = withPanel(made);
   if (opts.link === true) made = withLink(made);
+  if (opts.uploads === true) made = withUploads(made);
   return made;
 }
 
@@ -298,11 +326,65 @@ function withLookup(manifest: Record<string, unknown>): Record<string, unknown> 
   };
 }
 
+/**
+ * The shop's price for each of the kit's paid features, and two roles, added
+ * by `{ prices: true }` (with a kit built `{ uploads: true }`). An option row
+ * names a feature by a link into the kit's features (`addOnLink`) and holds
+ * its price, and what it costs the shop, which no designer reads. A
+ * designer sets up the kit's bases and fonts (their files too) and reads each
+ * feature's price; a reader reads the bases and fonts and changes nothing.
+ */
+function withPrices(manifest: Record<string, unknown>): Record<string, unknown> {
+  const schema = manifest['requiredSchema'] as { tables: Record<string, unknown>[] };
+  return {
+    ...manifest,
+    requiredSchema: {
+      ...schema,
+      tables: [
+        ...schema.tables,
+        {
+          ref: 'options',
+          columns: [
+            pk,
+            { ref: 'name', type: 'text', maxLength: 80 },
+            { ref: 'feature_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: DESIGN_KIT, table: 'features' } } },
+            { ref: 'price', type: 'decimal', scale: 2, default: 0 },
+            { ref: 'cost', type: 'decimal', scale: 2, default: 0 },
+          ],
+        },
+      ],
+    },
+    roles: [
+      {
+        key: 'designer',
+        name: 'Designer',
+        permissions: ['table:@options:read'],
+        limits: { options: { readable: ['feature_id', 'price'] } },
+        tables: [
+          { addOn: DESIGN_KIT, table: 'bases', actions: ['read', 'update'] },
+          { addOn: DESIGN_KIT, table: 'fonts', actions: ['read', 'create', 'update'] },
+          { addOn: DESIGN_KIT, table: 'features', actions: ['read'] },
+        ],
+      },
+      {
+        key: 'reader',
+        name: 'Reader',
+        tables: [
+          { addOn: DESIGN_KIT, table: 'bases', actions: ['read'] },
+          { addOn: DESIGN_KIT, table: 'fonts', actions: ['read'] },
+          { addOn: DESIGN_KIT, table: 'features', actions: ['read'] },
+        ],
+      },
+    ],
+  };
+}
+
 /** A shop that sells products in orders whose lines may name a design of the kit by its code. */
-export function designShopManifest(key: 'printing' | 'maker', over: Record<string, unknown> = {}, opts: { check?: boolean; lookup?: boolean } = {}): Record<string, unknown> {
+export function designShopManifest(key: 'printing' | 'maker', over: Record<string, unknown> = {}, opts: { check?: boolean; lookup?: boolean; prices?: boolean } = {}): Record<string, unknown> {
   let made = designShopBase(key, over);
   if (opts.check === true) made = withCheck(made);
   if (opts.lookup === true) made = withLookup(made);
+  if (opts.prices === true) made = withPrices(made);
   return made;
 }
 
