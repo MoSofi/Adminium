@@ -78,6 +78,12 @@ let imported: string[] = [];
 let restore: () => void = () => undefined;
 beforeEach(() => {
   imported = [];
+  // The pinning preload is the browser's to fetch: the test DOM would try the address for real.
+  const append = document.head.append.bind(document.head);
+  vi.spyOn(document.head, 'append').mockImplementation((...nodes) => {
+    const kept = nodes.filter((node) => !(node instanceof HTMLLinkElement && node.rel === 'modulepreload'));
+    if (kept.length > 0) append(...kept);
+  });
   restore = setAddOnModuleImporter(async (url) => {
     imported.push(url);
     if (url.includes('broken')) throw new Error('integrity');
@@ -86,6 +92,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   restore();
   forgetAddOnModules();
   saveAddOnSettings.mockClear();
